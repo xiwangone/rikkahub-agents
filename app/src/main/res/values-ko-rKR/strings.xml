@@ -2809,6 +2809,13 @@
   <string name="chat_nerd_output_tokens">%1$s 출력</string>
   <string name="chat_nerd_message_total">메시지 합계</string>
   <string name="chat_nerd_latest_usage">최근 요청: 입력 %1$s · 출력 %2$s</string>
+  <string name="chat_message_usage_title">사용량 세부정보</string>
+  <string name="chat_message_usage_open">사용량 세부정보 열기</string>
+  <string name="chat_message_usage_close">사용량 세부정보 닫기</string>
+  <string name="chat_message_usage_expanded">펼쳐짐</string>
+  <string name="chat_message_usage_collapsed">접힘</string>
+  <string name="chat_message_usage_last_request">최근 요청</string>
+  <string name="chat_message_usage_uncached_input">캐시되지 않은 입력</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="one">모델 요청 %1$d회</item>
     <item quantity="other">모델 요청 %1$d회</item>

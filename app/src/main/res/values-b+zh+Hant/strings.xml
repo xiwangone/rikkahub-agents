@@ -3352,6 +3352,13 @@
   <string name="chat_nerd_output_tokens">%1$s 輸出</string>
   <string name="chat_nerd_message_total">訊息總計</string>
   <string name="chat_nerd_latest_usage">最近請求：%1$s 輸入 · %2$s 輸出</string>
+  <string name="chat_message_usage_title">用量詳情</string>
+  <string name="chat_message_usage_open">開啟用量詳情</string>
+  <string name="chat_message_usage_close">關閉用量詳情</string>
+  <string name="chat_message_usage_expanded">已展開</string>
+  <string name="chat_message_usage_collapsed">已收起</string>
+  <string name="chat_message_usage_last_request">最近請求</string>
+  <string name="chat_message_usage_uncached_input">未快取輸入</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="one">%1$d 次模型請求</item>
     <item quantity="other">%1$d 次模型請求</item>

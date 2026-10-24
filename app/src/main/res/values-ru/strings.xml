@@ -2804,6 +2804,13 @@
   <string name="chat_nerd_output_tokens">%1$s вывод</string>
   <string name="chat_nerd_message_total">Итого по сообщению</string>
   <string name="chat_nerd_latest_usage">Последний запрос: вход %1$s · выход %2$s</string>
+  <string name="chat_message_usage_title">Сведения об использовании</string>
+  <string name="chat_message_usage_open">Открыть сведения об использовании</string>
+  <string name="chat_message_usage_close">Закрыть сведения об использовании</string>
+  <string name="chat_message_usage_expanded">Развёрнуто</string>
+  <string name="chat_message_usage_collapsed">Свёрнуто</string>
+  <string name="chat_message_usage_last_request">Последний запрос</string>
+  <string name="chat_message_usage_uncached_input">Ввод без кэша</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="one">%1$d запрос модели</item>
     <item quantity="few">%1$d запроса модели</item>

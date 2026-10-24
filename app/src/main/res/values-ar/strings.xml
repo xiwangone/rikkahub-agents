@@ -2375,6 +2375,13 @@
   <string name="chat_nerd_output_tokens">%1$s إخراج</string>
   <string name="chat_nerd_message_total">إجمالي الرسالة</string>
   <string name="chat_nerd_latest_usage">آخر طلب: إدخال %1$s · إخراج %2$s</string>
+  <string name="chat_message_usage_title">تفاصيل الاستخدام</string>
+  <string name="chat_message_usage_open">فتح تفاصيل الاستخدام</string>
+  <string name="chat_message_usage_close">إغلاق تفاصيل الاستخدام</string>
+  <string name="chat_message_usage_expanded">موسّع</string>
+  <string name="chat_message_usage_collapsed">مطوي</string>
+  <string name="chat_message_usage_last_request">آخر طلب</string>
+  <string name="chat_message_usage_uncached_input">إدخال غير مخزّن مؤقتًا</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="zero">%1$d طلب نموذج</item>
     <item quantity="one">طلب نموذج واحد</item>

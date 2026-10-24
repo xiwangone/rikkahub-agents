@@ -20,13 +20,19 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -38,6 +44,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
@@ -68,6 +76,7 @@ import java.time.Duration
 /**
  * 显示消息的技术统计信息（如 token 使用量）
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatMessageNerdLine(
     message: UIMessage,
@@ -93,6 +102,80 @@ fun ChatMessageNerdLine(
                 }
                 val usage = usagePresentation.messageTotal
                 if (settings.showTokenUsage && usage != null) {
+                    val latestUsageForDetails =
+                        usagePresentation.latestRequest
+                            ?: usage.takeIf { usagePresentation.multipleModelRequestCount == null }
+                    val configuredContextWindow = appSettings.contextWindowSize.takeIf { it > 0L }
+                    val modelContextWindow =
+                        appSettings.providers
+                            .flatMap { it.models }
+                            .firstOrNull { it.id == message.modelId }
+                            ?.contextLength
+                            ?.takeIf { it > 0 }
+                            ?.toLong()
+                    val contextWindowTokens = configuredContextWindow ?: modelContextWindow
+                    val detailsDurationMillis =
+                        message.finishedAt?.let { finishedAt ->
+                            (message.generationTimeMs
+                                ?: Duration.between(
+                                    message.createdAt.toJavaLocalDateTime(),
+                                    finishedAt.toJavaLocalDateTime(),
+                                ).toMillis())
+                                .takeIf { it > 0L }
+                        }
+                    val tooltipState = rememberTooltipState(isPersistent = true)
+                    val tooltipScope = rememberCoroutineScope()
+                    val tooltipVisible = tooltipState.isVisible
+                    val tooltipActionLabel =
+                        stringResource(
+                            if (tooltipVisible) R.string.chat_message_usage_close else R.string.chat_message_usage_open,
+                        )
+                    val tooltipStateDescription =
+                        stringResource(
+                            if (tooltipVisible) R.string.chat_message_usage_expanded else R.string.chat_message_usage_collapsed,
+                        )
+                    TooltipBox(
+                        positionProvider = TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above),
+                        tooltip = {
+                            RichTooltip(
+                                title = { Text(stringResource(R.string.chat_message_usage_title)) },
+                            ) {
+                                MessageUsageDetails(
+                                    totalUsage = usage,
+                                    latestRequestUsage = latestUsageForDetails,
+                                    multipleModelRequestCount = usagePresentation.multipleModelRequestCount,
+                                    contextWindowTokens = contextWindowTokens,
+                                    durationMillis = detailsDurationMillis,
+                                )
+                            }
+                        },
+                        state = tooltipState,
+                        enableUserInput = false,
+                    ) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = tooltipActionLabel,
+                                    ) {
+                                        tooltipScope.launch {
+                                            if (tooltipState.isVisible) {
+                                                tooltipState.dismiss()
+                                            } else {
+                                                tooltipState.show()
+                                            }
+                                        }
+                                    }
+                                    .sizeIn(minHeight = 48.dp)
+                                    .semantics {
+                                        stateDescription = tooltipStateDescription
+                                    }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                ) {
                     if (usagePresentation.multipleModelRequestCount != null) {
                         Text(text = stringResource(R.string.chat_nerd_message_total))
                     }
@@ -181,6 +264,8 @@ fun ChatMessageNerdLine(
                                 Text(text = "${seconds}s")
                             },
                         )
+                        }
+                    }
                         }
                     }
                     // 一键复制统计信息（与截图格式一致，方便直接粘贴给 AI 分析）

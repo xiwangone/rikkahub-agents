@@ -3362,6 +3362,13 @@
   <string name="chat_nerd_output_tokens">%1$s output</string>
   <string name="chat_nerd_message_total">Message total</string>
   <string name="chat_nerd_latest_usage">Last request: %1$s input · %2$s output</string>
+  <string name="chat_message_usage_title">Usage details</string>
+  <string name="chat_message_usage_open">Open usage details</string>
+  <string name="chat_message_usage_close">Close usage details</string>
+  <string name="chat_message_usage_expanded">Expanded</string>
+  <string name="chat_message_usage_collapsed">Collapsed</string>
+  <string name="chat_message_usage_last_request">Latest request</string>
+  <string name="chat_message_usage_uncached_input">Uncached input</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="one">%1$d model request</item>
     <item quantity="other">%1$d model requests</item>

@@ -2809,6 +2809,13 @@
   <string name="chat_nerd_output_tokens">%1$s 出力</string>
   <string name="chat_nerd_message_total">メッセージ合計</string>
   <string name="chat_nerd_latest_usage">最新リクエスト：%1$s 入力 · %2$s 出力</string>
+  <string name="chat_message_usage_title">使用量の詳細</string>
+  <string name="chat_message_usage_open">使用量の詳細を開く</string>
+  <string name="chat_message_usage_close">使用量の詳細を閉じる</string>
+  <string name="chat_message_usage_expanded">展開されています</string>
+  <string name="chat_message_usage_collapsed">折りたたまれています</string>
+  <string name="chat_message_usage_last_request">最新リクエスト</string>
+  <string name="chat_message_usage_uncached_input">キャッシュされていない入力</string>
   <plurals name="chat_nerd_model_request_count">
     <item quantity="one">%1$d 回のモデルリクエスト</item>
     <item quantity="other">%1$d 回のモデルリクエスト</item>
