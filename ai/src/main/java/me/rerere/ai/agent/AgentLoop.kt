@@ -213,7 +213,19 @@ internal class AgentLoop(
                         }
                         // Delivery failures are latched by events and excluded from retryPolicy.
                         // Never replay a model request to repair a broken downstream collector.
-                        preview(attempt.withStepStats(base, mark.elapsedNow()), newPartsFrom = base.parts.size)
+                        // 预览阶段不提交本请求的 usage/stepCount：只有流正常跑完（下面的 withStepStats）才算完成，
+                        // 取消/失败/重试中的尝试只算 preview。
+                        preview(
+                            attempt.copy(
+                                usage = base.usage,
+                                lastUsage = base.lastUsage,
+                                stepCount = base.stepCount,
+                                generationTimeMs = (base.generationTimeMs ?: 0L) + mark.elapsedNow().inWholeMilliseconds,
+                                finishedAt = base.finishedAt,
+                                finishReason = base.finishReason,
+                            ),
+                            newPartsFrom = base.parts.size,
+                        )
                     }
                 events.throwIfFailed()
                 attempt.withStepStats(
