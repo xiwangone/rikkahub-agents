@@ -4102,4 +4102,18 @@
     <string name="floating_chat_needs_answer">대화에서 답변해 주세요</string>
     <string name="floating_chat_usage">사용량 · 입력 %1$d / 출력 %2$d / 합계 %3$d</string>
     <string name="floating_chat_answer_in_conversation">대화를 열어 답변</string>
+
+  <string name="media_creation_page_selected_count">%1$d개 선택됨</string>
+  <string name="media_creation_page_select">선택</string>
+  <string name="media_creation_page_exit_selection">선택 종료</string>
+  <string name="media_creation_page_select_all">모두 선택</string>
+  <string name="media_creation_page_deselect_all">모두 선택 해제</string>
+  <string name="media_creation_page_save">저장</string>
+  <string name="media_creation_page_saving">저장 중…</string>
+  <string name="media_creation_page_delete_selected_text">선택한 항목 %1$d개와 모든 버전 및 생성된 파일이 영구 삭제됩니다. 실행 중인 작업의 결과도 더 이상 가져오지 않습니다.</string>
+  <string name="media_creation_page_nothing_to_save">선택한 항목에 저장할 이미지나 동영상이 없습니다.</string>
+  <string name="media_creation_page_saved_files">갤러리에 파일 %1$d개를 저장했습니다</string>
+  <string name="media_creation_page_saved_files_partial">파일 %1$d개 저장됨, %2$d개 실패: %3$s</string>
+  <string name="media_creation_page_delete_failed">선택한 항목을 삭제하지 못했습니다</string>
+  <string name="setting_provider_page_google_interactions_api">Gemini Interactions API(베타)</string>
 </resources>

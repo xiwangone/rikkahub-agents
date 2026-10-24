@@ -120,6 +120,29 @@ class MediaCreationRepository(
 
     suspend fun hasNode(id: Uuid): Boolean = dao.getNode(id.toString()) != null
 
+    /** 时间线上每一项当前显示的版本，从最早的一项排起。 */
+    suspend fun getSelectedRecordsOfSession(sessionId: Uuid): List<MediaCreationRecord> =
+        dao.getSelectedRecordsOfSession(sessionId.toString()).map { it.toRecord() }
+
+    /** 指定会话中一项的所有版本；会话不匹配时返回空，避免取消其他会话的生成任务。 */
+    suspend fun getVersionIdsForNodeInSession(sessionId: Uuid, nodeId: Uuid): List<Uuid> =
+        dao.getVersionIdsForNodeInSession(nodeId.toString(), sessionId.toString()).map { Uuid.parse(it) }
+
+    /** 删除时间线上的一项；Room 外键会级联删除其版本，之后清理该项所有版本的文件目录。 */
+    suspend fun deleteNode(sessionId: Uuid, nodeId: Uuid): List<Uuid> {
+        val versions = database.withTransaction {
+            val node = dao.getNode(nodeId.toString()) ?: return@withTransaction emptyList()
+            if (node.sessionId != sessionId.toString()) return@withTransaction emptyList()
+            val ids = dao.getVersionIds(node.id).map { Uuid.parse(it) }
+            dao.deleteNode(node.id)
+            ids
+        }
+        withContext(Dispatchers.IO) {
+            versions.forEach { recordDir(sessionId, it).deleteRecursively() }
+        }
+        return versions
+    }
+
     /**
      * 让一项改为显示相邻的版本，[offset] 为 -1 是上一个、1 是下一个；已经到头时不变。
      */

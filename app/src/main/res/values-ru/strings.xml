@@ -4106,4 +4106,18 @@
     <string name="floating_chat_needs_answer">Ответьте в диалоге</string>
     <string name="floating_chat_usage">Использование · вход %1$d / выход %2$d / всего %3$d</string>
     <string name="floating_chat_answer_in_conversation">Открыть диалог для ответа</string>
+
+  <string name="media_creation_page_selected_count">Выбрано: %1$d</string>
+  <string name="media_creation_page_select">Выбрать</string>
+  <string name="media_creation_page_exit_selection">Выйти из режима выбора</string>
+  <string name="media_creation_page_select_all">Выбрать все</string>
+  <string name="media_creation_page_deselect_all">Снять выделение со всех</string>
+  <string name="media_creation_page_save">Сохранить</string>
+  <string name="media_creation_page_saving">Сохранение…</string>
+  <string name="media_creation_page_delete_selected_text">Выбранные элементы (%1$d), все их версии и созданные файлы будут удалены без возможности восстановления. Результаты ещё выполняющихся задач больше не будут загружаться.</string>
+  <string name="media_creation_page_nothing_to_save">В выбранных элементах нет изображений или видео для сохранения</string>
+  <string name="media_creation_page_saved_files">Сохранено %1$d файлов в галерею</string>
+  <string name="media_creation_page_saved_files_partial">Сохранено %1$d файлов, %2$d не удалось: %3$s</string>
+  <string name="media_creation_page_delete_failed">Не удалось удалить выбранные элементы</string>
+  <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (бета)</string>
 </resources>

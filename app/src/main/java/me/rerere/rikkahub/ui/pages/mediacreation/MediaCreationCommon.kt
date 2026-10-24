@@ -275,8 +275,13 @@ internal suspend fun saveMediaToGallery(context: Context, file: File, mimeType: 
             context.getActivity()?.let { ActivityCompat.requestPermissions(it, arrayOf(permission), 1) }
             error(context.getString(R.string.media_creation_page_storage_permission_required))
         }
-        val target = File(Environment.getExternalStoragePublicDirectory(directory), name)
-        file.copyTo(target, overwrite = true)
+        val target = createUniqueMediaTarget(Environment.getExternalStoragePublicDirectory(directory), name)
+        try {
+            file.inputStream().use { input -> target.outputStream().use { output -> input.copyTo(output) } }
+        } catch (e: Exception) {
+            target.delete()
+            throw e
+        }
         MediaScannerConnection.scanFile(context, arrayOf(target.absolutePath), arrayOf(mimeType), null)
     }
 }

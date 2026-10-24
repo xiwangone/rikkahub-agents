@@ -4098,4 +4098,18 @@
     <string name="floating_chat_needs_answer">请在会话中回答</string>
     <string name="floating_chat_usage">用量 · 输入 %1$d / 输出 %2$d / 总计 %3$d</string>
     <string name="floating_chat_answer_in_conversation">打开会话以回答</string>
+
+  <string name="media_creation_page_selected_count">已选择 %1$d 项</string>
+  <string name="media_creation_page_select">多选</string>
+  <string name="media_creation_page_exit_selection">退出多选</string>
+  <string name="media_creation_page_select_all">全选</string>
+  <string name="media_creation_page_deselect_all">取消全选</string>
+  <string name="media_creation_page_save">保存</string>
+  <string name="media_creation_page_saving">保存中…</string>
+  <string name="media_creation_page_delete_selected_text">选中的 %1$d 项会连同它们的所有版本和生成的文件一起永久删除。其中仍在运行的任务将不再获取结果。</string>
+  <string name="media_creation_page_nothing_to_save">选中的项里没有可以保存的图片或视频</string>
+  <string name="media_creation_page_saved_files">已保存 %1$d 个文件到相册</string>
+  <string name="media_creation_page_saved_files_partial">已保存 %1$d 个文件，%2$d 个失败：%3$s</string>
+  <string name="media_creation_page_delete_failed">无法删除所选项目</string>
+  <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（测试版）</string>
 </resources>

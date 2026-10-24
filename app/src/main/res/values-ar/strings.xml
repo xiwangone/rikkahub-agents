@@ -4109,4 +4109,18 @@
     <string name="floating_chat_needs_answer">يرجى الإجابة في المحادثة</string>
     <string name="floating_chat_usage">الاستخدام · إدخال %1$d / إخراج %2$d / الإجمالي %3$d</string>
     <string name="floating_chat_answer_in_conversation">افتح المحادثة للإجابة</string>
+
+  <string name="media_creation_page_selected_count">تم تحديد %1$d</string>
+  <string name="media_creation_page_select">تحديد</string>
+  <string name="media_creation_page_exit_selection">إنهاء التحديد</string>
+  <string name="media_creation_page_select_all">تحديد الكل</string>
+  <string name="media_creation_page_deselect_all">إلغاء تحديد الكل</string>
+  <string name="media_creation_page_save">حفظ</string>
+  <string name="media_creation_page_saving">جارٍ الحفظ…</string>
+  <string name="media_creation_page_delete_selected_text">سيتم حذف العناصر المحددة (%1$d) وجميع إصداراتها والملفات المولّدة لها نهائيًا. لن يتم جلب نتائج المهام التي لا تزال قيد التشغيل بعد الآن.</string>
+  <string name="media_creation_page_nothing_to_save">لا تحتوي العناصر المحددة على صور أو مقاطع فيديو لحفظها</string>
+  <string name="media_creation_page_saved_files">تم حفظ %1$d من الملفات في المعرض</string>
+  <string name="media_creation_page_saved_files_partial">تم حفظ %1$d من الملفات، وفشل %2$d: %3$s</string>
+  <string name="media_creation_page_delete_failed">تعذر حذف العناصر المحددة</string>
+  <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (تجريبي)</string>
 </resources>

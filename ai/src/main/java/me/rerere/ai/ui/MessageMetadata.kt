@@ -52,6 +52,8 @@ enum class ServerToolProtocol {
     ANTHROPIC_MESSAGES,
     @SerialName("google_generate_content")
     GOOGLE_GENERATE_CONTENT,
+    @SerialName("google_interactions")
+    GOOGLE_INTERACTIONS,
 }
 
 /**
@@ -89,6 +91,13 @@ data class OpenRouterReasoningMetadata(
 @Serializable
 data class GoogleThoughtMetadata(
     val thoughtSignature: String? = null,
+) : PartMetadata
+
+/** Gemini Interactions API 的 thought / function_call 签名；与 generateContent 签名分开保存。 */
+@Serializable
+data class GoogleInteractionsMetadata(
+    @SerialName("interactions_signature")
+    val signature: String? = null,
 ) : PartMetadata
 
 /**
