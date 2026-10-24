@@ -162,7 +162,7 @@ sealed class LocalToolOption {
     data object Tts : LocalToolOption()
 
     @Serializable
-    @SerialName("ask_user")
+    @SerialName(ASK_USER_TOOL_NAME)
     data object AskUser : LocalToolOption()
 
     @Serializable @SerialName("device_info")    data object DeviceInfo     : LocalToolOption()
@@ -786,7 +786,7 @@ class LocalTools(
 
     val askUserTool by lazy {
         Tool(
-            name = "ask_user",
+            name = ASK_USER_TOOL_NAME,
             description = """
                 Ask the user one or more questions (each may offer suggested options) when you
                 need clarification or confirmation. Answers map question IDs to responses.

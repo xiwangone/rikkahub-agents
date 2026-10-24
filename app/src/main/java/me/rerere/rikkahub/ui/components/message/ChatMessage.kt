@@ -395,51 +395,47 @@ private fun MessagePartsBlock(
                                         (it.tool.toolName == "ask_user" && !it.tool.isExecuted)
                                 )
                         }
-                    ChainOfThought(
-                        modifier = Modifier.animateContentSize(),
-                        steps = block.steps,
-                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
-                        forceExpanded = mustRemainVisible,
-                        isRunning = loading,
-                        stepKey = { index, step ->
+                    key(block.startIndex) {
+                        ChainOfThought(
+                            modifier = Modifier.animateContentSize(),
+                            steps = block.steps,
+                            collapsedAdaptiveWidth = isReasoningOnlyBlock,
+                            forceExpanded = mustRemainVisible,
+                            isRunning = loading,
+                            stepKey = ::timelineStepComposeKey,
+                            cardColors =
+                                CardDefaults.cardColors(
+                                    containerColor =
+                                        MaterialTheme.colorScheme.surfaceContainerHigh.copy(
+                                            alpha = settings.displaySetting.bubbleOpacity,
+                                        ),
+                                ),
+                        ) { step ->
                             when (step) {
-                                is ThinkingStep.ReasoningStep -> "reasoning:${step.reasoning.createdAt}"
-                                is ThinkingStep.ToolStep -> step.tool.toolCallId.takeIf { it.isNotBlank() }?.let { "tool:$it" } ?: "tool-index:$index"
-                                is ThinkingStep.ServerToolStep -> step.tool.toolCallId.takeIf { it.isNotBlank() }?.let { "server-tool:$it" } ?: "server-tool-index:$index"
-                            }
-                        },
-                        cardColors =
-                            CardDefaults.cardColors(
-                                containerColor =
-                                    MaterialTheme.colorScheme.surfaceContainerHigh.copy(
-                                        alpha = settings.displaySetting.bubbleOpacity,
-                                    ),
-                            ),
-                    ) { step ->
-                        when (step) {
-                            is ThinkingStep.ReasoningStep -> {
-                                ChatMessageReasoningStep(
-                                    reasoning = step.reasoning,
-                                    model = model,
-                                    assistant = assistant,
-                                    collapsedAdaptiveWidth = isReasoningOnlyBlock,
-                                )
-                            }
+                                is ThinkingStep.ReasoningStep -> {
+                                    ChatMessageReasoningStep(
+                                        reasoning = step.reasoning,
+                                        model = model,
+                                        assistant = assistant,
+                                        collapsedAdaptiveWidth = isReasoningOnlyBlock,
+                                    )
+                                }
 
-                            is ThinkingStep.ToolStep -> {
-                                ChatMessageToolStep(
-                                    tool = step.tool,
-                                    loading = loading && !step.tool.isExecuted,
-                                    onToolApproval = onToolApproval,
-                                    onToolAnswer = onToolAnswer,
-                                )
-                            }
+                                is ThinkingStep.ToolStep -> {
+                                    ChatMessageToolStep(
+                                        tool = step.tool,
+                                        loading = loading && !step.tool.isExecuted,
+                                        onToolApproval = onToolApproval,
+                                        onToolAnswer = onToolAnswer,
+                                    )
+                                }
 
-                            is ThinkingStep.ServerToolStep -> {
-                                ChatMessageServerToolStep(
-                                    tool = step.tool,
-                                    loading = loading && !step.tool.isFinished,
-                                )
+                                is ThinkingStep.ServerToolStep -> {
+                                    ChatMessageServerToolStep(
+                                        tool = step.tool,
+                                        loading = loading && !step.tool.isFinished,
+                                    )
+                                }
                             }
                         }
                     }

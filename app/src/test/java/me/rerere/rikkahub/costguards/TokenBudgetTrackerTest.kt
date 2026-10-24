@@ -174,4 +174,53 @@ class TokenBudgetTrackerTest {
         assertEquals(150L, totals.inputTokens)
         assertEquals(150L, totals.cachedTokens)
     }
+
+    @Test fun `cumulative usage totals billing while latest usage controls context peak and hit rate`() {
+        val message = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = emptyList(),
+            usage = TokenUsage(promptTokens = 300, completionTokens = 30, cachedTokens = 100, totalTokens = 330, cost = 0.4),
+            lastUsage = TokenUsage(promptTokens = 120, completionTokens = 10, cachedTokens = 60, totalTokens = 130, cost = 0.2),
+            stepCount = 2,
+        )
+
+        val totals = TokenBudgetTracker.aggregate(mkConversation(listOf(message)))
+
+        assertEquals(300L, totals.inputTokens)
+        assertEquals(30L, totals.outputTokens)
+        assertEquals(100L, totals.cachedTokens)
+        assertEquals(330L, totals.totalTokens)
+        assertEquals(130L, totals.perMessageMax)
+        assertEquals(0.5, totals.lastRequestHitPct, 1e-9)
+        assertEquals(0.4, totals.costUsd, 1e-9)
+    }
+
+    @Test fun `missing latest request usage does not treat cumulative usage as context peak`() {
+        val message = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = emptyList(),
+            usage = TokenUsage(promptTokens = 300, completionTokens = 30, cachedTokens = 100, totalTokens = 330),
+            stepCount = 2,
+        )
+
+        val totals = TokenBudgetTracker.aggregateMessages(listOf(message))
+
+        assertEquals(300L, totals.inputTokens)
+        assertEquals(330L, totals.totalTokens)
+        assertEquals(0L, totals.perMessageMax)
+        assertEquals(0.0, totals.lastRequestHitPct, 1e-9)
+
+        val earlierRequest = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = emptyList(),
+            usage = TokenUsage(promptTokens = 10, completionTokens = 1, cachedTokens = 5, totalTokens = 11),
+            lastUsage = TokenUsage(promptTokens = 10, completionTokens = 1, cachedTokens = 5, totalTokens = 11),
+            stepCount = 1,
+        )
+        assertEquals(
+            0.0,
+            TokenBudgetTracker.aggregateMessages(listOf(earlierRequest, message)).lastRequestHitPct,
+            1e-9,
+        )
+    }
 }

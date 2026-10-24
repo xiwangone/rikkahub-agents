@@ -31,6 +31,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 
 private const val TAG = "ExaSearchService"
 
+// 搜索服务实现天然按「请求构造 / 结果解析 / 证据裁剪」分组，函数数量不反映复杂度。
+@Suppress("TooManyFunctions")
 object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
     private const val MAX_EVIDENCE_TEXT_CHARACTERS = 8_000
     private const val MAX_EVIDENCE_HIGHLIGHT_CHARACTERS = 1_200
@@ -55,7 +57,7 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
             properties = buildJsonObject {
                 put("query", buildJsonObject {
                     put("type", "string")
-                    put("description", "search keyword")
+                    put("description", SEARCH_QUERY_DESCRIPTION)
                 })
                 put("type", buildJsonObject {
                     put("type", "string")

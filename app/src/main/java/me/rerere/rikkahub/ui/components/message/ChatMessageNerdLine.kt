@@ -5,8 +5,12 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
+import androidx.compose.foundation.layout.safeDrawing
 import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -17,15 +21,22 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.RichTooltip
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TooltipAnchorPosition
+import androidx.compose.material3.TooltipBox
+import androidx.compose.material3.TooltipDefaults
+import androidx.compose.material3.rememberTooltipState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -36,12 +47,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.stateDescription
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.IntOffset
+import androidx.compose.ui.window.PopupPositionProvider
 import kotlinx.coroutines.launch
 import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
@@ -66,6 +86,7 @@ import java.time.Duration
 /**
  * 显示消息的技术统计信息（如 token 使用量）
  */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun ChatMessageNerdLine(
     message: UIMessage,
@@ -86,8 +107,144 @@ fun ChatMessageNerdLine(
                 itemVerticalAlignment = Alignment.CenterVertically,
                 modifier = modifier.padding(horizontal = 4.dp),
             ) {
-                val usage = message.usage
+                val usagePresentation = remember(message.usage, message.lastUsage, message.stepCount) {
+                    message.messageUsagePresentation()
+                }
+                val usage = usagePresentation.messageTotal
                 if (settings.showTokenUsage && usage != null) {
+                    val latestUsageForDetails =
+                        usagePresentation.latestRequest
+                            ?: usage.takeIf { usagePresentation.multipleModelRequestCount == null }
+                    val configuredContextWindow = appSettings.contextWindowSize.takeIf { it > 0L }
+                    val modelContextWindow =
+                        appSettings.providers
+                            .flatMap { it.models }
+                            .firstOrNull { it.id == message.modelId }
+                            ?.contextLength
+                            ?.takeIf { it > 0 }
+                            ?.toLong()
+                    val contextWindowTokens = configuredContextWindow ?: modelContextWindow
+                    val detailsDurationMillis =
+                        message.finishedAt?.let { finishedAt ->
+                            (message.generationTimeMs
+                                ?: Duration.between(
+                                    message.createdAt.toJavaLocalDateTime(),
+                                    finishedAt.toJavaLocalDateTime(),
+                                ).toMillis())
+                                .takeIf { it > 0L }
+                        }
+                    val tooltipState = rememberTooltipState(isPersistent = true)
+                    val tooltipScope = rememberCoroutineScope()
+                    val tooltipVisible = tooltipState.isVisible
+                    val tooltipActionLabel =
+                        stringResource(
+                            if (tooltipVisible) R.string.chat_message_usage_close else R.string.chat_message_usage_open,
+                        )
+                    val tooltipStateDescription =
+                        stringResource(
+                            if (tooltipVisible) R.string.chat_message_usage_expanded else R.string.chat_message_usage_collapsed,
+                        )
+                    val density = LocalDensity.current
+                    val configuration = LocalConfiguration.current
+                    val layoutDirection = LocalLayoutDirection.current
+                    val windowInfo = LocalWindowInfo.current
+                    val safeInsets = WindowInsets.safeDrawing
+                    val leftInset = safeInsets.getLeft(density, layoutDirection)
+                    val topInset = safeInsets.getTop(density)
+                    val rightInset = safeInsets.getRight(density, layoutDirection)
+                    val bottomInset = safeInsets.getBottom(density)
+                    val screenWidth =
+                        windowInfo.containerSize.width.takeIf { it > 0 }
+                            ?: with(density) { configuration.screenWidthDp.dp.roundToPx() }
+                    val screenHeight =
+                        windowInfo.containerSize.height.takeIf { it > 0 }
+                            ?: with(density) { configuration.screenHeightDp.dp.roundToPx() }
+                    val edgeMarginPx = with(density) { 8.dp.roundToPx() }
+                    val safeLeft = leftInset + edgeMarginPx
+                    val safeTop = topInset + edgeMarginPx
+                    val safeRight = (screenWidth - rightInset - edgeMarginPx).coerceAtLeast(safeLeft)
+                    val safeBottom = (screenHeight - bottomInset - edgeMarginPx).coerceAtLeast(safeTop)
+                    val maxTooltipWidth = with(density) { (safeRight - safeLeft).toDp() }
+                    val maxTooltipHeight = with(density) { (safeBottom - safeTop).toDp() }
+                    val maxDetailsHeight = (maxTooltipHeight - 88.dp).coerceAtLeast(0.dp)
+                    val defaultPositionProvider =
+                        TooltipDefaults.rememberTooltipPositionProvider(TooltipAnchorPosition.Above)
+                    val safePositionProvider =
+                        remember(defaultPositionProvider, safeLeft, safeTop, safeRight, safeBottom) {
+                            object : PopupPositionProvider {
+                                override fun calculatePosition(
+                                    anchorBounds: androidx.compose.ui.unit.IntRect,
+                                    windowSize: androidx.compose.ui.unit.IntSize,
+                                    layoutDirection: androidx.compose.ui.unit.LayoutDirection,
+                                    popupContentSize: androidx.compose.ui.unit.IntSize,
+                                ): IntOffset {
+                                    val preferred =
+                                        defaultPositionProvider.calculatePosition(
+                                            anchorBounds,
+                                            windowSize,
+                                            layoutDirection,
+                                            popupContentSize,
+                                        )
+                                    val maxX = (safeRight - popupContentSize.width).coerceAtLeast(safeLeft)
+                                    val maxY = (safeBottom - popupContentSize.height).coerceAtLeast(safeTop)
+                                    return IntOffset(
+                                        x = preferred.x.coerceIn(safeLeft, maxX),
+                                        y = preferred.y.coerceIn(safeTop, maxY),
+                                    )
+                                }
+                            }
+                        }
+                    TooltipBox(
+                        positionProvider = safePositionProvider,
+                        tooltip = {
+                            RichTooltip(
+                                modifier =
+                                    Modifier
+                                        .widthIn(max = maxTooltipWidth)
+                                        .heightIn(max = maxTooltipHeight),
+                                title = { Text(stringResource(R.string.chat_message_usage_title)) },
+                            ) {
+                                MessageUsageDetails(
+                                    totalUsage = usage,
+                                    latestRequestUsage = latestUsageForDetails,
+                                    multipleModelRequestCount = usagePresentation.multipleModelRequestCount,
+                                    contextWindowTokens = contextWindowTokens,
+                                    durationMillis = detailsDurationMillis,
+                                    maxWidth = maxTooltipWidth,
+                                    maxHeight = maxDetailsHeight,
+                                )
+                            }
+                        },
+                        state = tooltipState,
+                        enableUserInput = false,
+                    ) {
+                        FlowRow(
+                            horizontalArrangement = Arrangement.spacedBy(4.dp),
+                            itemVerticalAlignment = Alignment.CenterVertically,
+                            modifier =
+                                Modifier
+                                    .clip(RoundedCornerShape(8.dp))
+                                    .clickable(
+                                        role = Role.Button,
+                                        onClickLabel = tooltipActionLabel,
+                                    ) {
+                                        tooltipScope.launch {
+                                            if (tooltipState.isVisible) {
+                                                tooltipState.dismiss()
+                                            } else {
+                                                tooltipState.show()
+                                            }
+                                        }
+                                    }
+                                    .sizeIn(minHeight = 48.dp)
+                                    .semantics {
+                                        stateDescription = tooltipStateDescription
+                                    }
+                                    .padding(horizontal = 4.dp, vertical = 2.dp),
+                                ) {
+                    if (usagePresentation.multipleModelRequestCount != null) {
+                        Text(text = stringResource(R.string.chat_nerd_message_total))
+                    }
                     // Input tokens
                     StatsItem(
                         icon = {
@@ -175,12 +332,14 @@ fun ChatMessageNerdLine(
                         )
                         }
                     }
+                        }
+                    }
                     // 一键复制统计信息（与截图格式一致，方便直接粘贴给 AI 分析）
                     var pendingCopyText by remember { mutableStateOf("") }
                     Box(
                         modifier =
                             Modifier
-                                .clickable(onClick = {
+                                .clickable(role = Role.Button, onClick = {
                                     val statsText =
                                         buildString {
                                             append("↑${usage.promptTokens.formatNumber()} tokens")
@@ -204,6 +363,7 @@ fun ChatMessageNerdLine(
                                         }
                                     pendingCopyText = statsText
                                 })
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(2.dp),
                     ) {
                         Icon(
@@ -219,8 +379,40 @@ fun ChatMessageNerdLine(
                         }
                     }
                 }
-            }
-            if (sessionTotals != null) {
+                // For a multi-request message use only explicitly recorded lastUsage;
+                // the legacy fallback is safe only when stepCount is zero (one old request).
+                val latestUsage = usagePresentation.latestRequest
+                if (settings.showTokenUsage && usagePresentation.multipleModelRequestCount != null && latestUsage != null) {
+                    StatsItem(
+                        icon = {
+                            Icon(
+                                imageVector = HugeIcons.Upload02,
+                                contentDescription = null,
+                                tint = color,
+                                modifier = Modifier.size(12.dp),
+                            )
+                        },
+                        content = {
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_nerd_latest_usage,
+                                    latestUsage.promptTokens.formatNumber(),
+                                    latestUsage.completionTokens.formatNumber(),
+                                ),
+                            )
+                        },
+                    )
+                }
+                usagePresentation.multipleModelRequestCount?.takeIf { settings.showTokenUsage }?.let { count ->
+                    Text(
+                        text = androidx.compose.ui.res.pluralStringResource(
+                            R.plurals.chat_nerd_model_request_count,
+                            count,
+                            count,
+                        ),
+                    )
+                }
+                if (sessionTotals != null) {
                 var sessionPendingCopy by remember { mutableStateOf("") }
                 Row(
                     modifier = Modifier.padding(top = 2.dp),
@@ -245,10 +437,11 @@ fun ChatMessageNerdLine(
                     Box(
                         modifier =
                             Modifier
-                                .clickable(onClick = {
+                                .clickable(role = Role.Button, onClick = {
                                     sessionPendingCopy =
                                         "↑${sessionTotals.inputTokens.toInt().formatNumber()} tokens (${sessionTotals.cachedTokens.toInt().formatNumber()} cached) ↓${sessionTotals.outputTokens.toInt().formatNumber()} tokens"
                                 })
+                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
                                 .padding(2.dp),
                     ) {
                         Icon(
@@ -266,7 +459,8 @@ fun ChatMessageNerdLine(
                 }
             }
             // 上下文占用：已用 / 窗口 · 已用比例（进度条）。点击可填写窗口大小（选填）
-            val contextUsage = message.usage
+            // Context usage is a per-request prompt size, not cumulative usage across tool turns.
+            val contextUsage = message.lastRequestUsage()
             if (settings.showTokenUsage && contextUsage != null && contextUsage.promptTokens > 0) {
                 val ctxTokens = contextUsage.promptTokens.toLong()
                 // 窗口取手动填写值，其次是模型上报值；两者都没有时只显示占用量。
@@ -414,6 +608,7 @@ fun ChatMessageNerdLine(
             }
         }
     }
+}
 }
 
 // Generation cost is often a tiny fraction of a cent, so a fixed decimal count would show

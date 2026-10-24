@@ -23,6 +23,7 @@ enum class ToolStepStatus {
     COMPLETED,
     FAILED,
     DENIED,
+    INTERRUPTED,
 }
 
 /** Pure status mapping: explicit approval state wins, then execution, then result evidence. */
@@ -33,10 +34,12 @@ internal fun resolveToolStepStatus(
     success: Boolean?,
     exitCode: String?,
     hasError: Boolean,
+    isInterruptedAttempt: Boolean = false,
 ): ToolStepStatus =
     when {
         isDenied -> ToolStepStatus.DENIED
         isPending -> ToolStepStatus.NEEDS_APPROVAL
+        isInterruptedAttempt -> ToolStepStatus.INTERRUPTED
         !isExecuted -> ToolStepStatus.RUNNING
         success == false || (exitCode != null && exitCode != "0") || hasError -> ToolStepStatus.FAILED
         else -> ToolStepStatus.COMPLETED
@@ -80,6 +83,12 @@ fun ToolStatusBadge(
                     R.string.chat_message_tool_denied,
                     colorScheme.errorContainer,
                     colorScheme.onErrorContainer,
+                )
+            ToolStepStatus.INTERRUPTED ->
+                Triple(
+                    R.string.tool_status_interrupted,
+                    colorScheme.surfaceContainerHigh,
+                    colorScheme.onSurfaceVariant,
                 )
         }
     Surface(

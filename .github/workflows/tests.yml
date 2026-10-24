@@ -33,6 +33,8 @@ jobs:
 
       - name: 准备构建环境
         uses: ./.github/actions/setup-build-env
+      - name: 校验新增资源的七语言覆盖（静态检查）
+        run: python3 .github/scripts/check-port-resources.py
       - name: 缓存 Gradle 依赖（libs 变化才重建）
         uses: actions/cache@v4
         with:
@@ -55,7 +57,7 @@ jobs:
           key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
-      - name: 单元测试（:app + :ai + 8 个模块）
+      - name: 单元测试（实际执行 11 个模块，不替代 Android 验收）
         run: |
           chmod +x gradlew
           set -o pipefail
@@ -89,6 +91,7 @@ jobs:
           path: |
             app/build/reports/tests/testDebugUnitTest
             ai/build/reports/tests/testDebugUnitTest
+            common/build/reports/tests/testDebugUnitTest
             document/build/reports/tests/testDebugUnitTest
             highlight/build/reports/tests/testDebugUnitTest
             llama-cpp/build/reports/tests/testDebugUnitTest
@@ -98,3 +101,12 @@ jobs:
             videogen/build/reports/tests/testDebugUnitTest
             web/build/reports/tests/testDebugUnitTest
           retention-days: 7
+
+      - name: 上传真实 JUnit XML（含失败、跳过与测试数量）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-junit-xml
+          path: '**/build/test-results/testDebugUnitTest/TEST-*.xml'
+          retention-days: 14
+          if-no-files-found: error

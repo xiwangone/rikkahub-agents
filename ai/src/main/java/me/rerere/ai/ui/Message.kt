@@ -30,6 +30,10 @@ data class UIMessage(
     val usage: TokenUsage? = null,
     // Cumulative time spent generating streamed responses; null keeps historical JSON compatible.
     val generationTimeMs: Long? = null,
+    // Per-message cumulative usage across model requests; lastUsage is the latest request only.
+    val lastUsage: TokenUsage? = null,
+    // Number of model requests in this assistant message; tool count is intentionally unrelated.
+    val stepCount: Int = 0,
     // 上报的终止原因（stop/length/tool_calls 等）；null = 流结束但模型端未报告，
     // 多为中途断开被伪装成正常关闭——排查「回复截断」的关键线索
     val finishReason: String? = null,
@@ -80,6 +84,12 @@ data class UIMessage(
     fun hasBase64Part(): Boolean = parts.any {
         it is UIMessagePart.Image && it.url.startsWith("data:")
     }
+
+    /** Latest request usage; old messages (without a recorded model step) fall back to legacy usage. */
+    fun lastRequestUsage(): TokenUsage? = lastUsage ?: usage.takeIf { stepCount == 0 }
+
+    /** Prompt plus completion tokens from the most recent request (not cumulative message usage). */
+    fun contextTokens(): Int? = lastRequestUsage()?.let { it.promptTokens + it.completionTokens }
 
     companion object {
         fun system(prompt: String) = UIMessage(

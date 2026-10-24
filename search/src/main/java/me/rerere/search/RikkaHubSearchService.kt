@@ -23,8 +23,7 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
     override val name: String = "RikkaHub"
 
     @Composable
-    override fun Description() {
-    }
+    override fun Description() = Unit
 
     override fun parameters(options: SearchServiceOptions.RikkaHubOptions): InputSchema? =
         InputSchema.Obj(
@@ -34,7 +33,7 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
                         "query",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "search keyword")
+                            put("description", SEARCH_QUERY_DESCRIPTION)
                         },
                     )
                 },

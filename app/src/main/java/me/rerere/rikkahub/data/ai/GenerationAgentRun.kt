@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.isActive
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -28,7 +29,6 @@ import me.rerere.ai.agent.ToolCallScope
 import me.rerere.ai.agent.runAgent
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
-import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderSetting
@@ -117,8 +117,9 @@ internal class GenerationAgentRun(
     private val outputTransformCache = OutputTransformCache()
 
     private var lastOutputFlushAtMs = 0L
-    private var pendingOutputMessages: List<UIMessage>? = null
-    private var reportedUsage: TokenUsage? = null
+    private val pendingOutputFlush = PendingOutputFlush<List<UIMessage>>()
+    // All persisted assistant messages are baselines, including history before a new user turn.
+    private val usageLedger = me.rerere.rikkahub.costguards.CompletedUsageLedger(initialMessages)
 
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
@@ -206,8 +207,10 @@ internal class GenerationAgentRun(
                             onRetryDiagnosed?.invoke(diagnoseFailure(context, event.attempt.cause))
                         }
 
-                        is AgentEvent.Finished -> runCtx.finishReason =
-                            event.message.finishReason ?: runCtx.finishReason
+                        is AgentEvent.Finished -> {
+                            accountCompletedUsage(event.message)
+                            runCtx.finishReason = event.message.finishReason ?: runCtx.finishReason
+                        }
                     }
                 }
                 return
@@ -262,31 +265,9 @@ internal class GenerationAgentRun(
                 throw t
             } finally {
                 // 收尾投递：合并窗口里被跳过的最后一批快照补上（审批状态单调回贴）
-                if (skipFinalDelivery || emitter.failure != null) pendingOutputMessages = null
+                if (skipFinalDelivery || emitter.failure != null) pendingOutputFlush.clear()
                 try {
-                    pendingOutputMessages?.let { pending ->
-                        pendingOutputMessages = null
-                        messages = pending
-                            .transforms(
-                                transformers = outputTransformers,
-                                context = context,
-                                model = model,
-                                assistant = assistant,
-                                settings = settings,
-                            ).mergeApprovalProgress(messages)
-                        emitter.emit(
-                            GenerationChunk.Messages(
-                                messages.visualTransformsIncremental(
-                                    transformers = outputTransformers,
-                                    cache = outputTransformCache,
-                                    context = context,
-                                    model = model,
-                                    assistant = assistant,
-                                    settings = settings,
-                                ),
-                            ),
-                        )
-                    }
+                    flushPendingOutput()
                 } catch (error: Throwable) {
                     emitter.throwIfFailed()
                     if (error is Error || isCancellationFailure(error)) throw error
@@ -297,6 +278,10 @@ internal class GenerationAgentRun(
 
     /** 用户主动停止时的收尾：与正常完成走同一条变换链，让落盘的形状与逐次生成一致 */
     suspend fun finalizeCancellation() {
+        // Cancellation can arrive after a request completed but before the loop's
+        // next boundary/Finished event accounts it. Partial previews keep the prior
+        // stepCount, so this remains idempotent and never bills an interrupted attempt.
+        messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { accountCompletedUsage(it) }
         messages = messages.visualTransformsIncremental(
             transformers = outputTransformers,
             cache = outputTransformCache,
@@ -328,28 +313,10 @@ internal class GenerationAgentRun(
         val previous = messages
         messages = upsertMessage(previous, last)
 
-        // 每次请求的用量单独上报（不受下方 UI 提交节流影响）：见 GenerationChunk.UsageIncurred
-        last.usage?.let { incurred ->
-            if (incurred != reportedUsage) {
-                // 按**请求**累加（与平台账单、会话累计同口径）：一轮里的多步请求各按其**完整** prompt
-                // 计费 —— 第 N 步的 prompt 已含前 N-1 步的历史，这是计费口径、不是重复
-                val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
-                runCtx.promptTokens += stepPromptTokens
-                runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
-                // 单步内先夹一次：缓存命中量不可能超过该步输入量
-                runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
-                incurred.cost?.let { stepCost ->
-                    runCtx.cost += stepCost.coerceAtLeast(0.0)
-                    runCtx.costReported = true
-                }
-                reportedUsage = incurred
-                emitter.emit(GenerationChunk.UsageIncurred(incurred))
-            }
-        }
         val nowFlushMs = android.os.SystemClock.elapsedRealtime()
         if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
             lastOutputFlushAtMs = nowFlushMs
-            pendingOutputMessages = null
+            pendingOutputFlush.clear()
             messages = messages
                 .transforms(
                     transformers = outputTransformers,
@@ -375,8 +342,50 @@ internal class GenerationAgentRun(
             // 审批状态单调：该快照不含本轮写入的审批迁移，回灌时必须回贴，
             // 否则会把 Pending 打回 Auto（审批按钮一闪即没）。
             messages = messages.mergeApprovalProgress(previous)
-            pendingOutputMessages = messages.mergeApprovalProgress(previous)
+            pendingOutputFlush.set(messages.mergeApprovalProgress(previous))
         }
+    }
+
+    /** Deliver the latest coalesced snapshot through the normal transforms and approval merge. */
+    private suspend fun flushPendingOutput() {
+        pendingOutputFlush.flush { pending ->
+            lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
+            messages = pending
+                .transforms(
+                    transformers = outputTransformers,
+                    context = context,
+                    model = model,
+                    assistant = assistant,
+                    settings = settings,
+                ).mergeApprovalProgress(messages)
+            emitter.emit(
+                GenerationChunk.Messages(
+                    messages.visualTransformsIncremental(
+                        transformers = outputTransformers,
+                        cache = outputTransformCache,
+                        context = context,
+                        model = model,
+                        assistant = assistant,
+                        settings = settings,
+                    ),
+                ),
+            )
+        }
+    }
+
+    /** Account each completed request delta; [UIMessage.usage] is already cumulative. */
+    private suspend fun accountCompletedUsage(message: UIMessage) {
+        val incurred = usageLedger.takeDelta(message) ?: return
+        // Each request's full prompt is billable even though later prompts overlap prior context.
+        val stepPromptTokens = incurred.promptTokens.coerceAtLeast(0)
+        runCtx.promptTokens += stepPromptTokens
+        runCtx.completionTokens += incurred.completionTokens.coerceAtLeast(0)
+        runCtx.cachedTokens += incurred.cachedTokens.coerceIn(0, stepPromptTokens)
+        incurred.cost?.let { stepCost ->
+            runCtx.cost += stepCost.coerceAtLeast(0.0)
+            runCtx.costReported = true
+        }
+        emitter.emit(GenerationChunk.UsageIncurred(incurred))
     }
 
     // ── AgentHooks ────────────────────────────────────────────────────────────
@@ -391,6 +400,10 @@ internal class GenerationAgentRun(
             reasoningRepetitionDetector = newReasoningRepetitionDetector()
         }
         outputTransformCache.clear()
+
+        // Tool execution can finish after beforeStep has already run. Flush at the
+        // final boundary before asking the provider for the next step.
+        flushPendingOutput()
 
         // 清零点：丢弃上一次请求（异常/取消路径可能）遗留的引用命中，避免归属串档
         ProviderKeyAudit.reset()
@@ -753,33 +766,11 @@ internal class GenerationAgentRun(
     // 步前决策是一条线性清单（预算/续写/循环/注入），拆分会把同一份口径割裂成多段并增加每次请求的往返。
     @Suppress("LongMethod", "CyclomaticComplexMethod")
     override suspend fun beforeStep(step: StepContext): StepDecision {
+        // The preceding request (and its tools) has completed before this boundary.
+        step.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let { accountCompletedUsage(it) }
         runCtx.steps = step.stepIndex + 1
         outputTransformCache.clear()
-
-        pendingOutputMessages?.let { pending ->
-            pendingOutputMessages = null
-            lastOutputFlushAtMs = android.os.SystemClock.elapsedRealtime()
-            messages = pending
-                .transforms(
-                    transformers = outputTransformers,
-                    context = context,
-                    model = model,
-                    assistant = assistant,
-                    settings = settings,
-                ).mergeApprovalProgress(messages)
-            emitter.emit(
-                GenerationChunk.Messages(
-                    messages.visualTransformsIncremental(
-                        transformers = outputTransformers,
-                        cache = outputTransformCache,
-                        context = context,
-                        model = model,
-                        assistant = assistant,
-                        settings = settings,
-                    ),
-                ),
-            )
-        }
+        flushPendingOutput()
 
         if (step.stepIndex > 0) {
             if (executedToolsLastStep) {
@@ -803,7 +794,9 @@ internal class GenerationAgentRun(
                             ),
                         ),
                     )
-                    pendingOutputMessages = null
+                    // A queued user message replaces this snapshot; do not later publish
+                    // an obsolete pre-injection state.
+                    pendingOutputFlush.clear()
                 }
             }
 
@@ -904,7 +897,7 @@ internal class GenerationAgentRun(
         messages = upsertMessage(messages, withFinishedAt)
         val finished = messages.last()
         emitter.emit(GenerationChunk.Messages(messages))
-        pendingOutputMessages = null
+        pendingOutputFlush.clear()
 
         // 断流续写：服务端没给出结束原因、文本非空且没有待执行工具 → 判定为中途被切断
         val truncatedNoFinish = finished.role == MessageRole.ASSISTANT &&
@@ -938,19 +931,22 @@ private fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputR
  * 按窗口合并相邻的同轨增量：每个 delta 都做一次折叠 + 全量投递，长回复下是 O(n²)。
  * 合并保持顺序与内容完全一致（同一 id 的连续增量拼接成一条），窗口为 0 时逐块透出。
  */
-private fun Flow<StreamChunk>.coalesceStreamDeltas(windowMs: Long): Flow<StreamChunk> = channelFlow {
+internal fun Flow<StreamChunk>.coalesceStreamDeltas(
+    windowMs: Long,
+    clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
+): Flow<StreamChunk> = channelFlow {
     if (windowMs <= 0L) {
         collect { send(it) }
         return@channelFlow
     }
     val buffer = mutableListOf<StreamChunk>()
-    var lastFlushMs = android.os.SystemClock.elapsedRealtime()
+    var lastFlushMs = clock()
     suspend fun flush() {
         if (buffer.isEmpty()) return
         val merged = mergeAdjacentDeltas(buffer)
         buffer.clear()
         merged.forEach { send(it) }
-        lastFlushMs = android.os.SystemClock.elapsedRealtime()
+        lastFlushMs = clock()
     }
     try {
         collect { chunk ->
@@ -961,15 +957,14 @@ private fun Flow<StreamChunk>.coalesceStreamDeltas(windowMs: Long): Flow<StreamC
                 return@collect
             }
             buffer.add(chunk)
-            if (android.os.SystemClock.elapsedRealtime() - lastFlushMs >= windowMs) flush()
+            if (clock() - lastFlushMs >= windowMs) flush()
         }
     } finally {
         // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢
         runCatching { flush() }
     }
 }
-
-private fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
+internal fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
     if (chunks.size < 2) return chunks
     val out = mutableListOf<StreamChunk>()
     for (chunk in chunks) {
