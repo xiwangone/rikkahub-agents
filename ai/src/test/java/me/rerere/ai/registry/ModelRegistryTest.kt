@@ -286,4 +286,16 @@ class ModelRegistryTest {
             installEmptyCatalog()
         }
     }
+
+    @Test
+    fun testLlamaParameterSizeDoesNotSatisfyVersionToken() {
+        val llamaVersionEight = defineModel {
+            tokens("llama", "3", "1", "8")
+        }
+
+        // 3.1 是版本号，但末尾的 8b 是参数规模，不应补足规则所需的版本 token 8。
+        assertFalse(llamaVersionEight.match("llama-3.1-8b"))
+        // 同一 token 在不带参数规模后缀时仍可以作为真正的版本号匹配。
+        assertTrue(llamaVersionEight.match("llama-3.1-8"))
+    }
 }

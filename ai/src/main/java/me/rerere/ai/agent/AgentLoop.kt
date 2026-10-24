@@ -22,13 +22,15 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.Tool
-import me.rerere.ai.core.merge
+import me.rerere.ai.core.sum
 import me.rerere.ai.provider.TextGenerationParams
+import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.handleTextGenerationResult
+import me.rerere.ai.ui.ModelSnapshot
+import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.util.json
 
 // 输出为空的工具会被当成没执行过，之后每一步都会再执行一次，所以换成占位文本
@@ -89,9 +91,8 @@ internal class AgentLoop(
             } else if (!reissueStep && current != null && steps > 0) {
                 return finish(AgentFinishReason.Completed)
             }
-            if (steps == request.maxSteps) return finish(AgentFinishReason.StepLimitReached)
-            generateStep()
-            steps++
+            if (steps >= request.maxSteps) return finish(AgentFinishReason.StepLimitReached)
+            steps += generateStep()
         }
     }
 
@@ -135,7 +136,7 @@ internal class AgentLoop(
         return updated.getTools().filter { it.isPending }.mapTo(LinkedHashSet()) { it.toolCallId }
     }
 
-    private suspend fun generateStep() {
+    private suspend fun generateStep(): Int {
         val current = workingMessage
         val step = hooks.prepareStep(if (current == null) history.toList() else history + current)
         val params = step.params.copy(tools = request.tools)
@@ -152,7 +153,9 @@ internal class AgentLoop(
         } else {
             generate(step.messages, params, base)
         }
-        update(hooks.finishStep(generated, newPartsFrom = base.parts.size).copy(finishedAt = now()))
+        val finished = hooks.finishStep(generated, newPartsFrom = base.parts.size).copy(finishedAt = now())
+        update(finished)
+        return (finished.stepCount - base.stepCount).coerceAtLeast(0)
     }
 
     // 合并失败保留原有包装；下游投递失败由 events 单独锁存并禁止重试。
@@ -166,7 +169,13 @@ internal class AgentLoop(
     ): UIMessage {
         // 多轮工具调用共用同一条助手消息，消息上已有的 usage 和耗时来自之前的步骤。
         // 本步从清空的统计开始，再与之前的步骤合并/累加（见 withStepStats）。
-        val stepStart = base.copy(usage = null, generationTimeMs = null)
+        val stepStart = base.copy(
+            usage = null,
+            lastUsage = null,
+            generationTimeMs = null,
+            finishedAt = null,
+            finishReason = null,
+        )
         var subscriptions = 0
         return try {
             withRetry(retryPolicy, onRetry = { attempt ->
@@ -178,12 +187,43 @@ internal class AgentLoop(
                 hooks.onStreamAttemptReset(subscriptions++)
                 val handler = StreamChunkHandler(params.model)
                 var attempt = stepStart
+                var lastRequestUsage: TokenUsage? = null
+                var sawUsageChunk = false
+                var requestCount = 1
                 var firstChunk: TimeMark? = null
                 hooks.interceptStream(request.provider.streamText(request.providerSetting, messages, params))
                     .collect { chunk ->
+<<<<<<< HEAD
                         val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
                         attempt = try {
                             handler.handle(listOf(attempt), chunk).single()
+=======
+                        try {
+                            val mark = firstChunk ?: TimeSource.Monotonic.markNow().also { firstChunk = it }
+                            if (chunk is StreamChunk.Usage) {
+                                sawUsageChunk = true
+                                lastRequestUsage = if (chunk.latestUsageReported) {
+                                    chunk.lastUsage ?: chunk.usage
+                                } else {
+                                    null
+                                }
+                                requestCount = maxOf(requestCount, chunk.requestCount)
+                            }
+                            attempt = handler.handle(listOf(attempt), chunk).single()
+                            // A preview may be persisted (and survive cancellation). Keep committed
+                            // request counters untouched until this stream completes successfully.
+                            preview(
+                                attempt.copy(
+                                    usage = base.usage,
+                                    lastUsage = base.lastUsage,
+                                    stepCount = base.stepCount,
+                                    generationTimeMs = (base.generationTimeMs ?: 0L) + mark.elapsedNow().inWholeMilliseconds,
+                                    finishedAt = base.finishedAt,
+                                    finishReason = base.finishReason,
+                                ),
+                                newPartsFrom = base.parts.size,
+                            )
+>>>>>>> github/fix/queue-lifecycle-usage-combo-20261024
                         } catch (e: CancellationException) {
                             throw e
                         } catch (e: Throwable) {
@@ -194,8 +234,17 @@ internal class AgentLoop(
                         // Never replay a model request to repair a broken downstream collector.
                         preview(attempt.withStepStats(base, mark.elapsedNow()), newPartsFrom = base.parts.size)
                     }
+<<<<<<< HEAD
                 events.throwIfFailed()
                 attempt.withStepStats(base, firstChunk?.elapsedNow() ?: ZERO)
+=======
+                attempt.withStepStats(
+                    base,
+                    firstChunk?.elapsedNow() ?: ZERO,
+                    lastRequestUsage = if (sawUsageChunk) lastRequestUsage else attempt.usage,
+                    requestCount = requestCount,
+                )
+>>>>>>> github/fix/queue-lifecycle-usage-combo-20261024
             }
         } catch (error: Throwable) {
             // A provider adapter may have caught a downstream cancellation and replaced it
@@ -222,11 +271,23 @@ internal class AgentLoop(
         }
         val requestTime = requestMark.elapsedNow()
         // 和流式一样只追加 part，不并进之前步骤的文本或推理里，否则 newPartsFrom 之后就不全是这一步的内容了。
-        // 一次请求只有一份 usage；没有返回时保持为空，沿用之前步骤的统计
-        val generated = listOf(base)
-            .handleTextGenerationResult(result, params.model)
-            .single()
-            .withStepStats(base, requestTime)
+        // One request contributes one usage snapshot; append its parts without summing the
+        // previous cumulative value into this step before withStepStats does the sum.
+        val generated = base.copy(
+            parts = base.parts + result.message.parts,
+            annotations = result.message.annotations.ifEmpty { base.annotations },
+            modelId = params.model.id,
+            modelSnapshot = ModelSnapshot(params.model.modelId, params.model.displayName),
+            finishedAt = now(),
+            finishReason = result.finishReason,
+            usage = result.usage,
+            lastUsage = result.lastUsage,
+        ).finishReasoning().withStepStats(
+            base,
+            requestTime,
+            lastRequestUsage = result.lastUsage,
+            requestCount = result.requestCount,
+        )
         preview(generated, newPartsFrom = base.parts.size)
         return generated
     }
@@ -363,10 +424,16 @@ internal class AgentLoop(
 private fun errorOutput(error: String): List<UIMessagePart> =
     listOf(UIMessagePart.Text(buildJsonObject { put("error", error) }.toString()))
 
-// 把本步的生成耗时累加到之前步骤上；用量按请求保留（本次上报为准，缺项沿用之前的快照），
-// 跨请求的累计由调用方自己的记账层做，避免双重计数
-private fun UIMessage.withStepStats(stepBase: UIMessage, stepTime: Duration): UIMessage = copy(
-    usage = usage?.let { stepBase.usage.merge(it) } ?: stepBase.usage,
+// 当前 receiver 只含本模型请求的 usage；不同请求累计一次，工具执行不增加 stepCount。
+private fun UIMessage.withStepStats(
+    stepBase: UIMessage,
+    stepTime: Duration,
+    lastRequestUsage: TokenUsage? = usage,
+    requestCount: Int = 1,
+): UIMessage = copy(
+    usage = stepBase.usage.sum(usage),
+    lastUsage = lastRequestUsage,
+    stepCount = stepBase.stepCount + requestCount.coerceAtLeast(1),
     generationTimeMs = (stepBase.generationTimeMs ?: 0L) + stepTime.inWholeMilliseconds,
 )
 

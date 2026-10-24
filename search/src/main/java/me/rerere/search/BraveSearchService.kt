@@ -43,7 +43,7 @@ object BraveSearchService : SearchService<SearchServiceOptions.BraveOptions> {
                         "query",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "search keyword")
+                            put("description", SEARCH_QUERY_DESCRIPTION)
                         },
                     )
                 },

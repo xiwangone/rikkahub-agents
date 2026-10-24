@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
+import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.data.network.SettingsProxyAuthenticator
 import me.rerere.rikkahub.data.network.SettingsProxySelector
 import me.rerere.rikkahub.data.network.SettingsSocks5Authenticator
@@ -264,6 +265,10 @@ val dataSourceModule =
                 context = get(),
                 client = get(),
             )
+        }
+
+        single {
+            ModelsDevUpdater(context = get(), client = get())
         }
 
         // 模型能力外置表（双轨：assets 基线 + 本机覆盖；覆盖语义）

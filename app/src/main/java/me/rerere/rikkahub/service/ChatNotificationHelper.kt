@@ -12,6 +12,8 @@ import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.model.Conversation
+import me.rerere.rikkahub.data.model.GenerationPhase
+import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.utils.cancelNotification
 import me.rerere.rikkahub.utils.sendNotification
 import kotlin.uuid.Uuid
@@ -27,31 +29,76 @@ internal class ChatNotificationHelper(
     private val getConversation: (Uuid) -> Conversation,
     private val liveConversations: MutableSet<Uuid>,
 ) {
-
     fun sendGenerationDoneNotification(
         conversationId: Uuid,
         senderName: String,
+        replyMessageId: Uuid,
     ) {
-        // 先取消 Live Update 通知；完成通知沿用固定 id 直接覆盖，
-        // 不再先取消再发送（同一 id 上取消与发送相邻执行时，部分系统会丢掉这一次更新，
-        // 通知栏便会停留在更早的内容上）。
-        cancelLiveUpdateNotification(conversationId)
-
-        // 内容取最近一条助手回复：列表末条可能是用户消息（例如后台里又收到了下一条），
-        // 直接取末条会把用户的话当成回复显示，与页面内容对不上。
+        // Resolve only the assistant emitted by this exact turn; never fall back to an older reply.
         val conversation = getConversation(conversationId)
         val replyText =
-            conversation.currentMessages
-                .lastOrNull { it.role == MessageRole.ASSISTANT }
+            conversation.messageNodes
+                .asSequence()
+                .flatMap { it.messages.asSequence() }
+                .firstOrNull { it.id == replyMessageId && it.role == MessageRole.ASSISTANT }
                 ?.toText()
                 ?.trim()
-                .orEmpty()
+                ?.takeIf(String::isNotEmpty) ?: return
+        sendCompletionNotification(conversationId, senderName, replyText)
+    }
+
+    fun sendNeedsApprovalNotification(
+        conversationId: Uuid,
+        senderName: String,
+        replyMessageId: Uuid,
+    ) = sendActionNeededNotification(
+        conversationId,
+        senderName,
+        replyMessageId,
+        R.string.floating_chat_tool_needs_approval,
+    )
+
+    fun sendNeedsAnswerNotification(
+        conversationId: Uuid,
+        senderName: String,
+        replyMessageId: Uuid,
+    ) = sendActionNeededNotification(
+        conversationId,
+        senderName,
+        replyMessageId,
+        R.string.floating_chat_answer_in_conversation,
+    )
+
+    private fun sendActionNeededNotification(
+        conversationId: Uuid,
+        senderName: String,
+        replyMessageId: Uuid,
+        labelRes: Int,
+    ) {
+        // Guard the same turn binding as completed notifications. The content intent opens only
+        // this conversation, leaving approval/answer handling to its existing UI.
+        val hasCurrentReply =
+            getConversation(conversationId)
+                .messageNodes
+                .asSequence()
+                .flatMap { it.messages.asSequence() }
+                .any { it.id == replyMessageId && it.role == MessageRole.ASSISTANT }
+        if (!hasCurrentReply) return
+        sendCompletionNotification(conversationId, senderName, context.getString(labelRes))
+    }
+
+    private fun sendCompletionNotification(
+        conversationId: Uuid,
+        senderName: String,
+        contentText: String,
+    ) {
+        cancelLiveUpdateNotification(conversationId)
         context.sendNotification(
             channelId = CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID,
             notificationId = getDoneNotificationId(conversationId),
         ) {
             title = senderName
-            content = replyText.take(50)
+            content = contentText.take(50)
             autoCancel = true
             useDefaults = true
             category = NotificationCompat.CATEGORY_MESSAGE
@@ -90,68 +137,45 @@ internal class ChatNotificationHelper(
         liveConversations.add(conversationId)
     }
 
-    private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> {
-        // 检查最近的 part 来确定状态：倒序扫描一次即可拿到各类 part 的最后一项，
-        // 原先三次 filterIsInstance 每次都会新建列表，在长回复下被逐块调用开销明显。
-        var lastReasoning: UIMessagePart.Reasoning? = null
-        var lastTool: UIMessagePart.Tool? = null
-        var lastText: UIMessagePart.Text? = null
-        for (index in parts.indices.reversed()) {
-            when (val part = parts[index]) {
-                is UIMessagePart.Reasoning -> if (lastReasoning == null) lastReasoning = part
-                is UIMessagePart.Tool -> if (lastTool == null) lastTool = part
-                is UIMessagePart.Text -> if (lastText == null) lastText = part
-                else -> {}
-            }
-            if (lastReasoning != null && lastTool != null && lastText != null) break
-        }
-
-        return when {
-            // 正在执行工具
-            lastTool != null && !lastTool.isExecuted -> {
-                // MCP tools are exposed as `mcp__<serverSlug>_<serverName>__<toolName>`; strip
-                // both the prefix and the server segment so the notification shows the bare tool
-                // name. Non-MCP tool names (no `mcp__` prefix) fall through unchanged via the
-                // missingDelimiterValue, instead of being truncated at an embedded `__`.
-                val toolName =
-                    lastTool.toolName
-                        .removePrefix("mcp__")
-                        .substringAfter("__", missingDelimiterValue = lastTool.toolName.removePrefix("mcp__"))
+    private fun determineNotificationContent(parts: List<UIMessagePart>): Triple<String, String, String> =
+        when (val phase = parts.generationPhase()) {
+            is GenerationPhase.AwaitingApproval ->
                 Triple(
                     context.getString(R.string.notification_live_update_chip_tool),
-                    context.getString(R.string.notification_live_update_tool, toolName),
-                    lastTool.input.take(100),
+                    context.getString(R.string.floating_chat_tool_needs_approval),
+                    phase.toolName,
                 )
-            }
-
-            // 正在思考（Reasoning 未结束）
-            lastReasoning != null && lastReasoning.finishedAt == null -> {
+            is GenerationPhase.AwaitingAnswer ->
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_tool),
+                    context.getString(R.string.floating_chat_answer),
+                    phase.input.take(100),
+                )
+            is GenerationPhase.RunningTool ->
+                Triple(
+                    context.getString(R.string.notification_live_update_chip_tool),
+                    context.getString(R.string.notification_live_update_tool, phase.toolName),
+                    phase.input.take(100),
+                )
+            is GenerationPhase.Thinking ->
                 Triple(
                     context.getString(R.string.notification_live_update_chip_thinking),
                     context.getString(R.string.notification_live_update_thinking),
-                    lastReasoning.reasoning.takeLast(200),
+                    phase.reasoning.takeLast(200),
                 )
-            }
-
-            // 正在写回复
-            lastText != null -> {
+            is GenerationPhase.Writing ->
                 Triple(
                     context.getString(R.string.notification_live_update_chip_writing),
                     context.getString(R.string.notification_live_update_writing),
-                    lastText.text.takeLast(200),
+                    phase.text.takeLast(200),
                 )
-            }
-
-            // 默认状态
-            else -> {
+            GenerationPhase.Waiting ->
                 Triple(
                     context.getString(R.string.notification_live_update_chip_writing),
                     context.getString(R.string.notification_live_update_title),
                     "",
                 )
-            }
         }
-    }
 
     fun cancelLiveUpdateNotification(conversationId: Uuid) {
         liveConversations.remove(conversationId)

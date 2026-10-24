@@ -48,7 +48,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                         "query",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "search keyword")
+                            put("description", SEARCH_QUERY_DESCRIPTION)
                         },
                     )
                 },

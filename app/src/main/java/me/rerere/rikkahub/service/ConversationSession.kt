@@ -32,6 +32,20 @@ class ConversationSession(
     // 处理状态（如 OCR 识别中）
     val processingStatus = MutableStateFlow<String?>(null)
 
+    // The floating surface follows the assistant message emitted by this exact turn,
+    // not the conversation tail (which may belong to another branch or regeneration).
+    val floatingReplyMessageId = MutableStateFlow<Uuid?>(null)
+    val floatingGenerationStartedAt = MutableStateFlow<Long?>(null)
+
+    fun beginFloatingTurn() {
+        floatingReplyMessageId.value = null
+        floatingGenerationStartedAt.value = System.currentTimeMillis()
+    }
+
+    fun recordFloatingReply(messageId: Uuid) {
+        floatingReplyMessageId.value = messageId
+    }
+
     // 生成任务（内聚在 session 中）
     private val _generationJob = MutableStateFlow<Job?>(null)
     /** 当前活跃的生成任务（含接续链）。停止生成时全部取消。 */

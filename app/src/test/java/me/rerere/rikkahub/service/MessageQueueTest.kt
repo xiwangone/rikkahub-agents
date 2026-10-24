@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.service
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.yield
 import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -101,6 +104,36 @@ class MessageQueueTest {
         assertEquals(listOf(text("first"), text("second")), queue.drainAll().map { it.parts })
         assertTrue(queue.state.value.messages.isEmpty())
         assertTrue(queue.drainAll().isEmpty())
+    }
+
+    @Test
+    fun `late enqueue is dispatched after generation final queue check`() = runBlocking {
+        val queue = MessageQueue()
+        val generation = Job()
+        // Model the finishing generation checking an empty queue before this send arrives.
+        assertNull(queue.takeNext())
+        queue.enqueue(text("late message"))
+
+        var dispatched: QueuedMessage? = null
+        scheduleQueueDispatchAfter(generation, this) { dispatched = queue.takeNext() }
+        generation.complete()
+        yield()
+
+        assertEquals(text("late message"), dispatched?.parts)
+        assertNull(queue.takeNext())
+    }
+
+    @Test
+    fun `queue dispatch is retried when completion beats callback registration`() = runBlocking {
+        val queue = MessageQueue()
+        val generation = Job().apply { complete() }
+        queue.enqueue(text("message"))
+
+        var dispatched: QueuedMessage? = null
+        scheduleQueueDispatchAfter(generation, this) { dispatched = queue.takeNext() }
+        yield()
+
+        assertEquals(text("message"), dispatched?.parts)
     }
 
     @Test

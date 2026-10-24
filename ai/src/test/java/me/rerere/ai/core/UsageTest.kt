@@ -31,4 +31,21 @@ class UsageTest {
         val merged = TokenUsage(promptTokens = 1).merge(TokenUsage(completionTokens = 1))
         assertNull(merged.cost)
     }
+
+    @Test
+    fun `sum adds distinct requests while merge remains a snapshot update`() {
+        val total = TokenUsage(promptTokens = 100, completionTokens = 10, cachedTokens = 20, cost = 0.1)
+            .sum(TokenUsage(promptTokens = 200, completionTokens = 20, cachedTokens = 30, cost = 0.2))
+
+        assertEquals(300, total?.promptTokens)
+        assertEquals(30, total?.completionTokens)
+        assertEquals(50, total?.cachedTokens)
+        assertEquals(330, total?.totalTokens)
+        assertEquals(0.3, total?.cost!!, 1e-9)
+    }
+
+    @Test
+    fun `sum preserves null when neither request reports usage`() {
+        assertNull((null as TokenUsage?).sum(null))
+    }
 }

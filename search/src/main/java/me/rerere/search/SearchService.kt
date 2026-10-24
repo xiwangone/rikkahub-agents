@@ -19,6 +19,9 @@ import java.util.concurrent.TimeUnit
 import kotlin.coroutines.resumeWithException
 import kotlin.uuid.Uuid
 
+/** Guidance shared by search providers that expect concise keyword queries. */
+internal const val SEARCH_QUERY_DESCRIPTION = "Use concise search keywords in the language most likely to find the best sources (English for technical or international topics; the local language for regional topics). Preserve proper nouns and error messages verbatim."
+
 interface SearchService<T : SearchServiceOptions> {
     val name: String
 
@@ -313,6 +316,7 @@ sealed class SearchServiceOptions {
         override val id: Uuid = Uuid.random(),
         val apiKey: String = "",
         val depth: String = "advanced",
+        val includeAnswer: Boolean = true,
     ) : SearchServiceOptions() {
         override val typeKey: String get() = "tavily"
     }

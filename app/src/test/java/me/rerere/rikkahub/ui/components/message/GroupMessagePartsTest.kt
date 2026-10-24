@@ -5,6 +5,8 @@ import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.ui.components.message.tools.ToolStepStatus
+import me.rerere.rikkahub.ui.components.message.tools.resolveToolStepStatus
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -43,6 +45,21 @@ class GroupMessagePartsTest {
         val a = tool("a"); val b = tool("b")
         assertEquals(listOf(ThinkingStep.ToolStep(a), ThinkingStep.ToolStep(b)), steps(listOf(a, b)))
     }
+    @Test fun duplicateAndBlankToolIdsProduceDistinctStableComposeKeys() {
+        val parts = listOf(tool("same"), tool("same"), tool(""), serverTool("same"), serverTool(""))
+        val timeline = parts.groupMessageParts().single() as MessagePartBlock.ThinkingBlock
+        val keys = timeline.steps.mapIndexed(::timelineStepComposeKey)
+
+        assertEquals(listOf("tool:same:0", "tool:same:1", "tool::2", "server-tool:same:3", "server-tool::4"), keys)
+        assertEquals(keys.size, keys.toSet().size)
+    }
+    @Test fun separateTimelinesHaveStableDistinctSourcePositions() {
+        val parts = listOf(reasoning("first"), text("middle"), tool("repeated"), text("again"), tool("repeated"))
+        val timelines = parts.groupMessageParts().filterIsInstance<MessagePartBlock.ThinkingBlock>()
+
+        assertEquals(listOf(0, 2, 4), timelines.map { it.startIndex })
+        assertEquals(3, timelines.map { it.startIndex }.toSet().size)
+    }
     @Test fun bodyTextIsNeverSwallowedIntoTimeline() {
         val blocks = listOf(reasoning("a"), tool("a"), text("intermediate"), reasoning("b"), tool("b"), text("final")).groupMessageParts()
         assertEquals(4, blocks.size)
@@ -78,6 +95,18 @@ class GroupMessagePartsTest {
         val rendered = (steps(listOf(interrupted)).single() as ThinkingStep.ToolStep).tool
         assertTrue(rendered.isInterruptedAttempt)
         assertFalse(rendered.isExecuted)
+        assertEquals(
+            ToolStepStatus.INTERRUPTED,
+            resolveToolStepStatus(
+                isPending = rendered.isPending,
+                isDenied = rendered.approvalState is ToolApprovalState.Denied,
+                isExecuted = rendered.isExecuted,
+                success = null,
+                exitCode = null,
+                hasError = false,
+                isInterruptedAttempt = rendered.isInterruptedAttempt,
+            ),
+        )
         assertEquals(interrupted, rendered)
     }
     @Test fun partialInputRemainsPartial() {
@@ -87,6 +116,30 @@ class GroupMessagePartsTest {
     @Test fun failedServerToolRetainsFailure() {
         val s = serverTool("s", ServerToolStatus.FAILED)
         assertEquals(s, (steps(listOf(s)).single() as ThinkingStep.ServerToolStep).tool)
+    }
+    @Test fun toolStatusMappingDoesNotTurnFailureDenialOrCancellationIntoSuccessOrRunning() {
+        fun status(
+            isPending: Boolean = false,
+            isDenied: Boolean = false,
+            isExecuted: Boolean = false,
+            success: Boolean? = null,
+            isInterruptedAttempt: Boolean = false,
+        ) = resolveToolStepStatus(
+            isPending = isPending,
+            isDenied = isDenied,
+            isExecuted = isExecuted,
+            success = success,
+            exitCode = null,
+            hasError = false,
+            isInterruptedAttempt = isInterruptedAttempt,
+        )
+
+        assertEquals(ToolStepStatus.FAILED, status(isExecuted = true, success = false))
+        assertEquals(ToolStepStatus.DENIED, status(isDenied = true))
+        assertEquals(ToolStepStatus.NEEDS_APPROVAL, status(isPending = true))
+        assertEquals(ToolStepStatus.INTERRUPTED, status(isInterruptedAttempt = true))
+        assertEquals(ToolStepStatus.RUNNING, status(isExecuted = false))
+        assertEquals(ToolStepStatus.COMPLETED, status(isExecuted = true))
     }
     @Test fun successfulChartSplitsTimelineInPlace() {
         val chart = tool("chart", listOf(text("{\"success\":true}\n[approval: auto]"))).copy(toolName = "chart_display")
