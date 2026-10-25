@@ -1,6 +1,5 @@
 package me.rerere.search
 
-import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -22,6 +21,7 @@ import me.rerere.search.SearchService.Companion.json
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "ZhipuSearchService"
 
@@ -88,8 +88,8 @@ object ZhipuSearchService : SearchService<SearchServiceOptions.ZhipuOptions> {
                         runCatching {
                             json.decodeFromString<ZhipuDto>(bodyRaw)
                         }.onFailure {
-                            it.printStackTrace()
-                            println(bodyRaw)
+                            AppLogger.e(TAG, "decode error", it)
+                            AppLogger.w(TAG, "decode failed, raw body: $bodyRaw")
                             error("Failed to decode response: $bodyRaw")
                         }.getOrThrow()
 
@@ -106,7 +106,7 @@ object ZhipuSearchService : SearchService<SearchServiceOptions.ZhipuOptions> {
                         ),
                     )
                 } else {
-                    println(response.body.string())
+                    AppLogger.w(TAG, "response failed, body: ${response.body.string()}")
                     error("response failed #${response.code}")
                 }
             }

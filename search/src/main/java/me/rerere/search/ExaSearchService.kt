@@ -1,6 +1,5 @@
 package me.rerere.search
 
-import android.util.Log
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -28,6 +27,7 @@ import me.rerere.search.SearchService.Companion.keyRoulette
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import me.rerere.common.log.AppLogger
 
 private const val TAG = "ExaSearchService"
 
@@ -126,14 +126,14 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 val response = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
-                    it.printStackTrace()
-                    println(bodyRaw)
+                    AppLogger.e(TAG, "decode error", it)
+                    AppLogger.w(TAG, "decode failed, raw body: $bodyRaw")
                     error("Failed to decode response: $bodyRaw")
                 }.getOrThrow()
 
                 return@withContext Result.success(mapSearchResult(response))
             } else {
-                println(response.body.string())
+                AppLogger.w(TAG, "response failed, body: ${response.body.string()}")
                 error("response failed #${response.code}")
             }
         }
@@ -160,14 +160,14 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 val data = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
-                    it.printStackTrace()
-                    println(bodyRaw)
+                    AppLogger.e(TAG, "decode error", it)
+                    AppLogger.w(TAG, "decode failed, raw body: $bodyRaw")
                     error("Failed to decode response: $bodyRaw")
                 }.getOrThrow()
 
                 return@withContext Result.success(mapScrapedResult(data))
             } else {
-                println(response.body.string())
+                AppLogger.w(TAG, "response failed, body: ${response.body.string()}")
                 error("response failed #${response.code}")
             }
         }
