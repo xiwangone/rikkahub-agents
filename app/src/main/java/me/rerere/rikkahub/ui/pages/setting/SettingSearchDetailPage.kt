@@ -51,6 +51,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -303,12 +305,13 @@ private fun SearchTestSection(
                             testing = true
                             result = null
                             scope.launch {
-                                val service = SearchService.getService(options)
+                                val resolvedOptions = options.withResolvedVaultCredentials()
+                                val service = SearchService.getService(resolvedOptions)
                                 val params =
                                     JsonObject(
                                         mapOf("query" to JsonPrimitive(query)),
                                     )
-                                result = service.search(params, commonOptions, options)
+                                result = service.search(params, commonOptions, resolvedOptions)
                                 testing = false
                             }
                         }
@@ -392,12 +395,12 @@ internal fun TavilyOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -445,12 +448,12 @@ internal fun ExaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -465,12 +468,12 @@ internal fun ZhipuOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -481,10 +484,12 @@ internal fun DoubaoOptions(
     onUpdateOptions: (SearchServiceOptions.DoubaoOptions) -> Unit,
 ) {
     FormItem(label = { Text(stringResource(R.string.search_detail_api_key)) }) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
             onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -570,12 +575,12 @@ internal fun SearXNGOptions(
             Text(stringResource(R.string.search_detail_password))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.password,
-            onValueChange = {
-                onUpdateOptions(options.copy(password = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(password = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_PASSWORD",
+            singleLine = true,
         )
     }
 }
@@ -590,12 +595,12 @@ internal fun SearchLinkUpOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -633,12 +638,12 @@ internal fun BraveOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -653,12 +658,12 @@ internal fun SerperOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -673,12 +678,12 @@ internal fun MetasoOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -693,12 +698,12 @@ internal fun OllamaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -713,12 +718,12 @@ internal fun PerplexityOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -763,12 +768,12 @@ internal fun FirecrawlOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -783,12 +788,12 @@ internal fun JinaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -837,12 +842,12 @@ internal fun BochaOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -874,12 +879,12 @@ internal fun RikkaHubOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -917,12 +922,12 @@ internal fun TinyfishOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }
@@ -937,12 +942,12 @@ internal fun GrokOptions(
             Text(stringResource(R.string.search_detail_api_key))
         },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
-            onValueChange = {
-                onUpdateOptions(options.copy(apiKey = it))
-            },
+            onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 
@@ -996,10 +1001,12 @@ internal fun DeepSeekOptions(
     onUpdateOptions: (SearchServiceOptions.DeepSeekOptions) -> Unit,
 ) {
     FormItem(label = { Text(stringResource(R.string.search_detail_api_key)) }) {
-        OutlinedTextField(
+        SecretRefField(
             value = options.apiKey,
             onValueChange = { onUpdateOptions(options.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${options.typeKey.uppercase()}_APIKEY",
+            singleLine = true,
         )
     }
 }

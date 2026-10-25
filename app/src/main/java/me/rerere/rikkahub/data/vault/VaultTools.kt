@@ -567,14 +567,17 @@ fun vaultCredentialUpdateTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_credential_update",
     description =
         "Update a credential entry's metadata (rename / change description / change group). " +
             "The secret VALUE is never readable or writable by the AI — this tool only touches " +
             "name/description/group fields. Rename copies the existing encrypted value to the new name, " +
-            "and also rewrites references to the old name across configurations (providers / MCP headers / " +
-            "S3 / WebDAV / local MCP token / web bridge / saved SSH hosts) so they do not break silently. " +
+            "and also rewrites references to the old name across configurations (model/media/search/ASR/TTS " +
+            "providers / global proxy / MCP headers / Telegram token and proxy / backup and upload S3 / " +
+            "WebDAV / Web Bridge path and password / Web Server password / local MCP token / saved SSH hosts) " +
+            "so they do not break silently. " +
             "Pass only the fields you want to change; omitted fields stay unchanged.",
     parameters = {
         InputSchema.Obj(
@@ -667,6 +670,7 @@ fun vaultCredentialUpdateTool(
                                     VaultReferenceSync.renameEverywhere(
                                         settingsStore = settingsStore,
                                         sshHostRepository = sshHostRepository,
+                                        telegramBotPreferences = telegramBotPreferences,
                                         oldName = name,
                                         newName = targetName,
                                     )
@@ -711,6 +715,7 @@ fun vaultCredentialBulkUpdateTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_credential_bulk_update",
     description =
@@ -930,6 +935,7 @@ fun vaultCredentialBulkUpdateTool(
                                 VaultReferenceSync.renameEverywhere(
                                     settingsStore = settingsStore,
                                     sshHostRepository = sshHostRepository,
+                                    telegramBotPreferences = telegramBotPreferences,
                                     oldName = update.name,
                                     newName = update.targetName,
                                 )
@@ -1180,6 +1186,7 @@ fun vaultCredentialMergeTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_credential_merge",
     description =
@@ -1224,6 +1231,7 @@ fun vaultCredentialMergeTool(
                 VaultReferenceSync.renameEverywhere(
                     settingsStore = settingsStore,
                     sshHostRepository = sshHostRepository,
+                    telegramBotPreferences = telegramBotPreferences,
                     oldName = source,
                     newName = target,
                 )
@@ -1264,6 +1272,7 @@ suspend fun renameCredentialWithRefs(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
     oldName: String,
     newName: String,
 ): Int {
@@ -1280,7 +1289,7 @@ suspend fun renameCredentialWithRefs(
         // 引用处要用的，漏传 = 改个名字就把这条凭证的用法信息洗掉了
         metaJson = existing.metaJson,
     )
-    val synced = VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, oldName, newName)
+    val synced = VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, telegramBotPreferences, oldName, newName)
     repository.delete(existing)
     repository.logAccess(oldName, "ai-tool", "rename_from")
     repository.logAccess(newName, "ai-tool", "rename_to")
@@ -1298,6 +1307,7 @@ fun vaultCredentialNormalizeTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_credential_normalize_names",
     description =
@@ -1361,7 +1371,7 @@ fun vaultCredentialNormalizeTool(
                 return@forEach
             }
             try {
-                val synced = renameCredentialWithRefs(repository, settingsStore, sshHostRepository, p.old, p.new)
+                val synced = renameCredentialWithRefs(repository, settingsStore, sshHostRepository, telegramBotPreferences, p.old, p.new)
                 done++
                 syncedTotal += synced
             } catch (error: kotlinx.coroutines.CancellationException) {

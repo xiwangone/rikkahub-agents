@@ -15,6 +15,7 @@ import me.rerere.asr.ASRProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 
 @Composable
 fun ASRProviderConfigure(
@@ -76,11 +77,13 @@ private fun OpenAIRealtimeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         description = { Text(stringResource(R.string.setting_asr_configure_openai_api_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk-...") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "sk-...",
         )
     }
 
@@ -191,11 +194,13 @@ private fun DashScopeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         description = { Text(stringResource(R.string.setting_asr_configure_dashscope_api_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk-...") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "sk-...",
         )
     }
 
@@ -277,11 +282,13 @@ private fun VolcengineASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         description = { Text(stringResource(R.string.setting_asr_configure_volcengine_api_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("your-api-key") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "your-api-key",
         )
     }
 
@@ -331,11 +338,13 @@ private fun MiMoASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         description = { Text(stringResource(R.string.setting_asr_configure_mimo_api_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk-... or tp-...") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "sk-... or tp-...",
         )
     }
 
@@ -417,11 +426,13 @@ private fun StepASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
         description = { Text(stringResource(R.string.setting_asr_configure_step_api_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("your-stepfun-api-key") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "your-stepfun-api-key",
         )
     }
 

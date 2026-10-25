@@ -26,6 +26,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
 import me.rerere.rikkahub.data.datastore.getSelectedTTSProvider
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionRecordAudio
 import me.rerere.rikkahub.ui.components.ui.permission.rememberPermissionState
@@ -138,20 +139,19 @@ private fun createVoiceAsr(
     client: OkHttpClient,
     provider: ASRProviderSetting,
 ): ASRController {
-    val delegate = when (provider) {
+    val resolvedProvider = provider.withResolvedVaultCredentials()
+    val delegate = when (resolvedProvider) {
         is ASRProviderSetting.OpenAIRealtime -> {
-            check(provider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
-            OpenAIRealtimeASRController(context, client, provider)
+            check(resolvedProvider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
+            OpenAIRealtimeASRController(context, client, resolvedProvider)
         }
-
         is ASRProviderSetting.DashScope -> {
-            check(provider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
-            DashScopeASRController(context, client, provider)
+            check(resolvedProvider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
+            DashScopeASRController(context, client, resolvedProvider)
         }
-
         is ASRProviderSetting.Volcengine -> {
-            check(provider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
-            VolcengineASRController(context, client, provider)
+            check(resolvedProvider.apiKey.isNotBlank()) { context.getString(R.string.chat_page_voice_configure_key) }
+            VolcengineASRController(context, client, resolvedProvider)
         }
 
         else -> error(context.getString(R.string.chat_page_voice_no_endpointing))

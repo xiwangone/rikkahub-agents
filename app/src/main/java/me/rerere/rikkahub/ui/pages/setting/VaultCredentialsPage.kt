@@ -89,6 +89,7 @@ fun VaultCredentialsPage() {
     // 改名需要同步配置引用（与工具路径行为一致），因此拿到这两处依赖
     val settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore = koinInject()
     val sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository = koinInject()
+    val telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences = koinInject()
     val scope = rememberCoroutineScope()
 
     var entries by remember { mutableStateOf<List<VaultCredentialEntity>>(emptyList()) }
@@ -392,7 +393,7 @@ fun VaultCredentialsPage() {
                             val syncResult =
                                 runCatching {
                                     VaultReferenceSync.renameEverywhere(
-                                        settingsStore, sshHostRepository, oldName, name,
+                                        settingsStore, sshHostRepository, telegramBotPreferences, oldName, name,
                                     )
                                 }
                             val syncError = syncResult.exceptionOrNull()

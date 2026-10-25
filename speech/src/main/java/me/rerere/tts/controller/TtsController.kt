@@ -38,6 +38,7 @@ private const val SYNTHESIS_RETRY_BASE_DELAY_MS = 500L
  * only the map and the Deferred it's given, never Context or Dispatchers.Main - so the
  * retry/eviction bookkeeping itself is unit testable without the Android runtime.
  */
+@Suppress("TooGenericExceptionCaught")  // 重试包装需兜住任意异常以做缓存驱逐，见函数 KDoc
 internal suspend fun <K : Any, V> awaitWithRetry(
     cache: java.util.concurrent.ConcurrentMap<K, kotlinx.coroutines.Deferred<V>>,
     key: K,
@@ -67,6 +68,7 @@ internal suspend fun <K : Any, V> awaitWithRetry(
 class TtsController(
     context: Context,
     private val ttsManager: TTSManager,
+    private val providerResolver: (TTSProviderSetting) -> TTSProviderSetting = { it },
 ) {
     // 协程作用域
     private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate)
@@ -253,6 +255,7 @@ class TtsController(
     }
 
     // region 内部：播放调度
+    @Suppress("TooGenericExceptionCaught")  // 单块失败只记录并继续下一块
     private fun startWorker() {
         val provider = currentProvider
         if (provider == null) {
@@ -289,8 +292,9 @@ class TtsController(
                         val response =
                             try {
                                 awaitOrCreate(chunk, provider)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (e: Exception) {
-                                if (e is CancellationException) throw e
                                 AppLogger.e(TAG, "Synthesis error", e)
                                 _error.update { e.message ?: "TTS synthesis error" }
                                 processedCount++
@@ -300,8 +304,9 @@ class TtsController(
                         // 播放
                         try {
                             audio.play(response)
+                        } catch (e: CancellationException) {
+                            throw e
                         } catch (e: Exception) {
-                            if (e is CancellationException) throw e
                             AppLogger.e(TAG, "Playback error", e)
                             _error.update { e.message ?: "Audio playback error" }
                         }
@@ -331,6 +336,7 @@ class TtsController(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")  // 合成失败需按块降级
     private suspend fun awaitOrCreate(chunk: TtsChunk, provider: TTSProviderSetting): TTSResponse {
         val deferred = getOrCreateSynthesis(chunk, provider)
 
@@ -354,6 +360,7 @@ class TtsController(
         }
     }
 
+    @Suppress("TooGenericExceptionCaught")  // 重试需兜住任意异常
     private suspend fun synthesizeWithRetry(
         provider: TTSProviderSetting,
         chunk: TtsChunk
@@ -361,7 +368,7 @@ class TtsController(
         var attempt = 1
         while (true) {
             try {
-                return synthesizer.synthesize(provider, chunk)
+                return synthesizer.synthesize(providerResolver(provider), chunk)
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {

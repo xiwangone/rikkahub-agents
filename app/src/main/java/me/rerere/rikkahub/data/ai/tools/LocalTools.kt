@@ -1157,34 +1157,34 @@ class LocalTools(
         tools.add(me.rerere.rikkahub.data.vault.vaultCredentialAuditTool(vaultRepository))
         // 引用反查：改名/删除前先看有哪些配置按名字引用它（只读，返回值不含值）
         tools.add(
-            me.rerere.rikkahub.data.vault.vaultCredentialRefsTool(settingsStore, sshHostRepository),
+            me.rerere.rikkahub.data.vault.vaultCredentialRefsTool(settingsStore, sshHostRepository, telegramBotPreferences),
         )
         // 合并重复条目：引用重指向 + 删除多余条目（先比对值指纹）
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialMergeTool(
-                vaultRepository, settingsStore, sshHostRepository,
+                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
             ),
         )
         // 命名规范化：把历史脏名改成合规名（默认 dry_run，执行时同步引用）
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialNormalizeTool(
-                vaultRepository, settingsStore, sshHostRepository,
+                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
             ),
         )
         // 失效引用检查：配置引用了不存在的凭证名（否则要等 401 才发现）
         tools.add(
             me.rerere.rikkahub.data.vault.vaultDanglingRefsTool(
-                vaultRepository, settingsStore, sshHostRepository,
+                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
             ),
         )
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialUpdateTool(
-                context, vaultRepository, settingsStore, sshHostRepository,
+                context, vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
             ),
         )
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialBulkUpdateTool(
-                context, vaultRepository, settingsStore, sshHostRepository,
+                context, vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
             ),
         )
         tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))

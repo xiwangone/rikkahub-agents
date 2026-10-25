@@ -6,8 +6,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
@@ -21,16 +19,12 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.tts.provider.TTSProviderSetting
 
 @Composable
@@ -249,13 +243,13 @@ private fun OpenAITTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_api_key_placeholder_openai)) },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = stringResource(R.string.setting_tts_page_api_key_placeholder_openai),
         )
     }
 
@@ -343,13 +337,13 @@ private fun MiMoTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("mimo-xxx") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "mimo-xxx",
         )
     }
 
@@ -425,12 +419,12 @@ private fun MiniMaxTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
         )
     }
 
@@ -547,13 +541,13 @@ private fun GeminiTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.setting_tts_page_api_key_placeholder_gemini)) },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = stringResource(R.string.setting_tts_page_api_key_placeholder_gemini),
         )
     }
 
@@ -653,13 +647,13 @@ private fun QwenTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk-xxx") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "sk-xxx",
         )
     }
 
@@ -806,13 +800,13 @@ private fun GroqTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("gsk_xxx") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "gsk_xxx",
         )
     }
 
@@ -899,13 +893,13 @@ private fun XAITTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("xai-xxx") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "xai-xxx",
         )
     }
 
@@ -1046,13 +1040,13 @@ private fun ElevenLabsTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("sk_...") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "sk_...",
         )
     }
 
@@ -1174,13 +1168,13 @@ private fun FishAudioTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.setting_tts_page_api_key_description)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("https://fish.audio/app/api-keys") },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = "https://fish.audio/app/api-keys",
         )
     }
 
@@ -1303,13 +1297,13 @@ private fun StepTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.tts_stepfun_key_desc)) },
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
-            onValueChange = { newApiKey ->
-                onValueChange(setting.copy(apiKey = newApiKey))
-            },
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text(stringResource(R.string.tts_stepfun_key_hint)) },
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = stringResource(R.string.tts_stepfun_key_hint),
         )
     }
 
@@ -1596,26 +1590,16 @@ private fun VolcengineTTSConfiguration(
     setting: TTSProviderSetting.Volcengine,
     onValueChange: (TTSProviderSetting) -> Unit
 ) {
-    var keyVisible by remember(setting.id) { mutableStateOf(false) }
-
     FormItem(
         label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
         description = { Text(stringResource(R.string.tts_volcengine_api_key_desc)) }
     ) {
-        OutlinedTextField(
+        SecretRefField(
             value = setting.apiKey,
             onValueChange = { onValueChange(setting.copy(apiKey = it)) },
-            visualTransformation = if (keyVisible) VisualTransformation.None else PasswordVisualTransformation(),
-            trailingIcon = {
-                IconButton(onClick = { keyVisible = !keyVisible }) {
-                    Icon(
-                        imageVector = if (keyVisible) HugeIcons.ViewOff else HugeIcons.View,
-                        contentDescription = if (keyVisible) stringResource(R.string.tts_api_key_hide) else stringResource(R.string.tts_api_key_show),
-                    )
-                }
-            },
-            singleLine = true,
             modifier = Modifier.fillMaxWidth(),
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
         )
     }
     FormItem(label = { Text(stringResource(R.string.setting_tts_page_base_url)) }) {

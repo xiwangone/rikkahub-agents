@@ -48,6 +48,7 @@ import me.rerere.rikkahub.data.model.buildMediaGenerationRequest
 import me.rerere.rikkahub.data.model.deriveMediaCreationTitle
 import me.rerere.rikkahub.data.model.supportedBy
 import me.rerere.rikkahub.data.repository.MediaCreationRepository
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.utils.sendNotification
 import okhttp3.Headers.Companion.toHeaders
 import okhttp3.OkHttpClient
@@ -282,9 +283,10 @@ class MediaCreationService(
 
     private suspend fun generate(recordId: Uuid) {
         val record = repository.getRecord(recordId) ?: return
-        val setting = settingsStore.settingsFlow.first { !it.init }
+        val configuredSetting = settingsStore.settingsFlow.first { !it.init }
             .mediaGenerationProviders.find { it.id == record.providerId }
             ?: error(context.getString(R.string.media_creation_error_provider_deleted, record.providerName))
+        val setting = configuredSetting.withResolvedVaultCredentials()
         val model = MediaGenerationModel(modelId = record.modelId, kind = record.kind)
 
         val task = if (record.taskId != null) {

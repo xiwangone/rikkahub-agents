@@ -70,6 +70,11 @@ internal fun telegramProxyOrNull(cfg: TelegramBotConfig): Proxy? {
     return Proxy(type, InetSocketAddress.createUnresolved(cfg.proxyHost, cfg.proxyPort))
 }
 
+internal fun resolveTelegramProxyPassword(
+    raw: String,
+    resolve: (String) -> String? = { me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(it) },
+): String? = resolve(raw)
+
 class TelegramBotClient(
     private val tokenProvider: () -> String,
     proxyConfigProvider: () -> TelegramBotConfig,
@@ -92,9 +97,10 @@ class TelegramBotClient(
         val p = resolvedProxy ?: return@apply
         proxy(p)
         if (proxyConfig.proxyType == "HTTP" && proxyConfig.proxyUsername.isNotBlank()) {
+            val password = resolveTelegramProxyPassword(proxyConfig.proxyPassword) ?: return@apply
             val credential = Credentials.basic(
                 proxyConfig.proxyUsername,
-                me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(proxyConfig.proxyPassword),
+                password,
             )
             proxyAuthenticator { _, response ->
                 response.request.newBuilder()

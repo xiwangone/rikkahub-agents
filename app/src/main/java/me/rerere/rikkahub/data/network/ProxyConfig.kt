@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.network
 
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.PasswordAuthentication
@@ -13,6 +14,11 @@ import okhttp3.Credentials
 import okhttp3.Request
 import okhttp3.Response
 import okhttp3.Route
+
+internal fun resolveProxyPasswordForAuth(
+    raw: String,
+    resolve: (String) -> String? = { VaultProviderKeyRefs.resolveOrNull(it) },
+): String? = resolve(raw)
 
 fun String.toProxyOrNull(): Proxy? {
     val value = trim()
@@ -42,11 +48,12 @@ class SettingsProxyAuthenticator(
         if (configuredProxy.type() != Proxy.Type.HTTP || route?.proxy != configuredProxy) return null
         if (setting.proxyUsername.isEmpty()) return null
         if (response.request.header("Proxy-Authorization") != null) return null
+        val password = resolveProxyPasswordForAuth(setting.proxyPassword) ?: return null
 
         return response.request.newBuilder()
             .header(
                 "Proxy-Authorization",
-                Credentials.basic(setting.proxyUsername, setting.proxyPassword, Charsets.UTF_8),
+                Credentials.basic(setting.proxyUsername, password, Charsets.UTF_8),
             )
             .build()
     }
@@ -67,8 +74,9 @@ class SettingsSocks5Authenticator(
         val requestedHost = requestingHost?.removeSurrounding("[", "]")
         val configuredHost = proxyAddress.hostString.removeSurrounding("[", "]")
         if (!requestedHost.equals(configuredHost, ignoreCase = true)) return null
+        val password = resolveProxyPasswordForAuth(setting.proxyPassword) ?: return null
 
-        return PasswordAuthentication(setting.proxyUsername, setting.proxyPassword.toCharArray())
+        return PasswordAuthentication(setting.proxyUsername, password.toCharArray())
     }
 }
 

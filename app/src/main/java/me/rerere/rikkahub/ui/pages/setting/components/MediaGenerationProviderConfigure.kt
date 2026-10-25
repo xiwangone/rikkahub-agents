@@ -27,6 +27,7 @@ import me.rerere.mediagen.model.MediaKind
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 
 val MediaGenerationProviderSetting.typeName: String
     @Composable get() = when (this) {
@@ -72,11 +73,12 @@ fun MediaGenerationProviderConfigure(
         }
 
         FormItem(label = { Text(stringResource(R.string.setting_media_page_api_key)) }) {
-            OutlinedTextField(
+            SecretRefField(
                 value = setting.apiKey,
                 onValueChange = { onValueChange(setting.copyProvider(apiKey = it.trim())) },
                 modifier = Modifier.fillMaxWidth(),
-                singleLine = true
+                nameHint = "${setting.name}_API_KEY",
+                singleLine = true,
             )
         }
 

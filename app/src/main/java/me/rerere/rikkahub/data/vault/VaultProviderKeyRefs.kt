@@ -3,6 +3,10 @@ package me.rerere.rikkahub.data.vault
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import java.util.concurrent.ConcurrentLinkedQueue
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.update
 
 /**
  * 把凭证库接入 provider 的密钥引用（`$$凭证名`）。
@@ -34,6 +38,14 @@ object VaultProviderKeyRefs {
     @Volatile
     private var cache: Map<String, String> = emptyMap()
 
+    private val _revision = MutableStateFlow(0L)
+    /** Changes whenever the in-memory credential cache is refreshed, updated, or pruned. */
+    val revision: StateFlow<Long> = _revision.asStateFlow()
+
+    private fun signalCacheChanged() {
+        _revision.update { it + 1L }
+    }
+
     /**
      * provider 取用命中的引用名（只入队，不落库）。
      *
@@ -56,6 +68,7 @@ object VaultProviderKeyRefs {
         val entries = repository.getAll()
         val map = buildCache(entries) { repository.decryptValue(it) }
         cache = map
+        signalCacheChanged()
         // 每次刷新都重新注入：避免进程早期（缓存为空）时留下"解析不到"的印象
         installHooks()
         return map.keys.count { !it.contains('.') }
@@ -123,18 +136,21 @@ object VaultProviderKeyRefs {
         val entry = repository.getByName(name)
         if (entry == null) {
             cache = withoutEntry(cache, name)
+            signalCacheChanged()
             return
         }
         val fresh = buildCache(listOf(entry)) { repository.decryptValue(it) }
         val others = withoutEntry(cache, name)
         // 整名优先：本条目自己的键之外，不覆盖别的名占用的键（历史带点名字场景）
         cache = others + fresh.filterKeys { it !in others }
+        signalCacheChanged()
         installHooks()
     }
 
     /** 增量删除单条（删除后调用）。 */
     fun removeOne(name: String) {
         cache = withoutEntry(cache, name)
+        signalCacheChanged()
     }
 
     /** 当前是否能解析某个引用（`名字` 或 `名字.字段`；只回答存在性，不返回值）。 */

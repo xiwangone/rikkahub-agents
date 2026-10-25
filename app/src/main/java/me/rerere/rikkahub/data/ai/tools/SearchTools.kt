@@ -13,6 +13,7 @@ import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.toLocalString
 import me.rerere.search.SearchService
 import me.rerere.search.SearchServiceOptions
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import java.time.LocalDate
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
@@ -44,9 +45,10 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     service.parameters(options)
                 },
                 execute = {
-                    val options = settings.searchServices.getOrElse(
+                    val configuredOptions = settings.searchServices.getOrElse(
                         index = settings.searchServiceSelected,
                         defaultValue = { SearchServiceOptions.DEFAULT })
+                    val options = configuredOptions.withResolvedVaultCredentials()
                     val service = SearchService.getService(options)
                     val result = service.search(
                         params = it.jsonObject,
@@ -92,9 +94,10 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                         service.scrapingParameters(options)
                     },
                     execute = {
-                        val options = settings.searchServices.getOrElse(
+                        val configuredOptions = settings.searchServices.getOrElse(
                             index = settings.searchServiceSelected,
                             defaultValue = { SearchServiceOptions.DEFAULT })
+                        val options = configuredOptions.withResolvedVaultCredentials()
                         val service = SearchService.getService(options)
                         val result = service.scrape(
                             params = it.jsonObject,

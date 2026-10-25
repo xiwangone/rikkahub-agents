@@ -75,6 +75,35 @@ class AwsSignatureV4Test {
     }
 
     @Test
+    fun `presigned URL resolves a vault secret exactly like a stored literal`() {
+        val literal = S3Config(
+            endpoint = "https://storage.example.invalid",
+            accessKeyId = "SYNTHETIC_ACCESS_KEY",
+            secretAccessKey = "synthetic-s3-secret",
+            bucket = "synthetic-bucket",
+            region = "us-test-1",
+            pathStyle = true,
+        )
+        val reference = "\$\$SYNTHETIC_S3_SECRET"
+        val withReference = literal.copy(secretAccessKey = reference)
+        val expected = AwsSignatureV4.presignGetUrl(
+            config = literal,
+            path = "/synthetic/object.txt",
+            expires = 60.seconds,
+            now = awsExampleTime,
+        )
+        val actual = AwsSignatureV4.presignGetUrl(
+            config = withReference,
+            path = "/synthetic/object.txt",
+            expires = 60.seconds,
+            now = awsExampleTime,
+            resolveSecret = { raw -> if (raw == reference) literal.secretAccessKey else raw },
+        )
+
+        assertEquals(expected, actual)
+    }
+
+    @Test
     fun `presign rejects expiry outside the SigV4 range`() {
         assertThrows(IllegalArgumentException::class.java) {
             AwsSignatureV4.presignGetUrl(awsExample, "/test.txt", 0.seconds)

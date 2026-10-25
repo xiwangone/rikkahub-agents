@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getSelectedTTSProvider
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.utils.stripMarkdown
 import me.rerere.tts.controller.TtsController
 import me.rerere.tts.model.PlaybackState
@@ -134,7 +135,11 @@ private class CustomTtsStateImpl(
     private val ttsManager by inject<TTSManager>()
     private val controller by lazy {
         me.rerere.tts.controller
-            .TtsController(context, ttsManager)
+            .TtsController(
+                context = context,
+                ttsManager = ttsManager,
+                providerResolver = { it.withResolvedVaultCredentials() },
+            )
     }
 
     private val scope = CoroutineScope(Dispatchers.Main)
@@ -148,6 +153,8 @@ private class CustomTtsStateImpl(
     override val playbackState: StateFlow<PlaybackState> get() = controller.playbackState
 
     fun updateProvider(provider: TTSProviderSetting?) {
+        // Keep the stored $$ reference in the controller; the resolver reads the latest vault cache
+        // immediately before each synthesis attempt, so rotations do not leave a stale key behind.
         controller.setProvider(provider)
     }
 

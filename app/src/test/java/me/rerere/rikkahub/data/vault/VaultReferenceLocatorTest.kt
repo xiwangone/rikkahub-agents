@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.asr.ASRProviderSetting
+import me.rerere.mediagen.provider.MediaGenerationProviderSetting
+import me.rerere.search.SearchServiceOptions
+import me.rerere.tts.provider.TTSProviderSetting
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -64,5 +68,30 @@ class VaultReferenceLocatorTest {
     fun `still matches when the whole dotted string is itself a stored name`() {
         // 历史带点名字（整名优先容错）：反查同样认得这个整串，两处口径一致
         assertTrue(VaultReferenceLocator.mentions("\$\$MY_S3.access_key_id", "MY_S3.access_key_id"))
+    }
+
+    @Test
+    fun `new provider credential fields participate in vault reference lookup`() {
+        val ref = "\$\$SYNTHETIC_KEY"
+        assertTrue(VaultReferenceLocator.mentions(
+            VaultReferenceLocator.mediaSecrets(MediaGenerationProviderSetting.OpenAI(apiKey = ref)),
+            "SYNTHETIC_KEY",
+        ))
+        assertTrue(VaultReferenceLocator.mentions(
+            VaultReferenceLocator.searchSecrets(SearchServiceOptions.TavilyOptions(apiKey = ref)),
+            "SYNTHETIC_KEY",
+        ))
+        assertTrue(VaultReferenceLocator.mentions(
+            VaultReferenceLocator.searchSecrets(SearchServiceOptions.SearXNGOptions(password = ref)),
+            "SYNTHETIC_KEY",
+        ))
+        assertTrue(VaultReferenceLocator.mentions(
+            VaultReferenceLocator.asrSecrets(ASRProviderSetting.Step(apiKey = ref)),
+            "SYNTHETIC_KEY",
+        ))
+        assertTrue(VaultReferenceLocator.mentions(
+            VaultReferenceLocator.ttsSecrets(TTSProviderSetting.OpenAI(apiKey = ref)),
+            "SYNTHETIC_KEY",
+        ))
     }
 }

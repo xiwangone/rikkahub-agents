@@ -82,7 +82,7 @@ internal object AwsSignatureV4 {
         }
 
         val signingKey = getSignatureKey(
-            me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(config.secretAccessKey),
+            me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(config.secretAccessKey).orEmpty(),
             dateStamp,
             config.region,
             SERVICE
@@ -123,6 +123,7 @@ internal object AwsSignatureV4 {
         path: String,
         expires: Duration,
         now: ZonedDateTime = ZonedDateTime.now(ZoneOffset.UTC),
+        resolveSecret: (String) -> String? = { me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(it) },
     ): String {
         val expiresSeconds = expires.inWholeSeconds
         require(expiresSeconds in 1..MAX_PRESIGN_SECONDS) {
@@ -164,7 +165,7 @@ internal object AwsSignatureV4 {
         }
 
         val signingKey = getSignatureKey(
-            config.secretAccessKey,
+            resolveSecret(config.secretAccessKey).orEmpty(),
             dateStamp,
             config.region,
             SERVICE

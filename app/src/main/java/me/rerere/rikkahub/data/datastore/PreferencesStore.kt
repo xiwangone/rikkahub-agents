@@ -107,6 +107,8 @@ private val Context.settingsStore by preferencesDataStore(
 class SettingsStore(
     context: Context,
     scope: AppScope,
+    /** Defaults to the app-scoped store; injection permits isolated host-side persistence tests. */
+    private val dataStore: DataStore<Preferences> = context.settingsStore,
 ) : KoinComponent {
     companion object {
         // 版本号
@@ -289,7 +291,7 @@ class SettingsStore(
             preferences[CUSTOM_THEMES] = JsonInstant.encodeToString(settings.customThemes)
             preferences[DEVELOPER_MODE] = settings.developerMode
             preferences[DISPLAY_SETTING] = JsonInstant.encodeToString(settings.displaySetting)
-            preferences[NETWORK_SETTING] = JsonInstant.encodeToString(settings.networkSetting)
+            preferences[NETWORK_SETTING] = encryptPrefValue(JsonInstant.encodeToString(settings.networkSetting))
 
             preferences[FAVORITE_MODELS] = JsonInstant.encodeToString(settings.favoriteModels)
             preferences[SELECT_MODEL] = settings.chatModelId.toString()
@@ -342,7 +344,7 @@ class SettingsStore(
             preferences[SELECT_ASSISTANT] = settings.assistantId.toString()
             preferences[ASSISTANT_TAGS] = JsonInstant.encodeToString(settings.assistantTags)
 
-            preferences[SEARCH_SERVICES] = JsonInstant.encodeToString(settings.searchServices)
+            preferences[SEARCH_SERVICES] = encryptPrefValue(JsonInstant.encodeToString(settings.searchServices))
             preferences[SEARCH_COMMON] = JsonInstant.encodeToString(settings.searchCommonOptions)
             // maxOf(0, size - 1) guards the empty-list case: a persisted "[]" for
             // search_services leaves searchServices empty (the ?: default only fires on a
@@ -389,7 +391,7 @@ class SettingsStore(
             preferences[WEB_BRIDGE_REMOTE_PORT] = settings.webBridgeRemotePort
             preferences[WEB_BRIDGE_LOCAL_PORT] = settings.webBridgeLocalPort
             preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] = settings.webBridgePrivateKeyPath
-            preferences[WEB_BRIDGE_PASSWORD] = settings.webBridgePassword
+            preferences[WEB_BRIDGE_PASSWORD] = encryptPrefValue(settings.webBridgePassword)
             preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
             preferences.putWebServerBlock(settings)
             preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
@@ -429,7 +431,7 @@ class SettingsStore(
             this[WEB_SERVER_JWT_ENABLED] = settings.webServerJwtEnabled
             this[WEB_SERVER_LISTEN_SCOPE] = settings.webServerListenScope
             this[WEB_SERVER_ALLOWED_NETWORKS] = settings.webServerAllowedNetworks
-            this[WEB_SERVER_ACCESS_PASSWORD] = settings.webServerAccessPassword
+            this[WEB_SERVER_ACCESS_PASSWORD] = encryptPrefValue(settings.webServerAccessPassword)
             this[NETWORK_CIDR_PRESETS] = JsonInstant.encodeToString(settings.networkCidrPresets)
         }
 
@@ -451,8 +453,6 @@ class SettingsStore(
         }
 
     }
-
-    private val dataStore = context.settingsStore
 
     // Do not turn a failed disk read into emptyPreferences(): that makes defaults look
     // authoritative and a subsequent edit can overwrite the user's real settings.
@@ -531,7 +531,7 @@ class SettingsStore(
                 customThemes = decodePrefOrDefault(preferences[CUSTOM_THEMES], emptyList()),
                 developerMode = preferences[DEVELOPER_MODE] == true,
                 displaySetting = decodePrefOrDefault(preferences[DISPLAY_SETTING], DisplaySetting()),
-                networkSetting = decodePrefOrDefault(preferences[NETWORK_SETTING], NetworkSetting()),
+                networkSetting = decodeEncryptedPrefOrDefault(preferences[NETWORK_SETTING], NetworkSetting()),
                 executionBackend = preferences[EXECUTION_BACKEND] ?: "local",
                 backendConnections = preferences[BACKEND_CONNECTIONS]?.let {
                     JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it)
@@ -540,10 +540,15 @@ class SettingsStore(
                 // （DuckDuckGoOptions），T 就窄化成 List<DuckDuckGoOptions>，多态判别键 `type`
                 // 被 ignoreUnknownKeys 吞掉 → 所有搜索服务静默解成 DuckDuckGo。
                 // SearchServiceOptions.DEFAULT 已修声明类型，这里再钉一次作双保险。
-                searchServices = decodePrefOrDefault<List<SearchServiceOptions>>(
+                searchServices = decodeEncryptedPrefOrDefault<List<SearchServiceOptions>>(
                     preferences[SEARCH_SERVICES],
                     listOf(SearchServiceOptions.DEFAULT),
-                ).also { logSearchServicesDecode(preferences[SEARCH_SERVICES], it) }, // TEMP-DIAG(SearchTypeDiag)：验收后删掉这个 .also{} 片段
+                ).also {
+                    logSearchServicesDecode(
+                        preferences[SEARCH_SERVICES]?.let(::decryptPrefValue),
+                        it,
+                    )
+                }, // TEMP-DIAG(SearchTypeDiag)：验收后删掉这个 .also{} 片段
                 searchCommonOptions = decodePrefOrDefault(preferences[SEARCH_COMMON], SearchCommonOptions()),
                 searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
                 mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
@@ -587,12 +592,12 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webBridgeRemotePort = preferences[WEB_BRIDGE_REMOTE_PORT] ?: 8080,
                 webBridgeLocalPort = preferences[WEB_BRIDGE_LOCAL_PORT] ?: 8080,
                 webBridgePrivateKeyPath = preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] ?: "",
-                webBridgePassword = preferences[WEB_BRIDGE_PASSWORD] ?: "",
+                webBridgePassword = preferences[WEB_BRIDGE_PASSWORD]?.let(::decryptPrefValue) ?: "",
                 webBridgeCredentialRef = preferences[WEB_BRIDGE_CREDENTIAL_REF] ?: "",
                 webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
                 webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
                 webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
-                webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD] ?: "",
+                webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD]?.let(::decryptPrefValue) ?: "",
                 networkCidrPresets =
                     preferences[NETWORK_CIDR_PRESETS]?.let {
                         JsonInstant.decodeFromString<List<String>>(it)

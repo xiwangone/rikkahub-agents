@@ -22,6 +22,8 @@ import me.rerere.asr.providers.StepASRController
 import me.rerere.asr.providers.VolcengineASRController
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getSelectedASRProvider
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import okhttp3.OkHttpClient
 import org.koin.compose.koinInject
 
@@ -31,14 +33,15 @@ fun rememberCustomAsrState(): CustomAsrState {
     val settingsStore = koinInject<SettingsStore>()
     val httpClient = koinInject<OkHttpClient>()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+    val vaultRevision by VaultProviderKeyRefs.revision.collectAsStateWithLifecycle()
 
     val asrState =
         remember {
             CustomAsrStateImpl(context.applicationContext, httpClient)
         }
 
-    DisposableEffect(settings.selectedASRProviderId, settings.asrProviders) {
-        asrState.updateProvider(settings.getSelectedASRProvider())
+    DisposableEffect(settings.selectedASRProviderId, settings.asrProviders, vaultRevision) {
+        asrState.updateProvider(settings.getSelectedASRProvider()?.withResolvedVaultCredentials())
         onDispose { }
     }
 
@@ -66,6 +69,7 @@ private class CustomAsrStateImpl(
     private val httpClient: OkHttpClient,
 ) : CustomAsrState {
     private var controller: ASRController? = null
+    private var currentProvider: ASRProviderSetting? = null
     private val idleState = MutableStateFlow(ASRState())
 
     private val audioManager = context.getSystemService(Context.AUDIO_SERVICE) as AudioManager
@@ -85,7 +89,9 @@ private class CustomAsrStateImpl(
         get() = controller?.state ?: idleState
 
     fun updateProvider(provider: ASRProviderSetting?) {
+        if (provider == currentProvider) return
         controller?.dispose()
+        currentProvider = provider
         controller = provider?.let { createController(it) }
         if (controller == null) {
             idleState.value = ASRState()
@@ -107,6 +113,7 @@ private class CustomAsrStateImpl(
     override fun cleanup() {
         controller?.dispose()
         controller = null
+        currentProvider = null
         audioManager.abandonAudioFocusRequest(audioFocusRequest)
     }
 

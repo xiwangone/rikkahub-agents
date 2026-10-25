@@ -42,8 +42,8 @@ class TelegramProxyConfigTest {
             proxyType = "HTTP",
             proxyHost = "proxy.example.com",
             proxyPort = 8080,
-            proxyUsername = "alice",
-            proxyPassword = "hunter2",
+            proxyUsername = "synthetic-proxy-user",
+            proxyPassword = "synthetic-proxy-password",
         )
 
         store.edit { p -> writeTelegramProxyConfig(p, cfg) }
@@ -80,5 +80,29 @@ class TelegramProxyConfigTest {
 
         assertEquals(false, read.proxyEnabled)
         assertEquals("SOCKS5", read.proxyType)
+    }
+
+    @Test
+    fun `proxy password storage applies injected protection and preserves legacy literals`() = withTempStore { store ->
+        val cfg = TelegramBotConfig(proxyPassword = "synthetic-proxy-password")
+        store.edit { p -> writeTelegramProxyConfig(p, cfg) { "synthetic-cipher:$it" } }
+
+        val preferences = store.data.first()
+        val stored = preferences.asMap().entries.single { it.key.name == "proxy_password" }.value as String
+        assertEquals("synthetic-cipher:synthetic-proxy-password", stored)
+        val decoded = readTelegramProxyConfig(preferences) { it.removePrefix("synthetic-cipher:") }
+        assertEquals("synthetic-proxy-password", decoded.proxyPassword)
+
+        store.edit { p -> writeTelegramProxyConfig(p, cfg) }
+        assertEquals("synthetic-proxy-password", readTelegramProxyConfig(store.data.first()).proxyPassword)
+    }
+
+    @Test
+    fun `bot token protects reference text and falls back to legacy plaintext`() {
+        val reference = "\$\$SYNTHETIC_TELEGRAM_TOKEN"
+        val encoded = encryptTelegramCredential(reference) { "synthetic-cipher:$it" }
+        assertEquals("synthetic-cipher:\$\$SYNTHETIC_TELEGRAM_TOKEN", encoded)
+        assertEquals(reference, decryptTelegramCredential(encoded) { it.removePrefix("synthetic-cipher:") })
+        assertEquals("legacy-synthetic-token", decryptTelegramCredential("legacy-synthetic-token") { null })
     }
 }

@@ -66,4 +66,19 @@ class TelegramBotClientProxyTest {
         val cfg = TelegramBotConfig(proxyEnabled = true, proxyHost = "proxy.example.com", proxyPort = -1)
         assertNull(telegramProxyOrNull(cfg))
     }
+
+    @Test
+    fun `proxy password resolves vault refs preserves literals and rejects missing refs`() {
+        val vault = mapOf("SYNTHETIC_TELEGRAM_PROXY_PASSWORD" to "synthetic-telegram-proxy-password")
+        val resolve: (String) -> String? = { raw ->
+            if (raw.startsWith("\$\$")) vault[raw.removePrefix("\$\$")] else raw
+        }
+
+        assertEquals(
+            "synthetic-telegram-proxy-password",
+            resolveTelegramProxyPassword("\$\$SYNTHETIC_TELEGRAM_PROXY_PASSWORD", resolve),
+        )
+        assertEquals("legacy-synthetic-password", resolveTelegramProxyPassword("legacy-synthetic-password", resolve))
+        assertNull(resolveTelegramProxyPassword("\$\$MISSING_SYNTHETIC_PROXY_PASSWORD", resolve))
+    }
 }

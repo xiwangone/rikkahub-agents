@@ -12,6 +12,11 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.asr.ASRProviderSetting
+import me.rerere.mediagen.provider.MediaGenerationProviderSetting
+import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
+import me.rerere.search.SearchServiceOptions
+import me.rerere.tts.provider.TTSProviderSetting
 
 /**
  * 引用反查：回答"某凭证被哪些配置**按名字**引用"。
@@ -69,6 +74,54 @@ object VaultReferenceLocator {
         is ProviderSetting.Backend -> "${provider.token} ${provider.password}"
         else -> ""
     }
+
+    fun mediaSecrets(provider: MediaGenerationProviderSetting): String = provider.apiKey
+
+    @Suppress("CyclomaticComplexMethod")  // 凭证/重试链路本质是分支枚举，拆分反而打散可读性；复杂度优化列入后续专项
+    fun searchSecrets(options: SearchServiceOptions): String = when (options) {
+        is SearchServiceOptions.ZhipuOptions -> options.apiKey
+        is SearchServiceOptions.DoubaoOptions -> options.apiKey
+        is SearchServiceOptions.TavilyOptions -> options.apiKey
+        is SearchServiceOptions.ExaOptions -> options.apiKey
+        is SearchServiceOptions.SearXNGOptions -> options.password
+        is SearchServiceOptions.LinkUpOptions -> options.apiKey
+        is SearchServiceOptions.BraveOptions -> options.apiKey
+        is SearchServiceOptions.MetasoOptions -> options.apiKey
+        is SearchServiceOptions.OllamaOptions -> options.apiKey
+        is SearchServiceOptions.PerplexityOptions -> options.apiKey
+        is SearchServiceOptions.FirecrawlOptions -> options.apiKey
+        is SearchServiceOptions.JinaOptions -> options.apiKey
+        is SearchServiceOptions.BochaOptions -> options.apiKey
+        is SearchServiceOptions.RikkaHubOptions -> options.apiKey
+        is SearchServiceOptions.GrokOptions -> options.apiKey
+        is SearchServiceOptions.TinyfishOptions -> options.apiKey
+        is SearchServiceOptions.SerperOptions -> options.apiKey
+        is SearchServiceOptions.DeepSeekOptions -> options.apiKey
+        else -> ""
+    }
+
+    fun asrSecrets(provider: ASRProviderSetting): String = when (provider) {
+        is ASRProviderSetting.OpenAIRealtime -> provider.apiKey
+        is ASRProviderSetting.DashScope -> provider.apiKey
+        is ASRProviderSetting.Volcengine -> provider.apiKey
+        is ASRProviderSetting.MiMo -> provider.apiKey
+        is ASRProviderSetting.Step -> provider.apiKey
+    }
+
+    fun ttsSecrets(provider: TTSProviderSetting): String = when (provider) {
+        is TTSProviderSetting.OpenAI -> provider.apiKey
+        is TTSProviderSetting.Gemini -> provider.apiKey
+        is TTSProviderSetting.MiniMax -> provider.apiKey
+        is TTSProviderSetting.SystemTTS -> ""
+        is TTSProviderSetting.Qwen -> provider.apiKey
+        is TTSProviderSetting.Groq -> provider.apiKey
+        is TTSProviderSetting.XAI -> provider.apiKey
+        is TTSProviderSetting.MiMo -> provider.apiKey
+        is TTSProviderSetting.ElevenLabs -> provider.apiKey
+        is TTSProviderSetting.FishAudio -> provider.apiKey
+        is TTSProviderSetting.Step -> provider.apiKey
+        is TTSProviderSetting.Volcengine -> provider.apiKey
+    }
 }
 
 
@@ -84,6 +137,7 @@ fun vaultDanglingRefsTool(
     repository: CredentialVaultRepository,
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_dangling_refs",
     description =
@@ -110,6 +164,18 @@ fun vaultDanglingRefsTool(
         settings.providers.forEach { p ->
             checkText("模型提供方：" + p.name, VaultReferenceLocator.providerSecrets(p))
         }
+        settings.mediaGenerationProviders.forEach { p ->
+            checkText("媒体生成：" + p.name, VaultReferenceLocator.mediaSecrets(p))
+        }
+        settings.searchServices.forEach { options ->
+            checkText("搜索服务：" + options.typeKey, VaultReferenceLocator.searchSecrets(options))
+        }
+        settings.asrProviders.forEach { p ->
+            checkText("ASR：" + p.name, VaultReferenceLocator.asrSecrets(p))
+        }
+        settings.ttsProviders.forEach { p ->
+            checkText("TTS：" + p.name, VaultReferenceLocator.ttsSecrets(p))
+        }
         settings.mcpServers.forEach { m ->
             checkText(
                 "MCP 服务器：" + m.commonOptions.name.ifBlank { m.id.toString().take(8) },
@@ -118,12 +184,20 @@ fun vaultDanglingRefsTool(
         }
         (listOf(settings.s3Config) + settings.s3Configs).distinctBy { it.id }
             .forEach { checkText("S3 备份：" + it.name.ifBlank { it.id.take(8) }, it.secretAccessKey) }
+        checkText("S3 上传", settings.uploadS3Config.secretAccessKey)
         (listOf(settings.webDavConfig) + settings.webDavConfigs).distinctBy { it.id }
             .forEach { checkText("WebDAV 备份：" + it.name.ifBlank { it.id.take(8) }, it.password) }
         settings.localMcpProfiles.forEach {
             checkName("本地 MCP：" + it.name.ifBlank { it.id }, it.authTokenRef.trim())
         }
         checkName("Web 桥", settings.webBridgeCredentialRef.trim())
+        checkText("Web Bridge 私钥路径", settings.webBridgePrivateKeyPath)
+        checkText("全局代理密码", settings.networkSetting.proxyPassword)
+        checkText("Web 桥密码", settings.webBridgePassword)
+        checkText("Web 服务访问密码", settings.webServerAccessPassword)
+        val telegram = telegramBotPreferences.current()
+        checkText("Telegram bot token", telegram.token)
+        checkText("Telegram proxy password", telegram.proxyPassword)
         sshHostRepository.getAll().forEach { host ->
             checkName("SSH 主机：" + host.name, host.vaultCredentialRef?.trim().orEmpty())
             checkText("SSH 主机：${host.name} password", host.password.orEmpty())
@@ -146,16 +220,19 @@ fun vaultDanglingRefsTool(
 )
 
 /** 查出某凭证被哪些配置引用（只读；不含任何值）。 */
+@Suppress("CyclomaticComplexMethod")  // 凭证/重试链路本质是分支枚举，拆分反而打散可读性；复杂度优化列入后续专项
 fun vaultCredentialRefsTool(
     settingsStore: SettingsStore,
     sshHostRepository: SshHostRepository,
+    telegramBotPreferences: TelegramBotPreferences,
 ): Tool = Tool(
     name = "vault_credential_refs",
     description =
         "Find which configurations reference a credential BY NAME (e.g. `\$\$GITHUB_TOKEN`), so that " +
             "renaming or deleting it can be done safely. Read-only: returns locations only, never values. " +
-            "Covers model providers (apiKey / backend token+password), MCP server outbound headers, " +
-            "local MCP auth token, S3 / WebDAV credentials, the web-bridge credential reference, " +
+            "Covers model/media/search/ASR/TTS providers, global proxy, MCP headers, Telegram token/proxy, " +
+            "Web passwords, local MCP auth token, backup and upload S3 / WebDAV credentials, " +
+            "the web-bridge credential reference, " +
             "and saved SSH hosts (vaultCredentialRef and `$$` references in password/privateKey/passphrase). " +
             "Use before vault_credential_update(rename) or vault_credential_delete; " +
             "an empty result means no configuration references it.",
@@ -190,6 +267,27 @@ fun vaultCredentialRefsTool(
             }
         }
 
+        settings.mediaGenerationProviders.forEach { provider ->
+            if (VaultReferenceLocator.mentions(VaultReferenceLocator.mediaSecrets(provider), name)) {
+                hits += "媒体生成：${provider.name}"
+            }
+        }
+        settings.searchServices.forEach { options ->
+            if (VaultReferenceLocator.mentions(VaultReferenceLocator.searchSecrets(options), name)) {
+                hits += "搜索服务：${options.typeKey}"
+            }
+        }
+        settings.asrProviders.forEach { provider ->
+            if (VaultReferenceLocator.mentions(VaultReferenceLocator.asrSecrets(provider), name)) {
+                hits += "ASR：${provider.name}"
+            }
+        }
+        settings.ttsProviders.forEach { provider ->
+            if (VaultReferenceLocator.mentions(VaultReferenceLocator.ttsSecrets(provider), name)) {
+                hits += "TTS：${provider.name}"
+            }
+        }
+
         // MCP 服务器出站头部值
         settings.mcpServers.forEach { server ->
             val headerValues = server.commonOptions.headers.joinToString(" ") { it.second }
@@ -203,6 +301,9 @@ fun vaultCredentialRefsTool(
             if (VaultReferenceLocator.mentions(s3.secretAccessKey, name)) {
                 hits += "S3 备份：${s3.name.ifBlank { s3.id.take(8) }}"
             }
+        }
+        if (VaultReferenceLocator.mentions(settings.uploadS3Config.secretAccessKey, name)) {
+            hits += "S3 上传：${settings.uploadS3Config.name.ifBlank { settings.uploadS3Config.id.ifBlank { "媒体上传" } }}"
         }
         (listOf(settings.webDavConfig) + settings.webDavConfigs).distinctBy { it.id }.forEach { dav ->
             if (VaultReferenceLocator.mentions(dav.password, name)) {
@@ -221,6 +322,19 @@ fun vaultCredentialRefsTool(
         if (settings.webBridgeCredentialRef.trim() == name) {
             hits += "Web 桥：凭证引用"
         }
+
+        listOf(
+            "全局代理密码" to settings.networkSetting.proxyPassword,
+            "Web 桥密码" to settings.webBridgePassword,
+            "Web 服务访问密码" to settings.webServerAccessPassword,
+            "Web Bridge 私钥路径" to settings.webBridgePrivateKeyPath,
+        ).forEach { (location, value) ->
+            if (VaultReferenceLocator.mentions(value, name)) hits += location
+        }
+
+        val telegram = telegramBotPreferences.current()
+        if (VaultReferenceLocator.mentions(telegram.token, name)) hits += "Telegram bot token"
+        if (VaultReferenceLocator.mentions(telegram.proxyPassword, name)) hits += "Telegram proxy password"
 
         // 已保存的 SSH 主机（私钥引用及三个支持 $$ 引用的认证字段）
         hits += findSshHostCredentialReferences(name, sshHostRepository)

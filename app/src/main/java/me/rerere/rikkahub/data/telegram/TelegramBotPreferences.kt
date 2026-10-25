@@ -11,6 +11,7 @@ import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
+import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 
 private val Context.telegramDataStore by preferencesDataStore(name = "telegram_bot")
 
@@ -24,7 +25,20 @@ private val K_PROXY_PORT = intPreferencesKey("proxy_port")
 private val K_PROXY_USERNAME = stringPreferencesKey("proxy_username")
 private val K_PROXY_PASSWORD = stringPreferencesKey("proxy_password")
 
-internal fun readTelegramProxyConfig(p: Preferences): TelegramBotConfig =
+internal fun encryptTelegramCredential(
+    raw: String,
+    encrypt: (String) -> String = { ProviderCredentialCipher.encrypt(it) },
+): String = encrypt(raw)
+
+internal fun decryptTelegramCredential(
+    raw: String?,
+    decrypt: (String) -> String? = { ProviderCredentialCipher.decrypt(it) },
+): String = raw?.let { decrypt(it) ?: it }.orEmpty()
+
+internal fun readTelegramProxyConfig(
+    p: Preferences,
+    decodeSecret: (String) -> String = { it },
+): TelegramBotConfig =
     TelegramBotConfig(
         // proxyEnabled defaults false, so absence must read as false — p[K] == true.
         proxyEnabled = p[K_PROXY_ENABLED] == true,
@@ -32,16 +46,20 @@ internal fun readTelegramProxyConfig(p: Preferences): TelegramBotConfig =
         proxyHost = p[K_PROXY_HOST].orEmpty(),
         proxyPort = p[K_PROXY_PORT] ?: 0,
         proxyUsername = p[K_PROXY_USERNAME].orEmpty(),
-        proxyPassword = p[K_PROXY_PASSWORD].orEmpty(),
+        proxyPassword = p[K_PROXY_PASSWORD]?.let(decodeSecret).orEmpty(),
     )
 
-internal fun writeTelegramProxyConfig(p: MutablePreferences, cfg: TelegramBotConfig) {
+internal fun writeTelegramProxyConfig(
+    p: MutablePreferences,
+    cfg: TelegramBotConfig,
+    encodeSecret: (String) -> String = { it },
+) {
     p[K_PROXY_ENABLED] = cfg.proxyEnabled
     p[K_PROXY_TYPE] = cfg.proxyType
     p[K_PROXY_HOST] = cfg.proxyHost
     p[K_PROXY_PORT] = cfg.proxyPort
     p[K_PROXY_USERNAME] = cfg.proxyUsername
-    p[K_PROXY_PASSWORD] = cfg.proxyPassword
+    p[K_PROXY_PASSWORD] = encodeSecret(cfg.proxyPassword)
 }
 
 class TelegramBotPreferences(private val context: Context) {
@@ -69,7 +87,7 @@ class TelegramBotPreferences(private val context: Context) {
         store.edit { p ->
             val cur = readConfig(p)
             val next = fn(cur)
-            p[K_TOKEN] = next.token
+            p[K_TOKEN] = encryptTelegramCredential(next.token)
             p[K_ENABLED] = next.enabled
             if (next.defaultChatId != null) p[K_DEFAULT_CHAT_ID] = next.defaultChatId
             else p.remove(K_DEFAULT_CHAT_ID)
@@ -80,14 +98,14 @@ class TelegramBotPreferences(private val context: Context) {
                 p[K_CUSTOM_COMMANDS] = serializeCustomCommands(next.customCommands)
             } else p.remove(K_CUSTOM_COMMANDS)
             p[K_STREAM_SCREENSHOTS] = next.streamScreenshots
-            writeTelegramProxyConfig(p, next)
+            writeTelegramProxyConfig(p, next) { encryptTelegramCredential(it) }
         }
     }
 
     private fun readConfig(p: Preferences): TelegramBotConfig {
-        val proxy = readTelegramProxyConfig(p)
+        val proxy = readTelegramProxyConfig(p) { decryptTelegramCredential(it) }
         return TelegramBotConfig(
-            token = p[K_TOKEN].orEmpty(),
+            token = decryptTelegramCredential(p[K_TOKEN]),
             enabled = p[K_ENABLED] == true,
             defaultChatId = p[K_DEFAULT_CHAT_ID],
             whitelist = parseWhitelist(p[K_WHITELIST].orEmpty()),

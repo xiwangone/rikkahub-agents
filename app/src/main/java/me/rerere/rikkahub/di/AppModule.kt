@@ -108,7 +108,15 @@ val appModule =
         }
         single {
             TelegramBotClient(
-                tokenProvider = { runCatching { kotlinx.coroutines.runBlocking { get<TelegramBotPreferences>().current().token } }.getOrDefault("") },
+                tokenProvider = {
+                    runCatching {
+                        kotlinx.coroutines.runBlocking {
+                            me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveOrNull(
+                                get<TelegramBotPreferences>().current().token,
+                            ).orEmpty()
+                        }
+                    }.getOrDefault("")
+                },
                 proxyConfigProvider = {
                     runCatching { kotlinx.coroutines.runBlocking { get<TelegramBotPreferences>().current() } }
                         .getOrDefault(me.rerere.rikkahub.data.telegram.TelegramBotConfig())
