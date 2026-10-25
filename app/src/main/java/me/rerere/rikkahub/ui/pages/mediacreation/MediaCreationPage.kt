@@ -38,6 +38,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
@@ -325,6 +326,8 @@ private fun MediaCreationSelectionBar(
     onDelete: () -> Unit,
 ) {
     val context = LocalContext.current
+    // 资源取值走 LocalResources（configuration-aware）：直接 context.getString 会被 lint 报 LocalContextGetResourceValueCall
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     var saving by remember { mutableStateOf(false) }
@@ -364,23 +367,23 @@ private fun MediaCreationSelectionBar(
                             val result = saveSelected(context, vm)
                             when {
                                 result.total == 0 -> toaster.show(
-                                    context.getString(R.string.media_creation_page_nothing_to_save),
+                                    resources.getString(R.string.media_creation_page_nothing_to_save),
                                     type = ToastType.Info,
                                 )
                                 result.failures.isEmpty() -> toaster.show(
-                                    context.getString(R.string.media_creation_page_saved_files, result.saved),
+                                    resources.getString(R.string.media_creation_page_saved_files, result.saved),
                                     type = ToastType.Success,
                                 )
                                 result.saved == 0 -> toaster.show(
-                                    result.failures.first().message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                    result.failures.first().message ?: resources.getString(R.string.media_creation_page_gallery_write_failed),
                                     type = ToastType.Error,
                                 )
                                 else -> toaster.show(
-                                    context.getString(
+                                    resources.getString(
                                         R.string.media_creation_page_saved_files_partial,
                                         result.saved,
                                         result.failures.size,
-                                        result.failures.first().message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                        result.failures.first().message ?: resources.getString(R.string.media_creation_page_gallery_write_failed),
                                     ),
                                     type = ToastType.Error,
                                 )
@@ -389,7 +392,7 @@ private fun MediaCreationSelectionBar(
                             throw e
                         } catch (e: Exception) {
                             toaster.show(
-                                e.message ?: context.getString(R.string.media_creation_page_gallery_write_failed),
+                                e.message ?: resources.getString(R.string.media_creation_page_gallery_write_failed),
                                 type = ToastType.Error,
                             )
                         } finally {
