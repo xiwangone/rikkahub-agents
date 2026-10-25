@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
@@ -198,6 +199,8 @@ private fun ContextUsageBar(
     contextWindowTokens: Long?,
 ) {
     val latest = latestRequestUsage ?: return
+    // Composable 里读 Locale 必须走可观察的配置（LocalConfiguration），否则配置变化不会重组
+    val locale = LocalConfiguration.current.locales[0]
     val promptTokens = latest.promptTokens.coerceAtLeast(0)
     val cachedTokens = latest.cachedTokens.coerceIn(0, promptTokens)
     val uncachedInputTokens = promptTokens - cachedTokens
@@ -208,7 +211,7 @@ private fun ContextUsageBar(
     val percent =
         ratio?.let {
             NumberFormat
-                .getPercentInstance(Locale.getDefault())
+                .getPercentInstance(locale)
                 .apply {
                     minimumFractionDigits = 0
                     maximumFractionDigits = 0
