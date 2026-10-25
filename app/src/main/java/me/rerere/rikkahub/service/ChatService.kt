@@ -1468,8 +1468,8 @@ class ChatService(
                             ?: me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits.maxToolSteps,
                     processingStatus = session.processingStatus,
                     onRetryDiagnosed = { retryDiagnosis = it },
-                    // 生成期间用户补充的消息：在本轮每个 step 结束后立即注入请求历史，
-                    // 同时落库，保证 UI 与历史一致（不必等整轮结束）。
+                    // 工具结果写回且本轮还能继续请求时，立即注入生成期间排队的补充并落库；
+                    // 若没有后续 step，则留给 turn-end 自动派发，避免消息没有助手回复。
                     drainQueuedMessages = {
                         val taken = messageQueues[conversationId]?.drainAll().orEmpty()
                         // 注意：落库与返回**必须复用同一批 UIMessage 对象**。

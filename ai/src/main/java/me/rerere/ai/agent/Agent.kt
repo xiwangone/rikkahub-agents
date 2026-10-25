@@ -40,6 +40,9 @@ data class AgentRequest(
  * 除了 [prepareStep]，其余成员都有默认实现且不产生任何副作用，因此不实现某个钩子时循环行为
  * 与该钩子不存在时完全一致。所有钩子都不切换调度器，在收集方的协程上下文里被调用。
  */
+// 钩子数随 agent 生命周期阶段增长（每个阶段一个回调），本质是“阶段清单”而非功能堆积；
+// 拆成多个接口会让实现方必须实现多处，反而丢掉“不实现即无副作用”的保证。
+@Suppress("TooManyFunctions")
 interface AgentHooks {
     /**
      * 每次请求模型之前调用，返回这一步实际发出的消息和参数；系统提示词、上下文裁剪、输入转换都在这里做。
@@ -142,6 +145,13 @@ interface AgentHooks {
      * 和步级预算判定（返回 [StepDecision.Stop] 结束整次运行）。默认放行且不改历史。
      */
     suspend fun beforeStep(step: StepContext): StepDecision = StepDecision.Continue
+
+    /**
+     * 工具结果已经写回当前助手消息后、下一次模型请求之前调用。
+     * 与 [beforeStep] 不同，此钩子位于工具执行与紧随其后的模型请求之间，适合把
+     * 刚到达的用户补充写入请求历史；此时模型仍能在本轮内看到工具结果和补充内容。
+     */
+    suspend fun afterToolExecution(step: StepContext) {}
 }
 
 /** 一步请求的实际内容：消息与参数。 */

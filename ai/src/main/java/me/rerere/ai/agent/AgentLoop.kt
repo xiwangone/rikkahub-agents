@@ -88,6 +88,9 @@ internal class AgentLoop(
                 if (awaiting.isNotEmpty()) return finish(AgentFinishReason.AwaitingApproval(awaiting))
                 // 审批判定可能已改写这条消息，执行前重新取一次
                 executeTools(checkNotNull(workingMessage).getTools().filter { !it.isExecuted })
+                // Queue injection is only useful if this run can issue another model request.
+                // Otherwise leave queued input for the caller's normal turn-end dispatch.
+                if (steps < request.maxSteps) hooks.afterToolExecution(stepContext())
             } else if (!reissueStep && current != null && steps > 0) {
                 return finish(AgentFinishReason.Completed)
             }

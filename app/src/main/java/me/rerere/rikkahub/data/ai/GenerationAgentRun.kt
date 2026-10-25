@@ -127,8 +127,6 @@ internal class GenerationAgentRun(
     private var autoContinueCount = 0
     private var imageDowngradeApplied = false
 
-    // 上一步是否真的执行过工具：决定本步开头要不要做压缩与队列消息注入
-    private var executedToolsLastStep = false
     private var pendingAutoContinue = false
 
     private val maxStreamRetries = if (settings.enableAutoRetry) settings.responseStreamMaxRetries else 0
@@ -738,7 +736,6 @@ internal class GenerationAgentRun(
     ): List<UIMessagePart> {
         val hasShellAccess = tools.any { it.name == "workspace_shell" }
         val maskedResult = toolOutputProcessor.maskToolOutput(output)
-        executedToolsLastStep = true
         return toolOutputProcessor.maybeTruncateToolOutput(
             tool.toolCallId,
             appendApprovalProvenance(maskedResult, tool.approvalState),
@@ -773,33 +770,6 @@ internal class GenerationAgentRun(
         flushPendingOutput()
 
         if (step.stepIndex > 0) {
-            if (executedToolsLastStep) {
-                executedToolsLastStep = false
-                onAfterToolExecution(messages)?.let { compactedMessages ->
-                    AppLog.i(TAG, "generateText: replacing request history after tool execution")
-                    messages = compactedMessages
-                }
-                val queued = drainQueuedMessages()
-                if (queued.isNotEmpty()) {
-                    AppLog.i(TAG, "generateText: injecting ${queued.size} queued user message(s) at end of step #${step.stepIndex}")
-                    messages = messages + queued
-                    emitter.emit(
-                        GenerationChunk.Messages(
-                            messages.transforms(
-                                transformers = outputTransformers,
-                                context = context,
-                                model = model,
-                                assistant = assistant,
-                                settings = settings,
-                            ),
-                        ),
-                    )
-                    // A queued user message replaces this snapshot; do not later publish
-                    // an obsolete pre-injection state.
-                    pendingOutputFlush.clear()
-                }
-            }
-
             // 优雅收尾：预算进入宽限窗口时注入一次性收尾指令（合成消息，不落库不进历史请求之外的地方）
             val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
             val remainingBudgetMs = ToolRuntimeLimits.turnBudgetMs - elapsedMs
@@ -871,6 +841,37 @@ internal class GenerationAgentRun(
             )
         }
         return StepDecision.Continue
+    }
+
+    override suspend fun afterToolExecution(step: StepContext) {
+        // AgentLoop 调用此边界时，工具结果刚写回助手消息；此时还没有发出下一次模型请求。
+        val hasCompletedTool = step.messages.lastOrNull()?.getTools()?.any { it.isExecuted } == true
+        if (!hasCompletedTool) return
+        outputTransformCache.clear()
+        flushPendingOutput()
+        onAfterToolExecution(messages)?.let { compactedMessages ->
+            AppLog.i(TAG, "generateText: replacing request history after tool execution")
+            messages = compactedMessages
+        }
+        val queued = drainQueuedMessages()
+        if (queued.isNotEmpty()) {
+            AppLog.i(TAG, "generateText: injecting ${queued.size} queued user message(s) after tool execution")
+            messages = messages + queued
+            emitter.emit(
+                GenerationChunk.Messages(
+                    messages.transforms(
+                        transformers = outputTransformers,
+                        context = context,
+                        model = model,
+                        assistant = assistant,
+                        settings = settings,
+                    ),
+                ),
+            )
+            // A queued user message replaces this snapshot; do not later publish
+            // an obsolete pre-injection state.
+            pendingOutputFlush.clear()
+        }
     }
 
     /** 一步生成结束：可视化变换 + 收尾变换 + 断流判定 */
