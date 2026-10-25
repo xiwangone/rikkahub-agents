@@ -50,6 +50,8 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.sync.PendingDatabaseRestore
+import me.rerere.search.SearchService
+import okhttp3.OkHttpClient
 
 private const val TAG = "RikkaHubApp"
 
@@ -103,6 +105,11 @@ class RikkaHubApp : Application() {
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
         }
         this.createNotificationChannel()
+
+        // :search 的服务实现是 object 单例，取不到 Koin，只能把带代理的 client 递进去。
+        // 装到 onCreate（而不是藏在某个 single 的工厂副作用里）：Application.onCreate 先于
+        // 任何 Activity/Service/Worker，搜索因此不可能跑在 init 之前。
+        SearchService.init(get<OkHttpClient>(), this)
 
         // AI 调试接口（实验性，默认关）：构造即拉起 DataStore collector，enabled 时自动恢复服务
         get<DebugApiManager>()

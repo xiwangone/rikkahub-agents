@@ -71,7 +71,6 @@ import me.rerere.rikkahub.data.sync.MigrationExporter
 import me.rerere.rikkahub.data.sync.MigrationImporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
-import me.rerere.search.SearchService
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -357,44 +356,27 @@ val dataSourceModule =
                     }
                 }
                 .build()
-                .also { SearchService.init(it, get()) }
             client
         }
 
+        // 账号型 provider（Codex / Grok / Gemini OAuth）的 client：从默认 client 派生。
+        // 原先这里是「逐行复制默认参数但不带 proxy 配置」，于是用户在设置里配的代理对这三条
+        // 链路无效 —— 没有 proxySelector 时 OkHttp 只回落到 JVM 默认 ProxySelector（默认行为：
+        // 除非设了 https.proxyHost 系统属性，否则返回 DIRECT），也拿不到 proxyAuthenticator。
+        // 这三家打的都是硬编码公网 SaaS 域名（chatgpt.com / api.openai.com / api.x.ai /
+        // *.googleapis.com），不存在「内网地址被代理带走」的问题，所以直接继承是安全的。
+        // newBuilder() 保留同样配置并共用默认 client 的连接池与 dispatcher：代理设置变更时
+        // 默认 client 的拦截器 connectionPool.evictAll() 因此能一并生效。
         single<OkHttpClient>(named("codex")) {
-            OkHttpClient
-                .Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.MINUTES)
-                .writeTimeout(120, TimeUnit.SECONDS)
-                .followSslRedirects(true)
-                .followRedirects(true)
-                .retryOnConnectionFailure(true)
-                .build()
+            get<OkHttpClient>().newBuilder().build()
         }
 
         single<OkHttpClient>(named("gemini")) {
-            OkHttpClient
-                .Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.MINUTES)
-                .writeTimeout(120, TimeUnit.SECONDS)
-                .followSslRedirects(true)
-                .followRedirects(true)
-                .retryOnConnectionFailure(true)
-                .build()
+            get<OkHttpClient>().newBuilder().build()
         }
 
         single<OkHttpClient>(named("grok")) {
-            OkHttpClient
-                .Builder()
-                .connectTimeout(20, TimeUnit.SECONDS)
-                .readTimeout(10, TimeUnit.MINUTES)
-                .writeTimeout(120, TimeUnit.SECONDS)
-                .followSslRedirects(true)
-                .followRedirects(true)
-                .retryOnConnectionFailure(true)
-                .build()
+            get<OkHttpClient>().newBuilder().build()
         }
 
         single {

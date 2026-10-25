@@ -71,14 +71,21 @@ interface SearchService<T : SearchServiceOptions> {
                 is SearchServiceOptions.CustomJsOptions -> CustomJsSearchService
             } as SearchService<T>
 
+        // 兜底 client。正常启动路径下 init() 会在任何搜索发生前把它换成 DI 的 client
+        // （见 RikkaHubApp.onCreate）。参数必须与那个 client 保持一致，否则「搜索发生在
+        // init 之前还是之后」会变成用户能感觉到的行为差异：原先 readTimeout 只有 30s
+        // （DI client 为 10min），慢速搜索/抓取会随顺序偶发超时。
+        // 代理与 UA 头无法在本模块复刻（SettingsStore 在 app 模块），这正是 init() 存在的原因。
         @Volatile
         internal var httpClient: OkHttpClient =
             OkHttpClient
                 .Builder()
+                .connectTimeout(20, TimeUnit.SECONDS)
+                .readTimeout(10, TimeUnit.MINUTES)
+                .writeTimeout(120, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .followRedirects(true)
                 .followSslRedirects(true)
-                .readTimeout(30, TimeUnit.SECONDS)
                 .build()
 
         @Volatile
