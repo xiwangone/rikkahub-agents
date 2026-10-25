@@ -333,6 +333,8 @@ val appModule =
             me.rerere.locallm.litert
                 .LiteRtRuntime(get())
         }
+        // 本地 llama.cpp 推理线（llama-cpp 模块；JNI 面已由 keepRules 保留）
+        single { me.rerere.llamacpp.LlamaCppRuntime() }
 
         single {
             me.rerere.rikkahub.data.ai.tools.ChatToolFactory(

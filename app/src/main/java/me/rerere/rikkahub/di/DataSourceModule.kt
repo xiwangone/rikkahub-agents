@@ -473,6 +473,16 @@ val dataSourceModule =
                         },
                     ),
                 )
+                // 本地 llama.cpp：ProviderSetting.LlamaCppLocal(providerKey="local_llamacpp") 可反序列化，
+                // 不注册会在导入包含该键的配置时抛 IllegalArgumentException。
+                pm.registerProvider(
+                    "local_llamacpp",
+                    me.rerere.llamacpp.LlamaCppProvider(
+                        context = get(),
+                        runtime = get(),
+                        prefs = get(),
+                    ),
+                )
                 pm.registerProvider(
                     "codex",
                     CodexProvider(
