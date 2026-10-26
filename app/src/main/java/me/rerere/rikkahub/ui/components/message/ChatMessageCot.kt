@@ -97,7 +97,13 @@ fun List<UIMessagePart>.groupMessageParts(): List<MessagePartBlock> {
 
     this.fastForEachIndexed { index, part ->
         when (part) {
-            is UIMessagePart.Reasoning -> appendStep(ThinkingStep.ReasoningStep(part), index)
+            // 接口偶发只发出 ReasoningStart 或空文本的 reasoning delta（reasoning_content 为空串），
+            // 会留下没有正文的 Reasoning part；渲染出来就是一张"思考了 N 秒"的空卡片。
+            // 数据里保留该 part（回传模型时仍需其 metadata），只是不进入时间线。
+            is UIMessagePart.Reasoning ->
+                if (part.reasoning.isNotBlank()) {
+                    appendStep(ThinkingStep.ReasoningStep(part), index)
+                }
 
             is UIMessagePart.Tool -> {
                 if (part.isSuccessfulChartDisplay()) {

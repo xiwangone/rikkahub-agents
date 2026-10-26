@@ -26,6 +26,18 @@ class GroupMessagePartsTest {
     @Test fun emptyListProducesNoBlocks() {
         assertTrue(emptyList<UIMessagePart>().groupMessageParts().isEmpty())
     }
+    @Test fun blankReasoningDoesNotProduceEmptyCard() {
+        // 空 reasoning_content 会留下无正文的 Reasoning part：不应渲染成"思考了 N 秒"的空卡片
+        val blocks = listOf(reasoning(""), reasoning("  \n"), text("answer")).groupMessageParts()
+        assertEquals(1, blocks.size)
+        assertEquals(0, (blocks[0] as MessagePartBlock.ContentBlock).index)
+    }
+    @Test fun blankReasoningKeepsToolTimelineIntact() {
+        val t = tool("t")
+        val block = listOf(reasoning(""), t).groupMessageParts().single() as MessagePartBlock.ThinkingBlock
+        assertEquals(listOf(ThinkingStep.ToolStep(t)), block.steps)
+        assertEquals(1, block.startIndex)
+    }
     @Test fun singleTextPreservesIndex() {
         val block = listOf(text("hello")).groupMessageParts().single() as MessagePartBlock.ContentBlock
         assertEquals(0, block.index)
