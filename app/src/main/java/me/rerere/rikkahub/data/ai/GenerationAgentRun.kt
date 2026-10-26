@@ -99,7 +99,6 @@ internal class GenerationAgentRun(
     private val onRetryDiagnosed: ((FailureDiagnosis) -> Unit)?,
     private val onAfterToolExecution: suspend (List<UIMessage>) -> List<UIMessage>?,
     private val onBeforeModelRequest: suspend () -> Unit,
-    private val drainQueuedMessages: suspend () -> List<UIMessage>,
     private val isToolAutoApproved: suspend (String) -> Boolean,
     private val systemAddendum: String?,
     private val conversationSystemPrompt: String?,
@@ -405,15 +404,11 @@ internal class GenerationAgentRun(
         // final boundary before asking the provider for the next step.
         flushPendingOutput()
 
-        // 队列消息注入放在这里（而不是工具执行后）：prepareStep 是「确定要发这次请求」的边界，
-        // 只有到这里才能保证消息会被模型看到。放在 afterToolExecution 会有一个坑——那里无法
-        // 保证后面真的还有请求（模型可能直接 stop），消息被 drain 走后既没发出、也没留给
-        // turn-end 派发，表现为「消息出现但没有回复」。
-        val queuedMessages = drainQueuedMessages()
-        if (queuedMessages.isNotEmpty()) {
-            AppLog.i(TAG, "prepareStep: injecting ${queuedMessages.size} queued user message(s) before model request")
-            messages = messages + queuedMessages
-        }
+        // 生成期间排队的消息**不进本轮上下文**：它是「中途插话」，应在本次回合结束后作为
+        // 新的一轮发出（turn-end 的 dispatchNextQueuedMessage → sendMessageNow）。
+        // 早先的两种做法都踩过坑：放在 afterToolExecution 会无条件 drain（模型随后 stop 时
+        // 消息被吞、没有回复）；放在 prepareStep 虽然能进上下文，但回复并进当前 assistant
+        // 消息，UI 上表现为「转圈后停下、没有独立回复」。
 
         // 清零点：丢弃上一次请求（异常/取消路径可能）遗留的引用命中，避免归属串档
         ProviderKeyAudit.reset()

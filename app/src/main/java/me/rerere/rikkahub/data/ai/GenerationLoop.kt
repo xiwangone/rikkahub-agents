@@ -341,7 +341,9 @@ class GenerationLoop(
 
     // 取消与普通失败要分开处理：取消时仍需在 NonCancellable 里尽力落最终形状，普通失败照常上抛，
     // 故用类型判断而非拆 catch。
-    @Suppress("InstanceOfCheckForException", "LongMethod")
+    // LongParameterList：生成流程的依赖全部由调用方注入，拆成参数对象会多一层无收益的包装
+    // （原先靠 detekt baseline 记录，队列注入参数移除后签名变化会失配，改为显式声明）。
+    @Suppress("InstanceOfCheckForException", "LongMethod", "LongParameterList")
     fun generateText(
         settings: Settings,
         model: Model,
@@ -370,7 +372,6 @@ class GenerationLoop(
         // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到
         // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。
         // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。
-        drainQueuedMessages: suspend () -> List<UIMessage> = { emptyList() },
         // Returns true when the user has pre-approved [toolName] for this turn (e.g.
         // "Allow for this chat" or "Always Allow" granted earlier). When true, the loop
         // below skips the Pending flip and lets the tool execute. ChatService injects the
@@ -447,7 +448,6 @@ class GenerationLoop(
                 onRetryDiagnosed = onRetryDiagnosed,
                 onAfterToolExecution = onAfterToolExecution,
                 onBeforeModelRequest = onBeforeModelRequest,
-                drainQueuedMessages = drainQueuedMessages,
                 isToolAutoApproved = isToolAutoApproved,
                 systemAddendum = systemAddendum,
                 conversationSystemPrompt = conversationSystemPrompt,

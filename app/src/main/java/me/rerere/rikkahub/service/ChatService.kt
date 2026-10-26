@@ -1488,29 +1488,6 @@ class ChatService(
                             ?: me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits.maxToolSteps,
                     processingStatus = session.processingStatus,
                     onRetryDiagnosed = { retryDiagnosis = it },
-                    // 工具结果写回且本轮还能继续请求时，立即注入生成期间排队的补充并落库；
-                    // 若没有后续 step，则留给 turn-end 自动派发，避免消息没有助手回复。
-                    drainQueuedMessages = {
-                        val taken = messageQueues[conversationId]?.drainAll().orEmpty()
-                        // 注意：落库与返回**必须复用同一批 UIMessage 对象**。
-                        // 若各自新建，id 不同 → 后续 GenerationChunk.Messages 走
-                        // Conversation.updateCurrentMessages 时按 id 匹配不到，会把同一内容
-                        // 追加成同一节点的第二条消息（表现为消息出现「2/2」分支）。
-                        val queuedMessages =
-                            taken.map { UIMessage(role = MessageRole.USER, parts = it.parts) }
-                        if (queuedMessages.isNotEmpty()) {
-                            val conv = getConversationFlow(conversationId).value
-                            val withQueued =
-                                conv.copy(
-                                    messageNodes = conv.messageNodes + queuedMessages.map { it.toMessageNode() },
-                                )
-                            // NonCancellable：这批发消息已经出队（内存队列），必须保证落库，
-                            // 否则打断落在事务窗口内会出现「已出队但未进库」→ 消息丢失。
-                            withContext(NonCancellable) { saveConversation(conversationId, withQueued) }
-                            AppLog.i(TAG, "msg-inject conv=$conversationId count=${queuedMessages.size}")
-                        }
-                        queuedMessages
-                    },
                     // Read once per call so the surface that wrote the addendum (Telegram bot,
                     // anything else) gets its runtime context into the system prompt without
                     // having to plumb a parameter all the way through sendMessage. Returns null
