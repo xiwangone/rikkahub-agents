@@ -2465,6 +2465,14 @@
     <string name="setting_page_preferences_network_proxy">代理</string>
     <string name="setting_page_preferences_network_proxy_desc">支援 HTTP 和 SOCKS5 代理 URL。留空以使用系統設定。</string>
     <string name="setting_page_preferences_network_proxy_invalid">請輸入包含主機和埠的有效代理 URL。</string>
+  <string name="setting_page_preferences_network_host_overrides">主機解析覆蓋</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">將網域固定解析到指定 IP，繞過系統解析器，適用於解析到慢或不穩定路由的情況。</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">尚未設定</string>
+  <string name="setting_page_preferences_network_host_overrides_add">新增</string>
+  <string name="setting_page_preferences_network_host_overrides_host">主機</string>
+  <string name="setting_page_preferences_network_host_overrides_address">IP 位址</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">不是有效的 IP 位址</string>
+  <string name="setting_page_preferences_network_host_overrides_count">已設定 %1$d 條</string>
     <string name="auto_compress_cache_reset_notice">上下文已壓縮 — prompt 快取字首已重置，下一條訊息將按全價輸入計費。</string>
     <string name="assistant_page_extra_cold_section">工具詳略（進階）</string>
     <string name="assistant_page_extra_cold_title">這些工具只傳簡要說明</string>

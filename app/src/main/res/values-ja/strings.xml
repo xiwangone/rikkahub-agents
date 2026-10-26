@@ -2149,6 +2149,14 @@
 <string name="setting_page_preferences_network_proxy">プロキシ</string>
 <string name="setting_page_preferences_network_proxy_desc">HTTPおよびSOCKS5プロキシURLをサポートします。空白の場合はシステム設定を使用します。</string>
 <string name="setting_page_preferences_network_proxy_invalid">ホストとポートを含む有効なプロキシURLを入力してください。</string>
+  <string name="setting_page_preferences_network_host_overrides">ホスト DNS 上書き</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">ドメインを固定 IP に紐付け、システムのリゾルバをバイパスします。解決先が遅い・不安定な場合に有効です。</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">設定なし</string>
+  <string name="setting_page_preferences_network_host_overrides_add">追加</string>
+  <string name="setting_page_preferences_network_host_overrides_host">ホスト</string>
+  <string name="setting_page_preferences_network_host_overrides_address">IP アドレス</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">有効な IP アドレスではありません</string>
+  <string name="setting_page_preferences_network_host_overrides_count">%1$d 件</string>
 <string name="assistant_page_context_message_limit_hint">0 で無制限、それ以外は大きいほど良く、0 または 20 以上を推奨します</string>
 <string name="setting_files_page_clean_action">クリーンアップ</string>
 <string name="setting_files_page_clean_confirmation">このカテゴリのすべてのファイルを完全に削除します。この操作は元に戻せません。</string>

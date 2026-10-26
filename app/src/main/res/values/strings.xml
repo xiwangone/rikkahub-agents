@@ -1111,6 +1111,14 @@
   <string name="setting_page_preferences_network_proxy">Proxy</string>
   <string name="setting_page_preferences_network_proxy_desc">Supports HTTP and SOCKS5 proxy URLs. Leave blank to use system settings.</string>
   <string name="setting_page_preferences_network_proxy_invalid">Enter a valid proxy URL with a host and port.</string>
+  <string name="setting_page_preferences_network_host_overrides">Host DNS overrides</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">Pin a domain to fixed IP addresses, bypassing the system resolver. Useful when the resolved route is slow or unstable.</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">No entries yet</string>
+  <string name="setting_page_preferences_network_host_overrides_add">Add</string>
+  <string name="setting_page_preferences_network_host_overrides_host">Host</string>
+  <string name="setting_page_preferences_network_host_overrides_address">IP address</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">Not a valid IP address</string>
+  <string name="setting_page_preferences_network_host_overrides_count">%1$d entries</string>
   <string name="setting_page_preferences_ui_desc">Message display, fonts, code blocks</string>
   <string name="setting_page_documentation">RikkaHub docs</string>
   <string name="setting_page_documentation_desc">View app usage instructions and help documentation</string>

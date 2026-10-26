@@ -1448,6 +1448,14 @@
   <string name="setting_page_preferences_network_proxy">代理</string>
   <string name="setting_page_preferences_network_proxy_desc">支持 HTTP 和 SOCKS5 代理 URL。留空以使用系统设置。</string>
   <string name="setting_page_preferences_network_proxy_invalid">请输入包含主机和端口的有效代理 URL。</string>
+  <string name="setting_page_preferences_network_host_overrides">主机解析覆盖</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">将域名固定解析到指定 IP，绕过系统解析器，适用于解析到慢或不稳定路由的情况。</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">暂未配置</string>
+  <string name="setting_page_preferences_network_host_overrides_add">新增</string>
+  <string name="setting_page_preferences_network_host_overrides_host">主机</string>
+  <string name="setting_page_preferences_network_host_overrides_address">IP 地址</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">不是有效的 IP 地址</string>
+  <string name="setting_page_preferences_network_host_overrides_count">已配置 %1$d 条</string>
   <string name="setting_page_preferences_ui_desc">消息显示、字体、代码块</string>
   <string name="skills_page_import_from_file">从文件导入</string>
   <string name="skills_page_add_manually">手动添加</string>

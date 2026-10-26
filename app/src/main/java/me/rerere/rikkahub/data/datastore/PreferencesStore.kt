@@ -1281,6 +1281,17 @@ data class NetworkSetting(
     val proxyUrl: String = "",
     val proxyUsername: String = "",
     val proxyPassword: String = "",
+    val hostAddressOverrides: List<HostAddressOverride> = emptyList(),
+)
+
+/**
+ * Pins [host] to a fixed [address] at the DNS layer, so requests for that host skip the
+ * system resolver. [address] must be an IP literal; a hostname is ignored.
+ */
+@Serializable
+data class HostAddressOverride(
+    val host: String = "",
+    val address: String = "",
 )
 
 @Serializable

@@ -2144,6 +2144,14 @@
 <string name="setting_page_preferences_network_proxy">Прокси</string>
 <string name="setting_page_preferences_network_proxy_desc">Поддерживает HTTP и SOCKS5 прокси-URL. Оставьте пустым для использования системных настроек.</string>
 <string name="setting_page_preferences_network_proxy_invalid">Введите корректный URL прокси-сервера с хостом и портом.</string>
+  <string name="setting_page_preferences_network_host_overrides">Переопределение DNS хостов</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">Закрепляет домен за указанными IP-адресами в обход системного распознавателя. Полезно, когда полученный маршрут медленный или нестабильный.</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">Пока нет записей</string>
+  <string name="setting_page_preferences_network_host_overrides_add">Добавить</string>
+  <string name="setting_page_preferences_network_host_overrides_host">Хост</string>
+  <string name="setting_page_preferences_network_host_overrides_address">IP-адрес</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">Недопустимый IP-адрес</string>
+  <string name="setting_page_preferences_network_host_overrides_count">Записей: %1$d</string>
 <string name="assistant_page_context_message_limit_hint">Введите 0 для безлимита; иначе чем больше, тем лучше. Рекомендуется 0 или не менее 20</string>
 <string name="setting_files_page_clean_action">Очистить</string>
 <string name="setting_files_page_clean_confirmation">Все файлы в этой категории будут удалены без возможности восстановления.</string>

@@ -523,6 +523,9 @@ internal class GenerationAgentRun(
             // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感
             if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
+                // takeWhile 返 false 是正常收尾（上层 cause==null），不设 abortReason 会被误归 COMPLETED，
+                // 还会留下空文本/空思考的半截气泡（实锤：4a009554 会话 16:42/17:0x 两轮）。
+                runCtx.abortReason = GenerationOutcome.TIMEOUT
                 return@takeWhile false
             }
             // 输出重复检测：三条轨各自判定；正常结束流（不抛异常）→ 不进重试策略
@@ -544,6 +547,8 @@ internal class GenerationAgentRun(
                     else -> "text"
                 }
                 AppLog.w(TAG, "streamText: runaway repetition detected in $streamKind stream; ending this turn's stream early")
+                // 同上：早止必须留归因，否则上层只会看到「正常结束却无 finishReason」的半截气泡。
+                runCtx.abortReason = GenerationOutcome.LOOP_GUARD
                 false
             } else {
                 true

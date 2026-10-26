@@ -23,6 +23,7 @@ import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.remote.ModelsDevUpdater
+import me.rerere.rikkahub.data.network.HostOverrideDns
 import me.rerere.rikkahub.data.network.SettingsProxyAuthenticator
 import me.rerere.rikkahub.data.network.SettingsProxySelector
 import me.rerere.rikkahub.data.network.SettingsSocks5Authenticator
@@ -283,17 +284,12 @@ val dataSourceModule =
                 .build()
             java.net.Authenticator.setDefault(SettingsSocks5Authenticator(settingsStore))
             val initialNetworkSetting = settingsStore.settingsFlow.value.networkSetting
-            val appliedProxySetting = AtomicReference(
-                Triple(
-                    initialNetworkSetting.proxyUrl,
-                    initialNetworkSetting.proxyUsername,
-                    initialNetworkSetting.proxyPassword,
-                )
-            )
+            val appliedNetworkSetting = AtomicReference(initialNetworkSetting)
             lateinit var client: OkHttpClient
             client = OkHttpClient.Builder()
                 .proxySelector(SettingsProxySelector(settingsStore))
                 .proxyAuthenticator(SettingsProxyAuthenticator(settingsStore))
+                .dns(HostOverrideDns(settingsStore))
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.MINUTES)
                 .writeTimeout(120, TimeUnit.SECONDS)
@@ -302,12 +298,9 @@ val dataSourceModule =
                 .retryOnConnectionFailure(true)
                 .addInterceptor { chain ->
                     val networkSetting = settingsStore.settingsFlow.value.networkSetting
-                    val currentProxySetting = Triple(
-                        networkSetting.proxyUrl,
-                        networkSetting.proxyUsername,
-                        networkSetting.proxyPassword,
-                    )
-                    if (appliedProxySetting.getAndSet(currentProxySetting) != currentProxySetting) {
+                    // Any network-setting change (proxy or pinned host addresses) must drop
+                    // pooled connections, otherwise they keep using the previous route.
+                    if (appliedNetworkSetting.getAndSet(networkSetting) != networkSetting) {
                         client.connectionPool.evictAll()
                     }
 

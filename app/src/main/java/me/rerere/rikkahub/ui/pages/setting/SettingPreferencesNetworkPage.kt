@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -44,11 +45,14 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.datastore.HostAddressOverride
+import me.rerere.rikkahub.data.network.parseFixedAddress
 import me.rerere.rikkahub.data.network.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -89,6 +93,10 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     var proxyPasswordDraft by remember { mutableStateOf("") }
     var proxyPasswordVisible by remember { mutableStateOf(false) }
     var proxyDialogVisible by remember { mutableStateOf(false) }
+    var hostOverrideDialogVisible by remember { mutableStateOf(false) }
+    var hostOverrideDrafts by remember { mutableStateOf(emptyList<HostAddressOverride>()) }
+    var hostOverrideHostDraft by remember { mutableStateOf("") }
+    var hostOverrideAddressDraft by remember { mutableStateOf("") }
     val defaultUserAgent = "RikkaHub-Agents-Android/${BuildConfig.VERSION_NAME}"
     val proxyUrlInvalid = proxyUrlDraft.isNotBlank() && proxyUrlDraft.toProxyOrNull() == null
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -122,6 +130,14 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         proxyUrlDraft = ""
         proxyUsernameDraft = ""
         proxyPasswordDraft = ""
+    }
+
+    fun saveHostAddressOverrides(entries: List<HostAddressOverride>) {
+        vm.updateSettings { current ->
+            current.copy(
+                networkSetting = current.networkSetting.copy(hostAddressOverrides = entries),
+            )
+        }
     }
 
     fun testProxy() {
@@ -235,6 +251,122 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         proxyDialogVisible = false
                     },
                     enabled = !proxyUrlInvalid,
+                ) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+        )
+    }
+
+    if (hostOverrideDialogVisible) {
+        val canAdd =
+            hostOverrideHostDraft.isNotBlank() &&
+                parseFixedAddress(hostOverrideAddressDraft) != null
+        AlertDialog(
+            onDismissRequest = { hostOverrideDialogVisible = false },
+            modifier = Modifier.imePadding(),
+            title = {
+                Text(stringResource(R.string.setting_page_preferences_network_host_overrides))
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    if (hostOverrideDrafts.isEmpty()) {
+                        Text(
+                            stringResource(
+                                R.string.setting_page_preferences_network_host_overrides_empty,
+                            )
+                        )
+                    }
+                    hostOverrideDrafts.forEachIndexed { index, entry ->
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(
+                                text = "${entry.host} → ${entry.address}",
+                                modifier = Modifier.weight(1f),
+                            )
+                            IconButton(
+                                onClick = {
+                                    hostOverrideDrafts = hostOverrideDrafts.filterIndexed { i, _ ->
+                                        i != index
+                                    }
+                                },
+                            ) {
+                                Icon(HugeIcons.Delete01, contentDescription = null)
+                            }
+                        }
+                    }
+                    OutlinedTextField(
+                        value = hostOverrideHostDraft,
+                        onValueChange = { hostOverrideHostDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_page_preferences_network_host_overrides_host,
+                                )
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                    )
+                    OutlinedTextField(
+                        value = hostOverrideAddressDraft,
+                        onValueChange = { hostOverrideAddressDraft = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(
+                                stringResource(
+                                    R.string.setting_page_preferences_network_host_overrides_address,
+                                )
+                            )
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        supportingText = {
+                            if (hostOverrideAddressDraft.isNotBlank() &&
+                                parseFixedAddress(hostOverrideAddressDraft) == null
+                            ) {
+                                Text(
+                                    stringResource(
+                                        R.string.setting_page_preferences_network_host_overrides_invalid,
+                                    )
+                                )
+                            }
+                        },
+                        isError = hostOverrideAddressDraft.isNotBlank() &&
+                            parseFixedAddress(hostOverrideAddressDraft) == null,
+                    )
+                    TextButton(
+                        onClick = {
+                            hostOverrideDrafts = hostOverrideDrafts + HostAddressOverride(
+                                host = hostOverrideHostDraft.trim(),
+                                address = hostOverrideAddressDraft.trim(),
+                            )
+                            hostOverrideHostDraft = ""
+                            hostOverrideAddressDraft = ""
+                        },
+                        enabled = canAdd,
+                        modifier = Modifier.align(Alignment.End),
+                    ) {
+                        Text(
+                            stringResource(
+                                R.string.setting_page_preferences_network_host_overrides_add,
+                            )
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveHostAddressOverrides(hostOverrideDrafts)
+                        hostOverrideDialogVisible = false
+                    },
                 ) {
                     Text(stringResource(R.string.common_confirm))
                 }
@@ -400,6 +532,44 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                                     Text(stringResource(R.string.setting_provider_page_test))
                                 }
                             }
+                        },
+                    )
+                }
+            }
+            item {
+                val hostOverrides = settings.networkSetting.hostAddressOverrides
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_network_host_overrides))
+                    },
+                ) {
+                    item(
+                        onClick = {
+                            hostOverrideDrafts = hostOverrides
+                            hostOverrideHostDraft = ""
+                            hostOverrideAddressDraft = ""
+                            hostOverrideDialogVisible = true
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_host_overrides_desc))
+                        },
+                        supportingContent = {
+                            Text(
+                                if (hostOverrides.isEmpty()) {
+                                    stringResource(
+                                        R.string.setting_page_preferences_network_host_overrides_empty
+                                    )
+                                } else {
+                                    stringResource(
+                                        R.string.setting_page_preferences_network_host_overrides_count,
+                                        hostOverrides.size,
+                                    )
+                                }
+                            )
+                        },
+                        trailingContent = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
                         },
                     )
                 }

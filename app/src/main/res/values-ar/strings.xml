@@ -3148,6 +3148,14 @@
   <string name="setting_page_preferences_network_proxy_desc">يدعم عناوين وكيل HTTP و SOCKS5. اتركه فارغًا لاستخدام إعدادات النظام.
 </string>
   <string name="setting_page_preferences_network_proxy_invalid">أدخل عنوان وكيل صالحًا يتضمن المضيف والمنفذ.</string>
+  <string name="setting_page_preferences_network_host_overrides">تجاوز DNS للنطاقات</string>
+  <string name="setting_page_preferences_network_host_overrides_desc">يثبّت النطاق على عنوان IP محدد متجاوزًا مُحلِّل النظام، وهو مفيد عندما يكون المسار المُحلَّل بطيئًا أو غير مستقر.</string>
+  <string name="setting_page_preferences_network_host_overrides_empty">لا توجد مدخلات بعد</string>
+  <string name="setting_page_preferences_network_host_overrides_add">إضافة</string>
+  <string name="setting_page_preferences_network_host_overrides_host">النطاق</string>
+  <string name="setting_page_preferences_network_host_overrides_address">عنوان IP</string>
+  <string name="setting_page_preferences_network_host_overrides_invalid">ليس عنوان IP صالحًا</string>
+  <string name="setting_page_preferences_network_host_overrides_count">%1$d مدخلات</string>
   <string name="setting_page_preferences_ui_desc">عرض الرسائل والخطوط وكتل الشفرة</string>
   <string name="skills_page_import_from_file">استيراد من ملف</string>
   <string name="skills_page_add_manually">إضافة يدوية</string>
