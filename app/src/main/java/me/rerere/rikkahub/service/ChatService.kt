@@ -744,7 +744,9 @@ class ChatService(
         // 生成中再次发送：入队而不是打断当前生成，待本轮结束后按序发出。
         // 这样「发送键在生成中依然可用」，用户无需等待或手动停止。
         val session = getOrCreateSession(conversationId)
-        val activeGeneration = session.getJob()?.takeIf { it.isActive }
+        // 已取消的 job 不再算“正在生成”：取消后 job 仍会跑一小段收尾（isActive 仍为 true），
+        // 若把它算作忙，用户“打断后立刻重发”就会被送进队列而不是直接发出。
+        val activeGeneration = session.getJob()?.takeIf { it.isActive && !it.isCancelled }
         val hasPendingTools = session.state.value.messageNodes.any { node ->
             node.currentMessage.getTools().any { it.isPending }
         }

@@ -405,6 +405,16 @@ internal class GenerationAgentRun(
         // final boundary before asking the provider for the next step.
         flushPendingOutput()
 
+        // 队列消息注入放在这里（而不是工具执行后）：prepareStep 是「确定要发这次请求」的边界，
+        // 只有到这里才能保证消息会被模型看到。放在 afterToolExecution 会有一个坑——那里无法
+        // 保证后面真的还有请求（模型可能直接 stop），消息被 drain 走后既没发出、也没留给
+        // turn-end 派发，表现为「消息出现但没有回复」。
+        val queuedMessages = drainQueuedMessages()
+        if (queuedMessages.isNotEmpty()) {
+            AppLog.i(TAG, "prepareStep: injecting ${queuedMessages.size} queued user message(s) before model request")
+            messages = messages + queuedMessages
+        }
+
         // 清零点：丢弃上一次请求（异常/取消路径可能）遗留的引用命中，避免归属串档
         ProviderKeyAudit.reset()
         val internalMessages = buildList {
@@ -877,25 +887,6 @@ internal class GenerationAgentRun(
         onAfterToolExecution(messages)?.let { compactedMessages ->
             AppLog.i(TAG, "generateText: replacing request history after tool execution")
             messages = compactedMessages
-        }
-        val queued = drainQueuedMessages()
-        if (queued.isNotEmpty()) {
-            AppLog.i(TAG, "generateText: injecting ${queued.size} queued user message(s) after tool execution")
-            messages = messages + queued
-            emitter.emit(
-                GenerationChunk.Messages(
-                    messages.transforms(
-                        transformers = outputTransformers,
-                        context = context,
-                        model = model,
-                        assistant = assistant,
-                        settings = settings,
-                    ),
-                ),
-            )
-            // A queued user message replaces this snapshot; do not later publish
-            // an obsolete pre-injection state.
-            pendingOutputFlush.clear()
         }
     }
 
