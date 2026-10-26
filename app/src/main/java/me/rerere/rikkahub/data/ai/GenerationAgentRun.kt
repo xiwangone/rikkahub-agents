@@ -137,6 +137,8 @@ internal class GenerationAgentRun(
     private var streamStartedAtMs = 0L
     private var lastStreamApplyAtMs = 0L
     private val pendingStreamChunks = mutableListOf<StreamChunk>()
+    // 早止点已判定，但要等「下一条」增量到手才真的结束流（收尾见 guardStopAfterCurrentChunk）
+    private var streamGuardStopRequested = false
     private var textRepetitionDetector = OutputRepetitionDetector()
     private var summaryRepetitionDetector = OutputRepetitionDetector()
     private var reasoningRepetitionDetector = newReasoningRepetitionDetector()
@@ -520,13 +522,13 @@ internal class GenerationAgentRun(
                 )
             },
         ).takeWhile { chunk ->
+            // 守卫在上一条已判定结束：本条起全部丢弃，并让 takeWhile 掐断连接（失控的流不能继续烧 token）
+            if (streamGuardStopRequested) return@takeWhile false
             // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感
             if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
-                // takeWhile 返 false 是正常收尾（上层 cause==null），不设 abortReason 会被误归 COMPLETED，
-                // 还会留下空文本/空思考的半截气泡（实锤：4a009554 会话 16:42/17:0x 两轮）。
-                runCtx.abortReason = GenerationOutcome.TIMEOUT
-                return@takeWhile false
+                guardStopAfterCurrentChunk(GenerationOutcome.TIMEOUT)
+                return@takeWhile true
             }
             // 输出重复检测：三条轨各自判定；正常结束流（不抛异常）→ 不进重试策略
             val deltaText = when (chunk) {
@@ -546,14 +548,31 @@ internal class GenerationAgentRun(
                     summaryRepetitionDetector -> "summary"
                     else -> "text"
                 }
-                AppLog.w(TAG, "streamText: runaway repetition detected in $streamKind stream; ending this turn's stream early")
-                // 同上：早止必须留归因，否则上层只会看到「正常结束却无 finishReason」的半截气泡。
-                runCtx.abortReason = GenerationOutcome.LOOP_GUARD
-                false
-            } else {
-                true
+                // tripDetail = 匹配到的「片段长度 × 重复次数」：真失控与长上下文里反复引用同一固定短语
+                // （误触发）只有这个数能分开，光一句「检测到重复」没法复盘。
+                AppLog.w(
+                    TAG,
+                    "streamText: runaway repetition detected in $streamKind stream " +
+                        "(${detector.tripDetail()}); ending this turn's stream early",
+                )
+                guardStopAfterCurrentChunk(GenerationOutcome.LOOP_GUARD)
             }
+            true
         }.coalesceStreamDeltas(renderProfile.streamApplyIntervalMs)
+
+    /**
+     * 早止点的收尾：登记归因，并把「结束流」推迟到下一条增量。
+     *
+     * 不在本条就返回 false：takeWhile 会把「判定为 false 的那一条」一起丢掉，而那半截增量是已经收到的
+     * 内容 —— 思考卡缺的就是这一条。代价只有一条：下一条（按定义是重复段本身，没有新信息）被丢掉，
+     * 连接依旧立刻掐断、不继续烧 token。
+     *
+     * 归因不覆盖已有值：墙钟 / token 预算 / 工具循环保护先写的那条更贴近本轮真正的终点。
+     */
+    private fun guardStopAfterCurrentChunk(outcome: GenerationOutcome) {
+        streamGuardStopRequested = true
+        if (runCtx.abortReason == null) runCtx.abortReason = outcome
+    }
 
     override suspend fun onStreamAttemptReset(attempt: Int) {
         streamAttempt = attempt
@@ -561,6 +580,7 @@ internal class GenerationAgentRun(
         streamStartedAtMs = System.currentTimeMillis()
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
+        streamGuardStopRequested = false
     }
 
     /**

@@ -33,13 +33,26 @@ internal class OutputRepetitionDetector(
     private val buffer = StringBuilder()
     private var sinceLastCheck = 0
     private var detected = false
+    private var matchedPeriod: Int? = null
 
     /** True once runaway repetition has been observed. Sticky for the lifetime of the instance. */
     val isDetected: Boolean get() = detected
 
     /**
-     * Feed one streamed delta. Returns true when this call observed runaway repetition (the
-     * caller should stop the stream). Cheap: most calls only append and counters.
+     * Details of the check that tripped, or null while nothing has tripped (`period=42 repeats=4`
+     * reads as "a 42-char segment seen 4 times in a row").
+     *
+     * [Why] Without the matched period the log line cannot distinguish a real echo loop from a false
+     * positive on a long-context run that legitimately re-quotes the same fixed phrase; the size of
+     * the matching segment is the one number that separates them.
+     */
+    fun tripDetail(): String? = matchedPeriod?.let { "period=$it repeats=$minRepeats" }
+
+    /**
+     * Feed one streamed delta. Returns true when this call observed runaway repetition. The caller
+     * still forwards the delta that tripped (it is content the model already produced) and ends the
+     * stream on the next one — see `GenerationAgentRun.interceptStream`. Cheap: most calls only
+     * append and counters.
      */
     fun feed(delta: String): Boolean {
         if (detected) return true
@@ -61,16 +74,18 @@ internal class OutputRepetitionDetector(
         if (!enoughText || sinceLastCheck < minCheckIntervalChars) return false
         sinceLastCheck = 0
 
-        detected = hasRunawayTail(buffer)
+        val period = hasRunawayTail(buffer)
+        if (period != null) matchedPeriod = period
+        detected = period != null
         return detected
     }
 
     /**
-     * True when the buffer tail is one segment repeated [minRepeats] times, for any candidate
-     * period in range. Compares the trailing `period * minRepeats` chars against a shift of
-     * itself by `period` — a pure character-level check, no regex and no allocations.
+     * The period whose trailing `period * minRepeats` chars are one segment repeated
+     * [minRepeats] times, or null when no candidate period in range matches. Compares the tail
+     * against a shift of itself by `period` — a pure character-level check, no regex and no allocations.
      */
-    private fun hasRunawayTail(text: CharSequence): Boolean {
+    private fun hasRunawayTail(text: CharSequence): Int? {
         val length = text.length
         for (period in minPeriod..maxPeriod) {
             val span = period * minRepeats
@@ -85,8 +100,8 @@ internal class OutputRepetitionDetector(
                 }
                 i++
             }
-            if (identical) return true
+            if (identical) return period
         }
-        return false
+        return null
     }
 }

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai
 
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -81,5 +83,31 @@ class OutputRepetitionDetectorTest {
         assertTrue(detector.feed(loop15.repeat(14)))
         assertTrue(detector.feed("x"))
         assertTrue(detector.feed(""))
+    }
+
+    /**
+     * The trip record names the matching segment size — the one number that separates a real echo
+     * loop from a long-context run that legitimately re-quotes a fixed phrase, and therefore the
+     * number the early-stop log line has to carry.
+     */
+    @Test
+    fun `trip detail names the matched segment size`() {
+        val detector = OutputRepetitionDetector()
+        assertNull(detector.tripDetail())
+        assertTrue(detector.feed(loop15.repeat(14)))
+        assertEquals("period=15 repeats=4", detector.tripDetail())
+    }
+
+    /**
+     * Documents how cheap a reasoning-stream trip is: the 8/3/48 profile's first possible check
+     * lands at 48 accumulated chars, and 48 chars of one repeated character is already an 8x3 match.
+     * A blank/punctuation run of that size ends the whole turn, so this is the shape to look for
+     * when a "runaway repetition" log turns out to be a false positive.
+     */
+    @Test
+    fun `reasoning profile trips on a whitespace-only run`() {
+        val detector = OutputRepetitionDetector(minPeriod = 8, minRepeats = 3, minCheckIntervalChars = 48)
+        assertTrue(detector.feed(" ".repeat(48)))
+        assertEquals("period=8 repeats=3", detector.tripDetail())
     }
 }
