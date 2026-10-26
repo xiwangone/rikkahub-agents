@@ -789,13 +789,20 @@ class ChatService(
         val active = session.getJob()
         // 协程被取消后 isActive 会转为 false，此守卫随之放行 —— 即「停止生成」仍会派发待发队列的
         // 下一条。这是产品语义（取消 = 跳过当前这条、队列继续），勿当 bug 修。
-        if (active != null && active.isActive && active !== fromJob) return
+        if (active != null && active.isActive && active !== fromJob) {
+            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=another-job-active")
+            return
+        }
         val pendingToolExists =
             session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
-        if (pendingToolExists) return
+        if (pendingToolExists) {
+            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool")
+            return
+        }
         val next = queue.takeNext() ?: return
         AppLog.i(TAG, "msg-dequeue conv=$conversationId remaining=${queue.size}")
-        sendMessageNow(conversationId, next.parts, next.answer, next.reply)
+        // 带上传出的条目：本次发起失败时由 sendMessageNow 的失败分支放回队首，避免「已出队、没发出」。
+        sendMessageNow(conversationId, next.parts, next.answer, next.reply, requeueOnFailure = next)
     }
 
     // catch 内要先统一做 completeExceptionally 与日志，再按「是否取消 / 是否 headless」分流放行 rethrow；
@@ -806,6 +813,7 @@ class ChatService(
         content: List<UIMessagePart>,
         answer: Boolean = true,
         reply: CompletableDeferred<String?>? = null,
+        requeueOnFailure: QueuedMessage? = null,
     ) {
 
         // 消息事件日志（只记事件 + 会话 id，不记文本，隐私边界）
@@ -909,6 +917,16 @@ class ChatService(
                         me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId)
                     ) {
                         throw e
+                    }
+                    // 来自队列的条目发送失败时放回队首（并暂停派发）：不丢消息，也不因反复重派而空转。
+                    // 取消（用户停止/新消息打断）不归队 —— 那是产品语义「跳过当前这条，队列继续」。
+                    if (e !is kotlinx.coroutines.CancellationException && requeueOnFailure != null) {
+                        messageQueues.getOrPut(conversationId) { MessageQueue() }
+                            .requeueFront(requeueOnFailure)
+                        AppLog.w(
+                            TAG,
+                            "msg-requeue conv=$conversationId reason=${e.message}",
+                        )
                     }
                     addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
                 } finally {

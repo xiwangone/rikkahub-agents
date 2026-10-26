@@ -1287,11 +1287,16 @@ data class NetworkSetting(
 /**
  * Pins [host] to a fixed [address] at the DNS layer, so requests for that host skip the
  * system resolver. [address] must be an IP literal; a hostname is ignored.
+ *
+ * [enabled] lets an entry be switched off without losing its value — useful when a pinned
+ * address turns out to be unreachable and you want to fall back to the system resolver for a
+ * while, or when comparing two addresses.
  */
 @Serializable
 data class HostAddressOverride(
     val host: String = "",
     val address: String = "",
+    val enabled: Boolean = true,
 )
 
 @Serializable

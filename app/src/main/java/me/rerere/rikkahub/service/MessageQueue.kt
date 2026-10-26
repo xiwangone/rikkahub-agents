@@ -116,6 +116,22 @@ class MessageQueue {
         return next
     }
 
+    /**
+     * 把发不出去的队首条目放回队列最前面，并默认暂停派发。
+     *
+     * [Why] 派发时先用 [takeNext] 把条目移出队列再发起；若这次发起失败（网络错误 / 重试耗尽），
+     * 条目就会既不在队列、也没有发出去 —— 表现为「转圈一会就停、也没有回复」，用户只能重发。
+     * 放回队首保证不丢，默认暂停则避免「失败 → 立即重派 → 又失败」的空转。
+     */
+    fun requeueFront(message: QueuedMessage, pause: Boolean = true) {
+        val current = mutableState.value
+        mutableState.value =
+            current.copy(
+                messages = listOf(message) + current.messages,
+                paused = current.paused || pause,
+            )
+    }
+
     /** 撤销一条排队消息，返回被移除的条目供调用方清理附件。 */
     @Synchronized
     fun remove(id: Uuid): QueuedMessage? {

@@ -289,6 +289,16 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                                 text = "${entry.host} → ${entry.address}",
                                 modifier = Modifier.weight(1f),
                             )
+                            // 逐条启用/禁用：固定 IP 暂时不可达时可以一键停用（回到系统解析），不必删掉重填。
+                            Switch(
+                                checked = entry.enabled,
+                                onCheckedChange = { checked ->
+                                    hostOverrideDrafts =
+                                        hostOverrideDrafts.mapIndexed { i, item ->
+                                            if (i == index) item.copy(enabled = checked) else item
+                                        }
+                                },
+                            )
                             IconButton(
                                 onClick = {
                                     hostOverrideDrafts = hostOverrideDrafts.filterIndexed { i, _ ->
@@ -364,11 +374,20 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        saveHostAddressOverrides(hostOverrideDrafts)
+                        // 误触保护：草稿为空而已有配置时（多是把对话框打开后没动过直接点确定），保留原配置而不是清空。
+                        val saved = vm.settings.value.networkSetting.hostAddressOverrides
+                        saveHostAddressOverrides(
+                            if (hostOverrideDrafts.isEmpty() && saved.isNotEmpty()) saved else hostOverrideDrafts,
+                        )
                         hostOverrideDialogVisible = false
                     },
                 ) {
                     Text(stringResource(R.string.common_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { hostOverrideDialogVisible = false }) {
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -546,7 +565,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = {
-                            hostOverrideDrafts = hostOverrides
+                            hostOverrideDrafts = vm.settings.value.networkSetting.hostAddressOverrides
                             hostOverrideHostDraft = ""
                             hostOverrideAddressDraft = ""
                             hostOverrideDialogVisible = true

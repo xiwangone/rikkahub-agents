@@ -42,6 +42,7 @@ class HostOverrideDns(
     override fun lookup(hostname: String): List<InetAddress> {
         val fixed = settingsStore.settingsFlow.value.networkSetting.hostAddressOverrides
             .asSequence()
+            .filter { it.enabled }
             .filter { it.host.trim().equals(hostname, ignoreCase = true) }
             .mapNotNull { parseFixedAddress(it.address) }
             .distinct()
