@@ -174,6 +174,14 @@ class ChatCompletionsAPI(
 
         val decoder = ChatCompletionsStreamDecoder()
 
+        // 诊断：区分「本地主动取消」与「网络/服务端断流」。okhttp 官方 EventSource 拿不到
+        // Call.isCanceled()，只能自己记：terminalReached 在 onClosed/onFailure 到达时置位，
+        // awaitClose 只在「未到终态」时置 localCanceled —— 否则正常收流结束后 channel 关闭
+        // 也会被误记成用户取消。用数组容器，避免为诊断引入额外依赖。
+        val terminalReached = BooleanArray(1)
+        val localCanceled = BooleanArray(1)
+        val lastEventAtMs = LongArray(1)
+
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
@@ -189,6 +197,7 @@ class ChatCompletionsAPI(
                 type: String?,
                 data: String
             ) {
+                lastEventAtMs[0] = System.currentTimeMillis()
                 AppLogger.d(TAG, "onEvent: $data")
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
@@ -208,7 +217,14 @@ class ChatCompletionsAPI(
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
 
-                AppLogger.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
+                terminalReached[0] = true
+                val sinceLastEventMs =
+                    lastEventAtMs[0].takeIf { it > 0L }?.let { System.currentTimeMillis() - it } ?: -1L
+                AppLogger.w(
+                    TAG,
+                    "onFailure: ${t?.javaClass?.name} ${t?.message} localCanceled=${localCanceled[0]} sinceLastEventMs=$sinceLastEventMs / $response",
+                    t,
+                )
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
@@ -227,6 +243,7 @@ class ChatCompletionsAPI(
             }
 
             override fun onClosed(eventSource: EventSource) {
+                terminalReached[0] = true
                 sendChunks(decoder.onClosed())
                 close()
             }
@@ -235,7 +252,9 @@ class ChatCompletionsAPI(
         val eventSource = EventSources.createFactory(client).newEventSource(request, listener)
 
         awaitClose {
-            AppLogger.d(TAG, "[awaitClose] 关闭eventSource")
+            // 未到终态就关 channel = 本侧主动掐流（用户停止 / 协程取消 / 超时）
+            if (!terminalReached[0]) localCanceled[0] = true
+            AppLogger.d(TAG, "[awaitClose] 关闭eventSource localCanceled=${localCanceled[0]}")
             eventSource.cancel()
         }
         // trySend 在缓冲满时会静默丢弃 delta，导致回复中间缺字 (#1295)，因此缓冲必须无界
