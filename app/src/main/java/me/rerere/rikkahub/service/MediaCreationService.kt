@@ -423,7 +423,12 @@ class MediaCreationService(
             val url = output.url
             when {
                 data != null -> file.writeBytes(data)
-                url != null -> download(setting, url, file)
+                url != null -> {
+                    // 产出地址可能带签名参数（预签名 URL）→ 日志只留去掉 query 的部分，避免把凭证写进可导出的日志
+                    Log.i(TAG, "Downloading output $index (${output.mimeType}) from ${url.substringBefore('?')}")
+                    download(setting, url, file)
+                    Log.i(TAG, "Downloaded output $index: ${file.length()} bytes -> ${file.name}")
+                }
                 else -> return@mapIndexedNotNull null
             }
 

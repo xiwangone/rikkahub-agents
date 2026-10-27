@@ -120,17 +120,6 @@ class MessageQueueTest {
     }
 
     @Test
-    fun `drainAll takes everything and clears the queue`() {
-        val queue = MessageQueue()
-        queue.enqueue(text("first"))
-        queue.enqueue(text("second"))
-
-        assertEquals(listOf(text("first"), text("second")), queue.drainAll().map { it.parts })
-        assertTrue(queue.state.value.messages.isEmpty())
-        assertTrue(queue.drainAll().isEmpty())
-    }
-
-    @Test
     fun `late enqueue is dispatched after generation final queue check`() = runBlocking {
         val queue = MessageQueue()
         val generation = Job()

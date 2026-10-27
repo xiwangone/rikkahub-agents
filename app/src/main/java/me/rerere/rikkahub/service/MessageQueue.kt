@@ -195,14 +195,6 @@ class MessageQueue {
         mutableState.value = mutableState.value.copy(paused = false)
     }
 
-    /** 一次取走全部（step 之间注入用：把用户补充一次性交给本轮请求）。 */
-    @Synchronized
-    fun drainAll(): List<QueuedMessage> {
-        val all = mutableState.value.messages
-        if (all.isNotEmpty()) mutableState.value = mutableState.value.copy(messages = emptyList())
-        return all
-    }
-
     /** 清空（会话删除/用户主动放弃时）。 */
     @Synchronized
     fun clear() {
