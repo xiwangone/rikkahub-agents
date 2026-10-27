@@ -1,5 +1,6 @@
 package me.rerere.ai.util
 
+import me.rerere.common.log.AppLogger
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.Request
@@ -11,6 +12,8 @@ import okhttp3.sse.EventSourceListener
 import okhttp3.sse.internal.ServerSentEventReader
 import java.io.IOException
 
+private const val TAG = "SSE"
+
 class SSEEventSource(
     private val request: Request,
     private val listener: EventSourceListener,
@@ -21,6 +24,13 @@ class SSEEventSource(
 
     @Volatile
     private var canceled = false
+
+    /** 首响应与最后一条事件的墙钟，用于区分「刚收到数据就被取消」与「长时间无数据后超时」。 */
+    @Volatile
+    private var openedAtMs = 0L
+
+    @Volatile
+    private var lastEventAtMs = 0L
 
     fun connect(callFactory: Call.Factory) {
         call =
@@ -37,6 +47,7 @@ class SSEEventSource(
     }
 
     fun processResponse(response: Response) {
+        openedAtMs = System.currentTimeMillis()
         response.use {
             if (!response.isSuccessful) {
                 listener.onFailure(this, null, response)
@@ -68,6 +79,12 @@ class SSEEventSource(
                     }
                 }
             } catch (e: Exception) {
+                // 断流归因：canceled=true 只说明「本地调了 cancel()」，真实诱因往往在取消方；
+                // 这里连同异常类型与「距最后一条事件多久」一起记，能分开「刚有数据就被切」与「静默等待很久」。
+                AppLogger.w(
+                    TAG,
+                    "stream interrupted: canceled=$canceled cause=${e.javaClass.simpleName}:${e.message} ${eventGap()}",
+                )
                 val exception =
                     when {
                         canceled -> IOException("canceled", e)
@@ -77,6 +94,7 @@ class SSEEventSource(
                 return
             }
             if (canceled) {
+                AppLogger.w(TAG, "stream ended by cancel() (no exception) ${eventGap()}")
                 listener.onFailure(this, IOException("canceled"), response)
             } else {
                 listener.onClosed(this)
@@ -100,7 +118,30 @@ class SSEEventSource(
 
     override fun cancel() {
         canceled = true
+        // 记录取消方：本地 cancel() 与中继重置此前在日志里完全同形（都是 IOException("canceled")），
+        // 没有这一行就无法得知是谁掐断的流。
+        AppLogger.w(
+            TAG,
+            "cancel(): caller=${cancelCaller()} thread=${Thread.currentThread().name} ${eventGap()}",
+        )
         call?.cancel()
+    }
+
+    /** 取 9 层当前线程栈（去掉栈自身与 cancel 两层）：收尾、超时、用户停止的栈在更上层才分得开。 */
+    private fun cancelCaller(): String =
+        Thread.currentThread()
+            .stackTrace
+            .drop(2)
+            .take(9)
+            .joinToString(" <- ") { "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}" }
+
+    private fun eventGap(): String {
+        val now = System.currentTimeMillis()
+        return if (lastEventAtMs == 0L) {
+            "no event yet (opened ${now - openedAtMs}ms ago)"
+        } else {
+            "last event ${now - lastEventAtMs}ms ago"
+        }
     }
 
     override fun onEvent(
@@ -108,6 +149,7 @@ class SSEEventSource(
         type: String?,
         data: String,
     ) {
+        lastEventAtMs = System.currentTimeMillis()
         listener.onEvent(this, id, type, data)
     }
 

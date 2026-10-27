@@ -753,7 +753,6 @@ class ChatService(
         if (shouldQueueChatMessage(
                 isGenerating = activeGeneration != null,
                 hasPendingTools = hasPendingTools,
-                queuePaused = messageQueues[conversationId]?.state?.value?.paused == true,
             )
         ) {
             val queue = messageQueues.getOrPut(conversationId) { MessageQueue() }
@@ -2764,9 +2763,8 @@ class ChatService(
     // 停止当前会话生成任务（不清理会话缓存）
     suspend fun stopGeneration(conversationId: Uuid) {
         val convMutex = mutexFor(conversationId)
-        // 用户主动停止：一并暂停待发送队列。否则「停止」之后队列会立刻把下一条发出去，
-        // 用户看到的是「停不下来」；需要继续时由面板上的「继续发送」恢复。
-        messageQueues[conversationId]?.pause()
+        // 用户主动停止不暂停队列：队列里还有消息就让它照常作为下一轮自动发出（这就是排队语义），
+        // 队列为空时用户的下一条消息直接发出 —— 停止只结束当前这一轮，不再拦住后续发送。
         // 运行归因：标记这次取消是「用户主动停」，生成收尾时据此区分「用户停」与「超时 / 进程被杀」。
         GenerationRunTracker.markCancelled(conversationId.toString(), "user_stop")
         // cancelAndJoin BEFORE the mutex so the cancelled coroutine can drain its own
