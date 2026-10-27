@@ -311,6 +311,8 @@ dependencies {
     implementation(libs.androidx.camera.camera2)
     implementation(libs.androidx.camera.lifecycle)
     implementation(libs.androidx.camera.view)
+    // ImageUtils 用 androidx.exifinterface；此前由 quickie-bundled 传递带入，移除条码扫描后需显式声明
+    implementation(libs.androidx.exifinterface)
 
     // Room
     implementation(libs.androidx.room.runtime)

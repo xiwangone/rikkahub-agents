@@ -28,10 +28,10 @@ data class ScannedCode(
 )
 
 /** 启动 [QRScanActivity] 并把跨 Activity 的 extras 还原成 [QRResult]。 */
-class ScanQRCode : ActivityResultContract<Unit, QRResult>() {
+class ScanQRCode : ActivityResultContract<Unit?, QRResult>() {
     override fun createIntent(
         context: Context,
-        input: Unit,
+        input: Unit?,
     ): Intent = Intent(context, QRScanActivity::class.java)
 
     override fun parseResult(
