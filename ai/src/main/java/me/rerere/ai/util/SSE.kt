@@ -111,6 +111,11 @@ class SSEEventSource(
         call: Call,
         e: IOException,
     ) {
+        // 诊断：区分「我们自己 cancel」与「网络/服务端断流」；isCanceled=true 说明是本地取消
+        AppLogger.w(
+            TAG,
+            "call failed: ${e.javaClass.simpleName}:${e.message} isCanceled=${call.isCanceled()} ${eventGap()}",
+        )
         listener.onFailure(this, e, null)
     }
 

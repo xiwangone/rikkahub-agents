@@ -580,6 +580,21 @@ internal class GenerationAgentRun(
     }
 
     override suspend fun onStreamAttemptReset(attempt: Int) {
+        // 诊断（只观测）：重试会清空未投递的缓冲 —— 若这里有内容，说明该 attempt 已生成的
+        // 内容被丢弃。用户报过「思考开头/正文末尾断掉」，这是最可疑的一处。
+        if (pendingStreamChunks.isNotEmpty()) {
+            val textChars =
+                pendingStreamChunks.filterIsInstance<StreamChunk.TextDelta>().sumOf { it.text.length }
+            val reasoningChars =
+                pendingStreamChunks.filterIsInstance<StreamChunk.ReasoningDelta>().sumOf { it.text.length }
+            AppLog.w(
+                TAG,
+                "stream-attempt-reset attempt=$attempt dropped=${pendingStreamChunks.size} " +
+                    "chunks (text=$textChars chars, reasoning=$reasoningChars chars)",
+            )
+        } else {
+            AppLog.i(TAG, "stream-attempt-reset attempt=$attempt (buffer empty)")
+        }
         streamAttempt = attempt
         streamProgress.reset()
         streamStartedAtMs = System.currentTimeMillis()
