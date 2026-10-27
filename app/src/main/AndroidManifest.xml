@@ -169,6 +169,16 @@
       android:exported="false"
       android:label="@string/title_activity_safe_mode"
       android:theme="@style/Theme.Rikkahub" />
+    <!-- 扫码导入 provider 设置：CameraX 取帧 + ZXing 解码，自绘极简界面
+         （原 io.github.g00fy2.quickie + com.google.mlkit:barcode-scanning 已移除，
+         见 ui/scanner/QRScanActivity.kt）。configChanges 取与 RouteActivity 同一集，
+         避免旋转时 Activity 重建、相机重绑一次。 -->
+    <activity
+      android:name=".ui.scanner.QRScanActivity"
+      android:configChanges="keyboardHidden|orientation|screenSize|uiMode|screenLayout|smallestScreenSize|density"
+      android:exported="false"
+      android:label="@string/setting_provider_page_scan_qr_code"
+      android:theme="@style/Theme.Rikkahub.Scanner" />
     <activity
       android:name=".RouteActivity"
       android:configChanges="keyboardHidden|orientation|screenSize|uiMode|screenLayout|smallestScreenSize|density"

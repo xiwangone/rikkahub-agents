@@ -5,6 +5,12 @@
     <item name="android:windowBackground">#FFFEF7FF</item>
 </style>
 
+<!-- 扫码页专用：结构沿用 Theme.Rikkahub，只把窗口底色换成黑 —— QRScanActivity 的根
+     FrameLayout 本来就是黑的，窗口再留浅色会在进界面时白闪一下。 -->
+<style name="Theme.Rikkahub.Scanner" parent="Theme.Rikkahub">
+    <item name="android:windowBackground">@android:color/black</item>
+</style>
+
 <!-- ToolHostActivity 是 AppCompatActivity，而 AppCompat 要求主题必须是 Theme.AppCompat 的后裔，
      框架主题（android:Theme.Material.*）不满足该约束，会在该活动上抛
      IllegalStateException("You need to use a Theme.AppCompat theme...")。

@@ -101,18 +101,20 @@
 -keepclassmembers class * implements org.slf4j.spi.SLF4JServiceProvider { <init>(); }
 -keep class uk.uuid.slf4j.android.** { *; }
 
-# QR/barcode scanning: Quickie (io.github.g00fy2.quickie:quickie-bundled) wraps CameraX + the
-# BUNDLED Google ML Kit barcode model (com.google.mlkit:barcode-scanning). Even with
-# -dontobfuscate, R8's optimization horizontally-merges BarcodeScanning.getClient() into an
-# unrelated class and mangles ML Kit's internal component registration, so getClient() hands back
-# a scanner whose internal dependency is null, and a NullPointerException follows the instant a
-# camera frame is decoded (issue #13, release-only: camera opens, decode throws). Keep the whole
-# ML Kit + bundled model + Quickie surface so R8 leaves the scanner wiring intact.
+# ML Kit：条码扫描已换成仓内的 ZXing（见 ui/scanner/QRScanActivity.kt），所以下面只留
+# 仍在用的部分。
+#
+# ⚠ 这两行**不是**为条码留的：ai 模块的 AICoreProvider 依赖 com.google.mlkit:genai-prompt，
+# 它原本就靠这条通配 keep 兜着反射注册。删掉它等于顺手改了 ai 模块的 release 行为，
+# 而这条改动没有任何验证 —— 所以留着。条码侧的依赖（含 ~4.72MB .so 与模型）是在 gradle
+# 依赖层去掉的，keep 规则不决定 native 库与模型资产进不进包，收窄它不影响体积收益。
 -keep class com.google.mlkit.** { *; }
--keep class com.google.android.gms.internal.mlkit_vision_barcode.** { *; }
--keep class com.google.android.gms.internal.mlkit_vision_barcode_bundled.** { *; }
--keep class io.github.g00fy2.quickie.** { *; }
 -dontwarn com.google.mlkit.**
+
+# 原先这里还有三条 keep（com.google.android.gms.internal.mlkit_vision_barcode[_bundled] 与
+# io.github.g00fy2.quickie.**），是给 Quickie + ML Kit 条码模型的 R8 接线兜底的（issue #13：
+# getClient() 拿到内部依赖为 null 的 scanner，解码即 NPE）。两个依赖都已移除，规则随之删除。
+# ZXing core 是纯直接调用（仓内已在用它生成二维码与解析相册图片），不需要 keep。
 
 # Shizuku (shizuku_exec): ShizukuUserService's no-arg constructor is called reflectively by
 # Shizuku's server in the process it spawns for the service, not by any code of ours R8 can

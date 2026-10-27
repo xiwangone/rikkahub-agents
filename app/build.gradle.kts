@@ -302,13 +302,15 @@ dependencies {
     // YAML front matter
     implementation(libs.snakeyaml)
 
-    // zxing
+    // zxing（二维码生成 + 扫码解码，解码侧见 ui/scanner/QRScanActivity.kt）
     implementation(libs.zxing.core)
 
-    // quickie (qrcode scanner)
-    implementation(libs.quickie.bundled)
-    implementation(libs.barcode.scanning)
+    // 扫码取帧：CameraX。此前只有 camera-core 是显式依赖（扫描界面由 Quickie 自带），
+    // 自己写 Activity 后 camera2/lifecycle/view 三件都要点名。
     implementation(libs.androidx.camera.core)
+    implementation(libs.androidx.camera.camera2)
+    implementation(libs.androidx.camera.lifecycle)
+    implementation(libs.androidx.camera.view)
 
     // Room
     implementation(libs.androidx.room.runtime)
