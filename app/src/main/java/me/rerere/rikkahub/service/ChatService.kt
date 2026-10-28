@@ -792,6 +792,10 @@ class ChatService(
         // 下一条。这是产品语义（取消 = 跳过当前这条、队列继续），勿当 bug 修。
         if (active != null && active.isActive && active !== fromJob) {
             AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=another-job-active")
+            // 不要放弃：挂到那个活跃 job 的完成回调上再派一次。
+            // 否则「入队 → 试图出队 → 因 another-job-active 跳过 → 再也没人触发」会把消息永久卡在队列里
+            // （现象：入队后正文被取消、而排队消息也没发出去）。
+            scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
             return
         }
         val pendingToolExists =

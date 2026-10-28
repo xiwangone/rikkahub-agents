@@ -103,7 +103,21 @@ class ConversationSession(
         // no-op), A writes newA, B writes newB → A's job is untracked but still running;
         // getJob() returns B; stopGeneration only cancels B; A leaks until completion.
         val previous = _generationJob.getAndUpdate { job }
-        if (cancelPrevious) previous?.cancel()
+        if (cancelPrevious && previous != null) {
+            // 诊断：「思考/正文截断」排查用 —— 记录是谁在取消一个**仍在跑**的生成。
+            // 只记 isActive 的（收尾中被换掉是正常语义，不必刷屏）。
+            if (previous.isActive) {
+                val caller =
+                    Thread.currentThread().stackTrace
+                        .drop(1)
+                        .take(4)
+                        .joinToString(" <- ") {
+                            "${it.className.substringAfterLast('.')}.${it.methodName}:${it.lineNumber}"
+                        }
+                AppLog.w(TAG, "setJob cancelPrevious=true cancels ACTIVE job; caller=$caller")
+            }
+            previous.cancel()
+        }
         if (job != null) activeJobs.add(job)
         // Identity-checked completion handler: only null the StateFlow if the value is
         // STILL the same job we just set. Without this an out-of-order setJob(B) →
