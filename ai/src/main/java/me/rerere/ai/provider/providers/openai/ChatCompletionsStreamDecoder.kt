@@ -59,8 +59,13 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                         val messageWithoutTools = JsonObject(message.filterKeys { it != "tool_calls" })
                         val xmlParts = extractXmlToolCallParts(messageWithoutTools)
                         if (xmlParts != null) {
-                            // XML tool_call 文本兜底：逐段喂给 streamState，
-                            // Text/Tool 交替时的流开关由它统一负责
+                            // 兜底只接管 content：同 chunk 的 reasoning / images / annotations
+                            // 仍须下发，否则思考增量会被整块吞掉
+                            addAll(streamState.append(
+                                parseMessage(messageWithoutTools, includeContent = false),
+                                responseId,
+                            ))
+                            // Text/Tool 交替时的流开关由逐段喂给 streamState 负责
                             xmlParts.forEach { part ->
                                 addAll(streamState.append(
                                     UIMessage(
@@ -165,7 +170,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
             GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
         }
 
-    private fun parseMessage(payload: JsonObject): UIMessage {
+    private fun parseMessage(payload: JsonObject, includeContent: Boolean = true): UIMessage {
         val role = MessageRole.valueOf(
             payload["role"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: "ASSISTANT"
         )
@@ -191,7 +196,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
                         metadata = reasoningMetadata,
                     ))
                 }
-                if (content.isNotEmpty()) add(UIMessagePart.Text(content))
+                if (includeContent && content.isNotEmpty()) add(UIMessagePart.Text(content))
                 images.forEach { image ->
                     val imageObject = image.jsonObjectOrNull ?: return@forEach
                     if (imageObject["type"]?.jsonPrimitive?.contentOrNull != "image_url") return@forEach

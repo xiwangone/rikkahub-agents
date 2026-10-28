@@ -10,7 +10,10 @@ import me.rerere.ai.core.merge
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.util.json
+import me.rerere.common.log.AppLogger
 import kotlin.time.Clock
+
+private const val TAG = "StreamChunkHandler"
 
 /**
  * 将 Provider 产生的通用流事件合并为一条 [UIMessage]。
@@ -163,6 +166,9 @@ class StreamChunkHandler(private val model: Model? = null) {
     private fun UIMessage.appendReasoningDelta(chunk: StreamChunk.ReasoningDelta): UIMessage {
         val index = reasoningPartIndexes[chunk.id]
         if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) {
+            // 诊断：Start 未到、或 ReasoningEnd 之后迟到的增量都会在这里新建一个 part。
+            // 「思考少字」可疑点之一就是迟到增量另起了 part（前面的已关闭），出现即会看到这行。
+            AppLogger.w(TAG, "reasoning delta without start: id=${chunk.id} text=${chunk.text.take(24)}")
             return copy(parts = parts + UIMessagePart.Reasoning(
                 reasoning = chunk.text,
                 createdAt = Clock.System.now(),
@@ -184,6 +190,10 @@ class StreamChunkHandler(private val model: Model? = null) {
     private fun UIMessage.appendReasoningEnd(chunk: StreamChunk.ReasoningEnd): UIMessage {
         val index = reasoningPartIndexes.remove(chunk.id)
         if (index == null || parts.getOrNull(index) !is UIMessagePart.Reasoning) return this
+        // 诊断：关闭时的落库字数。与 decoder 侧「关闭时已累计的字数」对比即可判定丢在哪一层。
+        (parts[index] as? UIMessagePart.Reasoning)?.let { closed ->
+            AppLogger.i(TAG, "reasoning end: id=${chunk.id} chars=${closed.reasoning.length}")
+        }
         return copy(parts = parts.toMutableList().apply {
             val reasoning = get(index) as UIMessagePart.Reasoning
             set(index, reasoning.copy(
