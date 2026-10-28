@@ -76,6 +76,9 @@ android {
                     storePassword = storePasswordValue
                     keyAlias = keyAliasValue
                     keyPassword = keyPasswordValue
+                    // v3 签名：与 v2 共用同一把钥，Android 9+ 用它校验、7–8 回落 v2；
+                    // 额外能力 = 密钥轮换（lineage）与按 SDK 分级签名。
+                    enableV3Signing = true
                 } else {
                     val missing = buildList {
                         if (storeFilePath == null) add("storeFile")
