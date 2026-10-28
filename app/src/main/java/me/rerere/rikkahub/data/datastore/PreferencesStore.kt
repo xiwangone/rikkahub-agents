@@ -1282,7 +1282,25 @@ data class NetworkSetting(
     val proxyUsername: String = "",
     val proxyPassword: String = "",
     val hostAddressOverrides: List<HostAddressOverride> = emptyList(),
-)
+    // ── 内嵌隧道（per-app，不接管系统 VPN / DNS）──────────────────────────
+    /** 总开关：关掉即停隧道并释放代理监听。 */
+    val tunnelEnabled: Boolean = false,
+    /** 隧道类型：tailscale / wireguard。 */
+    val tunnelType: String = TUNNEL_TAILSCALE,
+    /** 控制面 URL（自填，不写死；如自建 Headscale 或官方 Tailscale）。 */
+    val tailscaleControlUrl: String = "",
+    /** 认证密钥（preauth key，tskey-auth-...）。 */
+    val tailscaleAuthKey: String = "",
+    /** 节点在 tailnet 中显示的名字。 */
+    val tailscaleHostname: String = "rikkahub",
+    /** WireGuard 配置（.conf 原文，手工粘贴）。 */
+    val wireguardConfig: String = "",
+) {
+    companion object {
+        const val TUNNEL_TAILSCALE = "tailscale"
+        const val TUNNEL_WIREGUARD = "wireguard"
+    }
+}
 
 /**
  * Pins [host] to a fixed [address] at the DNS layer, so requests for that host skip the

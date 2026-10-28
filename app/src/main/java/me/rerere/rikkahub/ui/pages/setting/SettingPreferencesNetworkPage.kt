@@ -556,6 +556,9 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                 }
             }
             item {
+                TunnelSettingSection(vm)
+            }
+            item {
                 val hostOverrides = settings.networkSetting.hostAddressOverrides
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),

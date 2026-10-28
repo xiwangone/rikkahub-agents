@@ -226,7 +226,9 @@ internal class SshConnection private constructor(
             }
 
             val hostKeys = TrustedHostKeyRepository(config.hostKey)
-            val session = jsch.getSession(config.username, config.host, config.port).apply {
+            // 内嵌隧道：目标若被隧道接管（如 tailnet 网段），改连 App 内代理端口
+            val (dialHost, dialPort) = TunnelRouter.resolve(config.host, config.port)
+            val session = jsch.getSession(config.username, dialHost, dialPort).apply {
                 setHostKeyRepository(hostKeys)
                 setConfig("StrictHostKeyChecking", "yes")
                 when (config.authType) {

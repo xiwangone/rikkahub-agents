@@ -81,4 +81,42 @@ object TsnetBridge {
         runCatching { Tsnetlib.stopProxy(localPort.toLong()) }
             .onFailure { AppLog.w(TAG, "stopProxy $localPort failed: ${it.message}", it) }
     }
+
+    /** 目标是否落在 tailnet 网段（100.64.0.0/10）。 */
+    fun isTailnetAddress(host: String): Boolean {
+        val parts = host.split('.')
+        if (parts.size != 4) return false
+        val a = parts[0].toIntOrNull() ?: return false
+        val b = parts[1].toIntOrNull() ?: return false
+        return a == 100 && b in 64..127
+    }
+
+    /** 同一目标复用已建的本地代理端口，避免每次连接都新建监听。 */
+    private val proxyCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
+
+    /**
+     * 同步版代理（供 JSch 这类阻塞 API 调用）：隧道未运行时返回 null。
+     */
+    fun proxyToBlocking(host: String, port: Int): Int? {
+        if (!isRunning) return null
+        val key = "$host:$port"
+        proxyCache[key]?.let { return it }
+        return runCatching {
+            Tsnetlib.startProxy(host, port.toLong()).toInt().also { proxyCache[key] = it }
+        }.getOrNull()
+    }
+
+    /**
+     * 把隧道能力接到 workspace 的 SSH 层（App 启动时调一次）。
+     * 只有「隧道在跑 + 目标是 tailnet 网段」才接管，其余一律原样放行。
+     */
+    fun installSshRouter() {
+        me.rerere.workspace.ssh.TunnelRouter.install { host, port ->
+            if (isRunning && isTailnetAddress(host)) {
+                proxyToBlocking(host, port)?.let { local -> "127.0.0.1" to local }
+            } else {
+                null
+            }
+        }
+    }
 }

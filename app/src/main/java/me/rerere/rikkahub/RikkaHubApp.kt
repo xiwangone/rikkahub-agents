@@ -93,6 +93,8 @@ class RikkaHubApp : Application() {
                     "rsa-sha2-512,rsa-sha2-256,ssh-rsa"
             )
         } catch (_: Throwable) {}
+        // 内嵌隧道：把 tailnet 目标的拨号接到 App 内代理（未开启隧道时不接管）
+        me.rerere.rikkahub.data.tunnel.TsnetBridge.installSshRouter()
         // :ai (and other sub-:app modules) have no BuildConfig of their own, so this is
         // how their provider code learns whether it's running a debug build — needed to
         // gate full request/response body logging the same way HttpLoggingInterceptor
