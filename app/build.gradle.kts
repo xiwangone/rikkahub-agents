@@ -210,6 +210,12 @@ kotlin {
     }
 }
 
+// 传递依赖 guava 33.6.0 命中 GHSA-xxph-c9ww-hj94（high，修复版 33.7.2）。
+// 本仓无直接声明，只能对全部配置强制版本；升级后需 PC 编译验证依赖解析。
+configurations.configureEach {
+    resolutionStrategy.force("com.google.guava:guava:33.7.2")
+}
+
 // Local JVM tests need the desktop native library instead of the Android AAR.
 configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configureEach {
     resolutionStrategy.dependencySubstitution {
