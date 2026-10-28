@@ -30,7 +30,8 @@ class GroupMessagePartsTest {
         // 空 reasoning_content 会留下无正文的 Reasoning part：不应渲染成"思考了 N 秒"的空卡片
         val blocks = listOf(reasoning(""), reasoning("  \n"), text("answer")).groupMessageParts()
         assertEquals(1, blocks.size)
-        assertEquals(0, (blocks[0] as MessagePartBlock.ContentBlock).index)
+        // 空 reasoning 不产生块，但正文仍保留它在原始 parts 里的下标（见 reasoningAndServerToolShareTimeline）
+        assertEquals(2, (blocks[0] as MessagePartBlock.ContentBlock).index)
     }
     @Test fun blankReasoningKeepsToolTimelineIntact() {
         val t = tool("t")
