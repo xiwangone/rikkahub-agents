@@ -216,6 +216,8 @@ configurations.matching { it.name.endsWith("UnitTestRuntimeClasspath") }.configu
 }
 
 dependencies {
+    // 内嵌隧道：gomobile 生成的 Java 绑定（.so 不入仓，见 app/.gitignore）
+    implementation(files("libs/tsnetlib.jar"))
     implementation(libs.quickjs)
     implementation(libs.androidx.core.ktx)
     implementation(libs.androidx.lifecycle.runtime.ktx)
