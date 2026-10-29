@@ -24,6 +24,39 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.message
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import org.koin.compose.koinInject
+
+/** 凭证引用前缀：与 SecretRefField、运行时解析层保持一致。 */
+private const val VAULT_REF_PREFIX = "\$\$"
+
+/**
+ * 把「认证密钥」输入解析成可以交给隧道层的明文。
+ *
+ * 支持两种形态：
+ * - 直接填写的密钥（原样返回，兼容已有配置）；
+ * - `$$名字` 引用 —— 运行时从凭证库取真值，界面上不留明文。
+ *
+ * 解析失败时返回带原因的错误，由调用方显示到状态行，不把引用串直接传给底层。
+ */
+private suspend fun resolveAuthKey(
+    resolver: CredentialResolver,
+    raw: String,
+): Result<String> {
+    val value = raw.trim()
+    if (value.isEmpty()) return Result.failure(IllegalStateException("认证密钥为空"))
+    if (!value.startsWith(VAULT_REF_PREFIX)) return Result.success(value)
+    val name = value.removePrefix(VAULT_REF_PREFIX).trim()
+    return when (val resolution = resolver.resolveRef(name, CredentialPurpose.LOCAL_USE, caller = "tunnel")) {
+        is CredentialResolution.Granted -> Result.success(resolution.value)
+        else -> Result.failure(IllegalStateException(resolution.message.ifBlank { "认证密钥引用无效" }))
+    }
+}
 
 /**
  * 偏好设置 → 网络 → 隧道。
@@ -37,6 +70,8 @@ fun TunnelSettingSection(vm: SettingVM) {
     val network = settings.networkSetting
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+    val vaultRepository: CredentialVaultRepository = koinInject()
+    val credentialResolver = remember(vaultRepository) { CredentialResolver(vaultRepository) }
 
     var controlUrl by remember(network.tailscaleControlUrl) {
         mutableStateOf(network.tailscaleControlUrl)
@@ -60,6 +95,21 @@ fun TunnelSettingSection(vm: SettingVM) {
         authKey.trim() != network.tailscaleAuthKey ||
         hostname.trim().ifBlank { "rikkahub" } != network.tailscaleHostname
 
+    /** 解析密钥后启动隧道，返回状态行文案。 */
+    suspend fun startTunnel(): String {
+        val resolved = resolveAuthKey(credentialResolver, authKey)
+            .getOrElse { return "失败: ${it.message}" }
+        return TsnetBridge.start(
+            context = context,
+            controlURL = controlUrl.trim(),
+            authKey = resolved,
+            hostname = hostname.trim().ifBlank { "rikkahub" },
+        ).fold(
+            onSuccess = { "已连接 $it" },
+            onFailure = { "失败: ${it.message}" },
+        )
+    }
+
     fun persist(enabled: Boolean) {
         vm.updateSettings { current ->
             current.copy(
@@ -81,15 +131,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             busy = true
             scope.launch {
                 TsnetBridge.stop()
-                status = TsnetBridge.start(
-                    context = context,
-                    controlURL = controlUrl.trim(),
-                    authKey = authKey.trim(),
-                    hostname = hostname.trim().ifBlank { "rikkahub" },
-                ).fold(
-                    onSuccess = { "已连接 $it" },
-                    onFailure = { "失败: ${it.message}" },
-                )
+                status = startTunnel()
                 busy = false
             }
         }
@@ -126,16 +168,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                     persist(enabled)
                     scope.launch {
                         if (enabled) {
-                            val result = TsnetBridge.start(
-                                context = context,
-                                controlURL = controlUrl.trim(),
-                                authKey = authKey.trim(),
-                                hostname = hostname.trim().ifBlank { "rikkahub" },
-                            )
-                            status = result.fold(
-                                onSuccess = { "已连接 $it" },
-                                onFailure = { "失败: ${it.message}" },
-                            )
+                            status = startTunnel()
                         } else {
                             TsnetBridge.stop()
                             status = "未连接"
@@ -148,56 +181,49 @@ fun TunnelSettingSection(vm: SettingVM) {
 
         Text(text = "状态：$status", style = MaterialTheme.typography.bodySmall)
 
-        if (network.tunnelEnabled) {
-            OutlinedTextField(
-                value = controlUrl,
-                onValueChange = { controlUrl = it
-                    savedHint = false
-                },
-                label = { Text(text = "控制面 URL") },
-                placeholder = { Text(text = "https://login.example.com") },
-                singleLine = true,
+        OutlinedTextField(
+            value = controlUrl,
+            onValueChange = { controlUrl = it
+                savedHint = false
+            },
+            label = { Text(text = "控制面 URL") },
+            placeholder = { Text(text = "https://login.example.com") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        SecretRefField(
+            value = authKey,
+            onValueChange = { authKey = it
+                savedHint = false
+            },
+            label = "认证密钥",
+            placeholder = "tskey-auth-... 或 \$\$ 凭证名",
+            nameHint = "TAILSCALE_AUTH_KEY",
+            singleLine = true,
+        )
+        OutlinedTextField(
+            value = hostname,
+            onValueChange = { hostname = it
+                savedHint = false
+            },
+            label = { Text(text = "节点名称") },
+            singleLine = true,
+            modifier = Modifier.fillMaxWidth(),
+        )
+        if (dirty) {
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = authKey,
-                onValueChange = { authKey = it
-                    savedHint = false
-                },
-                label = { Text(text = "认证密钥") },
-                placeholder = { Text(text = "tskey-auth-...") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            OutlinedTextField(
-                value = hostname,
-                onValueChange = { hostname = it
-                    savedHint = false
-                },
-                label = { Text(text = "节点名称") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-            if (dirty) {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.End,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    TextButton(onClick = { cancel() }) { Text(text = "取消") }
-                    Button(onClick = { save() }, enabled = !busy) { Text(text = "保存") }
-                }
-            } else if (savedHint) {
-                Text(
-                    text = "已保存",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                horizontalArrangement = Arrangement.End,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                TextButton(onClick = { cancel() }) { Text(text = "取消") }
+                Button(onClick = { save() }, enabled = !busy) { Text(text = "保存") }
             }
+        } else if (savedHint) {
             Text(
-                text = "WireGuard 隧道：待实现",
+                text = "已保存",
                 style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                color = MaterialTheme.colorScheme.primary,
             )
         }
     }
