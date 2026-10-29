@@ -988,9 +988,11 @@ internal fun Flow<StreamChunk>.coalesceStreamDeltas(
     var lastFlushMs = clock()
     suspend fun flush() {
         if (buffer.isEmpty()) return
-        val merged = mergeAdjacentDeltas(buffer)
+        // 先取快照再清空：mergeAdjacentDeltas 在只有一条时会原样返回入参，
+        // 直接 clear() 会把待发的那条一起清掉（段首/尾部丢字的根因）。
+        val batch = buffer.toList()
         buffer.clear()
-        merged.forEach { send(it) }
+        mergeAdjacentDeltas(batch).forEach { send(it) }
         lastFlushMs = clock()
     }
     try {
@@ -1010,7 +1012,8 @@ internal fun Flow<StreamChunk>.coalesceStreamDeltas(
     }
 }
 internal fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
-    if (chunks.size < 2) return chunks
+    // 早返回也要给新列表：调用方可能持有入参并随后清空它（列表别名会让内容凭空消失）。
+    if (chunks.size < 2) return chunks.toList()
     val out = mutableListOf<StreamChunk>()
     for (chunk in chunks) {
         val prev = out.lastOrNull()
