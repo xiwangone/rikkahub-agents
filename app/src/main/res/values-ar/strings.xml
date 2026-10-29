@@ -4094,4 +4094,6 @@
   <string name="media_creation_page_saved_files_partial">تم حفظ %1$d من الملفات، وفشل %2$d: %3$s</string>
   <string name="media_creation_page_delete_failed">تعذر حذف العناصر المحددة</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (تجريبي)</string>
+  <string name="notification_channel_generation">إنشاء الرد</string>
+  <string name="generation_foreground_title">جارٍ إنشاء الرد</string>
 </resources>

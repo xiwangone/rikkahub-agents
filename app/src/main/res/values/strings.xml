@@ -4083,4 +4083,6 @@
   <string name="media_creation_page_saved_files_partial">Saved %1$d files, %2$d failed: %3$s</string>
   <string name="media_creation_page_delete_failed">Failed to delete selected items</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (Beta)</string>
+  <string name="notification_channel_generation">Reply generation</string>
+  <string name="generation_foreground_title">Generating reply</string>
 </resources>

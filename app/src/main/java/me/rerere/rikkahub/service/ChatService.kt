@@ -1481,6 +1481,8 @@ class ChatService(
             // Capture the assistant emitted by this invocation; session state may already be reset
             // if another turn starts before completion handling runs.
             var floatingReplyMessageId: Uuid? = null
+            // 生成期间挂前台服务：界面隐藏后进程被系统冻结会丢实时连接，回复半截中断。
+            GenerationForegroundService.acquire(context, conversationId.toString())
             generationLoop
                 .generateText(
                     settings = settings,
@@ -1567,6 +1569,7 @@ class ChatService(
                 ).onCompletion { cause ->
                     // 取消 Live Update 通知
                     notificationHelper.cancelLiveUpdateNotification(conversationId)
+                    GenerationForegroundService.release(context, conversationId.toString())
 
                     // 节流兜底：把最后一次被节流跳过的快照补进内存态，
                     // 否则尾部内容既不入内存也不落盘（见 STREAM_UI_INTERVAL_MS）。

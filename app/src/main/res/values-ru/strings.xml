@@ -4091,4 +4091,6 @@
   <string name="media_creation_page_saved_files_partial">Сохранено %1$d файлов, %2$d не удалось: %3$s</string>
   <string name="media_creation_page_delete_failed">Не удалось удалить выбранные элементы</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (бета)</string>
+  <string name="notification_channel_generation">Генерация ответа</string>
+  <string name="generation_foreground_title">Генерация ответа…</string>
 </resources>

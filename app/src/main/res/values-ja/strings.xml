@@ -4087,4 +4087,6 @@
   <string name="media_creation_page_saved_files_partial">ファイルを %1$d 件保存しました。%2$d 件失敗: %3$s</string>
   <string name="media_creation_page_delete_failed">選択した項目を削除できませんでした</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（ベータ版）</string>
+  <string name="notification_channel_generation">返信生成</string>
+  <string name="generation_foreground_title">返信を生成中</string>
 </resources>

@@ -4086,4 +4086,6 @@
   <string name="media_creation_page_saved_files_partial">已儲存 %1$d 個檔案，%2$d 個失敗：%3$s</string>
   <string name="media_creation_page_delete_failed">無法刪除所選項目</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（測試版）</string>
+  <string name="notification_channel_generation">回覆生成</string>
+  <string name="generation_foreground_title">正在生成回覆</string>
 </resources>

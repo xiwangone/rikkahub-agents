@@ -4087,4 +4087,6 @@
   <string name="media_creation_page_saved_files_partial">파일 %1$d개 저장됨, %2$d개 실패: %3$s</string>
   <string name="media_creation_page_delete_failed">선택한 항목을 삭제하지 못했습니다</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API(베타)</string>
+  <string name="notification_channel_generation">답변 생성</string>
+  <string name="generation_foreground_title">답변 생성 중</string>
 </resources>
