@@ -5,10 +5,12 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.material3.Button
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -46,11 +48,17 @@ fun TunnelSettingSection(vm: SettingVM) {
         mutableStateOf(network.tailscaleHostname)
     }
     var busy by remember { mutableStateOf(false) }
+    var savedHint by remember { mutableStateOf(false) }
     var status by remember {
         mutableStateOf(
             if (TsnetBridge.isRunning) "已连接 ${TsnetBridge.nodeIp.orEmpty()}" else "未连接",
         )
     }
+
+    // 输入框当前值与已保存值不一致时，才需要显示 保存 / 取消。
+    val dirty = controlUrl.trim() != network.tailscaleControlUrl ||
+        authKey.trim() != network.tailscaleAuthKey ||
+        hostname.trim().ifBlank { "rikkahub" } != network.tailscaleHostname
 
     fun persist(enabled: Boolean) {
         vm.updateSettings { current ->
@@ -63,6 +71,35 @@ fun TunnelSettingSection(vm: SettingVM) {
                 ),
             )
         }
+    }
+
+    fun save() {
+        persist(network.tunnelEnabled)
+        savedHint = true
+        // 隧道已在运行时用新配置重连，避免"保存了但没生效"。
+        if (network.tunnelEnabled && TsnetBridge.isRunning) {
+            busy = true
+            scope.launch {
+                TsnetBridge.stop()
+                status = TsnetBridge.start(
+                    context = context,
+                    controlURL = controlUrl.trim(),
+                    authKey = authKey.trim(),
+                    hostname = hostname.trim().ifBlank { "rikkahub" },
+                ).fold(
+                    onSuccess = { "已连接 $it" },
+                    onFailure = { "失败: ${it.message}" },
+                )
+                busy = false
+            }
+        }
+    }
+
+    fun cancel() {
+        controlUrl = network.tailscaleControlUrl
+        authKey = network.tailscaleAuthKey
+        hostname = network.tailscaleHostname
+        savedHint = false
     }
 
     Column(
@@ -114,7 +151,9 @@ fun TunnelSettingSection(vm: SettingVM) {
         if (network.tunnelEnabled) {
             OutlinedTextField(
                 value = controlUrl,
-                onValueChange = { controlUrl = it },
+                onValueChange = { controlUrl = it
+                    savedHint = false
+                },
                 label = { Text(text = "控制面 URL") },
                 placeholder = { Text(text = "https://login.example.com") },
                 singleLine = true,
@@ -122,7 +161,9 @@ fun TunnelSettingSection(vm: SettingVM) {
             )
             OutlinedTextField(
                 value = authKey,
-                onValueChange = { authKey = it },
+                onValueChange = { authKey = it
+                    savedHint = false
+                },
                 label = { Text(text = "认证密钥") },
                 placeholder = { Text(text = "tskey-auth-...") },
                 singleLine = true,
@@ -130,11 +171,29 @@ fun TunnelSettingSection(vm: SettingVM) {
             )
             OutlinedTextField(
                 value = hostname,
-                onValueChange = { hostname = it },
+                onValueChange = { hostname = it
+                    savedHint = false
+                },
                 label = { Text(text = "节点名称") },
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
             )
+            if (dirty) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.End,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(onClick = { cancel() }) { Text(text = "取消") }
+                    Button(onClick = { save() }, enabled = !busy) { Text(text = "保存") }
+                }
+            } else if (savedHint) {
+                Text(
+                    text = "已保存",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.primary,
+                )
+            }
             Text(
                 text = "WireGuard 隧道：待实现",
                 style = MaterialTheme.typography.bodySmall,
