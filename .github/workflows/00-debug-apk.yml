@@ -36,8 +36,25 @@ jobs:
       - name: 准备构建环境
         uses: ./.github/actions/setup-build-env
 
-      - name: 构建 Debug APK
-        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+      - name: 构建 Debug APK（日志落盘）
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
+
+      # 放在 APK 上传之前：构建失败时 APK 不存在，但日志与报告必须能拿到，
+      # 否则只能翻 Actions 网页逐行找错。
+      - name: 上传构建日志与报告（失败也能取）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: build-log-debug-${{ github.sha }}
+          path: |
+            build-debug.log
+            app/build/reports/**
+            build/reports/**
+            **/build/outputs/logs/**
+          retention-days: 14
+          if-no-files-found: warn
 
       - name: 上传 APK
         if: always()
