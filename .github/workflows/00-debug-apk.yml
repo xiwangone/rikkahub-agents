@@ -1,0 +1,49 @@
+name: 00 编译 APK（push 自动 Debug）
+
+# push 到 master 自动构建 Debug APK 并上传构建产物。
+# 与 01-build.yml 分工：这里只出 Debug（不签名、不做 R8），正式 Release 仍走 01 手动入口。
+
+on:
+  push:
+    branches: [master]
+    paths-ignore:
+      - '**.md'
+      - 'docs/**'
+  workflow_dispatch:
+
+concurrency:
+  group: build-debug-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: 记录本次提交
+        run: |
+          printf 'ref=%s\ncommit=%s\nbuild_type=debug\n' "$GITHUB_REF" "$(git rev-parse HEAD)" | tee build-ref.txt
+          cat build-ref.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
+
+      - name: 构建 Debug APK
+        run: ./gradlew :app:assembleDebug --no-daemon --stacktrace
+
+      - name: 上传 APK
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: app-debug-${{ github.sha }}
+          path: app/build/outputs/apk/debug/*.apk
+          retention-days: 14
+          if-no-files-found: warn
