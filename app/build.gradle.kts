@@ -210,10 +210,11 @@ kotlin {
     }
 }
 
-// 传递依赖 guava 33.6.0 命中 GHSA-xxph-c9ww-hj94（high，修复版 33.7.2）。
+// 传递依赖 guava 33.6.0 命中 GHSA-xxph-c9ww-hj94（high，修复版 33.7.2-jre）。
 // 本仓无直接声明，只能对全部配置强制版本；升级后需 PC 编译验证依赖解析。
+// ⚠ 版本号带 -jre 后缀（Maven 上也存在 -android 变体），写裸 33.7.2 会 404。
 configurations.configureEach {
-    resolutionStrategy.force("com.google.guava:guava:33.7.2")
+    resolutionStrategy.force("com.google.guava:guava:33.7.2-jre")
 }
 
 // Local JVM tests need the desktop native library instead of the Android AAR.
