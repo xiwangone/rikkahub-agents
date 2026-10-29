@@ -25,7 +25,10 @@ import me.rerere.ai.util.parseErrorDetail
 import me.rerere.common.http.jsonArrayOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.common.http.jsonPrimitiveOrNull
+import me.rerere.common.log.AppLogger
 import kotlin.time.Clock
+
+private const val TAG = "ChatCompletionsStreamDecoder"
 
 internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
     private val streamState = ChatCompletionsStreamState()
@@ -47,9 +50,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
         if (event.data == "[DONE]") return DecodeResult(finish(), completed = true)
 
         val chunks = buildList {
-            event.data.trim().split("\n").filter(String::isNotBlank).forEach { line ->
-                // 部分中转会在流中夹杂 `data: null` 之类的非对象行，直接跳过
-                val payload = json.parseToJsonElement(line).jsonObjectOrNull ?: return@forEach
+            parsePayloads(event.data).forEach { payload ->
                 payload["error"]?.let { throw it.parseErrorDetail() }
                 responseId = payload["id"]?.jsonPrimitive?.contentOrNull ?: responseId
                 responseModel = payload["model"]?.jsonPrimitive?.contentOrNull ?: responseModel
@@ -109,6 +110,27 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
             }
         }
         return DecodeResult(chunks)
+    }
+
+    /**
+     * 拆出本条 SSE 事件里的 payload。
+     *
+     * 先按**整段**解析：部分中转会把一个 JSON 拆成多行（首包含 role / 心跳时常见），
+     * 逐行解析会全部失败并被静默跳过 —— 丢掉的是那个 delta 的全部内容，表现成「每段思考开头少几个字」。
+     * 整段不是单个对象时再退回逐行（一条事件塞多个 JSON 的正常情形）。
+     * 解析失败的行不再静默丢弃：记 W 日志（长度 + 前缀），否则内容丢失无痕、无法归因。
+     */
+    private fun parsePayloads(rawData: String): List<JsonObject> {
+        val data = rawData.trim()
+        if (data.isEmpty()) return emptyList()
+        runCatching { json.parseToJsonElement(data).jsonObjectOrNull }.getOrNull()?.let { return listOf(it) }
+        return data.split("\n").filter(String::isNotBlank).mapNotNull { line ->
+            val payload = runCatching { json.parseToJsonElement(line).jsonObjectOrNull }.getOrNull()
+            if (payload == null) {
+                AppLogger.w(TAG, "unparseable sse data line: len=${line.length} head=${line.take(40)}")
+            }
+            payload
+        }
     }
 
     override fun onClosed(): List<StreamChunk> = finish()
@@ -175,13 +197,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
             payload["role"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: "ASSISTANT"
         )
         val content = payload["content"]?.jsonPrimitiveOrNull?.contentOrNull ?: ""
-        val reasoning = payload["reasoning_content"]?.jsonPrimitiveOrNull?.contentOrNull
-            ?: payload["reasoning"]?.jsonPrimitiveOrNull?.contentOrNull
-            ?: payload["content"]?.takeIf { it is JsonArray }?.let { array ->
-                array.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
-                    ?.get("thinking")?.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
-                    ?.get("text")?.jsonPrimitiveOrNull?.contentOrNull
-            }
+        val reasoning = resolveReasoning(payload)
         val reasoningMetadata = accumulateReasoningDetails(payload["reasoning_details"]?.jsonArrayOrNull)
         val images = payload["images"] as? JsonArray ?: JsonArray(emptyList())
 
@@ -210,6 +226,32 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
             },
             annotations = parseAnnotations(payload["annotations"]?.jsonArrayOrNull ?: JsonArray(emptyList())),
         )
+    }
+
+    /**
+     * 取本 chunk 的思考文本。
+     *
+     * `reasoning_content` 优先，但**空串按缺失处理**：部分中转在同一 chunk 里把 `reasoning_content`
+     * 置空、真内容放 `reasoning`，直接 `?:` 串联会让空串胜出 → 该段思考整块丢失（表现为「思考开头少字」）。
+     * 两者都非空且不一致时记一条诊断（只记长度，不记内容），用于确认中转字段混用的形态。
+     */
+    private fun resolveReasoning(payload: JsonObject): String? {
+        val reasoningContent = payload["reasoning_content"]?.jsonPrimitiveOrNull?.contentOrNull
+        val reasoningAlias = payload["reasoning"]?.jsonPrimitiveOrNull?.contentOrNull
+        if (!reasoningContent.isNullOrEmpty() && !reasoningAlias.isNullOrEmpty() && reasoningContent != reasoningAlias) {
+            AppLogger.w(
+                TAG,
+                "reasoning fields diverge in one chunk: reasoning_content=${reasoningContent.length} chars, " +
+                    "reasoning=${reasoningAlias.length} chars",
+            )
+        }
+        return reasoningContent?.takeIf { it.isNotEmpty() }
+            ?: reasoningAlias?.takeIf { it.isNotEmpty() }
+            ?: payload["content"]?.takeIf { it is JsonArray }?.let { array ->
+                array.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
+                    ?.get("thinking")?.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
+                    ?.get("text")?.jsonPrimitiveOrNull?.contentOrNull
+            }
     }
 
     private fun accumulateReasoningDetails(details: JsonArray?): JsonObject? {

@@ -80,6 +80,32 @@ class ChatCompletionsStreamDecoderReasoningTest {
     }
 
     @Test
+    fun `blank reasoning_content does not shadow the reasoning alias`() {
+        // 部分中转在同一 chunk 里把 reasoning_content 置空、真内容放 reasoning；
+        // 直接 ?? 串联会选中空串 → 该段思考整块丢失
+        val line = """{"id":"resp-1","choices":[{"index":0,"delta":{"reasoning_content":"","reasoning":"开头这几个字"}}]}"""
+        val chunks = decode(listOf(line))
+
+        assertEquals("开头这几个字", chunks.reasoningText())
+    }
+
+    @Test
+    fun `payload pretty printed across lines is not dropped`() {
+        // 整段是合法 JSON，但被拆成多行：逐行解析会全部失败并静默丢弃
+        val line = """
+            {
+              "id": "resp-1",
+              "choices": [
+                { "index": 0, "delta": { "reasoning_content": "开头这几个字" } }
+              ]
+            }
+        """.trimIndent()
+        val chunks = decode(listOf(line))
+
+        assertEquals("开头这几个字", chunks.reasoningText())
+    }
+
+    @Test
     fun `xml tool call parsing is unchanged by the reasoning fix`() {
         val block = "先看 " + openTag + "\n" + """{"name":"f","input":{}}""" + closeTag
         val chunks = decode(listOf(delta(text(block), "顺带的思考")))
