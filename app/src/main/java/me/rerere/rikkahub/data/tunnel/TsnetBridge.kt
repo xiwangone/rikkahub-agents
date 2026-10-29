@@ -14,7 +14,8 @@ import java.io.File
  * - **控制面与认证密钥由调用方传入**，不写死任何服务地址（自建 Headscale / 公共 Tailscale 均可）；
  * - 只做 per-app 代理（把 tailnet 目标映射到 127.0.0.1 端口），**不注册 VpnService**
  *   ⇒ 系统路由与 DNS 完全不动，其他 App 不受影响；
- * - native 库 `libgojni.so` 由 gomobile bind 生成，**不入仓**（见 app/.gitignore）。
+ * - native 库 `libgojni.so` 由 gomobile bind 生成，**不入仓**（见 app/.gitignore）；
+ * - Android 上进程枚举不到网络接口，接口列表与默认出口由 [TsnetPathMonitor] 从 Java 层喂给 native。
  *
  * 调用约定：所有方法都是 suspend + Result，失败不抛给 UI 层。
  */
@@ -48,6 +49,10 @@ object TsnetBridge {
             nodeIp?.takeIf { isRunning }?.let { return@runCatching it }
             Tsnetlib.touch() // 触发 native 库加载
             val stateDir = File(context.filesDir, "tsnet").apply { mkdirs() }.absolutePath
+            // 必须在拉起 server 之前开始喂接口：Android 上 native 侧枚举不到任何接口，
+            // 网络监视要靠这里注册的快照回调才能启动。失败只记日志，不影响启动。
+            runCatching { TsnetPathMonitor.start(context) }
+                .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
             val ip = Tsnetlib.start(controlURL, authKey, hostname, stateDir)
             nodeIp = ip
             isRunning = true
@@ -59,6 +64,9 @@ object TsnetBridge {
     suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             if (!isRunning) return@runCatching
+            // 先停探测，避免回调打到正在关闭的 server 上。
+            runCatching { TsnetPathMonitor.stop() }
+                .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
             Tsnetlib.stop()
             isRunning = false
             nodeIp = null

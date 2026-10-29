@@ -12,14 +12,20 @@ package tsnetlib
 
 import (
 	"context"
+	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"log"
 	"net"
+	"net/netip"
+	"os"
 	"strconv"
 	"sync"
+	"sync/atomic"
 	"time"
 
+	"tailscale.com/net/netmon"
 	"tailscale.com/tsnet"
 )
 
@@ -45,6 +51,11 @@ func Start(controlURL, authKey, hostname, stateDir string) (string, error) {
 	if srv != nil {
 		return "", fmt.Errorf("tsnet already running")
 	}
+
+	// The logging policy layer aborts the whole process when it cannot find a
+	// writable place for its log state, which is the case inside an app sandbox.
+	// Point it at the caller supplied state directory before the server starts.
+	guardLogsDir(stateDir)
 
 	s := &tsnet.Server{
 		Dir:        stateDir,
@@ -154,4 +165,150 @@ func Running() bool {
 	mu.Lock()
 	defer mu.Unlock()
 	return srv != nil
+}
+
+// ifaceSpec is one network interface as reported by the embedding app.
+// The app must enumerate its own interfaces (on Android the kernel refuses
+// netlink sockets for regular app UIDs) and hand the result over as JSON.
+type ifaceSpec struct {
+	Name      string `json:"name"`
+	Index     int    `json:"index"`
+	MTU       int    `json:"mtu"`
+	Up        bool   `json:"up"`
+	Loopback  bool   `json:"loopback"`
+	P2P       bool   `json:"p2p"`
+	Multicast bool   `json:"multicast"`
+	Broadcast bool   `json:"broadcast"`
+	// Addrs holds "address/prefixLength" strings, for example "10.0.0.5/24".
+	Addrs []string `json:"addrs"`
+}
+
+var (
+	ifaceMu       sync.Mutex
+	ifaceGetterOn bool
+	ifaceSnapshot atomic.Pointer[[]netmon.Interface]
+)
+
+// SetInterfaces installs the interface list used instead of netlink based
+// discovery. interfacesJSON is a JSON array of objects with the fields
+// name, index, mtu, up, loopback, p2p, multicast, broadcast and addrs.
+//
+// The first non empty call registers a snapshot reader with Tailscale's
+// network monitor, so every later enumeration is served from that snapshot.
+// An empty list is rejected: overwriting a good snapshot with nothing would
+// make the monitor believe the device has no interface at all.
+func SetInterfaces(interfacesJSON string) error {
+	var specs []ifaceSpec
+	if err := json.Unmarshal([]byte(interfacesJSON), &specs); err != nil {
+		return fmt.Errorf("tsnetlib: interface list: %w", err)
+	}
+	if len(specs) == 0 {
+		return errors.New("tsnetlib: interface list is empty, keeping previous snapshot")
+	}
+
+	list := make([]netmon.Interface, 0, len(specs))
+	for _, sp := range specs {
+		if sp.Name == "" {
+			return errors.New("tsnetlib: interface list entry without name")
+		}
+		var flags net.Flags
+		if sp.Up {
+			flags |= net.FlagUp
+		}
+		if sp.Loopback {
+			flags |= net.FlagLoopback
+		}
+		if sp.P2P {
+			flags |= net.FlagPointToPoint
+		}
+		if sp.Multicast {
+			flags |= net.FlagMulticast
+		}
+		if sp.Broadcast {
+			flags |= net.FlagBroadcast
+		}
+		std := &net.Interface{
+			Index: sp.Index,
+			MTU:   sp.MTU,
+			Name:  sp.Name,
+			Flags: flags,
+		}
+		var addrs []net.Addr
+		for _, a := range sp.Addrs {
+			pfx, err := netip.ParsePrefix(a)
+			if err != nil {
+				log.Printf("tsnetlib: skipping bad address %q on %s: %v", a, sp.Name, err)
+				continue
+			}
+			ip := pfx.Addr()
+			addrs = append(addrs, &net.IPNet{
+				IP:   ip.AsSlice(),
+				Mask: net.CIDRMask(pfx.Bits(), ip.BitLen()),
+			})
+		}
+		list = append(list, netmon.Interface{Interface: std, AltAddrs: addrs})
+	}
+
+	ifaceMu.Lock()
+	defer ifaceMu.Unlock()
+	ifaceSnapshot.Store(&list)
+	if !ifaceGetterOn {
+		netmon.RegisterInterfaceGetter(snapshotInterfaces)
+		ifaceGetterOn = true
+	}
+	return nil
+}
+
+// snapshotInterfaces serves the stored list to the network monitor.
+func snapshotInterfaces() ([]netmon.Interface, error) {
+	list := ifaceSnapshot.Load()
+	if list == nil {
+		return nil, errors.New("tsnetlib: no interface snapshot yet")
+	}
+	return *list, nil
+}
+
+// SetDefaultRouteInterface tells the network monitor which interface carries
+// the default route. An empty name means "no network right now".
+func SetDefaultRouteInterface(name string) error {
+	setDefaultRouteInterface(name)
+	return nil
+}
+
+// NetworkChanged asks the network monitor to re-read the network state right
+// away, instead of waiting for a change event it cannot receive on Android.
+// It does nothing while the tunnel is not running.
+func NetworkChanged() error {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return nil
+	}
+	sys := s.Sys()
+	if sys == nil {
+		return nil
+	}
+	mon, ok := sys.NetMon.GetOK()
+	if !ok || mon == nil {
+		return nil
+	}
+	mon.InjectEvent()
+	return nil
+}
+
+// guardLogsDir points the log policy at dir unless the caller already chose a
+// directory. Failures are only logged: the environment keeps whatever the
+// embedding app set up.
+func guardLogsDir(dir string) {
+	if dir == "" || os.Getenv("TS_LOGS_DIR") != "" {
+		return
+	}
+	if err := os.MkdirAll(dir, 0700); err != nil {
+		log.Printf("tsnetlib: logs dir %s is not usable: %v", dir, err)
+		return
+	}
+	if err := os.Setenv("TS_LOGS_DIR", dir); err != nil {
+		log.Printf("tsnetlib: set TS_LOGS_DIR: %v", err)
+	}
 }
