@@ -141,6 +141,8 @@ internal class GenerationAgentRun(
     private var textRepetitionDetector = OutputRepetitionDetector()
     private var summaryRepetitionDetector = OutputRepetitionDetector()
     private var reasoningRepetitionDetector = newReasoningRepetitionDetector()
+    /** 思考流的一次「软信号」额度：首次命中只提醒并重置检测器，二次命中才真正掉流。 */
+    private var reasoningRepetitionSoftSignaled = false
 
     private val retryPolicy = RetryPolicy(
         maxRetries = maxStreamRetries,
@@ -397,6 +399,7 @@ internal class GenerationAgentRun(
             textRepetitionDetector = OutputRepetitionDetector()
             summaryRepetitionDetector = OutputRepetitionDetector()
             reasoningRepetitionDetector = newReasoningRepetitionDetector()
+            reasoningRepetitionSoftSignaled = false
         }
         outputTransformCache.clear()
 
@@ -555,12 +558,25 @@ internal class GenerationAgentRun(
                 }
                 // tripDetail = 匹配到的「片段长度 × 重复次数」：真失控与长上下文里反复引用同一固定短语
                 // （误触发）只有这个数能分开，光一句「检测到重复」没法复盘。
-                AppLog.w(
-                    TAG,
-                    "streamText: runaway repetition detected in $streamKind stream " +
-                        "(${detector.tripDetail()}); ending this turn's stream early",
-                )
-                guardStopAfterCurrentChunk(GenerationOutcome.LOOP_GUARD)
+                val detail = detector.tripDetail()
+                if (detector === reasoningRepetitionDetector && !reasoningRepetitionSoftSignaled) {
+                    // 思考流首次命中只记软信号并重置检测器：正常思考引用同一片段极常见，
+                    // 直接掉流会让整条回复提前结束。二次命中才按失控处理。
+                    reasoningRepetitionSoftSignaled = true
+                    reasoningRepetitionDetector = newReasoningRepetitionDetector()
+                    AppLog.w(
+                        TAG,
+                        "streamText: repetition suspected in reasoning stream ($detail); " +
+                            "soft signal, stream continues",
+                    )
+                } else {
+                    AppLog.w(
+                        TAG,
+                        "streamText: runaway repetition detected in $streamKind stream " +
+                            "($detail); ending this turn's stream early",
+                    )
+                    guardStopAfterCurrentChunk(GenerationOutcome.LOOP_GUARD)
+                }
             }
             true
         }.coalesceStreamDeltas(renderProfile.streamApplyIntervalMs)
@@ -949,9 +965,11 @@ internal class GenerationAgentRun(
 }
 
 private fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputRepetitionDetector(
+    // 思考流比正文更易撞上短片段重复（路径 / 标识符 / 数字）：下限仍到 8 字符，
+    // 但短周期按 repeatsFor 要 5 次（40 字符）才判，检查窗口也放宽到 120 字符。
     minPeriod = 8,
-    minRepeats = 3,
-    minCheckIntervalChars = 48,
+    minRepeats = 4,
+    minCheckIntervalChars = 120,
 )
 
 /**

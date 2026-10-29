@@ -801,7 +801,25 @@ class ChatService(
         val pendingToolExists =
             session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
         if (pendingToolExists) {
-            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool")
+            if (active != null && active.isActive) {
+                AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (job active)")
+                scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
+                return
+            }
+            // 本轮已无活跃生成者：悬挂工具不会再有执行者，先定案再重判。
+            // 否则队列会永久卡住（用户侧现象：「发了没反应」）。
+            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (finalizing)")
+            appScope.launch {
+                runCatching { finishInterruptedPendingTools(conversationId) }
+                    .onFailure { AppLog.w(TAG, "msg-dequeue: finalize pending tools failed", it) }
+                val stillPending =
+                    session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
+                if (stillPending) {
+                    AppLog.w(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (unresolved)")
+                } else {
+                    dispatchNextQueuedMessage(conversationId)
+                }
+            }
             return
         }
         val next = queue.takeNext() ?: return

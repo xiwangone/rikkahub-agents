@@ -34,6 +34,7 @@ internal class OutputRepetitionDetector(
     private var sinceLastCheck = 0
     private var detected = false
     private var matchedPeriod: Int? = null
+    private var matchedRepeats: Int? = null
 
     /** True once runaway repetition has been observed. Sticky for the lifetime of the instance. */
     val isDetected: Boolean get() = detected
@@ -46,7 +47,20 @@ internal class OutputRepetitionDetector(
      * positive on a long-context run that legitimately re-quotes the same fixed phrase; the size of
      * the matching segment is the one number that separates them.
      */
-    fun tripDetail(): String? = matchedPeriod?.let { "period=$it repeats=$minRepeats" }
+    fun tripDetail(): String? =
+        matchedPeriod?.let { "period=$it repeats=${matchedRepeats ?: minRepeats}" }
+
+    /**
+     * 该周期长度要求的重复次数：**周期越长要求越少**。
+     *
+     * 短片段（8–15 字符）在正常写作与思考里本来就会碰撞（路径、标识符、数字），要求 `minRepeats + 1`；
+     * 长片段（≥48 字符）连续出现 3 次几乎不可能是正常输出，减一即判。
+     */
+    private fun repeatsFor(period: Int): Int = when {
+        period < 16 -> minRepeats + 1
+        period < 48 -> minRepeats
+        else -> (minRepeats - 1).coerceAtLeast(2)
+    }
 
     /**
      * Feed one streamed delta. Returns true when this call observed runaway repetition. The caller
@@ -75,7 +89,10 @@ internal class OutputRepetitionDetector(
         sinceLastCheck = 0
 
         val period = hasRunawayTail(buffer)
-        if (period != null) matchedPeriod = period
+        if (period != null) {
+            matchedPeriod = period
+            matchedRepeats = repeatsFor(period)
+        }
         detected = period != null
         return detected
     }
@@ -88,7 +105,7 @@ internal class OutputRepetitionDetector(
     private fun hasRunawayTail(text: CharSequence): Int? {
         val length = text.length
         for (period in minPeriod..maxPeriod) {
-            val span = period * minRepeats
+            val span = period * repeatsFor(period)
             if (length < span) continue
             val start = length - span
             var identical = true
