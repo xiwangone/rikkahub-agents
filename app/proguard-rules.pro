@@ -78,6 +78,14 @@
 -keep class com.google.ai.edge.litertlm.** { *; }
 -keep class com.google.ai.edge.litert.** { *; }
 
+# gomobile bindings (app/libs/tsnetlib.jar): go.Seq's static initializer calls
+# into libgojni.so, which looks up Seq.getRef / incRef / decRef and the go.Ref
+# bookkeeping methods by name via JNI. R8 renames them on release, the lookup
+# fails, and the process aborts with "failed to find method Seq.getRef" the
+# first time the tunnel starts. Keep the generated bindings whole.
+-keep class go.** { *; }
+-keep class tsnetlib.** { *; }
+
 # requery sqlite-android (forked as com.github.rikkahub:sqlite-android, used for the
 # FTS-enabled SQLite that backs message search). Same shape as JSch + LiteRT-LM —
 # the native SQLite shim does GetMethodID lookups by name on
