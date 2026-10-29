@@ -17,6 +17,9 @@ pluginManagement {
         maven("https://maven.aliyun.com/repository/gradle-plugin")
         maven("https://maven.aliyun.com/repository/google")
         maven("https://repo.huaweicloud.com/repository/maven/")
+        // 再回退：前几个不可达 / 缺包时继续解析；腾讯云延迟最低，Google 的 Central 镜像作境外兜底。
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+        maven("https://maven-central.storage-download.googleapis.com/maven2/")
     }
 }
 plugins {
@@ -33,6 +36,9 @@ dependencyResolutionManagement {
         maven("https://maven.aliyun.com/repository/gradle-plugin")
         maven("https://maven.aliyun.com/repository/google")
         maven("https://repo.huaweicloud.com/repository/maven/")
+        // 再回退：前几个不可达 / 缺包时继续解析；腾讯云延迟最低，Google 的 Central 镜像作境外兜底。
+        maven("https://mirrors.cloud.tencent.com/nexus/repository/maven-public/")
+        maven("https://maven-central.storage-download.googleapis.com/maven2/")
     }
 }
 
