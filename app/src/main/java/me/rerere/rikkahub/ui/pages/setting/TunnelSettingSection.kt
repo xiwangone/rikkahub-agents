@@ -24,39 +24,11 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
-import me.rerere.rikkahub.data.vault.CredentialPurpose
-import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import org.koin.compose.koinInject
-
-/** 凭证引用前缀：与 SecretRefField、运行时解析层保持一致。 */
-private const val VAULT_REF_PREFIX = "\$\$"
-
-/**
- * 把「认证密钥」输入解析成可以交给隧道层的明文。
- *
- * 支持两种形态：
- * - 直接填写的密钥（原样返回，兼容已有配置）；
- * - `$$名字` 引用 —— 运行时从凭证库取真值，界面上不留明文。
- *
- * 解析失败时返回带原因的错误，由调用方显示到状态行，不把引用串直接传给底层。
- */
-private suspend fun resolveAuthKey(
-    resolver: CredentialResolver,
-    raw: String,
-): Result<String> {
-    val value = raw.trim()
-    if (value.isEmpty()) return Result.failure(IllegalStateException("认证密钥为空"))
-    if (!value.startsWith(VAULT_REF_PREFIX)) return Result.success(value)
-    val name = value.removePrefix(VAULT_REF_PREFIX).trim()
-    return when (val resolution = resolver.resolveRef(name, CredentialPurpose.LOCAL_USE, caller = "tunnel")) {
-        is CredentialResolution.Granted -> Result.success(resolution.value)
-        else -> Result.failure(IllegalStateException(resolution.message.ifBlank { "认证密钥引用无效" }))
-    }
-}
 
 /**
  * 偏好设置 → 网络 → 隧道。
@@ -97,7 +69,7 @@ fun TunnelSettingSection(vm: SettingVM) {
 
     /** 解析密钥后启动隧道，返回状态行文案。 */
     suspend fun startTunnel(): String {
-        val resolved = resolveAuthKey(credentialResolver, authKey)
+        val resolved = resolveTunnelAuthKey(credentialResolver, authKey)
             .getOrElse { return "失败: ${it.message}" }
         return TsnetBridge.start(
             context = context,
