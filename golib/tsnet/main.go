@@ -297,6 +297,33 @@ func NetworkChanged() error {
 	return nil
 }
 
+// Status reports the node's live state to the app side: empty when the tunnel is
+// not running, "connected <tailnet IP>" when the backend is up, "offline" otherwise.
+// The Kotlin side polls this to notice a dropped connection, because its own flag
+// only reflects start/stop calls and cannot see a backend that went down.
+func Status() (string, error) {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return "", nil
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return "", fmt.Errorf("status: local client: %w", err)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	st, err := lc.Status(ctx)
+	if err != nil {
+		return "", fmt.Errorf("status: %w", err)
+	}
+	if st == nil || st.BackendState != "Running" || st.Self == nil || len(st.Self.TailscaleIPs) == 0 {
+		return "offline", nil
+	}
+	return "connected " + st.Self.TailscaleIPs[0].String(), nil
+}
+
 // guardLogsDir points the log policy at dir unless the caller already chose a
 // directory. Failures are only logged: the environment keeps whatever the
 // embedding app set up.
