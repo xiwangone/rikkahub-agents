@@ -1,6 +1,7 @@
 package me.rerere.rikkahub
 
 import android.app.Application
+import android.content.Context
 import android.content.Intent
 import android.content.pm.PackageManager
 import android.os.Build
@@ -45,6 +46,7 @@ import org.koin.android.ext.koin.androidContext
 import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import me.rerere.rikkahub.service.debug.DebugApiManager
+import org.koin.core.context.GlobalContext
 import org.koin.core.context.startKoin
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
@@ -127,18 +129,11 @@ class RikkaHubApp : Application() {
         // AI 调试接口（实验性，默认关）：构造即拉起 DataStore collector，enabled 时自动恢复服务
         get<DebugApiManager>()
 
-        // ---- 数据库启动自检 ----
-        // 迁移失败（例如导入的库已带新列 → duplicate column）会让 Room 首次打开就抛异常，
-        // 表现就是"闪退进不去"。这里主动探一次：失败且留有恢复前的备份时，把坏库换回备份并
-        // 重启进程，用户再点一次就能进（比永远进不去强）；没有备份可回退时保持原行为。
-        runCatching {
-            get<AppDatabase>().openHelper.writableDatabase
-        }.onFailure { t ->
-            AppLog.w("RikkaHubApp", "startup: database failed to open", t)
-            ImportedDatabaseReconciler.recoverFromUnopenableDatabase(this)
-            if (pendingRestoreInstalled) throw t
-        }
-        if (pendingRestoreInstalled) PendingDatabaseRestore.confirmStartup(this)
+        verifyDatabaseOnStartup(this, pendingRestoreInstalled)
+
+        // 逻辑段（凭证/提供商/SSH/定时任务）此前只暂存，等新库安装且 Room 打开后才写回。
+        // 必须放在 confirmStartup 之后：现在库才是恢复后的库，写回不会被下次启动覆盖。
+        applyPendingLogicalRestore()
 
         // Resume durable media tasks after Room and its migrations are available.
         get<me.rerere.rikkahub.service.MediaCreationService>().resumePending()
@@ -460,6 +455,43 @@ class RikkaHubApp : Application() {
         }
     }
 
+    /**
+     * 把备份/迁移包里的逻辑段写回本机（凭证/提供商/SSH/定时任务）。
+     *
+     * 恢复动作发生在**恢复当次进程**里，但数据库要等下次启动才安装；因此逻辑段先以 Keystore
+     * 密文暂存，这里在新库与 Room 就绪后重新加密写回。没有暂存时是一次空操作。
+     */
+    private fun applyPendingLogicalRestore() {
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                val outcome =
+                    me.rerere.rikkahub.data.sync.PendingLogicalApply.applyPending(
+                        context = this@RikkaHubApp,
+                        settingsStore = get(),
+                        vaultRepository = get(),
+                        sshHostRepository = get(),
+                        scheduledJobRepository = get(),
+                    )
+                // 恢复的定时任务此前只在 DB 里，没有对应的 WorkManager 工作项；重排一次。
+                if (outcome == me.rerere.rikkahub.data.sync.PendingLogicalApply.Outcome.APPLIED) {
+                    get<me.rerere.rikkahub.service.CronJobScheduler>().scheduleAllEnabled()
+                }
+                // 写回失败时暂存仍在（下次启动重试），但要明确告知用户，不能静默
+                if (outcome == me.rerere.rikkahub.data.sync.PendingLogicalApply.Outcome.FAILED) {
+                    android.os.Handler(android.os.Looper.getMainLooper()).post {
+                        android.widget.Toast.makeText(
+                            this@RikkaHubApp,
+                            getString(me.rerere.rikkahub.R.string.backup_page_logical_apply_failed),
+                            android.widget.Toast.LENGTH_LONG,
+                        ).show()
+                    }
+                }
+            }.onFailure {
+                AppLog.w(TAG, "applyPendingLogicalRestore failed", it)
+            }
+        }
+    }
+
     private fun startWorkflowRegistry() {
         get<AppScope>().launch(Dispatchers.IO) {
             runCatching {
@@ -748,6 +780,30 @@ class RikkaHubApp : Application() {
         get<AppScope>().cancel()
         stopService(Intent(this, WebServerService::class.java))
     }
+}
+
+/**
+ * 数据库启动自检 + 挂起恢复的确认。
+ *
+ * 迁移失败（例如导入的库已带新列 → duplicate column）会让 Room 首次打开就抛异常，
+ * 表现就是「闪退进不去」。这里主动探一次：失败且留有恢复前的备份时，把坏库换回备份并
+ * 重启进程，用户再点一次就能进（比永远进不去强）；没有备份可回退时保持原行为。
+ *
+ * [pendingRestoreInstalled] 为 true（本次启动刚安装了恢复的库）时失败要**上抛**：
+ * 不能让新库被误认成「可用」，否则下次启动会带着坏库继续。
+ *
+ * 放在文件级（而非 RikkaHubApp 成员）：Application 类的方法数已到 detekt 阈值，
+ * 再添一个会触发 TooManyFunctions；这里的逻辑又不依赖实例状态。
+ */
+private fun verifyDatabaseOnStartup(context: Context, pendingRestoreInstalled: Boolean) {
+    runCatching {
+        GlobalContext.get().get<AppDatabase>().openHelper.writableDatabase
+    }.onFailure { t ->
+        AppLog.w("RikkaHubApp", "startup: database failed to open", t)
+        ImportedDatabaseReconciler.recoverFromUnopenableDatabase(context)
+        if (pendingRestoreInstalled) throw t
+    }
+    if (pendingRestoreInstalled) PendingDatabaseRestore.confirmStartup(context)
 }
 
 class AppScope : CoroutineScope by CoroutineScope(

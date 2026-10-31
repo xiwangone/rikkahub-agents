@@ -17,11 +17,11 @@ import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.data.repository.ConversationRepository
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.BackupPasswordCipher
+import me.rerere.rikkahub.data.sync.BackupStats
+import me.rerere.rikkahub.data.sync.toStats
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.MigrationImportResult
 import me.rerere.rikkahub.data.sync.MigrationImporter
@@ -65,8 +65,10 @@ class BackupVM(
     val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
     val localBackupItems =
         MutableStateFlow(
-            // 默认不含 DATABASE：含全部聊天记录（数十 MB 级），网络通道上传受限；需要时在页内勾选
-            WebDavConfig.BackupItem.entries.filter { it.isCoreItem() && it != WebDavConfig.BackupItem.DATABASE },
+            // 默认只勾设置+头像，保持存量配置行为：
+            // - 数据库含全部聊天记录（数十 MB 级），已移入高级区，需要时再勾；
+            // - 按域项目（提供商/凭证库/SSH）需先开启备份加密，默认不勾，避免未加密用户点备份直接报错。
+            listOf(WebDavConfig.BackupItem.SETTINGS, WebDavConfig.BackupItem.AVATARS),
         )
 
     init {
@@ -156,11 +158,15 @@ class BackupVM(
         appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
-                webDavSync.backup(settings.value.activeWebDavConfig())
+                val stats = webDavSync.backup(settings.value.activeWebDavConfig())
                 recordBackupTime()
                 loadBackupFileItems()
+                stats
             }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            onState(
+                if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
+                else BackupRunState.Failed(r.exceptionOrNull()),
+            )
         }
     }
 
@@ -236,29 +242,29 @@ class BackupVM(
         webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
     }
 
-    suspend fun exportToFile(): File = withContext(Dispatchers.IO) {
-        val plainFile =
+    suspend fun exportToFile(
+        items: List<WebDavConfig.BackupItem> = localBackupItems.value,
+    ): LocalExportResult = withContext(Dispatchers.IO) {
+        val prepared =
             webDavSync.prepareBackupFile(
-                settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+                settings.value.activeWebDavConfig().copy(items = items),
             )
+        val plainFile = prepared.file
         val file = backupEncryptionManager.maybeEncrypt(plainFile)
         // 加密时清理明文中间产物（调用方负责删返回的 .enc；明文模式返回原文件由调用方删）
         if (file != plainFile && plainFile.exists()) {
             plainFile.delete()
         }
         recordBackupTime()
-        file
+        LocalExportResult(file = file, stats = prepared.toStats())
     }
 
     /**
      * 导出「迁移包」：换机可用（凭证与 provider 配置在包内是口令加密的明文形态）。
-     * 范围固定为会话库 + 设置；未开启备份加密时**拒绝导出**（包含明文密钥）。
+     * 范围由 [MigrationExporter] 固定为「把人带走」的全套；未开启备份加密时**拒绝导出**。
      */
     suspend fun exportMigrationPackage(): MigrationExportResult =
-        migrationExporter.export(
-            config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
-            providersJson = runCatching { Json.encodeToString(settings.value.providers) }.getOrNull(),
-        )
+        migrationExporter.export(config = settings.value.activeWebDavConfig())
 
     /** 最近一次导入前生成的**回滚包**（同机备份），供 UI 告诉用户到哪里去找回退。 */
     val lastMigrationRollback = MutableStateFlow<File?>(null)
@@ -271,8 +277,22 @@ class BackupVM(
         migrationImporter.import(
             config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
             file = file,
-            createRollbackPoint = { lastMigrationRollback.value = exportToFile() },
+            createRollbackPoint = { lastMigrationRollback.value = exportRollbackPoint() },
         )
+    }
+
+    /**
+     * 导入前的回滚点。未开启备份加密时**排除 SETTINGS**（含 provider apiKey），
+     * 否则本地明文包会落盘；此时回滚点只含数据库与头像。
+     */
+    private suspend fun exportRollbackPoint(): File {
+        val items =
+            if (backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
+                localBackupItems.value
+            } else {
+                listOf(WebDavConfig.BackupItem.DATABASE, WebDavConfig.BackupItem.AVATARS)
+            }
+        return exportToFile(items).file
     }
 
     /** 导出迁移包并上传云端（WebDAV）。返回结果供 UI 提示凭证数；本地临时包上传后清理。 */
@@ -434,11 +454,15 @@ class BackupVM(
         appScope.launch {
             onState(BackupRunState.Running)
             val r = runCatching {
-                s3Sync.backupToS3(settings.value.activeS3Config())
+                val stats = s3Sync.backupToS3(settings.value.activeS3Config())
                 recordBackupTime()
                 loadS3BackupFileItems()
+                stats
             }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            onState(
+                if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
+                else BackupRunState.Failed(r.exceptionOrNull()),
+            )
         }
     }
 
@@ -527,11 +551,21 @@ class BackupVM(
 sealed class BackupRunState {
     data object Running : BackupRunState()
     data object Success : BackupRunState()
+
+    /** 备份完成（携带打包统计：有凭证解不开时必须如实告知用户）。 */
+    data class BackupSucceeded(val stats: BackupStats) : BackupRunState()
+
     data class Failed(val error: Throwable?) : BackupRunState()
 
     /** 恢复遇到加密包且本机无口令/口令错误：UI 应弹框要求输入口令后重试。 */
     data class NeedsPassword(val encFile: java.io.File?) : BackupRunState()
 }
+
+/** 本地导出文件 + 打包统计（UI 可据此提示“有多少凭证没进包”）。 */
+data class LocalExportResult(
+    val file: java.io.File,
+    val stats: BackupStats,
+)
 
 data class ChatboxRestoreResult(
     val importedProviders: Int,

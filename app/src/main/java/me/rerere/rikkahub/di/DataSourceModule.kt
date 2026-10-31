@@ -68,6 +68,7 @@ import me.rerere.rikkahub.data.grok.GrokCredentialStore
 import me.rerere.rikkahub.data.grok.GrokOAuthManager
 import me.rerere.rikkahub.data.grok.GrokProvider
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
+import me.rerere.rikkahub.data.sync.LogicalBackup
 import me.rerere.rikkahub.data.sync.MigrationExporter
 import me.rerere.rikkahub.data.sync.MigrationImporter
 import me.rerere.rikkahub.data.sync.S3Sync
@@ -517,10 +518,19 @@ val dataSourceModule =
         }
 
         single {
+            LogicalBackup(
+                json = get(),
+                settingsStore = get(),
+                vaultRepository = get(),
+                sshHostRepository = get(),
+                scheduledJobRepository = get(),
+            )
+        }
+
+        single {
             MigrationExporter(
                 webDavSync = get(),
                 backupEncryptionManager = get(),
-                vaultRepository = get(),
             )
         }
 
@@ -528,8 +538,6 @@ val dataSourceModule =
             MigrationImporter(
                 webDavSync = get(),
                 backupEncryptionManager = get(),
-                vaultRepository = get(),
-                migrationSettingsStore = get(),
             )
         }
 
@@ -541,6 +549,7 @@ val dataSourceModule =
                 httpClient = get(),
                 appDatabase = get(),
                 backupEncryptionManager = get(),
+                logicalBackup = get(),
             )
         }
 
@@ -567,6 +576,7 @@ val dataSourceModule =
                 httpClient = get(),
                 appDatabase = get(),
                 backupEncryptionManager = get(),
+                logicalBackup = get(),
             )
         }
 

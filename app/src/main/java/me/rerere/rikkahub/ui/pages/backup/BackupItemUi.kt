@@ -21,6 +21,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.sync.LogicalDomains
 import me.rerere.rikkahub.data.sync.s3.S3Config
 
 /** 备份条目显示名（Compose 内取字符串资源）。 */
@@ -28,16 +29,28 @@ import me.rerere.rikkahub.data.sync.s3.S3Config
 fun backupItemLabel(item: WebDavConfig.BackupItem): String =
     stringResource(backupItemLabelRes(item))
 
-/** 核心状态项（数据库/设置/头像）：默认备份，主区常显。其余为高级文件类（默认不勾）。 */
+/**
+ * 常用项常显在主区：设置、头像、提供商、凭证库、SSH 主机。
+ * 数据库（含全部聊天、体积大）与文件类、定时任务收进「高级选项」，默认不勾。
+ */
 fun WebDavConfig.BackupItem.isCoreItem(): Boolean =
-    this == WebDavConfig.BackupItem.DATABASE ||
-        this == WebDavConfig.BackupItem.SETTINGS ||
-        this == WebDavConfig.BackupItem.AVATARS
+    this == WebDavConfig.BackupItem.SETTINGS ||
+        this == WebDavConfig.BackupItem.AVATARS ||
+        this == WebDavConfig.BackupItem.PROVIDERS ||
+        this == WebDavConfig.BackupItem.VAULT_CREDENTIALS ||
+        this == WebDavConfig.BackupItem.SSH_HOSTS
 
 fun S3Config.BackupItem.isCoreItem(): Boolean =
-    this == S3Config.BackupItem.DATABASE ||
-        this == S3Config.BackupItem.SETTINGS ||
-        this == S3Config.BackupItem.AVATARS
+    this == S3Config.BackupItem.SETTINGS ||
+        this == S3Config.BackupItem.AVATARS ||
+        this == S3Config.BackupItem.PROVIDERS ||
+        this == S3Config.BackupItem.VAULT_CREDENTIALS ||
+        this == S3Config.BackupItem.SSH_HOSTS
+
+/** 是否属于「换机可用」的逻辑域（与迁移包 migration/ 段同名）。 */
+fun WebDavConfig.BackupItem.isLogicalItem(): Boolean = name in LogicalDomains.ALL
+
+fun S3Config.BackupItem.isLogicalItem(): Boolean = name in LogicalDomains.ALL
 
 /** 单个备份项 chip：勾选状态 + 点击切换。 */
 @Composable
@@ -89,6 +102,9 @@ fun WebDavBackupItemsSelector(
             )
         },
         desc = { item -> backupItemDescRes(item) },
+        showDatabaseOnlyWarning =
+            selectedItems.contains(WebDavConfig.BackupItem.DATABASE) &&
+                selectedItems.none { it.isLogicalItem() },
     )
 }
 
@@ -111,6 +127,9 @@ fun S3BackupItemsSelector(
             )
         },
         desc = { item -> backupItemDescRes(item) },
+        showDatabaseOnlyWarning =
+            selectedItems.contains(S3Config.BackupItem.DATABASE) &&
+                selectedItems.none { it.isLogicalItem() },
     )
 }
 
@@ -122,6 +141,7 @@ private fun <T> BackupItemsSelectorContent(
     onChange: (List<T>) -> Unit,
     chip: @Composable (T, Boolean, (Boolean) -> Unit) -> Unit,
     desc: (T) -> Int?,
+    showDatabaseOnlyWarning: Boolean,
 ) {
     var showAdvanced by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -136,14 +156,16 @@ private fun <T> BackupItemsSelectorContent(
                 }
             }
         }
-        // 数据库项默认不勾（含全部聊天记录，体积大且网络通道上传受限）——固定提醒一行，避免用户误以为丢了聊天
-        Text(
-            stringResource(R.string.backup_page_items_db_size_hint),
-            style = MaterialTheme.typography.labelMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
         // 勾选项的内容说明：让用户知道“勾了这项到底备了什么”（文案已存在，此处接到 UI）
         SelectedItemDescs(coreItems.filter { it in selectedItems }, desc)
+        // 只勾数据库、没勾任何按域项：换机后包里的 vault/SSH 仍抵旧机 Keystore 密文，需明确提示
+        if (showDatabaseOnlyWarning) {
+            Text(
+                stringResource(R.string.backup_page_database_only_hint),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
         if (advancedItems.isNotEmpty()) {
             TextButton(
                 onClick = { showAdvanced = !showAdvanced },
@@ -161,6 +183,12 @@ private fun <T> BackupItemsSelectorContent(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     modifier = Modifier.padding(bottom = 4.dp),
+                )
+                // 数据库已归入高级区：提醒它含全部聊天（体积大、网络通道上传受限）
+                Text(
+                    stringResource(R.string.backup_page_items_db_size_hint),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 FlowRow(
                     modifier = Modifier.fillMaxWidth(),
@@ -191,6 +219,10 @@ fun backupItemLabelRes(item: WebDavConfig.BackupItem): Int =
         WebDavConfig.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images
         WebDavConfig.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs
         WebDavConfig.BackupItem.FILES -> R.string.backup_page_item_legacy_files
+        WebDavConfig.BackupItem.PROVIDERS -> R.string.backup_page_item_providers
+        WebDavConfig.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials
+        WebDavConfig.BackupItem.SSH_HOSTS -> R.string.backup_page_item_ssh_hosts
+        WebDavConfig.BackupItem.SCHEDULED_JOBS -> R.string.backup_page_item_scheduled_jobs
     }
 
 @Composable
@@ -226,6 +258,10 @@ fun backupItemDescRes(item: WebDavConfig.BackupItem): Int? =
         WebDavConfig.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
         WebDavConfig.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
         WebDavConfig.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
+        WebDavConfig.BackupItem.PROVIDERS -> R.string.backup_page_item_providers_desc
+        WebDavConfig.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials_desc
+        WebDavConfig.BackupItem.SSH_HOSTS -> R.string.backup_page_item_ssh_hosts_desc
+        WebDavConfig.BackupItem.SCHEDULED_JOBS -> R.string.backup_page_item_scheduled_jobs_desc
     }
 
 fun backupItemDescRes(item: S3Config.BackupItem): Int? =
@@ -239,6 +275,10 @@ fun backupItemDescRes(item: S3Config.BackupItem): Int? =
         S3Config.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
         S3Config.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
         S3Config.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
+        S3Config.BackupItem.PROVIDERS -> R.string.backup_page_item_providers_desc
+        S3Config.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials_desc
+        S3Config.BackupItem.SSH_HOSTS -> R.string.backup_page_item_ssh_hosts_desc
+        S3Config.BackupItem.SCHEDULED_JOBS -> R.string.backup_page_item_scheduled_jobs_desc
     }
 
 @StringRes
@@ -253,4 +293,8 @@ fun backupItemLabelRes(item: S3Config.BackupItem): Int =
         S3Config.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images
         S3Config.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs
         S3Config.BackupItem.FILES -> R.string.backup_page_item_legacy_files
+        S3Config.BackupItem.PROVIDERS -> R.string.backup_page_item_providers
+        S3Config.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials
+        S3Config.BackupItem.SSH_HOSTS -> R.string.backup_page_item_ssh_hosts
+        S3Config.BackupItem.SCHEDULED_JOBS -> R.string.backup_page_item_scheduled_jobs
     }

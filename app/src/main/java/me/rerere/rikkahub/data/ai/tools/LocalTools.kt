@@ -615,7 +615,7 @@ class LocalTools(
                     }
 
                     else -> {
-                        val plain = getKoin().get<S3Sync>().prepareBackupFile(S3Config(items = items))
+                        val plain = getKoin().get<S3Sync>().prepareBackupFile(S3Config(items = items)).file
                         val encryptionManager = getKoin().get<BackupEncryptionManager>()
                         val file =
                             runCatching { encryptionManager.maybeEncrypt(plain) }.getOrElse { e ->

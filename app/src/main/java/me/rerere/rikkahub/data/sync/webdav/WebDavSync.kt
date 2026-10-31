@@ -18,7 +18,15 @@ import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.DatabaseBackup
+import me.rerere.rikkahub.data.sync.LogicalBackup
+import me.rerere.rikkahub.data.sync.LogicalDomains
+import me.rerere.rikkahub.data.sync.LogicalExport
+import me.rerere.rikkahub.data.sync.MigrationPackage
 import me.rerere.rikkahub.data.sync.PendingDatabaseRestore
+import me.rerere.rikkahub.data.sync.PendingLogicalApply
+import me.rerere.rikkahub.data.sync.BackupStats
+import me.rerere.rikkahub.data.sync.PreparedBackup
+import me.rerere.rikkahub.data.sync.toStats
 import me.rerere.rikkahub.data.sync.RestoreFileTransaction
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
@@ -34,7 +42,8 @@ import java.util.zip.ZipOutputStream
 
 private const val TAG = "WebDavSync"
 
-@Suppress("TooManyFunctions")
+// 7 个构造依赖同 S3Sync（既有 6 + 逻辑备份段）
+@Suppress("TooManyFunctions", "LongParameterList")
 class WebDavSync(
     private val settingsStore: SettingsStore,
     private val json: Json,
@@ -42,6 +51,7 @@ class WebDavSync(
     private val httpClient: HttpClient,
     private val appDatabase: AppDatabase,
     private val backupEncryptionManager: BackupEncryptionManager,
+    private val logicalBackup: LogicalBackup,
 ) {
     private fun getClient(config: WebDavConfig): WebDavClient {
         return WebDavClient(config, httpClient)
@@ -54,9 +64,13 @@ class WebDavSync(
         AppLog.i(TAG, "testConnection: Connection successful")
     }
 
-    suspend fun backup(config: WebDavConfig) = withContext(Dispatchers.IO) {
+    suspend fun backup(config: WebDavConfig): BackupStats = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
-        val plainFile = prepareBackupFile(config)
+        // 网络备份按迁移包逻辑：包里含明文密钥（settings 的 apiKey、逻辑域凭据），
+        // 未开启口令加密时明确拒绝，绝不静默上传明文。
+        requireBackupEncryption()
+        val prepared = prepareBackupFile(config)
+        val plainFile = prepared.file
         val file = backupEncryptionManager.maybeEncrypt(plainFile)
         val client = getClient(config)
 
@@ -72,6 +86,8 @@ class WebDavSync(
             ).getOrThrow()
 
             AppLog.i(TAG, "backup: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+            // 统计随返回值交给 UI：有解不开的凭证必须让用户知道，不能只报“成功”
+            prepared.toStats()
         } finally {
             // Clean up temp files（明文 zip 与加密产物都清）
             if (plainFile.exists()) plainFile.delete()
@@ -283,7 +299,7 @@ class WebDavSync(
         }
     }
 
-    suspend fun prepareBackupFile(config: WebDavConfig): File = withContext(Dispatchers.IO) {
+    suspend fun prepareBackupFile(config: WebDavConfig): PreparedBackup = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
@@ -291,6 +307,15 @@ class WebDavSync(
         if (backupFile.exists()) {
             backupFile.delete()
         }
+
+        // 逻辑域（提供商/凭证库/SSH/定时任务）与 settings.json（含 provider apiKey）在包里都是明文：
+        // 选中任一即必须整包加密，否则明文密钥会落进本地文件或云端。
+        val itemNames = config.items.map { it.name }
+        if (LogicalDomains.anySelected(itemNames) || config.items.contains(WebDavConfig.BackupItem.SETTINGS)) {
+            requireBackupEncryption()
+        }
+
+        var logical = LogicalExport()
 
         // Create zip file and backup data
         ZipOutputStream(FileOutputStream(backupFile)).use { zipOut ->
@@ -365,13 +390,29 @@ class WebDavSync(
             if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
                 backupWorkspaceDocs(zipOut)
             }
+
+            // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）。
+            // 放在最后：MANIFEST 会记录本次勾选项，便于恢复侧核对。
+            logical = logicalBackup.writeTo(zipOut, itemNames)
         }
 
         AppLog.i(
             TAG,
             "prepareBackupFile: Created backup file ${backupFile.name} (${backupFile.length().fileSizeToString()})"
         )
-        backupFile
+        PreparedBackup(
+            file = backupFile,
+            credentialCount = logical.credentialCount,
+            undecryptableCredentials = logical.undecryptableCredentials,
+            providersIncluded = logical.providersIncluded,
+        )
+    }
+
+    /** 含明文密钥的包必须整包口令加密；未开启时给出可操作的提示，而不是静默降级。 */
+    private fun requireBackupEncryption() {
+        check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
+            "备份包包含明文密钥（提供商密钥/凭证库等）。请先在「备份与恢复 → 加密设置」开启加密并设置口令。"
+        }
     }
 
     private suspend fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
@@ -472,6 +513,11 @@ class WebDavSync(
             WebDavConfig.BackupItem.CHAT_FILES,
             WebDavConfig.BackupItem.FONTS_IMAGES,
             WebDavConfig.BackupItem.TOOL_OUTPUTS,
+            // 逻辑域备份项：只勾这些时不应顺带把整份 settings.json 打进包（granularity）
+            WebDavConfig.BackupItem.PROVIDERS,
+            WebDavConfig.BackupItem.VAULT_CREDENTIALS,
+            WebDavConfig.BackupItem.SSH_HOSTS,
+            WebDavConfig.BackupItem.SCHEDULED_JOBS,
         )
 
         /** workspace files 层递归打包时排除的目录名（可重建/巨大/敏感） */
@@ -488,6 +534,9 @@ class WebDavSync(
         // private staging directory and installed by Application before Room starts next launch.
         var databaseStage: File? = null
         fun stage(): File = databaseStage ?: PendingDatabaseRestore.createStage(context).also { databaseStage = it }
+        // 逻辑段（凭证/提供商/SSH/定时任务）先收集，恢复结束后暂存到启动期写回。
+        // 不能在这里写库：新库要等下次启动才安装，现在写会被覆盖（迁移包凭证"消失"的根因）。
+        val logicalEntries = mutableMapOf<String, String>()
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
             var entry: ZipEntry?
@@ -600,6 +649,12 @@ class WebDavSync(
                             }
                         }
 
+                        // migration/ 段（明文 → 整包口令加密）——恢复时只暂存，启动后再写回
+                        zipEntry.name.trimStart('/').startsWith(MigrationPackage.DIR + "/") -> {
+                            logicalEntries[zipEntry.name.trimStart('/')] =
+                                zipIn.readBytes().toString(Charsets.UTF_8)
+                        }
+
                         else -> {
                             AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
                         }
@@ -618,6 +673,11 @@ class WebDavSync(
                 stage.deleteRecursively()
                 throw failure
             }
+        }
+
+        // 逻辑段暂存（Keystore 密文），由 Application 在新库安装且 Room 打开后写回。
+        if (logicalEntries.isNotEmpty()) {
+            PendingLogicalApply.stage(context, logicalEntries)
         }
 
         AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")

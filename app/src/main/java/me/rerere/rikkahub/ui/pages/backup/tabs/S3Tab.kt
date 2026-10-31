@@ -386,12 +386,23 @@ fun S3Tab(
                     vm.runBackupToS3 { state ->
                         when (state) {
                             is BackupRunState.Running -> isBackingUp = true
-                            is BackupRunState.Success -> {
+                            is BackupRunState.BackupSucceeded -> {
                                 isBackingUp = false
-                                toaster.show(
-                                    resources.getString(R.string.backup_page_backup_success),
-                                    type = ToastType.Success,
-                                )
+                                val undecryptable = state.stats.undecryptableCredentials
+                                if (undecryptable > 0) {
+                                    toaster.show(
+                                        resources.getString(
+                                            R.string.backup_page_backup_success_partial_credentials,
+                                            undecryptable,
+                                        ),
+                                        type = ToastType.Warning,
+                                    )
+                                } else {
+                                    toaster.show(
+                                        resources.getString(R.string.backup_page_backup_success),
+                                        type = ToastType.Success,
+                                    )
+                                }
                             }
 
                             is BackupRunState.NeedsPassword -> isBackingUp = false

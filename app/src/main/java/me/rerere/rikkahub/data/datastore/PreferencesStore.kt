@@ -1498,6 +1498,19 @@ data class WebDavConfig(
         TOOL_OUTPUTS,
         /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES） */
         FILES,
+
+        // ── 按域逻辑备份（数据库/设置的细分粒度）──
+        // 这些项不打包原始 sqlite / settings.json，而是把域内容转成**明文 JSON** 放进包的
+        // migration/ 段，再由口令加密整包；恢复时用本机 Keystore 重新加密写回。
+        // 因此它们天然跨设备可用（区别于 DATABASE 里的本机密文）。
+        /** 提供商与模型配置（来自 settings.json 的 providers，含 apiKey） */
+        PROVIDERS,
+        /** 凭证库条目（导出时逐条解密；恢复时用本机 Keystore 重新加密） */
+        VAULT_CREDENTIALS,
+        /** SSH 主机（导出时解密 password/privateKey；恢复时重新加密） */
+        SSH_HOSTS,
+        /** 定时任务（scheduled_jobs 表，仅配置与游标，不含运行记录） */
+        SCHEDULED_JOBS,
     }
 }
 

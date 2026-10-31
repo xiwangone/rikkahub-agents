@@ -29,6 +29,9 @@ import java.util.zip.ZipOutputStream
 
 private const val TAG = "S3Sync"
 
+// 7 个构造依赖 = 既有 6 个 + 新增的逻辑备份段（2026-11 外部交付）；
+// 拆成参数对象只会引入一层不必要的间接 —— 所有字段都是本类直接使用的稳定依赖。
+@Suppress("LongParameterList")
 class S3Sync(
     private val settingsStore: SettingsStore,
     private val json: Json,
@@ -36,6 +39,7 @@ class S3Sync(
     private val httpClient: HttpClient,
     private val appDatabase: AppDatabase,
     private val backupEncryptionManager: BackupEncryptionManager,
+    private val logicalBackup: LogicalBackup,
 ) {
     private fun getS3Client(config: S3Config): S3Client {
         return S3Client(config, httpClient)
@@ -48,9 +52,12 @@ class S3Sync(
         AppLog.i(TAG, "testS3: Connection successful")
     }
 
-    suspend fun backupToS3(config: S3Config) = withContext(Dispatchers.IO) {
+    suspend fun backupToS3(config: S3Config): BackupStats = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
-        val plainFile = prepareBackupFile(config)
+        // 网络备份按迁移包逻辑：含明文密钥（settings apiKey / 逻辑域凭据）→ 必须整包口令加密
+        requireBackupEncryption()
+        val prepared = prepareBackupFile(config)
+        val plainFile = prepared.file
         val file = backupEncryptionManager.maybeEncrypt(plainFile)
         val client = getS3Client(config)
         val key = "rikkahub_backups/${file.name}"
@@ -63,6 +70,8 @@ class S3Sync(
             ).getOrThrow()
 
             AppLog.i(TAG, "backupToS3: Uploaded ${file.name} (${file.length().fileSizeToString()})")
+            // 统计随返回值交给 UI：有解不开的凭证必须让用户知道
+            prepared.toStats()
         } finally {
             if (plainFile.exists()) plainFile.delete()
             if (file != plainFile && file.exists()) file.delete()
@@ -180,7 +189,12 @@ class S3Sync(
         AppLog.i(TAG, "deleteS3BackupFile: Deleted ${item.key}")
     }
 
-    suspend fun prepareBackupFile(config: S3Config): File = withContext(Dispatchers.IO) {
+    suspend fun prepareBackupFile(config: S3Config): PreparedBackup = withContext(Dispatchers.IO) {
+        // settings 的兼容判断要基于**用户原始勾选**：withLegacyExpanded 会把旧 FILES 展开成
+        // 新枚举项，展开后再判断就再也识别不出“旧式配置”了。
+        val wantSettings =
+            config.items.contains(S3Config.BackupItem.SETTINGS) ||
+                config.items.none { it in NEW_ITEM_KINDS }
         val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
@@ -189,13 +203,25 @@ class S3Sync(
             backupFile.delete()
         }
 
+        val itemNames = config.items.map { it.name }
+        // settings.json 含 provider apiKey；逻辑域是明文 JSON —— 任一被选中都必须整包加密
+        if (LogicalDomains.anySelected(itemNames) || config.items.contains(S3Config.BackupItem.SETTINGS)) {
+            requireBackupEncryption()
+        }
+
+        var logical = LogicalExport()
+
         // Create zip file and backup data
         ZipOutputStream(FileOutputStream(backupFile)).use { zipOut ->
-            addVirtualFileToZip(
-                zipOut = zipOut,
-                name = "settings.json",
-                content = json.encodeToString(settingsStore.settingsFlow.value)
-            )
+            // 只有勾了 SETTINGS（或旧式配置）才带 settings.json，否则「只勾提供商/凭证」
+            // 会顺带备份并恢复整份设置，粒度形同虚设。
+            if (wantSettings) {
+                addVirtualFileToZip(
+                    zipOut = zipOut,
+                    name = "settings.json",
+                    content = json.encodeToString(settingsStore.settingsFlow.value)
+                )
+            }
 
             // Backup database files
             if (config.items.contains(S3Config.BackupItem.DATABASE)) {
@@ -231,13 +257,27 @@ class S3Sync(
             }
             // Media sessions retain their authoritative relativePath files under 06's directory.
             addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
+
+            // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）
+            logical = logicalBackup.writeTo(zipOut, itemNames)
         }
 
         AppLog.i(
             TAG,
             "prepareBackupFile: Created backup file ${backupFile.name} (${backupFile.length().fileSizeToString()})"
         )
-        backupFile
+        PreparedBackup(
+            file = backupFile,
+            credentialCount = logical.credentialCount,
+            undecryptableCredentials = logical.undecryptableCredentials,
+            providersIncluded = logical.providersIncluded,
+        )
+    }
+
+    private fun requireBackupEncryption() {
+        check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
+            "备份包包含明文密钥（提供商密钥/凭证库等）。请先在「备份与恢复 → 加密设置」开启加密并设置口令。"
+        }
     }
 
     private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config) = withContext(Dispatchers.IO) {
@@ -247,6 +287,8 @@ class S3Sync(
         // private staging directory and installed by Application before Room starts next launch.
         var databaseStage: File? = null
         fun stage(): File = databaseStage ?: PendingDatabaseRestore.createStage(context).also { databaseStage = it }
+        // 逻辑段（明文，整包口令加密）只暂存，等新库安装、Room 打开后写回。
+        val logicalEntries = mutableMapOf<String, String>()
 
         ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
             var entry: ZipEntry?
@@ -277,30 +319,36 @@ class S3Sync(
                             }
                         }
 
+                        // migration/ 段（按域逻辑备份）→ 暂存，启动后写回
                         else -> {
-                            // 逐项还原：条目落在哪个目录，就要求本次勾了对应项
-                            val folder = zipEntry.name.substringBefore('/', "")
-                            when (folder) {
-                                FileFolders.AVATARS -> if (config.wants(S3Config.BackupItem.AVATARS)) {
-                                    if (zipEntry.name.removePrefix("${FileFolders.AVATARS}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
-                                } else skipEntry(zipEntry)
-
-                                FileFolders.UPLOAD -> if (config.wants(S3Config.BackupItem.CHAT_FILES)) {
-                                    if (zipEntry.name.removePrefix("${FileFolders.UPLOAD}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
-                                } else skipEntry(zipEntry)
-
-                                FileFolders.SKILLS -> if (config.wants(S3Config.BackupItem.SKILLS)) {
-                                    PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
-                                } else skipEntry(zipEntry)
-
-                                FileFolders.MEDIA_CREATION -> PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
-
-                                FileFolders.FONTS, FileFolders.IMAGES ->
-                                    if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
-                                        if (zipEntry.name.removePrefix("$folder/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                            if (zipEntry.name.trimStart('/').startsWith(MigrationPackage.DIR + "/")) {
+                                logicalEntries[zipEntry.name.trimStart('/')] =
+                                    zipIn.readBytes().toString(Charsets.UTF_8)
+                            } else {
+                                // 逐项还原：条目落在哪个目录，就要求本次勾了对应项
+                                val folder = zipEntry.name.substringBefore('/', "")
+                                when (folder) {
+                                    FileFolders.AVATARS -> if (config.wants(S3Config.BackupItem.AVATARS)) {
+                                        if (zipEntry.name.removePrefix("${FileFolders.AVATARS}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry)
 
-                                else -> skipEntry(zipEntry)
+                                    FileFolders.UPLOAD -> if (config.wants(S3Config.BackupItem.CHAT_FILES)) {
+                                        if (zipEntry.name.removePrefix("${FileFolders.UPLOAD}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    } else skipEntry(zipEntry)
+
+                                    FileFolders.SKILLS -> if (config.wants(S3Config.BackupItem.SKILLS)) {
+                                        PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    } else skipEntry(zipEntry)
+
+                                    FileFolders.MEDIA_CREATION -> PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+
+                                    FileFolders.FONTS, FileFolders.IMAGES ->
+                                        if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
+                                            if (zipEntry.name.removePrefix("$folder/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                        } else skipEntry(zipEntry)
+
+                                    else -> skipEntry(zipEntry)
+                                }
                             }
                         }
                     }
@@ -318,6 +366,11 @@ class S3Sync(
                 stage.deleteRecursively()
                 throw failure
             }
+        }
+
+        // 逻辑段暂存，待新库安装且 Room 打开后写回
+        if (logicalEntries.isNotEmpty()) {
+            PendingLogicalApply.stage(context, logicalEntries)
         }
 
         AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")
@@ -358,6 +411,23 @@ class S3Sync(
     /** 本次备份是否需要 [item] 对应的内容（旧聚合项 FILES 视为"全量"）。 */
     private fun S3Config.wants(item: S3Config.BackupItem): Boolean =
         items.any { it == item || it == S3Config.BackupItem.FILES }
+
+    companion object {
+        /** 新拆分的枚举项（旧配置不含），用于 settings.json 的兼容判断。 */
+        private val NEW_ITEM_KINDS = setOf(
+            S3Config.BackupItem.SETTINGS,
+            S3Config.BackupItem.AVATARS,
+            S3Config.BackupItem.WORKSPACE_DOCS,
+            S3Config.BackupItem.SKILLS,
+            S3Config.BackupItem.CHAT_FILES,
+            S3Config.BackupItem.FONTS_IMAGES,
+            S3Config.BackupItem.TOOL_OUTPUTS,
+            S3Config.BackupItem.PROVIDERS,
+            S3Config.BackupItem.VAULT_CREDENTIALS,
+            S3Config.BackupItem.SSH_HOSTS,
+            S3Config.BackupItem.SCHEDULED_JOBS,
+        )
+    }
 
     /** 只打包目录顶层文件（avatars/upload/fonts/images 的旧打包语义）。 */
     private fun addFolderFilesToZip(zipOut: ZipOutputStream, folder: String) {

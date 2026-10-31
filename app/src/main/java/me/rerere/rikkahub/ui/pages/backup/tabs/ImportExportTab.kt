@@ -90,7 +90,8 @@ fun ImportExportTab(
                 runCatching {
                     // 导出文件（迁移包与常规包共用「写到用户选定位置」这一步）
                     val migrationResult = if (exportType == "migration") vm.exportMigrationPackage() else null
-                    val exportFile = migrationResult?.file ?: vm.exportToFile()
+                    val localResult = if (migrationResult == null) vm.exportToFile() else null
+                    val exportFile = migrationResult?.file ?: localResult!!.file
 
                     // 复制到用户选择的位置
                     context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
@@ -102,16 +103,22 @@ fun ImportExportTab(
                     // 清理临时文件
                     exportFile.delete()
 
+                    val undecryptable = localResult?.stats?.undecryptableCredentials ?: 0
                     toaster.show(
-                        if (migrationResult != null) {
-                            resources.getString(
+                        when {
+                            migrationResult != null -> resources.getString(
                                 R.string.backup_page_migration_export_success,
                                 migrationResult.credentialCount,
                             )
-                        } else {
-                            resources.getString(R.string.backup_page_backup_success)
+
+                            undecryptable > 0 -> resources.getString(
+                                R.string.backup_page_backup_success_partial_credentials,
+                                undecryptable,
+                            )
+
+                            else -> resources.getString(R.string.backup_page_backup_success)
                         },
-                        type = ToastType.Success,
+                        type = if (undecryptable > 0) ToastType.Warning else ToastType.Success,
                     )
                 }.onFailure { e ->
                     e.printStackTrace()

@@ -4,6 +4,7 @@ import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * A persistent scheduled job. Two modes (llm / direct) and two timing types (once / cron).
@@ -16,6 +17,7 @@ import androidx.room.PrimaryKey
  *    never written to by post-v21 code.
  *  - prompt becomes nullable to accommodate mode='direct' rows.
  */
+@Serializable
 @Entity(tableName = "scheduled_jobs")
 data class ScheduledJobEntity(
     @PrimaryKey val id: String,

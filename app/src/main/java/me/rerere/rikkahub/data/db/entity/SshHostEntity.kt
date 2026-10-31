@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.db.entity
 
 import androidx.room.Entity
 import androidx.room.PrimaryKey
+import kotlinx.serialization.Serializable
 
 /**
  * A saved SSH host the LLM (or user) can reference by name.
@@ -10,6 +11,7 @@ import androidx.room.PrimaryKey
  * same posture as the rest of the app's stored credentials (provider API keys, etc.).
  * Encryption-at-rest via Android Keystore would be a future hardening.
  */
+@Serializable
 @Entity(tableName = "ssh_hosts")
 data class SshHostEntity(
     /** Display name; also the lookup key from the LLM. */

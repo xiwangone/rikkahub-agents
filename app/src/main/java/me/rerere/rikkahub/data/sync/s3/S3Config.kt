@@ -79,6 +79,17 @@ data class S3Config(
         /** 工具输出缓存（files/tool_outputs/） */
         TOOL_OUTPUTS,
         /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES） */
-        FILES;
+        FILES,
+
+        // ── 按域逻辑备份（数据库/设置的细分粒度）──
+        // 内容以明文 JSON 进入 migration/ 段，整包口令加密；恢复时用本机 Keystore 重新加密。
+        /** 提供商与模型配置（来自 settings.json 的 providers，含 apiKey） */
+        PROVIDERS,
+        /** 凭证库条目（导出时逐条解密；恢复时用本机 Keystore 重新加密） */
+        VAULT_CREDENTIALS,
+        /** SSH 主机（导出时解密 password/privateKey；恢复时重新加密） */
+        SSH_HOSTS,
+        /** 定时任务（scheduled_jobs 表，仅配置与游标，不含运行记录） */
+        SCHEDULED_JOBS;
     }
 }

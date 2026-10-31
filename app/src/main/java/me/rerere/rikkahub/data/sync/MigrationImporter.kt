@@ -1,19 +1,16 @@
 package me.rerere.rikkahub.data.sync
 
-import kotlinx.serialization.json.Json
-import me.rerere.ai.provider.ProviderSetting
-import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.data.vault.CredentialImporter
-import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import java.io.File
 
-/** 迁移包导入结果（供 UI **如实**报告覆盖了什么、跳过了什么）。 */
+/** 迁移包导入结果（供 UI **如实**报告包里准备写回什么）。 */
 data class MigrationImportResult(
     val credentialsImported: Int,
+    /** 恢复阶段无法逐条比对（新库尚未安装），恒为 0；保留字段兼容既有 UI。 */
     val credentialsSkipped: Int,
-    /** 同名但值不同（用指纹比对的，不经手明文）→ 已被包内值覆盖。 */
+    /** 同上：同名覆盖需在启动期写回时才知道，恢复阶段不预判。 */
     val credentialsOverwritten: List<String>,
     val providersRestored: Boolean,
 )
@@ -34,21 +31,16 @@ internal fun MigrationCredential.toParsedEntry(): CredentialImporter.ParsedEntry
  * 导入迁移包（全量覆盖）：
  * ① 校验清单（不是迁移包 / 版本不兼容 → 直接失败，不半途改数据）；
  * ② **先建回滚点**（调用方实现：再导一次同机备份包）；
- * ③ 覆盖恢复会话库与设置；
- * ④ 凭证明文 → 走既有 `importEntries`（同名 upsert）写回，由**本机 Keystore** 重新加密；
- * ⑤ provider 配置写回（写入路径自带重新加密）。
+ * ③ 交给 `WebDavSync.restoreFromLocalFile`：会话库/设置/文件挂起，`migration/` 逻辑段也挂起；
+ * ④ 下次启动安装新库、Room 打开后，由 `PendingLogicalApply` 用本机 Keystore 重新加密写回。
  *
- * 顺序有意如此：**任何一步失败都不该留下"改了一半"的状态**，而回滚点必须在覆盖动作之前就绪。
+ * 顺序有意如此：现在**不能**直接写库 —— 新库要等下次启动才安装，提前写入会被挂起的新库覆盖，
+ * 这正是旧版「迁移包恢复后凭证全空」的根因。
  */
 class MigrationImporter(
     private val webDavSync: WebDavSync,
     private val backupEncryptionManager: BackupEncryptionManager,
-    private val vaultRepository: CredentialVaultRepository,
-    // 领域前缀：避免与其它文件里的同名局部变量撞名（结构自检按名判跨文件引用会误报）
-    private val migrationSettingsStore: SettingsStore,
 ) {
-    private val migrationJson = Json { ignoreUnknownKeys = true }
-
     /** 只读 zip 条目名即可判断"是不是迁移包" —— 供 UI 在动手前给出准确提示。 */
     fun looksLikeMigrationPackage(file: File): Boolean =
         MigrationPackage.looksLikeMigrationPackage(listZipEntryNames(file))
@@ -82,28 +74,19 @@ class MigrationImporter(
                 )
             webDavSync.restoreFromLocalFile(plainZip, scope)
 
-            // ③ 凭证：明文条目写回库（同名按 upsert 语义覆盖）
+            // ③ 只读统计（真正的写回发生在下次启动安装新库之后）
             val credentials =
                 readTextEntry(plainZip, "${MigrationPackage.DIR}/${MigrationPackage.CREDENTIALS_NAME}")
                     ?.let { raw -> MigrationPackage.parseCredentials(raw) }
                     ?: emptyList()
-            val outcome = vaultRepository.importEntries(credentials.map { entry -> entry.toParsedEntry() })
-
-            // ④ provider 配置写回（写入路径会用本机 Keystore 重新加密）
             val providers =
-                readTextEntry(plainZip, "${MigrationPackage.DIR}/${MigrationPackage.PROVIDERS_NAME}")
-                    ?.let { raw ->
-                        runCatching { migrationJson.decodeFromString<List<ProviderSetting>>(raw) }.getOrNull()
-                    }
-            if (providers != null) {
-                migrationSettingsStore.update { current -> current.copy(providers = providers) }
-            }
+                readTextEntry(plainZip, "${MigrationPackage.DIR}/${MigrationPackage.PROVIDERS_NAME}") != null
 
             return MigrationImportResult(
-                credentialsImported = outcome.imported,
-                credentialsSkipped = outcome.skipped,
-                credentialsOverwritten = outcome.overwrittenDifferentValue,
-                providersRestored = providers != null,
+                credentialsImported = credentials.size,
+                credentialsSkipped = 0,
+                credentialsOverwritten = emptyList(),
+                providersRestored = providers,
             )
         } finally {
             if (plainZip.absolutePath != file.absolutePath && plainZip.exists()) plainZip.delete()

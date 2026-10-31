@@ -54,9 +54,14 @@ object MigrationPackage {
     const val MANIFEST_NAME = "MANIFEST.json"
     const val CREDENTIALS_NAME = "credentials.json"
     const val PROVIDERS_NAME = "providers.json"
+    const val SSH_HOSTS_NAME = "ssh_hosts.json"
+    const val SCHEDULED_JOBS_NAME = "scheduled_jobs.json"
 
-    /** 结构版本：加字段/改语义时递增，导入侧据此拒绝不兼容的包。 */
-    const val CURRENT_VERSION = 1
+    /**
+     * 结构版本：加字段/改语义时递增，导入侧据此拒绝不兼容的包。
+     * v2：新增 ssh_hosts.json / scheduled_jobs.json 两段（可选，旧包 v1 仍可导入）。
+     */
+    const val CURRENT_VERSION = 2
 
     private val migrationJson = Json {
         ignoreUnknownKeys = true
@@ -95,6 +100,18 @@ object MigrationPackage {
      */
     fun looksLikeMigrationPackage(entryNames: Collection<String>): Boolean =
         entryNames.any { name -> name.trimStart('/') == "$DIR/$MANIFEST_NAME" }
+
+    /** 迁移段里是否至少包含一段可应用的内容（用于拒绝只有清单的空包）。 */
+    fun hasLogicalPayload(entryNames: Collection<String>): Boolean =
+        entryNames.any { name ->
+            val normalized = name.trimStart('/')
+            normalized in setOf(
+                "$DIR/$CREDENTIALS_NAME",
+                "$DIR/$PROVIDERS_NAME",
+                "$DIR/$SSH_HOSTS_NAME",
+                "$DIR/$SCHEDULED_JOBS_NAME",
+            )
+        }
 }
 
 /**
