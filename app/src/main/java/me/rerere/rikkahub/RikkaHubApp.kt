@@ -112,8 +112,8 @@ class RikkaHubApp : Application() {
         // :search 的服务实现是 object 单例，取不到 Koin，只能把带代理的 client 递进去。
         // 装到 onCreate（而不是藏在某个 single 的工厂副作用里）：Application.onCreate 先于
         // 任何 Activity/Service/Worker，搜索因此不可能跑在 init 之前。
-        // 隧道恢复：App 存活就保持、划掉就断（不注册常驻服务、不做开机自启）；
-        // 重开 App 时自动接回上次开启的隧道，失败器只记日志不打扰界面。
+        // 隧道守护：连接只由开关触发（打开建连、关掉断开）；进程被划掉隧道随之消失，
+        // **重开 App 不自动接回**（开关显示为关）。这里只负责"用户本次开过之后"的掉线自愈。
         runCatching {
             me.rerere.rikkahub.data.tunnel.TunnelAutoStart.start(
                 context = this,

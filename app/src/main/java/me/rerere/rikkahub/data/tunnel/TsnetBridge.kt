@@ -2,10 +2,33 @@ package me.rerere.rikkahub.data.tunnel
 
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import tsnetlib.Tsnetlib
 import java.io.File
+
+/**
+ * 隧道对外状态：**单一来源** —— 由 [TsnetBridge] 与守护循环写回，UI 只读。
+ * 页面不再自己拼状态字符串，也不轮询 native（每次查询是一次 LocalAPI 往返）。
+ */
+sealed interface TunnelState {
+    /** 未开启：进程刚起、用户关掉、或启动失败后回落。 */
+    data object Off : TunnelState
+
+    /** 正在建连。 */
+    data object Connecting : TunnelState
+
+    /** 已连上，[ip] 为本节点 tailnet 地址。 */
+    data class Connected(val ip: String) : TunnelState
+
+    /** 后端掉线，守护正按退避重连。 */
+    data object Offline : TunnelState
+
+    /** 启动失败，[reason] 为原因。 */
+    data class Failed(val reason: String) : TunnelState
+}
 
 /**
  * 内嵌 Tailscale（tsnet）隧道的最小封装。
@@ -21,6 +44,16 @@ import java.io.File
  */
 object TsnetBridge {
     private const val TAG = "TsnetBridge"
+
+    private val _state = MutableStateFlow<TunnelState>(TunnelState.Off)
+
+    /** 供 UI 订阅的实时状态。 */
+    val state: StateFlow<TunnelState> = _state
+
+    /** 状态写回（start / stop 与守护循环用）。 */
+    internal fun publish(next: TunnelState) {
+        _state.value = next
+    }
 
     /** 隧道是否在运行。 */
     @Volatile
@@ -47,6 +80,7 @@ object TsnetBridge {
     ): Result<String> = withContext(Dispatchers.IO) {
         runCatching {
             nodeIp?.takeIf { isRunning }?.let { return@runCatching it }
+            publish(TunnelState.Connecting)
             Tsnetlib.touch() // 触发 native 库加载
             val stateDir = File(context.filesDir, "tsnet").apply { mkdirs() }.absolutePath
             // 必须在拉起 server 之前开始喂接口：Android 上 native 侧枚举不到任何接口，
@@ -56,9 +90,13 @@ object TsnetBridge {
             val ip = Tsnetlib.start(controlURL, authKey, hostname, stateDir)
             nodeIp = ip
             isRunning = true
+            publish(TunnelState.Connected(ip))
             AppLog.i(TAG, "tunnel up: ip=$ip")
             ip
-        }.onFailure { AppLog.w(TAG, "tunnel start failed: ${it.message}", it) }
+        }.onFailure {
+            publish(TunnelState.Failed(it.message ?: it::class.simpleName ?: "start failed"))
+            AppLog.w(TAG, "tunnel start failed: ${it.message}", it)
+        }
     }
 
     /**
@@ -83,6 +121,7 @@ object TsnetBridge {
             Tsnetlib.stop()
             isRunning = false
             nodeIp = null
+            publish(TunnelState.Off)
             AppLog.i(TAG, "tunnel stopped")
         }.onFailure { AppLog.w(TAG, "tunnel stop failed: ${it.message}", it) }
     }

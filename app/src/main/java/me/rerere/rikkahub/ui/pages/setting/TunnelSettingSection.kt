@@ -24,6 +24,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.tunnel.TunnelState
 import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -56,37 +57,43 @@ fun TunnelSettingSection(vm: SettingVM) {
     }
     var busy by remember { mutableStateOf(false) }
     var savedHint by remember { mutableStateOf(false) }
-    var status by remember {
-        mutableStateOf(
-            if (TsnetBridge.isRunning) "已连接 ${TsnetBridge.nodeIp.orEmpty()}" else "未连接",
-        )
+
+    // 状态只有一个来源：[TsnetBridge.state]（由启动/停止与守护循环写回）。
+    // 开关只反映"此刻是否开着"，因此进程重启后自然显示为关，不会出现"开关开着却没连"。
+    val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
+    val status = when (val s = tunnelState) {
+        is TunnelState.Connected -> "已连接 ${s.ip}"
+        is TunnelState.Failed -> "失败: ${s.reason}"
+        else -> "未连接"
     }
+    val switchOn = tunnelState is TunnelState.Connected ||
+        tunnelState is TunnelState.Connecting ||
+        tunnelState is TunnelState.Offline
 
     // 输入框当前值与已保存值不一致时，才需要显示 保存 / 取消。
     val dirty = controlUrl.trim() != network.tailscaleControlUrl ||
         authKey.trim() != network.tailscaleAuthKey ||
         hostname.trim().ifBlank { "rikkahub" } != network.tailscaleHostname
 
-    /** 解析密钥后启动隧道，返回状态行文案。 */
-    suspend fun startTunnel(): String {
+    /** 解析密钥后启动隧道；建连结果由 [TsnetBridge.state] 广播，这里只负责把失败原因也写回。 */
+    suspend fun startTunnel() {
         val resolved = resolveTunnelAuthKey(credentialResolver, authKey)
-            .getOrElse { return "失败: ${it.message}" }
-        return TsnetBridge.start(
+            .getOrElse {
+                TsnetBridge.publish(TunnelState.Failed(it.message ?: "auth key resolve failed"))
+                return
+            }
+        TsnetBridge.start(
             context = context,
             controlURL = controlUrl.trim(),
             authKey = resolved,
             hostname = hostname.trim().ifBlank { "rikkahub" },
-        ).fold(
-            onSuccess = { "已连接 $it" },
-            onFailure = { "失败: ${it.message}" },
         )
     }
 
-    fun persist(enabled: Boolean) {
+    fun persistConfig() {
         vm.updateSettings { current ->
             current.copy(
                 networkSetting = current.networkSetting.copy(
-                    tunnelEnabled = enabled,
                     tailscaleControlUrl = controlUrl.trim(),
                     tailscaleAuthKey = authKey.trim(),
                     tailscaleHostname = hostname.trim().ifBlank { "rikkahub" },
@@ -96,14 +103,14 @@ fun TunnelSettingSection(vm: SettingVM) {
     }
 
     fun save() {
-        persist(network.tunnelEnabled)
+        persistConfig()
         savedHint = true
         // 隧道已在运行时用新配置重连，避免"保存了但没生效"。
-        if (network.tunnelEnabled && TsnetBridge.isRunning) {
+        if (TsnetBridge.isRunning) {
             busy = true
             scope.launch {
                 TsnetBridge.stop()
-                status = startTunnel()
+                startTunnel()
                 busy = false
             }
         }
@@ -133,17 +140,16 @@ fun TunnelSettingSection(vm: SettingVM) {
                 )
             }
             Switch(
-                checked = network.tunnelEnabled,
+                checked = switchOn,
                 enabled = !busy,
                 onCheckedChange = { enabled ->
                     busy = true
-                    persist(enabled)
+                    persistConfig()
                     scope.launch {
                         if (enabled) {
-                            status = startTunnel()
+                            startTunnel()
                         } else {
                             TsnetBridge.stop()
-                            status = "未连接"
                         }
                         busy = false
                     }

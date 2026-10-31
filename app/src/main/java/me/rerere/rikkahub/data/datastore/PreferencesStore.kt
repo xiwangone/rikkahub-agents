@@ -1283,8 +1283,7 @@ data class NetworkSetting(
     val proxyPassword: String = "",
     val hostAddressOverrides: List<HostAddressOverride> = emptyList(),
     // ── 内嵌隧道（per-app，不接管系统 VPN / DNS）──────────────────────────
-    /** 总开关：关掉即停隧道并释放代理监听。 */
-    val tunnelEnabled: Boolean = false,
+    // 连接开关只存在于运行期（见 `TunnelState`）：重开 App 不自动连，所以这里不落盘 enabled。
     /** 隧道类型：tailscale / wireguard。 */
     val tunnelType: String = TUNNEL_TAILSCALE,
     /** 控制面 URL（自填，不写死；如自建 Headscale 或官方 Tailscale）。 */
