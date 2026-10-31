@@ -1,20 +1,17 @@
 package me.rerere.rikkahub.data.datastore
 
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
-import java.security.KeyStore
 import java.util.Base64
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import me.rerere.rikkahub.data.crypto.KeystoreAesKey
 
 /**
  * P0 凭证加密：为 PreferencesStore 的 `providers`（含 LLM provider apiKey、
  * Google Vertex AI 服务账号私钥等明文凭证）提供 AES-256-GCM 加解密。
  *
- * 复用仓库既有 AndroidKeyStore 基建（与 [me.rerere.rikkahub.data.codex.CodexCredentialStore]
- * 同一套 KeyGenParameterSpec / AES-GCM 模式）：密钥仅存于 AndroidKeyStore（应用级，
+ * 复用仓库既有 AndroidKeyStore 基建（密钥创建统一在 [KeystoreAesKey]，与 Codex 等共用同一套
+ * AES-256-GCM 属性）：密钥仅存于 AndroidKeyStore（应用级，
  * TEE/StrongBox 可用时硬件背书），密钥本身不落盘、不进备份，因此密文即使随备份
  * 泄漏也无法在其它设备解密。
  *
@@ -23,7 +20,6 @@ import javax.crypto.spec.GCMParameterSpec
  */
 internal object ProviderCredentialCipher {
 
-    private const val KEYSTORE = "AndroidKeyStore"
     private const val KEY_ALIAS = "rikkahub_providers_credentials"
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val IV_SIZE = 12
@@ -59,21 +55,5 @@ internal object ProviderCredentialCipher {
         )
     }.getOrNull()
 
-    private fun getOrCreateKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
-        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
-            init(
-                KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .setKeySize(256)
-                    .build()
-            )
-            generateKey()
-        }
-    }
+    private fun getOrCreateKey(): SecretKey = KeystoreAesKey.getOrCreate(KEY_ALIAS)
 }

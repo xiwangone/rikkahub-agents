@@ -2,15 +2,12 @@ package me.rerere.rikkahub.skills.js
 
 import android.content.Context
 import android.content.SharedPreferences
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import androidx.core.content.edit
 import java.nio.charset.StandardCharsets
-import java.security.KeyStore
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import me.rerere.rikkahub.data.crypto.KeystoreAesKey
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SkillSecretsStore"
@@ -133,22 +130,7 @@ class SkillSecretsStore(context: Context) {
         null
     }
 
-    private fun getOrCreateKey(): SecretKey {
-        val ks = KeyStore.getInstance(ANDROID_KEYSTORE).apply { load(null) }
-        (ks.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
-        val gen = KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, ANDROID_KEYSTORE)
-        gen.init(
-            KeyGenParameterSpec.Builder(
-                KEY_ALIAS,
-                KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-            )
-                .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                .setKeySize(256)
-                .build()
-        )
-        return gen.generateKey()
-    }
+    private fun getOrCreateKey(): SecretKey = KeystoreAesKey.getOrCreate(KEY_ALIAS)
 
     private fun encode(bytes: ByteArray): String =
         android.util.Base64.encodeToString(bytes, android.util.Base64.NO_WRAP)
@@ -166,7 +148,6 @@ class SkillSecretsStore(context: Context) {
 
     companion object {
         private const val PREFS_NAME = "skill_secrets"
-        private const val ANDROID_KEYSTORE = "AndroidKeyStore"
         private const val KEY_ALIAS = "rikkahub_skill_secrets_v1"
         private const val TRANSFORMATION = "AES/GCM/NoPadding"
         private const val GCM_TAG_BITS = 128

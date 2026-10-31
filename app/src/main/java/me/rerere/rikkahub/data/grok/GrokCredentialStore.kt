@@ -1,17 +1,14 @@
 package me.rerere.rikkahub.data.grok
 
 import android.content.Context
-import android.security.keystore.KeyGenParameterSpec
-import android.security.keystore.KeyProperties
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import java.io.File
-import java.security.KeyStore
 import javax.crypto.Cipher
-import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import me.rerere.rikkahub.data.crypto.KeystoreAesKey
 
 internal class GrokCredentialStore(
     context: Context,
@@ -44,26 +41,10 @@ internal class GrokCredentialStore(
         temporary.delete()
     }
 
-    private fun getOrCreateKey(): SecretKey {
-        val keyStore = KeyStore.getInstance(KEYSTORE).apply { load(null) }
-        (keyStore.getKey(KEY_ALIAS, null) as? SecretKey)?.let { return it }
-        return KeyGenerator.getInstance(KeyProperties.KEY_ALGORITHM_AES, KEYSTORE).run {
-            init(
-                KeyGenParameterSpec.Builder(
-                    KEY_ALIAS,
-                    KeyProperties.PURPOSE_ENCRYPT or KeyProperties.PURPOSE_DECRYPT,
-                )
-                    .setBlockModes(KeyProperties.BLOCK_MODE_GCM)
-                    .setEncryptionPaddings(KeyProperties.ENCRYPTION_PADDING_NONE)
-                    .build()
-            )
-            generateKey()
-        }
-    }
+    private fun getOrCreateKey(): SecretKey = KeystoreAesKey.getOrCreate(KEY_ALIAS)
 
     private companion object {
         const val FILE_NAME = "grok_accounts.enc"
-        const val KEYSTORE = "AndroidKeyStore"
         const val KEY_ALIAS = "rikkahub_grok_accounts"
         const val TRANSFORMATION = "AES/GCM/NoPadding"
         const val IV_SIZE = 12
