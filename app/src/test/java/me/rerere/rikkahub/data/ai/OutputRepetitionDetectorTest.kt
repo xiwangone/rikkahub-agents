@@ -89,13 +89,16 @@ class OutputRepetitionDetectorTest {
      * The trip record names the matching segment size — the one number that separates a real echo
      * loop from a long-context run that legitimately re-quotes a fixed phrase, and therefore the
      * number the early-stop log line has to carry.
+     *
+     * 期望值随 `repeatsFor` 的分级变化（2026-10-29 引入）：period=15 < 16 → `minRepeats + 1`，
+     * 默认 minRepeats=4 ⇒ repeats=5。
      */
     @Test
     fun `trip detail names the matched segment size`() {
         val detector = OutputRepetitionDetector()
         assertNull(detector.tripDetail())
         assertTrue(detector.feed(loop15.repeat(14)))
-        assertEquals("period=15 repeats=4", detector.tripDetail())
+        assertEquals("period=15 repeats=5", detector.tripDetail())
     }
 
     /**
@@ -108,6 +111,32 @@ class OutputRepetitionDetectorTest {
     fun `reasoning profile trips on a whitespace-only run`() {
         val detector = OutputRepetitionDetector(minPeriod = 8, minRepeats = 3, minCheckIntervalChars = 48)
         assertTrue(detector.feed(" ".repeat(48)))
-        assertEquals("period=8 repeats=3", detector.tripDetail())
+        // period=8 < 16 → repeatsFor = minRepeats + 1 = 4（2026-10-29 的分级软化）
+        assertEquals("period=8 repeats=4", detector.tripDetail())
+    }
+
+    /**
+     * 分级规则（2026-10-29 `repeatsFor`）：**周期越长要求越少**。
+     *
+     * 短周期（<16）在正常写作/思考里本来就会碰撞（路径、标识符、数字）→ 要求 `minRepeats + 1`；
+     * 中段（16–47）→ `minRepeats`；长周期（≥48）连续出现几乎不可能是正常输出 → `minRepeats - 1`（最少 2）。
+     * 这三档此前只有两条用例间接覆盖，这里直接固化，避免以后再改分级时无声偏移。
+     */
+    @Test
+    fun `repeat threshold scales with the matched period`() {
+        // 短周期：period=8 → 3 + 1 = 4 次
+        val short = OutputRepetitionDetector(minPeriod = 8, minRepeats = 3, minCheckIntervalChars = 8)
+        assertTrue(short.feed("z".repeat(40)))
+        assertEquals("period=8 repeats=4", short.tripDetail())
+
+        // 中周期：period=20（16 ≤ 20 < 48）→ 3 次
+        val mid = OutputRepetitionDetector(minPeriod = 20, minRepeats = 3, minCheckIntervalChars = 20)
+        assertTrue(mid.feed("y".repeat(80)))
+        assertEquals("period=20 repeats=3", mid.tripDetail())
+
+        // 长周期：period=60（≥48）→ 3 - 1 = 2 次
+        val long = OutputRepetitionDetector(minPeriod = 60, minRepeats = 3, minCheckIntervalChars = 60)
+        assertTrue(long.feed("w".repeat(180)))
+        assertEquals("period=60 repeats=2", long.tripDetail())
     }
 }
