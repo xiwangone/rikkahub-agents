@@ -61,6 +61,19 @@ object TsnetBridge {
         }.onFailure { AppLog.w(TAG, "tunnel start failed: ${it.message}", it) }
     }
 
+    /**
+     * 查询 native 侧的真实连接状态。
+     *
+     * 为什么需要：Kotlin 的 [isRunning] 只反映 start/stop 调用，感知不到后端掉线
+     * （网络切换、DERP 断连等）。自动恢复循环用它判断“是真连着还是假装连着”。
+     *
+     * @return `connected <tailnet IP>` / `offline` / null（未运行或查询失败）
+     */
+    suspend fun status(): String? = withContext(Dispatchers.IO) {
+        if (!isRunning) return@withContext null
+        runCatching { Tsnetlib.status() }.getOrNull()?.takeIf { it.isNotBlank() }
+    }
+
     suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             if (!isRunning) return@runCatching
