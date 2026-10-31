@@ -422,6 +422,7 @@ fun S3Tab(
                                     type = ToastType.Error,
                                 )
                             }
+                            else -> {}
                         }
                     }
                 },
@@ -536,6 +537,7 @@ fun S3Tab(
                                                         type = ToastType.Error,
                                                     )
                                                 }
+                                                else -> {}
                                             }
                                         }
                                     },
@@ -606,6 +608,7 @@ fun S3Tab(
                                 type = ToastType.Error,
                             )
                         }
+                        else -> {}
                     }
                 }
             },
