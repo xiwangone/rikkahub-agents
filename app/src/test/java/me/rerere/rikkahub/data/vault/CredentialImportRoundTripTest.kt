@@ -130,6 +130,32 @@ class CredentialImportRoundTripTest {
      * @param carriesType / @param carriesPublicKey 仅当该格式本身带「类型 / SSH 公钥」字段时为真
      *   （CSV 与 Bitwarden 无对应字段，导入后为未分类/空，由后续 [CredentialType.infer] 补全）。
      */
+    /**
+     * 手写 load-creds.sh 并用**单引号**包多行值（私钥）时，值必须完整收集。
+     *
+     * 回归背景：多行收集原先只认双引号 → 单引号值被截成第一行，
+     * 导入表面上“成功”但存进去的只有首行。单引号是 shell 里唯一的无转义引号，
+     * 手写私钥时最常用，必须支持。
+     */
+    @Test
+    fun `single quoted multiline value imports whole`() {
+        // 用非真实 PEM 头（公开面检查会拦下真实私钥头这类密钥形态）
+        val pem = "-----BEGIN EXAMPLE KEY-----\nexample-body-line-0001\n-----END EXAMPLE KEY-----"
+        val content = listOf(
+            "# ===== [AI] =====",
+            "# 示例私钥（单引号跨行）",
+            "export EXAMPLE_PEM_KEY='-----BEGIN EXAMPLE KEY-----",
+            "example-body-line-0001",
+            "-----END EXAMPLE KEY-----'",
+        ).joinToString("\n")
+
+        val entries = CredentialImporter.parse(content)
+
+        assertEquals(1, entries.size)
+        assertEquals("EXAMPLE_PEM_KEY", entries[0].name)
+        assertEquals(pem, entries[0].value)
+    }
+
     private fun assertSameEntries(
         actual: List<CredentialImporter.ParsedEntry>,
         carriesType: Boolean = true,

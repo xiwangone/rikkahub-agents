@@ -174,18 +174,21 @@ object CredentialImporter {
                     }
                 }
 
-                // export KEY="value"（支持多行值：引号未闭合时收集后续行——私钥 PEM 等）
+                // export KEY="value" / export KEY='value'（支持多行值：引号未闭合时收集后续行——私钥 PEM 等）
+                // ⚠ 单引号也必须认：手写 PEM 时习惯用单引号（shell 里唯一无转义引号），只认双引号会
+                // 把值截成第一行（单引号值时只收集到首行）。
                 line.startsWith("export ") -> {
                     val export = line.removePrefix("export ").trim()
                     val eq = export.indexOf('=')
                     if (eq <= 0) continue
                     val name = export.substring(0, eq).trim()
                     var rawValue = export.substring(eq + 1).trim()
-                    if (rawValue.startsWith("\"") && !isQuotedClosed(rawValue)) {
+                    val quote = rawValue.firstOrNull()?.takeIf { it == '"' || it == '\'' }
+                    if (quote != null && !isQuotedClosed(rawValue, quote)) {
                         val sb = StringBuilder(rawValue)
                         while (lines.hasNext()) {
-                            sb.append('\n').append(lines.next())
-                            if (isQuotedClosed(sb.toString())) break
+                            sb.append('\n').append(lines.next().trim())
+                            if (isQuotedClosed(sb.toString(), quote)) break
                         }
                         rawValue = sb.toString()
                     }
@@ -217,9 +220,11 @@ object CredentialImporter {
      * `"...trailing\\"`（值是「以反斜杠结尾」，导出后行尾为 `\\"`）误判成未闭合，
      * 于是继续搜集后续行、把结构吃坏。
      */
-    private fun isQuotedClosed(s: String): Boolean {
+    private fun isQuotedClosed(s: String, quote: Char = '"'): Boolean {
         val trimmed = s.trimEnd()
-        if (!trimmed.endsWith("\"")) return false
+        if (!trimmed.endsWith(quote)) return false
+        // 单引号在 shell 里没有转义，只看结尾字符即可（PEM 体里不会出现单引号）
+        if (quote == '\'') return true
         var backslashes = 0
         var i = trimmed.length - 2
         while (i >= 0 && trimmed[i] == '\\') {
