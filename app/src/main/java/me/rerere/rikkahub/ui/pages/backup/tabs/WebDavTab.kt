@@ -46,6 +46,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -89,6 +90,10 @@ fun WebDavTab(
     val backupItemsState by vm.webDavBackupItems.collectAsStateWithLifecycle()
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    // 回调（非 @Composable 作用域）里取资源用 LocalResources：
+    // lint 的 LocalContextGetResourceValueCall 只容忍 Compose 侧资源入口，
+    // 而 stringResource() 不能在 lambda 里调 → 这里先拿到 Resources 再传下去。
+    val resources = LocalResources.current
     var showBackupFiles by remember { mutableStateOf(false) }
     var isBackingUp by remember { mutableStateOf(false) }
     var restoringItemId by remember { mutableStateOf<String?>(null) }
@@ -586,7 +591,7 @@ fun WebDavTab(
                             pendingPasswordItem = null
                             pendingPasswordEncFile = null
                             toaster.show(
-                                context.getString(
+                                resources.getString(
                                     R.string.backup_page_restore_failed,
                                     state.error?.message ?: "",
                                 ),
