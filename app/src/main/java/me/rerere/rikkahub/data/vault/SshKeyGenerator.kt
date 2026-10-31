@@ -518,6 +518,40 @@ object SshKeyGenerator {
     }
 
     /**
+     * 从私钥（PKCS#8 或 OpenSSH）推导 **Ed25519 公钥行**（`ssh-ed25519 <base64>`）。
+     *
+     * 为什么需要：手工粘贴的 PKCS#8 私钥没有配套公钥行 → Vault 里“公钥指纹”只能是空；
+     * 而部分平台（如 ModelScope agent 身份）要的是公钥/JWK。
+     * 其他算法（RSA / ECDSA）暂不支持（返回 null）—— ECDSA 需要点乘、RSA 已有 CRT 参数可另行扩展。
+     */
+    fun ed25519PublicKeyLineFromPrivate(pem: String): String? {
+        // 先统一成 OpenSSH（PKCS#8 Ed25519 已支持），再取 32 字节 seed
+        val openSsh = toOpenSshPrivateKey(pem) ?: return null
+        val seed = catchParse { opensshEd25519Seed(openSsh) } ?: return null
+        val pub = catchParse {
+            org.bouncycastle.crypto.params.Ed25519PrivateKeyParameters(seed, 0)
+                .generatePublicKey().encoded
+        } ?: return null
+        if (pub.size != 32) return null
+        val blob = sshString("ssh-ed25519".encodeToByteArray()) + sshString(pub)
+        return "ssh-ed25519 " + Base64.getEncoder().encodeToString(blob)
+    }
+
+    /**
+     * Ed25519 公钥行 → JWK JSON（`{"kty":"OKP","crv":"Ed25519","kid":…,"x":…}`）。
+     *
+     * `x` = 公钥 blob 末尾 32 字节的 base64url（无填充），与 RFC 8037 一致。
+     * 公钥行解析失败返回 null（调用方自行提示）。
+     */
+    fun ed25519Jwk(publicKeyLine: String, kid: String): String? {
+        val blob = catchParse { inspectPublicKey(publicKeyLine).first } ?: return null
+        if (blob.size < 32) return null
+        val raw = blob.copyOfRange(blob.size - 32, blob.size)
+        val x = Base64.getUrlEncoder().withoutPadding().encodeToString(raw)
+        return "{\"kty\":\"OKP\",\"crv\":\"Ed25519\",\"kid\":\"$kid\",\"x\":\"$x\"}"
+    }
+
+    /**
      * 私钥解析的兜底：只吞**解析类异常**。
      * 不用 `runCatching` —— 它连 `Throwable` 一起接（含 `OutOfMemoryError`），
      * 于是"崩在解析中途"会被伪装成"该格式不支持转换"，排查方向直接被带偏。

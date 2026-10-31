@@ -413,7 +413,7 @@ private suspend fun runVaultExportEnv(
             buildJsonObject {
                 put("exported", JsonArray(exported.map { JsonPrimitive(it) }))
                 put("path", "/workspace/tmp/vault-env.sh")
-                put("hint", "source /workspace/tmp/vault-env.sh 使用环境变量；用完删除 rm /workspace/tmp/vault-env.sh")
+                put("hint", "⚠ 该文件是**全量明文**（共 ${exported.size} 条）：source /workspace/tmp/vault-env.sh 使用；**用完立即** rm -f /workspace/tmp/vault-env.sh。AI 在汇报时必须把这条删除提醒**显式告诉用户**。")
             }.toString(),
         ),
     )

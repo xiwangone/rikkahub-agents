@@ -391,6 +391,27 @@ class SshKeyGeneratorTest {
         return OpenSshPrivate(keyType, publicBlob, body)
     }
 
+    /** 手工粘贴的 PKCS#8 Ed25519 私钥（无配套公钥行）也要能推导出公钥。 */
+    @Test
+    fun `ed25519 public key line derives from pkcs8 private key`() {
+        val pair = SshKeyGenerator.generate(SshKeyGenerator.KeyType.ED25519)
+        val pkcs8 = SshKeyGenerator.toPkcs8PrivateKey(pair.privateKeyPem) ?: error("pkcs8 转换失败")
+        val derived = SshKeyGenerator.ed25519PublicKeyLineFromPrivate(pkcs8) ?: error("公钥推导失败")
+        // 类型 + base64 段必须与生成时一致（comment 不参与比较）
+        assertEquals(pair.publicKeyLine.split(" ").take(2), derived.split(" ").take(2))
+    }
+
+    /** JWK 的 x = 公钥 blob 末尾 32 字节 base64url（RFC 8037），且必须带 kid。 */
+    @Test
+    fun `ed25519 jwk carries kid and 32 byte x`() {
+        val pair = SshKeyGenerator.generate(SshKeyGenerator.KeyType.ED25519)
+        val jwk = SshKeyGenerator.ed25519Jwk(pair.publicKeyLine, "sdk-test") ?: error("JWK 生成失败")
+        assertTrue(jwk.startsWith("{\"kty\":\"OKP\",\"crv\":\"Ed25519\""))
+        assertTrue(jwk.contains("\"kid\":\"sdk-test\""))
+        val x = Regex("\"x\":\"([^\"]+)\"").find(jwk)?.groupValues?.get(1) ?: error("缺 x 字段")
+        assertEquals(43, x.length)
+    }
+
     private companion object {
         val EMPTY = ByteArray(0)
         val ZERO = BigInteger.ZERO
