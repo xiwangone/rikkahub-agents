@@ -407,6 +407,7 @@ fun WebDavTab(
                                     type = ToastType.Error,
                                 )
                             }
+                            else -> {}
                         }
                     }
                 },
@@ -521,6 +522,7 @@ fun WebDavTab(
                                                         type = ToastType.Error,
                                                     )
                                                 }
+                                                else -> {}
                                             }
                                         }
                                     },
@@ -591,6 +593,7 @@ fun WebDavTab(
                                 type = ToastType.Error,
                             )
                         }
+                        else -> {}
                     }
                 }
             },

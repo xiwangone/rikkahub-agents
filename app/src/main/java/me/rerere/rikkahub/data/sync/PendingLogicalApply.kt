@@ -107,7 +107,9 @@ object PendingLogicalApply {
             AppLog.w(
                 TAG,
                 "applyPending: failed, keeping staged payload for next launch",
-                result.exceptionOrNull(),
+                // exceptionOrNull() 是 Throwable?，而 AppLog.w 的三参数重载要非空 —— 显式兜底，
+                // 避免「失败但没异常」这种理论上不成立的情况直接把日志调用变成编译错。
+                result.exceptionOrNull() ?: IllegalStateException("applyPending failed (no exception recorded)"),
             )
             Outcome.FAILED
         }
