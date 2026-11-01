@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.ai.mcp.control
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject

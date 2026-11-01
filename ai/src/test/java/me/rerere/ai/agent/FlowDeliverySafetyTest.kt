@@ -13,7 +13,6 @@ import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.EmbeddingGenerationParams
 import me.rerere.ai.provider.EmbeddingGenerationResult
 import me.rerere.ai.provider.ImageEditParams

@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Context
 import android.content.pm.ApplicationInfo
-import android.content.pm.PackageManager
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column

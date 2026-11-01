@@ -34,16 +34,13 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -73,7 +70,6 @@ import me.rerere.hugeicons.stroke.DragDropHorizontal
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.Search01
-import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ProviderDescriptors
 import me.rerere.rikkahub.Screen

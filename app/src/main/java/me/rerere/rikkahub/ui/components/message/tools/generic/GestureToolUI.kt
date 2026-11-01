@@ -60,7 +60,7 @@ object GestureToolUI : ToolUIRenderer {
                 if (dir != null) stringResource(R.string.tool_ui_gesture_scroll, dir)
                 else genericTitle("scroll")
             }
-            "click_node" -> {
+            "click_node", "click_and_read" -> {
                 val target = args.getStringContent("value")
                     ?: args.getStringContent("node_id")?.take(24)
                 if (target != null) stringResource(R.string.tool_ui_gesture_click_node, target)
@@ -70,6 +70,11 @@ object GestureToolUI : ToolUIRenderer {
                 val text = args.getStringContent("text")?.take(24)?.ifBlank { null }
                 if (text != null) stringResource(R.string.tool_ui_gesture_set_text, text)
                 else genericTitle("set_text")
+            }
+            "wait_for" -> {
+                val target = args.getStringContent("value")?.take(24)?.ifBlank { null }
+                if (target != null) "${stringResource(R.string.setting_browser_tool_wait_for_title)}: $target"
+                else stringResource(R.string.setting_browser_tool_wait_for_title)
             }
             else -> genericTitle(context.tool.toolName)
         }
@@ -117,3 +122,13 @@ val LongPressToolUI: ToolUIRenderer = gestureAlias("long_press")
 val ScrollToolUI: ToolUIRenderer = gestureAlias("scroll")
 val ClickNodeToolUI: ToolUIRenderer = gestureAlias("click_node")
 val SetTextToolUI: ToolUIRenderer = gestureAlias("set_text")
+
+val ClickAndReadToolUI: ToolUIRenderer =
+    object : ToolUIRenderer by GestureToolUI {
+        override val toolName: String = "click_and_read"
+    }
+
+val WaitForToolUI: ToolUIRenderer =
+    object : ToolUIRenderer by GestureToolUI {
+        override val toolName: String = "wait_for"
+    }

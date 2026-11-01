@@ -55,7 +55,7 @@ class DebugVM(
     }
 
     /** Adds only placeholder identities for IDs referenced by conversations but absent from Settings. */
-    suspend fun recoverMissingAssistants(): Int {
+    suspend fun recoverMissingAssistants(nameProvider: (Int) -> String = { "Assistant $it" }): Int {
         val counts = conversationRepository.countConversationsByAssistant()
         _assistantConversationCounts.value = counts
         var recovered = 0
@@ -65,7 +65,7 @@ class DebugVM(
             recovered = missing.size
             // Intentionally do not infer the original model, prompt, or tools from conversation IDs.
             current.copy(assistants = current.assistants + missing.mapIndexed { index, id ->
-                Assistant(id = id, name = "恢复的占位助手 ${index + 1}")
+                Assistant(id = id, name = nameProvider(index + 1))
             })
         }
         return recovered

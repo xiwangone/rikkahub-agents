@@ -21,13 +21,10 @@ import me.rerere.hugeicons.stroke.MagicWand01
 import me.rerere.hugeicons.stroke.Message01
 import me.rerere.hugeicons.stroke.Sparkles
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState

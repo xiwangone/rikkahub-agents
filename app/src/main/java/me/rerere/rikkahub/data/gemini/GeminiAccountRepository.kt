@@ -1,7 +1,5 @@
 package me.rerere.rikkahub.data.gemini
 
-import android.os.Build
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow

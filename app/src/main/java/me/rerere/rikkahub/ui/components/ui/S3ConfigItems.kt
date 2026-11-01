@@ -59,7 +59,7 @@ fun CardGroupScope.s3ConnectionItems(
                 modifier = Modifier.fillMaxWidth(),
                 value = config.bucket,
                 onValueChange = { onUpdate(config.copy(bucket = it.trim())) },
-                placeholder = { Text("my-bucket") },
+                placeholder = { Text(stringResource(R.string.s3_config_bucket_placeholder)) },
                 singleLine = true
             )
         },

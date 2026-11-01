@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.ui.hooks
 
 import android.content.Context
-import android.widget.Toast
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -14,14 +13,12 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getSelectedTTSProvider
 import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.utils.stripMarkdown
 import me.rerere.tts.controller.TtsController
 import me.rerere.tts.model.PlaybackState
-import me.rerere.tts.model.TTSResponse
 import me.rerere.tts.provider.TTSManager
 import me.rerere.tts.provider.TTSProviderSetting
 import org.koin.compose.koinInject

@@ -4,7 +4,6 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.os.PowerManager
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive

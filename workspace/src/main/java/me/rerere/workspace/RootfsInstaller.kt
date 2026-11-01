@@ -9,7 +9,6 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
-import java.util.Locale
 import java.util.zip.GZIPInputStream
 
 /** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */

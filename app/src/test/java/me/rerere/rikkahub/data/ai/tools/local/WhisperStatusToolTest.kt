@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
-import org.junit.Assert.assertNull
 import org.junit.Test
 
 /**

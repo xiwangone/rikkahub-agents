@@ -8,7 +8,6 @@ import android.view.KeyEvent
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.SharedTransitionLayout
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
@@ -18,14 +17,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.padding
-import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -36,10 +30,8 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.ExperimentalComposeUiApi
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
-import androidx.compose.ui.unit.dp
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.navigation3.rememberViewModelStoreNavEntryDecorator
@@ -65,7 +57,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.DEFAULT_CODEX_PROVIDER_ID
 import me.rerere.rikkahub.data.datastore.DEFAULT_GEMINI_OAUTH_PROVIDER_ID
 import me.rerere.rikkahub.data.db.DatabaseMigrationTracker
-import me.rerere.rikkahub.data.db.MigrationState
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.ui.activity.SafeModeActivity
@@ -400,7 +391,8 @@ class RouteActivity : ComponentActivity() {
                             rememberViewModelStoreNavEntryDecorator(),
                         ),
                         modifier = Modifier.fillMaxSize(),
-                        onBack = { backStack.removeLastOrNull() },
+                        // 同一帧内连续两次返回时 NavDisplay 的返回状态还没更新，会多回调一次，不加判断会把栈弹空
+                        onBack = { if (backStack.size > 1) backStack.removeLastOrNull() },
                         transitionSpec = {
                             if (backStack.size == 1) fadeIn() togetherWith fadeOut()
                             else {
@@ -732,48 +724,7 @@ class RouteActivity : ComponentActivity() {
 
                         }
                     )
-                    if (BuildConfig.DEBUG) {
-                        Text(
-                            text = "[开发模式]",
-                            modifier = Modifier
-                                .align(Alignment.TopCenter)
-                                .padding(top = 4.dp),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.error.copy(alpha = 0.7f)
-                        )
-                    }
-                    AnimatedVisibility(
-                        visible = migrationState is MigrationState.Migrating,
-                        enter = fadeIn(),
-                        exit = fadeOut(),
-                        modifier = Modifier.fillMaxSize()
-                    ) {
-                        val state = migrationState as? MigrationState.Migrating
-                        Box(
-                            modifier = Modifier
-                                .fillMaxSize()
-                                .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.95f)),
-                            contentAlignment = Alignment.Center
-                        ) {
-                            Column(
-                                horizontalAlignment = Alignment.CenterHorizontally,
-                                verticalArrangement = Arrangement.spacedBy(16.dp)
-                            ) {
-                                CircularProgressIndicator()
-                                Text(
-                                    text = stringResource(R.string.db_migrating),
-                                    style = MaterialTheme.typography.bodyLarge
-                                )
-                                if (state != null) {
-                                    Text(
-                                        text = "v${state.from} → v${state.to}",
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant
-                                    )
-                                }
-                            }
-                        }
-                    }
+                    RouteMigrationAndDebugOverlay(migrationState)
                 }
             }
         }

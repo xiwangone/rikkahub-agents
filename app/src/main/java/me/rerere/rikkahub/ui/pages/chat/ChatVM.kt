@@ -1,13 +1,9 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import android.app.Application
-import android.content.Context
-import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.tooling.preview.Preview
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
@@ -19,11 +15,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.SharedFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.transformLatest
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
@@ -44,7 +38,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.files.FilesManager
-import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.MessageNode
@@ -53,6 +46,15 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FavoriteRepository
 import me.rerere.rikkahub.service.ChatError
 import me.rerere.rikkahub.service.ChatService
+import me.rerere.rikkahub.service.clearTranslationField
+import me.rerere.rikkahub.service.compressConversation
+import me.rerere.rikkahub.service.deleteMessage
+import me.rerere.rikkahub.service.editMessage
+import me.rerere.rikkahub.service.forkConversationAtMessage
+import me.rerere.rikkahub.service.generateSuggestion
+import me.rerere.rikkahub.service.generateTitle
+import me.rerere.rikkahub.service.handleToolApproval
+import me.rerere.rikkahub.service.translateMessage
 import me.rerere.rikkahub.service.MessageQueueState
 import me.rerere.rikkahub.ui.components.ai.AutoTaskConfig
 import me.rerere.rikkahub.ui.components.ai.MAX_AUTO_TASK_IDLE_SECONDS
@@ -61,7 +63,6 @@ import me.rerere.rikkahub.ui.components.ai.resolveAutoTaskMessage
 import me.rerere.rikkahub.ui.components.ai.writeAutoTaskConfig
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
-import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.UpdateChecker
 import java.util.Calendar
 import java.util.Locale

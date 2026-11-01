@@ -15,8 +15,6 @@ import io.ktor.server.routing.get
 import io.ktor.server.routing.post
 import io.ktor.server.routing.routing
 import io.ktor.server.request.receiveText
-import io.ktor.server.request.header
-import io.ktor.utils.io.core.use
 import me.rerere.rikkahub.utils.isBindAvailableWithRetry
 import me.rerere.rikkahub.utils.isRemoteHostAllowed
 import java.io.File

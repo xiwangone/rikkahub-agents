@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.vault
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.encodeToString
-import java.security.MessageDigest
 import java.security.SecureRandom
 import java.util.Base64
 import javax.crypto.Cipher

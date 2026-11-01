@@ -2,7 +2,6 @@ package me.rerere.rikkahub.skills.js
 
 import android.content.Context
 import androidx.core.net.toUri
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject

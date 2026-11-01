@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.sync
 
 import me.rerere.rikkahub.data.log.AppLog
 
-import android.content.Context
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import java.io.File

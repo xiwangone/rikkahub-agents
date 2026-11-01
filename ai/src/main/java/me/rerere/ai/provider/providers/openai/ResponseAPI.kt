@@ -26,7 +26,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.core.MessageRole
-import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Modality
@@ -58,12 +57,10 @@ import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
-import me.rerere.ai.util.toHeaders
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonObjectOrNull
-import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -942,12 +939,6 @@ private fun ServerToolStatus.toOpenAIStatus(): String = when (this) {
 
 private fun isModelAllowTemperature(model: Model): Boolean {
     return !ModelRegistry.OPENAI_O_MODELS.match(model.modelId) && !ModelRegistry.GPT_5.match(model.modelId)
-}
-
-private fun List<UIMessagePart>.isOnlyTextPart(): Boolean {
-    val gonnaSend = filter { it is UIMessagePart.Text || it is UIMessagePart.Image }.size
-    val texts = filter { it is UIMessagePart.Text }.size
-    return gonnaSend == texts && texts == 1
 }
 
 internal data class ResponseProviderCapabilities(

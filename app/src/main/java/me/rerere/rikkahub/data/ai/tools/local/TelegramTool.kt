@@ -4,7 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -15,7 +14,6 @@ import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.telegram.TelegramApiException
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
@@ -23,8 +21,6 @@ import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.TelegramBotService
 import me.rerere.rikkahub.service.TelegramBotRegistries
 import java.io.File
-
-private fun textPart(o: JsonObject) = listOf(UIMessagePart.Text(o.toString()))
 
 private inline fun safeApi(block: () -> JsonObject): JsonObject = try {
     block()

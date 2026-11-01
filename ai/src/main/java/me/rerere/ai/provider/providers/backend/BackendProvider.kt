@@ -2,16 +2,10 @@ package me.rerere.ai.provider.providers.backend
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Model
@@ -23,15 +17,12 @@ import me.rerere.ai.provider.providers.openai.ChatCompletionsAPI
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.provider.TextGenerationResult
-import me.rerere.ai.ui.AskOption
-import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
-import me.rerere.ai.util.json
 import okhttp3.OkHttpClient
 import java.util.UUID
 import kotlin.uuid.Uuid

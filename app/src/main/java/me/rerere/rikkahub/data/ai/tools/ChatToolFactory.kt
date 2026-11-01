@@ -4,7 +4,6 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
@@ -12,7 +11,6 @@ import me.rerere.ai.provider.Model
 import me.rerere.rikkahub.costguards.runToolSurfaceReport
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
-import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog

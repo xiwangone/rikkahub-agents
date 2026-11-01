@@ -7,10 +7,7 @@ import android.webkit.MimeTypeMap
 import androidx.documentfile.provider.DocumentFile
 import me.rerere.rikkahub.BuildConfig
 import java.util.Base64 as JBase64
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -18,7 +15,6 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -378,6 +374,15 @@ fun readFileTool(): Tool = Tool(
                 put("max_bytes", buildJsonObject {
                     put("type", "integer"); put("minimum", 1); put("maximum", MAX_READ_BYTES)
                 })
+                put("start_line", buildJsonObject {
+                    put("type", "integer"); put("description", "Optional 1-based first line to return (inclusive). Omit to start at line 1.")
+                })
+                put("end_line", buildJsonObject {
+                    put("type", "integer"); put("description", "Optional 1-based last line to return (inclusive). Omit to read to the end.")
+                })
+                put("with_line_numbers", buildJsonObject {
+                    put("type", "boolean"); put("description", "Prefix each returned line with its line number (e.g. \"12| ...\"). Defaults to false.")
+                })
                 put("encoding", buildJsonObject { put("type", "string") })
             },
             required = listOf("path"),
@@ -400,6 +405,9 @@ fun readFileTool(): Tool = Tool(
 
         val maxBytes = (obj["max_bytes"]?.jsonPrimitive?.intOrNull ?: DEFAULT_READ_BYTES)
             .coerceIn(1, MAX_READ_BYTES)
+        val startLine = obj["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        val endLine = obj["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        val withLineNumbers = obj["with_line_numbers"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
         val encodingHint = obj["encoding"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
 
         val bytes = try {
@@ -436,12 +444,39 @@ fun readFileTool(): Tool = Tool(
         } else {
             val startOffset = if (isBom) 3 else 0
             val text = String(bytes, startOffset, bytes.size - startOffset, charset)
-            fmTextPart(buildJsonObject {
-                put("content", text)
-                put("truncated", truncated)
-                put("bytes_read", bytes.size)
-                put("encoding", charset.name())
-            }.toString())
+            val defaultMaxLines = 500
+            val lines = text.split("\n")
+            val total = lines.size
+            val hasLineWindow = startLine != null || endLine != null || withLineNumbers
+            if (!hasLineWindow && total <= defaultMaxLines) {
+                fmTextPart(buildJsonObject {
+                    put("content", text)
+                    put("truncated", truncated)
+                    put("bytes_read", bytes.size)
+                    put("encoding", charset.name())
+                }.toString())
+            } else {
+                val from = (startLine ?: 1).coerceIn(1, maxOf(1, total))
+                val to = (endLine ?: if (startLine == null && total > defaultMaxLines) defaultMaxLines else total).coerceIn(from, maxOf(from, total))
+                val slice = lines.subList(from - 1, minOf(to, total))
+                val body = if (withLineNumbers) {
+                    slice.mapIndexed { i, line -> "${from + i}| $line" }.joinToString("\n")
+                } else {
+                    slice.joinToString("\n")
+                }
+                fmTextPart(buildJsonObject {
+                    put("content", body)
+                    put("start_line", from)
+                    put("end_line", minOf(to, total))
+                    put("total_lines", total)
+                    put("truncated", truncated || from > 1 || to < total)
+                    put("bytes_read", bytes.size)
+                    put("encoding", charset.name())
+                    if (startLine == null && endLine == null && to < total) {
+                        put("hint", "File has $total lines. Showing first $to lines to prevent context blowout. Pass start_line and end_line to inspect specific sections.")
+                    }
+                }.toString())
+            }
         }
     },
 )

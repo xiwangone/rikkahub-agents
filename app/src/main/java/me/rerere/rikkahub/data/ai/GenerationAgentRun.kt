@@ -1,13 +1,10 @@
 package me.rerere.rikkahub.data.ai
 
 import android.content.Context
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
-import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.takeWhile
 import kotlinx.coroutines.delay
-import kotlinx.coroutines.isActive
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -964,70 +961,3 @@ internal class GenerationAgentRun(
     }
 }
 
-private fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputRepetitionDetector(
-    // 思考流比正文更易撞上短片段重复（路径 / 标识符 / 数字）：下限仍到 8 字符，
-    // 但短周期按 repeatsFor 要 5 次（40 字符）才判，检查窗口也放宽到 120 字符。
-    minPeriod = 8,
-    minRepeats = 4,
-    minCheckIntervalChars = 120,
-)
-
-/**
- * 按窗口合并相邻的同轨增量：每个 delta 都做一次折叠 + 全量投递，长回复下是 O(n²)。
- * 合并保持顺序与内容完全一致（同一 id 的连续增量拼接成一条），窗口为 0 时逐块透出。
- */
-internal fun Flow<StreamChunk>.coalesceStreamDeltas(
-    windowMs: Long,
-    clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
-): Flow<StreamChunk> = channelFlow {
-    if (windowMs <= 0L) {
-        collect { send(it) }
-        return@channelFlow
-    }
-    val buffer = mutableListOf<StreamChunk>()
-    var lastFlushMs = clock()
-    suspend fun flush() {
-        if (buffer.isEmpty()) return
-        // 先取快照再清空：mergeAdjacentDeltas 在只有一条时会原样返回入参，
-        // 直接 clear() 会把待发的那条一起清掉（段首/尾部丢字的根因）。
-        val batch = buffer.toList()
-        buffer.clear()
-        mergeAdjacentDeltas(batch).forEach { send(it) }
-        lastFlushMs = clock()
-    }
-    try {
-        collect { chunk ->
-            val coalescable = chunk is StreamChunk.TextDelta || chunk is StreamChunk.ReasoningDelta
-            if (!coalescable) {
-                flush()
-                send(chunk)
-                return@collect
-            }
-            buffer.add(chunk)
-            if (clock() - lastFlushMs >= windowMs) flush()
-        }
-    } finally {
-        // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢
-        runCatching { flush() }
-    }
-}
-internal fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
-    // 早返回也要给新列表：调用方可能持有入参并随后清空它（列表别名会让内容凭空消失）。
-    if (chunks.size < 2) return chunks.toList()
-    val out = mutableListOf<StreamChunk>()
-    for (chunk in chunks) {
-        val prev = out.lastOrNull()
-        val merged = when {
-            prev is StreamChunk.TextDelta && chunk is StreamChunk.TextDelta && prev.id == chunk.id ->
-                prev.copy(text = prev.text + chunk.text)
-
-            prev is StreamChunk.ReasoningDelta && chunk is StreamChunk.ReasoningDelta &&
-                prev.id == chunk.id && prev.reasoningType == chunk.reasoningType ->
-                prev.copy(text = prev.text + chunk.text)
-
-            else -> null
-        }
-        if (merged != null) out[out.lastIndex] = merged else out.add(chunk)
-    }
-    return out
-}

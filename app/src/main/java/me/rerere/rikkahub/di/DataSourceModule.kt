@@ -73,12 +73,10 @@ import me.rerere.rikkahub.data.sync.MigrationExporter
 import me.rerere.rikkahub.data.sync.MigrationImporter
 import me.rerere.rikkahub.data.sync.S3Sync
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
-import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import org.koin.core.qualifier.named
 import org.koin.dsl.module
-import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import java.util.Locale
 import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicReference

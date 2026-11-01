@@ -83,7 +83,7 @@ private fun OpenAIRealtimeASRConfiguration(
             modifier = Modifier.fillMaxWidth(),
             nameHint = "${setting.name}_API_KEY",
             singleLine = true,
-            placeholder = "sk-...",
+            placeholder = stringResource(R.string.provider_api_key_placeholder_sk),
         )
     }
 
@@ -200,7 +200,7 @@ private fun DashScopeASRConfiguration(
             modifier = Modifier.fillMaxWidth(),
             nameHint = "${setting.name}_API_KEY",
             singleLine = true,
-            placeholder = "sk-...",
+            placeholder = stringResource(R.string.provider_api_key_placeholder_sk),
         )
     }
 
@@ -288,7 +288,7 @@ private fun VolcengineASRConfiguration(
             modifier = Modifier.fillMaxWidth(),
             nameHint = "${setting.name}_API_KEY",
             singleLine = true,
-            placeholder = "your-api-key",
+            placeholder = stringResource(R.string.provider_api_key_placeholder_generic),
         )
     }
 
@@ -344,7 +344,7 @@ private fun MiMoASRConfiguration(
             modifier = Modifier.fillMaxWidth(),
             nameHint = "${setting.name}_API_KEY",
             singleLine = true,
-            placeholder = "sk-... or tp-...",
+            placeholder = stringResource(R.string.provider_api_key_placeholder_mimo_asr),
         )
     }
 
@@ -432,7 +432,7 @@ private fun StepASRConfiguration(
             modifier = Modifier.fillMaxWidth(),
             nameHint = "${setting.name}_API_KEY",
             singleLine = true,
-            placeholder = "your-stepfun-api-key",
+            placeholder = stringResource(R.string.provider_api_key_placeholder_stepfun),
         )
     }
 

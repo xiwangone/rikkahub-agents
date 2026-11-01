@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
@@ -37,6 +38,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -89,6 +91,7 @@ fun MediaCreationPage(id: String) {
 
     var showUploadDialog by remember { mutableStateOf(false) }
     var confirmDeleteSelected by remember { mutableStateOf(false) }
+    var renaming by remember { mutableStateOf(false) }
 
     BackHandler(enabled = selectedNodes != null) {
         vm.endSelection()
@@ -108,13 +111,34 @@ fun MediaCreationPage(id: String) {
         topBar = {
             TopAppBar(
                 title = {
-                    Text(
-                        text = selectedNodes?.let { stringResource(R.string.media_creation_page_selected_count, it.size) }
-                            ?: session?.title?.ifBlank { null }
-                            ?: stringResource(R.string.media_creation_title),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
+                    val selected = selectedNodes
+                    val current = session
+                    if (selected != null) {
+                        Text(
+                            text = stringResource(R.string.media_creation_page_selected_count, selected.size),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    } else {
+                        // 点标题改名
+                        Surface(
+                            onClick = { renaming = true },
+                            enabled = current != null,
+                            shape = CircleShape,
+                            color = Color.Transparent,
+                        ) {
+                            Text(
+                                text = when {
+                                    current == null -> stringResource(R.string.media_creation_title)
+                                    current.title.isBlank() -> stringResource(R.string.media_creation_page_new_session)
+                                    else -> current.title
+                                },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                            )
+                        }
+                    }
                 },
                 navigationIcon = {
                     if (selectedNodes != null) {
@@ -182,6 +206,17 @@ fun MediaCreationPage(id: String) {
                 )
             }
         }
+    }
+
+    session?.takeIf { renaming }?.let { current ->
+        RenameSessionDialog(
+            initialTitle = current.title,
+            onConfirm = { title ->
+                vm.rename(title)
+                renaming = false
+            },
+            onDismiss = { renaming = false },
+        )
     }
 
     RikkaConfirmDialog(

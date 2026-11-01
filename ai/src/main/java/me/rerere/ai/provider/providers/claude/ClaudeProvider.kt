@@ -16,7 +16,6 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonArrayBuilder
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -68,7 +67,6 @@ import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
-import me.rerere.ai.util.toHeaders
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await

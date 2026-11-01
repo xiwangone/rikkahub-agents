@@ -40,7 +40,6 @@ import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import androidx.compose.ui.res.stringResource
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
-import me.rerere.rikkahub.data.ai.tools.local.SshAuth
 
 /**
  * SSH 终端页（P3 用户操作面 MVP）。
@@ -66,8 +65,11 @@ fun SshTerminalPage(hostName: String) {
     LaunchedEffect(hostName) {
         withContext(Dispatchers.IO) {
             val host = hostRepo.getByName(hostName)
-            AppLog.w("SshTerm", "connect: host not found $hostName")
-            if (host == null) { connectError = appContext.getString(R.string.ssh_terminal_host_not_found, hostName); return@withContext }
+            if (host == null) {
+                AppLog.w("SshTerm", "connect: host not found $hostName")
+                connectError = appContext.getString(R.string.ssh_terminal_host_not_found, hostName)
+                return@withContext
+            }
             // 带原因解析：日志能区分“名字不存在/解不开/未授权”。
             // （旧版那行日志在判定**之前**就打印“no credential”，属误导，故一并修正）
             val authResolution = resolveHostAuthDetailed(host, vaultRepo)
@@ -79,7 +81,8 @@ fun SshTerminalPage(hostName: String) {
             if (auth == null) { connectError = appContext.getString(R.string.ssh_terminal_no_credential, host.vaultCredentialRef ?: "none"); return@withContext }
             try {
                 val jsch = newJSch(appContext)
-                val session = jsch.getSession(host.user, host.host, host.port)
+                val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host.host, host.port)
+                val session = jsch.getSession(host.user, dialHost, dialPort)
                 session.setConfig("StrictHostKeyChecking", "no")
                 session.setConfig("ServerAliveInterval", "30")
                 session.setConfig("ServerAliveCountMax", "3")

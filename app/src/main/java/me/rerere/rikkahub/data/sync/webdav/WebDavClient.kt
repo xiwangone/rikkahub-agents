@@ -8,7 +8,6 @@ import io.ktor.client.request.prepareRequest
 import io.ktor.client.request.request
 import io.ktor.client.request.setBody
 import io.ktor.client.statement.HttpResponse
-import io.ktor.client.statement.HttpStatement
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.client.statement.bodyAsText
 import io.ktor.http.HttpMethod

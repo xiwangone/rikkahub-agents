@@ -26,7 +26,6 @@ import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
 import androidx.compose.material3.ExposedDropdownMenu
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -48,8 +47,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
@@ -57,8 +54,6 @@ import kotlin.uuid.Uuid
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.PlusSign
 import me.rerere.hugeicons.stroke.Upload02
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.WebDavConfig
@@ -68,7 +63,6 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.WebDavBackupItemsSelector
-import me.rerere.rikkahub.ui.pages.backup.backupItemLabel
 import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString

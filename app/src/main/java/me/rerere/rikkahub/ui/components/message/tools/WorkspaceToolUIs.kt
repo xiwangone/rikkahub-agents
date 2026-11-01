@@ -1,3 +1,4 @@
+
 package me.rerere.rikkahub.ui.components.message.tools
 
 import androidx.compose.foundation.background
@@ -23,26 +24,19 @@ import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.metadataAs
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.highlight.CodeHighlightText
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.FileAdd
 import me.rerere.hugeicons.stroke.FileEdit
 import me.rerere.hugeicons.stroke.FileView
-import me.rerere.hugeicons.stroke.Play
-import me.rerere.hugeicons.stroke.Stop
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.DiffAddedColor
 import me.rerere.rikkahub.ui.components.richtext.DiffRemovedColor
@@ -432,7 +426,7 @@ object WriteTextFileToolUI : ToolUIRenderer {
 
 /** 文件内容摘要（读/写类工具共用）：入参里都有 path，内容键由调用方给出 */
 @Composable
-private fun FileContentSummaryOf(context: ToolUIContext, text: String?) {
+internal fun FileContentSummaryOf(context: ToolUIContext, text: String?) {
     if (text == null) return
     FileContentSummary(
         text = text,
@@ -443,7 +437,7 @@ private fun FileContentSummaryOf(context: ToolUIContext, text: String?) {
 
 /** 内联摘要: 按扩展名语法高亮展示文件内容首部若干行 */
 @Composable
-private fun FileContentSummary(
+internal fun FileContentSummary(
     text: String,
     path: String?,
     loading: Boolean,
@@ -475,7 +469,7 @@ private fun FileContentSummary(
 
 /** BottomSheet 详情: 文件路径 + 按扩展名语法高亮的完整内容 */
 @Composable
-private fun FileContentPreview(
+internal fun FileContentPreview(
     path: String?,
     code: String,
 ) {
@@ -688,7 +682,7 @@ object ShellToolUI : ToolUIRenderer {
 
 /** Shell 退出状态文本: exit code 为 0 显示绿色, 超时或非零显示错误色 */
 @Composable
-private fun ShellExitStatus(
+internal fun ShellExitStatus(
     content: JsonElement,
     style: androidx.compose.ui.text.TextStyle,
 ) {
@@ -707,7 +701,7 @@ private fun ShellExitStatus(
 }
 
 /** 从工具输出 JSON 读取布尔字段 */
-private fun JsonElement?.boolean(key: String): Boolean? =
+internal fun JsonElement?.boolean(key: String): Boolean? =
     this
         ?.jsonObjectOrNull
         ?.get(key)
@@ -715,7 +709,7 @@ private fun JsonElement?.boolean(key: String): Boolean? =
         ?.booleanOrNull
 
 /** 从工具输出 JSON 读取整型字段 */
-private fun JsonElement?.int(key: String): Int? =
+internal fun JsonElement?.int(key: String): Int? =
     this
         ?.jsonObjectOrNull
         ?.get(key)
@@ -723,328 +717,37 @@ private fun JsonElement?.int(key: String): Int? =
         ?.intOrNull
 
 /** 从工具输出 JSON 读取长整型字段 */
-private fun JsonElement?.long(key: String): Long? =
+internal fun JsonElement?.long(key: String): Long? =
     this
         ?.jsonObjectOrNull
         ?.get(key)
         ?.jsonPrimitiveOrNull
         ?.longOrNull
 
-private const val FILE_SUMMARY_MAX_LINES = 10
+internal const val FILE_SUMMARY_MAX_LINES = 10
+
+private val EXTENSION_LANGUAGE_MAP =
+    mapOf(
+        "kt" to "kotlin", "kts" to "kotlin",
+        "java" to "java",
+        "js" to "javascript", "mjs" to "javascript", "cjs" to "javascript",
+        "ts" to "typescript", "tsx" to "tsx", "jsx" to "jsx",
+        "py" to "python", "rb" to "ruby", "go" to "go", "rs" to "rust",
+        "c" to "c", "h" to "c",
+        "cpp" to "cpp", "cc" to "cpp", "cxx" to "cpp", "hpp" to "cpp", "hxx" to "cpp",
+        "cs" to "csharp", "swift" to "swift", "php" to "php",
+        "sh" to "bash", "bash" to "bash", "zsh" to "bash",
+        "json" to "json", "xml" to "xml",
+        "html" to "html", "htm" to "html",
+        "css" to "css", "scss" to "scss",
+        "yaml" to "yaml", "yml" to "yaml", "toml" to "toml",
+        "md" to "markdown", "markdown" to "markdown",
+        "sql" to "sql", "gradle" to "groovy",
+    )
 
 /** 由文件扩展名推断语法高亮语言 */
-private fun languageOf(path: String?): String =
-    when (
-        path?.substringAfterLast('.', "")?.lowercase().orEmpty()
-    ) {
-        "kt", "kts" -> "kotlin"
-        "java" -> "java"
-        "js", "mjs", "cjs" -> "javascript"
-        "ts" -> "typescript"
-        "tsx" -> "tsx"
-        "jsx" -> "jsx"
-        "py" -> "python"
-        "rb" -> "ruby"
-        "go" -> "go"
-        "rs" -> "rust"
-        "c", "h" -> "c"
-        "cpp", "cc", "cxx", "hpp", "hxx" -> "cpp"
-        "cs" -> "csharp"
-        "swift" -> "swift"
-        "php" -> "php"
-        "sh", "bash", "zsh" -> "bash"
-        "json" -> "json"
-        "xml" -> "xml"
-        "html", "htm" -> "html"
-        "css" -> "css"
-        "scss" -> "scss"
-        "yaml", "yml" -> "yaml"
-        "toml" -> "toml"
-        "md", "markdown" -> "markdown"
-        "sql" -> "sql"
-        "gradle" -> "groovy"
-        else -> "plaintext"
-    }
-
-/**
- * `diff_files` 渲染器：把工具输出里的 diff 正文交给 [DiffView]（红绿高亮），
- * 不再回退到默认 JSON 平铺（方案见 `工具输出上限与diff渲染-20260918.md` P28）。
- * 内容仍由工具侧按 `settings.toolOutputMaxChars` 截断（默认 8K）。
- */
-object DiffFilesToolUI : ToolUIRenderer {
-    override val toolName: String = "diff_files"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileEdit
-
-    @Composable
-    override fun title(context: ToolUIContext): String {
-        val a = context.arguments.getStringContent("a").orEmpty().substringAfterLast('/')
-        val b = context.arguments.getStringContent("b").orEmpty().substringAfterLast('/')
-        return if (a.isNotBlank() && b.isNotBlank()) "$a ↔ $b" else stringResource(R.string.tool_ui_diff_files_title)
-    }
-
-    private fun diffOf(context: ToolUIContext): String? {
-        val obj = context.content as? JsonObject ?: return null
-        return obj["diff"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-    }
-
-    private fun isSame(context: ToolUIContext): Boolean {
-        val obj = context.content as? JsonObject ?: return false
-        return obj["same"]?.jsonPrimitive?.booleanOrNull == true
-    }
-
-    override fun hasSummary(context: ToolUIContext): Boolean = diffOf(context) != null || isSame(context)
-
-    @Composable
-    override fun Summary(context: ToolUIContext) {
-        val diff = diffOf(context)
-        if (diff != null) {
-            DiffView(diff = diff)
-        } else if (isSame(context)) {
-            Text(stringResource(R.string.tool_ui_diff_files_same))
-        }
-    }
+internal fun languageOf(path: String?): String {
+    val ext = path?.substringAfterLast('.', "")?.lowercase().orEmpty()
+    return EXTENSION_LANGUAGE_MAP[ext] ?: "plaintext"
 }
 
-/**
- * 工作空间后台任务：启动 / 状态 / 停止（三个工具共用终端风格展示）
- *
- * 输出结构（见 WorkspaceTools）：
- *  - `workspace_run_background` → `{id, status}`
- *  - `workspace_background_status` → `{processes:[{id, command, status, exitCode?, startedAt, stdout, stderr}]}`
- *  - `workspace_background_kill` → `{id, killed}`
- */
-object WorkspaceRunBackgroundToolUI : ToolUIRenderer {
-    private const val TITLE_MAX_CHARS = 40
-
-    override val toolName: String = "workspace_run_background"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Play
-
-    @Composable
-    override fun title(context: ToolUIContext): String {
-        val command = context.arguments.getStringContent("command")?.replace("\n", " ")?.trim().orEmpty()
-        val preview = if (command.length > TITLE_MAX_CHARS) command.take(TITLE_MAX_CHARS) + "…" else command
-        return stringResource(R.string.tool_ui_bg_run, preview.ifBlank { toolName })
-    }
-
-    override fun hasSummary(context: ToolUIContext): Boolean = context.content.getStringContent("id") != null
-
-    @Composable
-    override fun Summary(context: ToolUIContext) {
-        val taskId = context.content.getStringContent("id") ?: return
-        Text(
-            text = stringResource(R.string.tool_ui_bg_running) + " · " + taskId,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.primary,
-        )
-    }
-
-    @Composable
-    override fun Preview(
-        context: ToolUIContext,
-        onDismissRequest: () -> Unit,
-    ) {
-        val command = context.arguments.getStringContent("command").orEmpty()
-        val taskId = context.content.getStringContent("id")
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxHeight(0.8f)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title(context), style = MaterialTheme.typography.headlineSmall)
-            if (taskId != null) {
-                Text(
-                    text = stringResource(R.string.tool_ui_bg_running) + " · " + taskId,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
-            }
-            if (command.isNotBlank()) {
-                HighlightCodeBlock(code = command, language = "bash", modifier = Modifier.fillMaxWidth())
-            }
-        }
-    }
-}
-
-/** 后台任务状态：标题按有无 id 分叉，摘要逐条给出 状态 · id · 命令（最多 5 条） */
-object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
-    private const val MAX_TASKS = 5
-    private const val MAX_LINE_CHARS = 70
-
-    override val toolName: String = "workspace_background_status"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Clock02
-
-    @Composable
-    override fun title(context: ToolUIContext): String {
-        val taskId = context.arguments.getStringContent("id")
-        return if (taskId.isNullOrBlank()) {
-            stringResource(R.string.tool_ui_bg_tasks)
-        } else {
-            stringResource(R.string.tool_ui_bg_task, taskId)
-        }
-    }
-
-    private fun processes(context: ToolUIContext): List<JsonObject> =
-        (context.content?.jsonObjectOrNull?.get("processes") as? JsonArray)
-            ?.mapNotNull { it as? JsonObject }
-            ?: emptyList()
-
-    // 有 processes 字段就出摘要（哪怕空数组）——否则「没任务 / 查不到 id」时卡片只剩标题，看着像渲染坏了
-    override fun hasSummary(context: ToolUIContext): Boolean =
-        context.content?.jsonObjectOrNull?.get("processes") is JsonArray
-
-    /** 空态文案：带 id 查询（查不到）与不带 id（当前没有任务）分开说 */
-    private fun emptyHintRes(context: ToolUIContext): Int =
-        if (context.arguments.getStringContent("id").isNullOrBlank()) {
-            R.string.tool_ui_bg_no_tasks
-        } else {
-            R.string.tool_ui_bg_task_not_found
-        }
-
-    @Composable
-    override fun Preview(
-        context: ToolUIContext,
-        onDismissRequest: () -> Unit,
-    ) {
-        val tasks = processes(context)
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxHeight(0.8f)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
-        ) {
-            Text(title(context), style = MaterialTheme.typography.headlineSmall)
-            if (tasks.isEmpty()) {
-                Text(
-                    text = stringResource(emptyHintRes(context)),
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            tasks.forEach { task ->
-                val running = task.getStringContent("status") == "running"
-                Column(verticalArrangement = Arrangement.spacedBy(3.dp)) {
-                    Text(
-                        text = stringResource(if (running) R.string.tool_ui_bg_running else R.string.tool_ui_bg_exited) +
-                            " · " + task.getStringContent("id").orEmpty() +
-                            task.getStringContent("exitCode")?.let { " (exit $it)" }.orEmpty(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    task.getStringContent("command")?.takeIf { it.isNotBlank() }?.let {
-                        HighlightCodeBlock(code = it, language = "bash", modifier = Modifier.fillMaxWidth())
-                    }
-                    val out =
-                        listOfNotNull(task.getStringContent("stdout"), task.getStringContent("stderr"))
-                            .filter { it.isNotBlank() }
-                            .joinToString("\n")
-                    if (out.isNotBlank()) {
-                        HighlightCodeBlock(
-                            code = out.lines().takeLast(20).joinToString("\n"),
-                            language = "text",
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                    }
-                }
-            }
-        }
-    }
-
-    @Composable
-    override fun Summary(context: ToolUIContext) {
-        val tasks = processes(context)
-        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-            if (tasks.isEmpty()) {
-                Text(
-                    text = stringResource(emptyHintRes(context)),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            tasks.take(MAX_TASKS).forEach { task ->
-                val running = task.getStringContent("status") == "running"
-                Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
-                    Text(
-                        text = stringResource(if (running) R.string.tool_ui_bg_running else R.string.tool_ui_bg_exited) +
-                            " · " + task.getStringContent("id").orEmpty(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val command = task.getStringContent("command")?.replace("\n", " ")?.trim().orEmpty()
-                    if (command.isNotEmpty()) {
-                        Text(
-                            text = if (command.length > MAX_LINE_CHARS) command.take(MAX_LINE_CHARS) + "…" else command,
-                            style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-/** 停止后台任务：标题带 id，摘要给出是否真的停掉（未命中时用错误色提示） */
-object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
-    override val toolName: String = "workspace_background_kill"
-
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Stop
-
-    @Composable
-    override fun title(context: ToolUIContext): String =
-        stringResource(R.string.tool_ui_bg_kill, context.arguments.getStringContent("id").orEmpty())
-
-    private fun killed(context: ToolUIContext): Boolean? =
-        (context.content as? JsonObject)?.get("killed")?.jsonPrimitiveOrNull?.booleanOrNull
-
-    override fun hasSummary(context: ToolUIContext): Boolean = killed(context) != null
-
-    @Composable
-    override fun Preview(
-        context: ToolUIContext,
-        onDismissRequest: () -> Unit,
-    ) {
-        val ok = killed(context) == true
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxHeight(0.8f)
-                    .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            Text(title(context), style = MaterialTheme.typography.headlineSmall)
-            Text(
-                text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_task_not_found),
-                style = MaterialTheme.typography.bodyMedium,
-                color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-            )
-            context.arguments.getStringContent("id")?.let {
-                Text(
-                    text = it,
-                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-    }
-
-    @Composable
-    override fun Summary(context: ToolUIContext) {
-        val ok = killed(context) == true
-        Text(
-            text = stringResource(if (ok) R.string.tool_ui_bg_killed else R.string.tool_ui_bg_task_not_found),
-            style = MaterialTheme.typography.labelSmall,
-            color = if (ok) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.error,
-        )
-    }
-}

@@ -17,7 +17,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -50,7 +49,6 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Stop
-import me.rerere.hugeicons.stroke.StopCircle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService

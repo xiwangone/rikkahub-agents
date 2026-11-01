@@ -1,0 +1,460 @@
+package me.rerere.rikkahub.data.vault
+
+import org.koin.java.KoinJavaComponent.getKoin
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import me.rerere.ai.core.InputSchema
+import me.rerere.ai.core.Tool
+import me.rerere.ai.ui.UIMessagePart
+
+/**
+ * Vault 凭证工具（App 内 AI 凭证中枢）。
+ *
+ * 安全模型：凭证值只在 App 进程内存使用（JSch 字节加载 / 密码对象），
+ * 工具返回值不含明文——只返回变量名、公钥、命令输出。
+ */
+
+/** 将凭证库导出为 load-creds.sh 风格脚本（含分组/描述/公钥注释，与导入格式对称）。 */
+fun vaultExportLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_export_loadcreds",
+    description =
+        "Export the whole vault as a load-creds.sh style shell script and write it to the workspace " +
+            "at /workspace/tmp/load-creds-export.sh. The script carries group headers, description comments, " +
+            "SSH public key comments and export lines — fully symmetric with the importer, so editing the " +
+            "script and importing it back loses nothing (value / description / group / public key). " +
+            "Requires active vault authorization. Plaintext secrets appear ONLY inside the generated file " +
+            "on the workspace; delete it after use.",
+    parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = emptyList()) },
+    needsApproval = { true },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val entries = repository.getAll()
+            val quads =
+                entries.mapNotNull { e ->
+                    repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
+                }
+            if (quads.isEmpty()) {
+                listOf(UIMessagePart.Text("❌ 凭证库为空，无可导出条目"))
+            } else {
+                val script = VaultExporter.toLoadCreds(quads)
+                val wsRepository =
+                    runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                        ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+                val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+                runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }
+                    .onFailure { android.util.Log.w("VaultTools", "写入 load-creds-export.sh 失败", it) }
+                    .getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 写工作区文件失败"))
+                quads.forEach { q -> repository.logAccess(q.name, "ai-tool", "export_loadcreds") }
+                listOf(
+                    UIMessagePart.Text(
+                        "✅ 已导出 ${quads.size} 条凭证到 /workspace/tmp/load-creds-export.sh\n" +
+                            "含分组/描述/SSH公钥注释。修改后可用 vault_import_loadcreds 或 UI 导入同步。\n" +
+                            "⚠️ 该文件含明文密钥，用完请删除。",
+                    ),
+                )
+            }
+        }
+    },
+)
+
+
+/**
+ * 合并两条凭证：把 [source] 的引用全部指向 [target]，然后删除 [source]。
+ *
+ * 典型场景：同一密钥被重复录入两条（如 `X_TOKEN` 与 `X_TOKEN_1`）。
+ * 先比对**值指纹**（不见值）报告二者是否一致，再统一引用指向并删除多余条目——
+ * 这样既不会留下悬空引用，也不会因为"看起来一样"而误删不同内容。
+ */
+@Suppress("TooGenericExceptionCaught") // 引用同步横跨DataStore与Room，任何失败时都必须保留源凭证。
+fun vaultCredentialMergeTool(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
+): Tool = Tool(
+    name = "vault_credential_merge",
+    description =
+        "Merge one credential into another: repoint every configuration reference from `source` " +
+            "to `target`, then delete `source`. Value fingerprints are compared first (values are never " +
+            "returned) so you can report whether the two entries actually hold the same secret. " +
+            "Use to clean up duplicates without leaving dangling references.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put("source", buildJsonObject { put("type", "string"); put("description", "Credential to remove (its references get repointed)") })
+                    put("target", buildJsonObject { put("type", "string"); put("description", "Credential to keep") })
+                },
+            required = listOf("source", "target"),
+        )
+    },
+    execute = { params ->
+        val source = params.jsonObject["source"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val target = params.jsonObject["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        if (source.isEmpty() || target.isEmpty()) {
+            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 均必填"))
+        }
+        if (source == target) {
+            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 相同，无需合并"))
+        }
+        val sourceEntry = repository.getByName(source)
+            ?: return@Tool listOf(UIMessagePart.Text("❌ 源凭证不存在: $source"))
+        val targetEntry = repository.getByName(target)
+            ?: return@Tool listOf(UIMessagePart.Text("❌ 目标凭证不存在: $target"))
+
+        // 值指纹比对（不见值）：仅用于提示，是否合并由调用方决定
+        val sourceValue = repository.decryptValue(sourceEntry)
+        val targetValue = repository.decryptValue(targetEntry)
+        val sameValue =
+            sourceValue != null && targetValue != null &&
+                CredentialVaultRepository.fingerprint(sourceValue) ==
+                    CredentialVaultRepository.fingerprint(targetValue)
+
+        val synced =
+            try {
+                VaultReferenceSync.renameEverywhere(
+                    settingsStore = settingsStore,
+                    sshHostRepository = sshHostRepository,
+                    telegramBotPreferences = telegramBotPreferences,
+                    oldName = source,
+                    newName = target,
+                )
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        "⚠️ 引用同步失败；源凭证「$source」仍保留，引用可能部分更新。请核对后重试。原因：${error.message ?: error::class.simpleName}",
+                    ),
+                )
+            }
+        repository.delete(sourceEntry)
+        repository.logAccess(source, "ai-tool", "merge_from")
+        repository.logAccess(target, "ai-tool", "merge_into")
+
+        listOf(
+            UIMessagePart.Text(
+                "✅ 已合并：$source → $target\n" +
+                    "值比对：" + if (sameValue) "两者内容一致（指纹相同）" else "⚠ 两者内容**不同**，已按你的指定保留 $target" + "\n" +
+                    "引用同步：已更新 $synced 处配置引用\n" +
+                    "（值不可读写；如需回滚请从 .vault 备份恢复）",
+            ),
+        )
+    },
+)
+
+
+/**
+ * 改名（含**引用同步**）的公共实现——被 update 工具与规范化助手共用。
+ *
+ * 顺序有意为之：先建新名（含原密文）→ 同步引用 → 再删旧名；
+ * 任一步失败都不会让配置指向一个不存在的名字。
+ *
+ * @return 同步更新的配置引用处数
+ */
+suspend fun renameCredentialWithRefs(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
+    oldName: String,
+    newName: String,
+): Int {
+    val existing = repository.getByName(oldName) ?: return 0
+    val value = repository.decryptValue(existing) ?: return 0
+    repository.save(
+        name = newName,
+        value = value,
+        description = existing.description,
+        group = existing.grp,
+        publicKey = existing.publicKey,
+        type = existing.type,
+        // 改名必须连元数据一起搬过去：endpoint/path/header/username 是 provider 解析
+        // 引用处要用的，漏传 = 改个名字就把这条凭证的用法信息洗掉了
+        metaJson = existing.metaJson,
+    )
+    val synced = VaultReferenceSync.renameEverywhere(settingsStore, sshHostRepository, telegramBotPreferences, oldName, newName)
+    repository.delete(existing)
+    repository.logAccess(oldName, "ai-tool", "rename_from")
+    repository.logAccess(newName, "ai-tool", "rename_to")
+    return synced
+}
+
+/**
+ * 命名规范化：把不符合命名约定的存量名字改成合规形式（并同步引用）。
+ *
+ * 背景：历史数据里常有小写、连字符、空格甚至中文的名字；手工逐条改既慢又容易漏掉引用。
+ * 默认 **dry_run**：先列出"现名 → 建议名"，确认后再执行。
+ */
+@Suppress("TooGenericExceptionCaught") // 逐项规范化时跨存储失败必须保留源凭证并继续后续项目。
+fun vaultCredentialNormalizeTool(
+    repository: CredentialVaultRepository,
+    settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
+    sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
+    telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
+): Tool = Tool(
+    name = "vault_credential_normalize_names",
+    description =
+        "Normalize legacy credential names into the required UPPER_SNAKE form (and rewrite references). " +
+            "Defaults to dry_run=true which only LISTS suggested renames; pass dry_run=false to apply. " +
+            "Renames are applied only when the suggested name is free — conflicting ones are reported and skipped. " +
+            "Values are never read out.",
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    put(
+                        "dry_run",
+                        buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "true (default) = only list suggestions; false = apply renames")
+                        },
+                    )
+                },
+        )
+    },
+    execute = { params ->
+        val dryRun = params.jsonObject["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val entries = repository.getAll()
+        val taken = entries.map { it.name }.toMutableSet()
+
+        data class Plan(val old: String, val new: String, val conflict: Boolean)
+        val plans = mutableListOf<Plan>()
+        entries.forEach { entry ->
+            val suggested = CredentialVaultRepository.normalizeName(entry.name)
+            if (suggested != entry.name) {
+                // 目标名是否已被占用（含本轮已分配的建议名）
+                val conflict = suggested in taken
+                plans += Plan(entry.name, suggested, conflict)
+                taken += suggested
+            }
+        }
+
+        if (plans.isEmpty()) {
+            return@Tool listOf(UIMessagePart.Text("✅ 所有凭证名都符合规范，无需调整"))
+        }
+
+        if (dryRun) {
+            val body = buildString {
+                appendLine("将调整 ${plans.size} 条（dry_run，未执行）：")
+                plans.forEach { p ->
+                    appendLine("- ${p.old} → ${p.new}" + if (p.conflict) "  ⚠ 目标名可能已被占用，执行时会跳过" else "")
+                }
+                append("确认后请用 dry_run=false 执行（会自动同步配置引用）。")
+            }
+            return@Tool listOf(UIMessagePart.Text(body))
+        }
+
+        var done = 0
+        var skipped = 0
+        var syncedTotal = 0
+        val failures = mutableListOf<String>()
+        plans.forEach { p ->
+            if (repository.getByName(p.new) != null) {
+                skipped++
+                return@forEach
+            }
+            try {
+                val synced = renameCredentialWithRefs(repository, settingsStore, sshHostRepository, telegramBotPreferences, p.old, p.new)
+                done++
+                syncedTotal += synced
+            } catch (error: kotlinx.coroutines.CancellationException) {
+                throw error
+            } catch (error: Exception) {
+                skipped++
+                failures += "${p.old} → ${p.new}：同步失败（${error.message ?: error::class.simpleName}），源凭证保留，引用可能部分更新"
+            }
+        }
+        listOf(
+            UIMessagePart.Text(
+                buildString {
+                    append("✅ 已规范化 $done 条（跳过/失败 $skipped 条）\n引用同步：共更新 $syncedTotal 处配置引用")
+                    if (failures.isNotEmpty()) {
+                        appendLine("\n失败项：")
+                        failures.forEach { appendLine("- $it") }
+                        append("目标条目可能已创建；核对引用后再手工合并/清理源条目。")
+                    }
+                },
+            ),
+        )
+    },
+)
+
+/** 从工作区 load-creds.sh 导入（解析含公钥/描述/分组），供 AI 全流程维护凭证库。 */
+fun vaultImportLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_import_loadcreds",
+    description =
+        "Import credentials from a load-creds.sh style script already written in the workspace " +
+            "(e.g. /workspace/tmp/load-creds-export.sh or a user-provided script). Parses group headers, " +
+            "description comments, SSH public key comments and export lines, then upserts into the vault " +
+            "(blank value on existing entry keeps the old secret; blank public key keeps the old key). " +
+            "Returns how many entries were imported/updated.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds-export.sh") })
+            },
+            required = emptyList(),
+        )
+    },
+    needsApproval = { true },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds-export.sh"
+            val wsRepository =
+                runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+            val content =
+                runCatching {
+                    val buf = java.io.ByteArrayOutputStream()
+                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
+                    buf.toString(Charsets.UTF_8.name())
+                }.getOrNull()
+            if (content == null) {
+                listOf(UIMessagePart.Text("❌ 读取文件失败: $path"))
+            } else {
+                val parsed = CredentialImporter.parse(content)
+                if (parsed.isEmpty()) {
+                    listOf(UIMessagePart.Text("❌ 未解析到任何条目（格式不符 load-creds.sh？）"))
+                } else {
+                    val result = repository.importEntries(parsed)
+                    parsed.forEach { p -> repository.logAccess(p.name, "ai-tool", "import_loadcreds") }
+                    listOf(
+                        UIMessagePart.Text(
+                            buildString {
+                                append("✅ 已导入/更新 ${result.imported} 条凭证（解析 ${parsed.size} 条）")
+                                if (result.skipped > 0) append("；跳过 ${result.skipped} 条（名称不合规或值非法）")
+                                if (result.overwrittenDifferentValue.isNotEmpty()) {
+                                    append("\n⚠ 以下条目同名但值不同，已被导入内容覆盖：")
+                                    result.overwrittenDifferentValue.forEach { append("\n- " + it) }
+                                }
+                            },
+                        ),
+                    )
+                }
+            }
+        }
+    },
+)
+
+/** 凭证库与 load-creds.sh 文件核对（哈希比对，AI 不见值明文）。 */
+fun vaultCompareLoadCredsTool(
+    context: android.content.Context,
+    repository: CredentialVaultRepository,
+): Tool = Tool(
+    name = "vault_compare_loadcreds",
+    description =
+        "Compare the vault against a load-creds.sh style file in the workspace (default " +
+            "/workspace/tmp/load-creds.sh). Reports: names only in vault / only in file / in both; " +
+            "for shared names, value equality is checked via SHA-256 hash (the AI only sees 'same' or " +
+            "'different', never the plaintext value); description/group/public-key differences are shown " +
+            "as plaintext (public keys are public). Use before import/export to know what changed; " +
+            "the fix direction (file-wins or vault-wins) must be decided by the user since values are " +
+            "never revealed.",
+    parameters = {
+        InputSchema.Obj(
+            properties = buildJsonObject {
+                put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds.sh") })
+            },
+            required = emptyList(),
+        )
+    },
+    execute = { params ->
+        val sessionManager = VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        } else {
+            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds.sh"
+            val wsRepository =
+                runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+            val content =
+                runCatching {
+                    val buf = java.io.ByteArrayOutputStream()
+                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
+                    buf.toString(Charsets.UTF_8.name())
+                }.getOrNull()
+            if (content == null) {
+                listOf(UIMessagePart.Text("❌ 读取文件失败: $path（先上传或 vault_export_loadcreds 生成）"))
+            } else {
+                val fileEntries = CredentialImporter.parse(content).associateBy { it.name }
+                if (fileEntries.isEmpty()) {
+                    listOf(UIMessagePart.Text("❌ 文件未解析到任何条目（格式不符 load-creds.sh？）"))
+                } else {
+                    val vaultEntries = repository.getAll().associateBy { it.name }
+                    listOf(UIMessagePart.Text(buildVaultCompareReport(path, fileEntries, vaultEntries, repository)))
+                }
+            }
+        }
+    },
+)
+
+private suspend fun buildVaultCompareReport(
+    path: String,
+    fileEntries: Map<String, CredentialImporter.ParsedEntry>,
+    vaultEntries: Map<String, me.rerere.rikkahub.data.db.entity.VaultCredentialEntity>,
+    repository: CredentialVaultRepository,
+): String {
+    val sha = java.security.MessageDigest.getInstance("SHA-256")
+    fun hash(s: String): String =
+        java.util.Base64.getEncoder().encodeToString(sha.digest(s.encodeToByteArray()))
+    suspend fun vaultValueHash(name: String): String? =
+        vaultEntries[name]?.let { repository.decryptValue(it) }?.let { hash(it) }
+
+    val onlyVault = vaultEntries.keys - fileEntries.keys
+    val onlyFile = fileEntries.keys - vaultEntries.keys
+    val shared = vaultEntries.keys intersect fileEntries.keys
+
+    val sameValues = mutableListOf<String>()
+    val diffValues = mutableListOf<String>()
+    val diffMeta = mutableListOf<String>()
+    for (name in shared.sorted()) {
+        val fe = fileEntries.getValue(name)
+        val ve = vaultEntries.getValue(name)
+        if (hash(fe.value) == vaultValueHash(name)) {
+            sameValues += name
+        } else {
+            diffValues += "$name（值不同）"
+        }
+        val metaDiff = listOfNotNull(
+            "描述".takeIf { fe.description != ve.description },
+            "分组".takeIf { fe.group != ve.grp },
+            "公钥".takeIf { fe.publicKey != ve.publicKey },
+        )
+        if (metaDiff.isNotEmpty()) diffMeta += "$name（${metaDiff.joinToString("/")}）"
+    }
+
+    return buildString {
+        append("核对报告（vault ↔ $path）\n")
+        append("文件条目 ${fileEntries.size} | vault 条目 ${vaultEntries.size}\n")
+        if (onlyVault.isNotEmpty()) append("🔹 仅 vault 有（${onlyVault.size}）：${onlyVault.sorted().joinToString(", ")}\n")
+        if (onlyFile.isNotEmpty()) append("🔹 仅文件有（${onlyFile.size}）：${onlyFile.sorted().joinToString(", ")}\n")
+        append("✅ 值一致（${sameValues.size}）：${sameValues.take(30).joinToString(", ")}${if (sameValues.size > 30) "…" else ""}\n")
+        if (diffValues.isNotEmpty()) append("⚠️ 值不同（${diffValues.size}）：${diffValues.joinToString("; ")}\n")
+        if (diffMeta.isNotEmpty()) append("ℹ️ 元数据不同（${diffMeta.size}）：${diffMeta.joinToString("; ")}\n")
+        if (onlyVault.isEmpty() && onlyFile.isEmpty() && diffValues.isEmpty()) {
+            append("🎉 值完全一致。")
+            if (diffMeta.isEmpty()) append("描述/分组/公钥也一致。")
+        } else {
+            append("\n修正方向需用户确认：文件为准→vault_import_loadcreds；vault 为准→vault_export_loadcreds 覆盖文件。")
+        }
+    }
+}

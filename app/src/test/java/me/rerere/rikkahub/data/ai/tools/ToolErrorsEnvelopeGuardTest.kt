@@ -24,7 +24,7 @@ class ToolErrorsEnvelopeGuardTest {
         // 信封的唯一实现
         "ToolErrors.kt" to Int.MAX_VALUE,
         // appendHumanErrorToToolResult 对旧扁平形状的兼容分支（输入侧，非新错误）
-        "LocalTools.kt" to 2,
+        "LocalToolOption.kt" to 1,
         // 嵌套数据：batch 汇总每项的 error
         "FileBatchTools.kt" to 1,
         // 嵌套数据：tried_hosts 数组元素的 error

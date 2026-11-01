@@ -8,7 +8,6 @@ import android.content.Intent
 import android.content.pm.PackageManager
 import androidx.core.content.ContextCompat
 import com.google.android.gms.location.Geofence
-import com.google.android.gms.location.GeofencingClient
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks

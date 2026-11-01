@@ -27,9 +27,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.BackendConnection

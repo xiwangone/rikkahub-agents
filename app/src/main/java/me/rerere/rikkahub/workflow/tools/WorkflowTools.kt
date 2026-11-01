@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.workflow.tools
 
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -16,7 +15,6 @@ import me.rerere.rikkahub.workflow.execution.WorkflowEngine
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
 import me.rerere.rikkahub.workflow.model.WorkflowJson
 import me.rerere.rikkahub.workflow.repository.WorkflowRepository
-import me.rerere.rikkahub.workflow.trigger.TriggerRegistry
 
 /**
  * Phase 12 — the seven `workflow_*` tools the LLM uses to author and manage workflows.

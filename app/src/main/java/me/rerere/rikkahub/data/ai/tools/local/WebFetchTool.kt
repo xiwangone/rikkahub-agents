@@ -10,7 +10,6 @@ import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
-import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.net.withEgressGuard
 import me.rerere.rikkahub.data.ai.tools.ToolErrors

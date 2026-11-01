@@ -14,7 +14,6 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.LITERT_PROVIDER_ID
 import me.rerere.ai.provider.LLAMACPP_PROVIDER_ID
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.locallm.AcceleratorProbe
 import me.rerere.locallm.LocalRuntime

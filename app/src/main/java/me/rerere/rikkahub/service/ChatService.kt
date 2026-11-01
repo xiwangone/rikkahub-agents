@@ -1,12 +1,7 @@
-@file:Suppress("CyclomaticComplexMethod", "TooGenericExceptionCaught") // 生成标题的分支与网络/解析异常处理平铺；错误路径需在同一处集中上报
 
 package me.rerere.rikkahub.service
 
 import android.app.Application
-import android.app.PendingIntent
-import android.content.Context
-import android.content.Intent
-import androidx.core.app.NotificationCompat
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -16,16 +11,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Deferred
-import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
-import kotlin.coroutines.coroutineContext
 import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.async
-import kotlinx.coroutines.awaitAll
-import kotlinx.coroutines.cancelAndJoin
-import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.coroutines.completeWith
-import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -38,52 +25,26 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flatMapLatest
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.onCompletion
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
-import me.rerere.ai.core.Tool
-import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
-import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.ai.ui.abandonUnexecutedTools
 import me.rerere.rikkahub.data.ai.FailureKind
-import me.rerere.rikkahub.data.ai.INTERRUPTED_UNKNOWN_OUTCOME_REASON
 import me.rerere.rikkahub.data.ai.classifyFailureKind
-import me.rerere.ai.ui.canResumeToolExecution
-import me.rerere.ai.ui.finishPendingTools
-import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.ui.isEmptyInputMessage
-import me.rerere.common.android.Logging
 import me.rerere.rikkahub.AppScope
-import me.rerere.rikkahub.CHAT_COMPLETED_NOTIFICATION_CHANNEL_ID
-import me.rerere.rikkahub.CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID
-import me.rerere.rikkahub.R
-import me.rerere.rikkahub.RouteActivity
-import me.rerere.rikkahub.data.ai.GenerationChunk
 import me.rerere.rikkahub.data.ai.GenerationLoop
-import me.rerere.rikkahub.data.ai.GenerationRunTracker
-import me.rerere.rikkahub.data.ai.FailureDiagnosis
-import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
-import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.LocalTools
-import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
-import me.rerere.rikkahub.data.ai.tools.ToolErrors
-import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
-import me.rerere.rikkahub.data.ai.tools.AppScene
-import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.ai.transformers.Base64ImageToLocalFileTransformer
 import me.rerere.rikkahub.data.ai.transformers.DocumentAsPromptTransformer
 import me.rerere.rikkahub.data.ai.transformers.MediaSourceNormalizeTransformer
@@ -96,41 +57,21 @@ import me.rerere.rikkahub.data.ai.transformers.ThinkTagTransformer
 import me.rerere.rikkahub.data.ai.transformers.TimeReminderTransformer
 import me.rerere.rikkahub.data.ai.transformers.ToolPairingRepairTransformer
 import me.rerere.rikkahub.data.ai.transformers.WorkspaceReminderTransformer
-import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.findModelById
-import me.rerere.rikkahub.data.datastore.findProvider
-import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
-import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog
-import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.MessageNode
-import me.rerere.rikkahub.data.model.replaceRegexes
-import me.rerere.rikkahub.data.model.toMessageNode
-import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.utils.applyPlaceholders
-import me.rerere.rikkahub.utils.cancelNotification
-import me.rerere.rikkahub.utils.sendNotification
-import me.rerere.rikkahub.web.BadRequestException
-import me.rerere.rikkahub.web.NotFoundException
-import me.rerere.workspace.WorkspaceShellStatus
-import java.time.Instant
-import java.util.Locale
 import java.util.concurrent.ConcurrentHashMap
 import kotlin.uuid.Uuid
-import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 
 private const val TAG = "ChatService"
 
@@ -141,23 +82,23 @@ private const val TAG = "ChatService"
  * 中途被系统回收（内存压力下 LMK 的常见行为），这一轮已生成的内容会整体丢失。
  * 按此间隔落盘后，最多只丢最后一个间隔内的增量。
  */
-private const val STREAM_PERSIST_INTERVAL_MS = 8_000L
+internal const val STREAM_PERSIST_INTERVAL_MS = 8_000L
 
 /**
  * 流式界面提交节流：数据块到达频率远高于屏幕刷新率，逐块提交会让消息列表反复重组造成卡顿。
  * 内存态按此间隔提交；每个数据块携带全量快照，跳过的中间块由下一次提交自然补上，
  * 生成结束与兜底路径仍会提交最终状态。
  */
-private const val STREAM_UI_INTERVAL_MS = 120L
+internal const val STREAM_UI_INTERVAL_MS = 120L
 
 /**
  * 进度通知的更新节流：更新通知要走系统跨进程调用并重绘通知栏，逐块更新在长回复下既拖慢
  * 通知栏，也容易被系统合并丢弃而停在旧内容上。按此间隔更新，内容足够接近最新。
  */
-private const val STREAM_NOTIFICATION_INTERVAL_MS = 1_000L
+internal const val STREAM_NOTIFICATION_INTERVAL_MS = 1_000L
 
 // 审批续跑时等待前一个生成任务结束的上限（不取消前一个，避免打断其审批写入）。
-private const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
+internal const val PREV_JOB_JOIN_TIMEOUT_MS = 10_000L
 
 internal fun backgroundTextGenerationParams(
     model: Model,
@@ -216,7 +157,7 @@ enum class ChatErrorSolution {
 }
 
 
-private val inputTransformers by lazy {
+internal val inputTransformers by lazy {
     listOf(
         // 结构修复排最前：先把历史里未执行的工具补成合法终态，再做语义类转换
         ToolPairingRepairTransformer,
@@ -230,7 +171,7 @@ private val inputTransformers by lazy {
     )
 }
 
-private val outputTransformers by lazy {
+internal val outputTransformers by lazy {
     listOf(
         ThinkTagTransformer,
         Base64ImageToLocalFileTransformer,
@@ -297,36 +238,36 @@ internal class AuxJobRegistry {
  * 相关文件：工具装配 `data/ai/tools/ChatToolFactory.kt`；生成循环 `data/ai/GenerationLoop.kt`。
  */
 class ChatService(
-    private val context: Application,
-    private val appScope: AppScope,
-    private val appEventBus: AppEventBus,
-    private val settingsStore: SettingsStore,
-    private val conversationRepo: ConversationRepository,
-    private val memoryRepository: MemoryRepository,
-    private val generationLoop: GenerationLoop,
-    private val chatToolFactory: ChatToolFactory,
-    private val templateTransformer: TemplateTransformer,
-    private val providerManager: ProviderManager,
-    private val localTools: LocalTools,
+    internal val context: Application,
+    internal val appScope: AppScope,
+    internal val appEventBus: AppEventBus,
+    internal val settingsStore: SettingsStore,
+    internal val conversationRepo: ConversationRepository,
+    internal val memoryRepository: MemoryRepository,
+    internal val generationLoop: GenerationLoop,
+    internal val chatToolFactory: ChatToolFactory,
+    internal val templateTransformer: TemplateTransformer,
+    internal val providerManager: ProviderManager,
+    internal val localTools: LocalTools,
     val mcpManager: McpManager,
-    private val filesManager: FilesManager,
-    private val skillManager: SkillManager,
-    private val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences,
-    private val workspaceRepository: WorkspaceRepository,
-    private val folderRepository: FolderRepository,
-    private val compressedArchiveDao: me.rerere.rikkahub.data.db.dao.CompressedArchiveDao,
+    internal val filesManager: FilesManager,
+    internal val skillManager: SkillManager,
+    internal val toolApprovalPreferences: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences,
+    internal val workspaceRepository: WorkspaceRepository,
+    internal val folderRepository: FolderRepository,
+    internal val compressedArchiveDao: me.rerere.rikkahub.data.db.dao.CompressedArchiveDao,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
-    private val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
+    internal val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
 
     // 统一会话管理
-    private val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
+    internal val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
     private val _sessionsVersion = MutableStateFlow(0L)
 
     // Title/suggestion aux-generation jobs, keyed per conversation - see AuxJobRegistry.
-    private val auxJobs = AuxJobRegistry()
-    private val titleFailureLock = Any()
-    private val titleFailureReportedAtMs = mutableMapOf<Uuid, Long>()
+    internal val auxJobs = AuxJobRegistry()
+    internal val titleFailureLock = Any()
+    internal val titleFailureReportedAtMs = mutableMapOf<Uuid, Long>()
 
     /**
      * Per-conversation mutex serialising state-mutating operations: handleToolApproval,
@@ -337,7 +278,9 @@ class ChatService(
      */
     private val sessionMutexes = ConcurrentHashMap<Uuid, Mutex>()
 
-    private fun mutexFor(conversationId: Uuid): Mutex = sessionMutexes.getOrPut(conversationId) { Mutex() }
+    internal fun str(id: Int, vararg args: Any): String = if (args.isEmpty()) context.resources.getString(id) else context.resources.getString(id, *args)
+
+    internal fun mutexFor(conversationId: Uuid): Mutex = sessionMutexes.getOrPut(conversationId) { Mutex() }
 
     /**
      * Hydrate the in-memory session for [conversationId] from disk if it's currently
@@ -376,7 +319,7 @@ class ChatService(
 
     // 每会话待发送队列：生成中再次发送时消息排队，当前生成结束后按序自动发出
     // （详见 MessageQueue 的语义说明）。
-    private val messageQueues = ConcurrentHashMap<Uuid, MessageQueue>()
+    internal val messageQueues = ConcurrentHashMap<Uuid, MessageQueue>()
 
     /** 供 UI 观察某会话的待发送队列。 */
     fun messageQueueState(conversationId: Uuid): StateFlow<MessageQueueState> =
@@ -397,7 +340,7 @@ class ChatService(
     }
 
     /** 取最近一条助手回复文本（语音朗读用）；无回复时返回 null。 */
-    private fun collectAssistantReply(conversationId: Uuid): String? =
+    internal fun collectAssistantReply(conversationId: Uuid): String? =
         getConversationFlow(conversationId).value.currentMessages
             .lastOrNull { it.role == MessageRole.ASSISTANT }
             ?.toText()
@@ -461,13 +404,13 @@ class ChatService(
     }
 
     // 生成完成流
-    private val _generationDoneFlow = MutableSharedFlow<Uuid>()
+    internal val _generationDoneFlow = MutableSharedFlow<Uuid>()
     val generationDoneFlow: SharedFlow<Uuid> = _generationDoneFlow.asSharedFlow()
 
     // 后台期间正在刷新的进度通知所属会话；回到前台时统一清掉，避免通知栏残留与页面对不上的旧内容
     private val liveNotificationConversations = ConcurrentHashMap.newKeySet<Uuid>()
 
-    private val notificationHelper =
+    internal val notificationHelper =
         ChatNotificationHelper(
             context = context,
             getConversation = { getConversationFlow(it).value },
@@ -524,7 +467,7 @@ class ChatService(
 
     // ---- Session 管理 ----
 
-    private fun getOrCreateSession(conversationId: Uuid): ConversationSession =
+    internal fun getOrCreateSession(conversationId: Uuid): ConversationSession =
         sessions.computeIfAbsent(conversationId) { id ->
             val settings = settingsStore.settingsFlow.value
             ConversationSession(
@@ -655,7 +598,7 @@ class ChatService(
      * can cancel every aux job for that conversation via [AuxJobRegistry.cancelAll]. Keeps the
      * same conversation-reference accounting the other launched jobs use.
      */
-    private fun launchAuxJob(
+    internal fun launchAuxJob(
         conversationId: Uuid,
         kind: AuxJobKind,
         block: suspend () -> Unit,
@@ -774,1568 +717,30 @@ class ChatService(
         sendMessageNow(conversationId, content, answer)
     }
 
-    /**
-     * 生成结束后派发队首消息。由 [sendMessageNow] 的收尾统一调用，
-     * 保证「一轮结束 → 自动发出下一条排队消息」形成闭环。
-     */
-    private fun dispatchNextQueuedMessage(
+    internal fun dispatchNextQueuedMessage(
         conversationId: Uuid,
         fromJob: Job? = null,
-    ) {
-        val queue = messageQueues[conversationId] ?: return
-        val session = getOrCreateSession(conversationId)
-        // 仍在生成中（例如停止后又被 resume）或存在待审批工具时，等下一次时机。
-        // 注意：从本轮协程内部调用时 session 里存的可能就是该协程自身的 job，
-        // 必须排除，否则会误判为「他人正在生成」而永不放行队列。
-        val active = session.getJob()
-        // 协程被取消后 isActive 会转为 false，此守卫随之放行 —— 即「停止生成」仍会派发待发队列的
-        // 下一条。这是产品语义（取消 = 跳过当前这条、队列继续），勿当 bug 修。
-        if (active != null && active.isActive && active !== fromJob) {
-            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=another-job-active")
-            // 不要放弃：挂到那个活跃 job 的完成回调上再派一次。
-            // 否则「入队 → 试图出队 → 因 another-job-active 跳过 → 再也没人触发」会把消息永久卡在队列里
-            // （现象：入队后正文被取消、而排队消息也没发出去）。
-            scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
-            return
-        }
-        val pendingToolExists =
-            session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
-        if (pendingToolExists) {
-            if (active != null && active.isActive) {
-                AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (job active)")
-                scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
-                return
-            }
-            // 本轮已无活跃生成者：悬挂工具不会再有执行者，先定案再重判。
-            // 否则队列会永久卡住（用户侧现象：「发了没反应」）。
-            AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (finalizing)")
-            appScope.launch {
-                runCatching { finishInterruptedPendingTools(conversationId) }
-                    .onFailure { AppLog.w(TAG, "msg-dequeue: finalize pending tools failed", it) }
-                val stillPending =
-                    session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
-                if (stillPending) {
-                    AppLog.w(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (unresolved)")
-                } else {
-                    dispatchNextQueuedMessage(conversationId)
-                }
-            }
-            return
-        }
-        val next = queue.takeNext() ?: return
-        AppLog.i(TAG, "msg-dequeue conv=$conversationId remaining=${queue.size}")
-        // 带上传出的条目：本次发起失败时由 sendMessageNow 的失败分支放回队首，避免「已出队、没发出」。
-        sendMessageNow(conversationId, next.parts, next.answer, next.reply, requeueOnFailure = next)
-    }
+    ) = dispatchNextQueuedMessageImpl(conversationId, fromJob)
 
-    // catch 内要先统一做 completeExceptionally 与日志，再按「是否取消 / 是否 headless」分流放行 rethrow；
-    // 多个 catch 会重复这两步且拿不到同一个 e，故保留类型判断。
-    @Suppress("InstanceOfCheckForException")
-    private fun sendMessageNow(
+    internal fun sendMessageNow(
         conversationId: Uuid,
         content: List<UIMessagePart>,
         answer: Boolean = true,
         reply: CompletableDeferred<String?>? = null,
         requeueOnFailure: QueuedMessage? = null,
-    ) {
-
-        // 消息事件日志（只记事件 + 会话 id，不记文本，隐私边界）
-        val isUserTurn = content.any { it is UIMessagePart.Text && it.text.isNotBlank() }
-        val textCount = content.count { it is UIMessagePart.Text }
-        AppLog.i(
-            TAG,
-            "msg-recv conv=$conversationId parts=${content.size} text=$textCount userTurn=$isUserTurn answer=$answer",
-        )
-
-        val session = getOrCreateSession(conversationId)
-        val previousJob = session.getJob()
-        if (previousJob?.isActive == true) {
-            AppLog.i(
-                TAG,
-                "msg-cancel prev conv=$conversationId nodes=${session.state.value.messageNodes.size}",
-            )
-        }
-        // 运行归因：被新消息打断也属「用户主动结束」，语义与点停止一致。
-        GenerationRunTracker.markCancelled(conversationId.toString(), "superseded_by_new_message")
-        previousJob?.cancel()
-
-        val job =
-            appScope.launch {
-                try {
-                    runCatching { previousJob?.join() }
-                    // Do not let a final chunk from the replaced job overwrite this turn's binding.
-                    session.beginFloatingTurn()
-                    finishInterruptedPendingTools(conversationId)
-                    // 被「新消息」打断的上一轮不走 stopGeneration，此前从不落库：
-                    // 内容只存在内存，会话一旦重建/刷新就整轮消失（工具还会被重放改成「拒绝」）。
-                    // 这里补一次落库，使「发新消息打断」与「点停止」语义一致。
-                    withContext(NonCancellable) { saveConversation(conversationId, session.state.value) }
-
-                    val currentConversation = session.state.value
-                    // Resolve the assistant from the conversation's own assistantId, not the
-                    // global current-assistant pointer — otherwise switching assistants mid-
-                    // generation makes one conversation preprocess input with another's config.
-                    val settings = settingsStore.settingsFlow.first()
-                    val assistant =
-                        settings.getAssistantById(currentConversation.assistantId)
-                            ?: settings.getCurrentAssistant()
-                    val processedContent = preprocessUserInputParts(content, assistant)
-
-                    // 添加消息到列表
-                    val withUser =
-                        currentConversation.copy(
-                            messageNodes =
-                                currentConversation.messageNodes +
-                                    UIMessage(
-                                        role = MessageRole.USER,
-                                        parts = processedContent,
-                                    ).toMessageNode(),
-                        )
-                    // 用户消息入库必须不被取消：stop 若正好落在入库事务窗口内，
-                    // 可取消的写会被回滚，而内存里已经有这条 → 重进会话时消息丢失。
-                    withContext(NonCancellable) { saveConversation(conversationId, withUser) }
-
-                    // Phase 16 — fast-path router. If the assistant has it enabled and the user's
-                    // message matches a deterministic intent, run the matching tool and inject the
-                    // result as a synthetic assistant message — skipping the LLM entirely.
-                    // Conservative: any match failure (tool throws, no result) falls back to the
-                    // normal LLM path. Headless conversations and non-text messages are skipped.
-                    val routedHandled =
-                        if (answer) {
-                            tryFastPathRoute(conversationId, processedContent, withUser, assistant)
-                        } else {
-                            false
-                        }
-
-                    // 开始补全 — only if router didn't handle the turn
-                    if (answer && !routedHandled) {
-                        handleMessageComplete(conversationId)
-                    }
-
-                    AppLog.i(TAG, "msg-done conv=$conversationId routed=$routedHandled")
-                    if (reply != null) {
-                        // 语音模式：把本轮助手回复交给等待者；有等待者时不再发普通自动播报事件
-                        reply.completeWith(runCatching { collectAssistantReply(conversationId) })
-                    } else {
-                        _generationDoneFlow.emit(conversationId)
-                    }
-                } catch (e: Exception) {
-                    reply?.completeExceptionally(e)
-                    if (e is CancellationException) {
-                        // 协程取消：新消息打断/会话切换，不算失败
-                        AppLog.i(TAG, "msg-cancel conv=$conversationId") // 已在上方 previousJob 取消处记录，此处仅兜底
-                    } else {
-                        AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message}", e)
-                    }
-                    e.printStackTrace()
-                    // 修复：headless 会话（子代理/cron/工作流/外部自动化）的调用方靠「协程
-                    // 正常结束」判定成功——异常被吞 → SubAgentEngine.executeRun 的
-                    // first { it == null } 立即满足 → 误判 SUCCEEDED 空转。对 headless 且
-                    // 非取消的异常放行 rethrow，让调用方 catch 走 FAILED 路径；交互会话
-                    // 保持现状（addError 提示用户，不崩 UI）。
-                    // 注：sendMessageNow 的 conversationId 签名即非空 Uuid，无需 null 判据；
-                    // HeadlessConversations.isHeadless 查内存 ConcurrentHashMap 集合
-                    // （SharedPreferences 只在启动 init() 时读一次），catch 内调用无 I/O。
-                    if (e !is kotlinx.coroutines.CancellationException &&
-                        me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId)
-                    ) {
-                        throw e
-                    }
-                    // 来自队列的条目发送失败时放回队首（并暂停派发）：不丢消息，也不因反复重派而空转。
-                    // 取消（用户停止/新消息打断）不归队 —— 那是产品语义「跳过当前这条，队列继续」。
-                    if (e !is kotlinx.coroutines.CancellationException && requeueOnFailure != null) {
-                        messageQueues.getOrPut(conversationId) { MessageQueue() }
-                            .requeueFront(requeueOnFailure)
-                        AppLog.w(
-                            TAG,
-                            "msg-requeue conv=$conversationId reason=${e.message}",
-                        )
-                    }
-                    addError(e, conversationId, title = context.getString(R.string.error_title_send_message))
-                } finally {
-                    // 无论正常结束、取消还是失败，都尝试派发队首排队消息，
-                    // 否则«用户停止生成»会让队列永久卡住。
-                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
-                }
-            }
-        // A fresh main generation makes any in-flight title/suggestion request for this
-        // conversation redundant, and letting it keep running alongside the new request just
-        // adds a second concurrent connection to the same server (see AuxJobRegistry kdoc).
-        auxJobs.cancelAll(conversationId)
-        session.setJob(job)
-    }
-
-    /**
-     * Phase 16 — fast-path router entry. Returns `true` if the router successfully handled
-     * the turn (synthesised an assistant message and stored it) so the caller knows to skip
-     * the normal LLM dispatch. Returns `false` to fall through.
-     */
-    private suspend fun tryFastPathRoute(
-        conversationId: Uuid,
-        userParts: List<UIMessagePart>,
-        afterUserSave: me.rerere.rikkahub.data.model.Conversation,
-        assistant: Assistant,
-    ): Boolean {
-        // Headless paths (cron / sub-agent / external-automation / workflow) must always go
-        // through the LLM — the fast-path is a per-user-turn optimisation, not a system-flow.
-        if (me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                .isHeadless(conversationId)
-        ) {
-            return false
-        }
-
-        // assistant is resolved from the conversation's own assistantId by the caller — do NOT
-        // re-read the global getCurrentAssistant() here or a mid-turn assistant switch makes the
-        // router read fastPathRouterEnabled / localTools off the wrong assistant.
-        if (!assistant.fastPathRouterEnabled) return false
-
-        val userText = userParts.filterIsInstance<UIMessagePart.Text>().joinToString(" ") { it.text }.trim()
-        if (userText.isBlank()) return false
-
-        val match =
-            me.rerere.rikkahub.skills.FastPathRouter
-                .route(userText) ?: return false
-
-        // Tool list construction is non-trivial on assistants with many enabled categories
-        // (allocates a fresh List<Tool> each call). Defer until AFTER a router match so the
-        // common no-match path stays at a single regex scan + an early return.
-        // Fast-path is gated on !isHeadless above; pass the caller context so any tools the
-        // router fires inherit the right assistant id (workflows / sub-agents / etc).
-        val tools =
-            localTools.getTools(
-                assistant.localTools,
-                me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
-                    callerAssistantId = assistant.id.toString(),
-                    callerConversationId = conversationId.toString(),
-                    isHeadless = false, // gated above
-                ),
-            )
-        val tool =
-            tools.firstOrNull { it.name == match.toolName } ?: run {
-                AppLog.d(
-                    "FastPathRouter",
-                    "matched intent=${match.intent} but tool=${match.toolName} not registered for assistant; falling through",
-                )
-                return false
-            }
-
-        // Defence-in-depth — even though v1's intent set is read-only, run HARDLINE here so
-        // that adding a side-effecting intent later (e.g. "set brightness 50%") can't bypass
-        // the floor by routing around the LLM-tool-call path that normally enforces it.
-        val hardlineReason =
-            me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
-                .checkTool(match.toolName, match.args.toString())
-        if (hardlineReason != null) {
-            AppLog.w(
-                "FastPathRouter",
-                "hardline-blocked intent=${match.intent} tool=${match.toolName}: $hardlineReason; falling through to LLM",
-            )
-            return false
-        }
-
-        val rendered: String =
-            try {
-                val out = tool.execute(match.args)
-                val rawText = out.filterIsInstance<UIMessagePart.Text>().joinToString("\n") { it.text }
-                val parsed =
-                    runCatching {
-                        kotlinx.serialization.json.Json
-                            .parseToJsonElement(rawText)
-                            .jsonObject
-                    }.getOrNull()
-                val formatted =
-                    if (match.format != null && parsed != null) {
-                        runCatching { match.format.invoke(parsed) }
-                            .onFailure {
-                                AppLog.w(
-                                    "FastPathRouter",
-                                    "formatter for intent=${match.intent} threw; falling back to raw text",
-                                    it,
-                                )
-                            }.getOrNull()
-                    } else {
-                        null
-                    }
-                // Fall back to raw text if formatter throws or produces nothing.
-                formatted?.takeIf { it.isNotBlank() } ?: rawText
-            } catch (t: Throwable) {
-                AppLog.w("FastPathRouter", "tool ${match.toolName} threw, falling back to LLM", t)
-                me.rerere.rikkahub.skills.FastPathRouterLog.record(
-                    me.rerere.rikkahub.skills.FastPathRouterLog.Entry(
-                        whenMs = System.currentTimeMillis(),
-                        intent = match.intent,
-                        toolName = match.toolName,
-                        userText = userText.take(120),
-                        resultPreview = "tool threw: ${t.message?.take(80)}",
-                        skippedLlm = false,
-                    ),
-                )
-                return false
-            }
-
-        // Inject synthetic assistant message into the conversation.
-        val fastReply = UIMessage(
-            role = MessageRole.ASSISTANT,
-            parts = listOf(UIMessagePart.Text(rendered)),
-        )
-        val withAssistant =
-            afterUserSave.copy(
-                messageNodes =
-                    afterUserSave.messageNodes +
-                        fastReply.toMessageNode(),
-            )
-        getOrCreateSession(conversationId).recordFloatingReply(fastReply.id)
-        saveConversation(conversationId, withAssistant)
-        me.rerere.rikkahub.skills.FastPathRouterLog.record(
-            me.rerere.rikkahub.skills.FastPathRouterLog.Entry(
-                whenMs = System.currentTimeMillis(),
-                intent = match.intent,
-                toolName = match.toolName,
-                userText = userText.take(120),
-                resultPreview = rendered.take(200),
-                skippedLlm = true,
-            ),
-        )
-        return true
-    }
-
-    private fun preprocessUserInputParts(
-        parts: List<UIMessagePart>,
-        assistant: Assistant,
-    ): List<UIMessagePart> =
-        parts.map { part ->
-            when (part) {
-                is UIMessagePart.Text -> {
-                    part.copy(
-                        text =
-                            part.text.replaceRegexes(
-                                assistant = assistant,
-                                scope = AssistantAffectScope.USER,
-                                visual = false,
-                            ),
-                    )
-                }
-
-                else -> {
-                    part
-                }
-            }
-        }
-
-    // ---- 重新生成消息 ----
+    ) = sendMessageNowImpl(conversationId, content, answer, reply, requeueOnFailure)
 
     fun regenerateAtMessage(
         conversationId: Uuid,
         message: UIMessage,
         regenerateAssistantMsg: Boolean = true,
-    ) {
-        val session = getOrCreateSession(conversationId)
-        val previousJob = session.getJob()
-        previousJob?.cancel()
+    ) = regenerateAtMessageImpl(conversationId, message, regenerateAssistantMsg)
 
-        val job =
-            appScope.launch {
-                try {
-                    previousJob?.join()
-                    session.beginFloatingTurn()
-                    val conversation = session.state.value
-
-                    // Locate the message's node up front. indexOf returns -1 when the node is no
-                    // longer in the conversation (e.g. it was edited or removed between the tap and
-                    // here). Both branches index off this: the USER branch would subList(0, 0) and
-                    // silently wipe the conversation, and the regenerate branch builds `0..<-1`,
-                    // whose endInclusive is -2, which handleMessageComplete turns into
-                    // subList(0, -1) and crashes ("fromIndex(0) > toIndex(-1)"). Bail on not-found.
-                    val node = conversation.getMessageNodeByMessage(message)
-                    val indexAt = conversation.messageNodes.indexOf(node)
-                    if (indexAt < 0) {
-                        AppLog.w(
-                            TAG,
-                            "regenerateAtMessage: node for message ${message.id} not in conversation; skipping",
-                        )
-                        return@launch
-                    }
-                    if (message.role == MessageRole.USER) {
-                        // 如果是用户消息，则截止到当前消息
-                        val newConversation =
-                            conversation.copy(
-                                messageNodes = conversation.messageNodes.subList(0, indexAt + 1),
-                            )
-                        saveConversation(conversationId, newConversation)
-                        handleMessageComplete(conversationId)
-                    } else {
-                        if (regenerateAssistantMsg) {
-                            handleMessageComplete(conversationId, messageRange = 0..<indexAt)
-                        } else {
-                            saveConversation(conversationId, conversation)
-                        }
-                    }
-
-                    _generationDoneFlow.emit(conversationId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    addError(e, conversationId, title = context.getString(R.string.error_title_regenerate_message))
-                } finally {
-                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
-                }
-            }
-
-        // Same reasoning as sending: a regenerate is a fresh main generation, so drop any
-        // in-flight title/suggestion request for this conversation instead of racing it
-        // against the regenerate.
-        auxJobs.cancelAll(conversationId)
-        session.setJob(job)
-    }
-
-    // ---- 处理工具调用审批 ----
 
     /** Scope of an "approve" decision. Once = this single tool call only. ChatScope =
      *  every future call of the same tool name in this conversation (until /new). Always =
      *  every future call of this tool name across the whole app, persisted to disk. */
     enum class ApprovalScope { Once, ChatScope, Always }
-
-    fun handleToolApproval(
-        conversationId: Uuid,
-        toolCallId: String,
-        approved: Boolean,
-        reason: String = "",
-        answer: String? = null,
-        scope: ApprovalScope = ApprovalScope.Once,
-        toolName: String? = null,
-    ) {
-        val session = getOrCreateSession(conversationId)
-        val convMutex = mutexFor(conversationId)
-
-        // Snapshot the prior generation job BEFORE the appScope.launch below replaces it
-        // via setJob. session.setJob runs synchronously after launch returns; the launched
-        // body is dispatched and runs LATER (Dispatchers.Main posts to the looper). So
-        // calling session.getJob() inside the body would return THIS very job — and
-        // cancelAndJoin would self-cancel the resume coroutine: saveConversation's first
-        // suspend then throws CancellationException, the tool stays Pending, and the
-        // generation never resumes. The YOLO toggle masked this because auto-approval
-        // skips the Pending → handleToolApproval path entirely.
-        val priorGenerationJob = session.getJob()
-
-        // Commit the broader-scope grant on a NonCancellable scope BEFORE the cancellable
-        // mutation block. Previous design ran grantAlways() inside the cancellable
-        // appScope.launch — a rapid second tap would cancel the first job and silently
-        // drop the persisted Always-Allow grant; the user thinks they granted it, the next
-        // prompt reappears. NonCancellable + before-launch-completion guarantees the write.
-        if (approved && toolName != null && scope != ApprovalScope.Once) {
-            appScope.launch(NonCancellable) {
-                runCatching {
-                    // Smart-cast on the surrounding `if` excluded Once already, so only
-                    // ChatScope and Always remain — the when is exhaustive without else.
-                    when (scope) {
-                        ApprovalScope.ChatScope -> {
-                            me.rerere.rikkahub.data.ai.tools
-                                .ToolApprovalAllowList
-                                .grantForChat(conversationId, toolName)
-                        }
-
-                        ApprovalScope.Always -> {
-                            grantAlwaysScope(conversationId, toolName)
-                        }
-
-                        ApprovalScope.Once -> {
-                            Unit
-                        }
-                    }
-                }.onFailure { AppLog.w(TAG, "approval grant write failed", it) }
-            }
-        }
-
-        val job =
-            appScope.launch {
-                try {
-                    convMutex.withLock {
-                        // Hydrate from disk if the in-memory session is empty (post-restart
-                        // path). Without this, the snapshot read below sees an empty
-                        // Conversation and the saveConversation downstream OVERWRITES the
-                        // persisted Pending tool with empty content — silent data loss.
-                        ensureHydrated(conversationId)
-
-                        // Wait for any prior generation job to actually finish writing before
-                        // we read state. cancelAndJoin (vs bare cancel) closes the race where
-                        // the prior coroutine emits one last chunk into `messages` between
-                        // our cancel call and our state.value read. Use the SNAPSHOT taken
-                        // before launch — see the comment on priorGenerationJob above.
-                        priorGenerationJob?.let { prev ->
-                            // 接续语义：不取消前一个任务，只等它把当前状态写完，
-                            // 否则会打断上一个任务的审批写入（表现为「连续审批丢失」）。
-                            // 超时兜底：前一个任务若长期挂在等待用户输入，不阻塞本次审批。
-                            runCatching { withTimeoutOrNull(PREV_JOB_JOIN_TIMEOUT_MS) { prev.join() } }
-                        }
-
-                        val conversation = session.state.value
-                        val newApprovalState =
-                            when {
-                                answer != null -> ToolApprovalState.Answered(answer)
-                                approved -> ToolApprovalState.Approved
-                                else -> ToolApprovalState.Denied(reason)
-                            }
-
-                        // Update the tool approval state, but only on the SPECIFIC tool that
-                        // was approved AND only if it's still actually Pending. A racing
-                        // /stop or a concurrent decision could have already flipped it to
-                        // Denied(cancelled); we don't want to overwrite that with Approved.
-                        var foundActivePending = false
-                        // 交互式工具（如 ask_user）的结果是**用户的回答**：它不经过 Tool.execute，
-                        // 因此不在统一埋点（ChatToolFactory.trackUsage）的覆盖范围内。此处把工具名捞出来，
-                        // 回答落库后补记一次调用，否则统计会把用过的交互式工具列成「已启用但从未调用」。
-                        var answeredToolName: String? = null
-                        val updatedNodes =
-                            conversation.messageNodes.map { node ->
-                                node.copy(
-                                    messages =
-                                        node.messages.map { msg ->
-                                            msg.copy(
-                                                parts =
-                                                    msg.parts.map { part ->
-                                                        if (part is UIMessagePart.Tool &&
-                                                            part.toolCallId == toolCallId
-                                                        ) {
-                                                            if (part.isPending) {
-                                                                foundActivePending = true
-                                                                answeredToolName = part.toolName
-                                                                part.copy(approvalState = newApprovalState)
-                                                            } else {
-                                                                part
-                                                            }
-                                                        } else {
-                                                            part
-                                                        }
-                                                    },
-                                            )
-                                        },
-                                )
-                            }
-                        if (!foundActivePending) {
-                            // Tool was already resolved (concurrent stop / dual-surface tap /
-                            // restart that hydrated a non-pending state). No-op the mutation.
-                            return@withLock
-                        }
-                        val updatedConversation = conversation.copy(messageNodes = updatedNodes)
-                        saveConversation(conversationId, updatedConversation)
-
-                        // 交互式工具（如 ask_user）没有可执行体：它的结果就是用户的回答，因此不经过
-                        // Tool.execute、也就落在统一埋点之外。这里补记一次调用（无执行耗时），
-                        // 否则 usage 报告会把明明用过的交互式工具列成「已启用但从未调用」。
-                        val answeredName = answeredToolName
-                        if (answer != null && answeredName != null) {
-                            ToolUsageTracker.record(
-                                context = context,
-                                name = answeredName,
-                                durationMs = 0,
-                                failed = false,
-                            )
-                        }
-
-                        // Check if there are still pending tools across the conversation
-                        val hasPendingTools =
-                            updatedNodes.any { node ->
-                                node.currentMessage.parts.any { part ->
-                                    part is UIMessagePart.Tool && part.isPending
-                                }
-                            }
-
-                        // Only continue generation when all pending tools are handled. Run
-                        // OUTSIDE the mutex (handleMessageComplete is a long-running flow
-                        // collect; holding the mutex through generation would block every
-                        // subsequent state mutation for the whole turn).
-                        if (!hasPendingTools) {
-                            // Release the mutex via early-returning from the withLock block,
-                            // then start generation. We can't `return@withLock` and then call
-                            // handleMessageComplete in the same coroutine without losing the
-                            // try/catch, so use a flag.
-                        }
-                    }
-                    // Outside the mutex: kick off the resume generation if no tools remain pending.
-                    val pendingNow =
-                        session.state.value.messageNodes.any { node ->
-                            node.currentMessage.parts.any { part ->
-                                part is UIMessagePart.Tool && part.isPending
-                            }
-                        }
-                    if (!pendingNow) {
-                        handleMessageComplete(conversationId)
-                    }
-                    _generationDoneFlow.emit(conversationId)
-                } catch (e: CancellationException) {
-                    throw e
-                } catch (e: Exception) {
-                    addError(e, conversationId, title = context.getString(R.string.error_title_tool_approval))
-                } finally {
-                    dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])
-                }
-            }
-
-        session.setJob(job, cancelPrevious = false)
-    }
-
-    // ---- 处理消息补全 ----
-
-    private suspend fun handleMessageComplete(
-        conversationId: Uuid,
-        messageRange: ClosedRange<Int>? = null,
-    ) {
-        val settings = settingsStore.settingsFlow.first()
-        // Resolve the assistant from this conversation's own assistantId — the global
-        // current-assistant pointer can have moved if the user switched assistants while
-        // this generation was queued (multi-assistant crosstalk). Everything downstream
-        // (model, memories, tools, sender name) keys off this resolved assistant.
-        val initialConversation = getConversationFlow(conversationId).value
-        val assistant =
-            settings.getAssistantById(initialConversation.assistantId)
-                ?: settings.getCurrentAssistant()
-        // 会话级模型只有在助手允许时才生效（关掉 = 全部会话统一用助手/全局默认）
-        val conversationModelId =
-            initialConversation.chatModelId.takeIf { assistant.allowPerConversationModel }
-        val model =
-            settings.findModelById(
-                conversationModelId ?: assistant.chatModelId ?: settings.chatModelId,
-            )
-                ?: throw IllegalStateException(
-                    "No chat model selected. Pick one in Settings → Default models, or send /model in Telegram.",
-                )
-        // Defence against an upstream-Settings bug where disabling all providers can leave
-        // the assistant's chatModelId pointing at a model whose provider has enabled=false:
-        // the model lookup walks every provider regardless of state, so without this gate
-        // inference fires (and bills) against the "disabled" provider's API key. Surface
-        // the disabled state clearly instead of silently spending tokens.
-        val resolvedProvider = model.findProvider(settings.providers)
-        if (resolvedProvider == null) {
-            throw IllegalStateException(
-                "Selected model '${model.displayName.ifBlank { model.modelId }}' has no matching provider. " +
-                    "Pick a different model in Settings or with /model.",
-            )
-        }
-        if (!resolvedProvider.enabled) {
-            throw IllegalStateException(
-                "Provider '${resolvedProvider.name}' is disabled — refusing to send. " +
-                    "Re-enable it in Settings → Providers, or pick a different model with /model.",
-            )
-        }
-
-        val senderName =
-            if (assistant.useAssistantAvatar) {
-                assistant.name.ifEmpty { context.getString(R.string.assistant_page_default_assistant) }
-            } else {
-                model.displayName
-            }
-
-        // 重试成功后末次失败诊断（V2：生成成功时注入上下文，AI 可见）
-        var retryDiagnosis: FailureDiagnosis? = null
-        runCatching {
-            // reset suggestions
-            updateConversation(conversationId, initialConversation.copy(chatSuggestions = emptyList()))
-
-            // memory tool
-            if (!model.abilities.contains(ModelAbility.TOOL)) {
-                if (shouldUseExternalWebSearch(assistant.enableWebSearch, model) || mcpManager.getAllAvailableTools().isNotEmpty()) {
-                    addError(
-                        IllegalStateException(context.getString(R.string.tools_warning)),
-                        conversationId,
-                        title = context.getString(R.string.error_title_tool_unavailable),
-                    )
-                }
-            }
-
-            // check invalid messages
-            checkInvalidMessages(conversationId)
-            val conversation = getConversationFlow(conversationId).value
-
-            // 工具面装配集中在 ChatToolFactory（记忆/搜索/本地/工作区/技能/MCP），
-            // 顺序即对外暴露顺序，参与请求前缀字节。
-            val invocationCtx =
-                me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
-                    callerAssistantId = assistant.id.toString(),
-                    callerConversationId = conversationId.toString(),
-                    isHeadless =
-                        me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                            .isHeadless(conversationId),
-                    // show_image 依此决定回给模型的结果信封——纯文本模型会被告知看不到图片。
-                    modelCanSeeImages = Modality.IMAGE in model.inputModalities,
-                )
-            val tools = try {
-                chatToolFactory.createTools(
-                    settings = settings,
-                    assistant = assistant,
-                    model = model,
-                    invocationCtx = invocationCtx,
-                    workspaceCwd = conversation.workspaceCwd,
-                    // 会话级覆盖（子代理）：工作区 + 工具白名单
-                    workspaceIdOverride = conversation.workspaceIdOverride?.toString(),
-                    toolScopeOverride = conversation.toolScopeOverride,
-                    // 当前 UI 场景：装配时读一次，用于 WARM 档按场景动态调整
-                    // （UNKNOWN = 纯静态判定；场景切换下次装配时生效）
-                    uiScene = AppScene.current,
-                )
-            } catch (error: InvalidMcpServerNamesException) {
-                addError(
-                    error = IllegalStateException(
-                        context.getString(
-                            R.string.error_mcp_invalid_server_name,
-                            error.names.joinToString(", "),
-                        ),
-                    ),
-                    conversationId = conversationId,
-                )
-                return
-            }
-
-            // start generating
-            val session = getOrCreateSession(conversationId)
-            // 生成期间周期落盘的节流时间戳（见 STREAM_PERSIST_INTERVAL_MS）
-            var lastStreamPersistAtMs = 0L
-            // 流式界面提交的节流时间戳（见 STREAM_UI_INTERVAL_MS）
-            var lastUiCommitAtMs = 0L
-            // 进度通知的节流时间戳（见 STREAM_NOTIFICATION_INTERVAL_MS）
-            var lastNotificationAtMs = 0L
-            // 节流窗口内被跳过的最后一次快照：流结束时必须补一次提交，
-            // 否则尾部内容既不会进内存态也不会落盘（只有后续数据块才会覆盖它）。
-            var pendingUiConversation: Conversation? = null
-            // Capture the assistant emitted by this invocation; session state may already be reset
-            // if another turn starts before completion handling runs.
-            var floatingReplyMessageId: Uuid? = null
-            // 生成期间挂前台服务：界面隐藏后进程被系统冻结会丢实时连接，回复半截中断。
-            GenerationForegroundService.acquire(context, conversationId.toString())
-            generationLoop
-                .generateText(
-                    settings = settings,
-                    model = model,
-                    // 会话级步数上限（子代理的 max_trips）；普通会话为 null → 用全局默认。
-                    maxSteps =
-                        conversation.maxToolStepsOverride
-                            ?: me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits.maxToolSteps,
-                    processingStatus = session.processingStatus,
-                    onRetryDiagnosed = { retryDiagnosis = it },
-                    // Read once per call so the surface that wrote the addendum (Telegram bot,
-                    // anything else) gets its runtime context into the system prompt without
-                    // having to plumb a parameter all the way through sendMessage. Returns null
-                    // for in-app conversations that didn't register one.
-                    systemAddendum =
-                        me.rerere.rikkahub.data.ai.tools
-                            .ConversationSystemAddendum
-                            .get(conversationId),
-                    isToolAutoApproved = { toolName ->
-                        // YOLO mode ("I AM STUPID" toggle in Settings → Tool approvals): every
-                        // tool auto-approves. User opted into this explicitly. HARDLINE still
-                        // blocks rm -rf / et al — that check runs BEFORE auto-approval in
-                        // GenerationLoop, so YOLO can't smuggle one through.
-                        //
-                        // Headless conversations (cron-driven) also auto-approve EVERY tool;
-                        // the user pre-authorised the schedule itself at job-creation time
-                        // and there's no UI surface to prompt at fire time.
-                        //
-                        // Otherwise: "Allow for this chat" (in-memory, per-conversation) OR
-                        // "Always Allow" (DataStore-backed, across the whole app). The
-                        // Once-grant lives in the message itself as
-                        // ToolApprovalState.Approved, so it's already handled by the regular
-                        // Pending → Approved transition.
-                        //
-                        // ask_user is a human-input request, NOT a permission gate. It must pause
-                        // for the user whenever there's a surface to ask on (the in-app question card
-                        // or the Telegram clarify flow), so it ignores YOLO and the allow-lists —
-                        // otherwise it auto-executes its placeholder body and returns
-                        // ask_user_unavailable. In a headless run (cron / sub-agent) there's nobody to
-                        // answer, so it still auto-approves there and falls through to that graceful
-                        // envelope instead of hanging the turn.
-                        if (toolName == "ask_user") {
-                            me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                                .shouldAutoApprove(conversationId)
-                        } else {
-                            toolApprovalPreferences.currentYolo() ||
-                                me.rerere.rikkahub.data.ai.tools.HeadlessConversations
-                                    .shouldAutoApprove(conversationId) ||
-                                me.rerere.rikkahub.data.ai.tools.ToolApprovalAllowList
-                                    .isAllowedForChat(conversationId, toolName) ||
-                                (!isWorkspaceToolName(toolName) &&
-                                toolApprovalPreferences.current().contains(toolName))
-                        }
-                    },
-                    messages =
-                        conversation.currentMessages.let {
-                            if (messageRange != null) {
-                                it.subList(messageRange.start, messageRange.endInclusive + 1)
-                            } else {
-                                it
-                            }
-                        },
-                    assistant = assistant,
-                    conversationSystemPrompt = conversation.customSystemPrompt,
-                    conversationId = conversationId,
-                    conversationModeInjectionIds = conversation.modeInjectionIds,
-                    conversationLorebookIds = conversation.lorebookIds,
-                    workspaceCwd = conversation.workspaceCwd,
-                    memories =
-                        if (assistant.useGlobalMemory) {
-                            // 记忆分层：只注入 core 常驻；conditional 由 AI 用 memory_search 按需检索
-                            memoryRepository.getCoreMemoriesOfAssistant(me.rerere.rikkahub.data.repository.MemoryRepository.GLOBAL_MEMORY_ID)
-                        } else {
-                            memoryRepository.getCoreMemoriesOfAssistant(assistant.id.toString())
-                        },
-                    inputTransformers =
-                        buildList {
-                            addAll(inputTransformers)
-                            add(templateTransformer)
-                            add(workspaceReminderTransformer)
-                        },
-                    outputTransformers = outputTransformers,
-                    tools = tools,
-                ).onCompletion { cause ->
-                    // 取消 Live Update 通知
-                    notificationHelper.cancelLiveUpdateNotification(conversationId)
-                    GenerationForegroundService.release(context, conversationId.toString())
-
-                    // 节流兜底：把最后一次被节流跳过的快照补进内存态，
-                    // 否则尾部内容既不入内存也不落盘（见 STREAM_UI_INTERVAL_MS）。
-                    // 必须 NonCancellable：打断时协程已处于取消状态，普通 suspend 会立即抛出，
-                    // 这段会整段被跳过 —— 表现为「AI 回复的尾部/本条被丢弃」（用户消息不受影响，
-                    // 因为它在发送时就已落库）。
-                    withContext(NonCancellable) {
-                        pendingUiConversation?.let { latest ->
-                            pendingUiConversation = null
-                            updateConversation(conversationId, latest)
-                        }
-                    }
-
-                    // 可能被取消了，或者意外结束，兜底更新
-                    val updatedConversation =
-                        getConversationFlow(conversationId).value.copy(
-                            messageNodes =
-                                getConversationFlow(conversationId).value.messageNodes.map { node ->
-                                    node.copy(messages = node.messages.map { it.finishReasoning() })
-                                },
-                            updateAt = Instant.now(),
-                        )
-                    // 截断排查留痕：正常收尾的流会带终止原因；正常关闭却缺原因,
-                    // 多为模型端提前停止 / 断流被伪装成正常结束
-                    if (cause == null) {
-                        // 只判定本回合的最终 assistant 消息：历史消息可能本就没有 finishReason
-                        // （早期版本写入的数据），若把它们一并统计，每轮都会误报同样的数量，
-                        // 反而淹没真正的新截断信号。
-                        val lastAssistant =
-                            updatedConversation.messageNodes.lastOrNull()?.currentMessage
-                                ?.takeIf { it.role == MessageRole.ASSISTANT }
-                        if (lastAssistant != null &&
-                            lastAssistant.finishedAt != null &&
-                            lastAssistant.finishReason == null
-                        ) {
-                            AppLog.w(TAG, "turn ended without finishReason on the final assistant message (possible upstream abort/truncation)")
-                        }
-                    }
-                    updateConversation(conversationId, updatedConversation)
-
-                    // Show notification if app is not in foreground
-                    if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration) {
-                        val replyId = floatingReplyMessageId
-                        val reply =
-                            replyId?.let { wanted ->
-                                updatedConversation.messageNodes.asSequence()
-                                    .flatMap { it.messages.asSequence() }
-                                    .firstOrNull { it.id == wanted && it.role == MessageRole.ASSISTANT }
-                            }
-                        val phase = reply?.generationPhase() ?: me.rerere.rikkahub.data.model.GenerationPhase.Waiting
-                        when (
-                            me.rerere.rikkahub.data.model.completionNotification(
-                                completedNormally = cause == null,
-                                hasCurrentTurnReply = replyId != null && reply != null,
-                                phase = phase,
-                            )
-                        ) {
-                            me.rerere.rikkahub.data.model.CompletionNotification.COMPLETED ->
-                                notificationHelper.sendGenerationDoneNotification(conversationId, senderName, replyId!!)
-                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_APPROVAL ->
-                                notificationHelper.sendNeedsApprovalNotification(conversationId, senderName, replyId!!)
-                            me.rerere.rikkahub.data.model.CompletionNotification.NEEDS_ANSWER ->
-                                notificationHelper.sendNeedsAnswerNotification(conversationId, senderName, replyId!!)
-                            me.rerere.rikkahub.data.model.CompletionNotification.NONE -> Unit
-                        }
-                    } else if (isForeground.value) {
-                        // 用户正在前台查看该会话，无通知意义；清掉残留的旧通知
-                        notificationHelper.cancelLiveUpdateNotification(conversationId)
-                        notificationHelper.cancelDoneNotification(conversationId)
-                    }
-                }.collect { chunk ->
-                    when (chunk) {
-                        is GenerationChunk.UsageIncurred -> {
-                            // 会话累计用量：每次请求各计一次（口径同平台账单）
-                            runCatching {
-                                settingsStore.accumulateConvUsage(conversationId.toString(), chunk.usage)
-                            }
-                        }
-
-                        is GenerationChunk.Messages -> {
-                            // Bind the floating surface to the assistant message emitted by
-                            // this run. The conversation tail can belong to a different branch
-                            // when regenerating an older message.
-                            chunk.messages.lastOrNull { it.role == MessageRole.ASSISTANT }?.let {
-                                floatingReplyMessageId = it.id
-                                getOrCreateSession(conversationId).recordFloatingReply(it.id)
-                            }
-                            val currentConversation = getConversationFlow(conversationId).value
-                            val completedToolOutput = hasCompletedToolOutput(
-                                currentConversation.currentMessages,
-                                chunk.messages,
-                            )
-                            val updatedConversation = currentConversation.updateCurrentMessages(chunk.messages)
-                            // 界面提交节流（见 STREAM_UI_INTERVAL_MS）：落盘与通知逻辑不受影响。
-                            // 被跳过的快照记入 pending，流结束时兜底提交（见 onCompletion），
-                            // 避免最后一个数据块恰好落在窗口内时丢失尾部内容。
-                            pendingUiConversation = updatedConversation
-                            val nowUiMs = System.currentTimeMillis()
-                            if (shouldCommitStreamUiUpdate(
-                                    nowMs = nowUiMs,
-                                    lastCommitAtMs = lastUiCommitAtMs,
-                                    intervalMs = STREAM_UI_INTERVAL_MS,
-                                    completedToolOutput = completedToolOutput,
-                                )
-                            ) {
-                                lastUiCommitAtMs = nowUiMs
-                                pendingUiConversation = null
-                                updateConversation(conversationId, updatedConversation)
-                            }
-
-                            // Persist immediately when a tool transitions to "execution
-                            // started but no output yet" — this writes the executionStartedAt
-                            // breadcrumb to disk so a process kill mid-execute leaves a clear
-                            // signal for the next replay (see GenerationLoop.kt's replay
-                            // safety pass: executionStartedAt + empty → Denied
-                            // interrupted_unknown_outcome). Without this, the marker stays in
-                            // memory only and replay can't distinguish "freshly approved,
-                            // never tried" from "interrupted mid-execute" → silent re-run.
-                            val needsImmediatePersist =
-                                chunk.messages.lastOrNull()?.parts?.any { p ->
-                                    p is UIMessagePart.Tool &&
-                                        p.output.isEmpty() &&
-                                        (
-                                            // 执行刚开始（Approved/Auto + executionStartedAt）——落盘面包屑，
-                                            // 供进程被杀后的 replay 安全检查识别「中断的尝试」。Auto 与
-                                            // Approved 走同一套 mark-then-execute（见 isInterruptedAttempt），
-                                            // 漏了它，被杀的 Auto 工具在磁盘上只剩空 output，无从与「从未
-                                            // 开始」区分，replay 时会被静默重跑。
-                                            (
-                                                p.executionStartedAt != null &&
-                                                    (
-                                                        p.approvalState is ToolApprovalState.Approved ||
-                                                            p.approvalState is ToolApprovalState.Auto
-                                                        )
-                                            ) ||
-                                                // 刚转为「待审批」：这是必须立刻可见的状态迁移。
-                                                // 若被节流吞掉，UI 拿到的仍是 Auto → isPending=false →
-                                                // 审批按钮不渲染；而 Auto 又恰好满足 finishPendingTools 的
-                                                // 改写条件，于是用户一发消息就被标成「已拒绝」。
-                                                p.approvalState is ToolApprovalState.Pending
-                                            )
-                                } ?: false
-                            // 生成中的周期落盘：保住已被进程回收时丢失的中间内容。
-                            val nowMs = System.currentTimeMillis()
-                            val dueForPeriodicPersist =
-                                nowMs - lastStreamPersistAtMs >= STREAM_PERSIST_INTERVAL_MS
-                            if (needsImmediatePersist || dueForPeriodicPersist) {
-                                if (dueForPeriodicPersist) lastStreamPersistAtMs = nowMs
-                                saveConversation(conversationId, updatedConversation)
-                            }
-
-                            // 如果应用不在前台，发送 Live Update 通知
-                            if (!isForeground.value && settings.displaySetting.enableNotificationOnMessageGeneration &&
-                                settings.displaySetting.enableLiveUpdateNotification
-                            ) {
-                                val nowNotifyMs = System.currentTimeMillis()
-                                if (nowNotifyMs - lastNotificationAtMs >= STREAM_NOTIFICATION_INTERVAL_MS) {
-                                    lastNotificationAtMs = nowNotifyMs
-                                    notificationHelper.sendLiveUpdateNotification(conversationId, chunk.messages, senderName)
-                                }
-                            }
-                        }
-                    }
-                }
-        }.onFailure {
-            // 生成异常（用户主动取消除外，那条路径在 stopGeneration 里已经暂停过）：暂停队列，
-            // 避免在用户没有预期的情况下继续把排队消息发出去。
-            if (it !is kotlinx.coroutines.CancellationException) {
-                messageQueues[conversationId]?.pause()
-            }
-            // 取消 Live Update 通知
-            notificationHelper.cancelLiveUpdateNotification(conversationId)
-            // 失败也不留完成通知
-            notificationHelper.cancelDoneNotification(conversationId)
-
-            // Persist the in-memory snapshot so the Auto/Pending → Denied transitions
-            // GenerationLoop did inside its try/catch (the "generation_failed" recovery
-            // path) survive a process restart. Without this, the failure path only
-            // updates memory and the persisted DB row keeps the stale Pending state
-            // forever — replay would re-run the loop against unrecoverable shape.
-            // 修复：取消传播会令 onFailure 里的 suspend（saveConversation/addError）立即
-            // 抛 JobCancellationException → 停止生成/自动任务取消时消息状态丢失。
-            // 用 NonCancellable 保证取消时仍完成落盘。
-            kotlinx.coroutines.withContext(kotlinx.coroutines.NonCancellable) {
-                runCatching {
-                    val final = getConversationFlow(conversationId).value
-                    // 错误诊断注入：最终失败（重试耗尽/非重试错误）持久化为一条 system 消息，
-                    // 进入对话上下文——AI 下一轮可读到并自然回应；用户侧可见（灰字 system 样式）。
-                    // 用户主动取消（CancellationException）不算失败，不注入。
-                    if (it !is kotlinx.coroutines.CancellationException) {
-                        val diag = diagnoseFailure(context, it)
-                        val errText =
-                            context.getString(
-                                me.rerere.rikkahub.R.string.error_context_injected,
-                                diag.label,
-                                diag.raw,
-                            )
-                        val withErr =
-                            final.copy(
-                                messageNodes =
-                                    final.messageNodes +
-                                        UIMessage.system(errText).toMessageNode()
-                            )
-                        updateConversation(conversationId, withErr)
-                        saveConversation(conversationId, withErr)
-                    } else {
-                        saveConversation(conversationId, final)
-                    }
-                }.onFailure { saveErr ->
-                    AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
-                }
-
-                it.printStackTrace()
-                addError(it, conversationId, title = context.getString(R.string.error_title_generation))
-                Logging.log(TAG, "handleMessageComplete: $it")
-                Logging.log(TAG, it.stackTraceToString())
-            }
-        }.onSuccess {
-            // V2：重试成功后末次失败注入（AI 可见）——模型知道生成曾失败并恢复
-            val lastFailure = retryDiagnosis
-            if (lastFailure != null) {
-                val retryText =
-                    context.getString(
-                        me.rerere.rikkahub.R.string.error_context_retry_succeeded,
-                        lastFailure.label,
-                        lastFailure.raw,
-                    )
-                val withRetry =
-                    getConversationFlow(conversationId).value.copy(
-                        messageNodes =
-                            getConversationFlow(conversationId).value.messageNodes +
-                                UIMessage.system(retryText).toMessageNode()
-                    )
-                updateConversation(conversationId, withRetry)
-                saveConversation(conversationId, withRetry)
-            }
-            val finalConversation = getConversationFlow(conversationId).value
-            saveConversation(conversationId, finalConversation)
-
-            launchAuxJob(conversationId, AuxJobKind.TITLE) {
-                generateTitle(conversationId, finalConversation)
-            }
-            launchAuxJob(conversationId, AuxJobKind.SUGGESTION) {
-                generateSuggestion(conversationId, finalConversation)
-            }
-        }
-    }
-
-    /** Always 范围授权：workspace 工具（workspace_ 前缀）不得进入全局 always-allow 集，
-     *  改走 per-workspace 覆盖；无 workspace 可解析时回退为会话级授权，绝不落全局集。 */
-    private suspend fun grantAlwaysScope(conversationId: Uuid, toolName: String) {
-        if (isWorkspaceToolName(toolName)) {
-            val conversation = conversationRepo.getConversationById(conversationId)
-            val assistant =
-                conversation?.let {
-                    settingsStore.settingsFlow.first().getAssistantById(it.assistantId)
-                }
-            val workspaceId = assistant?.workspaceId?.toString()
-            val granted =
-                workspaceId != null &&
-                    workspaceRepository.setToolApproval(workspaceId, toolName, needsApproval = false)
-            if (!granted) {
-                // 工作区行缺失（删除/授权竞争）或无法解析——回退会话级授权，避免 Always 点击静默失效
-                if (workspaceId != null) {
-                    AppLog.w(
-                        TAG,
-                        "setToolApproval found no workspace row for '$workspaceId', falling back to chat-scoped grant for '$toolName'",
-                    )
-                }
-                me.rerere.rikkahub.data.ai.tools
-                    .ToolApprovalAllowList.grantForChat(conversationId, toolName)
-            }
-        } else {
-            toolApprovalPreferences.grantAlways(toolName)
-        }
-    }
-
-
-    // ---- 检查无效消息 ----
-
-    private fun checkInvalidMessages(conversationId: Uuid) {
-        val conversation = getConversationFlow(conversationId).value
-        var messagesNodes = conversation.messageNodes
-        // 诊断用：记录本轮被定案为「未执行(中断)」的消息。正常轮次为空 → 不产生日志。
-        val abandonedMessageIds = mutableListOf<Uuid>()
-
-        // 生成开始前把「悬而未决的工具」定案（未执行的 Tool）。
-        messagesNodes =
-            messagesNodes.mapIndexed { _, node ->
-                // Check for Tool type with non-executed tools
-                val hasPendingTools = node.currentMessage.getTools().any { !it.isExecuted }
-                if (!hasPendingTools) {
-                    return@mapIndexed node
-                }
-
-                // Keep messages that are ready to resume, such as approved/denied/answered tools.
-                val hasResumableTool =
-                    node.currentMessage.getTools().any {
-                        !it.isExecuted && it.approvalState.canResumeToolExecution()
-                    }
-                if (hasResumableTool) {
-                    return@mapIndexed node
-                }
-
-                // 到这里只剩「未执行且不可续跑」的工具：Pending（等审批却没被处理）或 Auto
-                // （自动批准后在执行前被打断）。**不再整条删除该消息**——那会连带丢掉本轮已生成的
-                // AI 文本与工具调用记录，表现为「用户两条消息之间的 AI 回复凭空消失」，且模型从此
-                // 不知道发生过什么（可能重复执行同一副作用）。改为补一个合成的结果后保留消息，
-                // 使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
-                //
-                // 理由按「执行是否开始过」分叉：executionStartedAt 有值 = 派发过、副作用可能
-                // 已发生（shell 跑完才被杀、结果落库前进程被回收），只能告知「状态未知、先核实」；
-                // 只有从未开始的才告知「未执行」。混用会让模型重跑同一条 shell/git 命令，形成
-                // 重复提交/重复发送。本通道先于 GenerationLoop 的 replay 安全通道执行，若不在此
-                // 分叉，replay 的 interrupted_unknown_outcome 永远轮不到（它要求 output 为空，
-                // 而此处已合成 output）。
-                val abandoned =
-                    node.currentMessage.abandonUnexecutedTools(
-                        "interrupted_before_execution: " +
-                            context.getString(R.string.chat_tool_interrupted_before_execution_detail),
-                        INTERRUPTED_UNKNOWN_OUTCOME_REASON,
-                    )
-                if (abandoned !== node.currentMessage) {
-                    abandonedMessageIds += abandoned.id
-                }
-                node.copy(
-                    messages = node.messages.map { if (it.id == abandoned.id) abandoned else it },
-                )
-            }
-
-        // 更新index
-        messagesNodes =
-            messagesNodes.map { node ->
-                if (node.messages.isNotEmpty() && node.selectIndex !in node.messages.indices) {
-                    node.copy(selectIndex = 0)
-                } else {
-                    node
-                }
-            }
-
-        // 移除无效消息（兜底：正常路径已不会因中断清空 node；一旦触发即为异常丢消息，需留痕）
-        val nodeCountBeforeDrop = messagesNodes.size
-        messagesNodes = messagesNodes.filter { it.messages.isNotEmpty() }
-        if (messagesNodes.size != nodeCountBeforeDrop) {
-            AppLog.w(
-                TAG,
-                "checkInvalidMessages: dropped ${nodeCountBeforeDrop - messagesNodes.size} empty message node(s)",
-            )
-        }
-
-        if (abandonedMessageIds.isNotEmpty()) {
-            AppLog.i(
-                TAG,
-                "checkInvalidMessages: kept ${abandonedMessageIds.size} message(s) with unexecuted tools, " +
-                    "marked as interrupted/denied: $abandonedMessageIds",
-            )
-        }
-
-        updateConversation(conversationId, conversation.copy(messageNodes = messagesNodes))
-    }
-
-    private fun cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePart.Tool =
-        tool.copy(
-            output =
-                ToolErrors.partsFor(
-                    error = "user_cancelled",
-                    message = "Generation cancelled by user before tool execution completed.",
-                ),
-            approvalState = ToolApprovalState.Denied("Generation cancelled by user"),
-        )
-
-    private suspend fun finishInterruptedPendingTools(conversationId: Uuid) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val lastNode = currentConversation.messageNodes.lastOrNull() ?: return
-        val lastMessage = lastNode.currentMessage
-        val updatedMessage = lastMessage.finishPendingTools(::cancelToolByUser)
-        if (updatedMessage == lastMessage) {
-            return
-        }
-
-        val updatedConversation =
-            currentConversation.copy(
-                messageNodes =
-                    currentConversation.messageNodes.dropLast(1) +
-                        lastNode.copy(
-                            messages =
-                                lastNode.messages.map { message ->
-                                    if (message.id == lastMessage.id) updatedMessage else message
-                                },
-                        ),
-            )
-        saveConversation(conversationId, updatedConversation)
-    }
-
-    // ---- 生成标题 ----
-
-    suspend fun generateTitle(
-        conversationId: Uuid,
-        conversation: Conversation,
-        force: Boolean = false,
-    ) {
-        val shouldGenerate =
-            when {
-                force -> true
-                conversation.title.isBlank() -> true
-                else -> false
-            }
-        if (!shouldGenerate) return
-
-        val fallback = titleFallbackFrom(conversation.currentMessages)
-
-        suspend fun applyTitle(title: String?) {
-            if (title.isNullOrBlank()) return
-            // 生成完，conversation可能不是最新了，因此需要重新获取
-            conversationRepo.getConversationById(conversation.id)?.let {
-                if (shouldWriteTitle(force, it.title)) {
-                    saveConversation(conversationId, it.copy(title = title))
-                }
-            }
-        }
-
-
-        try {
-            val settings = settingsStore.settingsFlow.first()
-            // Manual regeneration (force=true) remains available when automation is disabled.
-            if (!force && !settings.autoGenerateTitle) return
-            val model = settings.findModelById(settings.titleModelId, fallback = settings.fastModelId)
-                ?: error("title model is not configured")
-            val provider = model.findProvider(settings.providers)
-                ?: error("title model provider is missing")
-            // Same defence as handleLlmTurn: don't burn tokens on a disabled provider.
-            if (!provider.enabled) error("title model provider is disabled")
-
-            val providerHandler = providerManager.getProviderByType(provider)
-            val result =
-                providerHandler.generateText(
-                    providerSetting = provider,
-                    messages =
-                        listOf(
-                            UIMessage.user(
-                                prompt =
-                                    settings.titlePrompt.applyPlaceholders(
-                                        "locale" to Locale.getDefault().displayName,
-                                        "content" to
-                                            conversation.currentMessages
-                                                .takeLast(4)
-                                                .joinToString("\n\n") { it.summaryAsText(maxLength = 500) },
-                                    ),
-                            ),
-                        ),
-                    params = backgroundTextGenerationParams(model, conversationId),
-                )
-
-            applyTitle(result.message.toText().trim().ifBlank { fallback })
-        } catch (failure: CancellationException) {
-            throw failure
-        } catch (failure: Throwable) {
-            // Keep diagnostics useful without logging/displaying provider response bodies or credentials.
-            AppLog.w(TAG, "generateTitle failed (${failure.javaClass.simpleName})")
-            try {
-                applyTitle(fallback)
-            } catch (fallbackFailure: CancellationException) {
-                throw fallbackFailure
-            } catch (fallbackFailure: Throwable) {
-                AppLog.w(TAG, "generateTitle fallback apply failed (${fallbackFailure.javaClass.simpleName})")
-            }
-            val now = System.currentTimeMillis()
-            val shouldReport = synchronized(titleFailureLock) {
-                val previous = titleFailureReportedAtMs[conversationId]
-                if (previous == null || now - previous >= 60_000L) {
-                    titleFailureReportedAtMs[conversationId] = now
-                    true
-                } else {
-                    false
-                }
-            }
-            if (shouldReport) {
-                addError(
-                    error = IllegalStateException(context.getString(R.string.chat_title_generation_failed)),
-                    conversationId = conversationId,
-                    title = context.getString(R.string.chat_title_generation_failed_title),
-                    solution = ChatErrorSolution.CheckTitleModelSettings,
-                )
-            }
-        }
-    }
-
-    // ---- 生成建议 ----
-
-    suspend fun generateSuggestion(
-        conversationId: Uuid,
-        conversation: Conversation,
-    ) {
-        runCatching {
-            val settings = settingsStore.settingsFlow.first()
-            if (!settings.enableSuggestion) return
-            val model = settings.findModelById(settings.suggestionModelId, fallback = settings.fastModelId) ?: return
-            val provider = model.findProvider(settings.providers) ?: return
-            // Same defence as handleLlmTurn: don't burn tokens on a disabled provider.
-            if (!provider.enabled) return
-
-            sessions[conversationId]?.let { session ->
-                updateConversation(
-                    conversationId,
-                    session.state.value.copy(chatSuggestions = emptyList()),
-                )
-            }
-
-            val providerHandler = providerManager.getProviderByType(provider)
-            val result =
-                providerHandler.generateText(
-                    providerSetting = provider,
-                    messages =
-                        listOf(
-                            UIMessage.user(
-                                settings.suggestionPrompt.applyPlaceholders(
-                                    "locale" to Locale.getDefault().displayName,
-                                    "content" to
-                                        conversation.currentMessages
-                                            .takeLast(8)
-                                            .joinToString("\n\n") { it.summaryAsText(maxLength = 500) },
-                                ),
-                            ),
-                        ),
-                    params = backgroundTextGenerationParams(model, conversationId),
-                )
-            val suggestions =
-                result.message.toText().split("\n")
-                    ?.map { it.trim() }
-                    ?.filter { it.isNotBlank() } ?: emptyList()
-
-            val latestConversation =
-                conversationRepo.getConversationById(conversationId)
-                    ?: sessions[conversationId]?.state?.value
-                    ?: conversation
-            saveConversation(
-                conversationId,
-                latestConversation.copy(
-                    chatSuggestions =
-                        suggestions.take(
-                            10,
-                        ),
-                ),
-            )
-        }.onFailure {
-            // Suggestion generation is auxiliary — log only, don't push onto the
-            // user-facing error stream (mirrors the generateTitle failure handling).
-            AppLog.w(TAG, "generateSuggestion failed", it)
-        }
-    }
-
-    // ---- 压缩对话历史 ----
-
-    /**
-     * 压缩区段含「仍在等用户审批」的工具调用时阻止 —— 那种调用被折进摘要后审批将无法恢复
-     * （用户点了批准也没对象可执行）。
-     *
-     * ⚠ 判据是 [UIMessagePart.Tool.isPending]（**只算 Pending**），**不是** output 是否为空：
-     * 历史遗留的空 output（被拒后未回填 / 生成中断 / 用户取消）已不可能再执行，
-     * 压缩掉无妨；用 output.isEmpty() 会把这些陈旧条目误判为待处理，从而一直挡住压缩。
-     */
-    private fun requireNoPendingToolCalls(messages: List<UIMessage>) {
-        val hasPendingToolCall =
-            messages.any { msg ->
-                msg.parts.any { part -> part is UIMessagePart.Tool && part.isPending }
-            }
-        if (hasPendingToolCall) {
-            throw IllegalStateException(
-                context.getString(R.string.chat_page_compress_pending_tools),
-            )
-        }
-    }
-
-    /**
-     * 压缩是长任务：写回前确认会话没被改动（判据 = 条数 + 首尾 id），
-     * 避免用旧快照把压缩期间产生的新内容盖掉。
-     */
-    private suspend fun requireConversationUnchanged(conversationId: Uuid, snapshot: List<UIMessage>) {
-        val latest = conversationRepo.getConversationById(conversationId)?.currentMessages ?: return
-        if (latest.size != snapshot.size ||
-            latest.firstOrNull()?.id != snapshot.firstOrNull()?.id ||
-            latest.lastOrNull()?.id != snapshot.lastOrNull()?.id
-        ) {
-            throw IllegalStateException(
-                context.getString(R.string.chat_page_compress_conversation_changed),
-            )
-        }
-    }
-
-
-    suspend fun compressConversation(
-        conversationId: Uuid,
-        conversation: Conversation,
-        additionalPrompt: String,
-        targetTokens: Int,
-        keepRecentMessages: Int = 32,
-    ): Result<Unit> =
-        runCatching {
-            val settings = settingsStore.settingsFlow.first()
-            // 「Auto」压缩模型是内置 provider 下的占位项，而该 provider 默认禁用：
-            // 直接解析它会在「provider 被禁用」处失败，看起来像"点了压缩没反应"。
-            // 这里跳过占位与被禁用的 provider，依次回退到当前聊天模型、再到任意启用 provider 的模型。
-            val model =
-                resolveCompressionModel(settings)
-                    ?: throw IllegalStateException(
-                        context.getString(R.string.chat_page_compress_model_unavailable),
-                    )
-            val provider =
-                model.findProvider(settings.providers)
-                    ?: throw IllegalStateException("Provider not found")
-
-            val providerHandler = providerManager.getProviderByType(provider)
-
-            val maxMessagesPerChunk = 256
-            val allMessages = conversation.currentMessages
-            AppLog.d(TAG, "压缩开始: total=${allMessages.size} targetTokens=$targetTokens keepRecent=$keepRecentMessages model=${model.id}")
-
-            // Split messages into those to compress and those to keep
-            val messagesToCompress: List<UIMessage>
-            val messagesToKeep: List<UIMessage>
-
-            if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages) {
-                messagesToCompress = allMessages.dropLast(keepRecentMessages)
-                messagesToKeep = allMessages.takeLast(keepRecentMessages)
-            } else if (keepRecentMessages > 0) {
-                // Not enough messages to compress while keeping recent ones
-                throw IllegalStateException(context.getString(R.string.chat_page_compress_not_enough_messages))
-            } else {
-                messagesToCompress = allMessages
-                messagesToKeep = emptyList()
-            }
-
-            requireNoPendingToolCalls(messagesToCompress)
-
-            // T11: 按 token 预算分块（复用 ContextBudgetPlanner.estimateMessageTokens），
-            // 大工具输出块不再因固定 256 消息/块超压缩模型窗口
-            fun splitMessages(messages: List<UIMessage>): List<List<UIMessage>> {
-                if (messages.size <= maxMessagesPerChunk) return listOf(messages)
-                val targetBlockTokens = 6000L
-                val chunks = mutableListOf<List<UIMessage>>()
-                var current = mutableListOf<UIMessage>()
-                var currentTokens = 0L
-                for (msg in messages) {
-                    val msgTokens = me.rerere.rikkahub.data.ai.ContextBudgetPlanner.estimateMessageTokens(
-                        message = msg,
-                        documentInlineCapChars = settings.displaySetting.attachmentInlineThreshold,
-                    )
-                    if (current.isNotEmpty() && currentTokens + msgTokens > targetBlockTokens) {
-                        chunks.add(current)
-                        current = mutableListOf()
-                        currentTokens = 0L
-                    }
-                    current.add(msg)
-                    currentTokens += msgTokens
-                }
-                if (current.isNotEmpty()) chunks.add(current)
-                return chunks
-            }
-
-            suspend fun compressMessages(messages: List<UIMessage>): String {
-                val contentToCompress =
-                    messages.joinToString("\n\n") { it.summaryAsText(maxLength = 2000) } +
-                        ToolHistoryHelper.toolHistoryBlock(messages)
-                val prompt =
-                    settings.compressPrompt.applyPlaceholders(
-                        "content" to contentToCompress,
-                        "target_tokens" to targetTokens.toString(),
-                        "additional_context" to
-                            if (additionalPrompt.isNotBlank()) {
-                                "Additional instructions from user: $additionalPrompt"
-                            } else {
-                                ""
-                            },
-                        "locale" to Locale.getDefault().displayName,
-                    )
-
-                val result =
-                    providerHandler.generateText(
-                        providerSetting = provider,
-                        messages = listOf(UIMessage.user(prompt)),
-                        params = backgroundTextGenerationParams(model, conversationId),
-                    )
-
-                return result.message.toText()
-                    ?.trim()
-                    ?.takeIf { it.isNotBlank() }
-                    ?: throw IllegalStateException("Failed to generate compressed summary")
-            }
-
-            val chunks = splitMessages(messagesToCompress)
-            AppLog.d(TAG, "压缩分块: messagesToCompress=${messagesToCompress.size} 块数=${chunks.size}（token 预算 6000/块）")
-            val compressedSummaries =
-                coroutineScope {
-                    chunks
-                        .map { chunk -> async { compressMessages(chunk) } }
-                        .awaitAll()
-                }
-            AppLog.d(TAG, "压缩完成: 摘要数=${compressedSummaries.size} 保留=${messagesToKeep.size}")
-
-            // Create new conversation with compressed history as multiple user messages + kept messages
-            // 摘要标记为上下文检查点，UI 渲染为分隔线样式
-            val newMessageNodes =
-                buildList {
-                    compressedSummaries.forEach { summary ->
-                        add(UIMessage.user(summary).copy(isContextCheckpoint = true).toMessageNode())
-                    }
-                    val compactTools =
-                        settings.getAssistantById(conversation.assistantId)?.toolOutputCompactTools.orEmpty()
-                    addAll(
-                        messagesToKeep.map {
-                            ToolHistoryHelper.truncateKeptToolOutput(
-                                it,
-                                settings.toolOutputMaxChars,
-                                compactTools,
-                                settings.toolOutputCompactMaxChars,
-                            ).toMessageNode()
-                        },
-                    )
-                }
-            val newConversation =
-                conversation.copy(
-                    messageNodes = newMessageNodes,
-                    chatSuggestions = emptyList(),
-                )
-
-            // T10: 压缩前归档原始消息（可追溯；UI 回看后续可选）
-            runCatching {
-                val archiveJson =
-                    kotlinx.serialization.json.Json.encodeToString(
-                        kotlinx.serialization.builtins.ListSerializer(UIMessage.serializer()),
-                        messagesToCompress,
-                    )
-                compressedArchiveDao.insert(
-                    me.rerere.rikkahub.data.db.entity.CompressedArchiveEntity(
-                        conversationId = conversationId.toString(),
-                        compressedAtMs = System.currentTimeMillis(),
-                        archiveJson = archiveJson,
-                    )
-                )
-                AppLog.d(TAG, "压缩归档成功: json=${archiveJson.length} chars")
-            }.onFailure { e ->
-                AppLog.w(TAG, "归档压缩历史失败: ${e.message}")
-            }
-
-            requireConversationUnchanged(conversationId, allMessages)
-
-            saveConversation(conversationId, newConversation)
-        }
 
     /**
      * T12 / B5: 保留区消息里工具**输出**与**入参**超过 toolOutputMaxChars 时截断为预览。
@@ -2352,7 +757,7 @@ class ChatService(
      */
     // ---- 对话状态更新 ----
 
-    private fun updateConversation(
+    internal fun updateConversation(
         conversationId: Uuid,
         conversation: Conversation,
     ) {
@@ -2421,481 +826,11 @@ class ChatService(
         folderRepository.deleteFolder(folderId)
     }
 
-    private fun checkFilesDelete(
-        newConversation: Conversation,
-        oldConversation: Conversation,
-    ) {
-        // 仍在队列里、还没写进历史的附件同样算「在用」，否则保存会话时会连带把它们的本地
-        // 文件删掉（等消息真正发出时附件已经找不到了）。
-        val queuedFiles =
-            messageQueues[newConversation.id]?.state?.value?.messages.orEmpty()
-                .flatMap { it.parts.localFileUrls() }
-                .map { it.toUri() }
-        val newFiles = newConversation.files + queuedFiles
-        val oldFiles = oldConversation.files
-        val deletedFiles =
-            oldFiles.filter { file ->
-                newFiles.none { it == file }
-            }
-        if (deletedFiles.isNotEmpty()) {
-            filesManager.deleteChatFiles(deletedFiles)
-            AppLog.w(TAG, "checkFilesDelete: $deletedFiles")
-        }
-    }
-
-    /**
-     * 把会话写入数据库。
-     *
-     * @param syncMemory 是否把这份快照同步回内存 flow。默认真——正常写入必须保证内存与磁盘一致；
-     *   会话回收路径（[persistSnapshotBeforeEvict]）必须传 false：那时会话刚被移出 map，
-     *   同步会经 `getOrCreateSession` 把它**重建**回来（并再次触发 idle 回收）。
-     */
     suspend fun saveConversation(
         conversationId: Uuid,
         conversation: Conversation,
         syncMemory: Boolean = true,
-    ) {
-        val exists = conversationRepo.existsConversationById(conversation.id)
-        // 内存先行：新空会话不落库，但内存态必须更新（如会话级模型切换），否则切换被静默丢弃
-        if (syncMemory) updateConversation(conversationId, conversation.copy())
-        if (!exists && conversation.title.isBlank() && conversation.messageNodes.isEmpty()) {
-            return // 新会话且为空时不落库（内存已更新）
-        }
-        // 落库埋点：消息数与最后一条的 role/部件数 —— 排查丢消息时可直接对齐「内存有什么 / 写了什么」。
-        AppLog.d(
-            TAG,
-            "save conv=$conversationId nodes=${conversation.messageNodes.size} last=" +
-                (conversation.messageNodes.lastOrNull()?.currentMessage?.let { "${it.role}/${it.parts.size}" } ?: "none"),
-        )
-        // Refuse to overwrite a non-empty stored row with an empty in-memory snapshot.
-        // This is the silent-data-loss guard: handleToolApproval / stopGeneration / etc.
-        // could be called against an unhydrated session (post-restart), build an empty
-        // updatedConversation, and call saveConversation. Without this guard we'd wipe
-        // the Pending tool the user was trying to approve.
-        if (exists && conversation.messageNodes.isEmpty()) {
-            val storedHasContent =
-                runCatching {
-                    conversationRepo.getConversationById(conversation.id)?.messageNodes?.isNotEmpty() == true
-                }.getOrDefault(false)
-            if (storedHasContent) {
-                AppLog.w(
-                    TAG,
-                    "saveConversation: refusing to overwrite non-empty $conversationId with empty snapshot — likely an unhydrated session",
-                )
-                return
-            }
-        }
+    ) = saveConversationImpl(conversationId, conversation, syncMemory)
 
-        val updatedConversation = conversation.copy()
-
-        if (!exists) {
-            conversationRepo.insertConversation(updatedConversation)
-        } else {
-            conversationRepo.updateConversation(updatedConversation)
-        }
-    }
-
-    // ---- 翻译消息 ----
-
-    fun translateMessage(
-        conversationId: Uuid,
-        message: UIMessage,
-        targetLanguage: Locale,
-    ) {
-        appScope.launch(Dispatchers.IO) {
-            try {
-                val settings = settingsStore.settingsFlow.first()
-
-                val messageText =
-                    message.parts
-                        .filterIsInstance<UIMessagePart.Text>()
-                        .joinToString("\n\n") { it.text }
-                        .trim()
-
-                if (messageText.isBlank()) return@launch
-
-                // Set loading state for translation
-                val loadingText = context.getString(R.string.translating)
-                updateTranslationField(conversationId, message.id, loadingText)
-
-                generationLoop
-                    .translateText(
-                        settings = settings,
-                        sourceText = messageText,
-                        targetLanguage = targetLanguage,
-                    ) { translatedText ->
-                        // Update translation field in real-time
-                        updateTranslationField(conversationId, message.id, translatedText)
-                    }.collect { /* Final translation already handled in onStreamUpdate */ }
-
-                // Save the conversation after translation is complete
-                saveConversation(conversationId, getConversationFlow(conversationId).value)
-            } catch (e: CancellationException) {
-                throw e
-            } catch (e: Exception) {
-                // Clear translation field on error
-                clearTranslationField(conversationId, message.id)
-                addError(e, conversationId, title = context.getString(R.string.error_title_translate_message))
-            }
-        }
-    }
-
-    private fun updateTranslationField(
-        conversationId: Uuid,
-        messageId: Uuid,
-        translationText: String,
-    ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val updatedNodes =
-            currentConversation.messageNodes.map { node ->
-                if (node.messages.any { it.id == messageId }) {
-                    val updatedMessages =
-                        node.messages.map { msg ->
-                            if (msg.id == messageId) {
-                                msg.copy(translation = translationText)
-                            } else {
-                                msg
-                            }
-                        }
-                    node.copy(messages = updatedMessages)
-                } else {
-                    node
-                }
-            }
-
-        updateConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-    }
-
-    // ---- 消息操作 ----
-
-    suspend fun editMessage(
-        conversationId: Uuid,
-        messageId: Uuid,
-        parts: List<UIMessagePart>,
-    ) {
-        if (parts.isEmptyInputMessage()) return
-
-        val currentConversation = getConversationFlow(conversationId).value
-        val settings = settingsStore.settingsFlow.first()
-        val assistant =
-            settings.getAssistantById(currentConversation.assistantId)
-                ?: settings.getCurrentAssistant()
-        val processedParts = preprocessUserInputParts(parts, assistant)
-        var edited = false
-
-        val updatedNodes =
-            currentConversation.messageNodes.map { node ->
-                if (!node.messages.any { it.id == messageId }) {
-                    return@map node
-                }
-                edited = true
-
-                if (node.messages.first { it.id == messageId }.isContextCheckpoint) {
-                    // 摘要原地改写：新建分支会丢掉检查点标记
-                    return@map node.copy(
-                        messages = node.messages.map { message ->
-                            if (message.id == messageId) message.copy(parts = processedParts) else message
-                        }
-                    )
-                }
-
-                node.copy(
-                    messages =
-                        node.messages +
-                            UIMessage(
-                                role = node.role,
-                                parts = processedParts,
-                            ),
-                    selectIndex = node.messages.size,
-                )
-            }
-
-        if (!edited) return
-
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-    }
-
-    suspend fun forkConversationAtMessage(
-        conversationId: Uuid,
-        messageId: Uuid,
-    ): Conversation {
-        val currentConversation = getConversationFlow(conversationId).value
-        val targetNodeIndex =
-            currentConversation.messageNodes.indexOfFirst { node ->
-                node.messages.any { it.id == messageId }
-            }
-        if (targetNodeIndex == -1) {
-            throw NotFoundException("Message not found")
-        }
-
-        val copiedNodes =
-            currentConversation.messageNodes
-                .subList(0, targetNodeIndex + 1)
-                .map { node ->
-                    node.copy(
-                        id = Uuid.random(),
-                        messages =
-                            node.messages.map { message ->
-                                message.copy(
-                                    parts =
-                                        message.parts.map { part ->
-                                            part.copyWithForkedFileUrl()
-                                        },
-                                )
-                            },
-                    )
-                }
-
-        val existingTitles = conversationRepo
-            .getConversationsOfAssistant(currentConversation.assistantId)
-            .first()
-            .mapTo(mutableSetOf()) { it.title }
-        val forkConversation = createForkConversation(currentConversation, copiedNodes, existingTitles)
-
-        saveConversation(forkConversation.id, forkConversation)
-        return forkConversation
-    }
-
-    suspend fun selectMessageNode(
-        conversationId: Uuid,
-        nodeId: Uuid,
-        selectIndex: Int,
-    ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val targetNode =
-            currentConversation.messageNodes.firstOrNull { it.id == nodeId }
-                ?: throw NotFoundException("Message node not found")
-
-        if (selectIndex !in targetNode.messages.indices) {
-            throw BadRequestException("Invalid selectIndex")
-        }
-
-        if (targetNode.selectIndex == selectIndex) {
-            return
-        }
-
-        val updatedNodes =
-            currentConversation.messageNodes.map { node ->
-                if (node.id == nodeId) {
-                    node.copy(selectIndex = selectIndex)
-                } else {
-                    node
-                }
-            }
-
-        saveConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-    }
-
-    suspend fun deleteMessage(
-        conversationId: Uuid,
-        messageId: Uuid,
-        failIfMissing: Boolean = true,
-    ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val updatedConversation = buildConversationAfterMessageDelete(currentConversation, messageId)
-
-        if (updatedConversation == null) {
-            if (failIfMissing) {
-                throw NotFoundException("Message not found")
-            }
-            return
-        }
-
-        saveConversation(conversationId, updatedConversation)
-    }
-
-    suspend fun deleteMessage(
-        conversationId: Uuid,
-        message: UIMessage,
-    ) {
-        deleteMessage(conversationId, message.id, failIfMissing = false)
-    }
-
-    private fun buildConversationAfterMessageDelete(
-        conversation: Conversation,
-        messageId: Uuid,
-    ): Conversation? {
-        val targetNodeIndex =
-            conversation.messageNodes.indexOfFirst { node ->
-                node.messages.any { it.id == messageId }
-            }
-        if (targetNodeIndex == -1) {
-            return null
-        }
-
-        val updatedNodes =
-            conversation.messageNodes.mapIndexedNotNull { index, node ->
-                if (index != targetNodeIndex) {
-                    return@mapIndexedNotNull node
-                }
-
-                val nextMessages = node.messages.filterNot { it.id == messageId }
-                if (nextMessages.isEmpty()) {
-                    return@mapIndexedNotNull null
-                }
-
-                val nextSelectIndex = node.selectIndex.coerceAtMost(nextMessages.lastIndex)
-                node.copy(
-                    messages = nextMessages,
-                    selectIndex = nextSelectIndex,
-                )
-            }
-
-        return conversation.copy(messageNodes = updatedNodes)
-    }
-
-    private fun UIMessagePart.copyWithForkedFileUrl(): UIMessagePart {
-        fun copyLocalFileIfNeeded(url: String): String {
-            if (!url.startsWith("file:")) return url
-            val copied = filesManager.createChatFilesByContents(listOf(url.toUri())).firstOrNull()
-            return copied?.toString() ?: url
-        }
-
-        return when (this) {
-            is UIMessagePart.Image -> copy(url = copyLocalFileIfNeeded(url))
-            is UIMessagePart.Document -> copy(url = copyLocalFileIfNeeded(url))
-            is UIMessagePart.Video -> copy(url = copyLocalFileIfNeeded(url))
-            is UIMessagePart.Audio -> copy(url = copyLocalFileIfNeeded(url))
-            else -> this
-        }
-    }
-
-    fun clearTranslationField(
-        conversationId: Uuid,
-        messageId: Uuid,
-    ) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val updatedNodes =
-            currentConversation.messageNodes.map { node ->
-                if (node.messages.any { it.id == messageId }) {
-                    val updatedMessages =
-                        node.messages.map { msg ->
-                            if (msg.id == messageId) {
-                                msg.copy(translation = null)
-                            } else {
-                                msg
-                            }
-                        }
-                    node.copy(messages = updatedMessages)
-                } else {
-                    node
-                }
-            }
-
-        updateConversation(conversationId, currentConversation.copy(messageNodes = updatedNodes))
-    }
-
-    // 停止当前会话生成任务（不清理会话缓存）
-    suspend fun stopGeneration(conversationId: Uuid) {
-        val convMutex = mutexFor(conversationId)
-        // 用户主动停止不暂停队列：队列里还有消息就让它照常作为下一轮自动发出（这就是排队语义），
-        // 队列为空时用户的下一条消息直接发出 —— 停止只结束当前这一轮，不再拦住后续发送。
-        // 运行归因：标记这次取消是「用户主动停」，生成收尾时据此区分「用户停」与「超时 / 进程被杀」。
-        GenerationRunTracker.markCancelled(conversationId.toString(), "user_stop")
-        // cancelAndJoin BEFORE the mutex so the cancelled coroutine can drain its own
-        // writes (which may try to acquire the same mutex via their save path).
-        sessions[conversationId]?.let { session ->
-            // 接续语义下可能同时存在多个任务（审批接续链），停止时须全部取消再等待收尾。
-            val jobs = runCatching { session.cancelJobs() }.getOrNull() ?: emptyList()
-            jobs.forEach { runCatching { it.join() } }
-        }
-
-        // 后端连接路径：本地协程取消不会让服务端停下，必须显式通知取消，
-        // 否则服务端 turn 会一直挂着并阻塞后续提交（表现为「停止无效、再发无反应」）。
-        runCatching { cancelBackendGenerationIfNeeded(conversationId) }
-
-        convMutex.withLock {
-            // Hydrate from disk so we mark Pending tools cancelled even when the user
-            // hits /stop after a process restart (sessions map is empty post-restart;
-            // the old code returned early on the !sessions[id]?.getJob() check, leaving
-            // the persisted Pending tool stranded forever).
-            ensureHydrated(conversationId)
-
-            val currentConversation = getConversationFlow(conversationId).value
-            // Walk EVERY node, not just the last — Pending tools can appear on a non-last
-            // node after branching / regenerate. finishPendingTools is now scoped to
-            // tools that are NOT already in a terminal state, so a hardline-blocked
-            // Denied tool keeps its original reason rather than being relabeled as
-            // "cancelled by user".
-            var finalizedMessages = 0
-            val updatedNodes =
-                currentConversation.messageNodes.map { node ->
-                    node.copy(
-                        messages =
-                            node.messages.map { msg ->
-                                val next = msg.finishPendingTools(::cancelToolByUser)
-                                if (next !== msg) finalizedMessages++
-                                next
-                            },
-                    )
-                }
-            if (finalizedMessages > 0) {
-                AppLog.i(
-                    TAG,
-                    "stopGeneration: finalized $finalizedMessages message(s) with pending tools " +
-                        "-> Denied(cancelled by user)",
-                )
-            }
-            // 无条件落库一次：打断可能正好落在「消息已进内存、入库事务尚未提交」的窗口
-            // （发送/注入那两处入库是可取消调用，会被 stop 回滚），
-            // 这里用 NonCancellable 把内存态固化，避免重进会话时少一条、顺序跳跃。
-            val updatedConversation = currentConversation.copy(messageNodes = updatedNodes)
-            withContext(NonCancellable) { saveConversation(conversationId, updatedConversation) }
-        }
-
-        // 停止生成后给队列一次机会：常规情况下队列已暂停（见上），这里主要让「未暂停但被
-        // 待审批工具挡住」的队列在 Pending 工具收尾后能立即派发，不必等下一次交互。
-        // 放在锁外：dispatch 内部重新读取会话与待审批状态，此刻 Pending 工具已全部收尾。
-        appScope.launch { dispatchNextQueuedMessage(conversationId) }
-    }
-
-    /**
-     * 通知后端服务取消当前生成。
-     *
-     * 目标后端有两个来源，**都要看**（任一命中即取消）：
-     * ① 全局「执行后端」指向的 provider；
-     * ② 本对话实际使用的模型所属 provider（接入 provider 可以在提供商页配好、
-     *    直接在对话里选模型使用，这条路径不会写 executionBackend）。
-     * 只认①会让②的“停止不影响远端”。
-     */
-    private suspend fun cancelBackendGenerationIfNeeded(conversationId: Uuid) {
-        val settings = settingsStore.settingsFlow.value
-        // 快速短路（不影响原生路径）：没有任何后端 provider 时直接返回；
-        // 有也要先确认「本对话确实跑在后端上」才继续，避免每次原生停止都多算一次。
-        val backends =
-            settings.providers.filterIsInstance<me.rerere.ai.provider.ProviderSetting.Backend>()
-        if (backends.isEmpty()) return
-        // ① 执行后端指向的接入 provider
-        val executionTargetId = settings.executionBackend
-        val byExecution =
-            backends.firstOrNull { it.id.toString() == executionTargetId }
-                ?.takeIf { it.backendType == "backend" }
-        // ② 本对话实际使用的模型所属 provider（提供商页配好、对话里直接选模型这条路径）
-        val byModel =
-            if (byExecution != null) {
-                null
-            } else {
-                val conversation = runCatching { getConversationFlow(conversationId).value }.getOrNull()
-                val assistant =
-                    conversation?.let { settings.getAssistantById(it.assistantId) }
-                        ?: settings.getCurrentAssistant()
-                // 与界面同口径解析当前模型：会话指定（若助手允许）→ 助手指定 → 全局默认
-                val model =
-                    settings.findModelById(
-                        conversation?.chatModelId?.takeIf { assistant.allowPerConversationModel }
-                            ?: assistant.chatModelId ?: settings.chatModelId,
-                    )
-                // findProvider 返回父类型 ProviderSetting；这里只要 Backend 子类型
-                model?.findProvider(settings.providers) as? me.rerere.ai.provider.ProviderSetting.Backend
-            }
-        val target = byExecution ?: byModel ?: return
-        runCatching {
-            me.rerere.ai.provider.providers.backend.BackendApi(
-                baseUrl = target.baseUrl,
-                username = target.username,
-                password = target.password,
-                token = target.token,
-            ).cancel()
-        }
-    }
+    suspend fun stopGeneration(conversationId: Uuid) = stopGenerationImpl(conversationId)
 }

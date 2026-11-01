@@ -19,9 +19,7 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
@@ -30,7 +28,6 @@ import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
-import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
@@ -45,10 +42,8 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.GoogleThoughtMetadata
 import me.rerere.ai.ui.OpenRouterReasoningMetadata
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
-import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
@@ -59,13 +54,9 @@ import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.stringSafe
-import me.rerere.ai.util.toHeaders
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
-import me.rerere.common.http.jsonArrayOrNull
-import me.rerere.common.http.jsonObjectOrNull
-import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -75,7 +66,6 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
-import kotlin.time.Clock
 import me.rerere.common.log.AppLogger
 
 private const val TAG = "ChatCompletionsAPI"
@@ -968,158 +958,4 @@ class ChatCompletionsAPI(
         }.joinToString("\n"))
     }
 
-    private fun parseMessage(jsonObject: JsonObject): UIMessage {
-        val role = MessageRole.valueOf(
-            jsonObject["role"]?.jsonPrimitive?.contentOrNull?.uppercase() ?: "ASSISTANT"
-        )
-
-        // 也许支持其他模态的输出content?
-        val contentElement = jsonObject["content"]
-        // content可能是字符串, 也可能是block数组(如[{type:"text",text:"..."}]); 数组时拼接text块, 否则文本会丢失
-        val content = contentElement?.jsonPrimitiveOrNull?.contentOrNull
-            ?: (contentElement as? JsonArray)?.mapNotNull { block ->
-                val obj = block.jsonObjectOrNull ?: return@mapNotNull null
-                if (obj["type"]?.jsonPrimitiveOrNull?.contentOrNull == "text") {
-                    obj["text"]?.jsonPrimitiveOrNull?.contentOrNull
-                } else {
-                    null
-                }
-            }?.joinToString("") ?: ""
-        val reasoning = jsonObject["reasoning_content"]?.jsonPrimitiveOrNull?.contentOrNull
-            ?: jsonObject["reasoning"]?.jsonPrimitiveOrNull?.contentOrNull
-            ?: jsonObject["content"]?.takeIf { it is JsonArray }?.let { arr ->
-                // Mistral接口
-                // {"id":"","object":"chat.completion.chunk","created":1772351733,"model":"magistral-medium-2509","choices":[{"index":0,"delta":{"content":[{"type":"thinking","thinking":[{"type":"text","text":"好的"}]}]},"finish_reason":null}]}
-                arr.jsonArrayOrNull?.getOrNull(0)?.jsonObject?.get("thinking")?.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull?.get(
-                    "text"
-                )?.jsonPrimitiveOrNull?.contentOrNull
-            }
-        val reasoningMetadata = jsonObject["reasoning_details"]?.jsonArrayOrNull?.let {
-            OpenRouterReasoningMetadata(reasoningDetails = it).toMetadata()
-        }
-        val toolCalls = jsonObject["tool_calls"] as? JsonArray ?: JsonArray(emptyList())
-        val images = jsonObject["images"] as? JsonArray ?: JsonArray(emptyList())
-
-        return UIMessage(
-            role = role,
-            parts = buildList {
-                if (!reasoning.isNullOrEmpty() || reasoningMetadata != null) {
-                    add(
-                        UIMessagePart.Reasoning(
-                            reasoning = reasoning.orEmpty(),
-                            createdAt = Clock.System.now(),
-                            finishedAt = null,
-                            metadata = reasoningMetadata,
-                        )
-                    )
-                }
-                toolCalls.forEach { toolCalls ->
-                    val type = toolCalls.jsonObject["type"]?.jsonPrimitive?.contentOrNull
-                    if (!type.isNullOrEmpty() && type != "function") {
-                        // Skip unsupported tool-call types rather than throwing, which would
-                        // crash the stream. Today only "function" is handled.
-                        AppLogger.w(TAG, "skipping unsupported tool call type: $type")
-                        return@forEach
-                    }
-                    val toolCallId = toolCalls.jsonObject["id"]?.jsonPrimitive?.contentOrNull
-                    val toolName =
-                        toolCalls.jsonObject["function"]?.jsonObject?.get("name")?.jsonPrimitive?.contentOrNull
-                    val arguments =
-                        toolCalls.jsonObject["function"]?.jsonObject?.get("arguments")?.jsonPrimitive?.contentOrNull
-                    val thoughtSignature = extractGoogleThoughtSignature(toolCalls.jsonObject)
-                    add(
-                        UIMessagePart.Tool(
-                            toolCallId = toolCallId ?: "",
-                            toolName = toolName ?: "",
-                            input = arguments ?: "",
-                            output = emptyList(),
-                            metadata = thoughtSignature?.let {
-                                GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
-                            },
-                        )
-                    )
-                }
-                if (content.isNotEmpty()) add(UIMessagePart.Text(content))
-                images.forEach { image ->
-                    val imageObject = image.jsonObjectOrNull ?: return@forEach
-                    val type = imageObject["type"]?.jsonPrimitive?.contentOrNull ?: return@forEach
-                    if (type != "image_url") return@forEach
-                    val url = imageObject["image_url"]?.jsonObjectOrNull?.get("url")?.jsonPrimitive?.contentOrNull ?: return@forEach
-                    // OpenRouter image models return data:image/<mime>;base64,... for any mime
-                    // (png/jpeg/webp). Parse mime-agnostically; the old png-hardcoded substring
-                    // returned garbage for non-png images.
-                    val parsed = parseImageDataUri(url) ?: return@forEach
-                    add(UIMessagePart.Image(parsed.base64))
-                }
-            },
-            annotations = parseAnnotations(
-                jsonArray = jsonObject["annotations"]?.jsonArrayOrNull ?: JsonArray(
-                    emptyList()
-                )
-            ),
-        )
-    }
-
-    private fun parseAnnotations(jsonArray: JsonArray): List<UIMessageAnnotation> {
-        return jsonArray.mapNotNull { element ->
-            val type =
-                element.jsonObject["type"]?.jsonPrimitive?.contentOrNull
-            when (type) {
-                "url_citation" -> {
-                    UIMessageAnnotation.UrlCitation(
-                        title = element.jsonObject["url_citation"]?.jsonObject?.get("title")?.jsonPrimitive?.contentOrNull
-                            ?: "",
-                        url = element.jsonObject["url_citation"]?.jsonObject?.get("url")?.jsonPrimitive?.contentOrNull
-                            ?: "",
-                    )
-                }
-
-                else -> {
-                    // Newer providers add annotation types (file_citation, web_search_result,
-                    // ...). Skip unknown/missing types instead of throwing, which would crash
-                    // the whole stream for the user.
-                    AppLogger.w(TAG, "skipping unknown annotation type: $type")
-                    null
-                }
-            }
-        }
-    }
-
-    private fun parseTokenUsage(jsonObject: JsonObject?): TokenUsage? {
-        if (jsonObject == null) return null
-        return TokenUsage(
-            promptTokens = jsonObject["prompt_tokens"]?.jsonPrimitive?.intOrNull ?: 0,
-            completionTokens = jsonObject["completion_tokens"]?.jsonPrimitive?.intOrNull ?: 0,
-            totalTokens = jsonObject["total_tokens"]?.jsonPrimitive?.intOrNull ?: 0,
-            // 各 provider 汇报缓存命中的字段形状不统一，按方言兜底解析（#1576）：
-            // OpenAI 嵌套 -> Moonshot 顶层 cached_tokens -> DeepSeek prompt_cache_hit_tokens
-            cachedTokens = jsonObject["prompt_tokens_details"]?.jsonObjectOrNull?.get("cached_tokens")?.jsonPrimitive?.intOrNull
-                ?: jsonObject["cached_tokens"]?.jsonPrimitive?.intOrNull
-                ?: jsonObject["prompt_cache_hit_tokens"]?.jsonPrimitive?.intOrNull
-                ?: 0,
-            // OpenRouter reports the generation cost (USD) here when the request asks for it
-            // via usage:{include:true}. Other OpenAI-compatible providers omit it -> null.
-            cost = jsonObject["cost"]?.jsonPrimitive?.doubleOrNull
-        )
-    }
-
-    private fun List<UIMessagePart>.isOnlyTextPart(): Boolean {
-        val gonnaSend = filter { it is UIMessagePart.Text || it is UIMessagePart.Image }.size
-        val texts = filter { it is UIMessagePart.Text }.size
-        return gonnaSend == texts && texts == 1
-    }
 }
-
-/**
- * Google 的 OpenAI 兼容端点（/chat/completions）会在 functionCall 上返回
- * `extra_content.google.thought_signature`，第二轮请求必须在同一个 tool_call 上原样回传，
- * 否则被拒：`Function call is missing a thought_signature in functionCall parts`。
- *
- * 流式挂在 `choices[].delta.tool_calls[]`，非流式挂在 `choices[].message.tool_calls[]`，
- * 两处字段形状相同，故解析路径共用本函数。其它 OpenAI 兼容供应商不返回该对象 -> 返回 null，
- * 请求体与本批之前完全一致。
- */
-internal fun extractGoogleThoughtSignature(toolCall: JsonObject): String? =
-    toolCall["extra_content"]?.jsonObjectOrNull
-        ?.get("google")?.jsonObjectOrNull
-        ?.get("thought_signature")?.jsonPrimitiveOrNull?.contentOrNull

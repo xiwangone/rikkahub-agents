@@ -1,7 +1,4 @@
 package me.rerere.rikkahub.ui.pages.setting
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.foundation.layout.heightIn
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -14,7 +11,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
@@ -24,16 +20,13 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
-import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -197,7 +190,7 @@ fun SettingSshHostsPage() {
                     }.onFailure { e ->
                         me.rerere.rikkahub.data.log.AppLog.w(
                             "SshHostsPage",
-                            "保存 SSH 主机失败: name=${entity.name} err=${e.message}",
+                            "failed to save SSH host: name=${entity.name} err=${e.message}",
                         )
                         toaster.show(context.getString(R.string.ssh_hosts_save_failed, e.message ?: e.javaClass.simpleName))
                     }

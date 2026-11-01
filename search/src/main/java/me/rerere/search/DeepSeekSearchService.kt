@@ -8,7 +8,6 @@ import androidx.compose.ui.res.stringResource
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
-import kotlinx.serialization.SerialName
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonObject
@@ -23,7 +22,6 @@ import me.rerere.search.SearchService.Companion.keyRoulette
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
-import kotlin.uuid.Uuid
 
 /** DeepSeek official web search/fetch API. Never put credentials or provider body text in errors. */
 object DeepSeekSearchService : SearchService<SearchServiceOptions.DeepSeekOptions> {

@@ -35,7 +35,6 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
-import me.rerere.ai.util.toHeaders
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.http.await
 import me.rerere.ai.provider.formatBalance

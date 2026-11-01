@@ -20,6 +20,8 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
+import me.rerere.rikkahub.R
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
@@ -62,9 +64,11 @@ fun TunnelSettingSection(vm: SettingVM) {
     // 开关只反映"此刻是否开着"，因此进程重启后自然显示为关，不会出现"开关开着却没连"。
     val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
     val status = when (val s = tunnelState) {
-        is TunnelState.Connected -> "已连接 ${s.ip}"
-        is TunnelState.Failed -> "失败: ${s.reason}"
-        else -> "未连接"
+        is TunnelState.Connected -> stringResource(R.string.tunnel_status_connected, s.ip)
+        is TunnelState.Connecting -> stringResource(R.string.tunnel_status_connecting)
+        is TunnelState.Offline -> stringResource(R.string.tunnel_status_offline)
+        is TunnelState.Failed -> stringResource(R.string.tunnel_status_failed, s.reason)
+        is TunnelState.Off -> stringResource(R.string.tunnel_status_disconnected)
     }
     val switchOn = tunnelState is TunnelState.Connected ||
         tunnelState is TunnelState.Connecting ||
@@ -133,9 +137,9 @@ fun TunnelSettingSection(vm: SettingVM) {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Column(modifier = Modifier.weight(1f)) {
-                Text(text = "启用隧道", style = MaterialTheme.typography.titleMedium)
+                Text(text = stringResource(R.string.tunnel_enable_title), style = MaterialTheme.typography.titleMedium)
                 Text(
-                    text = "仅本 App 走隧道，不接管系统 VPN / DNS",
+                    text = stringResource(R.string.tunnel_enable_desc),
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
@@ -157,14 +161,14 @@ fun TunnelSettingSection(vm: SettingVM) {
             )
         }
 
-        Text(text = "状态：$status", style = MaterialTheme.typography.bodySmall)
+        Text(text = stringResource(R.string.tunnel_status_label, status), style = MaterialTheme.typography.bodySmall)
 
         OutlinedTextField(
             value = controlUrl,
             onValueChange = { controlUrl = it
                 savedHint = false
             },
-            label = { Text(text = "控制面 URL") },
+            label = { Text(text = stringResource(R.string.tunnel_control_url_label)) },
             placeholder = { Text(text = "https://login.example.com") },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
@@ -174,8 +178,8 @@ fun TunnelSettingSection(vm: SettingVM) {
             onValueChange = { authKey = it
                 savedHint = false
             },
-            label = "认证密钥",
-            placeholder = "tskey-auth-... 或 \$\$ 凭证名",
+            label = stringResource(R.string.tunnel_auth_key_label),
+            placeholder = stringResource(R.string.tunnel_auth_key_placeholder),
             nameHint = "TAILSCALE_AUTH_KEY",
             singleLine = true,
         )
@@ -184,7 +188,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             onValueChange = { hostname = it
                 savedHint = false
             },
-            label = { Text(text = "节点名称") },
+            label = { Text(text = stringResource(R.string.tunnel_hostname_label)) },
             singleLine = true,
             modifier = Modifier.fillMaxWidth(),
         )
@@ -194,12 +198,12 @@ fun TunnelSettingSection(vm: SettingVM) {
                 horizontalArrangement = Arrangement.End,
                 verticalAlignment = Alignment.CenterVertically,
             ) {
-                TextButton(onClick = { cancel() }) { Text(text = "取消") }
-                Button(onClick = { save() }, enabled = !busy) { Text(text = "保存") }
+                TextButton(onClick = { cancel() }) { Text(text = stringResource(R.string.settings_cancel)) }
+                Button(onClick = { save() }, enabled = !busy) { Text(text = stringResource(R.string.chat_page_save)) }
             }
         } else if (savedHint) {
             Text(
-                text = "已保存",
+                text = stringResource(R.string.tunnel_saved_hint),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.primary,
             )

@@ -116,6 +116,16 @@ internal val FileInfoToolUI =
 internal val SubagentDispatchToolUI =
     TitledToolUI("subagent_dispatch", R.string.tool_ui_subagent_dispatch, HugeIcons.AiBrain01)
 
+internal val ScheduleJobDirectToolUI: ToolUIRenderer =
+    object : ToolUIRenderer by TitledToolUI("schedule_job_direct", R.string.tool_ui_schedule_job_direct, HugeIcons.Clock02) {
+        override val toolName: String = "schedule_job_direct"
+    }
+
+internal val ScheduleJobLlmToolUI: ToolUIRenderer =
+    object : ToolUIRenderer by TitledToolUI("schedule_job_llm", R.string.tool_ui_schedule_job_llm, HugeIcons.Clock02) {
+        override val toolName: String = "schedule_job_llm"
+    }
+
 /**
  * MCP 工具的通用渲染器。
  *

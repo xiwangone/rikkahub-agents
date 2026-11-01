@@ -2,12 +2,10 @@ package me.rerere.rikkahub.workflow.trigger
 
 import android.content.Context
 import androidx.work.Constraints
-import androidx.work.Data
 import androidx.work.ExistingPeriodicWorkPolicy
 import androidx.work.ExistingWorkPolicy
 import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
-import androidx.work.WorkInfo
 import androidx.work.WorkManager
 import androidx.work.workDataOf
 import kotlinx.coroutines.CoroutineScope
@@ -16,8 +14,6 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.workflow.model.TriggerSpec
 import me.rerere.rikkahub.workflow.model.WorkflowDefinition
 import java.time.DayOfWeek
-import java.time.LocalDate
-import java.time.LocalDateTime
 import java.time.LocalTime
 import java.time.ZoneId
 import java.time.ZonedDateTime

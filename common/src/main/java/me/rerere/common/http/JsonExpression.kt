@@ -15,14 +15,11 @@ data class ParseResult(
 )
 
 fun parseExpression(input: String): ParseResult =
-    try {
+    runCatching {
         val lexer = Lexer(input)
         val parser = Parser(lexer)
-        val expr = parser.parse()
-        ParseResult(true, expr, null)
-    } catch (e: ParseException) {
-        ParseResult(false, null, e.message)
-    } catch (e: Exception) {
+        ParseResult(true, parser.parse(), null)
+    }.getOrElse { e ->
         ParseResult(false, null, e.message ?: "Unknown error")
     }
 
@@ -478,14 +475,13 @@ private class Evaluator(
                 if (elem.isString) {
                     Value.Str(elem.content)
                 } else {
-                    elem.doubleOrNull()?.let { Value.Num("%.2f".format(it).toDouble()) } ?: Value.Str(elem.content)
+                    elem.doubleOrNull()?.let { Value.Num(it) } ?: Value.Str(elem.content)
                 }
             }
 
             is JsonObject, is JsonArray -> {
                 Value.Str(elem.toString())
             }
-            is JsonObject, is JsonArray -> Value.Str(elem.toString())
         }
     }
 

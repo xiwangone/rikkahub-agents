@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.nfc.NdefMessage
 import android.nfc.NdefRecord
 import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.contentOrNull

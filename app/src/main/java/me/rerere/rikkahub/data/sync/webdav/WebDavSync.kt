@@ -14,7 +14,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
-import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.DatabaseBackup

@@ -6,6 +6,11 @@ package me.rerere.rikkahub.utils
  */
 fun String.stripMarkdown(): String =
     this
+        // 移除 HTML 注释与 <style> 样式块
+        .replace(Regex("<!--[\\s\\S]*?-->|<style[^>]*>[\\s\\S]*?</style>", RegexOption.IGNORE_CASE), "")
+        // 块级换行标签转换行，其余标准 HTML 标签剥离（保留 x<y 这类非标签数学比较）
+        .replace(Regex("<\\s*br\\s*/?\\s*>", RegexOption.IGNORE_CASE), "\n")
+        .replace(Regex("</?(?:details|summary|p|div|span|b|i|u|s|em|strong|code|pre|blockquote|ul|ol|li|h[1-6]|table|thead|tbody|tr|th|td|a|img)(?:\\s[^>]*)?>", RegexOption.IGNORE_CASE), "")
         // 移除代码块 (```...``` 和 `...`)
         .replace(Regex("```[\\s\\S]*?```|`[^`]*?`"), "")
         // 移除图片和链接，但保留其文本内容

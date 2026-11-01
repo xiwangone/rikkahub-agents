@@ -10,16 +10,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -233,33 +230,3 @@ private fun SessionCard(
     }
 }
 
-@Composable
-private fun RenameSessionDialog(
-    initialTitle: String,
-    onConfirm: (String) -> Unit,
-    onDismiss: () -> Unit,
-) {
-    var title by remember { mutableStateOf(initialTitle) }
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.media_creation_page_rename_session)) },
-        text = {
-            OutlinedTextField(
-                value = title,
-                onValueChange = { title = it },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth(),
-            )
-        },
-        confirmButton = {
-            TextButton(onClick = { onConfirm(title) }) {
-                Text(stringResource(R.string.confirm))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) {
-                Text(stringResource(R.string.cancel))
-            }
-        },
-    )
-}

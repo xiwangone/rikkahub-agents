@@ -1,12 +1,10 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.HorizontalDivider
@@ -234,6 +232,7 @@ fun BackendProviderConfigure(
     // 接入诊断：读取服务端 /status，把「是否挂起 / 能否取消」等关键状态集中展示，
     // 避免交互（审批 / 提问 / 停止）失效时无从判断。
     if (provider.backendType == "backend" && provider.baseUrl.isNotBlank()) {
+        val resources = androidx.compose.ui.platform.LocalResources.current
         val scope = rememberCoroutineScope()
         var diag by remember { mutableStateOf<String?>(null) }
         var diagLoading by remember { mutableStateOf(false) }
@@ -249,8 +248,13 @@ fun BackendProviderConfigure(
                     diagLoading = true
                     scope.launch {
                         diag =
-                            runCatching { backendStatusDigest(provider) }
-                                .getOrElse { "检查失败：${it.message ?: it::class.simpleName}" }
+                            runCatching { backendStatusDigest(resources, provider) }
+                                .getOrElse {
+                                    resources.getString(
+                                        R.string.backend_diag_check_failed,
+                                        it.message ?: it::class.simpleName ?: "",
+                                    )
+                                }
                         // 同步写入日志，便于事后排查（诊断结果同样可追溯）
                         runCatching { me.rerere.rikkahub.data.log.AppLog.d("BackendDiag", diag ?: "") }
                         diagLoading = false
@@ -273,20 +277,23 @@ fun BackendProviderConfigure(
 
 
 /** 读取后端服务 /status，输出便于判断的摘要（是否待应答 / 能否取消 / 审批模式等）。 */
-private suspend fun backendStatusDigest(provider: ProviderSetting.Backend): String {
+private suspend fun backendStatusDigest(
+    resources: android.content.res.Resources,
+    provider: ProviderSetting.Backend,
+): String {
     val st =
         me.rerere.ai.provider.providers.backend.BackendApi(
             baseUrl = provider.baseUrl,
             username = provider.username,
             password = provider.password,
             token = provider.token,
-        ).getStatus() ?: return "无法读取服务端状态"
+        ).getStatus() ?: return resources.getString(R.string.backend_diag_status_unavailable)
     return buildString {
-        appendLine("待应答交互 pendingPrompt: ${st.pendingPrompt == true}")
-        appendLine("可取消 cancellable: ${st.cancellable == true}")
-        appendLine("已请求取消 cancelRequested: ${st.cancelRequested == true}")
-        appendLine("审批模式 toolApprovalMode: ${st.toolApprovalMode ?: "-"}")
-        st.cwd?.let { appendLine("工作目录: $it") }
-        st.sessionPath?.let { appendLine("会话: $it") }
+        appendLine(resources.getString(R.string.backend_diag_pending_prompt, (st.pendingPrompt == true).toString()))
+        appendLine(resources.getString(R.string.backend_diag_cancellable, (st.cancellable == true).toString()))
+        appendLine(resources.getString(R.string.backend_diag_cancel_requested, (st.cancelRequested == true).toString()))
+        appendLine(resources.getString(R.string.backend_diag_tool_approval_mode, st.toolApprovalMode ?: "-"))
+        st.cwd?.let { appendLine(resources.getString(R.string.backend_diag_cwd, it)) }
+        st.sessionPath?.let { appendLine(resources.getString(R.string.backend_diag_session_path, it)) }
     }.trimEnd()
 }

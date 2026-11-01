@@ -30,8 +30,13 @@
 -keep class com.fasterxml.jackson.** { *; }
 -keep class com.auth0.jwt.** { *; }
 
-# JLaTeXMath loads alphabet registrations and font descriptors by binary name.
--keep class org.scilab.forge.jlatexmath.** {*;}
+# JLatexMath looks up \newcommand macros and the Greek/Cyrillic alphabet registrations by class name.
+-keep class org.scilab.forge.jlatexmath.NewCommandMacro {
+    <init>();
+    java.lang.String executeMacro(org.scilab.forge.jlatexmath.TeXParser, java.lang.String[]);
+}
+-keep class org.scilab.forge.jlatexmath.cyrillic.CyrillicRegistration { <init>(); }
+-keep class org.scilab.forge.jlatexmath.greek.GreekRegistration { <init>(); }
 
 # JSch: SSH client loads crypto providers (com.jcraft.jsch.jce.*) reflectively
 # from a static init table, so R8 can't see the dependency at compile time and

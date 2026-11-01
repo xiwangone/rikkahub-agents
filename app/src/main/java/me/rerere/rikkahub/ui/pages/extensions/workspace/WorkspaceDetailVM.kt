@@ -5,7 +5,6 @@ import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.flow.update
@@ -31,6 +30,8 @@ import androidx.documentfile.provider.DocumentFile
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
+import android.content.ContentResolver
+import android.net.Uri
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -430,10 +431,13 @@ class WorkspaceDetailVM(
 
     fun exportFile(
         entry: WorkspaceFileEntry,
-        outputStream: OutputStream,
+        uri: Uri,
+        resolver: ContentResolver,
     ) {
         viewModelScope.launch {
             runCatching {
+                val outputStream = withContext(Dispatchers.IO) { resolver.openOutputStream(uri) }
+                    ?: error("Cannot open target output stream: $uri")
                 repository.exportFile(
                     id = id,
                     area = state.value.area,

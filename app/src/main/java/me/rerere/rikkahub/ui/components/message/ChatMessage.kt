@@ -42,7 +42,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
@@ -69,8 +68,6 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessageAnnotation
-import me.rerere.ai.ui.AskQuestion
-import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.isEmptyUIMessage
 import me.rerere.highlight.LocalCodeHighlighter
@@ -91,7 +88,6 @@ import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
 import me.rerere.rikkahub.ui.components.richtext.buildMarkdownPreviewHtml
 import me.rerere.rikkahub.ui.components.ui.ChainOfThought
-import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.Favicon
 import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
 import me.rerere.rikkahub.ui.context.LocalNavController

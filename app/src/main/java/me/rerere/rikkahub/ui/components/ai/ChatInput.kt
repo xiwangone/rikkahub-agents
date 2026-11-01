@@ -23,10 +23,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ime
 import androidx.compose.foundation.layout.imePadding
@@ -34,24 +32,18 @@ import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.ui.draw.drawWithCache
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.input.TextFieldLineLimits
-import androidx.compose.material3.BasicAlertDialog
-import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.runtime.Composable
@@ -76,12 +68,10 @@ import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.TextRange
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.window.DialogProperties
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronUp
 import com.composables.icons.lucide.Lucide
@@ -100,13 +90,13 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
-import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.FullScreen
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Upload02
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
@@ -118,7 +108,6 @@ import me.rerere.rikkahub.data.datastore.getQuickMessagesOfAssistant
 import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.service.MessageQueueState
 import me.rerere.rikkahub.service.QueuedMessage
 import me.rerere.rikkahub.ui.components.ai.completion.ChatCompletionContext
@@ -477,6 +466,10 @@ fun ChatInput(
                                 }
                             }
 
+                            AgentQuickActionsButton(
+                                state = state,
+                            )
+
                             ActionIconButton(
                                 onClick = onAutoClick,
                             ) {
@@ -603,7 +596,7 @@ private fun SendButton(
 }
 
 @Composable
-private fun ActionIconButton(
+internal fun ActionIconButton(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     content: @Composable () -> Unit,
@@ -644,6 +637,19 @@ private fun TextInputRow(
     val quickMessages =
         remember(settings.quickMessages, assistant.quickMessageIds) {
             settings.getQuickMessagesOfAssistant(assistant)
+        }
+    val toolSurfaceEstimate =
+        remember(
+            assistant.localTools,
+            assistant.workspaceId,
+            assistant.enableMemory,
+            assistant.mcpServers,
+            settings.displaySetting.toolSurfaceTrimming,
+        ) {
+            estimateAssistantToolSurface(
+                assistant = assistant,
+                trimmingEnabled = settings.displaySetting.toolSurfaceTrimming,
+            )
         }
 
     Column(
@@ -892,6 +898,50 @@ keyboardOptions =
                             ),
                     )
                 }
+                if (toolSurfaceEstimate.first > 0) {
+                    val toolTokensK = toolSurfaceEstimate.second.toLong().formatK()
+                    val toolSummaryMsg =
+                        stringResource(
+                            R.string.chat_input_tool_surface_summary,
+                            toolSurfaceEstimate.first,
+                            toolTokensK,
+                        )
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(2.dp),
+                        modifier =
+                            Modifier
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable {
+                                    toaster.show(
+                                        message = toolSummaryMsg,
+                                        duration = 2.seconds,
+                                        type = ToastType.Normal,
+                                    )
+                                }
+                                .padding(horizontal = 4.dp, vertical = 1.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Tools,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f),
+                            modifier = Modifier.size(11.dp),
+                        )
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.chat_input_tool_surface_badge,
+                                    toolSurfaceEstimate.first,
+                                    toolTokensK,
+                                ),
+                            style =
+                                MaterialTheme.typography.labelSmall.copy(
+                                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f),
+                                ),
+                            maxLines = 1,
+                        )
+                    }
+                }
                 Box(
                     modifier =
                         Modifier
@@ -934,206 +984,3 @@ keyboardOptions =
     }
 }
 
-@Composable
-private fun CompletionPopup(
-    completionList: ChatCompletionList,
-    onItemClick: (ChatCompletionItem) -> Unit,
-) {
-    Surface(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .heightIn(max = 280.dp),
-        shape = RoundedCornerShape(18.dp),
-        tonalElevation = 2.dp,
-        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.5f)),
-        color = MaterialTheme.colorScheme.surfaceContainerHigh,
-    ) {
-        LazyColumn(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(vertical = 4.dp),
-        ) {
-            items(
-                items = completionList.items,
-                key = { item -> "${item.label}:${item.insertText}" },
-            ) { item ->
-                Surface(
-                    onClick = { onItemClick(item) },
-                    modifier = Modifier.fillMaxWidth(),
-                    color = Color.Transparent,
-                ) {
-                    Row(
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(10.dp),
-                    ) {
-                        item.icon?.let { icon ->
-                            Icon(
-                                imageVector = icon,
-                                contentDescription = null,
-                                modifier = Modifier.size(18.dp),
-                                tint = MaterialTheme.colorScheme.primary,
-                            )
-                        }
-                        Column(
-                            modifier = Modifier.weight(1f),
-                            verticalArrangement = Arrangement.spacedBy(2.dp),
-                        ) {
-                            Text(
-                                text = item.label,
-                                style = MaterialTheme.typography.bodyMedium,
-                                maxLines = 2,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                            item.detail?.let { detail ->
-                                Text(
-                                    text = detail,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
-                        }
-                    }
-                }
-            }
-        }
-    }
-}
-
-private fun ChatInputState.applyCompletion(
-    replacementRange: TextRange,
-    item: ChatCompletionItem,
-) {
-    val textLength = textContent.text.length
-    val start = replacementRange.min.coerceIn(0, textLength)
-    val end = replacementRange.max.coerceIn(start, textLength)
-    textContent.edit {
-        replace(start, end, item.insertText)
-        selection = TextRange(start + item.insertText.length)
-    }
-}
-
-@Composable
-private fun QuickMessageButton(
-    quickMessages: List<QuickMessage>,
-    state: ChatInputState,
-) {
-    var expanded by remember { mutableStateOf(false) }
-    IconButton(onClick = {
-        expanded = !expanded
-    }) {
-        Icon(HugeIcons.Zap, null)
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier =
-                Modifier
-                    .widthIn(min = 200.dp, max = 360.dp),
-        ) {
-            quickMessages.forEach { quickMessage ->
-                Surface(
-                    onClick = {
-                        state.appendText(quickMessage.content)
-                        expanded = false
-                    },
-                    color = Color.Transparent,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Column(
-                        modifier = Modifier.padding(8.dp),
-                    ) {
-                        Text(
-                            text = quickMessage.title,
-                            style = MaterialTheme.typography.titleMedium,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = quickMessage.content,
-                            style = MaterialTheme.typography.bodySmall,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                    }
-                }
-            }
-        }
-    }
-}
-
-@Composable
-private fun FullScreenEditor(
-    state: ChatInputState,
-    onDone: () -> Unit,
-) {
-    BasicAlertDialog(
-        onDismissRequest = {
-            onDone()
-        },
-        properties =
-            DialogProperties(
-                usePlatformDefaultWidth = false,
-                decorFitsSystemWindows = false,
-            ),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .safeDrawingPadding()
-                    .imePadding(),
-            verticalArrangement = Arrangement.Bottom,
-        ) {
-            Surface(
-                modifier =
-                    Modifier
-                        .widthIn(max = 800.dp)
-                        .fillMaxHeight(0.9f),
-                shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .padding(8.dp)
-                            .fillMaxSize(),
-                    horizontalAlignment = Alignment.End,
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row {
-                        TextButton(onClick = {
-                            onDone()
-                        }) {
-                            Text(stringResource(R.string.chat_page_save))
-                        }
-                    }
-                    TextField(
-                        state = state.textContent,
-                        modifier =
-                            Modifier
-                                .padding(bottom = 2.dp)
-                                .fillMaxSize(),
-                        shape = RoundedCornerShape(32.dp),
-                        placeholder = {
-                            Text(stringResource(R.string.chat_input_placeholder))
-                        },
-keyboardOptions =
-                            KeyboardOptions(
-                                capitalization = KeyboardCapitalization.Sentences,
-                            ),
-                        colors =
-                            TextFieldDefaults.colors().copy(
-                                unfocusedIndicatorColor = Color.Transparent,
-                                focusedIndicatorColor = Color.Transparent,
-                                focusedContainerColor = Color.Transparent,
-                                unfocusedContainerColor = Color.Transparent,
-                            ),
-                    )
-                }
-            }
-        }
-    }
-}

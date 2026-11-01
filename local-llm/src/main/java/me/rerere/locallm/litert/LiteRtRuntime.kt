@@ -1,3 +1,4 @@
+
 package me.rerere.locallm.litert
 
 import android.content.Context
@@ -19,11 +20,6 @@ import com.google.ai.edge.litertlm.Message
 import com.google.ai.edge.litertlm.MessageCallback
 import com.google.ai.edge.litertlm.SamplerConfig
 import com.google.ai.edge.litertlm.ToolProvider
-import kotlinx.serialization.json.JsonArray
-import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.JsonNull
-import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
@@ -35,105 +31,9 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.locallm.AcceleratorProbe
 import me.rerere.locallm.BuildConfig
-import java.io.ByteArrayOutputStream
 import java.io.File
 import java.util.concurrent.CancellationException
 import java.util.concurrent.TimeUnit
-
-/** Role labels used in [Turn] signatures. Kept as plain strings so [turnSignature] is a
- *  pure function the provider and the runtime can both call without sharing an enum. */
-const val ROLE_USER = "user"
-const val ROLE_ASSISTANT = "assistant"
-
-/**
- * Stable, content-derived signature for one conversation turn. Used to decide whether the
- * warm [Conversation]'s KV cache can be reused (see [planTurns]). Length + hashCode keeps
- * the collision rate negligible; a collision would only cause a (correct) cold reload, never
- * wrong output.
- */
-fun turnSignature(role: String, text: String): String = "$role|${text.length}|${text.hashCode()}"
-
-/**
- * One rendered conversation turn handed from [LiteRtProvider] to [LiteRtRuntime].
- *
- * [rawText] is the turn's content WITHOUT any "User:/Assistant:" markers — when this turn is
- * the single new turn appended to a warm Conversation, [rawText] is sent as-is and the SDK's
- * chat template applies the role wrapping (the same path Gallery uses). The marker-prefixed
- * cold blob is built separately by the provider for the rebuild-from-scratch path.
- */
-data class Turn(val role: String, val rawText: String) {
-    val signature: String get() = turnSignature(role, rawText)
-}
-
-/**
- * One tool call the model asked for, lifted out of the SDK's `ToolCall` so callers do not
- * have to depend on litertlm types. [argumentsJson] is the arguments object serialised back
- * to a JSON string, matching the `input` field of `UIMessagePart.Tool`.
- */
-data class RuntimeToolCall(val name: String, val argumentsJson: String)
-
-/**
- * What [LiteRtRuntime.streamTurns] emits.
- *
- * The runtime disables the SDK's automatic tool calling, so a turn can end either with
- * generated text, with tool calls the host must execute, or with both. Tool calls are
- * surfaced rather than run here so the host can apply approval and the HARDLINE floor.
- */
-sealed interface StreamEvent {
-    /** The **cumulative** response so far, not a delta, same contract the SDK's
-     *  `MessageCallback` uses. Downstream computes deltas itself. */
-    data class Delta(val cumulative: String) : StreamEvent
-
-    /** Tool calls the model emitted this turn, in the order the model produced them. */
-    data class ToolCalls(val calls: List<RuntimeToolCall>) : StreamEvent
-}
-
-/**
- * Outcome of [planTurns]: whether the live [Conversation]'s KV cache can be reused.
- */
-sealed interface TurnPlan {
-    /** Reuse the warm Conversation; send only `history[sendFromIndex]` (guaranteed exactly
-     *  one new turn). The KV cache already holds every turn before [sendFromIndex]. */
-    data class Warm(val sendFromIndex: Int) : TurnPlan
-
-    /** Recreate the Conversation (clearing the KV cache) and send the full cold blob. */
-    data object Cold : TurnPlan
-}
-
-/**
- * Thrown when a `.litertlm` model file is structurally broken in a way that retrying
- * with a different accelerator won't fix (e.g. corrupt tokenizer data, invalid magic
- * number, schema mismatch). Callers should treat [modelPath] as permanently unloadable,
- * delete the file from disk, and remove it from the provider's models list.
- */
-class LiteRtModelCorruptException(
-    val modelPath: String,
-    cause: Throwable,
-) : RuntimeException(
-    "LiteRT model file appears corrupt or incompatible: ${cause.message}",
-    cause,
-)
-
-/**
- * Thrown when engine init fails specifically inside the vision executor — the model file
- * itself is fine, but this device's GPU vision pipeline cannot be initialised. The
- * canonical signature is an error message containing `vision_litert_compiled_model_executor`
- * (the SDK's per-modality executor that fails when `CreateSharedMemoryManager` is
- * unimplemented in the OpenGL fallback path — upstream LiteRT-LM #2292, hitting Adreno
- * 7xx + OEM ROMs that block `libvndksupport.so` discovery).
- *
- * The runtime self-recovers by retrying with `supportImage=false` (text-only) once. The
- * provider catches this and persists the per-model decision so subsequent loads skip
- * the doomed GPU vision attempt entirely. Multimodal models still load — they just
- * cannot accept images on this device.
- */
-class LiteRtVisionUnavailableException(
-    val modelPath: String,
-    cause: Throwable,
-) : RuntimeException(
-    "LiteRT vision encoder failed to initialise on this device's GPU: ${cause.message}",
-    cause,
-)
 
 /**
  * Wraps Google's LiteRT-LM runtime (`com.google.ai.edge.litertlm:litertlm-android`, version
@@ -426,6 +326,96 @@ class LiteRtRuntime(private val context: Context) {
      *
      * Returns the resolved accelerator label that was actually used.
      */
+    private suspend fun fallbackLoadAfterFirstFailure(
+        modelPath: String,
+        accel: String,
+        desiredEngineKey: EngineKey,
+        desiredConversationSpec: ConversationSpec,
+        firstError: Throwable,
+    ): LoadResult {
+        val classified = classifyEngineError(modelPath, firstError)
+        if (classified is LiteRtVisionUnavailableException && desiredEngineKey.supportImage) {
+            android.util.Log.w(
+                "LiteRtRuntime",
+                "Vision executor failed on $accel (${firstError.message}); retrying without vision backend (text-only)",
+            )
+            val textOnlyKey = desiredEngineKey.copy(supportImage = false)
+            return runCatching {
+                tryLoadWithBackend(textOnlyKey, accel, desiredConversationSpec)
+            }.getOrElse { retryError ->
+                throw classifyEngineError(
+                    modelPath,
+                    RuntimeException(
+                        "LiteRT engine could not load this model even with vision disabled. Underlying: ${retryError.message}",
+                        retryError,
+                    ),
+                )
+            }
+        }
+        if (accel == "CPU") {
+            throw classifyEngineError(
+                modelPath,
+                RuntimeException(
+                    "LiteRT engine could not load this model on this device's GPU OR CPU. " +
+                        "This usually means the model file is packaged for a different runtime version. " +
+                        "Try a different model from the Gallery allowlist (tap Install default, or " +
+                        "paste a litert-community/ HuggingFace URL). " +
+                        "Underlying: ${firstError.message}",
+                    firstError,
+                ),
+            )
+        }
+        if (classified is LiteRtModelCorruptException) throw classified
+
+        android.util.Log.w(
+            "LiteRtRuntime",
+            "Engine init failed on $accel (${firstError.message}); retrying on CPU",
+        )
+        return runCatching {
+            tryLoadWithBackend(desiredEngineKey.copy(accelerator = "CPU"), "CPU", desiredConversationSpec)
+        }.getOrElse { cpuError ->
+            fallbackLoadCpuTextOnlyOrThrow(modelPath, desiredEngineKey, desiredConversationSpec, cpuError)
+        }
+    }
+
+    private suspend fun fallbackLoadCpuTextOnlyOrThrow(
+        modelPath: String,
+        desiredEngineKey: EngineKey,
+        desiredConversationSpec: ConversationSpec,
+        cpuError: Throwable,
+    ): LoadResult {
+        val cpuClassified = classifyEngineError(modelPath, cpuError)
+        if (cpuClassified is LiteRtVisionUnavailableException && desiredEngineKey.supportImage) {
+            android.util.Log.w(
+                "LiteRtRuntime",
+                "Vision executor failed on CPU too; retrying without vision backend",
+            )
+            val textOnlyCpuKey = desiredEngineKey.copy(accelerator = "CPU", supportImage = false)
+            return runCatching {
+                tryLoadWithBackend(textOnlyCpuKey, "CPU", desiredConversationSpec)
+            }.getOrElse { lastError ->
+                throw classifyEngineError(
+                    modelPath,
+                    RuntimeException(
+                        "LiteRT engine could not load this model on this device even with vision disabled. Underlying: ${lastError.message}",
+                        lastError,
+                    ),
+                )
+            }
+        }
+        throw classifyEngineError(
+            modelPath,
+            RuntimeException(
+                "LiteRT engine could not load this model on this device's GPU OR CPU. " +
+                    "This usually means the model file is packaged for a different runtime version. " +
+                    "Try a different model from the Gallery allowlist (tap Install default, or " +
+                    "paste a litert-community/ HuggingFace URL). " +
+                    "Underlying: ${cpuError.message}",
+                cpuError,
+            ),
+        )
+    }
+
     @OptIn(ExperimentalApi::class) // ExperimentalFlags.* + Capabilities.hasSpeculativeDecodingSupport
     suspend fun ensureLoaded(
         modelPath: String,
@@ -546,105 +536,7 @@ class LiteRtRuntime(private val context: Context) {
             tryLoadWithBackend(desiredEngineKey, accel, desiredConversationSpec)
         }
         val loadResult = firstAttempt.getOrElse { firstError ->
-            val classified = classifyEngineError(modelPath, firstError)
-            // Vision executor failed (typically Adreno 7xx + OEM linker namespace blocking
-            // libvndksupport.so → OpenCL discovery fails → OpenGL fallback hits the 0.11
-            // `CreateSharedMemoryManager` UNIMPLEMENTED stub; upstream issue #2292). The
-            // text path is fine on this device, so retry once with the vision backend off.
-            // The provider catches the typed exception we surface after the retry and
-            // persists the "vision unavailable" flag so subsequent loads skip the doomed
-            // GPU vision attempt entirely.
-            if (classified is LiteRtVisionUnavailableException && desiredEngineKey.supportImage) {
-                android.util.Log.w(
-                    "LiteRtRuntime",
-                    "Vision executor failed on $accel (${firstError.message}); " +
-                        "retrying without vision backend (text-only)",
-                )
-                val textOnlyKey = desiredEngineKey.copy(supportImage = false)
-                try {
-                    tryLoadWithBackend(textOnlyKey, accel, desiredConversationSpec).also {
-                        // The retry succeeded text-only — record this on the LoadedModel
-                        // so the provider can see it via the resolved engine key and
-                        // persist the per-model decision. We still throw a typed signal
-                        // up after the LoadedModel is committed, see below.
-                    }
-                } catch (retryError: Throwable) {
-                    // Text-only retry ALSO failed → the model just won't load on this
-                    // device. Surface the original vision-unavailable error so the
-                    // user message names the right root cause.
-                    throw classifyEngineError(
-                        modelPath,
-                        RuntimeException(
-                            "LiteRT engine could not load this model even with vision " +
-                                "disabled. Underlying: ${retryError.message}",
-                            retryError,
-                        )
-                    )
-                }
-            } else if (accel == "CPU") {
-                throw classifyEngineError(
-                    modelPath,
-                    RuntimeException(
-                        "LiteRT engine could not load this model on this device's GPU OR CPU. " +
-                        "This usually means the model file is packaged for a different runtime version. " +
-                        "Try a different model from the Gallery allowlist (tap Install default, or " +
-                        "paste a litert-community/ HuggingFace URL). " +
-                        "Underlying: ${firstError.message}",
-                        firstError,
-                    )
-                )
-            } else {
-                if (classified is LiteRtModelCorruptException) throw classified
-
-                android.util.Log.w(
-                    "LiteRtRuntime",
-                    "Engine init failed on $accel (${firstError.message}); retrying on CPU",
-                )
-                try {
-                    tryLoadWithBackend(
-                        desiredEngineKey.copy(accelerator = "CPU"),
-                        "CPU",
-                        desiredConversationSpec,
-                    )
-                } catch (cpuError: Throwable) {
-                    val cpuClassified = classifyEngineError(modelPath, cpuError)
-                    // Vision-side error even on CPU main backend → text-only retry too.
-                    if (cpuClassified is LiteRtVisionUnavailableException &&
-                        desiredEngineKey.supportImage
-                    ) {
-                        android.util.Log.w(
-                            "LiteRtRuntime",
-                            "Vision executor failed on CPU too; retrying without vision backend",
-                        )
-                        val textOnlyCpuKey = desiredEngineKey
-                            .copy(accelerator = "CPU", supportImage = false)
-                        try {
-                            tryLoadWithBackend(textOnlyCpuKey, "CPU", desiredConversationSpec)
-                        } catch (lastError: Throwable) {
-                            throw classifyEngineError(
-                                modelPath,
-                                RuntimeException(
-                                    "LiteRT engine could not load this model on this device " +
-                                        "even with vision disabled. Underlying: ${lastError.message}",
-                                    lastError,
-                                )
-                            )
-                        }
-                    } else {
-                        throw classifyEngineError(
-                            modelPath,
-                            RuntimeException(
-                                "LiteRT engine could not load this model on this device's GPU OR CPU. " +
-                                "This usually means the model file is packaged for a different runtime version. " +
-                                "Try a different model from the Gallery allowlist (tap Install default, or " +
-                                "paste a litert-community/ HuggingFace URL). " +
-                                "Underlying: ${cpuError.message}",
-                                cpuError,
-                            )
-                        )
-                    }
-                }
-            }
+            fallbackLoadAfterFirstFailure(modelPath, accel, desiredEngineKey, desiredConversationSpec, firstError)
         }
 
         // If we fell back to CPU from a non-CPU accelerator, cache that decision in-session.
@@ -760,12 +652,8 @@ class LiteRtRuntime(private val context: Context) {
             ExperimentalFlags.enableSpeculativeDecoding = engineKey.speculativeDecoding
             val e = try {
                 Engine(engineConfig).also { built ->
-                    try {
-                        built.initialize()
-                    } catch (t: Throwable) {
-                        // Close the partially-constructed engine to release its native
-                        // handle before propagating.
-                        try { built.close() } catch (_: Throwable) {}
+                    runCatching { built.initialize() }.onFailure { t ->
+                        runCatching { built.close() }
                         throw t
                     }
                 }
@@ -1053,82 +941,17 @@ class LiteRtRuntime(private val context: Context) {
         }
     }
 
-    private fun Bitmap.toPngByteArray(): ByteArray {
-        val stream = ByteArrayOutputStream()
-        this.compress(Bitmap.CompressFormat.PNG, 100, stream)
-        return stream.toByteArray()
-    }
-
     companion object {
-        /**
-         * Pure decision function: given the signatures the live Conversation has already
-         * consumed ([processed]) and the caller's full [historySignatures], decide whether
-         * the warm KV cache can be reused. Extracted for unit testing.
-         *
-         * Warm reuse requires ALL of:
-         *  - no media inputs (the warm path sends one turn's text and has nowhere to attach
-         *    per-call images/audio onto a prior turn);
-         *  - the runtime has prior warm state ([processed] non-empty);
-         *  - [processed] is a strict prefix of [historySignatures];
-         *  - exactly one turn was appended (a clean continuation — more than one, or a
-         *    rewritten earlier turn, goes cold so the full history is re-sent correctly).
-         *
-         * Any "no" answer is [TurnPlan.Cold], which is always correct — the warm path is
-         * purely an optimisation.
-         */
         internal fun planTurns(
             processed: List<String>,
             historySignatures: List<String>,
             hasMedia: Boolean,
-        ): TurnPlan {
-            if (hasMedia) return TurnPlan.Cold
-            if (processed.isEmpty()) return TurnPlan.Cold
-            if (processed.size >= historySignatures.size) return TurnPlan.Cold
-            if (historySignatures.subList(0, processed.size) != processed) return TurnPlan.Cold
-            if (historySignatures.size - processed.size != 1) return TurnPlan.Cold
-            return TurnPlan.Warm(sendFromIndex = processed.size)
-        }
+        ): TurnPlan = planTurnsImpl(processed, historySignatures, hasMedia)
 
-        /**
-         * True if the joined cause-chain message text indicates the SDK's vision-modality
-         * executor failed at compile / init time. Extracted as a pure function for unit
-         * testing. The canonical signature is `vision_litert_compiled_model_executor` (the
-         * source file path in the SDK's native stack), but in practice the error can also
-         * surface as `vision_litert` truncated, `CreateSharedMemoryManager is not
-         * implemented` (the upstream root cause on Adreno 7xx + One UI / OriginOS), or
-         * `gpu_backend_opengl.cc` (the file that hosts the stub). Match any of those.
-         */
-        /**
-         * Serialise a `ToolCall`'s argument map to a JSON object string, matching the
-         * `input` field of `UIMessagePart.Tool` so the host can parse it exactly like a
-         * cloud provider's arguments payload.
-         *
-         * The SDK decodes arguments into plain Kotlin values (`String`, `Number`,
-         * `Boolean`, `List`, `Map`, null) and its own converter is internal, so we walk the
-         * structure ourselves. An unrecognised leaf is stringified rather than dropped: a
-         * tool receiving a stringly-typed argument can still fail loudly, whereas a missing
-         * key looks like the model never supplied it.
-         */
         internal fun argumentsToJson(arguments: Map<String, Any?>): String =
-            JsonObject(arguments.mapValues { (_, v) -> toJsonElement(v) }).toString()
-
-        private fun toJsonElement(value: Any?): JsonElement = when (value) {
-            null -> JsonNull
-            is String -> JsonPrimitive(value)
-            is Boolean -> JsonPrimitive(value)
-            is Number -> JsonPrimitive(value)
-            is Map<*, *> -> JsonObject(
-                value.entries.associate { (k, v) -> k.toString() to toJsonElement(v) }
-            )
-
-            is Iterable<*> -> JsonArray(value.map { toJsonElement(it) })
-            is Array<*> -> JsonArray(value.map { toJsonElement(it) })
-            else -> JsonPrimitive(value.toString())
-        }
+            argumentsToJsonImpl(arguments)
 
         internal fun isVisionExecutorError(joinedMessage: String): Boolean =
-            joinedMessage.contains("vision_litert", ignoreCase = true) ||
-                joinedMessage.contains("CreateSharedMemoryManager", ignoreCase = true) ||
-                joinedMessage.contains("gpu_backend_opengl", ignoreCase = true)
+            isVisionExecutorErrorImpl(joinedMessage)
     }
 }

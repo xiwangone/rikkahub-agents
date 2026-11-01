@@ -27,7 +27,6 @@ import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.registry.ModelRegistry
@@ -46,7 +45,6 @@ import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
 import me.rerere.rikkahub.data.repository.MemoryRepository
-import me.rerere.rikkahub.data.vault.SecretMasker
 import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import kotlin.uuid.Uuid

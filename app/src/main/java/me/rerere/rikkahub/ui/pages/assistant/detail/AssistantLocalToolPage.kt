@@ -2,64 +2,42 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.Manifest
 import android.os.Build
-import android.util.Log
-import androidx.activity.compose.rememberLauncherForActivityResult
-import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
-import androidx.lifecycle.Lifecycle
-import androidx.lifecycle.LifecycleEventObserver
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
-import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
-import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
-import me.rerere.rikkahub.shizuku.ShizukuManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
@@ -67,6 +45,16 @@ import rikka.shizuku.Shizuku
 
 private const val TAG = "AssistantLocalToolPage"
 
+/**
+ * 助手本地工具权限装配页：170+ 本地与工作区工具开关、批量权限授权与过滤。
+ *
+ * 本文件很长（2100+ 行）。阅读与维护时请按下面的段落名检索符号，不要依赖行号：
+ *  - 页面入口与分类列表：[AssistantLocalToolPage]
+ *  - 工具分组：系统工具、工作区工具、终端工具、文件工具、浏览器与自动化
+ *  - 权限与审批：逐个工具的免审批 / 强制审批配置
+ *
+ * 相关文件：工具定义 [me.rerere.rikkahub.data.ai.tools.LocalTools]；工具索引 [me.rerere.rikkahub.data.ai.tools.registry.ToolIndex]。
+ */
 @Composable
 fun AssistantLocalToolPage(id: String) {
     val vm: AssistantDetailVM =
@@ -207,426 +195,53 @@ private fun AssistantLocalToolContent(
     val termuxCommand = stringResource(R.string.assistant_page_local_tools_termux_postgrant_command)
     val termuxCopiedText = stringResource(R.string.assistant_page_local_tools_termux_postgrant_copied)
 
-    if (showTermuxPostGrantDialog) {
-        AlertDialog(
-            onDismissRequest = { showTermuxPostGrantDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_local_tools_termux_postgrant_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    Text(stringResource(R.string.assistant_page_local_tools_termux_postgrant_message))
-                    androidx.compose.material3.Surface(
-                        color = MaterialTheme.colorScheme.surfaceVariant,
-                        shape = MaterialTheme.shapes.small,
-                    ) {
-                        Text(
-                            text = termuxCommand,
-                            style =
-                                MaterialTheme.typography.bodySmall.copy(
-                                    fontFamily = androidx.compose.ui.text.font.FontFamily.Monospace,
-                                ),
-                            modifier = Modifier.padding(8.dp),
-                        )
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    ctx.writeClipboardText(termuxCommand)
-                    toaster.show(termuxCopiedText)
-                    showTermuxPostGrantDialog = false
-                }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_termux_postgrant_copy))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showTermuxPostGrantDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
-
-    if (showExtraColdDialog) {
-        AlertDialog(
-            onDismissRequest = { showExtraColdDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.assistant_page_extra_cold_dialog_desc))
-                    OutlinedTextField(
-                        value = extraColdDraft,
-                        onValueChange = { extraColdDraft = it },
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 120.dp),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val names =
-                            extraColdDraft
-                                .split(',', '\n', ' ', '\t')
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                        onUpdateAssistant { it.copy(extraColdTools = names) }
-                        showExtraColdDialog = false
-                    },
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showExtraColdDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showCompactOutputDialog) {
-        AlertDialog(
-            onDismissRequest = { showCompactOutputDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_compact_output_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.assistant_page_compact_output_dialog_desc))
-                    OutlinedTextField(
-                        value = compactOutputDraft,
-                        onValueChange = { compactOutputDraft = it },
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 120.dp),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val names =
-                            compactOutputDraft
-                                .split(',', '\n', ' ', '\t')
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                        onUpdateAssistant { it.copy(toolOutputCompactTools = names) }
-                        showCompactOutputDialog = false
-                    },
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showCompactOutputDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showDigestDialog) {
-        AlertDialog(
-            onDismissRequest = { showDigestDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_digest_output_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.assistant_page_digest_output_dialog_desc))
-                    OutlinedTextField(
-                        value = digestToolsDraft,
-                        onValueChange = { digestToolsDraft = it },
-                        placeholder = { Text(stringResource(R.string.assistant_page_digest_output_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 100.dp),
-                    )
-                    OutlinedTextField(
-                        value = digestKeywordsDraft,
-                        onValueChange = { digestKeywordsDraft = it },
-                        label = { Text(stringResource(R.string.assistant_page_digest_output_keywords_label)) },
-                        placeholder = { Text(stringResource(R.string.assistant_page_digest_output_keywords_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 80.dp),
-                    )
-                    // 一键填入内置默认集（error / FAILED / Exception / ✗ / 失败 / 异常）—— 可改可存
-                    TextButton(
-                        onClick = {
-                            digestKeywordsDraft = TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS.joinToString("\n")
-                        },
-                    ) {
-                        Text(stringResource(R.string.assistant_page_digest_output_keywords_fill))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val names =
-                            digestToolsDraft
-                                .split(',', '\n', ' ', '\t')
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                        // 关键词用换行/逗号分隔（不用空格：关键词里可能带空格）
-                        val keywords =
-                            digestKeywordsDraft
-                                .split(',', '\n')
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                        onUpdateAssistant {
-                            it.copy(
-                                toolOutputDigestTools = names,
-                                toolOutputDigestKeywords = keywords,
-                            )
-                        }
-                        showDigestDialog = false
-                    },
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDigestDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showOnlyToolsDialog) {
-        AlertDialog(
-            onDismissRequest = { showOnlyToolsDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
-                    OutlinedTextField(
-                        value = onlyToolsDraft,
-                        onValueChange = { onlyToolsDraft = it },
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 120.dp),
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        val names =
-                            onlyToolsDraft
-                                .split(',', '\n', ' ', '\t')
-                                .map { it.trim() }
-                                .filter { it.isNotEmpty() }
-                                .distinct()
-                        showOnlyToolsDialog = false
-                        if (names.isEmpty()) {
-                            onUpdateAssistant { it.copy(onlyTools = emptyList()) }
-                        } else {
-                            // 白名单会让助手丢掉名单外的能力，保存前再确认一次。
-                            pendingOnlyTools = names
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showOnlyToolsDialog = false }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    pendingOnlyTools?.let { names ->
-        AlertDialog(
-            onDismissRequest = { pendingOnlyTools = null },
-            title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text(stringResource(R.string.assistant_page_only_tools_desc, names.size))
-                    Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
-                    Text(names.joinToString("\n"))
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onUpdateAssistant { it.copy(onlyTools = names) }
-                        pendingOnlyTools = null
-                    },
-                ) {
-                    Text(stringResource(R.string.confirm))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { pendingOnlyTools = null }) {
-                    Text(stringResource(R.string.cancel))
-                }
-            },
-        )
-    }
-
-    if (showTelegramNoTokenDialog) {
-        AlertDialog(
-            onDismissRequest = { showTelegramNoTokenDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_local_tools_telegram_notoken_title)) },
-            text = { Text(stringResource(R.string.assistant_page_local_tools_telegram_notoken_message)) },
-            confirmButton = {
-                TextButton(onClick = { showTelegramNoTokenDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
-
-    if (showWorkflowsHintDialog) {
-        AlertDialog(
-            onDismissRequest = { showWorkflowsHintDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_local_tools_workflows_hint_title)) },
-            text = { Text(stringResource(R.string.assistant_page_local_tools_workflows_hint_message)) },
-            confirmButton = {
-                TextButton(onClick = { showWorkflowsHintDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
-
-    if (showKeyboardSetupDialog) {
-        AlertDialog(
-            onDismissRequest = { showKeyboardSetupDialog = false },
-            title = { Text(stringResource(R.string.assistant_page_local_tools_keyboard_setup_title)) },
-            text = { Text(stringResource(R.string.assistant_page_local_tools_keyboard_setup_message)) },
-            confirmButton = {
-                TextButton(onClick = { showKeyboardSetupDialog = false }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
-
-    if (showImportSourcePicker) {
-        AlertDialog(
-            onDismissRequest = { showImportSourcePicker = false },
-            title = { Text(stringResource(R.string.assistant_page_local_tools_import_select_source)) },
-            text = {
-                if (sourceAssistants.isEmpty()) {
-                    Text(stringResource(R.string.assistant_page_local_tools_import_no_source))
-                } else {
-                    Column(
-                        modifier = Modifier.verticalScroll(rememberScrollState()),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        sourceAssistants.forEach { source ->
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            importCandidate = source
-                                            showImportSourcePicker = false
-                                        }
-                                        .padding(vertical = 12.dp, horizontal = 4.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text =
-                                        source.name.ifBlank {
-                                            stringResource(R.string.assistant_page_local_tools_import_unnamed)
-                                        },
-                                    style = MaterialTheme.typography.bodyLarge,
-                                )
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {},
-            dismissButton = {
-                TextButton(onClick = { showImportSourcePicker = false }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
-
-    importCandidate?.let { candidate ->
-        val importDoneText = stringResource(R.string.assistant_page_local_tools_import_done)
-        AlertDialog(
-            onDismissRequest = { importCandidate = null },
-            title = {
-                Text(
-                    stringResource(
-                        R.string.assistant_page_local_tools_import_confirm_title,
-                        candidate.name.ifBlank { stringResource(R.string.assistant_page_local_tools_import_unnamed) },
-                    ),
-                )
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text(stringResource(R.string.assistant_page_local_tools_import_scope))
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        Checkbox(checked = true, onCheckedChange = null, enabled = false)
-                        Text(stringResource(R.string.assistant_page_local_tools_import_local_tools))
-                    }
-                    Row(
-                        modifier = Modifier.clickable { importIncludeMcp = !importIncludeMcp },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(checked = importIncludeMcp, onCheckedChange = { importIncludeMcp = it })
-                        Text(stringResource(R.string.assistant_page_local_tools_import_mcp))
-                    }
-                    Row(
-                        modifier = Modifier.clickable { importIncludeSkills = !importIncludeSkills },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(checked = importIncludeSkills, onCheckedChange = { importIncludeSkills = it })
-                        Text(stringResource(R.string.assistant_page_local_tools_import_skills))
-                    }
-                    Row(
-                        modifier = Modifier.clickable { importIncludeWebSearch = !importIncludeWebSearch },
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Checkbox(checked = importIncludeWebSearch, onCheckedChange = { importIncludeWebSearch = it })
-                        Text(stringResource(R.string.assistant_page_local_tools_import_web_search))
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        onImportToolConfig(
-                            candidate.id.toString(),
-                            importIncludeMcp,
-                            importIncludeSkills,
-                            importIncludeWebSearch,
-                        )
-                        importCandidate = null
-                        toaster.show(importDoneText)
-                    },
-                ) {
-                    Text(stringResource(R.string.assistant_page_local_tools_import_action))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { importCandidate = null }) {
-                    Text(stringResource(R.string.assistant_page_local_tools_dialog_dismiss))
-                }
-            },
-        )
-    }
+    AssistantLocalToolDialogs(
+        ctx = ctx,
+        toaster = toaster,
+        sourceAssistants = sourceAssistants,
+        onUpdateAssistant = onUpdateAssistant,
+        onImportToolConfig = onImportToolConfig,
+        termuxCommand = termuxCommand,
+        termuxCopiedText = termuxCopiedText,
+        showTermuxPostGrantDialog = showTermuxPostGrantDialog,
+        onDismissTermuxPostGrantDialog = { showTermuxPostGrantDialog = false },
+        showExtraColdDialog = showExtraColdDialog,
+        onDismissExtraColdDialog = { showExtraColdDialog = false },
+        extraColdDraft = extraColdDraft,
+        onExtraColdDraftChange = { extraColdDraft = it },
+        showCompactOutputDialog = showCompactOutputDialog,
+        onDismissCompactOutputDialog = { showCompactOutputDialog = false },
+        compactOutputDraft = compactOutputDraft,
+        onCompactOutputDraftChange = { compactOutputDraft = it },
+        showDigestDialog = showDigestDialog,
+        onDismissDigestDialog = { showDigestDialog = false },
+        digestToolsDraft = digestToolsDraft,
+        onDigestToolsDraftChange = { digestToolsDraft = it },
+        digestKeywordsDraft = digestKeywordsDraft,
+        onDigestKeywordsDraftChange = { digestKeywordsDraft = it },
+        showOnlyToolsDialog = showOnlyToolsDialog,
+        onDismissOnlyToolsDialog = { showOnlyToolsDialog = false },
+        onlyToolsDraft = onlyToolsDraft,
+        onOnlyToolsDraftChange = { onlyToolsDraft = it },
+        pendingOnlyTools = pendingOnlyTools,
+        onPendingOnlyToolsChange = { pendingOnlyTools = it },
+        showTelegramNoTokenDialog = showTelegramNoTokenDialog,
+        onDismissTelegramNoTokenDialog = { showTelegramNoTokenDialog = false },
+        showWorkflowsHintDialog = showWorkflowsHintDialog,
+        onDismissWorkflowsHintDialog = { showWorkflowsHintDialog = false },
+        showKeyboardSetupDialog = showKeyboardSetupDialog,
+        onDismissKeyboardSetupDialog = { showKeyboardSetupDialog = false },
+        showImportSourcePicker = showImportSourcePicker,
+        onDismissImportSourcePicker = { showImportSourcePicker = false },
+        importCandidate = importCandidate,
+        onImportCandidateChange = { importCandidate = it },
+        importIncludeMcp = importIncludeMcp,
+        onImportIncludeMcpChange = { importIncludeMcp = it },
+        importIncludeSkills = importIncludeSkills,
+        onImportIncludeSkillsChange = { importIncludeSkills = it },
+        importIncludeWebSearch = importIncludeWebSearch,
+        onImportIncludeWebSearchChange = { importIncludeWebSearch = it },
+    )
 
     Column(
         modifier =
@@ -721,132 +336,15 @@ private fun AssistantLocalToolContent(
             modifier = Modifier.padding(start = 16.dp, top = 8.dp),
         )
         CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_javascript_engine_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.JavascriptEngine),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.JavascriptEngine, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_time_info_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_time_info_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.TimeInfo),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.TimeInfo, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_clipboard_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_clipboard_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Clipboard),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Clipboard, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_tts_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_tts_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Tts),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Tts, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_ask_user_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_ask_user_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.AskUser),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AskUser, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_diagnostics_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.Diagnostics),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Diagnostics, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_model_testing_desc))
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.localTools.contains(LocalToolOption.ModelTesting),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ModelTesting, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_device_info_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_device_info_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.DeviceInfo),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.DeviceInfo, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_system_intents_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SystemIntents),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SystemIntents, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_javascript_engine_title, R.string.assistant_page_local_tools_javascript_engine_desc, assistant.localTools.contains(LocalToolOption.JavascriptEngine), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.JavascriptEngine, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_time_info_title, R.string.assistant_page_local_tools_time_info_desc, assistant.localTools.contains(LocalToolOption.TimeInfo), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.TimeInfo, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_clipboard_title, R.string.assistant_page_local_tools_clipboard_desc, assistant.localTools.contains(LocalToolOption.Clipboard), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.Clipboard, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_tts_title, R.string.assistant_page_local_tools_tts_desc, assistant.localTools.contains(LocalToolOption.Tts), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.Tts, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_ask_user_title, R.string.assistant_page_local_tools_ask_user_desc, assistant.localTools.contains(LocalToolOption.AskUser), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.AskUser, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_diagnostics_title, R.string.assistant_page_local_tools_diagnostics_desc, assistant.localTools.contains(LocalToolOption.Diagnostics), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.Diagnostics, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_model_testing_title, R.string.assistant_page_local_tools_model_testing_desc, assistant.localTools.contains(LocalToolOption.ModelTesting), usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.ModelTesting, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_device_info_title, R.string.assistant_page_local_tools_device_info_desc, assistant.localTools.contains(LocalToolOption.DeviceInfo)) { toggleLocalTool(LocalToolOption.DeviceInfo, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_system_intents_title, R.string.assistant_page_local_tools_system_intents_desc, assistant.localTools.contains(LocalToolOption.SystemIntents)) { toggleLocalTool(LocalToolOption.SystemIntents, it) }
         }
 
         // Output section
@@ -856,20 +354,7 @@ private fun AssistantLocalToolContent(
             modifier = Modifier.padding(start = 16.dp, top = 8.dp),
         )
         CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_toast_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_toast_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Toast),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Toast, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_toast_title, R.string.assistant_page_local_tools_toast_desc, assistant.localTools.contains(LocalToolOption.Toast)) { toggleLocalTool(LocalToolOption.Toast, it) }
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_notification_title))
@@ -885,34 +370,8 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_share_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_share_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Share),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Share, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_chart_display_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_chart_display_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.ChartDisplay),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ChartDisplay, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_share_title, R.string.assistant_page_local_tools_share_desc, assistant.localTools.contains(LocalToolOption.Share)) { toggleLocalTool(LocalToolOption.Share, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_chart_display_title, R.string.assistant_page_local_tools_chart_display_desc, assistant.localTools.contains(LocalToolOption.ChartDisplay)) { toggleLocalTool(LocalToolOption.ChartDisplay, it) }
         }
 
         // Personal data section
@@ -1088,48 +547,9 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_download_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_download_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Download),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Download, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_media_player_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_media_player_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.MediaPlayer),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.MediaPlayer, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_media_scanner_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_media_scanner_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.MediaScanner),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.MediaScanner, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_download_title, R.string.assistant_page_local_tools_download_desc, assistant.localTools.contains(LocalToolOption.Download)) { toggleLocalTool(LocalToolOption.Download, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_media_player_title, R.string.assistant_page_local_tools_media_player_desc, assistant.localTools.contains(LocalToolOption.MediaPlayer)) { toggleLocalTool(LocalToolOption.MediaPlayer, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_media_scanner_title, R.string.assistant_page_local_tools_media_scanner_desc, assistant.localTools.contains(LocalToolOption.MediaScanner)) { toggleLocalTool(LocalToolOption.MediaScanner, it) }
         }
 
         Text(
@@ -1188,34 +608,8 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_browser_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_browser_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Browser),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Browser, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_web_fetch_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.WebFetch),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.WebFetch, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_browser_title, R.string.assistant_page_local_tools_browser_desc, assistant.localTools.contains(LocalToolOption.Browser)) { toggleLocalTool(LocalToolOption.Browser, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_web_fetch_title, R.string.assistant_page_local_tools_web_fetch_desc, assistant.localTools.contains(LocalToolOption.WebFetch)) { toggleLocalTool(LocalToolOption.WebFetch, it) }
         }
 
         Text(
@@ -1270,104 +664,13 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_sub_agents_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SubAgents),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SubAgents, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_skill_import_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.SkillImport),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.SkillImport, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_js_skills_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.JsSkills),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.JsSkills, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_mcp_control_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_mcp_control_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.McpControl),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.McpControl, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_external_automation_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_external_automation_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.ExternalAutomation),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ExternalAutomation, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_reliability_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_reliability_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Reliability),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Reliability, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_cost_guards_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_cost_guards_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.CostGuards),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.CostGuards, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_sub_agents_title, R.string.assistant_page_local_tools_sub_agents_desc, assistant.localTools.contains(LocalToolOption.SubAgents)) { toggleLocalTool(LocalToolOption.SubAgents, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_skill_import_title, R.string.assistant_page_local_tools_skill_import_desc, assistant.localTools.contains(LocalToolOption.SkillImport)) { toggleLocalTool(LocalToolOption.SkillImport, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_js_skills_title, R.string.assistant_page_local_tools_js_skills_desc, assistant.localTools.contains(LocalToolOption.JsSkills)) { toggleLocalTool(LocalToolOption.JsSkills, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_mcp_control_title, R.string.assistant_page_local_tools_mcp_control_desc, assistant.localTools.contains(LocalToolOption.McpControl)) { toggleLocalTool(LocalToolOption.McpControl, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_external_automation_title, R.string.assistant_page_local_tools_external_automation_desc, assistant.localTools.contains(LocalToolOption.ExternalAutomation)) { toggleLocalTool(LocalToolOption.ExternalAutomation, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_reliability_title, R.string.assistant_page_local_tools_reliability_desc, assistant.localTools.contains(LocalToolOption.Reliability)) { toggleLocalTool(LocalToolOption.Reliability, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_cost_guards_title, R.string.assistant_page_local_tools_cost_guards_desc, assistant.localTools.contains(LocalToolOption.CostGuards)) { toggleLocalTool(LocalToolOption.CostGuards, it) }
         }
 
         Text(
@@ -1391,20 +694,7 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_launcher_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.AppLauncher),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppLauncher, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_app_launcher_title, R.string.assistant_page_local_tools_app_launcher_desc, assistant.localTools.contains(LocalToolOption.AppLauncher)) { toggleLocalTool(LocalToolOption.AppLauncher, it) }
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_termux_title))
@@ -1471,34 +761,8 @@ private fun AssistantLocalToolContent(
             modifier = Modifier.padding(start = 16.dp, top = 8.dp),
         )
         CardGroup {
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_torch_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_torch_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Torch),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Torch, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vibrate_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Vibrate),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Vibrate, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_torch_title, R.string.assistant_page_local_tools_torch_desc, assistant.localTools.contains(LocalToolOption.Torch)) { toggleLocalTool(LocalToolOption.Torch, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_vibrate_title, R.string.assistant_page_local_tools_vibrate_desc, assistant.localTools.contains(LocalToolOption.Vibrate)) { toggleLocalTool(LocalToolOption.Vibrate, it) }
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_brightness_title))
@@ -1553,76 +817,11 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_wallpaper_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_wallpaper_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Wallpaper),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Wallpaper, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_keystore_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_keystore_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Keystore),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Keystore, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_shizuku_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Shizuku),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Shizuku, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vault_tools_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vault_tools_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.VaultTools),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.VaultTools, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vault_export_env_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_vault_export_env_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.VaultExportEnv),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.VaultExportEnv, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_wallpaper_title, R.string.assistant_page_local_tools_wallpaper_desc, assistant.localTools.contains(LocalToolOption.Wallpaper)) { toggleLocalTool(LocalToolOption.Wallpaper, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_keystore_title, R.string.assistant_page_local_tools_keystore_desc, assistant.localTools.contains(LocalToolOption.Keystore)) { toggleLocalTool(LocalToolOption.Keystore, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_shizuku_title, R.string.assistant_page_local_tools_shizuku_desc, assistant.localTools.contains(LocalToolOption.Shizuku)) { toggleLocalTool(LocalToolOption.Shizuku, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_vault_tools_title, R.string.assistant_page_local_tools_vault_tools_desc, assistant.localTools.contains(LocalToolOption.VaultTools)) { toggleLocalTool(LocalToolOption.VaultTools, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_vault_export_env_title, R.string.assistant_page_local_tools_vault_export_env_desc, assistant.localTools.contains(LocalToolOption.VaultExportEnv)) { toggleLocalTool(LocalToolOption.VaultExportEnv, it) }
             item(
                 headlineContent = {
                     Text(stringResource(R.string.assistant_page_local_tools_nfc_title))
@@ -1646,537 +845,10 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_external_storage_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_external_storage_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.ExternalStorage),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.ExternalStorage, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_archive_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_archive_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.Archive),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.Archive, it) },
-                    )
-                },
-            )
-            item(
-                headlineContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_backup_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.assistant_page_local_tools_app_backup_desc))
-                },
-                trailingContent = {
-                    PermissionedSwitch(
-                        checked = assistant.localTools.contains(LocalToolOption.AppBackup),
-                        onCheckedChange = { toggleLocalTool(LocalToolOption.AppBackup, it) },
-                    )
-                },
-            )
+            toolSwitchItem(R.string.assistant_page_local_tools_external_storage_title, R.string.assistant_page_local_tools_external_storage_desc, assistant.localTools.contains(LocalToolOption.ExternalStorage)) { toggleLocalTool(LocalToolOption.ExternalStorage, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_archive_title, R.string.assistant_page_local_tools_archive_desc, assistant.localTools.contains(LocalToolOption.Archive)) { toggleLocalTool(LocalToolOption.Archive, it) }
+            toolSwitchItem(R.string.assistant_page_local_tools_app_backup_title, R.string.assistant_page_local_tools_app_backup_desc, assistant.localTools.contains(LocalToolOption.AppBackup)) { toggleLocalTool(LocalToolOption.AppBackup, it) }
         }
 
-    }
-}
-
-/**
- * Status subtitle for the Keyboard control toggle. Shows a colored dot summarising whether
- * the co-signed agent-keyboard app is installed and whether it is the active keyboard —
- * both are required for the keyboard_* tools to do anything. Recomputed on every onResume
- * so it reflects an install / IME switch the user just made in system settings.
- */
-@Composable
-private fun KeyboardStatusRowSubtitle() {
-    val ctx = LocalContext.current
-
-    var resumeTick by remember { mutableStateOf(0) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val obs =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) resumeTick++
-            }
-        lifecycleOwner.lifecycle.addObserver(obs)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
-    }
-
-    val installed =
-        remember(resumeTick) {
-            runCatching {
-                ctx.packageManager.getPackageInfo(KEYBOARD_PACKAGE, 0)
-                true
-            }.getOrDefault(false)
-        }
-    val isActiveIme =
-        remember(resumeTick) {
-            installed &&
-                runCatching {
-                    android.provider.Settings.Secure
-                        .getString(
-                            ctx.contentResolver,
-                            android.provider.Settings.Secure.DEFAULT_INPUT_METHOD,
-                        )?.startsWith("$KEYBOARD_PACKAGE/") == true
-                }.getOrDefault(false)
-        }
-
-    val (dotColor, label) =
-        when {
-            !installed -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFEF4444) to
-                    stringResource(R.string.assistant_page_local_tools_keyboard_status_not_installed)
-            }
-
-            !isActiveIme -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFF59E0B) to
-                    stringResource(R.string.assistant_page_local_tools_keyboard_status_installed)
-            }
-
-            else -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFF22C55E) to
-                    stringResource(R.string.assistant_page_local_tools_keyboard_desc)
-            }
-        }
-
-    androidx.compose.foundation.layout.Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        androidx.compose.foundation.Canvas(modifier = Modifier.size(10.dp)) {
-            drawCircle(color = dotColor)
-        }
-        Text(
-            text = label,
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-private const val KEYBOARD_PACKAGE = "dev.patrickgold.florisboard"
-
-@Composable
-private fun PermissionedSwitch(
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-    requiredRuntimePerms: List<String> = emptyList(),
-    requiresWriteSettings: Boolean = false,
-    requiresDndAccess: Boolean = false,
-    requiresAccessibilityService: Boolean = false,
-    requiresNotificationListener: Boolean = false,
-    requiresAllFilesAccess: Boolean = false,
-    enabled: Boolean = true,
-) {
-    val ctx = LocalContext.current
-    val toaster = LocalToaster.current
-    val deniedToastFmt = stringResource(R.string.assistant_page_local_tools_perm_denied_toast)
-    // 权限名文案：在 Composable 作用域先取好（Lint: LocalContext.getString 非 configuration-aware，会在配置变更后拿到旧值）
-    val permWriteSettingsLabel = stringResource(R.string.assistant_page_local_tools_perm_write_settings)
-    val permDndLabel = stringResource(R.string.assistant_page_local_tools_perm_dnd_access)
-    val permAccessibilityLabel = stringResource(R.string.assistant_page_local_tools_perm_accessibility_service)
-    val permNotificationLabel = stringResource(R.string.assistant_page_local_tools_perm_notification_access)
-    val permAllFilesLabel = stringResource(R.string.assistant_page_local_tools_perm_all_files_access)
-
-    var showDialog by remember { mutableStateOf(false) }
-    var pendingSpecialResume by remember { mutableStateOf(false) }
-    // Bumped on ON_RESUME so permissionMissing recomputes when the user returns from settings.
-    var resumeTrigger by remember { mutableStateOf(0) }
-
-    // Runtime permission launcher
-    val runtimePermLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.RequestMultiplePermissions(),
-        ) { results ->
-            val denied = results.filter { !it.value }.keys
-            if (denied.isEmpty()) {
-                onCheckedChange(true)
-            } else {
-                toaster.show(
-                    message = String.format(deniedToastFmt, denied.joinToString(", ")),
-                    type = ToastType.Error,
-                )
-            }
-        }
-
-    // Special permission settings launcher
-    val specialPermLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.StartActivityForResult(),
-        ) {
-            // result is ignored — actual check happens on ON_RESUME
-        }
-
-    // Lifecycle observer: handles both special-perm resume and re-evaluating
-    // the permissionMissing hint when the user returns from settings.
-    // Keyed on lifecycleOwner only — the closure reads other state, so re-installing
-    // on every state change would be wasteful (and was a measured perf bug across the
-    // ~30 PermissionedSwitch instances rendered on this screen).
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val observer =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) {
-                    resumeTrigger++
-                    if (pendingSpecialResume) {
-                        val granted =
-                            when {
-                                requiresWriteSettings -> PermissionHelper.hasWriteSettings(ctx)
-                                requiresDndAccess -> PermissionHelper.hasDndAccess(ctx)
-                                requiresAccessibilityService -> PermissionHelper.hasAccessibilityService(ctx)
-                                requiresNotificationListener -> PermissionHelper.hasNotificationListener(ctx)
-                                requiresAllFilesAccess -> PermissionHelper.hasAllFilesAccess(ctx)
-                                else -> false
-                            }
-                        pendingSpecialResume = false
-                        if (granted) {
-                            onCheckedChange(true)
-                        } else {
-                            val name =
-                                when {
-                                    requiresWriteSettings -> permWriteSettingsLabel
-                                    requiresDndAccess -> permDndLabel
-                                    requiresAccessibilityService -> permAccessibilityLabel
-                                    requiresNotificationListener -> permNotificationLabel
-                                    requiresAllFilesAccess -> permAllFilesLabel
-                                    else -> ""
-                                }
-                            toaster.show(
-                                message = String.format(deniedToastFmt, name),
-                                type = ToastType.Error,
-                            )
-                        }
-                    }
-                }
-            }
-        lifecycleOwner.lifecycle.addObserver(observer)
-        onDispose {
-            lifecycleOwner.lifecycle.removeObserver(observer)
-        }
-    }
-
-    fun requestPermission() {
-        when {
-            requiresNotificationListener -> {
-                if (PermissionHelper.hasNotificationListener(ctx)) {
-                    onCheckedChange(true)
-                } else {
-                    showDialog = true
-                }
-            }
-
-            requiresAccessibilityService -> {
-                if (PermissionHelper.hasAccessibilityService(ctx)) {
-                    onCheckedChange(true)
-                } else {
-                    showDialog = true
-                }
-            }
-
-            requiresWriteSettings -> {
-                if (PermissionHelper.hasWriteSettings(ctx)) {
-                    onCheckedChange(true)
-                } else {
-                    showDialog = true
-                }
-            }
-
-            requiresDndAccess -> {
-                if (PermissionHelper.hasDndAccess(ctx)) {
-                    onCheckedChange(true)
-                } else {
-                    showDialog = true
-                }
-            }
-
-            requiresAllFilesAccess -> {
-                if (PermissionHelper.hasAllFilesAccess(ctx)) {
-                    onCheckedChange(true)
-                } else {
-                    showDialog = true
-                }
-            }
-
-            requiredRuntimePerms.isNotEmpty() -> {
-                if (PermissionHelper.hasRuntime(ctx, requiredRuntimePerms)) {
-                    onCheckedChange(true)
-                } else {
-                    runtimePermLauncher.launch(requiredRuntimePerms.toTypedArray())
-                }
-            }
-
-            else -> {
-                onCheckedChange(true)
-            }
-        }
-    }
-
-    // Recomputed each ON_RESUME via resumeTrigger so the hint reflects any
-    // permissions the user toggled in system settings while we were paused.
-    // Key on a stable string derived from the perms list — Compose can't compare
-    // raw List<String> for structural equality across recomps, so passing the list
-    // directly invalidated this remember on every parent recomp.
-    val permsKey = remember(requiredRuntimePerms) { requiredRuntimePerms.joinToString(",") }
-    val permissionMissing =
-        remember(
-            checked,
-            resumeTrigger,
-            permsKey,
-            requiresWriteSettings,
-            requiresDndAccess,
-            requiresAccessibilityService,
-            requiresNotificationListener,
-            requiresAllFilesAccess,
-        ) {
-            checked &&
-                when {
-                    requiredRuntimePerms.isNotEmpty() -> !PermissionHelper.hasRuntime(ctx, requiredRuntimePerms)
-                    requiresWriteSettings -> !PermissionHelper.hasWriteSettings(ctx)
-                    requiresDndAccess -> !PermissionHelper.hasDndAccess(ctx)
-                    requiresAccessibilityService -> !PermissionHelper.hasAccessibilityService(ctx)
-                    requiresNotificationListener -> !PermissionHelper.hasNotificationListener(ctx)
-                    requiresAllFilesAccess -> !PermissionHelper.hasAllFilesAccess(ctx)
-                    else -> false
-                }
-        }
-
-    if (showDialog) {
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = {
-                Text(stringResource(R.string.assistant_page_local_tools_perm_special_dialog_title))
-            },
-            text = {
-                Text(stringResource(R.string.assistant_page_local_tools_perm_special_dialog_message))
-            },
-            confirmButton = {
-                TextButton(onClick = {
-                    showDialog = false
-                    val intent =
-                        when {
-                            requiresWriteSettings -> PermissionHelper.writeSettingsIntent(ctx)
-                            requiresDndAccess -> PermissionHelper.dndAccessIntent(ctx)
-                            requiresAccessibilityService -> PermissionHelper.accessibilitySettingsIntent()
-                            requiresNotificationListener -> PermissionHelper.notificationListenerSettingsIntent()
-                            requiresAllFilesAccess -> PermissionHelper.allFilesAccessIntent(ctx)
-                            else -> null
-                        }
-                    if (intent != null) {
-                        pendingSpecialResume = true
-                        specialPermLauncher.launch(intent)
-                    }
-                }) {
-                    Text(stringResource(android.R.string.ok))
-                }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text(stringResource(android.R.string.cancel))
-                }
-            },
-        )
-    }
-
-    Column(horizontalAlignment = Alignment.End) {
-        Switch(
-            checked = checked,
-            enabled = enabled,
-            onCheckedChange = { newChecked ->
-                if (!newChecked) {
-                    onCheckedChange(false)
-                    return@Switch
-                }
-                // Turning ON
-                requestPermission()
-            },
-        )
-        if (permissionMissing) {
-            Text(
-                text = stringResource(R.string.assistant_page_local_tools_perm_needed),
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.error,
-                modifier = Modifier.clickable { requestPermission() },
-            )
-        }
-    }
-}
-
-/**
- * Subtitle row for the Termux toggle: shows a colored dot summarising the integration
- * state plus a "Verify" affordance that runs an end-to-end smoke test (sends a tiny
- * command through Termux and waits for the result). The dot is ONLY green after a
- * successful verification within the last hour — that's the only signal that proves
- * `allow-external-apps=true` is actually in effect, since we cannot read Termux's
- * private home dir.
- */
-@Composable
-private fun TermuxStatusRowSubtitle(enabled: Boolean) {
-    val ctx = LocalContext.current
-    val toaster = LocalToaster.current
-    val scope = androidx.compose.runtime.rememberCoroutineScope()
-
-    var resumeTick by remember { mutableStateOf(0) }
-    val lifecycleOwner = LocalLifecycleOwner.current
-    DisposableEffect(lifecycleOwner) {
-        val obs =
-            LifecycleEventObserver { _, event ->
-                if (event == Lifecycle.Event.ON_RESUME) resumeTick++
-            }
-        lifecycleOwner.lifecycle.addObserver(obs)
-        onDispose { lifecycleOwner.lifecycle.removeObserver(obs) }
-    }
-    val staticState = remember(resumeTick) { TermuxIntegration.state(ctx) }
-
-    var verifying by remember { mutableStateOf(false) }
-    var lastVerifyError by remember { mutableStateOf<String?>(null) }
-
-    // Reads the process-scoped timestamp from TermuxIntegration so a successful verify
-    // earlier in this session keeps the dot green even after the user navigates off the
-    // page and returns. resumeTick triggers a recompute on every onResume.
-    val lastVerifiedOkAt = remember(resumeTick) { TermuxIntegration.lastVerifiedOkAtMs }
-    val verifiedRecently =
-        lastVerifiedOkAt > 0 &&
-            (System.currentTimeMillis() - lastVerifiedOkAt) < 60L * 60 * 1000
-
-    val (dotColor, label) =
-        when {
-            staticState == TermuxIntegration.State.NOT_INSTALLED -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFEF4444) to
-                    stringResource(R.string.assistant_page_local_tools_termux_status_not_installed)
-            }
-
-            staticState == TermuxIntegration.State.NO_PERMISSION -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFF59E0B) to
-                    stringResource(R.string.assistant_page_local_tools_termux_status_no_permission)
-            }
-
-            verifiedRecently -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFF22C55E) to
-                    stringResource(R.string.assistant_page_local_tools_termux_status_ok)
-            }
-
-            lastVerifyError != null -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFEF4444) to (lastVerifyError ?: "")
-            }
-
-            else -> {
-                androidx.compose.ui.graphics
-                    .Color(0xFFEAB308) to
-                    stringResource(R.string.assistant_page_local_tools_termux_status_untested)
-            }
-        }
-
-    val verifyHint = stringResource(R.string.assistant_page_local_tools_termux_verify)
-    val verifyingHint = stringResource(R.string.assistant_page_local_tools_termux_verifying)
-    // 验证结果文案：同样在 Composable 作用域取好（避免 LocalContext.getString）
-    val verifyOkMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_ok)
-    val verifyPropsMissingMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_props_missing)
-    val verifyNoPermissionMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_no_permission)
-    val verifyNotInstalledMsg = stringResource(R.string.assistant_page_local_tools_termux_status_not_installed)
-    val verifyUnexpectedFmt = stringResource(R.string.assistant_page_local_tools_termux_verify_unexpected)
-
-    val canVerify = !verifying && enabled && staticState == TermuxIntegration.State.READY
-
-    androidx.compose.foundation.layout.Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-        modifier =
-            Modifier
-                .let {
-                    if (canVerify) {
-                        it.clickable {
-                            if (verifying) return@clickable
-                            verifying = true
-                            lastVerifyError = null
-                            scope.launch {
-                                val result = TermuxIntegration.verify(ctx)
-                                verifying = false
-                                when (result) {
-                                    TermuxIntegration.VerifyResult.Ok -> {
-                                        TermuxIntegration.markVerifiedOk()
-                                        resumeTick++ // force recompose so verifiedRecently flips
-                                        toaster.show(
-                                            verifyOkMsg,
-                                        )
-                                    }
-
-                                    TermuxIntegration.VerifyResult.AllowExternalAppsMissing -> {
-                                        TermuxIntegration.clearVerified()
-                                        resumeTick++
-                                        lastVerifyError = verifyPropsMissingMsg
-                                        toaster.show(lastVerifyError ?: "", type = ToastType.Error)
-                                    }
-
-                                    TermuxIntegration.VerifyResult.NoPermission -> {
-                                        TermuxIntegration.clearVerified()
-                                        resumeTick++
-                                        lastVerifyError = verifyNoPermissionMsg
-                                        toaster.show(lastVerifyError ?: "", type = ToastType.Error)
-                                    }
-
-                                    TermuxIntegration.VerifyResult.NotInstalled -> {
-                                        TermuxIntegration.clearVerified()
-                                        resumeTick++
-                                        lastVerifyError = verifyNotInstalledMsg
-                                    }
-
-                                    is TermuxIntegration.VerifyResult.UnexpectedOutput -> {
-                                        TermuxIntegration.clearVerified()
-                                        resumeTick++
-                                        lastVerifyError =
-                                            verifyUnexpectedFmt.format(result.stdout.take(60))
-                                        toaster.show(lastVerifyError ?: "", type = ToastType.Error)
-                                    }
-
-                                    is TermuxIntegration.VerifyResult.OtherError -> {
-                                        TermuxIntegration.clearVerified()
-                                        resumeTick++
-                                        lastVerifyError = result.message
-                                        toaster.show(result.message, type = ToastType.Error)
-                                    }
-                                }
-                            }
-                        }
-                    } else {
-                        it
-                    }
-                },
-    ) {
-        androidx.compose.foundation.Canvas(
-            modifier = Modifier.size(10.dp),
-        ) {
-            drawCircle(color = dotColor)
-        }
-        Text(
-            text =
-                if (verifying) {
-                    verifyingHint
-                } else if (canVerify && !verifiedRecently) {
-                    "$label · $verifyHint"
-                } else {
-                    label
-                },
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }

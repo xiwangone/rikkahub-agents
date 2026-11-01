@@ -2,7 +2,6 @@ package me.rerere.rikkahub.data.db.entity
 
 import androidx.room.ColumnInfo
 import androidx.room.Entity
-import androidx.room.Index
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
 

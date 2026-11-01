@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.vault
 import kotlinx.coroutines.flow.first
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.repository.SshHostRepository

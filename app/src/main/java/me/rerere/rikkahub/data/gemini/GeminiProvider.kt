@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.data.gemini
 
-import android.util.Log
 import kotlin.coroutines.resume
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel

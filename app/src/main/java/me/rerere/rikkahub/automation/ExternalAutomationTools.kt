@@ -2,11 +2,9 @@ package me.rerere.rikkahub.automation
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.flow.first
-import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject

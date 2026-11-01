@@ -5,9 +5,6 @@ import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -19,7 +16,6 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.utils.isBindAvailable
-import me.rerere.rikkahub.web.startWebServer
 
 private const val TAG = "WebServerManager"
 private const val HOST_ALL_INTERFACES = "0.0.0.0"

@@ -1,8 +1,6 @@
 package me.rerere.rikkahub.shizuku
 
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /** Where the Shizuku integration currently stands. */

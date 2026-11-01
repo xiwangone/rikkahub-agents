@@ -21,7 +21,6 @@ import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ElevatedCard
 import androidx.compose.material3.Icon
@@ -48,7 +47,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.scale
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -83,7 +81,6 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantAffectScope
 import me.rerere.rikkahub.data.model.AssistantRegex
-import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.toMessageNode
 import me.rerere.rikkahub.ui.components.message.ChatMessage
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -366,8 +363,8 @@ private fun AssistantPromptContent(
                 )
                 val rawMessages =
                     listOf(
-                        UIMessage.user("你好啊"),
-                        UIMessage.assistant("你好，有什么我可以帮你的吗？"),
+                        UIMessage.user(stringResource(R.string.assistant_page_template_preview_user)),
+                        UIMessage.assistant(stringResource(R.string.assistant_page_template_preview_assistant)),
                     )
                 val preview by produceState<UiState<List<UIMessage>>>(
                     UiState.Success(rawMessages),
@@ -712,7 +709,7 @@ private fun AssistantRegexCard(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.assistant_page_regex_find_regex)) },
-                    placeholder = { Text("e.g., \\b\\w+@\\w+\\.\\w+\\b") },
+                    placeholder = { Text(stringResource(R.string.assistant_page_regex_find_placeholder)) },
                 )
 
                 OutlinedTextField(
@@ -733,7 +730,7 @@ private fun AssistantRegexCard(
                     },
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.assistant_page_regex_replace_string)) },
-                    placeholder = { Text("e.g., [EMAIL]") },
+                    placeholder = { Text(stringResource(R.string.assistant_page_regex_replace_placeholder)) },
                 )
 
                 Column {

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.history
 
-import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -24,15 +23,10 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.SnackbarResult
 import androidx.compose.material3.Surface
-import androidx.compose.material3.SwipeToDismissBox
-import androidx.compose.material3.SwipeToDismissBoxDefaults
-import androidx.compose.material3.SwipeToDismissBoxState
-import androidx.compose.material3.SwipeToDismissBoxValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -56,6 +50,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.SwipeToDelete
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.plus
@@ -220,47 +215,10 @@ private fun SwipeableConversationItem(
     onTogglePin: () -> Unit = {},
     onClick: () -> Unit = {},
 ) {
-    val positionThreshold = SwipeToDismissBoxDefaults.positionalThreshold
-    val dismissState =
-        remember {
-            SwipeToDismissBoxState(
-                initialValue = SwipeToDismissBoxValue.Settled,
-                positionalThreshold = positionThreshold,
-            )
-        }
-
-    LaunchedEffect(dismissState.currentValue) {
-        when (dismissState.currentValue) {
-            SwipeToDismissBoxValue.EndToStart -> {
-                onDelete()
-            }
-
-            else -> {}
-        }
-    }
-
-    SwipeToDismissBox(
-        state = dismissState,
-        backgroundContent = {
-            Box(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .background(
-                            MaterialTheme.colorScheme.errorContainer,
-                            RoundedCornerShape(25),
-                        ).padding(horizontal = 20.dp),
-                contentAlignment = Alignment.CenterEnd,
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Delete01,
-                    contentDescription = stringResource(R.string.history_page_delete),
-                    tint = MaterialTheme.colorScheme.onErrorContainer,
-                )
-            }
-        },
-        enableDismissFromStartToEnd = false,
+    SwipeToDelete(
+        onDelete = onDelete,
         modifier = modifier,
+        shape = RoundedCornerShape(25),
     ) {
         ConversationItem(
             conversation = conversation,

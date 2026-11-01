@@ -99,8 +99,8 @@ fun rememberVoiceModeStarter(vm: ChatVM, settings: Settings): () -> Unit {
                         if (settings.displaySetting.ttsOnlyReadOutsideBrackets) {
                             text = text.removeBracketedContent() ?: text
                         }
-                        text = text.stripMarkdown()
-                        if (text.isNotBlank()) {
+                        // tts.speak() 内部自带 stripMarkdown 清洗；此处只判空避免双重清洗把转义字符误删
+                        if (text.stripMarkdown().isNotBlank()) {
                             tts.speak(text)
                             // playbackState.Ended 在分片之间也会发出；isSpeaking 直到整个
                             // 合成/播放队列结束才为 false，这里等它归零。
@@ -182,3 +182,18 @@ private fun createVoiceAsr(
         }
     }
 }
+
+internal fun resolveVoiceStatusMessage(
+    context: Context,
+    emptySpeech: Boolean = false,
+    generationFailed: Boolean = false,
+    needsToolApproval: Boolean = false,
+    pendingToolsBeforeResume: Boolean = false,
+): String? =
+    when {
+        pendingToolsBeforeResume -> context.resources.getString(R.string.chat_page_voice_tools_before_resume)
+        needsToolApproval -> context.resources.getString(R.string.chat_page_voice_tool_approval)
+        generationFailed -> context.resources.getString(R.string.chat_page_voice_generation_failed)
+        emptySpeech -> context.resources.getString(R.string.chat_page_voice_empty)
+        else -> null
+    }

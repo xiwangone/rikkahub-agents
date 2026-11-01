@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.skills.js
 
 import android.content.Context
-import android.os.Looper
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
 import android.webkit.JavascriptInterface

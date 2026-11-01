@@ -55,7 +55,6 @@ import me.rerere.rikkahub.ui.components.ui.ToggleSurface
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.pages.setting.SearchAbilityTagLine
-import me.rerere.search.SearchServiceOptions
 import org.koin.compose.koinInject
 
 @Composable

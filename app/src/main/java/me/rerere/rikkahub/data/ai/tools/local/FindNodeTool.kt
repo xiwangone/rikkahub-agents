@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.view.accessibility.AccessibilityNodeInfo
-import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject

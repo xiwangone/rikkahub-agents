@@ -14,9 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.put
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import rikka.shizuku.Shizuku

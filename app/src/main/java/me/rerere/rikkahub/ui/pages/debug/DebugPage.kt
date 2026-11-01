@@ -46,7 +46,6 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
-import me.rerere.common.android.Logging
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -422,7 +421,7 @@ private fun RecoveryAssistantsPage(vm: DebugVM) {
         }
         Button(onClick = {
             scope.launch {
-                val restored = vm.recoverMissingAssistants()
+                val restored = vm.recoverMissingAssistants { idx -> resources.getString(R.string.debug_recovery_placeholder_name, idx) }
                 toast.show(resources.getString(R.string.debug_recovery_done, restored))
             }
         }) { Text(stringResource(R.string.debug_recovery_action)) }

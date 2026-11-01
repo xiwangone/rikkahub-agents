@@ -3839,7 +3839,7 @@
   <string name="chat_page_voice_generation_failed">Model generation failed. Check the error in the chat.</string>
   <string name="chat_page_voice_tool_approval">Tool approval is required. Resolve it, then restart voice mode.</string>
   <string name="chat_page_voice_tools_before_resume">Resolve pending tool approvals before resuming voice mode</string>
-  <string name="common_delete_confirm_message">Are you sure you want to delete "%s"? This action cannot be undone.</string>
+  <string name="common_delete_confirm_message">Are you sure you want to delete 「%s」? This action cannot be undone.</string>
   <string name="media_creation_error_asset_missing">An asset file no longer exists. Remove it and add it again.</string>
   <string name="media_creation_error_cancelled_remotely">The task was cancelled on the server</string>
   <string name="media_creation_error_download_failed">Failed to download the result (HTTP %1$d)</string>
@@ -4026,7 +4026,7 @@
   <string name="mcp_picker_status_authorizing">Authorizing</string>
   <string name="mcp_picker_tools_enabled">%1$d/%2$d tools</string>
   <string name="theme_unnamed">Unnamed</string>
-  <string name="theme_hsl_format_hint" formatted="false">"Use hsl(267 36% 48%)"</string>
+  <string name="theme_hsl_format_hint" formatted="false">Use hsl(267 36% 48%)</string>
   <string name="setting_media_page_api_key">API Key</string>
   <string name="setting_media_page_base_url">Base URL</string>
   <string name="setting_page_accessibility_status_ok">OK</string>
@@ -4034,7 +4034,7 @@
   <string name="setting_page_accessibility_reason_service_inactive">Service not active</string>
   <string name="aihubmix_provider_description">High-concurrency, stable service for mainstream models such as OpenAI, Claude and Google Gemini</string>
   <string name="aihubmix_provider_website">Website:</string>
-  <string name="aihubmix_provider_topup">"Top-up: "</string>
+  <string name="aihubmix_provider_topup">Top-up: </string>
   <string name="aihubmix_provider_short_description">Supports 200+ models incl. gpt, claude, gemini</string>
   <string name="tokenpony_provider_description">TokenPony is an API gateway for domestic (CN) models, connecting many models through a unified interface</string>
   <string name="tokenpony_provider_website">Website: [tokenpony.cn](https://www.tokenpony.cn/79clb)</string>
@@ -4096,4 +4096,58 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (Beta)</string>
   <string name="notification_channel_generation">Reply generation</string>
   <string name="generation_foreground_title">Generating reply</string>
+  <string name="chat_input_tool_surface_badge">Tools %1$d · ~%2$s</string>
+  <string name="chat_input_tool_surface_summary">Active tool surface: %1$d tools (~%2$s schema tokens per turn)</string>
+  <string name="chat_input_agent_quick_actions">Agent quick actions</string>
+  <string name="chat_input_agent_action_device_title">Device &amp; system check</string>
+  <string name="chat_input_agent_action_device_prompt">Run a comprehensive device and system health check (battery, memory, storage, and active services) and summarize any anomalies.</string>
+  <string name="chat_input_agent_action_subagent_title">Dispatch parallel sub-agents</string>
+  <string name="chat_input_agent_action_subagent_prompt">Decompose the following goal into parallel sub-agent tasks, execute them concurrently, and synthesize the final result:\n</string>
+  <string name="chat_input_agent_action_workspace_title">Workspace shell automation</string>
+  <string name="chat_input_agent_action_workspace_prompt">Inspect the current workspace directory, verify environment status, and run the required automation commands:\n</string>
+  <string name="chat_input_agent_action_surface_title">Analyze tool surface &amp; tokens</string>
+  <string name="chat_input_agent_action_surface_prompt">Call tool_surface_report to analyze the current tool schema token footprint and suggest cold-tier optimizations.</string>
+  <string name="tunnel_enable_title">Enable tunnel</string>
+  <string name="tunnel_enable_desc">Per-app proxy only, does not take over system VPN or DNS</string>
+  <string name="tunnel_status_label">Status: %1$s</string>
+  <string name="tunnel_status_connected">Connected %1$s</string>
+  <string name="tunnel_status_connecting">Connecting…</string>
+  <string name="tunnel_status_offline">Offline (reconnecting…)</string>
+  <string name="tunnel_status_failed">Failed: %1$s</string>
+  <string name="tunnel_status_disconnected">Disconnected</string>
+  <string name="tunnel_control_url_label">Control plane URL</string>
+  <string name="tunnel_auth_key_label">Auth key</string>
+  <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>
+  <string name="tunnel_hostname_label">Node hostname</string>
+  <string name="tunnel_saved_hint">Saved</string>
+  <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale Tunnel</string>
+  <string name="chat_topbar_tunnel_node_info">Node: %1$s · Control: %2$s</string>
+  <string name="chat_topbar_tunnel_default_control">Default Tailscale</string>
+  <string name="tool_ui_schedule_job_direct">Schedule direct automation job</string>
+  <string name="tool_ui_schedule_job_llm">Schedule AI prompt job</string>
+  <string name="debug_recovery_placeholder_name">Restored placeholder assistant %1$d</string>
+  <string name="s3_config_bucket_placeholder">my-bucket</string>
+  <string name="provider_api_key_placeholder_sk">sk-...</string>
+  <string name="provider_api_key_placeholder_generic">your-api-key</string>
+  <string name="provider_api_key_placeholder_mimo_asr">sk-... or tp-...</string>
+  <string name="provider_api_key_placeholder_stepfun">your-stepfun-api-key</string>
+  <string name="provider_api_key_placeholder_mimo_tts">mimo-xxx</string>
+  <string name="provider_api_key_placeholder_sk_xxx">sk-xxx</string>
+  <string name="provider_api_key_placeholder_groq">gsk_xxx</string>
+  <string name="provider_api_key_placeholder_xai">xai-xxx</string>
+  <string name="provider_api_key_placeholder_elevenlabs">sk_...</string>
+  <string name="provider_api_key_placeholder_fish">https://fish.audio/app/api-keys</string>
+    <string name="backend_diag_check_failed">Check failed: %1$s</string>
+    <string name="backend_diag_status_unavailable">Unable to read backend status</string>
+    <string name="backend_diag_pending_prompt">Pending prompt (pendingPrompt): %1$s</string>
+    <string name="backend_diag_cancellable">Cancellable (cancellable): %1$s</string>
+    <string name="backend_diag_cancel_requested">Cancel requested (cancelRequested): %1$s</string>
+    <string name="backend_diag_tool_approval_mode">Approval mode (toolApprovalMode): %1$s</string>
+    <string name="backend_diag_cwd">Working directory: %1$s</string>
+    <string name="backend_diag_session_path">Session: %1$s</string>
+    <string name="web_bridge_ssh_key_vault_desc">Web Bridge SSH private key (global, generated on %1$s)</string>
+    <string name="assistant_page_template_preview_user">Hello there</string>
+    <string name="assistant_page_template_preview_assistant">Hello, how can I help you today?</string>
+    <string name="assistant_page_regex_find_placeholder" translatable="false">e.g., \b\w+@\w+\.\w+\b</string>
+    <string name="assistant_page_regex_replace_placeholder" translatable="false">e.g., [EMAIL]</string>
 </resources>

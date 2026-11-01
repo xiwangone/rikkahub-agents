@@ -8,9 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.plus
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -21,11 +19,8 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextField
-import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -304,6 +299,7 @@ fun SettingWebBridgePage() {
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     val context = LocalContext.current
+    val webBridgeSshKeyVaultDesc = stringResource(R.string.web_bridge_ssh_key_vault_desc, java.time.LocalDate.now().toString())
                     val vaultRepo: CredentialVaultRepository = koinInject()
                     var keyInfo by remember { mutableStateOf<String?>(null) }
                     var saveToVault by remember { mutableStateOf(true) }
@@ -329,7 +325,7 @@ fun SettingWebBridgePage() {
                                                 vaultRepo.save(
                                                     name = WEB_BRIDGE_KEY_NAME,
                                                     value = key.privateKeyPem,
-                                                    description = "Web 桥 SSH 私钥（全局，${java.text.SimpleDateFormat("yyyy-MM-dd", java.util.Locale.getDefault()).format(java.util.Date())} 生成）",
+                                                    description = webBridgeSshKeyVaultDesc,
                                                     group = "SSH",
                                                     // 必须一起写：公钥留空 = 清空该条目公钥（不写就会与
                                                     // 刚落库的新私钥失配，指纹匹配/`mergePublicKeyLine` 也找不到它）

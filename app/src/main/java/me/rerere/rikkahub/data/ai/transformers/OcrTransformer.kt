@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.transformers
 
 import android.content.Context
-import android.util.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
@@ -10,7 +9,6 @@ import kotlinx.serialization.json.Json
 import me.rerere.ai.core.MessageRole
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.ai.provider.Modality
-import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage

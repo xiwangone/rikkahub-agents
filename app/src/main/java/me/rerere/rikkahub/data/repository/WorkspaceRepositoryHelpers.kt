@@ -1,0 +1,329 @@
+package me.rerere.rikkahub.data.repository
+
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.runInterruptible
+import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.model.SshWorkspaceDraft
+import me.rerere.rikkahub.data.model.SshWorkspaceSettings
+import me.rerere.rikkahub.data.vault.CredentialPurpose
+import me.rerere.rikkahub.data.vault.CredentialResolution
+import me.rerere.rikkahub.data.vault.CredentialResolver
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
+import me.rerere.rikkahub.data.vault.ensureTrailingNewline
+import me.rerere.rikkahub.data.vault.isVaultReference
+import me.rerere.rikkahub.data.vault.message
+import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.workspace.WorkspaceBackend
+import me.rerere.workspace.WorkspaceDistroInfo
+import me.rerere.workspace.WorkspaceEnvironmentInfo
+import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspaceShellStatus
+import me.rerere.workspace.WorkspaceType
+import me.rerere.workspace.ssh.SshAuthType
+import me.rerere.workspace.ssh.SshConnectionConfig
+import me.rerere.workspace.ssh.SshProbeResult
+import me.rerere.workspace.ssh.SshWorkspaceBackend
+import java.io.ByteArrayOutputStream
+import java.io.IOException
+import kotlin.uuid.Uuid
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
+import me.rerere.rikkahub.data.log.AppLog
+
+/** chroot 开启失败的原因：UI 按此取本地化文案（异常 message 保留英文供日志排障）。 */
+
+    /** 用一条临时连接测试 SSH 配置; [id] 不为空时, 表单里留空的凭证条目沿用该工作区已保存的 */
+internal suspend fun WorkspaceRepository.probeSshImpl(id: String?, draft: SshWorkspaceDraft): SshProbeResult {
+        val previous = id?.let { dao.getById(it)?.sshSettings() }
+        val config = withContext(Dispatchers.IO) { toConnectionConfig(draft.toSettings(previous), audit = false) }
+        return runInterruptible(Dispatchers.IO) { sshPool.probe(config) }
+    }
+
+    /**
+     * 新建 ([id] 为 null) 或更新 SSH 工作区。落库的只有连接参数与凭证库条目名,
+     * 建连时才解析出明文, 用完即弃。
+     */
+internal suspend fun WorkspaceRepository.saveSshImpl(id: String?, draft: SshWorkspaceDraft): WorkspaceEntity {
+        val existing = id?.let { dao.getById(it) ?: error("Workspace not found: $id") }
+        require(existing == null || existing.isSsh()) { "Not an SSH workspace: $id" }
+        val finalName = draft.name.trim().ifBlank { "Workspace" }
+        require(!isNameTaken(finalName, excludeId = id)) {
+            "Workspace name already exists: $finalName"
+        }
+        // 测试连接时远程目录可以留空（用登录主目录兜底），落库时不行：
+        // 空目录会退化成 "/" 把整台机器的文件系统当工作区
+        require(draft.remoteDir.isNotBlank()) { "Remote directory is required" }
+        val settings = draft.toSettings(existing?.sshSettings())
+        // 保存前确认引用的凭证条目确实在库且能解密, 免得建好工作区才在首次连接时发现取不到
+        verifyCredentials(settings)
+        val now = System.currentTimeMillis()
+        val config = JsonInstant.encodeToString(settings)
+        val workspace = existing?.copy(
+            name = finalName,
+            sshConfig = config,
+            updatedAt = now,
+        ) ?: Uuid.random().toString().let { newId ->
+            WorkspaceEntity(
+                id = newId,
+                name = finalName,
+                root = newId,
+                // 远程工作区不需要安装 Rootfs, 视为 shell 已就绪
+                shellStatus = WorkspaceShellStatus.READY.name,
+                createdAt = now,
+                updatedAt = now,
+                type = WorkspaceType.SSH.name,
+                sshConfig = config,
+            )
+        }
+        dao.upsert(workspace)
+        // 配置变了, 池里的旧连接 (含已缓存的远程目录与 shell 探测结果) 立即作废
+        sshPool.close(workspace.id)
+        return workspace
+    }
+
+internal suspend fun WorkspaceRepository.verifyCredentials(settings: SshWorkspaceSettings) = withContext(Dispatchers.IO) {
+        when (settings.authType) {
+            SshAuthType.PASSWORD -> requireCredential(settings.passwordRef)
+            SshAuthType.PRIVATE_KEY -> {
+                requireCredential(settings.privateKeyRef)
+                requireCredential(settings.passphraseRef)
+            }
+        }
+    }
+
+    /** 表单转成持久化配置: 凭据栏留空表示沿用 [previous] 里已存的条目名 */
+internal fun SshWorkspaceDraft.toSettings(previous: SshWorkspaceSettings?): SshWorkspaceSettings {
+        val remoteDir = remoteDir.trim().trimEnd('/').ifEmpty { "/" }
+        require(remoteDir.startsWith("/")) { "Remote directory must be an absolute path" }
+        require(host.isNotBlank()) { "Host is required" }
+        require(username.isNotBlank()) { "Username is required" }
+        require(port in 1..65535) { "Invalid port: $port" }
+        val passwordRef = when (authType) {
+            SshAuthType.PASSWORD -> vaultRefInput(passwordRef) { previous?.passwordRef }
+            SshAuthType.PRIVATE_KEY -> null
+        }
+        val privateKeyRef = when (authType) {
+            SshAuthType.PRIVATE_KEY -> vaultRefInput(privateKeyRef) { previous?.privateKeyRef }
+            SshAuthType.PASSWORD -> null
+        }
+        val passphraseRef = when (authType) {
+            SshAuthType.PRIVATE_KEY -> vaultRefInput(passphraseRef) { previous?.passphraseRef }
+            SshAuthType.PASSWORD -> null
+        }
+        // 必填的凭证位空着（新建、或编辑时被清空）= 连不上又不至于建出一个没有凭据的工作区
+        when (authType) {
+            SshAuthType.PASSWORD -> require(passwordRef != null) { "Password credential is required" }
+            SshAuthType.PRIVATE_KEY -> require(privateKeyRef != null) { "Private key credential is required" }
+        }
+        return SshWorkspaceSettings(
+            host = host.trim(),
+            port = port,
+            username = username.trim(),
+            authType = authType,
+            remoteDir = remoteDir,
+            hostKey = hostKey,
+            passwordRef = passwordRef,
+            privateKeyRef = privateKeyRef,
+            passphraseRef = passphraseRef,
+        )
+    }
+
+    /**
+     * 校验并归一表单里的凭证条目: 填了就必须是凭证库引用 (可省略 `$$` 前缀),
+     * 这里只接受条目名, 明文密码/私钥一律拒绝落库。
+     */
+internal fun vaultRefInput(input: String, keep: () -> String?): String? {
+        val text = input.trim()
+        if (text.isEmpty()) return keep()
+        val ref = if (isVaultReference(text)) text else "$VAULT_REF_PREFIX$text"
+        val name = ref.removePrefix(VAULT_REF_PREFIX)
+        require(CredentialVaultRepository.validateCredentialName(name)) {
+            "Credential name must be uppercase letters, digits and underscores: $name"
+        }
+        return ref
+    }
+
+    /**
+     * 解析凭证条目引用的用途: 只允许 `$$条目名` 形式, 取回明文供建连使用。
+     * 失败原因只带条目名, 不带内容。
+     */
+internal suspend fun WorkspaceRepository.requireCredential(ref: String?) {
+        val text = ref?.trim().orEmpty()
+        if (text.isEmpty()) return
+        val resolver = CredentialResolver(vaultRepository)
+        val name = text.removePrefix(VAULT_REF_PREFIX)
+        var resolution = resolver.resolve(name, CredentialPurpose.SSH_AUTH, caller = "ssh-workspace", audit = true)
+        if (resolution is CredentialResolution.Missing) {
+            // 条目名可能存的是归一前的形态 (空格/小写), 再按现名试一次
+            val normalized = CredentialVaultRepository.normalizeName(name)
+            if (normalized != name) {
+                resolution = resolver.resolve(normalized, CredentialPurpose.SSH_AUTH, caller = "ssh-workspace")
+            }
+        }
+        if (resolution !is CredentialResolution.Granted) {
+            throw IOException("SSH credential is unavailable: ${resolution.message}")
+        }
+    }
+
+internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspaceSettings, audit: Boolean): SshConnectionConfig {
+        val resolver = CredentialResolver(vaultRepository)
+        suspend fun resolve(ref: String?): String? {
+            val text = ref?.trim().orEmpty()
+            if (text.isEmpty()) return null
+            require(isVaultReference(text)) { "SSH credential must be a vault reference: $text" }
+            val name = text.removePrefix(VAULT_REF_PREFIX)
+            val resolution = resolver.resolve(name, CredentialPurpose.SSH_AUTH, caller = "ssh-workspace", audit = audit)
+            return (resolution as? CredentialResolution.Granted)?.value
+                ?: throw IOException("SSH credential is unavailable: ${resolution.message}")
+        }
+        return SshConnectionConfig(
+            host = settings.host,
+            port = settings.port,
+            username = settings.username,
+            authType = settings.authType,
+            password = resolve(settings.passwordRef),
+            privateKey = resolve(settings.privateKeyRef)?.ensureTrailingNewline(),
+            passphrase = resolve(settings.passphraseRef),
+            remoteDir = settings.remoteDir,
+            hostKey = settings.hostKey,
+        )
+    }
+
+
+    // 远程主机上读 os-release: 路径按候选顺序试, 单个候选失败继续下一个
+internal suspend fun WorkspaceRepository.readRemoteDistroInfo(workspace: WorkspaceEntity): WorkspaceDistroInfo? =
+        WorkspaceRepository.OS_RELEASE_CANDIDATES.firstNotNullOfOrNull { path ->
+            readEnvironmentFile(workspace, path, WorkspaceRepository.MAX_OS_RELEASE_BYTES)
+                ?.let { WorkspaceManager.parseDistroInfo(it) }
+        }
+
+    /** 读环境内的文本文件（大小超限、不存在或不可读时返回 null），用于发行版与提示词相关文件 */
+internal suspend fun WorkspaceRepository.readEnvironmentFile(
+        workspace: WorkspaceEntity,
+        path: String,
+        maxBytes: Long,
+    ): String? =
+        readFromBackend(workspace) { backend ->
+            runCatching {
+                val size = backend.absoluteFileSize(path)
+                require(size <= maxBytes) { "$path exceeds $maxBytes bytes" }
+                ByteArrayOutputStream().use { output ->
+                    backend.exportAbsoluteFile(path, output)
+                    output.toString(Charsets.UTF_8.name())
+                }
+            }.onFailure { e ->
+                if (e is CancellationException) throw e
+                // 取环境信息失败不影响主流程，但必须留下痕迹，否则连接异常时无从排查
+                AppLog.w("WorkspaceRepository", "readEnvironment failed", e)
+            }.getOrNull()
+        }
+
+    /**
+     * 执行环境信息：实际使用的 shell 与发行版名，供提示词描述工作区。
+     * 读不到时各项为 null（本机工作区无 rootfs、远程主机连不上都会这样）。
+     *
+     * 远程工作区每读一次都要连主机，而提示词每一步请求都要构建，所以按工作区缓存：
+     * 读到后一直沿用（连接配置变了才重读）；连不上时 [WorkspaceRepository.REMOTE_ENV_RETRY_MS] 内不再重试，
+     * 免得每一步请求都等一次连接超时。
+     */
+internal suspend fun WorkspaceRepository.readEnvironmentInfoImpl(id: String): WorkspaceEnvironmentInfo? {
+        val workspace = dao.getById(id) ?: return null
+        if (!workspace.isSsh()) {
+            val shellPath = readShellPath(id)
+            return WorkspaceEnvironmentInfo(
+                shellPath = shellPath,
+                distroName = shellPath?.let { readDistroInfo(id)?.prettyName },
+            )
+        }
+        val cached = remoteEnvironments[id]
+        if (cached != null && cached.configKey == workspace.sshConfig) {
+            cached.info?.let { return it }
+            if (System.currentTimeMillis() - cached.failedAt < WorkspaceRepository.REMOTE_ENV_RETRY_MS) return null
+        }
+        val shellPath = readShellPath(id)
+        // shell 读不到说明主机没连上, 不再为发行版等第二次超时
+        val info = WorkspaceEnvironmentInfo(
+            shellPath = shellPath,
+            distroName = shellPath?.let { readDistroInfo(id)?.prettyName },
+        )
+        remoteEnvironments[id] = RemoteEnvironment(
+            configKey = workspace.sshConfig,
+            info = info.takeIf { it.shellPath != null },
+            failedAt = System.currentTimeMillis(),
+        )
+        return info
+    }
+
+
+internal suspend fun <T> WorkspaceRepository.readFromBackend(workspace: WorkspaceEntity, block: (WorkspaceBackend) -> T): T {
+        // backendOf 是 suspend（可能需要解析 SSH 凭证），必须在协程体内取；
+        // 后端方法本身都是阻塞调用，所以 block 不需要 suspend —— runInterruptible 的 lambda 是非 suspend 的。
+        val backend = backendOf(workspace)
+        return runCatching {
+            runInterruptible(Dispatchers.IO) { block(backend) }
+        }.getOrElse { e ->
+            // 被中断的读取会抛出 JSch 包装过的 IO 异常, 已取消时统一按取消处理, 免得被当成连接失败
+            currentCoroutineContext().ensureActive()
+            throw e
+        }
+    }
+
+internal suspend fun <T> WorkspaceRepository.withBackend(workspace: WorkspaceEntity, block: suspend (WorkspaceBackend) -> T): T =
+        withContext(Dispatchers.IO) { block(backendOf(workspace)) }
+
+internal suspend fun WorkspaceRepository.backendOf(workspace: WorkspaceEntity): WorkspaceBackend =
+        if (workspace.isSsh()) {
+            val settings = workspace.sshSettings() ?: error("SSH workspace config is missing: ${workspace.id}")
+            SshWorkspaceBackend(sshPool, workspace.id, toConnectionConfig(settings, audit = true))
+        } else {
+            manager.backend(workspace.root, workspace.shellCompatibilityMode)
+        }
+
+internal fun WorkspaceRepository.requireLocalRootfs(workspace: WorkspaceEntity, feature: String) {
+        require(workspace.capabilities().rootfs) {
+            "$feature is only available for local (Rootfs) workspaces: ${workspace.id}"
+        }
+    }
+
+    /** 远程工作区执行环境的缓存条目；info 为 null 表示最近一次没连上主机 */
+internal class RemoteEnvironment(val configKey: String?, val info: WorkspaceEnvironmentInfo?, val failedAt: Long)
+
+
+internal suspend fun WorkspaceRepository.cleanupAssistantReferences(workspaceId: String) {
+        settingsStore.update { settings ->
+            settings.copy(
+                assistants = settings.assistants.map { assistant ->
+                    if (assistant.workspaceId?.toString() == workspaceId) {
+                        assistant.copy(workspaceId = null)
+                    } else {
+                        assistant
+                    }
+                }
+            )
+        }
+    }
+
+internal suspend fun WorkspaceRepository.restoreShellState(workspace: WorkspaceEntity) {
+        updateShellState(workspace.id, workspace.shellStatus)
+    }
+
+internal suspend fun WorkspaceRepository.updateShellState(
+        workspace: WorkspaceEntity,
+        shellStatus: String,
+    ) = updateShellState(workspace.id, shellStatus)
+
+internal suspend fun WorkspaceRepository.updateShellState(
+        workspaceId: String,
+        shellStatus: String,
+    ) {
+        dao.updateShellStatus(
+            id = workspaceId,
+            shellStatus = shellStatus,
+            updatedAt = System.currentTimeMillis(),
+        )
+    }
+

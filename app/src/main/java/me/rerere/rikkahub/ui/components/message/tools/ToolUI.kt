@@ -33,7 +33,9 @@ import me.rerere.rikkahub.ui.components.message.stripApprovalProvenance
 import me.rerere.rikkahub.ui.components.message.tools.generic.BatchCopyToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.BatchDeleteToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.BatchMoveToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.ClickAndReadToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.ClickNodeToolUI
+import me.rerere.rikkahub.ui.components.message.tools.generic.WaitForToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.CreateDirectoryToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.DeleteFileToolUI
 import me.rerere.rikkahub.ui.components.message.tools.generic.DownloadFileToolUI
@@ -370,6 +372,8 @@ object ToolUIRegistry {
             LongPressToolUI,
             ScrollToolUI,
             ClickNodeToolUI,
+            ClickAndReadToolUI,
+            WaitForToolUI,
             SetTextToolUI,
             // generic: SSH/终端执行类（3）
             SshExecToolUI,
@@ -405,6 +409,8 @@ object ToolUIRegistry {
             WorkspaceListToolUI,
             FileInfoToolUI,
             SubagentDispatchToolUI,
+            ScheduleJobDirectToolUI,
+            ScheduleJobLlmToolUI,
             // 上下文压缩卡片：合成工具，只出现在消息里，不会被注入给模型
             ContextCompactionToolUI,
         ).associateBy { it.toolName }

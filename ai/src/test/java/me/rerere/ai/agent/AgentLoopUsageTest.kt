@@ -6,7 +6,6 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.runBlocking
-import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.ImageGenerationParams
 import me.rerere.ai.provider.Model
@@ -17,7 +16,6 @@ import me.rerere.ai.provider.TextGenerationResult
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Test

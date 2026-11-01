@@ -347,8 +347,11 @@ private fun ColumnScope.ModelList(
         settingsStore.settingsFlow
             .collectAsStateWithLifecycle()
 
+    // 拖动排序时先改这份本地顺序，松手再写回设置。设置是异步回到界面的，拖到边缘自动滚动时拖拽库每帧都会按
+    // 旧布局再算一次移动，直接改设置会让顺序被反复改回去，看起来就是来回抽搐
+    var draggingFavoriteOrder by remember { mutableStateOf<List<Uuid>?>(null) }
     val favoriteModels =
-        settings.value.favoriteModels.mapNotNull { modelId ->
+        (draggingFavoriteOrder ?: settings.value.favoriteModels).mapNotNull { modelId ->
             val model = settings.value.providers.findModelById(modelId) ?: return@mapNotNull null
             if (!model.matchesPickerType(modelType)) return@mapNotNull null
             val provider =
@@ -439,31 +442,13 @@ private fun ColumnScope.ModelList(
         )
     val reorderableState =
         rememberReorderableLazyListState(lazyListState) { from, to ->
-            // 计算favorite models在列表中的位置偏移
-            var favoriteStartIndex = 0
-            if (providers.isEmpty()) {
-                favoriteStartIndex = 1 // no providers item
-            }
-            if (favoriteModels.isNotEmpty()) {
-                favoriteStartIndex += 1 // favorite header
-            }
-
-            val fromIndex = from.index - favoriteStartIndex
-            val toIndex = to.index - favoriteStartIndex
-
-            // 只处理favorite models范围内的拖拽
-            if (fromIndex >= 0 && toIndex >= 0 &&
-                fromIndex < favoriteModels.size && toIndex < favoriteModels.size
-            ) {
-                val newFavoriteModels =
-                    settings.value.favoriteModels.toMutableList().apply {
-                        add(toIndex, removeAt(fromIndex))
-                    }
-                coroutineScope.launch {
-                    settingsStore.update { oldSettings ->
-                        oldSettings.copy(favoriteModels = newFavoriteModels)
-                    }
-                }
+            // 列表里只显示当前类型的收藏，下标和完整的收藏列表对不上，按 key 找到对应的模型再移动
+            val ids = (draggingFavoriteOrder ?: settings.value.favoriteModels).toMutableList()
+            val fromPos = ids.indexOfFirst { "favorite:$it" == from.key }
+            val toPos = ids.indexOfFirst { "favorite:$it" == to.key }
+            if (fromPos >= 0 && toPos >= 0) {
+                ids.add(toPos, ids.removeAt(fromPos))
+                draggingFavoriteOrder = ids
             }
         }
     val haptic = LocalHapticFeedback.current
@@ -602,6 +587,11 @@ private fun ColumnScope.ModelList(
                                         },
                                         onDragStopped = {
                                             haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                            val order = draggingFavoriteOrder ?: return@longPressDraggableHandle
+                                            coroutineScope.launch {
+                                                settingsStore.update { it.copy(favoriteModels = order) }
+                                                if (draggingFavoriteOrder === order) draggingFavoriteOrder = null
+                                            }
                                         },
                                     ),
                             )
