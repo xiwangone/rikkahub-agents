@@ -4,6 +4,10 @@ import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import androidx.datastore.preferences.core.edit
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.runBlocking
 import org.junit.Assert.assertEquals
@@ -21,16 +25,21 @@ import java.nio.file.Files
  */
 class TelegramProxyConfigTest {
 
-    private fun newStore(dir: File): DataStore<Preferences> =
+    private fun newStore(dir: File, scope: CoroutineScope): DataStore<Preferences> =
         PreferenceDataStoreFactory.create(
+            scope = scope,
             produceFile = { File(dir, "telegram_proxy_test.preferences_pb") },
         )
 
     private fun withTempStore(block: suspend (DataStore<Preferences>) -> Unit) = runBlocking {
         val dir = Files.createTempDirectory("telegram-proxy-test").toFile()
+        // 显式 scope：DataStore 的文件句柄随 scope 生命周期释放。默认 scope 永不取消，
+        // 会让 .tmp 文件一直被占用，下一次写入的重命名在部分平台（如 Windows）失败。
+        val scope = CoroutineScope(Dispatchers.IO + SupervisorJob())
         try {
-            block(newStore(dir))
+            block(newStore(dir, scope))
         } finally {
+            scope.cancel()
             dir.deleteRecursively()
         }
     }
