@@ -32,6 +32,13 @@ class TelegramProxyConfigTest {
         )
 
     private fun withTempStore(block: suspend (DataStore<Preferences>) -> Unit) = runBlocking {
+        // 平台守卫：DataStore 落盘用 File.renameTo 把 .tmp 换成正式文件，Windows 上目标被
+        // 占用时该调用失败（Unable to rename … .tmp），与实例数无关。产品运行环境为
+        // Android/Linux，故该组用例仅在 POSIX 平台执行。
+        org.junit.Assume.assumeFalse(
+            "Windows 上 DataStore 的 .tmp 重命名语义不同，跳过",
+            System.getProperty("os.name").orEmpty().startsWith("Windows"),
+        )
         val dir = Files.createTempDirectory("telegram-proxy-test").toFile()
         // 显式 scope：DataStore 的文件句柄随 scope 生命周期释放。默认 scope 永不取消，
         // 会让 .tmp 文件一直被占用，下一次写入的重命名在部分平台（如 Windows）失败。
