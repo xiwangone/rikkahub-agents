@@ -457,7 +457,7 @@ private fun SearchPicker(
                             else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                         },
                     colors =
-                        ToggleButtonDefaults.colors(
+                        ToggleButtonDefaults.toggleButtonColors(
                             containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
                         ),
                     contentPadding = PaddingValues(horizontal = 8.dp),

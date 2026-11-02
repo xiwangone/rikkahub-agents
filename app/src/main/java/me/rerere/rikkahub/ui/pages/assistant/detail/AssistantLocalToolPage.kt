@@ -255,7 +255,7 @@ private fun AssistantLocalToolContent(
         }
 
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_extra_cold_section)) },
+            title = { Text(stringResource(R.string.assistant_page_extra_cold_section)) },
         ) {
             item(
                 leadingContent = { CardGroupIcon(HugeIcons.Snow) },
@@ -319,7 +319,7 @@ private fun AssistantLocalToolContent(
 
         // Built-in tools section
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_existing)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_existing)) },
         ) {
             toolSwitchItem(R.string.assistant_page_local_tools_javascript_engine_title, R.string.assistant_page_local_tools_javascript_engine_desc, assistant.localTools.contains(LocalToolOption.JavascriptEngine), option = LocalToolOption.JavascriptEngine, usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.JavascriptEngine, it) }
             toolSwitchItem(R.string.assistant_page_local_tools_time_info_title, R.string.assistant_page_local_tools_time_info_desc, assistant.localTools.contains(LocalToolOption.TimeInfo), option = LocalToolOption.TimeInfo, usePermissionedSwitch = false) { toggleLocalTool(LocalToolOption.TimeInfo, it) }
@@ -335,7 +335,7 @@ private fun AssistantLocalToolContent(
 
         // Output section
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_output)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_output)) },
         ) {
             toolSwitchItem(R.string.assistant_page_local_tools_toast_title, R.string.assistant_page_local_tools_toast_desc, assistant.localTools.contains(LocalToolOption.Toast), option = LocalToolOption.Toast) { toggleLocalTool(LocalToolOption.Toast, it) }
             val notifChecked = assistant.localTools.contains(LocalToolOption.Notification)
@@ -361,7 +361,7 @@ private fun AssistantLocalToolContent(
 
         // Personal data section
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_personal_data)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_personal_data)) },
         ) {
             val locationChecked = assistant.localTools.contains(LocalToolOption.Location)
             item(
@@ -524,7 +524,7 @@ private fun AssistantLocalToolContent(
 
         // Media section
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_media)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_media)) },
         ) {
             val filesChecked = assistant.localTools.contains(LocalToolOption.Files)
             item(
@@ -549,7 +549,7 @@ private fun AssistantLocalToolContent(
         }
 
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_network)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_network)) },
         ) {
             val sshChecked = assistant.localTools.contains(LocalToolOption.Ssh)
             item(
@@ -604,7 +604,7 @@ private fun AssistantLocalToolContent(
         }
 
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_automation)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_automation)) },
         ) {
             val cronChecked = assistant.localTools.contains(LocalToolOption.CronJobs)
             item(
@@ -660,7 +660,7 @@ private fun AssistantLocalToolContent(
         }
 
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_screen_automation)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_screen_automation)) },
         ) {
             val screenAutoChecked = assistant.localTools.contains(LocalToolOption.ScreenAutomation)
             item(
@@ -737,7 +737,7 @@ private fun AssistantLocalToolContent(
 
         // Hardware control section
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_hardware)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_hardware)) },
         ) {
             toolSwitchItem(R.string.assistant_page_local_tools_torch_title, R.string.assistant_page_local_tools_torch_desc, assistant.localTools.contains(LocalToolOption.Torch), option = LocalToolOption.Torch) { toggleLocalTool(LocalToolOption.Torch, it) }
             toolSwitchItem(R.string.assistant_page_local_tools_vibrate_title, R.string.assistant_page_local_tools_vibrate_desc, assistant.localTools.contains(LocalToolOption.Vibrate), option = LocalToolOption.Vibrate) { toggleLocalTool(LocalToolOption.Vibrate, it) }
@@ -778,7 +778,7 @@ private fun AssistantLocalToolContent(
         }
 
         CardGroup(
-            label = { Text(stringResource(R.string.assistant_page_local_tools_section_privileged)) },
+            title = { Text(stringResource(R.string.assistant_page_local_tools_section_privileged)) },
         ) {
             val smsSendChecked = assistant.localTools.contains(LocalToolOption.SmsSend)
             item(
