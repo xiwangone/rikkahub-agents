@@ -13,7 +13,10 @@ import androidx.compose.ui.graphics.Shape
 import kotlin.math.roundToInt
 
 @Composable
-fun rememberAvatarShape(loading: Boolean): Shape {
+fun rememberAvatarShape(
+    loading: Boolean,
+    restingShape: Shape = CircleShape,
+): Shape {
     val infiniteTransition = rememberInfiniteTransition()
     val rotateAngle =
         infiniteTransition.animateFloat(
@@ -28,5 +31,5 @@ fun rememberAvatarShape(loading: Boolean): Shape {
                         ),
                 ),
         )
-    return if (loading) MaterialShapes.Cookie6Sided.toShape(rotateAngle.value.roundToInt()) else CircleShape
+    return if (loading) MaterialShapes.Cookie6Sided.toShape(rotateAngle.value.roundToInt()) else restingShape
 }

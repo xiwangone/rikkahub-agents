@@ -121,7 +121,7 @@ private fun <T> ConnectedButtons(
                         options.lastIndex -> ButtonGroupDefaults.connectedTrailingButtonShapes()
                         else -> ButtonGroupDefaults.connectedMiddleButtonShapes()
                     },
-                colors = ToggleButtonDefaults.colors(containerColor = containerColor),
+                colors = ToggleButtonDefaults.toggleButtonColors(containerColor = containerColor),
                 contentPadding = PaddingValues(horizontal = 8.dp),
             ) {
                 content(option, selected)
