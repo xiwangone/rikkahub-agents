@@ -132,8 +132,14 @@ class SettingLocalLlmViewModel(
      * paulsp94/Qwen3.5-2B-LiteRT-LM was dropped: that model is packaged for a different
      * runtime version and throws FAILED_PRECONDITION: No KV cache inputs found on 0.11.0.
      */
-    private val defaultModelUrl: String =
-        "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm"
+    private val defaultModelUrl: String
+        get() =
+            when (runtime) {
+                LocalRuntime.LiteRT ->
+                    "https://huggingface.co/litert-community/Qwen2.5-1.5B-Instruct/resolve/main/Qwen2.5-1.5B-Instruct_multi-prefill-seq_q8_ekv4096.litertlm"
+                LocalRuntime.LlamaCpp ->
+                    me.rerere.llamacpp.LlamaCppCatalog.ENTRIES.first().resolveUrl()
+            }
 
     /** Currently only LiteRT is wired; the helper exists so a future runtime can fan out
      *  by adding a `when` arm without touching every flow above. */
@@ -285,8 +291,7 @@ class SettingLocalLlmViewModel(
         val accel =
             when (runtime) {
                 LocalRuntime.LiteRT -> AcceleratorProbe.probeLiteRt(context, forceCpu = forceCpuNow)
-                // 未接线的本地运行时：不探测，占位空结果
-                LocalRuntime.LlamaCpp -> ""
+                LocalRuntime.LlamaCpp -> "CPU"
             }
         prefs.setAccelerator(runtime, accel)
         _accelerator.value = accel
@@ -446,6 +451,7 @@ class SettingLocalLlmViewModel(
                     updateMyProvider { provider ->
                         when (provider) {
                             is ProviderSetting.LiteRtLocal -> provider.copy(enabled = true)
+                            is ProviderSetting.LlamaCppLocal -> provider.copy(enabled = true)
                             else -> provider
                         }
                     }
@@ -541,7 +547,6 @@ class SettingLocalLlmViewModel(
         when (rt) {
             // Gallery allowlist sizeInBytes = 1_597_931_520 (~1.49 GB) + 200 MB safety pad.
             LocalRuntime.LiteRT -> 1_800_000_000L
-            // 未接线的本地运行时：无预估
-            LocalRuntime.LlamaCpp -> 0L
+            LocalRuntime.LlamaCpp -> me.rerere.llamacpp.LlamaCppCatalog.ENTRIES.first().sizeBytes + 200_000_000L
         }
 }

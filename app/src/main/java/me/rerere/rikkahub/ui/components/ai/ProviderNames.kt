@@ -15,6 +15,6 @@ fun providerDisplayName(provider: ProviderSetting): String =
         "AICore (on-device)" -> stringResource(R.string.provider_display_name_aicore)
         "Local · LiteRT" -> stringResource(R.string.provider_display_name_litert)
         "Local · llama.cpp" -> stringResource(R.string.provider_display_name_llamacpp)
-        "后端服务" -> stringResource(R.string.provider_display_name_backend)
+        stringResource(R.string.backend_service) -> stringResource(R.string.provider_display_name_backend)
         else -> provider.name
     }

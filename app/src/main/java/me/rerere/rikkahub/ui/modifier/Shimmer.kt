@@ -59,7 +59,6 @@ fun Modifier.shimmer(
                         animation = tween(durationMillis = durationMillis, easing = LinearEasing),
                         repeatMode = RepeatMode.Restart, // 每次都从头开始
                     ),
-                label = "ShimmerTranslate",
             )
         // 将角度转换为弧度
         val angleRad = Math.toRadians(angle.toDouble()).toFloat()

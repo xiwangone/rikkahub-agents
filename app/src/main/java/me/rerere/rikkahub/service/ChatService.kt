@@ -830,7 +830,8 @@ class ChatService(
         conversationId: Uuid,
         conversation: Conversation,
         syncMemory: Boolean = true,
-    ) = saveConversationImpl(conversationId, conversation, syncMemory)
+        syncFts: Boolean = true,
+    ) = saveConversationImpl(conversationId, conversation, syncMemory, syncFts)
 
     suspend fun stopGeneration(conversationId: Uuid) = stopGenerationImpl(conversationId)
 }

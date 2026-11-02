@@ -94,26 +94,39 @@ data class Conversation(
 
             val node = newNodes.getOrElse(targetIndex) { message.toMessageNode() }
 
-            val newMessages = node.messages.toMutableList()
-            var newMessageIndex = node.selectIndex
-            val existingMessageIndex = newMessages.indexOfFirst { it.id == message.id }
-            if (existingMessageIndex >= 0) {
-                // 审批状态单调：新快照只能带来「更进展」的审批状态，过期的 Auto 不得把
-                // 已经置位的 Pending / Approved / Denied / Answered 回退（详见 ToolApprovalMerge.kt）。
-                // 这是「审批按钮一闪即没」类故障的根本防护：闪回由后续旧快照回灌引起。
-                val merged = message.mergeApprovalProgress(newMessages[existingMessageIndex])
+            val existingMessageIndex = node.messages.indexOfFirst { it.id == message.id }
+            if (existingMessageIndex >= 0 && targetIndex <= newNodes.lastIndex) {
+                val existingMsg = node.messages[existingMessageIndex]
+                val merged = message.mergeApprovalProgress(existingMsg)
                 if (merged !== message) {
                     AppLog.w(
                         TAG_CONVERSATION,
                         "mergeApprovalProgress: blocked stale snapshot regression on message ${message.id}",
                     )
                 }
+                // 长对话流式优化：历史节点内容与选中下标均未变化时保持原 MessageNode 引用不变，
+                // 避免每块流式增量都拷贝全部历史节点并击穿 Compose LazyColumn 的引用相等跳过。
+                if (merged === existingMsg && existingMessageIndex == node.selectIndex) {
+                    nodeIndexByMessageId[message.id] = targetIndex
+                    return@forEachIndexed
+                }
+                val newMessages = node.messages.toMutableList()
                 newMessages[existingMessageIndex] = merged
-                newMessageIndex = existingMessageIndex
-            } else {
-                newMessages.add(message)
-                newMessageIndex = newMessages.lastIndex
+                newNodes[targetIndex] = node.copy(messages = newMessages, selectIndex = existingMessageIndex)
+                nodeIndexByMessageId[message.id] = targetIndex
+                return@forEachIndexed
             }
+
+            val newMessages = node.messages.toMutableList()
+            val newMessageIndex =
+                if (existingMessageIndex >= 0) {
+                    val merged = message.mergeApprovalProgress(newMessages[existingMessageIndex])
+                    newMessages[existingMessageIndex] = merged
+                    existingMessageIndex
+                } else {
+                    newMessages.add(message)
+                    newMessages.lastIndex
+                }
 
             val newNode = node.copy(
                 messages = newMessages,
@@ -204,8 +217,20 @@ internal fun List<UIMessagePart>.localFileUrls(): Set<String> =
 /**
  * 递归展开所有 parts，包括工具调用结果中的嵌套 parts。
  */
-private fun List<UIMessagePart>.collectAllParts(): List<UIMessagePart> =
-    this + filterIsInstance<UIMessagePart.Tool>().flatMap { it.output.collectAllParts() }
+private fun List<UIMessagePart>.collectAllParts(): List<UIMessagePart> {
+    if (isEmpty()) return emptyList()
+    val out = ArrayList<UIMessagePart>(size)
+    fun visit(parts: List<UIMessagePart>) {
+        for (part in parts) {
+            out.add(part)
+            if (part is UIMessagePart.Tool && part.output.isNotEmpty()) {
+                visit(part.output)
+            }
+        }
+    }
+    visit(this)
+    return out
+}
 
 /**
  * 提取 part 中引用的本地文件 URI，新增文件类型时只需在此处添加。

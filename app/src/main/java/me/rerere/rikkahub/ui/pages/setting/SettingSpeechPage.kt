@@ -627,7 +627,7 @@ private fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
             onDismissRequest = { showTypeMenu = false },
         ) {
             DropdownMenuItem(
-                text = { Text("OpenAI Realtime") },
+                text = { Text(stringResource(R.string.asr_provider_openai_realtime)) },
                 onClick = {
                     currentProvider = ASRProviderSetting.OpenAIRealtime()
                     showTypeMenu = false

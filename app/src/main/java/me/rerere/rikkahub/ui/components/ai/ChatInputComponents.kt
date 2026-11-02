@@ -258,36 +258,47 @@ keyboardOptions =
     }
 }
 
+private val toolEntriesByRegVia: Map<String, List<ToolIndex.Entry>> by lazy {
+    ToolIndex.entries.groupBy { it.registeredVia }
+}
+
+private val workspaceToolEntries: List<ToolIndex.Entry> by lazy {
+    ToolIndex.entries.filter { it.registeredVia.startsWith("ChatToolFactory.workspace") }
+}
+
+private val memoryToolEntries: List<ToolIndex.Entry> by lazy {
+    ToolIndex.entries.filter { it.registeredVia.startsWith("ChatToolFactory.memory") }
+}
+
 internal fun estimateAssistantToolSurface(
     assistant: Assistant,
     trimmingEnabled: Boolean,
 ): Pair<Int, Int> {
-    val enabledOptionTags =
-        assistant.localTools.mapTo(HashSet()) { option ->
-            "LocalToolOption.${option.javaClass.simpleName}"
-        }
-    val matchedEntries =
-        ToolIndex.entries.filter { entry ->
-            entry.registeredVia in enabledOptionTags ||
-                (assistant.workspaceId != null && entry.registeredVia.startsWith("ChatToolFactory.workspace")) ||
-                (assistant.enableMemory && entry.registeredVia.startsWith("ChatToolFactory.memory"))
-        }
-    val mcpToolEstimate = assistant.mcpServers.size * 4
-    val totalCount = matchedEntries.size + mcpToolEstimate
-    if (totalCount == 0) return 0 to 0
-    val indexedTokens =
-        matchedEntries.sumOf { entry ->
-            if (!trimmingEnabled) {
-                115
-            } else {
-                when (entry.tier) {
-                    SurfaceTier.HOT -> 115
-                    SurfaceTier.WARM -> 55
-                    SurfaceTier.COLD -> 24
+    var totalCount = assistant.mcpServers.size * 4
+    var indexedTokens = 0
+    fun accumulate(entries: List<ToolIndex.Entry>) {
+        totalCount += entries.size
+        for (entry in entries) {
+            indexedTokens +=
+                if (!trimmingEnabled) {
+                    115
+                } else {
+                    when (entry.tier) {
+                        SurfaceTier.HOT -> 115
+                        SurfaceTier.WARM -> 55
+                        SurfaceTier.COLD -> 24
+                    }
                 }
-            }
         }
-    val totalTokens = indexedTokens + (mcpToolEstimate * 120)
+    }
+    for (option in assistant.localTools) {
+        val key = "LocalToolOption.${option.javaClass.simpleName}"
+        toolEntriesByRegVia[key]?.let(::accumulate)
+    }
+    if (assistant.workspaceId != null) accumulate(workspaceToolEntries)
+    if (assistant.enableMemory) accumulate(memoryToolEntries)
+    if (totalCount == 0) return 0 to 0
+    val totalTokens = indexedTokens + (assistant.mcpServers.size * 4 * 120)
     return totalCount to totalTokens
 }
 
@@ -296,17 +307,6 @@ internal fun AgentQuickActionsButton(
     state: ChatInputState,
 ) {
     var expanded by remember { mutableStateOf(false) }
-    val actions =
-        listOf(
-            stringResource(R.string.chat_input_agent_action_device_title) to
-                stringResource(R.string.chat_input_agent_action_device_prompt),
-            stringResource(R.string.chat_input_agent_action_subagent_title) to
-                stringResource(R.string.chat_input_agent_action_subagent_prompt),
-            stringResource(R.string.chat_input_agent_action_workspace_title) to
-                stringResource(R.string.chat_input_agent_action_workspace_prompt),
-            stringResource(R.string.chat_input_agent_action_surface_title) to
-                stringResource(R.string.chat_input_agent_action_surface_prompt),
-        )
     Box {
         ActionIconButton(
             onClick = { expanded = !expanded },
@@ -316,12 +316,24 @@ internal fun AgentQuickActionsButton(
                 contentDescription = stringResource(R.string.chat_input_agent_quick_actions),
             )
         }
-        DropdownMenu(
-            expanded = expanded,
-            onDismissRequest = { expanded = false },
-            modifier = Modifier.widthIn(min = 220.dp, max = 360.dp),
-        ) {
-            actions.forEach { (title, prompt) ->
+        if (expanded) {
+            val actions =
+                listOf(
+                    stringResource(R.string.chat_input_agent_action_device_title) to
+                        stringResource(R.string.chat_input_agent_action_device_prompt),
+                    stringResource(R.string.chat_input_agent_action_subagent_title) to
+                        stringResource(R.string.chat_input_agent_action_subagent_prompt),
+                    stringResource(R.string.chat_input_agent_action_workspace_title) to
+                        stringResource(R.string.chat_input_agent_action_workspace_prompt),
+                    stringResource(R.string.chat_input_agent_action_surface_title) to
+                        stringResource(R.string.chat_input_agent_action_surface_prompt),
+                )
+            DropdownMenu(
+                expanded = true,
+                onDismissRequest = { expanded = false },
+                modifier = Modifier.widthIn(min = 220.dp, max = 360.dp),
+            ) {
+                actions.forEach { (title, prompt) ->
                 Surface(
                     onClick = {
                         state.appendText(prompt)
@@ -350,6 +362,7 @@ internal fun AgentQuickActionsButton(
                     }
                 }
             }
+        }
         }
     }
 }

@@ -88,7 +88,6 @@ fun Switch(
                 0.dp
             },
         animationSpec = tween(durationMillis = 150),
-        label = "thumbOffset",
     )
 
     val currentTrackColor =

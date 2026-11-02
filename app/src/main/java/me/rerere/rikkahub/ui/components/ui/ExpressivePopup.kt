@@ -92,11 +92,9 @@ fun ExpressivePopup(
             transitionSpec = {
                 if (targetState) motionScheme.fastSpatialSpec() else motionScheme.fastEffectsSpec()
             },
-            label = "scale",
         ) { if (it) 1f else 0.8f }
         val alpha by transition.animateFloat(
             transitionSpec = { motionScheme.fastEffectsSpec() },
-            label = "alpha",
         ) { if (it) 1f else 0f }
 
         // 结构同官方 DropdownMenuContent, 额外设置 outsets:

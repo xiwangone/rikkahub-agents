@@ -8,6 +8,16 @@ internal fun hasCompletedToolOutput(
     previousMessages: List<UIMessage>,
     updatedMessages: List<UIMessage>,
 ): Boolean {
+    if (previousMessages.isEmpty() || updatedMessages.isEmpty()) return false
+    // 先只在发生引用变化的更新消息里找「非空输出的工具」；纯文本/思考流式分块可 O(1) 短路，
+    // 不必在长会话里每 40ms 扫描全部历史消息并构建 Set。
+    val changedMessagesWithCompletedTool =
+        updatedMessages.filterIndexed { index, message ->
+            previousMessages.getOrNull(index) !== message &&
+                message.parts.any { part -> part is UIMessagePart.Tool && part.output.isNotEmpty() }
+        }
+    if (changedMessagesWithCompletedTool.isEmpty()) return false
+
     val previousEmptyToolIds = previousMessages
         .asSequence()
         .flatMap { message ->
@@ -17,8 +27,9 @@ internal fun hasCompletedToolOutput(
                 .map { message.id to it.toolCallId }
         }
         .toSet()
+    if (previousEmptyToolIds.isEmpty()) return false
 
-    return updatedMessages.any { message ->
+    return changedMessagesWithCompletedTool.any { message ->
         message.parts.any { part ->
             part is UIMessagePart.Tool && part.output.isNotEmpty() &&
                 (message.id to part.toolCallId) in previousEmptyToolIds

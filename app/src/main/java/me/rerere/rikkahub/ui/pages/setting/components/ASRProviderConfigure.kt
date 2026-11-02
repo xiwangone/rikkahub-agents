@@ -54,7 +54,7 @@ fun ASRProviderConfigure(
                 value = setting.name,
                 onValueChange = { onValueChange(setting.copyProvider(name = it)) },
                 modifier = Modifier.fillMaxWidth(),
-                placeholder = { Text("OpenAI Realtime") },
+                placeholder = { Text(stringResource(R.string.asr_provider_openai_realtime)) },
             )
         }
 
@@ -224,7 +224,7 @@ private fun DashScopeASRConfiguration(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("qwen3-asr-flash-realtime-2026-02-10") },
+            placeholder = { Text(stringResource(R.string.asr_placeholder_qwen_model)) },
         )
     }
 
@@ -312,7 +312,7 @@ private fun VolcengineASRConfiguration(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("volc.bigasr.sauc.duration") },
+            placeholder = { Text(stringResource(R.string.asr_placeholder_volc_resource_id)) },
         )
     }
 
@@ -368,7 +368,7 @@ private fun MiMoASRConfiguration(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("mimo-v2.5-asr") },
+            placeholder = { Text(stringResource(R.string.asr_placeholder_mimo_model)) },
         )
     }
 

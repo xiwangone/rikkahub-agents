@@ -13,7 +13,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import java.io.File
 import me.rerere.rikkahub.data.log.AppLog
-import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.utils.plus
 
 /** 拖动会话序号（进程内累计）：seq=1 即冷启动后第一次拖动 —— 用于验证「首次拖动更卡」。 */
@@ -41,7 +40,7 @@ internal object ReorderRecomposeCounter {
  */
 internal class ReorderPerfTracker(
     private val window: Window? = null,
-    val enabled: Boolean = BuildConfig.DEBUG,
+    val enabled: Boolean = false,
 ) {
     private var moves = 0
     private var gapSumMs = 0L

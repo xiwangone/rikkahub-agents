@@ -608,7 +608,7 @@ private fun OpenRouterRoutingSection(
         value = listToText(routing.order),
         onValueChange = { onChange(routing.copy(order = textToList(it))) },
         label = { Text(stringResource(R.string.openrouter_routing_provider_order_label)) },
-        placeholder = { Text("anthropic, google-vertex") },
+        placeholder = { Text(stringResource(R.string.openrouter_routing_order_placeholder)) },
         modifier = Modifier.fillMaxWidth(),
     )
     OutlinedTextField(

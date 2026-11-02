@@ -384,7 +384,7 @@ fun SettingWebBridgePage() {
                                 onClick = {
                                     val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
                                     val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText("web-bridge-public-key", pub))
+                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.resources.getString(R.string.web_bridge_clip_label), pub))
                                     keyInfo = context.getString(R.string.setting_web_bridge_copy_success, pub)
                                 },
                                 modifier = Modifier.fillMaxWidth(),
