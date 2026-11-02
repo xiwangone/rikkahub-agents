@@ -323,8 +323,10 @@ private fun ChatPageContent(
     var vaultAuthMsg by remember { mutableStateOf<String?>(null) }
 
     fun checkVaultAuth() {
-        // 工具桥模式：授权状态 = 存在未过期内存会话（不再依赖沙箱 vault-token 文件或查询数据库）
-        vaultAuthorized = vaultSessionManager.hasActiveAuthorization()
+        scope.launch {
+            // 工具桥模式：授权状态 = 存在未过期内存会话（不再依赖沙箱 vault-token 文件或查询数据库）
+            vaultAuthorized = vaultSessionManager.hasActiveAuthorization()
+        }
     }
     fun doVaultAuthorize(ttlMs: Long) {
         scope.launch {
