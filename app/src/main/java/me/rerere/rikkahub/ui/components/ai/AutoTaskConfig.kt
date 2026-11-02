@@ -244,7 +244,7 @@ private fun migrateLegacyAutoTaskConfig(
 fun resolveAutoTaskMessage(
     config: AutoTaskConfig,
     taskIndex: Int,
-    taskItemFormat: String = "[#%1$d/%2$d] %3$s",
+    taskItemFormat: String = "[#%1\$d/%2\$d] %3\$s",
 ): String {
     val parts =
         buildList {
