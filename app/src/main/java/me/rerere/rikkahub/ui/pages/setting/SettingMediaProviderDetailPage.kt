@@ -102,7 +102,7 @@ fun SettingMediaProviderDetailPage(
     val availableModels = rememberMediaAvailableModels(draft)
     val kinds = remember(draft.supportedKinds) { MediaKind.entries.filter { it in draft.supportedKinds } }
 
-    val onSave = {
+    val onSave: () -> Unit = {
         val saved = draft.copyProvider(models = draft.models.filter { it.modelId.isNotBlank() })
         vm.updateSettings { latest ->
             latest.copy(
