@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentHeight
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -38,6 +39,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -120,6 +122,7 @@ fun UIAvatar(
     value: Avatar,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
+    shape: Shape = CircleShape,
     onUpdate: ((Avatar) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -188,7 +191,7 @@ fun UIAvatar(
 
     Box(modifier = modifier.then(Modifier.size(AvatarTokens.size))) {
         Surface(
-            shape = rememberAvatarShape(loading),
+            shape = rememberAvatarShape(loading = loading, restingShape = shape),
             modifier = Modifier.fillMaxSize(),
             onClick = {
                 onClick?.invoke()

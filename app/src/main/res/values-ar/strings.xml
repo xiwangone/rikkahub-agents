@@ -4182,4 +4182,7 @@
   <string name="log_page_clip_label">سجل تطبيق RikkaHub Agents</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">الحصول على التاريخ والوقت الحاليين.</string>
+    <string name="copied_to_clipboard">تم النسخ إلى الحافظة</string>
+    <string name="setting_media_page_asset_storage">تخزين الوسائط</string>
+    <string name="setting_page_media_desc">إعداد خدمات إنشاء الصور والفيديو</string>
 </resources>

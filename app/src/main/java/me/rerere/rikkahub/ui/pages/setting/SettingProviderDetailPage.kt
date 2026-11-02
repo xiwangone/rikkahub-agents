@@ -1,14 +1,25 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.scaleIn
+import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.isImeVisible
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.HorizontalPager
@@ -17,17 +28,16 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
+import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
+import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.NavigationBar
-import androidx.compose.material3.NavigationBarItem
 import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -37,64 +47,68 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
-import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.ai.providerDisplayName
 import me.rerere.rikkahub.ui.components.ai.ProviderBalanceText
+import me.rerere.rikkahub.ui.components.ai.providerDisplayName
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.PagerTab
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
+import me.rerere.rikkahub.ui.pages.setting.components.BackendProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
-import me.rerere.rikkahub.ui.pages.setting.components.BackendProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
 import me.rerere.rikkahub.ui.pages.setting.components.isUsingDefaultBaseUrl
 import me.rerere.rikkahub.ui.pages.setting.components.resetBaseUrlToDefault
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import kotlin.uuid.Uuid
 
-/**
- * 服务商与模型详情配置：模型列表拉取、模型参数微调、上下文限制与思考链开关。
- *
- * 本文件很长（2300+ 行）。阅读与维护时请按下面的段落名检索符号，不要依赖行号：
- *  - 页面入口与主状态：[SettingProviderDetailPage]
- *  - 服务商基础参数配置：名称、Base URL、API Key 与高级网络参数
- *  - 模型列表与拉取：远程同步、自定义模型添加、能力标签 (Vision / Tools / Reasoning)
- *  - 模型参数编辑器：Temperature、TopP、MaxTokens、上下文窗口阈值
- *
- * 相关文件：服务商数据模型 [me.rerere.ai.provider.ProviderSetting]；配置组件 [me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure]。
- */
+private enum class ProviderDetailTab(
+    override val icon: ImageVector,
+    @param:StringRes private val labelRes: Int,
+) : PagerTab {
+    CONFIG(HugeIcons.Tools, R.string.setting_provider_page_configuration),
+    MODELS(HugeIcons.Package01, R.string.setting_provider_page_models),
+    ADVANCED(HugeIcons.Settings03, R.string.setting_provider_page_advanced_settings);
+
+    override val label: String
+        @Composable get() = stringResource(labelRes)
+}
+
 @Composable
 fun SettingProviderDetailPage(
     id: Uuid,
@@ -103,16 +117,13 @@ fun SettingProviderDetailPage(
     val settings by vm.settings.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     val provider = settings.providers.find { it.id == id } ?: return
-    val pager = rememberPagerState { 3 }
-    val scope = rememberCoroutineScope()
+    val pager = rememberPagerState { ProviderDetailTab.entries.size }
     val toaster = LocalToaster.current
     val context = LocalContext.current
 
-    // 多选删除状态（提升到页面级，供顶栏 actions 使用；与 ModelList 共享）
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(setOf<Uuid>()) }
 
-    // 切 tab 时自动退出多选，避免状态残留
     LaunchedEffect(pager.currentPage) {
         if (selectionMode) {
             selectionMode = false
@@ -148,7 +159,6 @@ fun SettingProviderDetailPage(
                 },
                 actions = {
                     if (selectionMode) {
-                        // 多选模式：全选 / 删除选中 / 关闭
                         TextButton(
                             onClick = {
                                 selectedIds =
@@ -200,83 +210,62 @@ fun SettingProviderDetailPage(
                 },
             )
         },
-        bottomBar = {
-            NavigationBar(
-                containerColor = CustomColors.cardColorsOnSurfaceContainer.containerColor,
-            ) {
-                NavigationBarItem(
-                    selected = pager.currentPage == 0,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_configuration)) },
-                    icon = { Icon(HugeIcons.Tools, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(0)
-                        }
-                    },
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 1,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_models)) },
-                    icon = { Icon(HugeIcons.Package01, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(1)
-                        }
-                    },
-                )
-                NavigationBarItem(
-                    selected = pager.currentPage == 2,
-                    label = { Text(stringResource(id = R.string.setting_provider_page_advanced_settings)) },
-                    icon = { Icon(HugeIcons.Settings03, null) },
-                    onClick = {
-                        scope.launch {
-                            pager.animateScrollToPage(2)
-                        }
-                    },
-                )
-            }
-        },
-    ) {
-        HorizontalPager(
-            state = pager,
+    ) { innerPadding ->
+        Column(
             modifier =
                 Modifier
-                    .padding(it)
-                    .consumeWindowInsets(it),
-        ) { page ->
-            when (page) {
-                0 -> {
-                    SettingProviderConfigPage(
-                        provider = provider,
-                        onEdit = {
-                            onEdit(it)
-                            toaster.show(
-                                context.getString(R.string.setting_provider_page_save_success),
-                                type = ToastType.Success,
-                            )
-                        },
-                        onDelete = {
-                            onDelete()
-                        },
-                    )
-                }
+                    .fillMaxSize()
+                    .padding(innerPadding)
+                    .consumeWindowInsets(innerPadding),
+        ) {
+            PagerTabs(
+                pagerState = pager,
+                tabs = ProviderDetailTab.entries,
+                modifier = Modifier.padding(vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            )
 
-                1 -> {
-                    SettingProviderModelPage(
-                        provider = provider,
-                        onEdit = onEdit,
-                        selectionMode = selectionMode,
-                        selectedIds = selectedIds,
-                        onSelectionModeChange = { selectionMode = it },
-                        onSelectedIdsChange = { selectedIds = it },
-                    )
-                }
+            HorizontalPager(
+                state = pager,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            ) { page ->
+                when (ProviderDetailTab.entries[page]) {
+                    ProviderDetailTab.CONFIG -> {
+                        SettingProviderConfigPage(
+                            provider = provider,
+                            onEdit = {
+                                onEdit(it)
+                                toaster.show(
+                                    context.getString(R.string.setting_provider_page_save_success),
+                                    type = ToastType.Success,
+                                )
+                            },
+                            onDelete = {
+                                onDelete()
+                            },
+                        )
+                    }
 
-                2 -> {
-                    SettingProviderAdvancedPage(
-                        provider = provider,
-                        onEdit = onEdit,
-                    )
+                    ProviderDetailTab.MODELS -> {
+                        SettingProviderModelPage(
+                            provider = provider,
+                            onEdit = onEdit,
+                            selectionMode = selectionMode,
+                            selectedIds = selectedIds,
+                            onSelectionModeChange = { selectionMode = it },
+                            onSelectedIdsChange = { selectedIds = it },
+                        )
+                    }
+
+                    ProviderDetailTab.ADVANCED -> {
+                        SettingProviderAdvancedPage(
+                            provider = provider,
+                            onEdit = onEdit,
+                        )
+                    }
                 }
             }
         }
@@ -322,87 +311,120 @@ private fun SettingProviderConfigPage(
     }
     var internalProvider by remember(provider) { mutableStateOf(provider) }
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var expanded by rememberSaveable { mutableStateOf(true) }
 
-    Column(
+    Box(
         modifier =
             Modifier
                 .fillMaxSize()
-                .imePadding()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+                .imePadding(),
     ) {
-        ProviderConfigure(
-            provider = internalProvider,
-            onEdit = {
-                internalProvider = it
-            },
-        )
-
-        if (internalProvider is ProviderSetting.OpenAI) {
-            SettingProviderBalanceOption(
-                provider = internalProvider,
-                balanceOption = internalProvider.balanceOption,
-                onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) },
-            )
-            ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
-        }
-
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-            verticalAlignment = Alignment.CenterVertically,
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .floatingToolbarVerticalNestedScroll(
+                        expanded = expanded,
+                        onExpand = { expanded = true },
+                        onCollapse = { expanded = false },
+                    )
+                    .verticalScroll(rememberScrollState())
+                    .padding(start = 16.dp, top = 16.dp, end = 16.dp, bottom = 128.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            ProviderConnectionTester(
-                internalProvider = internalProvider,
+            ProviderConfigure(
+                provider = internalProvider,
+                onEdit = {
+                    internalProvider = it
+                },
             )
 
-            Spacer(Modifier.weight(1f))
-
-            if (!internalProvider.builtIn) {
-                IconButton(
-                    onClick = {
-                        showDeleteDialog = true
-                    },
-                ) {
-                    Icon(HugeIcons.Delete01, null)
-                }
+            if (internalProvider is ProviderSetting.OpenAI) {
+                SettingProviderBalanceOption(
+                    provider = internalProvider,
+                    balanceOption = internalProvider.balanceOption,
+                    onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) },
+                )
+                ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
             }
 
-            IconButton(
-                onClick = {
-                    internalProvider = internalProvider.resetBaseUrlToDefault()
-                },
-                enabled = !internalProvider.isUsingDefaultBaseUrl(),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Refresh03,
-                    contentDescription = stringResource(R.string.setting_model_page_reset_to_default),
+            if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
+                SiliconFlowPowerByIcon(
+                    modifier =
+                        Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(vertical = 16.dp),
                 )
             }
-
-            Button(
-                onClick = {
-                    val providerToSave: ProviderSetting = internalProvider
-                    onEdit(providerToSave.copyProvider(name = providerToSave.name.trim()))
-                }
-            ) {
-                Text(stringResource(R.string.setting_provider_page_save))
-            }
         }
 
-        // 硅基流动图标
-        if (provider is ProviderSetting.OpenAI && provider.baseUrl.contains("siliconflow.cn")) {
-            SiliconFlowPowerByIcon(
-                modifier =
-                    Modifier
-                        .align(Alignment.CenterHorizontally)
-                        .padding(vertical = 16.dp),
-            )
+        AnimatedVisibility(
+            visible = !WindowInsets.isImeVisible,
+            modifier =
+                Modifier
+                    .align(Alignment.BottomCenter)
+                    .offset(y = -ScreenOffset),
+            enter = fadeIn() + scaleIn(initialScale = 0.8f),
+            exit = fadeOut() + scaleOut(targetScale = 0.8f),
+        ) {
+            HorizontalFloatingToolbar(
+                expanded = expanded,
+                colors = CustomColors.floatingToolbarColors,
+                leadingContent = {
+                    ProviderConnectionTester(
+                        internalProvider = internalProvider,
+                    )
+
+                    if (!internalProvider.builtIn) {
+                        IconButton(
+                            onClick = {
+                                showDeleteDialog = true
+                            },
+                        ) {
+                            Icon(HugeIcons.Delete01, stringResource(R.string.delete))
+                        }
+                    }
+
+                    if (!internalProvider.isUsingDefaultBaseUrl()) {
+                        IconButton(
+                            onClick = {
+                                internalProvider = internalProvider.resetBaseUrlToDefault()
+                            },
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Refresh03,
+                                contentDescription = stringResource(R.string.setting_model_page_reset_to_default),
+                            )
+                        }
+                    }
+                },
+            ) {
+                Button(
+                    onClick = {
+                        val providerToSave: ProviderSetting = internalProvider
+                        onEdit(providerToSave.copyProvider(name = providerToSave.name.trim()))
+                    },
+                ) {
+                    Row(
+                        horizontalArrangement = Arrangement.Center,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Icon(
+                            HugeIcons.FloppyDisk,
+                            contentDescription = stringResource(R.string.setting_provider_page_save),
+                        )
+                        AnimatedVisibility(expanded) {
+                            Row {
+                                Spacer(modifier = Modifier.size(8.dp))
+                                Text(stringResource(R.string.setting_provider_page_save))
+                            }
+                        }
+                    }
+                }
+            }
         }
     }
 
-    // Delete confirmation dialog
     if (showDeleteDialog) {
         AlertDialog(
             onDismissRequest = { showDeleteDialog = false },
@@ -483,18 +505,14 @@ internal fun BuiltInToolsSettings(
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+                .padding(vertical = 16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Text(
-            text = stringResource(R.string.setting_page_built_in_tools),
-            style = MaterialTheme.typography.titleMedium,
-        )
-
-        Text(
             text = stringResource(R.string.setting_page_built_in_tools_desc),
-            style = MaterialTheme.typography.bodyMedium,
+            style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(horizontal = 4.dp),
         )
 
         val availableTools =
@@ -516,44 +534,21 @@ internal fun BuiltInToolsSettings(
                     ),
             )
 
-        availableTools.forEach { (tool, info) ->
-            val (title, description) = info
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(
-                        modifier = Modifier.weight(1f),
-                        verticalArrangement = Arrangement.spacedBy(4.dp),
-                    ) {
-                        Text(
-                            text = title,
-                            style = MaterialTheme.typography.titleSmall,
-                        )
-                        Text(
-                            text = description,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
-                        checked = tool in tools,
-                        onCheckedChange = { checked ->
-                            if (checked) {
-                                onUpdateTools(tools + tool)
-                            } else {
-                                onUpdateTools(tools - tool)
-                            }
-                        },
-                    )
-                }
+        CardGroup {
+            availableTools.forEach { (tool, info) ->
+                val (title, description) = info
+                switchItem(
+                    checked = tool in tools,
+                    onCheckedChange = { checked ->
+                        if (checked) {
+                            onUpdateTools(tools + tool)
+                        } else {
+                            onUpdateTools(tools - tool)
+                        }
+                    },
+                    headlineContent = { Text(title) },
+                    supportingContent = { Text(description) },
+                )
             }
         }
     }
@@ -631,7 +626,7 @@ internal fun ProviderOverrideSettings(
                         parentProvider?.copyProvider(
                             id = Uuid.random(),
                             builtIn = false,
-                            models = emptyList(), // 这里必须设置为空，不然会导致循环依赖JSON
+                            models = emptyList(),
                         )
                     showProviderConfig = true
                 },
@@ -643,7 +638,6 @@ internal fun ProviderOverrideSettings(
             }
         }
 
-        // Provider configuration modal
         if (showProviderConfig && editingProvider != null) {
             ModalBottomSheet(
                 onDismissRequest = {

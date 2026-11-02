@@ -2,12 +2,8 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalTextStyle
@@ -18,6 +14,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -30,7 +27,6 @@ import me.rerere.ai.provider.CustomBody
 import me.rerere.ai.provider.CustomHeader
 import me.rerere.highlight.LocalCodeHighlighter
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeVisualTransformation
@@ -60,7 +56,6 @@ private val COMMON_HEADER_NAMES =
         "OpenAI-Project",
     )
 
-// 按已输入内容过滤常用请求头，没有匹配(或已完整输入)时展示全部
 private fun commonHeaderNames(input: String): List<String> {
     val keyword = input.trim()
     val matched =
@@ -76,21 +71,34 @@ fun CustomHeaders(
     onUpdate: (List<CustomHeader>) -> Unit,
 ) {
     Column(
-        modifier = Modifier.padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.assistant_page_custom_headers))
-        Spacer(Modifier.height(8.dp))
+        SectionHeader(
+            title = stringResource(R.string.assistant_page_custom_headers),
+            action = {
+                SectionAddButton(
+                    onClick = {
+                        val updatedHeaders = headers.toMutableList()
+                        updatedHeaders.add(CustomHeader("", ""))
+                        onUpdate(updatedHeaders)
+                    },
+                    contentDescription = stringResource(R.string.assistant_page_add_header),
+                )
+            },
+        )
 
-        headers.forEachIndexed { index, header ->
-            var headerName by remember(header.name) { mutableStateOf(header.name) }
-            var headerValue by remember(header.value) { mutableStateOf(header.value) }
+        CardGroup {
+            headers.forEachIndexed { index, header ->
+                formItem {
+                    var headerName by remember(header.name) { mutableStateOf(header.name) }
+                    var headerValue by remember(header.value) { mutableStateOf(header.value) }
 
-            CardGroup {
-                item(
-                    supportingContent = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             val updateHeaderName = { name: String ->
@@ -120,8 +128,6 @@ fun CustomHeaders(
                                 modifier = Modifier.fillMaxWidth(),
                             )
                         }
-                    },
-                    trailingContent = {
                         IconButton(onClick = {
                             val updatedHeaders = headers.toMutableList()
                             updatedHeaders.removeAt(index)
@@ -132,23 +138,9 @@ fun CustomHeaders(
                                 contentDescription = stringResource(R.string.assistant_page_delete_header),
                             )
                         }
-                    },
-                    headlineContent = {},
-                )
+                    }
+                }
             }
-        }
-
-        Button(
-            onClick = {
-                val updatedHeaders = headers.toMutableList()
-                updatedHeaders.add(CustomHeader("", ""))
-                onUpdate(updatedHeaders)
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.assistant_page_add_header))
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.assistant_page_add_header))
         }
     }
 }
@@ -160,24 +152,37 @@ fun CustomBodies(
 ) {
     val context = LocalContext.current
     Column(
-        modifier = Modifier.padding(8.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(stringResource(R.string.assistant_page_custom_bodies))
-        Spacer(Modifier.height(8.dp))
+        SectionHeader(
+            title = stringResource(R.string.assistant_page_custom_bodies),
+            action = {
+                SectionAddButton(
+                    onClick = {
+                        val updatedBodies = customBodies.toMutableList()
+                        updatedBodies.add(CustomBody("", JsonPrimitive("")))
+                        onUpdate(updatedBodies)
+                    },
+                    contentDescription = stringResource(R.string.assistant_page_add_body),
+                )
+            },
+        )
 
-        customBodies.forEachIndexed { index, body ->
-            var bodyKey by remember(body.key) { mutableStateOf(body.key) }
-            var bodyValueString by remember(body.value) {
-                mutableStateOf(jsonLenient.encodeToString(JsonElement.serializer(), body.value))
-            }
-            var jsonParseError by remember { mutableStateOf<String?>(null) }
+        CardGroup {
+            customBodies.forEachIndexed { index, body ->
+                formItem {
+                    var bodyKey by remember(body.key) { mutableStateOf(body.key) }
+                    var bodyValueString by remember(body.value) {
+                        mutableStateOf(jsonLenient.encodeToString(JsonElement.serializer(), body.value))
+                    }
+                    var jsonParseError by remember { mutableStateOf<String?>(null) }
 
-            CardGroup {
-                item(
-                    supportingContent = {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
                         Column(
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.weight(1f),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
                             OutlinedTextField(
@@ -203,7 +208,6 @@ fun CustomBodies(
                                         onUpdate(updatedBodies)
                                         jsonParseError = null
                                     } catch (e: SerializationException) {
-                                        // parseToJsonElement 对非法 JSON 仅抛 SerializationException（JsonDecodingException 为其子类）
                                         jsonParseError =
                                             context.getString(
                                                 R.string.assistant_page_invalid_json,
@@ -230,8 +234,6 @@ fun CustomBodies(
                                 textStyle = LocalTextStyle.current.merge(fontFamily = JetbrainsMono),
                             )
                         }
-                    },
-                    trailingContent = {
                         IconButton(onClick = {
                             val updatedBodies = customBodies.toMutableList()
                             updatedBodies.removeAt(index)
@@ -242,23 +244,9 @@ fun CustomBodies(
                                 contentDescription = stringResource(R.string.assistant_page_delete_body),
                             )
                         }
-                    },
-                    headlineContent = {},
-                )
+                    }
+                }
             }
-        }
-
-        Button(
-            onClick = {
-                val updatedBodies = customBodies.toMutableList()
-                updatedBodies.add(CustomBody("", JsonPrimitive("")))
-                onUpdate(updatedBodies)
-            },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.assistant_page_add_body))
-            Spacer(Modifier.width(4.dp))
-            Text(stringResource(R.string.assistant_page_add_body))
         }
     }
 }

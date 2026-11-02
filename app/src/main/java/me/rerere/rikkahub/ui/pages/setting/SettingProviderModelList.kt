@@ -84,6 +84,7 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
@@ -417,6 +418,7 @@ internal fun ModelList(
         }
         HorizontalFloatingToolbar(
             expanded = expanded,
+            colors = CustomColors.floatingToolbarColors,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)

@@ -4175,4 +4175,7 @@
   <string name="log_page_clip_label">RikkaHub Agents 앱 로그</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">현재 날짜와 시간을 가져옵니다.</string>
+    <string name="copied_to_clipboard">클립보드에 복사됨</string>
+    <string name="setting_media_page_asset_storage">에셋 스토리지</string>
+    <string name="setting_page_media_desc">이미지 및 비디오 생성 서비스 설정</string>
 </resources>

@@ -71,6 +71,7 @@ import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Cancel01
@@ -276,6 +277,60 @@ internal fun ModelSelectorButton(
                     imageVector = HugeIcons.Brain02,
                     contentDescription = stringResource(R.string.setting_model_page_chat_model),
                     modifier = Modifier.size(20.dp),
+                )
+            }
+        }
+    }
+}
+
+// 显示当前模型的胶囊按钮，样式和 Select 保持一致，点击后由调用方打开模型列表
+// 给了 onClear 时，选了模型后右侧显示清除按钮；placeholder 是没选模型时显示的文字
+@Composable
+internal fun ModelField(
+    model: Model?,
+    onClick: () -> Unit,
+    modifier: Modifier = Modifier,
+    placeholder: String = stringResource(R.string.model_list_select_model),
+    onClear: (() -> Unit)? = null,
+) {
+    Surface(
+        onClick = onClick,
+        tonalElevation = 4.dp,
+        shape = CircleShape,
+        modifier = modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.padding(vertical = 8.dp, horizontal = 16.dp),
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            if (model != null) {
+                AutoAIIcon(
+                    name = model.modelId,
+                    modifier = Modifier.size(22.dp),
+                    color = Color.Transparent,
+                )
+            }
+            Text(
+                text = model?.displayName ?: placeholder,
+                style = MaterialTheme.typography.bodyMedium,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                modifier = Modifier.weight(1f),
+            )
+            if (onClear != null && model != null) {
+                Icon(
+                    imageVector = HugeIcons.Cancel01,
+                    contentDescription = stringResource(R.string.accessibility_clear_model_selection),
+                    modifier =
+                        Modifier
+                            .clip(CircleShape)
+                            .clickable(onClick = onClear),
+                )
+            } else {
+                Icon(
+                    imageVector = HugeIcons.ArrowDown01,
+                    contentDescription = null,
                 )
             }
         }

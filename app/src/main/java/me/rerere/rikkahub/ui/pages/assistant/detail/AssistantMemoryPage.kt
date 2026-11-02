@@ -1,25 +1,24 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -29,32 +28,57 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
-import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.PencilEdit01
+import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
+import me.rerere.rikkahub.ui.components.ui.PagerTab
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
+
+private enum class MemoryTab(
+    override val icon: ImageVector,
+    @param:StringRes private val labelRes: Int,
+) : PagerTab {
+    MEMORIES(HugeIcons.Brain02, R.string.assistant_page_manage_memory_title),
+    SETTINGS(HugeIcons.Settings03, R.string.settings),
+    ;
+
+    override val label: String
+        @Composable get() = stringResource(labelRes)
+}
 
 @Composable
 fun AssistantMemoryPage(id: String) {
@@ -67,6 +91,91 @@ fun AssistantMemoryPage(id: String) {
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val memories by vm.memories.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val pagerState = rememberPagerState { MemoryTab.entries.size }
+    val scope = rememberCoroutineScope()
+
+    val memoryDialogState =
+        useEditState<AssistantMemory> {
+            if (it.id == 0) {
+                vm.addMemory(it)
+            } else {
+                vm.updateMemory(it)
+            }
+        }
+
+    // 记忆编辑对话框
+    memoryDialogState.EditStateContent { memory, update ->
+        AlertDialog(
+            onDismissRequest = {
+                memoryDialogState.dismiss()
+            },
+            title = {
+                Text(stringResource(R.string.assistant_page_manage_memory_title))
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    TextField(
+                        value = memory.content,
+                        onValueChange = {
+                            update(memory.copy(content = it))
+                        },
+                        label = {
+                            Text(stringResource(R.string.assistant_page_manage_memory_title))
+                        },
+                        minLines = 2,
+                        maxLines = 8,
+                    )
+                    // 记忆分层：core（常驻）/ conditional（按需检索）
+                    Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                        Text(
+                            text = stringResource(R.string.assistant_page_memory_tier),
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                        val tiers = listOf(MemoryRepository.TIER_CORE, MemoryRepository.TIER_CONDITIONAL)
+                        ConnectedChoiceButtons(
+                            options = tiers,
+                            selected = memory.tier.takeIf { it in tiers } ?: MemoryRepository.TIER_CORE,
+                            onSelect = { update(memory.copy(tier = it)) },
+                            containerColor = MaterialTheme.colorScheme.surfaceBright,
+                        ) { tier, selected ->
+                            ConnectedChoiceLabel(
+                                text =
+                                    if (tier == MemoryRepository.TIER_CONDITIONAL) {
+                                        stringResource(R.string.assistant_page_memory_tier_conditional)
+                                    } else {
+                                        stringResource(R.string.assistant_page_memory_tier_core)
+                                    },
+                                selected = selected,
+                            )
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.assistant_page_memory_tier_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        memoryDialogState.confirm()
+                    },
+                ) {
+                    Text(stringResource(R.string.assistant_page_save))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        memoryDialogState.dismiss()
+                    },
+                ) {
+                    Text(stringResource(R.string.assistant_page_cancel))
+                }
+            },
+        )
+    }
 
     Scaffold(
         topBar = {
@@ -77,6 +186,13 @@ fun AssistantMemoryPage(id: String) {
                 navigationIcon = {
                     BackButton()
                 },
+                actions = {
+                    if (MemoryTab.entries[pagerState.currentPage] == MemoryTab.MEMORIES) {
+                        IconButton(onClick = { memoryDialogState.open(AssistantMemory(0, "")) }) {
+                            Icon(HugeIcons.Add01, contentDescription = stringResource(R.string.add))
+                        }
+                    }
+                },
                 scrollBehavior = scrollBehavior,
                 colors = CustomColors.topBarColors,
             )
@@ -84,38 +200,52 @@ fun AssistantMemoryPage(id: String) {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
-        AssistantMemoryContent(
-            innerPadding = innerPadding,
-            assistant = assistant,
-            memories = memories,
-            onUpdateAssistant = { vm.update(it) },
-            onDeleteMemory = { vm.deleteMemory(it) },
-            onAddMemory = { vm.addMemory(it) },
-            onUpdateMemory = { vm.updateMemory(it) },
-        )
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(innerPadding),
+        ) {
+            PagerTabs(
+                pagerState = pagerState,
+                tabs = MemoryTab.entries,
+                modifier = Modifier.padding(bottom = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            )
+
+            HorizontalPager(
+                state = pagerState,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            ) { page ->
+                when (MemoryTab.entries[page]) {
+                    MemoryTab.MEMORIES -> MemoryItemsTab(
+                        memories = memories,
+                        memoryEnabled = assistant.enableMemory,
+                        onEditMemory = { memoryDialogState.open(it) },
+                        onDeleteMemory = { vm.deleteMemory(it) },
+                        onOpenSettings = {
+                            scope.launch { pagerState.animateScrollToPage(MemoryTab.SETTINGS.ordinal) }
+                        },
+                    )
+
+                    MemoryTab.SETTINGS -> MemorySettingsTab(
+                        assistant = assistant,
+                        onUpdateAssistant = { vm.update(it) },
+                    )
+                }
+            }
+        }
     }
 }
 
 @Composable
-private fun AssistantMemoryContent(
-    innerPadding: PaddingValues,
+private fun MemorySettingsTab(
     assistant: Assistant,
-    memories: List<AssistantMemory>,
     onUpdateAssistant: (Assistant) -> Unit,
-    onAddMemory: (AssistantMemory) -> Unit,
-    onUpdateMemory: (AssistantMemory) -> Unit,
-    onDeleteMemory: (AssistantMemory) -> Unit,
 ) {
-    val memoryDialogState =
-        useEditState<AssistantMemory> {
-            if (it.id == 0) {
-                onAddMemory(it)
-            } else {
-                onUpdateMemory(it)
-            }
-        }
-    var pendingDeleteMemory by remember { mutableStateOf<AssistantMemory?>(null) }
-
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
 
@@ -156,190 +286,79 @@ private fun AssistantMemoryContent(
         )
     }
 
-    // 记忆对话框
-    memoryDialogState.EditStateContent { memory, update ->
-        AlertDialog(
-            onDismissRequest = {
-                memoryDialogState.dismiss()
-            },
-            title = {
-                Text(stringResource(R.string.assistant_page_manage_memory_title))
-            },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                    TextField(
-                        value = memory.content,
-                        onValueChange = {
-                            update(memory.copy(content = it))
-                        },
-                        label = {
-                            Text(stringResource(R.string.assistant_page_manage_memory_title))
-                        },
-                        minLines = 2,
-                        maxLines = 8,
-                    )
-                    // 记忆分层：core（常驻）/ conditional（按需检索）
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.assistant_page_memory_tier),
-                            style = MaterialTheme.typography.labelMedium,
-                        )
-                        TextButton(
-                            onClick = { update(memory.copy(tier = me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CORE)) },
-                        ) {
-                            Text(
-                                text = stringResource(R.string.assistant_page_memory_tier_core),
-                                color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CORE) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                        TextButton(
-                            onClick = { update(memory.copy(tier = me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL)) },
-                        ) {
-                            Text(
-                                text = stringResource(R.string.assistant_page_memory_tier_conditional),
-                                color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
-                                    MaterialTheme.colorScheme.primary
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
-                        }
-                    }
-                    Text(
-                        text = stringResource(R.string.assistant_page_memory_tier_hint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            confirmButton = {
-                TextButton(
-                    onClick = {
-                        memoryDialogState.confirm()
-                    },
-                ) {
-                    Text(stringResource(R.string.assistant_page_save))
-                }
-            },
-            dismissButton = {
-                TextButton(
-                    onClick = {
-                        memoryDialogState.dismiss()
-                    },
-                ) {
-                    Text(stringResource(R.string.assistant_page_cancel))
-                }
-            },
-        )
-    }
-
     Column(
         modifier =
             Modifier
                 .fillMaxSize()
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 16.dp)
-                .padding(innerPadding)
-                .imePadding(),
+                .padding(horizontal = 16.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         CardGroup {
-            item(
+            switchItem(
+                checked = assistant.enableMemory,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            enableMemory = it,
+                        ),
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_memory_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory)) },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_memory_desc),
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.enableMemory,
-                        onCheckedChange = {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    enableMemory = it,
-                                ),
-                            )
-                        },
-                    )
-                },
             )
-            item(
+            switchItem(
+                checked = assistant.useGlobalMemory,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            useGlobalMemory = it,
+                        ),
+                    )
+                },
+                enabled = assistant.enableMemory,
+                supportingContent = { Text(stringResource(R.string.assistant_page_global_memory_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_global_memory)) },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_global_memory_desc),
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.useGlobalMemory,
-                        onCheckedChange = {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    useGlobalMemory = it,
-                                ),
-                            )
-                        },
-                        enabled = assistant.enableMemory,
-                    )
-                },
             )
-            item(
+            switchItem(
+                checked = assistant.enableRecentChatsReference,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            enableRecentChatsReference = it,
+                        ),
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_recent_chats)) },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_recent_chats_desc),
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.enableRecentChatsReference,
-                        onCheckedChange = {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    enableRecentChatsReference = it,
-                                ),
-                            )
-                        },
-                    )
-                },
             )
         }
 
         CardGroup {
-            item(
+            switchItem(
+                checked = assistant.enableTimeReminder,
+                onCheckedChange = {
+                    onUpdateAssistant(
+                        assistant.copy(
+                            enableTimeReminder = it,
+                        ),
+                    )
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder)) },
-                supportingContent = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_time_reminder_desc),
-                    )
-                },
-                trailingContent = {
-                    Switch(
-                        checked = assistant.enableTimeReminder,
-                        onCheckedChange = {
-                            onUpdateAssistant(
-                                assistant.copy(
-                                    enableTimeReminder = it,
-                                ),
-                            )
-                        },
-                    )
-                },
             )
             if (assistant.enableTimeReminder) {
                 item(
                     headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval)) },
                     supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval_desc)) },
-                    trailingContent = { Text(stringResource(R.string.assistant_page_time_reminder_interval_value, assistant.timeReminderIntervalMinutes)) },
+                    trailingContent = {
+                        CardGroupValue(
+                            stringResource(
+                                R.string.assistant_page_time_reminder_interval_value,
+                                assistant.timeReminderIntervalMinutes,
+                            ),
+                        )
+                    },
                     onClick = {
                         timeReminderIntervalInput = assistant.timeReminderIntervalMinutes.toString()
                         showTimeReminderIntervalDialog = true
@@ -347,55 +366,131 @@ private fun AssistantMemoryContent(
                 )
             }
         }
+    }
+}
 
+@Composable
+private fun MemoryItemsTab(
+    memories: List<AssistantMemory>,
+    memoryEnabled: Boolean,
+    onEditMemory: (AssistantMemory) -> Unit,
+    onDeleteMemory: (AssistantMemory) -> Unit,
+    onOpenSettings: () -> Unit,
+) {
+    var pendingDeleteMemory by remember { mutableStateOf<AssistantMemory?>(null) }
+
+    if (memories.isEmpty()) {
         Box(
             modifier =
                 Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 8.dp),
+                    .fillMaxSize()
+                    .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
-            Text(
-                text = stringResource(R.string.assistant_page_manage_memory_title),
-                style = MaterialTheme.typography.titleMedium,
-                modifier =
-                    Modifier
-                        .padding(bottom = 8.dp)
-                        .align(Alignment.CenterStart),
+            ExtensionEmptyState(
+                message = stringResource(R.string.assistant_page_memory_empty),
+                description =
+                    stringResource(
+                        if (memoryEnabled) {
+                            R.string.assistant_page_memory_empty_hint
+                        } else {
+                            R.string.assistant_page_memory_empty_disabled_hint
+                        },
+                    ),
+                buttonText = stringResource(R.string.settings).takeIf { !memoryEnabled },
+                onAction = onOpenSettings,
+                icon = HugeIcons.Brain02,
             )
+        }
+        return
+    }
 
-            IconButton(
-                onClick = {
-                    memoryDialogState.open(AssistantMemory(0, ""))
-                },
-                modifier = Modifier.align(Alignment.CenterEnd),
+    val coreMemories = remember(memories) { memories.filter { it.tier != MemoryRepository.TIER_CONDITIONAL } }
+    val conditionalMemories = remember(memories) { memories.filter { it.tier == MemoryRepository.TIER_CONDITIONAL } }
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxSize()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 8.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        if (coreMemories.isNotEmpty()) {
+            CardGroup(
+                title = { Text(stringResource(R.string.assistant_page_memory_tier_core)) },
             ) {
-                Icon(
-                    imageVector = HugeIcons.Add01,
-                    contentDescription = stringResource(R.string.add),
-                )
+                coreMemories.fastForEach { memory ->
+                    key(memory.id) {
+                        item(
+                            onClick = { onEditMemory(memory) },
+                            headlineContent = {
+                                Text(
+                                    text = memory.content,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            trailingContent = {
+                                ItemActionMenu(
+                                    actions =
+                                        listOf(
+                                            ItemAction(
+                                                text = stringResource(R.string.edit),
+                                                icon = HugeIcons.PencilEdit01,
+                                                onClick = { onEditMemory(memory) },
+                                            ),
+                                            ItemAction(
+                                                text = stringResource(R.string.delete),
+                                                icon = HugeIcons.Delete01,
+                                                destructive = true,
+                                                onClick = { pendingDeleteMemory = memory },
+                                            ),
+                                        ),
+                                )
+                            },
+                        )
+                    }
+                }
             }
         }
 
-        if (memories.isEmpty()) {
-            // 列表为空时给一句解释：开了记忆就教怎么加，没开就给出可直接按下的开关
-            MemoryEmptyState(
-                memoryEnabled = assistant.enableMemory,
-                onEnableMemory = {
-                    onUpdateAssistant(assistant.copy(enableMemory = true))
-                },
-            )
-        } else {
-            memories.fastForEach { memory ->
-                key(memory.id) {
-                    MemoryItem(
-                        memory = memory,
-                        onEditMemory = {
-                            memoryDialogState.open(it)
-                        },
-                        onDeleteMemory = {
-                            pendingDeleteMemory = it
-                        },
-                    )
+        if (conditionalMemories.isNotEmpty()) {
+            CardGroup(
+                title = { Text(stringResource(R.string.assistant_page_memory_tier_conditional)) },
+            ) {
+                conditionalMemories.fastForEach { memory ->
+                    key(memory.id) {
+                        item(
+                            onClick = { onEditMemory(memory) },
+                            headlineContent = {
+                                Text(
+                                    text = memory.content,
+                                    maxLines = 5,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.bodyMedium,
+                                )
+                            },
+                            trailingContent = {
+                                ItemActionMenu(
+                                    actions =
+                                        listOf(
+                                            ItemAction(
+                                                text = stringResource(R.string.edit),
+                                                icon = HugeIcons.PencilEdit01,
+                                                onClick = { onEditMemory(memory) },
+                                            ),
+                                            ItemAction(
+                                                text = stringResource(R.string.delete),
+                                                icon = HugeIcons.Delete01,
+                                                destructive = true,
+                                                onClick = { pendingDeleteMemory = memory },
+                                            ),
+                                        ),
+                                )
+                            },
+                        )
+                    }
                 }
             }
         }
@@ -419,102 +514,4 @@ private fun AssistantMemoryContent(
             )
         },
     )
-}
-
-@Composable
-private fun MemoryEmptyState(
-    memoryEnabled: Boolean,
-    onEnableMemory: () -> Unit,
-) {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(4.dp),
-    ) {
-        Text(
-            text = stringResource(R.string.assistant_page_memory_empty),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text =
-                stringResource(
-                    if (memoryEnabled) {
-                        R.string.assistant_page_memory_empty_hint
-                    } else {
-                        R.string.assistant_page_memory_empty_disabled_hint
-                    },
-                ),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-            textAlign = TextAlign.Center,
-        )
-        if (!memoryEnabled) {
-            TextButton(onClick = onEnableMemory) {
-                Text(stringResource(R.string.assistant_page_memory_enable_action))
-            }
-        }
-    }
-}
-
-@Composable
-private fun MemoryItem(
-    memory: AssistantMemory,
-    onEditMemory: (AssistantMemory) -> Unit,
-    onDeleteMemory: (AssistantMemory) -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Column(
-                modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Text(
-                    text = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
-                        stringResource(R.string.assistant_page_memory_tier_conditional_short)
-                    } else {
-                        stringResource(R.string.assistant_page_memory_tier_core_short)
-                    },
-                    style = MaterialTheme.typography.labelSmall,
-                    color = if (memory.tier == me.rerere.rikkahub.data.repository.MemoryRepository.TIER_CONDITIONAL) {
-                        MaterialTheme.colorScheme.secondary
-                    } else {
-                        MaterialTheme.colorScheme.primary
-                    },
-                )
-                Text(
-                    text = memory.content,
-                    maxLines = 5,
-                    overflow = TextOverflow.Ellipsis,
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-            IconButton(
-                onClick = { onEditMemory(memory) },
-            ) {
-                Icon(HugeIcons.PencilEdit01, stringResource(R.string.edit))
-            }
-            IconButton(
-                onClick = { onDeleteMemory(memory) },
-            ) {
-                Icon(
-                    HugeIcons.Delete01,
-                    stringResource(R.string.assistant_page_delete),
-                )
-            }
-        }
-    }
 }

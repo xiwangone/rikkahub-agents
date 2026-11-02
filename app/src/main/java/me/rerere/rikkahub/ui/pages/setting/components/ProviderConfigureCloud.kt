@@ -2,37 +2,32 @@ package me.rerere.rikkahub.ui.pages.setting.components
 
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
-import androidx.compose.foundation.selection.toggleable
-import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Icon
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
 import com.dokar.sonner.ToastType
-import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.ClaudePromptCacheTtl
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.ProviderDescriptors
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalToaster
 import java.io.IOException
-
 
 @Composable
 internal fun ProviderConfigureClaude(
@@ -41,85 +36,73 @@ internal fun ProviderConfigureClaude(
 ) {
     ProviderDescriptors.get(provider.id).description()
 
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = { onEdit(provider.copy(name = it)) },
-        label = { Text(stringResource(R.string.setting_provider_page_name)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
-    )
-
-    // 统一改为"引用 / 粘贴即入库"输入：默认不在此处留存明文，
-    // 引用（$$名字）由运行时解析层取真值
-    SecretRefField(
-        value = provider.apiKey,
-        onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
-        label = stringResource(R.string.setting_provider_page_api_key),
-        nameHint = provider.name,
-    )
-
-    OutlinedTextField(
-        value = provider.baseUrl,
-        onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
-        label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
-        modifier = Modifier.fillMaxWidth(),
-        isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
-    )
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(R.string.setting_provider_page_enable))
-        Switch(
+    CardGroup {
+        switchItem(
             checked = provider.enabled,
             onCheckedChange = { onEdit(provider.copy(enabled = it)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_enable)) },
         )
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(R.string.setting_provider_page_claude_prompt_caching))
-        Switch(
+    CardGroup {
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_name)) },
+        ) {
+            OutlinedTextField(
+                value = provider.name,
+                onValueChange = { onEdit(provider.copy(name = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                maxLines = 3,
+            )
+        }
+        formItem {
+            SecretRefField(
+                value = provider.apiKey,
+                onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
+                label = stringResource(R.string.setting_provider_page_api_key),
+                nameHint = provider.name,
+            )
+        }
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
+        ) {
+            OutlinedTextField(
+                value = provider.baseUrl,
+                onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+                modifier = Modifier.fillMaxWidth(),
+                isError = provider.baseUrl.isNotBlank() && !provider.baseUrl.isValidBaseUrl(),
+                trailingIcon =
+                    resetBaseUrlButton(provider) {
+                        onEdit(provider.copy(baseUrl = provider.defaultBaseUrlForReset()))
+                    },
+            )
+        }
+    }
+
+    CardGroup {
+        switchItem(
             checked = provider.promptCaching,
             onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_caching)) },
         )
-    }
-
-    if (provider.promptCaching) {
-        Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl))
-        SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-            ClaudePromptCacheTtl.entries.forEachIndexed { index, ttl ->
-                SegmentedButton(
-                    shape =
-                        SegmentedButtonDefaults.itemShape(
-                            index = index,
-                            count = ClaudePromptCacheTtl.entries.size,
-                        ),
-                    label = {
-                        Text(
+        if (provider.promptCaching) {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl)) },
+            ) {
+                ConnectedChoiceButtons(
+                    options = ClaudePromptCacheTtl.entries,
+                    selected = provider.promptCacheTtl,
+                    onSelect = { onEdit(provider.copy(promptCacheTtl = it)) },
+                ) { ttl, selected ->
+                    ConnectedChoiceLabel(
+                        text =
                             when (ttl) {
-                                ClaudePromptCacheTtl.FIVE_MINUTES -> {
-                                    stringResource(
-                                        R.string.setting_provider_page_claude_prompt_cache_ttl_5m,
-                                    )
-                                }
-
-                                ClaudePromptCacheTtl.ONE_HOUR -> {
-                                    stringResource(
-                                        R.string.setting_provider_page_claude_prompt_cache_ttl_1h,
-                                    )
-                                }
+                                ClaudePromptCacheTtl.FIVE_MINUTES -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_5m)
+                                ClaudePromptCacheTtl.ONE_HOUR -> stringResource(R.string.setting_provider_page_claude_prompt_cache_ttl_1h)
                             },
-                        )
-                    },
-                    selected = provider.promptCacheTtl == ttl,
-                    onClick = { onEdit(provider.copy(promptCacheTtl = ttl)) },
-                )
+                        selected = selected,
+                    )
+                }
             }
         }
     }
@@ -162,148 +145,136 @@ internal fun ProviderConfigureGoogle(
                 )
                 toaster.show(toastServiceImported, type = ToastType.Success)
             } catch (e: IOException) {
-                // openInputStream/readText 仅声明 IOException（FileNotFoundException 为其子类）
                 toaster.show(toastImportFailed + e.message, type = ToastType.Error)
             } catch (e: IllegalArgumentException) {
-                // Json.parseToJsonElement 抛 SerializationException、jsonObject/jsonPrimitive 访问器抛
-                // IllegalArgumentException，前者是后者子类，此 catch 全覆盖
                 toaster.show(toastImportFailed + e.message, type = ToastType.Error)
             }
         }
 
+    val useServiceAccount = provider.vertexAI && provider.useServiceAccount
+
     ProviderDescriptors.get(provider.id).description()
 
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = { onEdit(provider.copy(name = it)) },
-        label = { Text(stringResource(R.string.setting_provider_page_name)) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-
-    if (!(provider.vertexAI && provider.useServiceAccount)) {
-        // 统一改为"引用 / 粘贴即入库"输入（同上）
-        SecretRefField(
-            value = provider.apiKey,
-            onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
-            label = stringResource(R.string.setting_provider_page_api_key),
-            nameHint = provider.name,
-        )
-    }
-
-    if (!provider.vertexAI) {
-        OutlinedTextField(
-            value = provider.baseUrl,
-            onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
-            modifier = Modifier.fillMaxWidth(),
-            isError =
-                provider.baseUrl.isNotBlank() && (
-                    !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
-                ),
-            supportingText =
-                if (!provider.baseUrl.endsWith("/v1beta")) {
-                    { Text(stringResource(R.string.setting_provider_page_base_url_v1beta_hint)) }
-                } else {
-                    null
-                },
-        )
-    }
-
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(R.string.setting_provider_page_enable))
-        Switch(
+    CardGroup {
+        switchItem(
             checked = provider.enabled,
             onCheckedChange = { onEdit(provider.copy(enabled = it)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_enable)) },
         )
     }
 
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.SpaceBetween,
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        Text(stringResource(R.string.setting_provider_page_vertex_ai))
-        Switch(
+    CardGroup {
+        formItem(
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_name)) },
+        ) {
+            OutlinedTextField(
+                value = provider.name,
+                onValueChange = { onEdit(provider.copy(name = it)) },
+                modifier = Modifier.fillMaxWidth(),
+                singleLine = true,
+            )
+        }
+        if (!useServiceAccount) {
+            formItem {
+                SecretRefField(
+                    value = provider.apiKey,
+                    onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
+                    label = stringResource(R.string.setting_provider_page_api_key),
+                    nameHint = provider.name,
+                )
+            }
+        }
+        if (!provider.vertexAI) {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
+            ) {
+                OutlinedTextField(
+                    value = provider.baseUrl,
+                    onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                    isError =
+                        provider.baseUrl.isNotBlank() && (
+                            !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
+                        ),
+                    supportingText =
+                        if (!provider.baseUrl.endsWith("/v1beta")) {
+                            { Text(stringResource(R.string.setting_provider_page_base_url_v1beta_hint)) }
+                        } else {
+                            null
+                        },
+                    trailingIcon =
+                        resetBaseUrlButton(provider) {
+                            onEdit(provider.copy(baseUrl = provider.defaultBaseUrlForReset()))
+                        },
+                )
+            }
+        }
+    }
+
+    CardGroup {
+        switchItem(
             checked = provider.vertexAI,
             onCheckedChange = { onEdit(provider.copy(vertexAI = it)) },
+            headlineContent = { Text(stringResource(R.string.setting_provider_page_vertex_ai)) },
         )
-    }
-
-    if (!provider.vertexAI) {
-        val interactionsLabel = stringResource(R.string.setting_provider_page_google_interactions_api)
-        Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .toggleable(
-                    value = provider.useInteractionsApi,
-                    role = Role.Switch,
-                    onValueChange = { onEdit(provider.copy(useInteractionsApi = it)) },
-                ),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(interactionsLabel)
-            Switch(
-                checked = provider.useInteractionsApi,
-                onCheckedChange = null,
-            )
-        }
-    }
-
-    if (provider.vertexAI) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(stringResource(R.string.setting_provider_page_use_service_account))
-            Switch(
+        if (provider.vertexAI) {
+            switchItem(
                 checked = provider.useServiceAccount,
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
+            )
+        } else {
+            switchItem(
+                checked = provider.useInteractionsApi,
+                onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_google_interactions_api)) },
             )
         }
     }
 
-    if (provider.vertexAI && provider.useServiceAccount) {
-        OutlinedButton(
-            onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Text(stringResource(R.string.setting_provider_page_import_service_account_json))
+    if (useServiceAccount) {
+        CardGroup {
+            item(
+                onClick = { serviceAccountJsonLauncher.launch(arrayOf("application/json", "*/*")) },
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_import_service_account_json)) },
+                trailingContent = { Icon(HugeIcons.FileImport, contentDescription = null) },
+            )
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_service_account_email)) },
+            ) {
+                OutlinedTextField(
+                    value = provider.serviceAccountEmail,
+                    onValueChange = { onEdit(provider.copy(serviceAccountEmail = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            formItem {
+                SecretRefField(
+                    value = provider.privateKey,
+                    onValueChange = { onEdit(provider.copy(privateKey = it.trim())) },
+                    label = stringResource(R.string.setting_provider_page_private_key),
+                    nameHint = "VERTEX_SERVICE_ACCOUNT_KEY",
+                    maxLines = 6,
+                )
+            }
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_location)) },
+            ) {
+                OutlinedTextField(
+                    value = provider.location,
+                    onValueChange = { onEdit(provider.copy(location = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            formItem(
+                headlineContent = { Text(stringResource(R.string.setting_provider_page_project_id)) },
+            ) {
+                OutlinedTextField(
+                    value = provider.projectId,
+                    onValueChange = { onEdit(provider.copy(projectId = it.trim())) },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
         }
-
-        OutlinedTextField(
-            value = provider.serviceAccountEmail,
-            onValueChange = { onEdit(provider.copy(serviceAccountEmail = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_service_account_email)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        // 统一为"引用 / 粘贴即入库"输入：私钥可整体存入凭证库，此处只留 `$$名字`
-        SecretRefField(
-            value = provider.privateKey,
-            onValueChange = { onEdit(provider.copy(privateKey = it.trim())) },
-            label = stringResource(R.string.setting_provider_page_private_key),
-            nameHint = "VERTEX_SERVICE_ACCOUNT_KEY",
-            maxLines = 6,
-        )
-
-        OutlinedTextField(
-            value = provider.location,
-            onValueChange = { onEdit(provider.copy(location = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_location)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        OutlinedTextField(
-            value = provider.projectId,
-            onValueChange = { onEdit(provider.copy(projectId = it.trim())) },
-            label = { Text(stringResource(R.string.setting_provider_page_project_id)) },
-            modifier = Modifier.fillMaxWidth(),
-        )
     }
 }

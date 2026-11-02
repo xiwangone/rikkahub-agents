@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
+import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
@@ -8,13 +10,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Card
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -34,7 +33,6 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
@@ -43,13 +41,17 @@ import me.rerere.ai.provider.ModelType
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
-import me.rerere.rikkahub.ui.components.ai.ModelSelector
+import me.rerere.rikkahub.ui.components.ai.ModelField
+import me.rerere.rikkahub.ui.components.ai.ModelListSheet
 import me.rerere.rikkahub.ui.components.ai.ReasoningButton
+import me.rerere.rikkahub.ui.components.ai.rememberModelListState
 import me.rerere.rikkahub.ui.components.nav.BackButton
-import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.TagsInput
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.hooks.heroAnimation
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.toFixed
@@ -111,6 +113,17 @@ internal fun AssistantBasicContent(
     onUpdate: (Assistant) -> Unit,
     vm: AssistantDetailVM,
 ) {
+    val modelListState =
+        rememberModelListState(
+            modelId = assistant.chatModelId,
+            providers = providers,
+            type = ModelType.CHAT,
+        )
+    ModelListSheet(
+        state = modelListState,
+        onSelect = { onUpdate(assistant.copy(chatModelId = it.id)) },
+    )
+
     Column(
         modifier =
             Modifier
@@ -118,16 +131,16 @@ internal fun AssistantBasicContent(
                 .verticalScroll(rememberScrollState())
                 .padding(horizontal = 16.dp)
                 .padding(innerPadding)
+                .padding(bottom = 16.dp)
                 .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Column(
+        Box(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
+                    .padding(vertical = 12.dp),
+            contentAlignment = Alignment.Center,
         ) {
             UIAvatar(
                 value = assistant.avatar,
@@ -141,19 +154,14 @@ internal fun AssistantBasicContent(
                 },
                 modifier =
                     Modifier
-                        .size(80.dp)
+                        .size(96.dp)
                         .heroAnimation("assistant_${assistant.id}"),
             )
         }
 
-        Card(
-            colors = CustomColors.cardColorsOnSurfaceContainer,
-        ) {
-            FormItem(
-                label = {
-                    Text(stringResource(R.string.assistant_page_name))
-                },
-                modifier = Modifier.padding(8.dp),
+        CardGroup {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_name)) },
             ) {
                 OutlinedTextField(
                     value = assistant.name,
@@ -165,16 +173,11 @@ internal fun AssistantBasicContent(
                         )
                     },
                     modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
                 )
             }
-
-            HorizontalDivider()
-
-            FormItem(
-                label = {
-                    Text(stringResource(R.string.assistant_page_tags))
-                },
-                modifier = Modifier.padding(8.dp),
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_tags)) },
             ) {
                 TagsInput(
                     value = assistant.tags,
@@ -184,17 +187,9 @@ internal fun AssistantBasicContent(
                     },
                 )
             }
-
-            HorizontalDivider()
-
-            FormItem(
-                label = {
-                    Text(stringResource(R.string.assistant_page_workspace))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_workspace_desc))
-                },
-                modifier = Modifier.padding(8.dp),
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_workspace)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_workspace_desc)) },
             ) {
                 val selectedWorkspace = workspaces.find { it.id == assistant.workspaceId?.toString() }
                 Select(
@@ -213,95 +208,114 @@ internal fun AssistantBasicContent(
                     },
                 )
             }
-
-            HorizontalDivider()
-
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_use_assistant_avatar))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_use_assistant_avatar_desc))
-                },
-                tail = {
-                    Switch(
-                        checked = assistant.useAssistantAvatar,
-                        onCheckedChange = {
-                            onUpdate(
-                                assistant.copy(
-                                    useAssistantAvatar = it,
-                                ),
-                            )
-                        },
+            switchItem(
+                checked = assistant.useAssistantAvatar,
+                onCheckedChange = {
+                    onUpdate(
+                        assistant.copy(
+                            useAssistantAvatar = it,
+                        ),
                     )
                 },
+                supportingContent = { Text(stringResource(R.string.assistant_page_use_assistant_avatar_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_use_assistant_avatar)) },
             )
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_model))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_allow_conversation_model_desc))
-                },
-                tail = {
-                    Switch(
-                        checked = assistant.allowPerConversationModel,
-                        onCheckedChange = {
-                            onUpdate(
-                                assistant.copy(
-                                    allowPerConversationModel = it,
-                                ),
-                            )
-                        },
+            switchItem(
+                checked = assistant.allowPerConversationModel,
+                onCheckedChange = {
+                    onUpdate(
+                        assistant.copy(
+                            allowPerConversationModel = it,
+                        ),
                     )
                 },
+                supportingContent = { Text(stringResource(R.string.assistant_page_allow_conversation_model_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_allow_conversation_model)) },
             )
         }
 
-        Card(
-            colors = CustomColors.cardColorsOnSurfaceContainer,
-        ) {
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_chat_model))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_chat_model_desc))
-                },
-                content = {
-                    ModelSelector(
-                        modelId = assistant.chatModelId,
-                        providers = providers,
-                        type = ModelType.CHAT,
-                        onSelect = {
-                            onUpdate(
-                                assistant.copy(
-                                    chatModelId = it.id,
-                                ),
-                            )
+        CardGroup {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_chat_model)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_chat_model_desc)) },
+            ) {
+                ModelField(
+                    model = modelListState.currentModel,
+                    onClick = { modelListState.open() },
+                )
+            }
+            item(
+                headlineContent = { Text(stringResource(R.string.assistant_page_thinking_budget)) },
+                trailingContent = {
+                    ReasoningButton(
+                        reasoningLevel = assistant.reasoningLevel,
+                        onUpdateReasoningLevel = { level ->
+                            onUpdate(assistant.copy(reasoningLevel = level))
                         },
                     )
                 },
             )
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_temperature))
-                },
-                description = {
-                    Text(
-                        text =
-                            buildAnnotatedString {
-                                append(stringResource(R.string.assistant_page_temperature_warning))
-                            },
+            switchItem(
+                checked = assistant.streamOutput,
+                onCheckedChange = {
+                    onUpdate(
+                        assistant.copy(
+                            streamOutput = it,
+                        ),
                     )
                 },
-                tail = {
+                supportingContent = { Text(stringResource(R.string.assistant_page_stream_output_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_stream_output)) },
+            )
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_stream_idle_timeout)) },
+                supportingContent = {
+                    Text(
+                        if (assistant.streamIdleTimeoutMs <= 0L) {
+                            stringResource(R.string.assistant_page_stream_idle_timeout_off)
+                        } else {
+                            stringResource(
+                                R.string.assistant_page_stream_idle_timeout_desc,
+                                (assistant.streamIdleTimeoutMs / 1000L).toInt(),
+                            )
+                        },
+                    )
+                },
+                trailingContent = {
+                    if (assistant.streamIdleTimeoutMs > 0L) {
+                        CardGroupValue("${(assistant.streamIdleTimeoutMs / 1000L).toInt()}s")
+                    }
+                },
+            ) {
+                Slider(
+                    value = (assistant.streamIdleTimeoutMs / 1000L).toFloat(),
+                    onValueChange = { v ->
+                        onUpdate(
+                            assistant.copy(
+                                streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
+                            ),
+                        )
+                    },
+                    valueRange = 0f..300f,
+                    steps = 9,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+            switchItem(
+                checked = assistant.fastPathRouterEnabled,
+                onCheckedChange = {
+                    onUpdate(assistant.copy(fastPathRouterEnabled = it))
+                },
+                supportingContent = { Text(stringResource(R.string.assistant_page_fast_path_router_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_fast_path_router)) },
+            )
+        }
+
+        CardGroup {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_temperature)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_temperature_warning)) },
+                trailingContent = {
                     Switch(
                         checked = assistant.temperature != null,
                         onCheckedChange = { enabled ->
@@ -314,7 +328,7 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                if (assistant.temperature != null) {
+                AnimatedVisibility(visible = assistant.temperature != null) {
                     var temperatureInput by remember(assistant.id) {
                         mutableStateOf(assistant.temperature.toString())
                     }
@@ -341,21 +355,10 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_top_p))
-                },
-                description = {
-                    Text(
-                        text =
-                            buildAnnotatedString {
-                                append(stringResource(R.string.assistant_page_top_p_warning))
-                            },
-                    )
-                },
-                tail = {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_top_p)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_top_p_warning)) },
+                trailingContent = {
                     Switch(
                         checked = assistant.topP != null,
                         onCheckedChange = { enabled ->
@@ -368,9 +371,9 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                assistant.topP?.let { topP ->
+                AnimatedVisibility(visible = assistant.topP != null) {
                     var topPInput by remember(assistant.id) {
-                        mutableStateOf(topP.toString())
+                        mutableStateOf((assistant.topP ?: 1.0f).toString())
                     }
                     val topPValue = topPInput.toFloatOrNull()
                     OutlinedTextField(
@@ -395,18 +398,10 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_frequency_penalty))
-                },
-                description = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_frequency_penalty_warning),
-                    )
-                },
-                tail = {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_frequency_penalty)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_frequency_penalty_warning)) },
+                trailingContent = {
                     Switch(
                         checked = assistant.frequencyPenalty != null,
                         onCheckedChange = { enabled ->
@@ -419,9 +414,9 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                assistant.frequencyPenalty?.let { frequencyPenalty ->
+                AnimatedVisibility(visible = assistant.frequencyPenalty != null) {
                     var frequencyPenaltyInput by remember(assistant.id) {
-                        mutableStateOf(frequencyPenalty.toString())
+                        mutableStateOf((assistant.frequencyPenalty ?: 0.5f).toString())
                     }
                     val frequencyPenaltyValue = frequencyPenaltyInput.toFloatOrNull()
                     OutlinedTextField(
@@ -446,18 +441,10 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_presence_penalty))
-                },
-                description = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_presence_penalty_warning),
-                    )
-                },
-                tail = {
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_presence_penalty)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_presence_penalty_warning)) },
+                trailingContent = {
                     Switch(
                         checked = assistant.presencePenalty != null,
                         onCheckedChange = { enabled ->
@@ -470,9 +457,9 @@ internal fun AssistantBasicContent(
                     )
                 },
             ) {
-                assistant.presencePenalty?.let { presencePenalty ->
+                AnimatedVisibility(visible = assistant.presencePenalty != null) {
                     var presencePenaltyInput by remember(assistant.id) {
-                        mutableStateOf(presencePenalty.toString())
+                        mutableStateOf((assistant.presencePenalty ?: 0.3f).toString())
                     }
                     val presencePenaltyValue = presencePenaltyInput.toFloatOrNull()
                     OutlinedTextField(
@@ -497,17 +484,9 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_context_message_limit))
-                },
-                description = {
-                    Text(
-                        text = stringResource(R.string.assistant_page_context_message_limit_desc),
-                    )
-                },
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_context_message_limit)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_context_message_limit_desc)) },
             ) {
                 var contextMessageLimitInput by remember(
                     assistant.id,
@@ -566,7 +545,7 @@ internal fun AssistantBasicContent(
                     singleLine = true,
                     supportingText = {
                         Text(
-                            stringResource(R.string.assistant_page_context_message_limit_hint)
+                            stringResource(R.string.assistant_page_context_message_limit_hint),
                         )
                     },
                 )
@@ -574,22 +553,15 @@ internal fun AssistantBasicContent(
                 if (assistant.contextMessageLimit > 0) {
                     Text(
                         text = stringResource(R.string.assistant_page_context_message_limit_warning),
-                        style = MaterialTheme.typography.labelSmall,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_token_budget))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_token_budget_desc))
-                },
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_token_budget)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_token_budget_desc)) },
             ) {
-                // 支持「100K / 1M / 100000」三种写法：K=×1000、M=×1,000,000（用户建议）。
                 fun parseTokens(raw: String): Int? {
                     val t = raw.trim().uppercase()
                     if (t.isEmpty()) return null
@@ -604,7 +576,6 @@ internal fun AssistantBasicContent(
                     return if (n <= Int.MAX_VALUE / mult) n * mult else null
                 }
 
-                // 回显用人类可读形式：100000 → 100K
                 fun formatTokens(v: Int): String =
                     when {
                         v >= 1_000_000 && v % 1_000_000 == 0 -> "${v / 1_000_000}M"
@@ -612,7 +583,6 @@ internal fun AssistantBasicContent(
                         else -> v.toString()
                     }
 
-                // 留空 = 不限制（null）；边输边存（与 contextMessageLimit 同风格）
                 fun commitTokenBudget(soft: String, hard: String) {
                     val s = parseTokens(soft)
                     val h = parseTokens(hard)
@@ -629,7 +599,6 @@ internal fun AssistantBasicContent(
                 OutlinedTextField(
                     value = tokenSoftInput,
                     onValueChange = { input ->
-                        // 允许「100000」「100K」「1M」；其余字符忽略
                         if (input.matches(Regex("^[0-9]{0,9}[KkMm]?$"))) {
                             tokenSoftInput = input
                             commitTokenBudget(input, tokenHardInput)
@@ -663,7 +632,6 @@ internal fun AssistantBasicContent(
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Text, imeAction = ImeAction.Done),
                     singleLine = true,
                 )
-                // 配置矛盾校验：硬 < 软时，第一次请求就会命中硬上限而直接结束（踩过）
                 val softValue = parseTokens(tokenSoftInput)
                 val hardValue = parseTokens(tokenHardInput)
                 if (softValue != null && hardValue != null && hardValue < softValue) {
@@ -674,103 +642,9 @@ internal fun AssistantBasicContent(
                     )
                 }
             }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_stream_output))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_stream_output_desc))
-                },
-                tail = {
-                    Switch(
-                        checked = assistant.streamOutput,
-                        onCheckedChange = {
-                            onUpdate(
-                                assistant.copy(
-                                    streamOutput = it,
-                                ),
-                            )
-                        },
-                    )
-                },
-            )
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_stream_idle_timeout))
-                },
-                description = {
-                    Text(
-                        if (assistant.streamIdleTimeoutMs <= 0L) {
-                            stringResource(R.string.assistant_page_stream_idle_timeout_off)
-                        } else {
-                            stringResource(
-                                R.string.assistant_page_stream_idle_timeout_desc,
-                                (assistant.streamIdleTimeoutMs / 1000L).toInt(),
-                            )
-                        }
-                    )
-                },
-                tail = {
-                    Slider(
-                        value = (assistant.streamIdleTimeoutMs / 1000L).toFloat(),
-                        onValueChange = { v ->
-                            onUpdate(
-                                assistant.copy(
-                                    streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
-                                ),
-                            )
-                        },
-                        valueRange = 0f..300f,
-                        steps = 9,
-                        modifier = Modifier.width(160.dp),
-                    )
-                },
-            )
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_fast_path_router))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_fast_path_router_desc))
-                },
-                tail = {
-                    Switch(
-                        checked = assistant.fastPathRouterEnabled,
-                        onCheckedChange = {
-                            onUpdate(assistant.copy(fastPathRouterEnabled = it))
-                        },
-                    )
-                },
-            )
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_thinking_budget))
-                },
-            ) {
-                ReasoningButton(
-                    reasoningLevel = assistant.reasoningLevel,
-                    onUpdateReasoningLevel = { level ->
-                        onUpdate(assistant.copy(reasoningLevel = level))
-                    },
-                )
-            }
-            HorizontalDivider()
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_max_tokens))
-                },
-                description = {
-                    Text(stringResource(R.string.assistant_page_max_tokens_desc))
-                },
+            formItem(
+                headlineContent = { Text(stringResource(R.string.assistant_page_max_tokens)) },
+                supportingContent = { Text(stringResource(R.string.assistant_page_max_tokens_desc)) },
             ) {
                 OutlinedTextField(
                     value = assistant.maxTokens?.toString() ?: "",
@@ -802,58 +676,51 @@ internal fun AssistantBasicContent(
             }
         }
 
-        Card(
-            colors = CustomColors.cardColorsOnSurfaceContainer,
-        ) {
-            FormItem(
-                modifier = Modifier.padding(8.dp),
-                label = {
-                    Text(stringResource(R.string.assistant_page_gradient_background))
+        CardGroup {
+            switchItem(
+                checked = assistant.useGradientBackground,
+                onCheckedChange = {
+                    onUpdate(
+                        assistant.copy(
+                            useGradientBackground = it,
+                        ),
+                    )
                 },
-                description = {
-                    Text(stringResource(R.string.assistant_page_gradient_background_desc))
-                },
-                tail = {
-                    Switch(
-                        checked = assistant.useGradientBackground,
-                        onCheckedChange = {
+                supportingContent = { Text(stringResource(R.string.assistant_page_gradient_background_desc)) },
+                headlineContent = { Text(stringResource(R.string.assistant_page_gradient_background)) },
+            )
+
+            if (!assistant.useGradientBackground) {
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_chat_background)) },
+                    supportingContent = { Text(stringResource(R.string.assistant_page_chat_background_desc)) },
+                ) {
+                    BackgroundPicker(
+                        background = assistant.background,
+                        backgroundOpacity = assistant.backgroundOpacity,
+                        onUpdate = { background ->
                             onUpdate(
                                 assistant.copy(
-                                    useGradientBackground = it,
+                                    background = background,
                                 ),
                             )
                         },
                     )
-                },
-            )
-
-            if (!assistant.useGradientBackground) {
-                HorizontalDivider()
-
-                BackgroundPicker(
-                    modifier = Modifier.padding(8.dp),
-                    background = assistant.background,
-                    backgroundOpacity = assistant.backgroundOpacity,
-                    onUpdate = { background ->
-                        onUpdate(
-                            assistant.copy(
-                                background = background,
-                            ),
-                        )
-                    },
-                )
+                }
             }
 
             if (!assistant.useGradientBackground && assistant.background != null) {
                 val backgroundOpacity = assistant.backgroundOpacity.coerceIn(0f, 1f)
-                HorizontalDivider()
-                FormItem(
-                    modifier = Modifier.padding(8.dp),
-                    label = {
-                        Text(stringResource(R.string.assistant_page_background_opacity))
-                    },
-                    description = {
-                        Text(stringResource(R.string.assistant_page_background_opacity_desc))
+                formItem(
+                    headlineContent = { Text(stringResource(R.string.assistant_page_background_opacity)) },
+                    supportingContent = { Text(stringResource(R.string.assistant_page_background_opacity_desc)) },
+                    trailingContent = {
+                        CardGroupValue(
+                            stringResource(
+                                R.string.assistant_page_background_opacity_value,
+                                (backgroundOpacity * 100).roundToInt(),
+                            ),
+                        )
                     },
                 ) {
                     Slider(
@@ -868,15 +735,6 @@ internal fun AssistantBasicContent(
                         valueRange = 0f..1f,
                         steps = 19,
                         modifier = Modifier.fillMaxWidth(),
-                    )
-                    Text(
-                        text =
-                            stringResource(
-                                R.string.assistant_page_background_opacity_value,
-                                (backgroundOpacity * 100).roundToInt(),
-                            ),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.75f),
                     )
                 }
             }
