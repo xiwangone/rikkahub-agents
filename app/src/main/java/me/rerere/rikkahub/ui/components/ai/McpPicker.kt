@@ -204,7 +204,7 @@ fun McpPickerListItem(
                     icon = HugeIcons.McpServer,
                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                    size = 32.dp,
+                    containerSize = 32.dp,
                     iconSize = 16.dp,
                 )
             }

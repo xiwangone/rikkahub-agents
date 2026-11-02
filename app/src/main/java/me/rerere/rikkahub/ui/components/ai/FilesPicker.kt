@@ -218,7 +218,7 @@ internal fun FilesPicker(
                                     icon = HugeIcons.ServerStack01,
                                     containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                     contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                    size = 32.dp,
+                                    containerSize = 32.dp,
                                     iconSize = 16.dp,
                                 )
                             },
@@ -294,7 +294,7 @@ internal fun FilesPicker(
                                         icon = HugeIcons.Folder01,
                                         containerColor = MaterialTheme.colorScheme.primaryContainer,
                                         contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                        size = 32.dp,
+                                        containerSize = 32.dp,
                                         iconSize = 16.dp,
                                     )
                                 },
@@ -341,7 +341,7 @@ internal fun FilesPicker(
                                 icon = HugeIcons.Package,
                                 containerColor = MaterialTheme.colorScheme.tertiaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                                size = 32.dp,
+                                containerSize = 32.dp,
                                 iconSize = 16.dp,
                             )
                         },
@@ -363,7 +363,7 @@ internal fun FilesPicker(
                                 icon = HugeIcons.Package01,
                                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                size = 32.dp,
+                                containerSize = 32.dp,
                                 iconSize = 16.dp,
                             )
                         },
@@ -389,7 +389,7 @@ internal fun FilesPicker(
                                 icon = HugeIcons.ArrowDown01,
                                 containerColor = MaterialTheme.colorScheme.secondaryContainer,
                                 contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
-                                size = 32.dp,
+                                containerSize = 32.dp,
                                 iconSize = 16.dp,
                             )
                         },
@@ -474,7 +474,7 @@ private fun WorkspacePickerListItem(
                 icon = HugeIcons.Codesandbox,
                 containerColor = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                size = 32.dp,
+                containerSize = 32.dp,
                 iconSize = 16.dp,
             )
         },
