@@ -246,9 +246,10 @@ internal fun Paragraph(
     // Per-paragraph direction: an Arabic/Hebrew paragraph renders RTL, a Latin
     // one stays LTR, even within the same message. Derived from the first strong
     // directional character of the paragraph's plain text.
+    val paragraphText = node.getTextInNode(content)
     val textDirection =
-        remember(node, content) {
-            resolveTextDirection(node.getTextInNode(content))
+        remember(paragraphText) {
+            resolveTextDirection(paragraphText)
         }
     val latexColorArgb = LocalContentColor.current.toArgb()
     FlowRow(
@@ -262,7 +263,7 @@ internal fun Paragraph(
             ),
     ) {
         val annotatedString =
-            remember(content, enableLatexRendering, latexColorArgb) {
+            remember(paragraphText, node.startOffset, node.endOffset, trim, enableLatexRendering, latexColorArgb) {
                 buildAnnotatedString {
                     node.children.fastForEach { child ->
                         appendMarkdownNodeWithEnv(

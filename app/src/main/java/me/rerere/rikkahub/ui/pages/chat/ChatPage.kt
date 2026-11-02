@@ -323,14 +323,8 @@ private fun ChatPageContent(
     var vaultAuthMsg by remember { mutableStateOf<String?>(null) }
 
     fun checkVaultAuth() {
-        scope.launch {
-            runCatching {
-                val ws = workspaceRepository.getAll().firstOrNull() ?: return@launch
-                // 读沙箱 token（LINUX 区/rootfs——授权用 importFile(LINUX) 写入，writeText 的 FILES 区沙箱不可见）
-                // 工具桥模式：授权状态 = 存在未过期会话（不再依赖沙箱 vault-token 文件）
-                vaultAuthorized = vaultSessionManager.hasActiveAuthorization()
-            }
-        }
+        // 工具桥模式：授权状态 = 存在未过期内存会话（不再依赖沙箱 vault-token 文件或查询数据库）
+        vaultAuthorized = vaultSessionManager.hasActiveAuthorization()
     }
     fun doVaultAuthorize(ttlMs: Long) {
         scope.launch {
@@ -370,10 +364,7 @@ private fun ChatPageContent(
                                 false,
                             )
                         }
-                    me.rerere.rikkahub.data.log.AppLog.d(
-                        "VaultRevoke",
-                        "deleteFile FILES 结果=${deleted.getOrNull()} 异常=${deleted.exceptionOrNull()?.message} ws.id=${ws.id} root=${ws.root}",
-                    )
+                    me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "deleteFile FILES 结果=${deleted.getOrNull()} 异常=${deleted.exceptionOrNull()?.message} ws.id=${ws.id} root=${ws.root}")
                 } else {
                     me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "ws 为 null——未执行 deleteFile")
                 }
@@ -601,10 +592,11 @@ private fun ChatPageContent(
                     }
                 },
                 onUpdateMessage = { newNode ->
+                    val latest = vm.conversation.value
                     vm.updateConversation(
-                        conversation.copy(
+                        latest.copy(
                             messageNodes =
-                                conversation.messageNodes.map { node ->
+                                latest.messageNodes.map { node ->
                                     if (node.id == newNode.id) {
                                         newNode
                                     } else {
@@ -641,7 +633,7 @@ private fun ChatPageContent(
                     vm.toggleMessageFavorite(node)
                 },
                 onConversationSystemPromptChange = { newPrompt ->
-                    vm.updateConversation(conversation.copy(customSystemPrompt = newPrompt))
+                    vm.updateConversation(vm.conversation.value.copy(customSystemPrompt = newPrompt))
                     vm.saveConversationAsync()
                 },
             )

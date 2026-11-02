@@ -456,18 +456,27 @@ internal fun ChatService.checkFilesDelete(
         newConversation: Conversation,
         oldConversation: Conversation,
     ) {
+        val oldNodes = oldConversation.messageNodes
+        val newNodes = newConversation.messageNodes
+        if (oldNodes.isEmpty() || oldNodes === newNodes) return
+        // 流式增量快速短路：当前序节点引用未变（或仅末尾追加/更新）且被更新的旧节点原本不含本地文件时，
+        // 不可能发生附件删除，跳过对长对话全部历史节点与工具输出的递归扫描和 Uri 解析。
+        val noModifiedNodeHadFiles =
+            newNodes.size >= oldNodes.size &&
+                oldNodes.indices.none { i ->
+                    oldNodes[i] !== newNodes[i] &&
+                        oldNodes[i].messages.any { it.parts.localFileUrls().isNotEmpty() }
+                }
+        if (noModifiedNodeHadFiles) return
         // 仍在队列里、还没写进历史的附件同样算「在用」，否则保存会话时会连带把它们的本地
         // 文件删掉（等消息真正发出时附件已经找不到了）。
         val queuedFiles =
             messageQueues[newConversation.id]?.state?.value?.messages.orEmpty()
                 .flatMap { it.parts.localFileUrls() }
                 .map { it.toUri() }
-        val newFiles = newConversation.files + queuedFiles
+        val newFiles = (newConversation.files + queuedFiles).toSet()
         val oldFiles = oldConversation.files
-        val deletedFiles =
-            oldFiles.filter { file ->
-                newFiles.none { it == file }
-            }
+        val deletedFiles = oldFiles.filter { file -> file !in newFiles }
         if (deletedFiles.isNotEmpty()) {
             filesManager.deleteChatFiles(deletedFiles)
             AppLog.w(TAG, "checkFilesDelete: $deletedFiles")
@@ -485,6 +494,7 @@ internal suspend fun ChatService.saveConversationImpl(
         conversationId: Uuid,
         conversation: Conversation,
         syncMemory: Boolean = true,
+        syncFts: Boolean = true,
     ) {
         val exists = conversationRepo.existsConversationById(conversation.id)
         // 内存先行：新空会话不落库，但内存态必须更新（如会话级模型切换），否则切换被静默丢弃
@@ -522,7 +532,7 @@ internal suspend fun ChatService.saveConversationImpl(
         if (!exists) {
             conversationRepo.insertConversation(updatedConversation)
         } else {
-            conversationRepo.updateConversation(updatedConversation)
+            conversationRepo.updateConversation(updatedConversation, syncFts = syncFts)
         }
     }
 

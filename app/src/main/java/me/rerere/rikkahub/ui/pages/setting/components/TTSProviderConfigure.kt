@@ -373,17 +373,17 @@ private fun MiMoTTSConfiguration(
                 onValueChange(setting.copy(model = newModel))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("mimo-v2-tts") },
+            placeholder = { Text(stringResource(R.string.tts_placeholder_mimo_model)) },
         )
     }
 
     // Voice
     val voices = listOf(
         "mimo_default",
-        "冰糖",
-        "茉莉",
-        "苏打",
-        "白桦",
+        stringResource(R.string.tts_mimo_voice_bingtang),
+        stringResource(R.string.tts_mimo_voice_moli),
+        stringResource(R.string.tts_mimo_voice_suda),
+        stringResource(R.string.tts_mimo_voice_baihua),
         "Mia",
         "Chloe",
         "Milo",
@@ -697,7 +697,7 @@ private fun QwenTTSConfiguration(
                 onValueChange(setting.copy(model = model, voice = defaultVoice))
             },
             modifier = Modifier.fillMaxWidth(),
-            placeholder = { Text("qwen-audio-3.0-tts-flash") }
+            placeholder = { Text(stringResource(R.string.tts_placeholder_qwen_model)) }
         )
     }
 

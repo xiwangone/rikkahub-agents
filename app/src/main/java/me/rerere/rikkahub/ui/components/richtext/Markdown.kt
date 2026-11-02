@@ -214,6 +214,8 @@ private const val PERF_LOG_SLOW_MS = 8L
 private fun parseMarkdown(content: String): MarkdownParseResult {
     val preprocessed = preProcess(content)
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
+    // 后台解析期顺带预热引号区间缓存，避免主线程组合每个 TEXT 节点时重复扫描全文
+    quotedTextRanges(preprocessed)
     return MarkdownParseResult(preprocessed, astTree, astTree.containsHtml())
 }
 
@@ -237,10 +239,7 @@ fun MarkdownBlock(
     LaunchedEffect(Unit) {
         val (parsed, costMs, len) = initialParse
         if (len > PERF_LOG_MIN_CHARS || costMs >= PERF_LOG_SLOW_MS) {
-            AppLog.i(
-                RENDER_PERF_TAG,
-                "markdown 首帧 len=$len 同步=${parsed != null} 耗时=${costMs}ms 节点=${parsed?.astTree?.children?.size ?: 0}",
-            )
+            AppLog.i(RENDER_PERF_TAG, "markdown 首帧 len=$len 同步=${parsed != null} 耗时=${costMs}ms 节点=${parsed?.astTree?.children?.size ?: 0}")
         }
     }
 
@@ -372,16 +371,26 @@ object HeaderStyle {
         )
 }
 
+private val FENCE_MARKER_REGEX = Regex("^[ \t]{0,3}(```+|~~~+)")
+private val QUOTE_PAIRS = mapOf('"' to '"', '“' to '”', '「' to '」', '『' to '』')
+
+@Volatile
+private var cachedQuotedSource: String? = null
+
+@Volatile
+private var cachedQuotedRanges: List<IntRange> = emptyList()
+
 /** Locate paired quote spans, ignoring fenced and inline code. Unclosed quotes are ignored. */
 @Suppress("CyclomaticComplexMethod", "NestedBlockDepth") // 行级状态机扫描引号配对（跳代码块与行内码），拆开会割裂与渲染端的行号对齐
 internal fun quotedTextRanges(source: String): List<IntRange> {
-    val pairs = mapOf('"' to '"', '“' to '”', '「' to '」', '『' to '』')
+    if (source === cachedQuotedSource || source == cachedQuotedSource) return cachedQuotedRanges
+    val pairs = QUOTE_PAIRS
     val result = mutableListOf<IntRange>()
     var fence: Char? = null
     var lineStart = 0
     while (lineStart <= source.length) {
         val lineEnd = source.indexOf('\n', lineStart).let { if (it < 0) source.length else it }
-        val fenceMarker = Regex("^[ \\t]{0,3}(```+|~~~+)").find(source.substring(lineStart, lineEnd))?.groupValues?.get(1)
+        val fenceMarker = FENCE_MARKER_REGEX.find(source.substring(lineStart, lineEnd))?.groupValues?.get(1)
         if (fence != null) {
             if (fenceMarker != null && fenceMarker.first() == fence) fence = null
             lineStart = lineEnd + 1
@@ -423,6 +432,8 @@ internal fun quotedTextRanges(source: String): List<IntRange> {
         lineStart = lineEnd + 1
         if (lineEnd == source.length) break
     }
+    cachedQuotedSource = source
+    cachedQuotedRanges = result
     return result
 }
 

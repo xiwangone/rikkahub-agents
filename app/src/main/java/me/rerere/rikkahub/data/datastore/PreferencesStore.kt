@@ -567,6 +567,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 quickMessages = settings.quickMessages.distinctBy { it.id },
             )
         }
+        .distinctUntilChanged()
         .onEach {
             get<PebbleEngine>().templateCache.invalidateAll()
         }
@@ -634,11 +635,37 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
     // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------
 
+    @Volatile
+    private var cachedLifetimeUsageRaw: String? = null
+
+    @Volatile
+    private var cachedLifetimeUsageMap: Map<String, LifetimeUsage> = emptyMap()
+
+    private fun decodeConvLifetimeUsageMap(raw: String?): Map<String, LifetimeUsage> {
+        if (raw.isNullOrBlank()) return emptyMap()
+        if (raw == cachedLifetimeUsageRaw) return cachedLifetimeUsageMap
+        val decoded =
+            runCatching { JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(raw) }
+                .getOrDefault(emptyMap())
+        cachedLifetimeUsageRaw = raw
+        cachedLifetimeUsageMap = decoded
+        return decoded
+    }
+
+    /** 订阅某会话的累计用量（仅当 CONV_LIFETIME_USAGE 键变化时在后台解码，避免流式生成每帧重复反序列化）。 */
+    fun convLifetimeUsageFlow(conversationId: String): kotlinx.coroutines.flow.Flow<LifetimeUsage?> =
+        dataStore.data
+            .map { it[CONV_LIFETIME_USAGE] }
+            .distinctUntilChanged()
+            .map { raw -> decodeConvLifetimeUsageMap(raw)[conversationId] }
+            .distinctUntilChanged()
+            .flowOn(Dispatchers.Default)
+
     /** 读取某会话的累计用量；无记录返回 null，调用方回退到「当前聚合」显示。 */
     suspend fun getConvLifetimeUsage(conversationId: String): LifetimeUsage? =
         runCatching {
             val raw = dataStore.data.first()[CONV_LIFETIME_USAGE] ?: return null
-            JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(raw)[conversationId]
+            decodeConvLifetimeUsageMap(raw)[conversationId]
         }.getOrNull()
 
     /**

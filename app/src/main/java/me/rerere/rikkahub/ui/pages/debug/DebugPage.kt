@@ -217,7 +217,7 @@ private fun MainPage(vm: DebugVM) {
 
         Button(
             onClick = {
-                error("测试崩溃 ${Random.nextInt(0..1000)}")
+                error(context.resources.getString(R.string.debug_test_crash_format, Random.nextInt(0..1000)))
             },
         ) {
             Text(stringResource(R.string.debug_crash))

@@ -26,12 +26,12 @@ data class ProviderRequirement(
                 is ProviderSetting.AICore -> {
                     listOf(
                         ProviderRequirement(
-                            label = "Requires AICore beta",
-                            severity = TagType.WARNING,
+                            "Requires AICore beta",
+                            TagType.WARNING,
                         ),
                         ProviderRequirement(
-                            label = "Pixel 8 / 9 / 10",
-                            severity = TagType.INFO,
+                            "Pixel 8 / 9 / 10",
+                            TagType.INFO,
                         ),
                     )
                 }
@@ -39,8 +39,8 @@ data class ProviderRequirement(
                 is ProviderSetting.LiteRtLocal -> {
                     listOf(
                         ProviderRequirement(
-                            label = "On-device · ~1.5 GB",
-                            severity = TagType.INFO,
+                            "On-device · ~1.5 GB",
+                            TagType.INFO,
                         ),
                     )
                 }
@@ -48,8 +48,8 @@ data class ProviderRequirement(
                 is ProviderSetting.LlamaCppLocal -> {
                     listOf(
                         ProviderRequirement(
-                            label = "On-device · CPU only",
-                            severity = TagType.INFO,
+                            "On-device · CPU only",
+                            TagType.INFO,
                         ),
                     )
                 }

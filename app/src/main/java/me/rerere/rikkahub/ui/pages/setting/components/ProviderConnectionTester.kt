@@ -178,7 +178,7 @@ fun ProviderConnectionTester(
                                     toolsState = UiState.Loading
                                     val testTool = Tool(
                                         name = "get_current_time",
-                                        description = "Get the current date and time.",
+                                        description = context.resources.getString(R.string.provider_test_tool_time_desc),
                                         execute = { emptyList() }
                                     )
                                     val result = provider.generateText(

@@ -8,6 +8,8 @@ import androidx.paging.PagingSource
 import androidx.paging.map
 import androidx.room.withTransaction
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
@@ -299,26 +301,32 @@ class ConversationRepository(
             runCatching { Uuid.parse(row.assistantId) }.getOrNull()?.let { id -> id to row.count }
         }.toMap()
 
-    suspend fun insertConversation(conversation: Conversation) {
+    suspend fun insertConversation(conversation: Conversation) = withContext(Dispatchers.IO) {
+        val convEntity = conversationToConversationEntity(conversation)
+        val nodeEntities = buildMessageNodeEntities(conversation.id.toString(), conversation.messageNodes)
         database.withTransaction {
-            conversationDAO.insert(
-                conversationToConversationEntity(conversation)
-            )
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+            conversationDAO.insert(convEntity)
+            messageNodeDAO.insertAll(nodeEntities)
         }
         messageFtsManager.indexConversation(conversation)
     }
 
-    suspend fun updateConversation(conversation: Conversation) {
+    suspend fun updateConversation(
+        conversation: Conversation,
+        syncFts: Boolean = true,
+    ) = withContext(Dispatchers.IO) {
+        // 先在 IO 线程事务外完成全量 JSON 序列化，缩短 SQLite 写锁持有时间，避免阻塞侧栏分页流
+        val convEntity = conversationToConversationEntity(conversation)
+        val nodeEntities = buildMessageNodeEntities(conversation.id.toString(), conversation.messageNodes)
         database.withTransaction {
-            conversationDAO.update(
-                conversationToConversationEntity(conversation)
-            )
+            conversationDAO.update(convEntity)
             // 删除旧的节点，插入新的节点
             messageNodeDAO.deleteByConversation(conversation.id.toString())
-            saveMessageNodes(conversation.id.toString(), conversation.messageNodes)
+            messageNodeDAO.insertAll(nodeEntities)
         }
-        messageFtsManager.indexConversation(conversation)
+        if (syncFts) {
+            messageFtsManager.indexConversation(conversation)
+        }
     }
 
     suspend fun deleteConversation(conversation: Conversation) {
@@ -480,7 +488,7 @@ class ConversationRepository(
         }
     }
 
-    private suspend fun saveMessageNodes(conversationId: String, nodes: List<MessageNode>) {
+    private fun buildMessageNodeEntities(conversationId: String, nodes: List<MessageNode>): List<MessageNodeEntity> {
         // 空轮次诊断：检测写入历史的空 user 文本消息（无文本/纯空白 part 的 user 节点）
         nodes.forEach { node ->
             val hasEmptyUser =
@@ -512,7 +520,7 @@ class ConversationRepository(
                 selectIndex = node.selectIndex
             )
         }
-        messageNodeDAO.insertAll(entities)
+        return entities
     }
 }
 

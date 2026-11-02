@@ -281,26 +281,28 @@ class RikkaHubApp : Application() {
         )
         // 模型能力目录：注册表未登记的新模型走它兜底，因此新模型无需发版即可识别能力。
         // 缓存超过 7 天时在后台静默刷新一次（只拉公开目录，不发送任何本地数据）。
-        runCatching {
-            val catalog =
-                org.koin.java.KoinJavaComponent
-                    .getKoin()
-                    .get<me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository>()
-            // 外置能力表（本机表覆盖基线表）先载入，再随目录一起注入注册表
-            val overrides =
-                org.koin.java.KoinJavaComponent
-                    .getKoin()
-                    .get<me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides>()
-            overrides.load()
-            catalog.installBridge(overrides)
-            val stale = System.currentTimeMillis() - catalog.lastUpdatedMs > 7L * 24 * 3600 * 1000
-            if (stale) {
-                kotlinx.coroutines.CoroutineScope(kotlinx.coroutines.Dispatchers.IO).launch {
+        get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                // 后台预热静态工具索引，避免首次进入对话页时在 UI 主线程初始化 247 条 Entry
+                me.rerere.rikkahub.data.ai.tools.registry.ToolIndex.entries.size
+                val catalog =
+                    org.koin.java.KoinJavaComponent
+                        .getKoin()
+                        .get<me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository>()
+                // 外置能力表（本机表覆盖基线表）先载入，再随目录一起注入注册表
+                val overrides =
+                    org.koin.java.KoinJavaComponent
+                        .getKoin()
+                        .get<me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides>()
+                overrides.load()
+                catalog.installBridge(overrides)
+                val stale = System.currentTimeMillis() - catalog.lastUpdatedMs > 7L * 24 * 3600 * 1000
+                if (stale) {
                     catalog.refresh()
                 }
+            }.onFailure {
+                me.rerere.rikkahub.data.log.AppLog.w(TAG, "model catalog init failed: ${it.message}")
             }
-        }.onFailure {
-            me.rerere.rikkahub.data.log.AppLog.w(TAG, "model catalog init failed: ${it.message}")
         }
 
         // models.dev adds capability coverage; ModelCatalogBridge manual overrides remain authoritative.
@@ -793,14 +795,25 @@ class RikkaHubApp : Application() {
  * 再添一个会触发 TooManyFunctions；这里的逻辑又不依赖实例状态。
  */
 private fun verifyDatabaseOnStartup(context: Context, pendingRestoreInstalled: Boolean) {
+    if (!pendingRestoreInstalled) {
+        GlobalContext.get().get<AppScope>().launch(Dispatchers.IO) {
+            runCatching {
+                GlobalContext.get().get<AppDatabase>().openHelper.writableDatabase
+            }.onFailure { t ->
+                AppLog.w("RikkaHubApp", "startup: database failed to open", t)
+                ImportedDatabaseReconciler.recoverFromUnopenableDatabase(context)
+            }
+        }
+        return
+    }
     runCatching {
         GlobalContext.get().get<AppDatabase>().openHelper.writableDatabase
     }.onFailure { t ->
         AppLog.w("RikkaHubApp", "startup: database failed to open", t)
         ImportedDatabaseReconciler.recoverFromUnopenableDatabase(context)
-        if (pendingRestoreInstalled) throw t
+        throw t
     }
-    if (pendingRestoreInstalled) PendingDatabaseRestore.confirmStartup(context)
+    PendingDatabaseRestore.confirmStartup(context)
 }
 
 class AppScope : CoroutineScope by CoroutineScope(

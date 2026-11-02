@@ -321,7 +321,7 @@ private suspend fun ChatService.buildToolsForCompletion(
     } catch (error: InvalidMcpServerNamesException) {
         addError(
             error = IllegalStateException(
-                context.getString(
+                str(
                     R.string.error_mcp_invalid_server_name,
                     error.names.joinToString(", "),
                 ),
@@ -511,10 +511,16 @@ private suspend fun ChatService.onGenerationStreamChunk(
                 getOrCreateSession(conversationId).recordFloatingReply(it.id)
             }
             val currentConversation = getConversationFlow(conversationId).value
-            val completedToolOutput = hasCompletedToolOutput(currentConversation.currentMessages, chunk.messages)
+            val nowUiMs = System.currentTimeMillis()
+            val timeDueForUi = nowUiMs - streamState.lastUiCommitAtMs >= STREAM_UI_INTERVAL_MS
+            val completedToolOutput =
+                if (timeDueForUi) {
+                    false
+                } else {
+                    hasCompletedToolOutput(currentConversation.currentMessages, chunk.messages)
+                }
             val updatedConversation = currentConversation.updateCurrentMessages(chunk.messages)
             streamState.pendingUiConversation = updatedConversation
-            val nowUiMs = System.currentTimeMillis()
             if (shouldCommitStreamUiUpdate(
                     nowMs = nowUiMs,
                     lastCommitAtMs = streamState.lastUiCommitAtMs,
@@ -532,7 +538,8 @@ private suspend fun ChatService.onGenerationStreamChunk(
             val dueForPeriodicPersist = nowMs - streamState.lastStreamPersistAtMs >= STREAM_PERSIST_INTERVAL_MS
             if (needsImmediatePersist || dueForPeriodicPersist) {
                 if (dueForPeriodicPersist) streamState.lastStreamPersistAtMs = nowMs
-                saveConversation(conversationId, updatedConversation)
+                // 流式途中的周期性落盘仅用于防杀进程丢内容，跳过全量结巴分词 FTS 重建（生成收尾时统一重建索引）
+                saveConversation(conversationId, updatedConversation, syncFts = false)
             }
 
             if (!isForeground.value &&
@@ -578,7 +585,7 @@ private suspend fun ChatService.handleMessageCompleteFailure(
             if (error !is kotlinx.coroutines.CancellationException) {
                 val diag = diagnoseFailure(context, error)
                 val errText =
-                    context.getString(
+                    str(
                         me.rerere.rikkahub.R.string.error_context_injected,
                         diag.label,
                         diag.raw,
@@ -611,7 +618,7 @@ private suspend fun ChatService.handleMessageCompleteSuccess(
 ) {
     if (lastFailure != null) {
         val retryText =
-            context.getString(
+            str(
                 me.rerere.rikkahub.R.string.error_context_retry_succeeded,
                 lastFailure.label,
                 lastFailure.raw,

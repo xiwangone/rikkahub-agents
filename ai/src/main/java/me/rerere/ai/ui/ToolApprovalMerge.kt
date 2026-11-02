@@ -46,7 +46,7 @@ fun UIMessagePart.Tool.mergeApprovalProgress(previous: UIMessagePart.Tool): UIMe
  * 按 toolCallId 回贴 [previous] 中更进展的审批状态；message id 不同则原样返回。
  */
 fun UIMessage.mergeApprovalProgress(previous: UIMessage): UIMessage {
-    if (previous.id != id) return this
+    if (this === previous || previous.id != id) return this
     val previousTools =
         previous.parts
             .filterIsInstance<UIMessagePart.Tool>()
@@ -68,7 +68,7 @@ fun UIMessage.mergeApprovalProgress(previous: UIMessage): UIMessage {
  * 按 message id 回贴 [previous] 中更进展的审批状态。无变化时返回自身。
  */
 fun List<UIMessage>.mergeApprovalProgress(previous: List<UIMessage>): List<UIMessage> {
-    if (previous.isEmpty()) return this
+    if (this === previous || previous.isEmpty()) return this
     val previousById = previous.associateBy { it.id }
     var changed = false
     val merged =

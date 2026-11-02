@@ -509,12 +509,13 @@ internal fun parsePasteLongTextThreshold(text: String): Int? {
 }
 
 /** 应用内可选语言：标签用 BCP 47（与 res/values* 对应），名称用该语言自身写法，不翻译。 */
-private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
+@Composable
+private fun appLanguageOptions(): List<Pair<String, String>> = listOf(
     // 必须与 android:localeConfig 中声明的标签一致，否则框架会静默忽略
     "en-US" to "English",
-    "zh" to "简体中文",
-    "zh-Hant" to "繁體中文",
-    "ja" to "日本語",
+    "zh" to stringResource(R.string.setting_language_zh_cn),
+    "zh-Hant" to stringResource(R.string.setting_language_zh_hant),
+    "ja" to stringResource(R.string.setting_language_ja),
     "ko-KR" to "한국어",
     "ru" to "Русский",
     "ar" to "العربية",
@@ -525,7 +526,7 @@ private val APP_LANGUAGE_OPTIONS: List<Pair<String, String>> = listOf(
 private fun currentAppLanguageLabel(): String {
     val tag = AppLocale.currentTag(LocalContext.current)
     if (tag.isBlank()) return stringResource(R.string.setting_language_system)
-    return APP_LANGUAGE_OPTIONS.firstOrNull { it.first.equals(tag, ignoreCase = true) }?.second ?: tag
+    return appLanguageOptions().firstOrNull { it.first.equals(tag, ignoreCase = true) }?.second ?: tag
 }
 
 @Composable
@@ -534,7 +535,7 @@ private fun LanguagePickerDialog(
     onPick: (String) -> Unit,
 ) {
     val current = AppLocale.currentTag(LocalContext.current)
-    val options = remember { listOf("" to "") + APP_LANGUAGE_OPTIONS }
+    val options = listOf("" to "") + appLanguageOptions()
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setting_language_title)) },

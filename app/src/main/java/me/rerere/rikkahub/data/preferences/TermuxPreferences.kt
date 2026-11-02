@@ -53,14 +53,16 @@ class TermuxPreferences(private val context: Context) {
         // registration site). The one-time blocking read is acceptable — DataStore caches the
         // latest Preferences instance after its first decode, so steady-state cost is
         // a flow .first() against an in-memory replay.
-        val initial = snapshotBlocking()
-        TermuxRuntime.commandTimeoutMs   = initial.commandTimeoutMs
-        TermuxRuntime.verifyTimeoutMs    = initial.verifyTimeoutMs
-        TermuxRuntime.defaultWorkingDir  = initial.defaultWorkingDir
-        TermuxRuntime.maxStdoutBytes     = initial.maxStdoutBytes
-        TermuxRuntime.maxStderrBytes     = initial.maxStderrBytes
-        TermuxRuntime.aptWrapEnabled     = initial.aptWrapEnabled
-        ToolRuntimeLimits.turnBudgetMs   = initial.turnBudgetMs
+        if (android.os.Looper.myLooper() != android.os.Looper.getMainLooper()) {
+            val initial = snapshotBlocking()
+            TermuxRuntime.commandTimeoutMs   = initial.commandTimeoutMs
+            TermuxRuntime.verifyTimeoutMs    = initial.verifyTimeoutMs
+            TermuxRuntime.defaultWorkingDir  = initial.defaultWorkingDir
+            TermuxRuntime.maxStdoutBytes     = initial.maxStdoutBytes
+            TermuxRuntime.maxStderrBytes     = initial.maxStderrBytes
+            TermuxRuntime.aptWrapEnabled     = initial.aptWrapEnabled
+            ToolRuntimeLimits.turnBudgetMs   = initial.turnBudgetMs
+        }
 
         // Async collectors keep the holders live on subsequent user edits. This scope is
         // intentionally NOT stored as a field — it is process-lived and we want it to stay

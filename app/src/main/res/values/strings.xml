@@ -4150,4 +4150,25 @@
     <string name="assistant_page_template_preview_assistant">Hello, how can I help you today?</string>
     <string name="assistant_page_regex_find_placeholder" translatable="false">e.g., \b\w+@\w+\.\w+\b</string>
     <string name="assistant_page_regex_replace_placeholder" translatable="false">e.g., [EMAIL]</string>
+  <string name="auto_task_item_prefix_format">[Task %1$d/%2$d] %3$s</string>
+  <string name="debug_test_crash_format">Test crash %1$d</string>
+  <string name="setting_language_zh_cn">简体中文</string>
+  <string name="setting_language_zh_hant">繁體中文</string>
+  <string name="setting_language_ja">日本語</string>
+  <string name="tts_mimo_voice_bingtang">冰糖</string>
+  <string name="tts_mimo_voice_moli">茉莉</string>
+  <string name="tts_mimo_voice_suda">苏打</string>
+  <string name="tts_mimo_voice_baihua">白桦</string>
+  <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
+  <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
+  <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
+  <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
+  <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>
+  <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
+  <string name="s3_config_region_placeholder">us-east-1</string>
+  <string name="mcp_transport_streamable_http">Streamable HTTP</string>
+  <string name="log_page_clip_label">RikkaHub Agents App Log</string>
+  <string name="web_bridge_clip_label">web-bridge-public-key</string>
+  <string name="provider_test_tool_time_desc">Get the current date and time.</string>
 </resources>

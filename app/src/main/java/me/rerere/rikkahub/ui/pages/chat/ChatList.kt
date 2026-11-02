@@ -141,7 +141,6 @@ fun ChatList(
 ) {
     AnimatedContent(
         targetState = previewMode,
-        label = "ChatListMode",
         transitionSpec = {
             (fadeIn() + scaleIn(initialScale = 0.8f) togetherWith fadeOut() + scaleOut(targetScale = 0.8f))
         },
@@ -247,6 +246,12 @@ private fun ChatListNormal(
     val loadingState by rememberUpdatedState(loading)
     var isRecentScroll by remember { mutableStateOf(false) }
     val conversationUpdated by rememberUpdatedState(conversation)
+    val onRegenerateUpdated by rememberUpdatedState(onRegenerate)
+    val onEditUpdated by rememberUpdatedState(onEdit)
+    val onForkMessageUpdated by rememberUpdatedState(onForkMessage)
+    val onDeleteUpdated by rememberUpdatedState(onDelete)
+    val onUpdateMessageUpdated by rememberUpdatedState(onUpdateMessage)
+    val onToggleFavoriteUpdated by rememberUpdatedState(onToggleFavorite)
     val density = LocalDensity.current
     val activity = LocalContext.current as? me.rerere.rikkahub.RouteActivity
 
@@ -380,32 +385,34 @@ private fun ChatListNormal(
                                 assistant = assistant,
                                 loading = loading && index == lastMessageIndex,
                                 onRegenerate = {
-                                    onRegenerate(node.currentMessage)
+                                    onRegenerateUpdated(node.currentMessage)
                                 },
                                 onEdit = {
-                                    onEdit(node.currentMessage)
+                                    onEditUpdated(node.currentMessage)
                                 },
                                 onFork = {
-                                    onForkMessage(node.currentMessage)
+                                    onForkMessageUpdated(node.currentMessage)
                                 },
                                 onDelete = {
-                                    onDelete(node.currentMessage)
+                                    onDeleteUpdated(node.currentMessage)
                                 },
                                 onShare = {
                                     selecting = true // 使用 CoroutineScope 延迟状态更新
                                     selectedItems.clear()
-                                    selectedItems.addAll(
-                                        conversation.messageNodes
-                                            .map { it.id }
-                                            .subList(0, conversation.messageNodes.indexOf(node) + 1),
-                                    )
+                                    val currentNodes = conversationUpdated.messageNodes
+                                    val idx = currentNodes.indexOfFirst { it.id == node.id }
+                                    if (idx >= 0) {
+                                        selectedItems.addAll(
+                                            currentNodes.subList(0, idx + 1).map { it.id },
+                                        )
+                                    }
                                 },
                                 onUpdate = {
-                                    onUpdateMessage(it)
+                                    onUpdateMessageUpdated(it)
                                 },
                                 isFavorite = node.isFavorite,
                                 onToggleFavorite = {
-                                    onToggleFavorite?.invoke(node)
+                                    onToggleFavoriteUpdated?.invoke(node)
                                 },
                                 onTranslate = onTranslate,
                                 onClearTranslation = onClearTranslation,
@@ -419,10 +426,10 @@ private fun ChatListNormal(
                         // 生成失败的诊断消息（system 角色）携带 API 返回原文，原文无法本地化、
                         // 保持原样；这里给一个显式入口，方便把它整段复制后转贴给服务商排查。
                         val rawReply = node.currentMessage
-                        val diagnosticPrefix =
-                            stringResource(R.string.error_context_injected, "\u0000", "\u0000")
-                                .substringBefore("\u0000")
                         if (rawReply.role == MessageRole.SYSTEM) {
+                            val diagnosticPrefix =
+                                stringResource(R.string.error_context_injected, "\u0000", "\u0000")
+                                    .substringBefore("\u0000")
                             val rawText =
                                 rawReply.parts
                                     .filterIsInstance<UIMessagePart.Text>()

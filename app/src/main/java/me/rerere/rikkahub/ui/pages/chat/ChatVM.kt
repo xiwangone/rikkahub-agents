@@ -18,7 +18,9 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.flow.transformLatest
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
@@ -111,7 +113,16 @@ class ChatVM(
 
     val sessionTotals: StateFlow<TokenBudgetTracker.Totals> =
         conversation
+            .distinctUntilChanged { old, new ->
+                old.messageNodes === new.messageNodes ||
+                    (
+                        old.messageNodes.size == new.messageNodes.size &&
+                            old.messageNodes.lastOrNull()?.currentMessage?.usage ==
+                            new.messageNodes.lastOrNull()?.currentMessage?.usage
+                        )
+            }
             .map { TokenBudgetTracker.aggregate(it) }
+            .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, TokenBudgetTracker.aggregate(conversation.value))
 
     /**
@@ -119,16 +130,12 @@ class ChatVM(
      * 读出时把命中量收敛到输入量，保证「命中 ≤ 输入」（历史脏记录也不会显示 >100%）。
      */
     val lifetimeTotals: StateFlow<LifetimeUsage?> =
-        conversation
-            .transformLatest {
-                emit(
-                    settingsStore
-                        .getConvLifetimeUsage(_conversationId.toString())
-                        ?.let { usage ->
-                            usage.copy(cachedTokens = usage.cachedTokens.coerceAtMost(usage.inputTokens))
-                        },
-                )
+        settingsStore
+            .convLifetimeUsageFlow(_conversationId.toString())
+            .map { usage ->
+                usage?.copy(cachedTokens = usage.cachedTokens.coerceAtMost(usage.inputTokens))
             }
+            .flowOn(Dispatchers.Default)
             .stateIn(viewModelScope, SharingStarted.Eagerly, null)
 
     var chatListInitialized by mutableStateOf(false) // 聊天列表是否已经滚动到底部
@@ -292,7 +299,7 @@ class ChatVM(
         if (answer) {
             val s = settings.value
             if (s.autoCompressEnabled) {
-                viewModelScope.launch { maybeAutoCompress(s) }
+                viewModelScope.launch(Dispatchers.Default) { maybeAutoCompress(s) }
             }
         }
 
@@ -614,11 +621,7 @@ class ChatVM(
      * 活跃监测：会话正在生成回复，或用户 60 秒内有操作时，跳过本次触发。
      */
     fun scheduleAutoTask(config: AutoTaskConfig) {
-        me.rerere.rikkahub.data.log.AppLog.d(
-            "AutoTask",
-            "调度: idle=${config.modeIdle} daily=${config.modeDaily} taskList=${config.useTaskList} fixed=${config.useFixedMessage} " +
-                "count=${config.triggerCount} interval=${config.intervalSeconds} times=${config.dailyTimes} tasks=${config.tasks.size}",
-        )
+        me.rerere.rikkahub.data.log.AppLog.d("AutoTask", "调度: idle=${config.modeIdle} daily=${config.modeDaily} taskList=${config.useTaskList} fixed=${config.useFixedMessage} count=${config.triggerCount} interval=${config.intervalSeconds} times=${config.dailyTimes} tasks=${config.tasks.size}")
         cancelAutoTask()
 
         val hasTriggerMode = config.modeIdle || config.modeDaily || config.useTaskList
@@ -650,7 +653,7 @@ class ChatVM(
                         if (System.currentTimeMillis() - userActivityAtMs < USER_ACTIVE_SKIP_MS) continue
 
                         triggered++
-                        val msg = resolveAutoTaskMessage(config, taskIdx)
+                        val msg = resolveAutoTaskMessage(config, taskIdx, context.resources.getString(R.string.auto_task_item_prefix_format))
                         if (config.useTaskList && config.tasks.isNotEmpty()) {
                             taskIdx++
                         }

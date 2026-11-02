@@ -79,12 +79,10 @@ internal fun AsrButton(
     val containerColor by animateColorAsState(
         targetValue = targetContainerColor,
         animationSpec = tween(300),
-        label = "asr_container",
     )
     val contentColor by animateColorAsState(
         targetValue = targetContentColor,
         animationSpec = tween(300),
-        label = "asr_content",
     )
 
     val displayState =
@@ -111,7 +109,6 @@ internal fun AsrButton(
                 (fadeIn(tween(200)) togetherWith fadeOut(tween(200)))
                     .using(SizeTransform(clip = false))
             },
-            label = "asr_content_switch",
         ) { display ->
             when (display) {
                 AsrDisplayState.Idle -> {
@@ -141,7 +138,6 @@ internal fun AsrButton(
                                     animation = tween(600, easing = LinearEasing),
                                     repeatMode = RepeatMode.Reverse,
                                 ),
-                            label = "asr_pulse_scale",
                         )
                         Box(
                             modifier =
@@ -212,7 +208,6 @@ private fun AudioLevelDots(
                         dampingRatio = 0.6f,
                         stiffness = 400f,
                     ),
-                label = "bar_$index",
             )
             val barHeight = minHeight + (maxHeight - minHeight) * animatedAmp
             Box(

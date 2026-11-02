@@ -469,7 +469,6 @@ private fun MessagePartsBlock(
                             val textContent = @Composable {
                                 if (role == MessageRole.USER) {
                                     Surface(
-                                        modifier = Modifier.animateContentSize(),
                                         shape = MaterialTheme.shapes.large,
                                         color =
                                             MaterialTheme.colorScheme.primaryContainer.copy(
@@ -487,7 +486,6 @@ private fun MessagePartsBlock(
                                 } else {
                                     if (settings.displaySetting.showAssistantBubble) {
                                         Surface(
-                                            modifier = Modifier.animateContentSize(),
                                             shape = MaterialTheme.shapes.large,
                                             color =
                                                 MaterialTheme.colorScheme.surfaceContainerHigh.copy(
@@ -505,9 +503,6 @@ private fun MessagePartsBlock(
                                         MarkdownBlock(
                                             content = renderedText,
                                             onClickCitation = handleClickCitation,
-                                            modifier =
-                                                Modifier
-                                                    .animateContentSize(),
                                         )
                                     }
                                 }

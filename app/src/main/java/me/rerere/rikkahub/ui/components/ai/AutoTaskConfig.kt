@@ -244,6 +244,7 @@ private fun migrateLegacyAutoTaskConfig(
 fun resolveAutoTaskMessage(
     config: AutoTaskConfig,
     taskIndex: Int,
+    taskItemFormat: String = "[#%1$d/%2$d] %3$s",
 ): String {
     val parts =
         buildList {
@@ -252,7 +253,7 @@ fun resolveAutoTaskMessage(
             }
             if (config.useTaskList && config.tasks.isNotEmpty()) {
                 val idx = taskIndex.coerceIn(0, config.tasks.lastIndex)
-                add("【任务 ${idx + 1}/${config.tasks.size}】${config.tasks[idx]}")
+                add(String.format(java.util.Locale.US, taskItemFormat, idx + 1, config.tasks.size, config.tasks[idx]))
             }
         }
     return if (parts.isEmpty()) config.message else parts.joinToString("\n")
