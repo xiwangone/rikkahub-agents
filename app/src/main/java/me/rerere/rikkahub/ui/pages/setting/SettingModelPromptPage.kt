@@ -37,7 +37,7 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Heading
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.hugeicons.stroke.Package01
-import me.rerere.hugeicons.stroke.ScanText
+import me.rerere.hugeicons.stroke.ScanImage
 import me.rerere.hugeicons.stroke.Translate
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.prompts.DEFAULT_COMPRESS_PROMPT
@@ -152,7 +152,7 @@ private enum class PromptSlot(
         set = { settings, value -> settings.copy(suggestionPrompt = value) },
     ),
     OCR(
-        icon = HugeIcons.ScanText,
+        icon = HugeIcons.ScanImage,
         title = R.string.setting_model_page_prompt_ocr,
         variables = R.string.setting_model_page_ocr_prompt_vars,
         default = DEFAULT_OCR_PROMPT,

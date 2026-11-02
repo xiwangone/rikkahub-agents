@@ -46,7 +46,7 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Heading
 import me.rerere.hugeicons.stroke.Idea01
 import me.rerere.hugeicons.stroke.Package01
-import me.rerere.hugeicons.stroke.ScanText
+import me.rerere.hugeicons.stroke.ScanImage
 import me.rerere.hugeicons.stroke.Translate
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -266,7 +266,7 @@ private fun ModelSettingsPage(
                     iconContentColor = contentColor,
                 )
                 modelItem(
-                    icon = HugeIcons.ScanText,
+                    icon = HugeIcons.ScanImage,
                     title = R.string.setting_model_page_ocr_model,
                     description = R.string.setting_model_page_ocr_model_desc,
                     state = ocrModel,
