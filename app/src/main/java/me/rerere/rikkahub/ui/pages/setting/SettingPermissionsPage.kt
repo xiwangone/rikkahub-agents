@@ -22,12 +22,15 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
-import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Alert01
+import me.rerere.hugeicons.stroke.CheckmarkCircle02
+import me.rerere.hugeicons.stroke.Shield01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.permissions.PermissionInventory
 import me.rerere.rikkahub.data.permissions.PermissionInventory.GrantAction
@@ -35,17 +38,10 @@ import me.rerere.rikkahub.data.permissions.PermissionInventory.Group
 import me.rerere.rikkahub.data.permissions.PermissionInventory.Status
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.theme.CustomColors
 
-/**
- * Auto-discovered permission overview. Reads every <uses-permission> the app declares plus
- * two virtual rows for the AccessibilityService / NotificationListener bindings, classifies
- * them by how the user grants each, and surfaces a tap-to-grant button per row.
- *
- * Future-proof: when a new <uses-permission> is added to the manifest it shows up here
- * automatically. The friendly-label map covers our currently-used dangerous perms; unmapped
- * ones fall back to a humanized constant name.
- */
 @Composable
 fun SettingPermissionsPage() {
     val context = LocalContext.current
@@ -92,7 +88,7 @@ fun SettingPermissionsPage() {
             modifier =
                 Modifier
                     .padding(innerPadding)
-                    .padding(16.dp)
+                    .padding(horizontal = 16.dp, vertical = 8.dp)
                     .fillMaxSize()
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -100,12 +96,9 @@ fun SettingPermissionsPage() {
             Group.values().forEach { group ->
                 val rowsForGroup = grouped[group] ?: return@forEach
                 if (rowsForGroup.isEmpty()) return@forEach
-                Text(
-                    text = sectionTitle(group),
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(start = 16.dp, top = 4.dp),
-                )
-                CardGroup {
+                CardGroup(
+                    title = { Text(sectionTitle(group)) },
+                ) {
                     rowsForGroup.forEach { row ->
                         val grantAction = row.grant
                         val click: (() -> Unit)? =
@@ -125,6 +118,36 @@ fun SettingPermissionsPage() {
                             }
                         item(
                             onClick = click,
+                            leadingContent = {
+                                val (icon, bg, fg) =
+                                    when (row.status) {
+                                        Status.GRANTED ->
+                                            Triple(
+                                                HugeIcons.CheckmarkCircle02,
+                                                MaterialTheme.colorScheme.primaryContainer,
+                                                MaterialTheme.colorScheme.onPrimaryContainer,
+                                            )
+
+                                        Status.AUTO_GRANTED ->
+                                            Triple(
+                                                HugeIcons.Shield01,
+                                                MaterialTheme.colorScheme.secondaryContainer,
+                                                MaterialTheme.colorScheme.onSecondaryContainer,
+                                            )
+
+                                        Status.DENIED ->
+                                            Triple(
+                                                HugeIcons.Alert01,
+                                                MaterialTheme.colorScheme.errorContainer,
+                                                MaterialTheme.colorScheme.onErrorContainer,
+                                            )
+                                    }
+                                CardGroupIcon(
+                                    icon = icon,
+                                    containerColor = bg,
+                                    contentColor = fg,
+                                )
+                            },
                             headlineContent = { Text(row.label) },
                             supportingContent = { Text(row.description) },
                             trailingContent = {
@@ -144,17 +167,21 @@ fun SettingPermissionsPage() {
                                             stringResource(R.string.setting_page_permissions_status_denied)
                                         }
                                     }
-                                val tint =
-                                    when (row.status) {
-                                        Status.GRANTED -> MaterialTheme.colorScheme.primary
-                                        Status.AUTO_GRANTED -> MaterialTheme.colorScheme.outline
-                                        Status.DENIED -> MaterialTheme.colorScheme.error
-                                    }
-                                Text(
-                                    text = statusText,
-                                    color = tint,
-                                    style = MaterialTheme.typography.labelSmall,
-                                )
+                                if (row.status == Status.GRANTED) {
+                                    CardGroupValue(statusText)
+                                } else {
+                                    val tint =
+                                        when (row.status) {
+                                            Status.GRANTED -> MaterialTheme.colorScheme.primary
+                                            Status.AUTO_GRANTED -> MaterialTheme.colorScheme.outline
+                                            Status.DENIED -> MaterialTheme.colorScheme.error
+                                        }
+                                    Text(
+                                        text = statusText,
+                                        color = tint,
+                                        style = MaterialTheme.typography.labelMedium,
+                                    )
+                                }
                             },
                         )
                     }

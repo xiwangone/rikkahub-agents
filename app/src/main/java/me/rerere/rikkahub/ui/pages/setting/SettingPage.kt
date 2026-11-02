@@ -1,36 +1,43 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import me.rerere.rikkahub.data.datastore.Settings
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.Checkbox
-import androidx.compose.ui.text.style.TextOverflow
-import androidx.compose.foundation.layout.Spacer
 import android.content.ActivityNotFoundException
 import android.content.Intent
 import android.widget.Toast
+import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.MaterialShapes
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.material3.toShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -40,10 +47,12 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
@@ -53,27 +62,50 @@ import me.rerere.hugeicons.stroke.Clapping01
 import me.rerere.hugeicons.stroke.Developer
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.ImageUpload
+import me.rerere.hugeicons.stroke.Moon02
 import me.rerere.hugeicons.stroke.Share04
 import me.rerere.hugeicons.stroke.Shield01
+import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sun01
+import me.rerere.hugeicons.stroke.Tiktok
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.skills.js.SkillSecretsStore
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
-import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.icons.DiscordIcon
+import me.rerere.rikkahub.ui.components.ui.icons.TencentQQIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.hooks.rememberColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.joinQQGroup
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
+import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+
+@Composable
+private fun SettingGroup.iconColors(): Pair<Color, Color> =
+    when (this) {
+        SettingGroup.GENERAL -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        SettingGroup.MODEL -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        SettingGroup.CONNECTION -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        SettingGroup.TOOLS -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+        SettingGroup.SECURITY -> MaterialTheme.colorScheme.tertiaryContainer to MaterialTheme.colorScheme.onTertiaryContainer
+        SettingGroup.AUTOMATION -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        SettingGroup.DATA -> MaterialTheme.colorScheme.secondaryContainer to MaterialTheme.colorScheme.onSecondaryContainer
+        SettingGroup.ABOUT -> MaterialTheme.colorScheme.primaryContainer to MaterialTheme.colorScheme.onPrimaryContainer
+    }
 
 @Composable
 fun SettingPage(vm: SettingVM = koinViewModel()) {
@@ -124,7 +156,7 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
+            contentPadding = innerPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             if (settings.isNotConfigured()) {
@@ -139,8 +171,6 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
 
-            // 分组渲染完全由 SettingCatalog 驱动：组顺序 = SettingGroup 枚举顺序，
-            // 组内顺序 = 注册表顺序。带内联控件或动作型的项在此单独处理。
             item("settingsShortcuts") {
                 SettingsShortcutBar(
                     settings = settings,
@@ -151,35 +181,43 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             }
 
             item("settingsGroups") {
-                SettingGroup.entries.forEach { group ->
-                    val entries = SettingCatalog.entriesOf(group)
-                    CardGroup(
-                        modifier = Modifier.padding(horizontal = 8.dp),
-                        title = { Text(stringResource(group.titleRes)) },
-                    ) {
-                        when (group) {
-                            SettingGroup.GENERAL -> ColorModeRow(navController)
-                            SettingGroup.ABOUT -> {
-                                AboutRow(navController)
-                                DocumentationRow()
+                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+                    SettingGroup.entries.forEach { group ->
+                        val entries = SettingCatalog.entriesOf(group)
+                        val (containerColor, contentColor) = group.iconColors()
+                        CardGroup(
+                            title = { Text(stringResource(group.titleRes)) },
+                        ) {
+                            when (group) {
+                                SettingGroup.GENERAL -> ColorModeRow(navController, containerColor, contentColor)
+                                SettingGroup.ABOUT -> {
+                                    AboutRow(navController, containerColor, contentColor)
+                                    DocumentationRow(containerColor, contentColor)
+                                }
+                                else -> Unit
                             }
-                            else -> Unit
-                        }
 
-                        entries.forEach { entry ->
-                            item(
-                                modifier = Modifier.testTag("setting_entry_${entry.id}"),
-                                onClick = { navController.navigate(entry.screen) },
-                                leadingContent = { Icon(entry.icon, null) },
-                                supportingContent = { Text(stringResource(entry.descRes)) },
-                                headlineContent = { Text(stringResource(entry.titleRes)) },
-                            )
-                        }
+                            entries.forEach { entry ->
+                                item(
+                                    modifier = Modifier.testTag("setting_entry_${entry.id}"),
+                                    onClick = { navController.navigate(entry.screen) },
+                                    leadingContent = {
+                                        CardGroupIcon(
+                                            icon = entry.icon,
+                                            containerColor = containerColor,
+                                            contentColor = contentColor,
+                                        )
+                                    },
+                                    supportingContent = { Text(stringResource(entry.descRes)) },
+                                    headlineContent = { Text(stringResource(entry.titleRes)) },
+                                )
+                            }
 
-                        when (group) {
-                            SettingGroup.DATA -> ChatStorageRow(filesManager, navController)
-                            SettingGroup.ABOUT -> ShareRow()
-                            else -> Unit
+                            when (group) {
+                                SettingGroup.DATA -> ChatStorageRow(filesManager, navController, containerColor, contentColor)
+                                SettingGroup.ABOUT -> ShareRow(containerColor, contentColor)
+                                else -> Unit
+                            }
                         }
                     }
                 }
@@ -188,42 +226,67 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     }
 }
 
+private fun ColorMode.icon(): ImageVector =
+    when (this) {
+        ColorMode.SYSTEM -> HugeIcons.SmartPhone01
+        ColorMode.LIGHT -> HugeIcons.Sun01
+        ColorMode.DARK -> HugeIcons.Moon02
+    }
+
 @Composable
 private fun ProviderConfigWarningCard(navController: Navigator) {
-    Card(
-        modifier = Modifier.padding(8.dp),
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ),
+    val onClick = { navController.navigate(Screen.SettingProvider) }
+    Surface(
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth(),
+        shape = MaterialTheme.shapes.extraLarge,
+        color = MaterialTheme.colorScheme.errorContainer,
+        contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
         Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
-            horizontalAlignment = Alignment.End,
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            ListItem(
-                headlineContent = {
-                    Text(stringResource(R.string.setting_page_config_api_title))
-                },
-                supportingContent = {
-                    Text(stringResource(R.string.setting_page_config_api_desc))
-                },
-                leadingContent = {
-                    Icon(HugeIcons.Alert01, null)
-                },
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                Box(
+                    modifier =
+                        Modifier
+                            .size(48.dp)
+                            .background(MaterialTheme.colorScheme.error, MaterialShapes.Cookie9Sided.toShape()),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Alert01,
+                        contentDescription = null,
+                        modifier = Modifier.size(24.dp),
+                        tint = MaterialTheme.colorScheme.onError,
+                    )
+                }
+                Column(
+                    modifier = Modifier.weight(1f),
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_page_config_api_title),
+                        style = MaterialTheme.typography.titleMediumEmphasized,
+                    )
+                    Text(
+                        text = stringResource(R.string.setting_page_config_api_desc),
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+            }
+            Button(
+                onClick = onClick,
+                modifier = Modifier.align(Alignment.End),
                 colors =
-                    ListItemDefaults.colors(
-                        containerColor = Color.Transparent,
+                    ButtonDefaults.buttonColors(
+                        containerColor = MaterialTheme.colorScheme.error,
+                        contentColor = MaterialTheme.colorScheme.onError,
                     ),
-            )
-
-            TextButton(
-                onClick = {
-                    navController.navigate(Screen.SettingProvider)
-                },
             ) {
                 Text(stringResource(R.string.setting_page_config))
             }
@@ -234,7 +297,6 @@ private fun ProviderConfigWarningCard(navController: Navigator) {
 @Composable
 private fun SecurityDegradedWarningCard() {
     Card(
-        modifier = Modifier.padding(8.dp),
         colors =
             CardDefaults.cardColors(
                 containerColor = MaterialTheme.colorScheme.errorContainer,
@@ -262,56 +324,60 @@ private fun SecurityDegradedWarningCard() {
     }
 }
 
-
-/**
- * 带内联控件或动作型的设置项（因含交互控件/外部跳转，未进入 [SettingCatalog]）。
- */
 @Composable
-private fun CardGroupScope.ColorModeRow(navController: Navigator) {
+private fun CardGroupScope.ColorModeRow(
+    navController: Navigator,
+    containerColor: Color,
+    contentColor: Color,
+) {
     var colorMode by rememberColorMode()
-    val selectedColorModeText =
-        when (colorMode) {
-            ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
-            ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
-            ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
+    formItem {
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CardGroupIcon(colorMode.icon(), containerColor = containerColor, contentColor = contentColor)
+            Text(stringResource(R.string.setting_page_color_mode))
         }
-    item(
-        leadingContent = { Icon(HugeIcons.Sun01, null) },
-        trailingContent = {
-            Select(
-                options = ColorMode.entries,
-                selectedOption = colorMode,
-                onOptionSelected = {
-                    colorMode = it
-                    navController.navigate(Screen.Setting) {
-                        popUpTo(Screen.Setting) {
-                            inclusive = true
-                        }
+        ConnectedChoiceButtons(
+            options = ColorMode.entries,
+            selected = colorMode,
+            onSelect = {
+                colorMode = it
+                navController.navigate(Screen.Setting) {
+                    popUpTo(Screen.Setting) {
+                        inclusive = true
                     }
-                },
-                optionToString = {
-                    when (it) {
+                }
+            },
+        ) { mode, selected ->
+            ConnectedChoiceLabel(
+                text =
+                    when (mode) {
                         ColorMode.SYSTEM -> stringResource(R.string.setting_page_color_mode_system)
                         ColorMode.LIGHT -> stringResource(R.string.setting_page_color_mode_light)
                         ColorMode.DARK -> stringResource(R.string.setting_page_color_mode_dark)
-                    }
-                },
-                modifier = Modifier.width(150.dp),
+                    },
+                selected = selected,
+                icon = mode.icon(),
             )
-        },
-        headlineContent = { Text(stringResource(R.string.setting_page_color_mode)) },
-        supportingContent = { Text(selectedColorModeText) },
-    )
+        }
+    }
 }
 
 @Composable
-private fun CardGroupScope.ChatStorageRow(filesManager: FilesManager, navController: Navigator) {
+private fun CardGroupScope.ChatStorageRow(
+    filesManager: FilesManager,
+    navController: Navigator,
+    containerColor: Color,
+    contentColor: Color,
+) {
     val storageState by produceState(-1 to 0L) {
         value = filesManager.countChatFiles()
     }
     item(
         onClick = { navController.navigate(Screen.SettingFiles) },
-        leadingContent = { Icon(HugeIcons.ImageUpload, null) },
+        leadingContent = { CardGroupIcon(HugeIcons.ImageUpload, containerColor = containerColor, contentColor = contentColor) },
         supportingContent = {
             if (storageState.first == -1) {
                 Text(stringResource(R.string.calculating))
@@ -330,40 +396,74 @@ private fun CardGroupScope.ChatStorageRow(filesManager: FilesManager, navControl
 }
 
 @Composable
-private fun CardGroupScope.AboutRow(navController: Navigator) {
+private fun CardGroupScope.AboutRow(
+    navController: Navigator,
+    containerColor: Color,
+    contentColor: Color,
+) {
     val context = LocalContext.current
     item(
         onClick = { navController.navigate(Screen.SettingAbout) },
-        leadingContent = { Icon(HugeIcons.Clapping01, null) },
+        leadingContent = { CardGroupIcon(HugeIcons.Clapping01, containerColor = containerColor, contentColor = contentColor) },
         supportingContent = { Text(stringResource(R.string.setting_page_about_desc)) },
+        trailingContent = {
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                var showQQGroupSheet by remember { mutableStateOf(false) }
+                IconButton(onClick = { showQQGroupSheet = true }) {
+                    Icon(
+                        imageVector = TencentQQIcon,
+                        contentDescription = "QQ",
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+                if (showQQGroupSheet) {
+                    QQGroupBottomSheet(onDismiss = { showQQGroupSheet = false })
+                }
+                IconButton(
+                    onClick = { context.openUrl("https://discord.gg/9weBqxe5c4") },
+                ) {
+                    Icon(
+                        imageVector = DiscordIcon,
+                        contentDescription = "Discord",
+                        tint = MaterialTheme.colorScheme.secondary,
+                    )
+                }
+            }
+        },
         headlineContent = { Text(stringResource(R.string.setting_page_about)) },
     )
 }
 
 @Composable
-private fun CardGroupScope.DocumentationRow() {
+private fun CardGroupScope.DocumentationRow(
+    containerColor: Color,
+    contentColor: Color,
+) {
     val context = LocalContext.current
     item(
         onClick = {
             val docUrl =
-                if (java.util.Locale
-                        .getDefault()
-                        .language == "zh"
-                ) {
+                if (java.util.Locale.getDefault().language == "zh") {
                     "https://docs.rikka-ai.com/zh/introduction"
                 } else {
                     "https://docs.rikka-ai.com/introduction"
                 }
             context.openUrl(docUrl)
         },
-        leadingContent = { Icon(HugeIcons.Book01, null) },
+        leadingContent = { CardGroupIcon(HugeIcons.Book01, containerColor = containerColor, contentColor = contentColor) },
         supportingContent = { Text(stringResource(R.string.setting_page_documentation_desc)) },
         headlineContent = { Text(stringResource(R.string.setting_page_documentation)) },
     )
 }
 
 @Composable
-private fun CardGroupScope.ShareRow() {
+private fun CardGroupScope.ShareRow(
+    containerColor: Color,
+    contentColor: Color,
+) {
     val context = LocalContext.current
     val shareText = stringResource(R.string.setting_page_share_text)
     val share = stringResource(R.string.setting_page_share)
@@ -379,18 +479,12 @@ private fun CardGroupScope.ShareRow() {
                 Toast.makeText(context, noShareApp, Toast.LENGTH_SHORT).show()
             }
         },
-        leadingContent = { Icon(HugeIcons.Share04, null) },
+        leadingContent = { CardGroupIcon(HugeIcons.Share04, containerColor = containerColor, contentColor = contentColor) },
         supportingContent = { Text(stringResource(R.string.setting_page_share_desc)) },
         headlineContent = { Text(stringResource(R.string.setting_page_share)) },
     )
 }
 
-
-/**
- * 顶部快捷区：用户自选的设置入口（上限 [SETTING_SHORTCUT_LIMIT]），空态给出提示。
- *
- * 只保存 id 列表，图标与跳转均由 [SettingCatalog] 决定 —— 注册表变更后快捷区自动跟随。
- */
 @Composable
 private fun SettingsShortcutBar(
     settings: Settings,
@@ -409,7 +503,6 @@ private fun SettingsShortcutBar(
     }
 
     CardGroup(
-        modifier = Modifier.padding(horizontal = 8.dp),
         title = { Text(stringResource(R.string.setting_page_shortcuts)) },
     ) {
         item(
@@ -435,9 +528,9 @@ private fun SettingsShortcutBar(
         )
 
         if (entries.isNotEmpty()) {
-            item {
+            formItem {
                 Column(
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     entries.chunked(3).forEach { row ->
@@ -469,16 +562,24 @@ private fun ShortcutTile(
     modifier: Modifier = Modifier,
     onClick: () -> Unit,
 ) {
+    val (containerColor, contentColor) = entry.group.iconColors()
     Card(
         modifier = modifier,
         onClick = onClick,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
     ) {
         Column(
-            modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 6.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
-            Icon(entry.icon, contentDescription = null)
+            CardGroupIcon(
+                icon = entry.icon,
+                containerColor = containerColor,
+                contentColor = contentColor,
+                containerSize = 32.dp,
+                iconSize = 16.dp,
+            )
             Text(
                 text = stringResource(entry.titleRes),
                 style = MaterialTheme.typography.labelMedium,
@@ -489,10 +590,6 @@ private fun ShortcutTile(
     }
 }
 
-
-/**
- * 快捷区编辑器：从注册表中多选（按选择先后排列），上限 [SETTING_SHORTCUT_LIMIT]。
- */
 @Composable
 private fun SettingShortcutEditor(
     settings: Settings,
@@ -501,12 +598,18 @@ private fun SettingShortcutEditor(
 ) {
     val selected = settings.settingShortcutIds
 
-    fun toggle(id: String, on: Boolean) {
+    fun toggle(
+        id: String,
+        on: Boolean,
+    ) {
         onUpdate { current ->
             val ids = current.settingShortcutIds
-            val next = if (on) {
-                if (id in ids || ids.size >= SETTING_SHORTCUT_LIMIT) ids else ids + id
-            } else ids - id
+            val next =
+                if (on) {
+                    if (id in ids || ids.size >= SETTING_SHORTCUT_LIMIT) ids else ids + id
+                } else {
+                    ids - id
+                }
             current.copy(settingShortcutIds = next)
         }
     }
@@ -552,4 +655,60 @@ private fun SettingShortcutEditor(
             }
         },
     )
+}
+
+private data class QQGroup(
+    val name: String,
+    val key: String? = null,
+    val number: String? = null,
+    val icon: ImageVector = TencentQQIcon,
+)
+
+private val QQ_GROUPS =
+    listOf(
+        QQGroup("RikkaHub 一群", "4POE46u9e_zoy1TkNfWdCvueR9CKFJdk"),
+        QQGroup("RikkaHub 二群", "Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0"),
+        QQGroup("RikkaHub 三群", "Qc9oP-9tXioZeQEvEvI2_owWtBAIx3lS"),
+        QQGroup("抖音一群", number = "569655479852", icon = HugeIcons.Tiktok),
+    )
+
+@Composable
+private fun QQGroupBottomSheet(onDismiss: () -> Unit) {
+    val context = LocalContext.current
+    val copiedMsg = stringResource(R.string.copied_to_clipboard)
+    ModalBottomSheet(onDismissRequest = onDismiss) {
+        Column(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(4.dp),
+        ) {
+            QQ_GROUPS.forEach { group ->
+                ListItem(
+                    headlineContent = { Text(group.name) },
+                    supportingContent = group.number?.let { number -> { Text(number) } },
+                    leadingContent = {
+                        Icon(
+                            imageVector = group.icon,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.secondary,
+                        )
+                    },
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .clickable {
+                                if (group.number != null) {
+                                    context.writeClipboardText(group.number)
+                                    Toast.makeText(context, copiedMsg, Toast.LENGTH_SHORT).show()
+                                } else {
+                                    context.joinQQGroup(group.key)
+                                }
+                                onDismiss()
+                            },
+                )
+            }
+        }
+    }
 }

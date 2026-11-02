@@ -82,7 +82,7 @@ object SettingCatalog {
         group = SettingGroup.CONNECTION,
         icon = HugeIcons.Image03,
         titleRes = R.string.setting_page_media,
-        descRes = R.string.setting_page_media,
+        descRes = R.string.setting_page_media_desc,
         screen = Screen.SettingMedia,
     ),
     SettingEntry(

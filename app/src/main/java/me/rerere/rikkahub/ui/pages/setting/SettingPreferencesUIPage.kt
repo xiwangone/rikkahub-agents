@@ -13,13 +13,15 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.LocalTextStyle
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -34,7 +36,9 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Dispatchers
@@ -52,7 +56,10 @@ import me.rerere.rikkahub.data.files.FileUtils
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.rememberChatFontFamily
@@ -124,257 +131,136 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
     ) { contentPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = contentPadding + PaddingValues(8.dp),
+            contentPadding = contentPadding + PaddingValues(horizontal = 16.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_message_display_settings)) },
                 ) {
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_user_avatar_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_user_avatar_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showUserAvatar,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showUserAvatar = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.showUserAvatar,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_assistant_bubble_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_assistant_bubble_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showAssistantBubble,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showAssistantBubble = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.showAssistantBubble,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showAssistantBubble = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                     )
-                    item(
+                    formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_bubble_opacity_title)) },
-                        supportingContent = {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                Slider(
-                                    value = displaySetting.bubbleOpacity,
-                                    onValueChange = {
-                                        updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
-                                    },
-                                    valueRange = 0.1f..1.0f,
-                                    steps = 8,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                Text(text = "${(displaySetting.bubbleOpacity * 100).roundToInt()}%")
-                            }
-                        },
+                        trailingContent = { CardGroupValue("${(displaySetting.bubbleOpacity * 100).roundToInt()}%") },
+                    ) {
+                        Slider(
+                            value = displaySetting.bubbleOpacity,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
+                            },
+                            valueRange = 0.1f..1.0f,
+                            steps = 8,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
+                }
+            }
+
+            item {
+                CardGroup {
+                    switchItem(
+                        checked = displaySetting.showModelIcon,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelIcon = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_chat_list_model_icon_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_chat_list_model_icon_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showModelIcon,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showModelIcon = it))
-                                },
-                            )
-                        },
-                    )
-                    item(
+                    switchItem(
+                        checked = displaySetting.showModelName,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelName = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_model_name_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showModelName,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showModelName = it))
-                                },
-                            )
-                        },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_datetime_in_message_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_datetime_in_message_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showDateTimeInMessage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.showDateTimeInMessage,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_token_usage_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_token_usage_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showTokenUsage,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showTokenUsage = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.showTokenUsage,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_thinking_content_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_thinking_content_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showThinkingContent,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showThinkingContent = it))
-                                },
-                            )
-                        },
+                }
+            }
+
+            item {
+                CardGroup {
+                    switchItem(
+                        checked = displaySetting.showThinkingContent,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_auto_collapse_thinking_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_auto_collapse_thinking_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.autoCloseThinking,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(autoCloseThinking = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.autoCloseThinking,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoCloseThinking = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_enable_latex_rendering_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_enable_latex_rendering_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.enableLatexRendering,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(enableLatexRendering = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.enableLatexRendering,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableLatexRendering = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_title)) },
                     )
-                    item(
-                        headlineContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_title)) },
+                    switchItem(
+                        checked = displaySetting.enableQuoteHighlight,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = it)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_desc)) },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.enableQuoteHighlight,
-                                onCheckedChange = { enabled ->
-                                    updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = enabled))
-                                },
-                            )
-                        },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_title)) },
                     )
+                }
+            }
+
+            item {
+                CardGroup {
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_chat_font_family_title)) },
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = ChatFontFamily.entries,
+                            selected = displaySetting.chatFontFamily,
+                            onSelect = { family ->
+                                if (family == ChatFontFamily.CUSTOM && displaySetting.chatCustomFontPath.isBlank()) {
+                                    fontPickerLauncher.launch(CustomFontMimeTypesUI)
+                                } else {
+                                    updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                }
+                            },
+                            minHeight = 60.dp,
+                        ) { family, _ ->
+                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                Text(
+                                    text = "Aa",
+                                    fontFamily = family.toFontFamilyUI(chatFontFamily),
+                                    style = MaterialTheme.typography.titleMedium,
+                                )
+                                Text(
+                                    text = family.labelUI(),
+                                    autoSize = TextAutoSize.StepBased(minFontSize = 9.sp, maxFontSize = 11.sp),
+                                    maxLines = 1,
+                                    softWrap = false,
+                                    overflow = TextOverflow.Ellipsis,
+                                    style = MaterialTheme.typography.labelSmall,
+                                )
+                            }
+                        }
+                    }
                     item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_chat_font_family_title),
-                            )
-                        },
-                        supportingContent = {
-                            Select(
-                                options = ChatFontFamily.entries,
-                                selectedOption = displaySetting.chatFontFamily,
-                                onOptionSelected = { family ->
-                                    if (family == ChatFontFamily.CUSTOM &&
-                                        displaySetting.chatCustomFontPath.isBlank()
-                                    ) {
-                                        fontPickerLauncher.launch(CustomFontMimeTypesUI)
-                                    } else {
-                                        updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
-                                    }
-                                },
-                                modifier =
-                                    Modifier
-                                        .padding(top = 4.dp)
-                                        .fillMaxWidth(),
-                                optionToString = { it.labelUI() },
-                                optionLeading = { family ->
-                                    Text(
-                                        text = "Aa",
-                                        fontFamily = family.toFontFamilyUI(chatFontFamily),
-                                    )
-                                },
-                            )
-                        },
-                    )
-                    item(
+                        onClick = { fontPickerLauncher.launch(CustomFontMimeTypesUI) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_custom_font_title)) },
                         supportingContent = {
                             Text(
@@ -423,140 +309,88 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             }
                         },
                     )
-                    item(
+                    formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_font_size_title)) },
-                        supportingContent = {
-                            Column {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    Slider(
-                                        value = displaySetting.fontSizeRatio,
-                                        onValueChange = {
-                                            updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
-                                        },
-                                        valueRange = 0.5f..2f,
-                                        steps = 11,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    Text(text = "${(displaySetting.fontSizeRatio * 100).toInt()}%")
-                                }
-                                MarkdownBlock(
-                                    content = stringResource(R.string.setting_display_page_font_size_preview),
-                                    style =
-                                        LocalTextStyle.current.copy(
-                                            fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                                            lineHeight =
-                                                LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                            fontFamily = chatFontFamily,
-                                        ),
-                                )
-                            }
-                        },
-                    )
+                        trailingContent = { CardGroupValue("${(displaySetting.fontSizeRatio * 100).toInt()}%") },
+                    ) {
+                        Slider(
+                            value = displaySetting.fontSizeRatio,
+                            onValueChange = {
+                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                            },
+                            valueRange = 0.5f..2f,
+                            steps = 11,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            MarkdownBlock(
+                                content = stringResource(R.string.setting_display_page_font_size_preview),
+                                modifier = Modifier.padding(12.dp),
+                                style =
+                                    LocalTextStyle.current.copy(
+                                        fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
+                                        lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+                                        fontFamily = chatFontFamily,
+                                    ),
+                            )
+                        }
+                    }
                 }
             }
 
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_render_performance_settings)) },
                 ) {
-                    item(
+                    formItem(
                         headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_render_performance_title),
-                            )
+                            Text(stringResource(R.string.setting_display_page_render_performance_title))
                         },
                         supportingContent = {
-                            Column {
-                                Text(
-                                    stringResource(R.string.setting_display_page_render_performance_desc),
-                                )
-                                Select(
-                                    options = RenderPerformance.entries,
-                                    selectedOption = displaySetting.renderPerformance,
-                                    onOptionSelected = { value ->
-                                        updateDisplaySetting(displaySetting.copy(renderPerformance = value))
-                                    },
-                                    modifier =
-                                        Modifier
-                                            .padding(top = 4.dp)
-                                            .fillMaxWidth(),
-                                    optionToString = { it.labelUI() },
-                                )
-                            }
+                            Text(stringResource(R.string.setting_display_page_render_performance_desc))
                         },
-                    )
+                    ) {
+                        ConnectedChoiceButtons(
+                            options = RenderPerformance.entries,
+                            selected = displaySetting.renderPerformance,
+                            onSelect = { value ->
+                                updateDisplaySetting(displaySetting.copy(renderPerformance = value))
+                            },
+                        ) { value, selected ->
+                            ConnectedChoiceLabel(
+                                text = value.labelUI(),
+                                selected = selected,
+                            )
+                        }
+                    }
                 }
             }
 
             item {
                 CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
                     title = { Text(stringResource(R.string.setting_page_code_display_settings)) },
                 ) {
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_code_block_auto_wrap_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_code_block_auto_wrap_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.codeBlockAutoWrap,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.codeBlockAutoWrap,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_code_block_auto_collapse_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_code_block_auto_collapse_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.codeBlockAutoCollapse,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.codeBlockAutoCollapse,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title)) },
                     )
-                    item(
-                        headlineContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_line_numbers_title),
-                            )
-                        },
-                        supportingContent = {
-                            Text(
-                                stringResource(R.string.setting_display_page_show_line_numbers_desc),
-                            )
-                        },
-                        trailingContent = {
-                            Switch(
-                                checked = displaySetting.showLineNumbers,
-                                onCheckedChange = {
-                                    updateDisplaySetting(displaySetting.copy(showLineNumbers = it))
-                                },
-                            )
-                        },
+                    switchItem(
+                        checked = displaySetting.showLineNumbers,
+                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showLineNumbers = it)) },
+                        supportingContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_desc)) },
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_title)) },
                     )
                 }
             }
@@ -599,13 +433,14 @@ private fun ChatFontFamily.toFontFamilyUI(customFontFamily: FontFamily): FontFam
     }
 
 @Composable
-private fun RenderPerformance.labelUI(): String = stringResource(
-    when (this) {
-        RenderPerformance.AUTO -> R.string.setting_display_page_render_performance_auto
-        RenderPerformance.SMOOTH -> R.string.setting_display_page_render_performance_smooth
-        RenderPerformance.FULL -> R.string.setting_display_page_render_performance_full
-    },
-)
+private fun RenderPerformance.labelUI(): String =
+    stringResource(
+        when (this) {
+            RenderPerformance.AUTO -> R.string.setting_display_page_render_performance_auto
+            RenderPerformance.SMOOTH -> R.string.setting_display_page_render_performance_smooth
+            RenderPerformance.FULL -> R.string.setting_display_page_render_performance_full
+        },
+    )
 
 private fun importCustomChatFontInternal(
     context: Context,

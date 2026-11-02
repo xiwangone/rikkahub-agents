@@ -494,6 +494,7 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.MediaCreationSessions> { MediaCreationSessionsPage() }
                             entry<Screen.MediaCreation> { key -> MediaCreationPage(key.id) }
                             entry<Screen.SettingMedia> { me.rerere.rikkahub.ui.pages.setting.SettingMediaPage() }
+                            entry<Screen.SettingMediaProviderDetail> { key -> me.rerere.rikkahub.ui.pages.setting.SettingMediaProviderDetailPage(Uuid.parse(key.providerId)) }
 
                             entry<Screen.WebView> { key ->
                                 WebViewPage(key.url, key.contentId)
@@ -796,6 +797,9 @@ sealed interface Screen : NavKey {
     data class MediaCreation(val id: String) : Screen
     @Serializable
     data object SettingMedia : Screen
+
+    @Serializable
+    data class SettingMediaProviderDetail(val providerId: String) : Screen
 
     @Serializable
     data class WebView(val url: String = "", val contentId: String = "") : Screen

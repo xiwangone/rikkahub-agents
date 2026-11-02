@@ -4174,4 +4174,7 @@
   <string name="log_page_clip_label">RikkaHub Agents 應用程式日誌</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">取得目前日期與時間。</string>
+    <string name="copied_to_clipboard">已複製到剪貼簿</string>
+    <string name="setting_media_page_asset_storage">素材儲存</string>
+    <string name="setting_page_media_desc">設定圖片與影片產生服務</string>
 </resources>

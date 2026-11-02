@@ -4171,4 +4171,7 @@
   <string name="log_page_clip_label">RikkaHub Agents App Log</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">Get the current date and time.</string>
+    <string name="copied_to_clipboard">Copied to clipboard</string>
+    <string name="setting_media_page_asset_storage">Asset Storage</string>
+    <string name="setting_page_media_desc">Configure image and video generation services</string>
 </resources>

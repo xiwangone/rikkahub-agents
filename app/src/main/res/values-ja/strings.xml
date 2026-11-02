@@ -4175,4 +4175,7 @@
   <string name="log_page_clip_label">RikkaHub Agents アプリログ</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">現在の日付と時刻を取得します。</string>
+    <string name="copied_to_clipboard">クリップボードにコピーしました</string>
+    <string name="setting_media_page_asset_storage">アセットストレージ</string>
+    <string name="setting_page_media_desc">画像と動画生成サービスを設定します</string>
 </resources>

@@ -1,40 +1,43 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import androidx.compose.foundation.LocalIndication
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.activity.compose.BackHandler
+import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.wrapContentWidth
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.TextAutoSize
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Badge
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.ListItem
 import androidx.compose.material3.ListItemDefaults
+import androidx.compose.material3.ListItemShapes
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.ProvideTextStyle
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
@@ -44,19 +47,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.semantics.Role
-import androidx.compose.ui.semantics.role
-import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.util.fastForEach
 import kotlinx.coroutines.Deferred
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.Codesandbox
 import me.rerere.hugeicons.stroke.ComputerTerminal01
@@ -66,8 +69,10 @@ import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.MusicNote03
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Package01
+import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings02
 import me.rerere.hugeicons.stroke.Video01
+import me.rerere.hugeicons.stroke.Voice
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
@@ -78,6 +83,7 @@ import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -85,6 +91,12 @@ import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
+
+private enum class FilesPickerPage {
+    MAIN,
+    MCP,
+    EXTENSIONS,
+}
 
 @Composable
 internal fun FilesPicker(
@@ -117,255 +129,299 @@ internal fun FilesPicker(
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
 
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .verticalScroll(rememberScrollState())
-                .padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        // 执行后端（AI 执行通道）：本机 / 后端服务 —— 低频设置，从顶栏挪进「更多」
-        val backendMenuOpen = remember { mutableStateOf(false) }
-        Box {
-            ListItem(
-                headlineContent = {
-                    Text(
-                        text = stringResource(
-                            R.string.chat_page_backend_label,
-                            if (executionBackend.isBlank() || executionBackend == "local") {
-                                stringResource(R.string.chat_page_backend_local)
-                            } else {
-                                settings.providers.firstOrNull { it.id.toString() == executionBackend }?.name?.ifBlank { stringResource(R.string.backend_service) } ?: executionBackend
-                            },
-                        ),
-                    )
-                },
-                trailingContent = {
-                    Icon(HugeIcons.ArrowDown01, contentDescription = null)
-                },
-                modifier = Modifier.clickable { backendMenuOpen.value = true },
-            )
-            DropdownMenu(
-                expanded = backendMenuOpen.value,
-                onDismissRequest = { backendMenuOpen.value = false },
-            ) {
-                DropdownMenuItem(
-                    text = { Text(stringResource(R.string.chat_page_backend_local)) },
-                    onClick = { onBackendChange("local"); backendMenuOpen.value = false },
-                )
-                settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
-                    DropdownMenuItem(
-                        text = { Text(p.name.ifBlank { stringResource(R.string.backend_service) }) },
-                        onClick = { onBackendChange(p.id.toString()); backendMenuOpen.value = false },
-                    )
-                }
-            }
+    val boundWorkspace =
+        remember(workspaces, assistant.workspaceId) {
+            workspaces.find { it.id == assistant.workspaceId?.toString() }
         }
-        FlowRow(
-            modifier = Modifier.fillMaxWidth().wrapContentWidth(Alignment.CenterHorizontally),
-            horizontalArrangement = Arrangement.spacedBy(16.dp, Alignment.Start),
-            verticalArrangement = Arrangement.spacedBy(4.dp),
-        ) {
-            TakePicButton(onLaunchCamera = onTakePic)
+    val showCwd = boundWorkspace != null && boundWorkspace.shellStatus == WorkspaceShellStatus.READY.name
+    var showCwdSheet by remember { mutableStateOf(false) }
 
-            ImagePickButton(onClick = onPickImage)
+    var page by remember { mutableStateOf(FilesPickerPage.MAIN) }
+    BackHandler(enabled = page != FilesPickerPage.MAIN) {
+        page = FilesPickerPage.MAIN
+    }
 
-            if (provider != null && provider is ProviderSetting.Google) {
-                VideoPickButton(onClick = onPickVideo)
-
-                AudioPickButton(onClick = onPickAudio)
+    AnimatedContent(
+        targetState = page,
+        transitionSpec = {
+            if (targetState > initialState) {
+                slideInHorizontally { it } + fadeIn() togetherWith
+                    slideOutHorizontally { -it } + fadeOut()
+            } else {
+                slideInHorizontally { -it } + fadeIn() togetherWith
+                    slideOutHorizontally { it } + fadeOut()
             }
-
-            FilePickButton(onClick = onPickFile)
-
-            onStartVoiceMode?.let { start ->
-                BigIconTextButton(
-                    icon = { Icon(HugeIcons.Voice, contentDescription = null) },
-                    text = { Text(stringResource(R.string.chat_page_voice_title)) },
-                    onClick = start,
-                )
-            }
-        }
-
-        HorizontalDivider(
-            modifier = Modifier.fillMaxWidth(),
-        )
-
-        if (workspaces.isNotEmpty()) {
-            WorkspacePickerListItem(
-                assistant = assistant,
-                conversation = conversation,
-                workspaces = workspaces,
-                onUpdateAssistant = onUpdateAssistant,
-                onUpdateConversation = onUpdateConversation,
-                onNavigateToDetail = { id ->
-                    onDismiss()
-                    navController.navigate(Screen.WorkspaceDetail(id))
-                },
-                onNavigateToTerminal = { id ->
-                    onDismiss()
-                    navController.navigate(Screen.WorkspaceTerminal(id))
-                },
-                onNavigateToManage = {
-                    onDismiss()
-                    navController.navigate(Screen.Workspaces)
-                },
-            )
-        }
-
-        if (settings.mcpServers.isNotEmpty()) {
-            McpPickerListItem(
+        },
+        label = "FilesPickerPage",
+    ) { currentPage ->
+        when (currentPage) {
+            FilesPickerPage.MCP -> McpPickerPage(
                 assistant = assistant,
                 servers = settings.mcpServers,
                 mcpManager = mcpManager,
                 onUpdateAssistant = onUpdateAssistant,
+                onBack = { page = FilesPickerPage.MAIN },
             )
-        }
 
-        // Extensions (Quick Messages + Prompt Injections + Skills)
-        val modeAndLorebookCount =
-            if (assistant.allowConversationPromptInjection) {
-                conversation.modeInjectionIds.size + conversation.lorebookIds.size
-            } else {
-                assistant.modeInjectionIds.size + assistant.lorebookIds.size
-            }
-        val activeCount =
-            assistant.quickMessageIds.size +
-                modeAndLorebookCount +
-                assistant.enabledSkills.size
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.Package,
-                    contentDescription = stringResource(R.string.assistant_page_tab_extensions),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.assistant_page_tab_extensions))
-            },
-            trailingContent = {
-                if (activeCount > 0) {
-                    Text(
-                        text = activeCount.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-            },
-            colors =
-                ListItemDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            modifier =
-                Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable {
-                        onShowInjectionSheetChange(true)
-                    },
-        )
+            FilesPickerPage.EXTENSIONS -> ExtensionPickerPage(
+                conversation = conversation,
+                assistant = assistant,
+                settings = settings,
+                onUpdateAssistant = onUpdateAssistant,
+                onUpdateConversation = onUpdateConversation,
+                onBack = { page = FilesPickerPage.MAIN },
+                onDismissAll = onDismiss,
+            )
 
-        // Compress History Button
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.Package01,
-                    contentDescription = stringResource(R.string.chat_page_compress_context),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.chat_page_compress_context))
-            },
-            trailingContent = {
-                if (conversation.messageNodes.isNotEmpty()) {
-                    Text(
-                        text = stringResource(R.string.chat_page_message_count, conversation.messageNodes.size),
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-            },
-            colors =
-                ListItemDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            modifier =
-                Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable {
-                        onShowCompressDialogChange(true)
-                    },
-        )
-
-        // Auto-compress context
-        ListItem(
-            leadingContent = {
-                Icon(
-                    imageVector = HugeIcons.ArrowDown01,
-                    contentDescription = stringResource(R.string.setting_model_page_auto_compress),
-                )
-            },
-            headlineContent = {
-                Text(stringResource(R.string.setting_model_page_auto_compress))
-            },
-            supportingContent = {
-                Text(stringResource(R.string.setting_model_page_auto_compress_desc))
-            },
-            trailingContent = {
-                Switch(
-                    checked = settings.autoCompressEnabled,
-                    onCheckedChange = { onShowAutoCompressDialogChange(true) },
-                )
-            },
-            colors =
-                ListItemDefaults.colors(
-                    containerColor = MaterialTheme.colorScheme.surfaceContainer,
-                ),
-            modifier =
-                Modifier
-                    .clip(MaterialTheme.shapes.large)
-                    .clickable { onShowAutoCompressDialogChange(true) },
-        )
-
-
-        // Workspace CWD
-        val boundWorkspace =
-            remember(workspaces, assistant.workspaceId) {
-                workspaces.find { it.id == assistant.workspaceId?.toString() }
-            }
-        if (boundWorkspace != null && boundWorkspace.shellStatus == WorkspaceShellStatus.READY.name) {
-            var showCwdSheet by remember { mutableStateOf(false) }
-            TextButton(
-                onClick = { showCwdSheet = true },
-                modifier = Modifier.fillMaxWidth(),
-                contentPadding = PaddingValues(horizontal = 12.dp, vertical = 0.dp),
+            FilesPickerPage.MAIN -> Column(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
-                Icon(
-                    imageVector = HugeIcons.Folder01,
-                    contentDescription = null,
-                    modifier = Modifier.size(16.dp),
+                AttachmentGrid(
+                    actions =
+                        buildList {
+                            add(AttachmentAction(HugeIcons.Camera01, R.string.take_picture, onTakePic))
+                            add(AttachmentAction(HugeIcons.Image02, R.string.photo, onPickImage))
+                            if (provider != null && provider is ProviderSetting.Google) {
+                                add(AttachmentAction(HugeIcons.Video01, R.string.video, onPickVideo))
+                                add(AttachmentAction(HugeIcons.MusicNote03, R.string.audio, onPickAudio))
+                            }
+                            add(AttachmentAction(HugeIcons.Files02, R.string.upload_file, onPickFile))
+                            onStartVoiceMode?.let { start ->
+                                add(AttachmentAction(HugeIcons.Voice, R.string.chat_page_voice_title, start))
+                            }
+                        },
                 )
-                Spacer(Modifier.width(4.dp))
-                Text(
-                    text = conversation.workspaceCwd ?: "/workspace",
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            if (showCwdSheet) {
-                WorkspaceCwdPickerSheet(
-                    workspaceId = boundWorkspace.id,
-                    currentCwd = conversation.workspaceCwd,
-                    onSelectCwd = { newCwd ->
-                        onUpdateConversation(conversation.copy(workspaceCwd = newCwd))
-                    },
-                    onDismiss = { showCwdSheet = false },
-                )
+
+                val showWorkspace = workspaces.isNotEmpty()
+                val showMcp = settings.mcpServers.isNotEmpty()
+                val itemCount =
+                    4 + listOf(showWorkspace, showWorkspace && showCwd, showMcp).count { it }
+                var itemIndex = 0
+
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                ) {
+                    // 执行后端（AI 执行通道）：本机 / 后端服务
+                    val backendMenuOpen = remember { mutableStateOf(false) }
+                    Box {
+                        SegmentedListItem(
+                            onClick = { backendMenuOpen.value = true },
+                            shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                            leadingContent = {
+                                CardGroupIcon(
+                                    icon = HugeIcons.ServerStack01,
+                                    containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                    size = 32.dp,
+                                    iconSize = 16.dp,
+                                )
+                            },
+                            trailingContent = {
+                                Icon(HugeIcons.ArrowDown01, contentDescription = null)
+                            },
+                        ) {
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.chat_page_backend_label,
+                                        if (executionBackend.isBlank() || executionBackend == "local") {
+                                            stringResource(R.string.chat_page_backend_local)
+                                        } else {
+                                            settings.providers.firstOrNull { it.id.toString() == executionBackend }
+                                                ?.name?.ifBlank { stringResource(R.string.backend_service) }
+                                                ?: executionBackend
+                                        },
+                                    ),
+                            )
+                        }
+                        DropdownMenu(
+                            expanded = backendMenuOpen.value,
+                            onDismissRequest = { backendMenuOpen.value = false },
+                        ) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.chat_page_backend_local)) },
+                                onClick = {
+                                    onBackendChange("local")
+                                    backendMenuOpen.value = false
+                                },
+                            )
+                            settings.providers.filter { it is ProviderSetting.Backend }.forEach { p ->
+                                DropdownMenuItem(
+                                    text = { Text(p.name.ifBlank { stringResource(R.string.backend_service) }) },
+                                    onClick = {
+                                        onBackendChange(p.id.toString())
+                                        backendMenuOpen.value = false
+                                    },
+                                )
+                            }
+                        }
+                    }
+
+                    if (showWorkspace) {
+                        WorkspacePickerListItem(
+                            assistant = assistant,
+                            conversation = conversation,
+                            workspaces = workspaces,
+                            shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                            onUpdateAssistant = onUpdateAssistant,
+                            onUpdateConversation = onUpdateConversation,
+                            onNavigateToDetail = { id ->
+                                onDismiss()
+                                navController.navigate(Screen.WorkspaceDetail(id))
+                            },
+                            onNavigateToTerminal = { id ->
+                                onDismiss()
+                                navController.navigate(Screen.WorkspaceTerminal(id))
+                            },
+                            onNavigateToManage = {
+                                onDismiss()
+                                navController.navigate(Screen.Workspaces)
+                            },
+                        )
+
+                        if (showCwd) {
+                            SegmentedListItem(
+                                onClick = { showCwdSheet = true },
+                                shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                                leadingContent = {
+                                    CardGroupIcon(
+                                        icon = HugeIcons.Folder01,
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                        size = 32.dp,
+                                        iconSize = 16.dp,
+                                    )
+                                },
+                                trailingContent = {
+                                    Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                                },
+                            ) {
+                                Text(
+                                    text = conversation.workspaceCwd ?: "/workspace",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.StartEllipsis,
+                                )
+                            }
+                        }
+                    }
+
+                    if (showMcp) {
+                        McpPickerListItem(
+                            assistant = assistant,
+                            servers = settings.mcpServers,
+                            mcpManager = mcpManager,
+                            shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                            onClick = { page = FilesPickerPage.MCP },
+                            onUpdateAssistant = onUpdateAssistant,
+                        )
+                    }
+
+                    // Extensions (Quick Messages + Prompt Injections + Skills)
+                    val modeAndLorebookCount =
+                        if (assistant.allowConversationPromptInjection) {
+                            conversation.modeInjectionIds.size + conversation.lorebookIds.size
+                        } else {
+                            assistant.modeInjectionIds.size + assistant.lorebookIds.size
+                        }
+                    val activeCount =
+                        assistant.quickMessageIds.size +
+                            modeAndLorebookCount +
+                            assistant.enabledSkills.size
+                    SegmentedListItem(
+                        onClick = { page = FilesPickerPage.EXTENSIONS },
+                        shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Package,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                                size = 32.dp,
+                                iconSize = 16.dp,
+                            )
+                        },
+                        trailingContent = {
+                            if (activeCount > 0) {
+                                CountBadge(count = activeCount)
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.assistant_page_tab_extensions))
+                    }
+
+                    // Compress History Button
+                    SegmentedListItem(
+                        onClick = { onShowCompressDialogChange(true) },
+                        shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Package01,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                size = 32.dp,
+                                iconSize = 16.dp,
+                            )
+                        },
+                        trailingContent = {
+                            if (conversation.messageNodes.isNotEmpty()) {
+                                Text(
+                                    text = stringResource(R.string.chat_page_message_count, conversation.messageNodes.size),
+                                    style = MaterialTheme.typography.labelMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.chat_page_compress_context))
+                    }
+
+                    // Auto-compress context
+                    SegmentedListItem(
+                        onClick = { onShowAutoCompressDialogChange(true) },
+                        shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.ArrowDown01,
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                                size = 32.dp,
+                                iconSize = 16.dp,
+                            )
+                        },
+                        supportingContent = {
+                            Text(stringResource(R.string.setting_model_page_auto_compress_desc))
+                        },
+                        trailingContent = {
+                            Switch(
+                                checked = settings.autoCompressEnabled,
+                                onCheckedChange = { onShowAutoCompressDialogChange(true) },
+                            )
+                        },
+                    ) {
+                        Text(stringResource(R.string.setting_model_page_auto_compress))
+                    }
+                }
             }
         }
     }
 
-    // Injection Bottom Sheet
+    if (showCwdSheet && boundWorkspace != null) {
+        WorkspaceCwdPickerSheet(
+            workspaceId = boundWorkspace.id,
+            currentCwd = conversation.workspaceCwd,
+            onSelectCwd = { newCwd ->
+                onUpdateConversation(conversation.copy(workspaceCwd = newCwd))
+            },
+            onDismiss = { showCwdSheet = false },
+        )
+    }
+
+    // Injection Bottom Sheet (fallback if triggered externally)
     if (showInjectionSheet) {
         InjectionQuickConfigSheet(
             conversation = conversation,
@@ -380,12 +436,15 @@ internal fun FilesPicker(
 
     // Compress Context Dialog
     if (showCompressDialog) {
-        CompressContextDialog(onDismiss = {
-            onShowCompressDialogChange(false)
-            onDismiss()
-        }, onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
-            onCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
-        })
+        CompressContextDialog(
+            onDismiss = {
+                onShowCompressDialogChange(false)
+                onDismiss()
+            },
+            onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
+                onCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
+            },
+        )
     }
 }
 
@@ -394,6 +453,7 @@ private fun WorkspacePickerListItem(
     assistant: Assistant,
     conversation: Conversation,
     workspaces: List<WorkspaceEntity>,
+    shapes: ListItemShapes,
     onUpdateAssistant: (Assistant) -> Unit,
     onUpdateConversation: (Conversation) -> Unit,
     onNavigateToDetail: (String) -> Unit,
@@ -406,15 +466,17 @@ private fun WorkspacePickerListItem(
             workspaces.find { it.id == assistant.workspaceId?.toString() }
         }
 
-    ListItem(
+    SegmentedListItem(
+        onClick = { showSheet = true },
+        shapes = shapes,
         leadingContent = {
-            Icon(
-                imageVector = HugeIcons.Codesandbox,
-                contentDescription = stringResource(R.string.assistant_page_workspace),
+            CardGroupIcon(
+                icon = HugeIcons.Codesandbox,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                size = 32.dp,
+                iconSize = 16.dp,
             )
-        },
-        headlineContent = {
-            Text(stringResource(R.string.assistant_page_workspace))
         },
         supportingContent = {
             Text(
@@ -445,15 +507,9 @@ private fun WorkspacePickerListItem(
                 }
             }
         },
-        colors =
-            ListItemDefaults.colors(
-                containerColor = MaterialTheme.colorScheme.surfaceContainer,
-            ),
-        modifier =
-            Modifier
-                .clip(MaterialTheme.shapes.large)
-                .clickable { showSheet = true },
-    )
+    ) {
+        Text(stringResource(R.string.assistant_page_workspace))
+    }
 
     if (showSheet) {
         WorkspaceSelectSheet(
@@ -475,6 +531,58 @@ private fun WorkspacePickerListItem(
             },
             onDismiss = { showSheet = false },
         )
+    }
+}
+
+@Composable
+private fun ExtensionPickerPage(
+    conversation: Conversation,
+    assistant: Assistant,
+    settings: Settings,
+    onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateConversation: (Conversation) -> Unit,
+    onBack: () -> Unit,
+    onDismissAll: () -> Unit,
+) {
+    val navController = LocalNavController.current
+
+    Column(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .fillMaxHeight(0.75f)
+                .padding(horizontal = 16.dp),
+    ) {
+        SheetHeader(
+            title = stringResource(R.string.assistant_page_tab_extensions),
+            navigationIcon = {
+                IconButton(onClick = onBack) {
+                    Icon(HugeIcons.ArrowLeft01, contentDescription = stringResource(R.string.back))
+                }
+            },
+        )
+        ExtensionSelector(
+            assistant = assistant,
+            settings = settings,
+            onUpdate = onUpdateAssistant,
+            conversation = conversation,
+            onUpdateConversation = onUpdateConversation,
+            modifier = Modifier.weight(1f),
+            onNavigateToQuickMessages = {
+                onDismissAll()
+                navController.navigate(Screen.QuickMessages)
+            },
+            onNavigateToPrompts = {
+                onDismissAll()
+                navController.navigate(Screen.Prompts)
+            },
+            onNavigateToSkills = {
+                onDismissAll()
+                navController.navigate(Screen.Skills)
+            },
+        )
+
+        Spacer(modifier = Modifier.height(16.dp))
     }
 }
 
@@ -532,109 +640,95 @@ private fun InjectionQuickConfigSheet(
     }
 }
 
-@Composable
-private fun ImagePickButton(onClick: () -> Unit = {}) {
-    BigIconTextButton(icon = {
-        Icon(HugeIcons.Image02, null)
-    }, text = {
-        Text(stringResource(R.string.photo))
-    }) {
-        onClick()
-    }
-}
+private class AttachmentAction(
+    val icon: ImageVector,
+    @param:StringRes val label: Int,
+    val onClick: () -> Unit,
+)
 
 @Composable
-fun TakePicButton(onLaunchCamera: () -> Unit = {}) {
-    BigIconTextButton(icon = {
-        Icon(HugeIcons.Camera01, null)
-    }, text = {
-        Text(stringResource(R.string.take_picture))
-    }) {
-        onLaunchCamera()
-    }
-}
-
-@Composable
-fun VideoPickButton(onClick: () -> Unit = {}) {
-    BigIconTextButton(icon = {
-        Icon(HugeIcons.Video01, null)
-    }, text = {
-        Text(stringResource(R.string.video))
-    }) {
-        onClick()
-    }
-}
-
-@Composable
-fun AudioPickButton(onClick: () -> Unit = {}) {
-    BigIconTextButton(icon = {
-        Icon(HugeIcons.MusicNote03, null)
-    }, text = {
-        Text(stringResource(R.string.audio))
-    }) {
-        onClick()
-    }
-}
-
-@Composable
-fun FilePickButton(onClick: () -> Unit = {}) {
-    BigIconTextButton(icon = {
-        Icon(HugeIcons.Files02, null)
-    }, text = {
-        Text(stringResource(R.string.upload_file))
-    }) {
-        onClick()
-    }
-}
-
-@Composable
-private fun BigIconTextButton(
+private fun AttachmentGrid(
+    actions: List<AttachmentAction>,
     modifier: Modifier = Modifier,
-    icon: @Composable () -> Unit,
-    text: @Composable () -> Unit,
-    onClick: () -> Unit,
 ) {
-    val interactionSource = remember { MutableInteractionSource() }
+    val perRow = if (actions.size <= 4) actions.size else (actions.size + 1) / 2
     Column(
-        modifier =
-            modifier
-                .clip(RoundedCornerShape(8.dp))
-                .clickable(
-                    interactionSource = interactionSource,
-                    indication = LocalIndication.current,
-                    onClick = onClick,
-                ).semantics {
-                    role = Role.Button
-                }.wrapContentWidth(),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(2.dp),
+        modifier = modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Surface(
-            color = MaterialTheme.colorScheme.surfaceContainer,
-            shape = RoundedCornerShape(8.dp),
-        ) {
-            Box(
-                modifier = Modifier.padding(horizontal = 32.dp, vertical = 16.dp),
+        actions.chunked(perRow).fastForEach { row ->
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                icon()
+                row.fastForEach { action ->
+                    AttachmentTile(
+                        action = action,
+                        modifier = Modifier.weight(1f),
+                    )
+                }
             }
         }
-        ProvideTextStyle(MaterialTheme.typography.bodySmall) {
-            text()
+    }
+}
+
+@Composable
+private fun AttachmentTile(
+    action: AttachmentAction,
+    modifier: Modifier = Modifier,
+) {
+    FilledTonalButton(
+        onClick = action.onClick,
+        shapes =
+            ButtonDefaults.shapes(
+                shape = MaterialTheme.shapes.extraLarge,
+                pressedShape = MaterialTheme.shapes.medium,
+            ),
+        modifier = modifier.heightIn(min = 78.dp),
+        contentPadding = PaddingValues(horizontal = 8.dp, vertical = 14.dp),
+    ) {
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            Icon(
+                imageVector = action.icon,
+                contentDescription = null,
+                modifier = Modifier.size(24.dp),
+            )
+            Text(
+                text = stringResource(action.label),
+                autoSize = TextAutoSize.StepBased(minFontSize = 11.sp, maxFontSize = 13.sp),
+                maxLines = 1,
+                softWrap = false,
+                overflow = TextOverflow.Ellipsis,
+            )
         }
+    }
+}
+
+@Composable
+internal fun CountBadge(count: Int) {
+    Badge(
+        containerColor = MaterialTheme.colorScheme.primaryContainer,
+        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+    ) {
+        Text(count.toString())
     }
 }
 
 @Preview(showBackground = true)
 @Composable
-private fun BigIconTextButtonPreview() {
-    Row(
+private fun AttachmentGridPreview() {
+    AttachmentGrid(
+        actions =
+            listOf(
+                AttachmentAction(HugeIcons.Camera01, R.string.take_picture) {},
+                AttachmentAction(HugeIcons.Image02, R.string.photo) {},
+                AttachmentAction(HugeIcons.Video01, R.string.video) {},
+                AttachmentAction(HugeIcons.MusicNote03, R.string.audio) {},
+                AttachmentAction(HugeIcons.Files02, R.string.upload_file) {},
+            ),
         modifier = Modifier.padding(16.dp),
-    ) {
-        BigIconTextButton(icon = {
-            Icon(HugeIcons.Image02, null)
-        }, text = {
-            Text(stringResource(R.string.photo))
-        }) {}
-    }
+    )
 }

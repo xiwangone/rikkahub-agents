@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -13,7 +14,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
@@ -21,19 +22,15 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
+import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.MultiChoiceSegmentedButtonRow
 import androidx.compose.material3.OutlinedTextField
-import androidx.compose.material3.SecondaryTabRow
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Tab
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
@@ -45,7 +42,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
@@ -59,16 +56,35 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowDown01
-import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Package01
+import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.PagerTab
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
-import me.rerere.rikkahub.utils.plus
+
+private enum class ModelFormTab(
+    override val icon: ImageVector,
+    @param:StringRes private val labelRes: Int,
+) : PagerTab {
+    BASIC(HugeIcons.Package01, R.string.setting_provider_page_basic_settings),
+    ADVANCED(HugeIcons.Settings03, R.string.setting_provider_page_advanced_settings),
+    BUILT_IN_TOOLS(HugeIcons.Tools, R.string.setting_page_built_in_tools);
+
+    override val label: String
+        @Composable get() = stringResource(labelRes)
+}
 
 @Composable
 internal fun ModelSettingsForm(
@@ -77,8 +93,7 @@ internal fun ModelSettingsForm(
     isEdit: Boolean,
     parentProvider: ProviderSetting? = null,
 ) {
-    val pagerState = rememberPagerState { 3 }
-    val scope = rememberCoroutineScope()
+    val pagerState = rememberPagerState { ModelFormTab.entries.size }
 
     fun setModelId(id: String) {
         val inputModality = ModelRegistry.MODEL_INPUT_MODALITIES.getData(id)
@@ -96,46 +111,17 @@ internal fun ModelSettingsForm(
     }
 
     Column {
-        SecondaryTabRow(
-            selectedTabIndex = pagerState.currentPage,
-            containerColor = Color.Transparent,
-        ) {
-            Tab(
-                selected = pagerState.currentPage == 0,
-                onClick = {
-                    scope.launch {
-                        pagerState.animateScrollToPage(0)
-                    }
-                },
-                text = { Text(stringResource(R.string.setting_provider_page_basic_settings)) },
-            )
-            Tab(
-                selected = pagerState.currentPage == 1,
-                onClick = {
-                    scope.launch {
-                        pagerState.animateScrollToPage(1)
-                    }
-                },
-                text = { Text(stringResource(R.string.setting_provider_page_advanced_settings)) },
-            )
-            Tab(
-                selected = pagerState.currentPage == 2,
-                onClick = {
-                    scope.launch {
-                        pagerState.animateScrollToPage(2)
-                    }
-                },
-                text = { Text(stringResource(R.string.setting_page_built_in_tools)) },
-            )
-        }
+        PagerTabs(
+            pagerState = pagerState,
+            tabs = ModelFormTab.entries,
+        )
 
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxWidth(),
         ) { page ->
-            when (page) {
-                0 -> {
-                    // 基本设置页面
+            when (ModelFormTab.entries[page]) {
+                ModelFormTab.BASIC -> {
                     Column(
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                         modifier =
@@ -215,14 +201,13 @@ internal fun ModelSettingsForm(
                     }
                 }
 
-                1 -> {
-                    // 高级设置页面
+                ModelFormTab.ADVANCED -> {
                     Column(
                         modifier =
                             Modifier
                                 .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
-                                .padding(16.dp),
+                                .padding(vertical = 16.dp),
                         verticalArrangement = Arrangement.spacedBy(16.dp),
                     ) {
                         ProviderOverrideSettings(
@@ -249,8 +234,7 @@ internal fun ModelSettingsForm(
                     }
                 }
 
-                2 -> {
-                    // 内置工具页面
+                ModelFormTab.BUILT_IN_TOOLS -> {
                     BuiltInToolsSettings(
                         tools = model.tools,
                         onUpdateTools = { tools ->
@@ -330,11 +314,10 @@ internal fun AddModelButton(
                     contentDescription = stringResource(R.string.setting_provider_page_add_model),
                 )
                 AnimatedVisibility(expanded) {
-                    Spacer(modifier = Modifier.size(8.dp))
-                    Text(
-                        stringResource(R.string.setting_provider_page_add_new_model),
-                        style = MaterialTheme.typography.bodyLarge,
-                    )
+                    Row {
+                        Spacer(modifier = Modifier.size(8.dp))
+                        Text(stringResource(R.string.setting_provider_page_add_new_model))
+                    }
                 }
             }
         }
@@ -405,7 +388,7 @@ internal fun AddModelButton(
                         ) {
                             Text(stringResource(R.string.cancel))
                         }
-                        TextButton(
+                        Button(
                             onClick = {
                                 if (modelState.modelId.isNotBlank() && modelState.displayName.isNotBlank()) {
                                     dialogState.confirm()
@@ -462,7 +445,6 @@ internal fun ModelPicker(
                         .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                // 标题栏和添加所有按钮
                 Row(
                     modifier =
                         Modifier
@@ -508,31 +490,28 @@ internal fun ModelPicker(
                         Modifier
                             .fillMaxWidth()
                             .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                     contentPadding = PaddingValues(8.dp),
                 ) {
-                    items(filteredModels, key = { it.id }) {
-                        Card {
+                    itemsIndexed(filteredModels, key = { _, item -> item.id }) { index, it ->
+                        Surface(
+                            shape = cardGroupItemShape(index, filteredModels.size),
+                            color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                        ) {
                             Row(
                                 verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement =
-                                    Arrangement.spacedBy(
-                                        8.dp,
-                                    ),
+                                horizontalArrangement = Arrangement.spacedBy(12.dp),
                                 modifier =
                                     Modifier
                                         .fillMaxWidth()
-                                        .padding(8.dp),
+                                        .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                             ) {
                                 AutoAIIcon(
                                     it.modelId,
-                                    Modifier.size(32.dp),
+                                    Modifier.size(30.dp),
                                 )
                                 Column(
-                                    verticalArrangement =
-                                        Arrangement.spacedBy(
-                                            4.dp,
-                                        ),
+                                    verticalArrangement = Arrangement.spacedBy(4.dp),
                                     modifier = Modifier.weight(1f),
                                 ) {
                                     Text(
@@ -553,24 +532,21 @@ internal fun ModelPicker(
                                         )
                                     }
                                 }
-                                IconButton(
-                                    onClick = {
-                                        if (selectedModels.any { model -> model.modelId == it.modelId }) {
-                                            // 从selectedModels中计算出要删除的model，因为删除需要id匹配，而不是ModelId
+                                val added = selectedModels.any { model -> model.modelId == it.modelId }
+                                FilledTonalIconToggleButton(
+                                    checked = added,
+                                    onCheckedChange = { checked ->
+                                        if (checked) {
+                                            onModelSelected(it)
+                                        } else {
                                             onModelDeselected(
                                                 selectedModels.firstOrNull { model -> model.modelId == it.modelId }
                                                     ?: it,
                                             )
-                                        } else {
-                                            onModelSelected(it)
                                         }
                                     },
                                 ) {
-                                    if (selectedModels.any { model -> model.modelId == it.modelId }) {
-                                        Icon(HugeIcons.Cancel01, null)
-                                    } else {
-                                        Icon(HugeIcons.Add01, null)
-                                    }
+                                    Icon(if (added) HugeIcons.Tick01 else HugeIcons.Add01, null)
                                 }
                             }
                         }
@@ -586,6 +562,7 @@ internal fun ModelPicker(
                     placeholder = {
                         Text(stringResource(R.string.setting_provider_page_filter_example))
                     },
+                    singleLine = true,
                 )
             }
         }
@@ -618,28 +595,22 @@ private fun ModelTypeSelector(
         stringResource(R.string.setting_provider_page_model_type),
         style = MaterialTheme.typography.titleSmall,
     )
-    SingleChoiceSegmentedButtonRow(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        ModelType.entries.forEachIndexed { index, type ->
-            SegmentedButton(
-                shape = SegmentedButtonDefaults.itemShape(index, ModelType.entries.size),
-                label = {
-                    Text(
-                        text =
-                            stringResource(
-                                when (type) {
-                                    ModelType.CHAT -> R.string.setting_provider_page_chat_model
-                                    ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
-                                    ModelType.IMAGE -> R.string.setting_provider_page_image_model
-                                },
-                            ),
-                    )
-                },
-                selected = selectedType == type,
-                onClick = { onTypeSelected(type) },
-            )
-        }
+    ConnectedChoiceButtons(
+        options = ModelType.entries,
+        selected = selectedType,
+        onSelect = onTypeSelected,
+    ) { type, selected ->
+        ConnectedChoiceLabel(
+            text =
+                stringResource(
+                    when (type) {
+                        ModelType.CHAT -> R.string.setting_provider_page_chat_model
+                        ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
+                        ModelType.IMAGE -> R.string.setting_provider_page_image_model
+                    },
+                ),
+            selected = selected,
+        )
     }
 }
 
@@ -656,70 +627,57 @@ private fun ModelModalitySelector(
             stringResource(R.string.setting_provider_page_input_modality),
             style = MaterialTheme.typography.titleSmall,
         )
-        MultiChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Modality.entries.forEachIndexed { index, modality ->
-                SegmentedButton(
-                    checked = modality in inputModalities,
-                    shape = SegmentedButtonDefaults.itemShape(index, Modality.entries.size),
-                    onCheckedChange = {
-                        if (it) {
-                            onUpdateInputModalities(inputModalities + modality)
-                        } else {
-                            onUpdateInputModalities(inputModalities - modality)
-                        }
-                    },
-                ) {
-                    Text(
-                        text =
-                            stringResource(
-                                when (modality) {
-                                    Modality.TEXT -> R.string.setting_provider_page_text
-                                    Modality.IMAGE -> R.string.setting_provider_page_image
-                                },
-                            ),
-                    )
-                }
-            }
+        ConnectedMultiChoiceButtons(
+            options = Modality.entries,
+            selected = inputModalities,
+            onToggle = { modality, checked ->
+                onUpdateInputModalities(if (checked) inputModalities + modality else inputModalities - modality)
+            },
+        ) { modality, selected ->
+            ConnectedChoiceLabel(
+                text =
+                    stringResource(
+                        when (modality) {
+                            Modality.TEXT -> R.string.setting_provider_page_text
+                            Modality.IMAGE -> R.string.setting_provider_page_image
+                        },
+                    ),
+                selected = selected,
+                icon = HugeIcons.Tick01,
+            )
         }
 
         Text(
             stringResource(R.string.setting_provider_page_output_modality),
             style = MaterialTheme.typography.titleSmall,
         )
-        MultiChoiceSegmentedButtonRow(
-            modifier = Modifier.fillMaxWidth(),
-        ) {
-            Modality.entries.forEachIndexed { index, modality ->
-                SegmentedButton(
-                    checked = modality in outputModalities,
-                    shape = SegmentedButtonDefaults.itemShape(index, Modality.entries.size),
-                    onCheckedChange = {
-                        if (it) {
-                            onUpdateOutputModalities(outputModalities + modality)
-                        } else {
-                            onUpdateOutputModalities(outputModalities - modality)
-                        }
-                    },
-                ) {
-                    Text(
-                        text =
-                            stringResource(
-                                when (modality) {
-                                    Modality.TEXT -> R.string.setting_provider_page_text
-                                    Modality.IMAGE -> R.string.setting_provider_page_image
-                                },
-                            ),
-                    )
-                }
-            }
+        ConnectedMultiChoiceButtons(
+            options = Modality.entries,
+            selected = outputModalities,
+            onToggle = { modality, checked ->
+                onUpdateOutputModalities(if (checked) outputModalities + modality else outputModalities - modality)
+            },
+        ) { modality, selected ->
+            ConnectedChoiceLabel(
+                text =
+                    stringResource(
+                        when (modality) {
+                            Modality.TEXT -> R.string.setting_provider_page_text
+                            Modality.IMAGE -> R.string.setting_provider_page_image
+                        },
+                    ),
+                selected = selected,
+                icon = HugeIcons.Tick01,
+            )
         }
     }
 }
 
 @Composable
-private fun ModelContextWindowEditor(contextLength: Int?, onChange: (Int?) -> Unit) {
+private fun ModelContextWindowEditor(
+    contextLength: Int?,
+    onChange: (Int?) -> Unit,
+) {
     var customValue by remember(contextLength) { mutableStateOf(contextLength?.toString().orEmpty()) }
     Text(
         stringResource(R.string.setting_provider_page_context_window_title),
@@ -753,42 +711,27 @@ fun ModalAbilitySelector(
         stringResource(R.string.setting_provider_page_abilities),
         style = MaterialTheme.typography.titleSmall,
     )
-    MultiChoiceSegmentedButtonRow(
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        ModelAbility.entries.forEachIndexed { index, ability ->
-            SegmentedButton(
-                checked = ability in abilities,
-                shape = SegmentedButtonDefaults.itemShape(index, ModelAbility.entries.size),
-                onCheckedChange = {
-                    if (it) {
-                        onUpdateAbilities(abilities + ability)
-                    } else {
-                        onUpdateAbilities(abilities - ability)
-                    }
-                },
-                label = {
-                    Text(
-                        text =
-                            stringResource(
-                                when (ability) {
-                                    ModelAbility.TOOL -> R.string.setting_provider_page_tool
-                                    ModelAbility.REASONING -> R.string.setting_provider_page_reasoning
-                                },
-                            ),
-                    )
-                },
-            )
-        }
+    ConnectedMultiChoiceButtons(
+        options = ModelAbility.entries,
+        selected = abilities,
+        onToggle = { ability, checked ->
+            onUpdateAbilities(if (checked) abilities + ability else abilities - ability)
+        },
+    ) { ability, selected ->
+        ConnectedChoiceLabel(
+            text =
+                stringResource(
+                    when (ability) {
+                        ModelAbility.TOOL -> R.string.setting_provider_page_tool
+                        ModelAbility.REASONING -> R.string.setting_provider_page_reasoning
+                    },
+                ),
+            selected = selected,
+            icon = HugeIcons.Tick01,
+        )
     }
 }
 
-/**
- * Prefer capabilities auto-detected at fetch time (OpenRouter's /models populates
- * supportedParameters, modalities, abilities and the IMAGE model type); only fall back to
- * the static ModelRegistry lookup for providers that return bare model ids. Without this,
- * the registry lookup clobbered OpenRouter's detected image/tool/reasoning capabilities.
- */
 private fun Model.enrichCapabilities(): Model =
     if (supportedParameters.isNotEmpty()) {
         this
