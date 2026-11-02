@@ -4178,4 +4178,11 @@
     <string name="copied_to_clipboard">クリップボードにコピーしました</string>
     <string name="setting_media_page_asset_storage">アセットストレージ</string>
     <string name="setting_page_media_desc">画像と動画生成サービスを設定します</string>
+    <string name="search_picker_off">オフ</string>
+    <string name="search_picker_status_off">オフ</string>
+    <string name="search_picker_off_description">ウェブ検索を使用しない</string>
+    <string name="setting_page_qq_group_1">RikkaHub グループ 1</string>
+    <string name="setting_page_qq_group_2">RikkaHub グループ 2</string>
+    <string name="setting_page_qq_group_3">RikkaHub グループ 3</string>
+    <string name="setting_page_douyin_group_1">Douyin グループ 1</string>
 </resources>

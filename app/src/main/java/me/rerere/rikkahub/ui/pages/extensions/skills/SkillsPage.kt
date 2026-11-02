@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.extensions.skills
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -13,12 +12,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -28,8 +26,11 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SmallFloatingActionButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
+import androidx.compose.material3.TextField
+import androidx.compose.material3.TextFieldDefaults
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -39,27 +40,35 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.ImeAction
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.composables.icons.lucide.Globe
 import com.composables.icons.lucide.Lucide
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Download01
-import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Puzzle
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.files.SkillFrontmatterParser
 import me.rerere.rikkahub.data.files.SkillMetadata
+import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -134,55 +143,62 @@ fun SkillsPage() {
                     ),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            item {
-                OutlinedTextField(
-                    value = searchQuery,
-                    onValueChange = { searchQuery = it },
-                    modifier = Modifier.fillMaxWidth(),
-                    singleLine = true,
-                    label = { Text(stringResource(R.string.skills_page_search)) },
-                    keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
-                )
-            }
             if (skills.isEmpty()) {
                 item {
-                    Column(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(vertical = 48.dp),
-                        horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Puzzle,
-                            contentDescription = null,
-                            modifier = Modifier.size(48.dp),
-                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = stringResource(R.string.skills_page_empty_title),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = stringResource(R.string.skills_page_empty_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                    ExtensionEmptyState(
+                        message = stringResource(R.string.skills_page_empty_title),
+                        description = stringResource(R.string.skills_page_empty_hint),
+                        icon = HugeIcons.Puzzle,
+                    )
+                }
+            }
+
+            if (skills.isNotEmpty()) {
+                item(key = "search") {
+                    TextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.skills_page_search)) },
+                        leadingIcon = {
+                            Icon(HugeIcons.Search01, contentDescription = null)
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        HugeIcons.Cancel01,
+                                        contentDescription = stringResource(R.string.cancel),
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Search),
+                        shape = CircleShape,
+                        colors =
+                            TextFieldDefaults.colors(
+                                focusedContainerColor = MaterialTheme.colorScheme.surfaceBright,
+                                unfocusedContainerColor = MaterialTheme.colorScheme.surfaceBright,
+                                focusedIndicatorColor = Color.Transparent,
+                                unfocusedIndicatorColor = Color.Transparent,
+                            ),
+                    )
                 }
             }
 
             if (skills.isNotEmpty() && visibleSkills.isEmpty()) {
-                item {
+                item(key = "no_result") {
                     Text(
                         text = stringResource(R.string.skills_page_search_empty),
-                        modifier = Modifier.fillMaxWidth().padding(vertical = 24.dp),
+                        style = MaterialTheme.typography.bodyMedium,
+                        modifier = Modifier.fillMaxWidth().padding(vertical = 32.dp),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
                     )
                 }
             }
+
             items(visibleSkills, key = { it.skillDir.absolutePath }) { skill ->
                 SkillCard(
                     skill = skill,
@@ -207,9 +223,6 @@ fun SkillsPage() {
         )
     }
 
-    // Phase 19C — local-file picker. Lifted to screen scope so the launcher survives
-    // dialog dismiss/recreate (per Compose docs: `rememberLauncherForActivityResult`
-    // belongs at the highest stable composable, NOT inside a dialog body).
     val openDocumentLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
@@ -312,19 +325,17 @@ fun SkillsPage() {
     }
 }
 
-
 @Composable
 private fun SkillCard(
     skill: SkillMetadata,
     onClick: () -> Unit,
     onDelete: () -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Card(
+    Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Row(
             modifier =
@@ -333,33 +344,41 @@ private fun SkillCard(
                     .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Icon(
-                imageVector = HugeIcons.Puzzle,
-                contentDescription = null,
-                modifier = Modifier.size(20.dp),
-                tint = MaterialTheme.colorScheme.primary,
-            )
+            CardGroupIcon(HugeIcons.Puzzle)
             Column(
                 modifier =
                     Modifier
                         .weight(1f)
-                        .padding(start = 12.dp),
+                        .padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
                 Text(
                     text = skill.name,
-                    style = MaterialTheme.typography.titleSmallEmphasized,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 when (skill.source) {
-                    me.rerere.rikkahub.data.files.SkillSource.BUILTIN -> Text(stringResource(R.string.skill_builtin_read_only), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
-                    me.rerere.rikkahub.data.files.SkillSource.USER_OVERRIDE -> Text(stringResource(R.string.skill_builtin_user_override), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.tertiary)
+                    me.rerere.rikkahub.data.files.SkillSource.BUILTIN ->
+                        Text(
+                            stringResource(R.string.skill_builtin_read_only),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
+                    me.rerere.rikkahub.data.files.SkillSource.USER_OVERRIDE ->
+                        Text(
+                            stringResource(R.string.skill_builtin_user_override),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                        )
                     me.rerere.rikkahub.data.files.SkillSource.USER -> Unit
                 }
                 Text(
                     text = skill.description,
-                    style = MaterialTheme.typography.bodySmall,
+                    style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 if (!skill.compatibility.isNullOrBlank()) {
                     Text(
@@ -369,32 +388,18 @@ private fun SkillCard(
                     )
                 }
             }
-            Box {
-                IconButton(onClick = { menuExpanded = true }) {
-                    Icon(
-                        imageVector = HugeIcons.MoreVertical,
-                        contentDescription = stringResource(R.string.skills_page_more_actions),
-                    )
-                }
-                DropdownMenu(
-                    expanded = menuExpanded,
-                    onDismissRequest = { menuExpanded = false },
-                ) {
-                    if (skill.source != me.rerere.rikkahub.data.files.SkillSource.BUILTIN) DropdownMenuItem(
-                        text = { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) },
-                        leadingIcon = {
-                            Icon(
-                                imageVector = HugeIcons.Delete01,
-                                contentDescription = null,
-                                tint = MaterialTheme.colorScheme.error,
-                            )
-                        },
-                        onClick = {
-                            menuExpanded = false
-                            onDelete()
-                        },
-                    )
-                }
+            if (skill.source != me.rerere.rikkahub.data.files.SkillSource.BUILTIN) {
+                ItemActionMenu(
+                    actions =
+                        listOf(
+                            ItemAction(
+                                text = stringResource(R.string.delete),
+                                icon = HugeIcons.Delete01,
+                                destructive = true,
+                                onClick = onDelete,
+                            ),
+                        ),
+                )
             }
         }
     }
@@ -490,9 +495,6 @@ private fun ImportSkillDialog(
                     keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                     modifier = Modifier.fillMaxWidth(),
                 )
-                // Phase 19C — secondary action that defers to the screen-level file
-                // launcher. The dialog passes through; SkillsPage handles the SAF
-                // OpenDocument result and routes to the VM.
                 OutlinedButton(
                     onClick = onPickFile,
                     enabled = !loading,
@@ -531,11 +533,6 @@ private fun ImportSkillDialog(
     )
 }
 
-/**
- * Map a VM-emitted error key (one of the `skill_import_*` resource names) to its
- * localized string. We use this rather than passing string-resource IDs out of the VM
- * because the VM has no `Context` callback path for stringResource lookups.
- */
 private fun mapImportErrorKeyToString(
     context: android.content.Context,
     key: String,
@@ -567,5 +564,5 @@ private fun mapImportErrorKeyToString(
 
         else -> {
             key
-        } // already a free-form message (e.g. importer's "html_response" detail)
+        }
     }

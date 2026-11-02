@@ -4178,4 +4178,11 @@
     <string name="copied_to_clipboard">클립보드에 복사됨</string>
     <string name="setting_media_page_asset_storage">에셋 스토리지</string>
     <string name="setting_page_media_desc">이미지 및 비디오 생성 서비스 설정</string>
+    <string name="search_picker_off">끄기</string>
+    <string name="search_picker_status_off">꺼짐</string>
+    <string name="search_picker_off_description">웹 검색을 사용하지 않음</string>
+    <string name="setting_page_qq_group_1">RikkaHub 그룹 1</string>
+    <string name="setting_page_qq_group_2">RikkaHub 그룹 2</string>
+    <string name="setting_page_qq_group_3">RikkaHub 그룹 3</string>
+    <string name="setting_page_douyin_group_1">Douyin 그룹 1</string>
 </resources>

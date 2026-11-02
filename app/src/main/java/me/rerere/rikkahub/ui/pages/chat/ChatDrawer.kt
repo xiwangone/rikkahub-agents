@@ -13,19 +13,20 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
+import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.ModalDrawerSheet
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.SegmentedListItem
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.adaptive.currentWindowDpSize
@@ -65,10 +66,9 @@ import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.shouldShowUpdateReminders
-import me.rerere.rikkahub.data.datastore.Settings
-import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -90,17 +90,6 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
-/**
- * 侧边栏抽屉：会话列表、分组折叠、搜索、文件夹、删除/重命名/置顶、清理等入口。
- *
- * 本文件较长（1000+ 行）。**注意本文件里有两个 ViewModel**：
- *  - `vm: ChatVM`（参数传入）—— 聊天页主体状态；
- *  - `drawerVm: ChatDrawerVM`（本文件内创建）—— 会话列表分页流、折叠状态、清理等。
- *  改调用前务必确认用的是哪一个（两者的成员不同）。
- *
- * 段落（按符号名检索）：会话列表渲染 [ConversationList]；分组与折叠状态在 ChatDrawerVM；
- * 重命名/移动/删除等对话框在本文件下半部分；会话列表项组件见 `ConversationList.kt`。
- */
 @Composable
 fun ChatDrawerContent(
     navController: Navigator,
@@ -113,7 +102,6 @@ fun ChatDrawerContent(
     val toaster = LocalToaster.current
     val isPlayStore = rememberIsPlayStoreVersion()
     val repo = koinInject<ConversationRepository>()
-    // 删除对话时清服务端会话路径映射（防止已删对话被映射残留接回）
     val sessionPathStore = koinInject<SessionPathStore>()
 
     val activity = context as ComponentActivity
@@ -123,8 +111,6 @@ fun ChatDrawerContent(
     val folders by drawerVm.folders.collectAsStateWithLifecycle()
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     val sortByCreatedAt by drawerVm.sortByCreatedAt.collectAsStateWithLifecycle()
-    // 列表折叠状态：子代理分组展开态 + 日期分组折叠集合。
-    // 注意：这里是“会话列表”相关的 UI 状态，必须从 drawerVm 取（不是 vm: ChatVM）。
     val subAgentExpanded by drawerVm.subAgentExpanded.collectAsStateWithLifecycle()
     val collapsedDates by drawerVm.collapsedDates.collectAsStateWithLifecycle()
     val conversationListState =
@@ -147,25 +133,22 @@ fun ChatDrawerContent(
         initialValue = emptyMap(),
     )
 
-    // 昵称编辑状态
     val nicknameEditState =
         useEditState<String> { newNickname ->
-            vm.updateSettings { current ->
-            current.copy(
+            vm.updateSettings { currentSettings ->
+                currentSettings.copy(
                     displaySetting =
-                        current.displaySetting.copy(
+                        currentSettings.displaySetting.copy(
                             userNickname = newNickname,
                         ),
                 )
-        }
+            }
         }
 
-    // 移动对话状态
     var showMoveToAssistantSheet by remember { mutableStateOf(false) }
     var conversationToMove by remember { mutableStateOf<Conversation?>(null) }
     val bottomSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
 
-    // 文件夹相关状态
     var showMoveToFolderSheet by remember { mutableStateOf(false) }
     var conversationToMoveFolder by remember { mutableStateOf<Conversation?>(null) }
     val folderSheetState = rememberBottomSheetState(initialValue = SheetValue.Hidden)
@@ -174,15 +157,12 @@ fun ChatDrawerContent(
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
     var conversationToRename by remember { mutableStateOf<Conversation?>(null) }
 
-    // Menu popup 状态
     var showMenuPopup by remember { mutableStateOf(false) }
 
-    // 矮屏（手表、横屏手机）上固定的抽屉顶部会把会话列表挤没 → 顶部改为跟着列表一起滚
-    @Suppress("DEPRECATION") // 替代 API 要等 Compose 升级，取法与聊天页的大屏判定一致
+    @Suppress("DEPRECATION")
     val headerWindowSize = currentWindowDpSize()
     val scrollableHeader = headerWindowSize.height < 640.dp
 
-    // 抽屉顶部：更新/备份提醒、用户信息、常用入口、文件夹栏、排序按钮
     val drawerHeader: @Composable () -> Unit = {
         Column(
             modifier = Modifier.fillMaxWidth(),
@@ -197,7 +177,6 @@ fun ChatDrawerContent(
                 onClick = { navController.navigate(Screen.Backup) },
             )
 
-            // 用户头像和昵称自定义区域
             Row(
                 modifier =
                     Modifier
@@ -210,14 +189,14 @@ fun ChatDrawerContent(
                     name = settings.displaySetting.userNickname.ifBlank { stringResource(R.string.user_default_name) },
                     value = settings.displaySetting.userAvatar,
                     onUpdate = { newAvatar ->
-                        vm.updateSettings { current ->
-            current.copy(
+                        vm.updateSettings { currentSettings ->
+                            currentSettings.copy(
                                 displaySetting =
-                                    current.displaySetting.copy(
+                                    currentSettings.displaySetting.copy(
                                         userAvatar = newAvatar,
                                     ),
                             )
-        }
+                        }
                     },
                     modifier = Modifier.size(50.dp),
                 )
@@ -233,9 +212,7 @@ fun ChatDrawerContent(
                         Text(
                             text =
                                 settings.displaySetting.userNickname.ifBlank {
-                                    stringResource(
-                                        R.string.user_default_name,
-                                    )
+                                    stringResource(R.string.user_default_name)
                                 },
                             style = MaterialTheme.typography.titleMedium,
                             maxLines = 1,
@@ -264,30 +241,36 @@ fun ChatDrawerContent(
 
             DrawerActions(navController = navController)
 
-            FolderBar(
-                folders = folders,
-                selectedFolderId = selectedFolderId,
-                onSelect = { folderId ->
-                    if (folderId != selectedFolderId) {
-                        drawerVm.selectFolder(folderId)
-                        // 矮屏时列表第 0 项是顶部区域本身，回到首个会话要再往后一格
-                        scope.launch { conversationListState.scrollToItem(if (scrollableHeader) 1 else 0) }
-                    }
-                },
-                onCreate = { showCreateFolderDialog = true },
-                onRename = { folderToRename = it },
-                onDelete = { folderToDelete = it },
-            )
-
-            TextButton(
-                onClick = drawerVm::toggleConversationSortOrder,
-                modifier = Modifier.fillMaxWidth(),
+            Row(
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 4.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                Text(
-                    if (sortByCreatedAt) {
-                        stringResource(R.string.conversation_sort_created)
-                    } else {
-                        stringResource(R.string.conversation_sort_updated)
+                FolderBar(
+                    folders = folders,
+                    selectedFolderId = selectedFolderId,
+                    onSelect = { folderId ->
+                        if (folderId != selectedFolderId) {
+                            drawerVm.selectFolder(folderId)
+                            scope.launch { conversationListState.scrollToItem(if (scrollableHeader) 1 else 0) }
+                        }
+                    },
+                    onCreate = { showCreateFolderDialog = true },
+                    onRename = { folderToRename = it },
+                    onDelete = { folderToDelete = it },
+                    modifier = Modifier.weight(1f),
+                )
+
+                ConversationSortButton(
+                    sortByCreatedAt = sortByCreatedAt,
+                    onSortByCreatedAtChange = { wantCreated ->
+                        if (wantCreated != sortByCreatedAt) {
+                            drawerVm.toggleConversationSortOrder()
+                            scope.launch { conversationListState.scrollToItem(if (scrollableHeader) 1 else 0) }
+                        }
                     },
                 )
             }
@@ -301,7 +284,6 @@ fun ChatDrawerContent(
             modifier = Modifier.padding(8.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            // 高屏：顶部留在列表外；矮屏：顶部由 ConversationList 当作首个条目渲染，跟着滚
             if (!scrollableHeader) {
                 drawerHeader()
             }
@@ -325,7 +307,6 @@ fun ChatDrawerContent(
                 onDelete = {
                     scope.launch {
                         vm.deleteConversation(it).join()
-                        // 清理服务端会话路径映射：否则已删对话的记录残留，重进时可能把它接回来
                         runCatching { sessionPathStore.remove(it.id.toString()) }
                         conversations.refresh()
                         if (it.id == current.id) {
@@ -350,15 +331,12 @@ fun ChatDrawerContent(
                         conversations.refresh()
                     }
                 },
-                // 折叠相关的四个参数此前漏传，导致子代理分组与日期分组的标题点击均无反应
-                // （ConversationList 的同名参数有默认值 false / emptySet() / 空 lambda，漏传时静默失效）。
                 subAgentExpanded = subAgentExpanded,
                 onToggleSubAgent = { drawerVm.toggleSubAgentExpanded() },
                 collapsedDates = collapsedDates,
                 onToggleDate = { drawerVm.toggleDateCollapsed(it) },
             )
 
-            // 助手选择器
             AssistantPicker(
                 settings = settings,
                 onUpdateSettings = { transform ->
@@ -484,7 +462,6 @@ fun ChatDrawerContent(
         }
     }
 
-    // 昵称编辑对话框
     nicknameEditState.EditStateContent { nickname, onUpdate ->
         AlertDialog(
             onDismissRequest = {
@@ -523,7 +500,6 @@ fun ChatDrawerContent(
         )
     }
 
-    // 移动到文件夹 Bottom Sheet
     if (showMoveToFolderSheet) {
         val doMove: (Uuid?) -> Unit = { folderId ->
             conversationToMoveFolder?.let { conversation ->
@@ -536,6 +512,7 @@ fun ChatDrawerContent(
                 }
             }
         }
+        val totalFolderItems = folders.size + 1
         ModalBottomSheet(
             onDismissRequest = {
                 showMoveToFolderSheet = false
@@ -557,67 +534,33 @@ fun ChatDrawerContent(
                     modifier = Modifier.padding(bottom = 8.dp),
                 )
 
-                // 移出文件夹（未归类）
-                Surface(
-                    onClick = { doMove(null) },
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = MaterialTheme.shapes.medium,
-                    color =
-                        if (conversationToMoveFolder?.folderId == null) {
-                            MaterialTheme.colorScheme.surfaceVariant
-                        } else {
-                            MaterialTheme.colorScheme.surface
-                        },
-                ) {
-                    Row(
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Icon(HugeIcons.Folder01, null)
-                        Text(
-                            text = stringResource(R.string.chat_page_remove_from_folder),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-                    }
-                }
-
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
-                    items(folders) { folder ->
-                        val isCurrent = folder.id == conversationToMoveFolder?.folderId
-                        Surface(
-                            onClick = { doMove(folder.id) },
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.medium,
-                            color =
-                                if (isCurrent) {
-                                    MaterialTheme.colorScheme.surfaceVariant
-                                } else {
-                                    MaterialTheme.colorScheme.surface
-                                },
-                            tonalElevation = if (isCurrent) 2.dp else 0.dp,
+                    item(key = "unfiled") {
+                        SegmentedListItem(
+                            selected = conversationToMoveFolder?.folderId == null,
+                            onClick = { doMove(null) },
+                            shapes = ListItemDefaults.segmentedShapes(index = 0, count = totalFolderItems),
+                            leadingContent = { Icon(HugeIcons.Folder01, null) },
                         ) {
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(16.dp),
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(12.dp),
-                            ) {
-                                Icon(HugeIcons.Folder01, null)
-                                Text(
-                                    text = folder.name,
-                                    style = MaterialTheme.typography.titleMedium,
-                                    maxLines = 1,
-                                    overflow = TextOverflow.Ellipsis,
-                                )
-                            }
+                            Text(text = stringResource(R.string.chat_page_remove_from_folder))
+                        }
+                    }
+
+                    itemsIndexed(folders, key = { _, f -> f.id }) { idx, folder ->
+                        val isCurrent = folder.id == conversationToMoveFolder?.folderId
+                        SegmentedListItem(
+                            selected = isCurrent,
+                            onClick = { doMove(folder.id) },
+                            shapes = ListItemDefaults.segmentedShapes(index = idx + 1, count = totalFolderItems),
+                            leadingContent = { Icon(HugeIcons.Folder01, null) },
+                        ) {
+                            Text(
+                                text = folder.name,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                 }
@@ -625,7 +568,6 @@ fun ChatDrawerContent(
         }
     }
 
-    // 新建文件夹对话框
     if (showCreateFolderDialog) {
         var name by remember { mutableStateOf("") }
         AlertDialog(
@@ -657,7 +599,6 @@ fun ChatDrawerContent(
         )
     }
 
-    // 重命名文件夹对话框
     folderToRename?.let { folder ->
         var name by remember(folder.id) { mutableStateOf(folder.name) }
         AlertDialog(
@@ -688,7 +629,6 @@ fun ChatDrawerContent(
         )
     }
 
-    // 重命名会话对话框：列表菜单与顶部标题编辑最终都写回同一会话
     conversationToRename?.let { conversation ->
         var title by remember(conversation.id) { mutableStateOf(conversation.title) }
         AlertDialog(
@@ -729,7 +669,6 @@ fun ChatDrawerContent(
         )
     }
 
-    // 删除文件夹确认
     folderToDelete?.let { folder ->
         AlertDialog(
             onDismissRequest = { folderToDelete = null },
@@ -758,7 +697,6 @@ fun ChatDrawerContent(
         )
     }
 
-    // 移动到助手 Bottom Sheet
     if (showMoveToAssistantSheet) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -782,12 +720,12 @@ fun ChatDrawerContent(
                 )
 
                 LazyColumn(
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
-                    items(settings.assistants, key = { it.id }) { assistant ->
-                        AssistantItem(
-                            assistant = assistant,
-                            isCurrentAssistant = assistant.id == conversationToMove?.assistantId,
+                    itemsIndexed(settings.assistants, key = { _, it -> it.id }) { idx, assistant ->
+                        val isCurrent = assistant.id == conversationToMove?.assistantId
+                        SegmentedListItem(
+                            selected = isCurrent,
                             onClick = {
                                 conversationToMove?.let { conversation ->
                                     vm.moveConversationToAssistant(conversation, assistant.id)
@@ -798,11 +736,31 @@ fun ChatDrawerContent(
                                     }
                                 }
                             },
-                        )
+                            shapes = ListItemDefaults.segmentedShapes(index = idx, count = settings.assistants.size),
+                            leadingContent = {
+                                UIAvatar(
+                                    name = assistant.name,
+                                    value = assistant.avatar,
+                                    onUpdate = {},
+                                    modifier = Modifier.size(36.dp),
+                                )
+                            },
+                            supportingContent =
+                                if (isCurrent) {
+                                    { Text(stringResource(R.string.assistant_page_current_assistant)) }
+                                } else {
+                                    null
+                                },
+                        ) {
+                            Text(
+                                text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                     }
                 }
             }
         }
     }
 }
-

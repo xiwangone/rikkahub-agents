@@ -84,6 +84,7 @@ fun ChatPage(
 ) {
     val vm: ChatVM =
         koinViewModel(
+            key = id.toString(),
             parameters = {
                 parametersOf(id.toString())
             },
@@ -99,6 +100,13 @@ fun ChatPage(
     val currentChatModel by vm.currentChatModel.collectAsStateWithLifecycle()
     val enableWebSearch by vm.enableWebSearch.collectAsStateWithLifecycle()
     val errors by vm.errors.collectAsStateWithLifecycle()
+
+    // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹
+    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = LocalContext.current as androidx.activity.ComponentActivity)
+    val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
+    LaunchedEffect(selectedFolderId) {
+        vm.updateDraftFolder(selectedFolderId)
+    }
 
     val drawerState = rememberDrawerState(initialValue = DrawerValue.Closed)
     val softwareKeyboardController = LocalSoftwareKeyboardController.current

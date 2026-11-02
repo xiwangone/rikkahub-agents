@@ -19,6 +19,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -27,21 +28,60 @@ import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Activity01
+import me.rerere.hugeicons.stroke.AiBrain01
+import me.rerere.hugeicons.stroke.Archive02
+import me.rerere.hugeicons.stroke.Bash
+import me.rerere.hugeicons.stroke.Bug01
+import me.rerere.hugeicons.stroke.Calendar03
+import me.rerere.hugeicons.stroke.Camera01
+import me.rerere.hugeicons.stroke.ChartLineData01
+import me.rerere.hugeicons.stroke.Clipboard
+import me.rerere.hugeicons.stroke.Clock01
+import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Code
+import me.rerere.hugeicons.stroke.CoinsDollar
+import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Connect
+import me.rerere.hugeicons.stroke.Contact
+import me.rerere.hugeicons.stroke.CursorPointer01
+import me.rerere.hugeicons.stroke.Database01
+import me.rerere.hugeicons.stroke.Download04
+import me.rerere.hugeicons.stroke.File01
+import me.rerere.hugeicons.stroke.FingerPrint
+import me.rerere.hugeicons.stroke.Flash
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.JavaScript
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Keyboard
+import me.rerere.hugeicons.stroke.Location01
+import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.MessageQuestion
+import me.rerere.hugeicons.stroke.Mic01
+import me.rerere.hugeicons.stroke.Notification02
+import me.rerere.hugeicons.stroke.Play
+import me.rerere.hugeicons.stroke.Rocket01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.SecurityCheck
+import me.rerere.hugeicons.stroke.Share01
+import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.Sparkles
+import me.rerere.hugeicons.stroke.Sun03
+import me.rerere.hugeicons.stroke.Telegram
+import me.rerere.hugeicons.stroke.Tools
+import me.rerere.hugeicons.stroke.VolumeHigh
+import me.rerere.hugeicons.stroke.Wifi01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.context.LocalToaster
 
-private const val TAG = "AssistantLocalToolPage"
-
-
-/**
- * Status subtitle for the Keyboard control toggle. Shows a colored dot summarising whether
- * the co-signed agent-keyboard app is installed and whether it is the active keyboard —
- * both are required for the keyboard_* tools to do anything. Recomputed on every onResume
- * so it reflects an install / IME switch the user just made in system settings.
- */
 @Composable
 internal fun KeyboardStatusRowSubtitle() {
     val ctx = LocalContext.current
@@ -129,7 +169,6 @@ internal fun PermissionedSwitch(
     val ctx = LocalContext.current
     val toaster = LocalToaster.current
     val deniedToastFmt = stringResource(R.string.assistant_page_local_tools_perm_denied_toast)
-    // 权限名文案：在 Composable 作用域先取好（Lint: LocalContext.getString 非 configuration-aware，会在配置变更后拿到旧值）
     val permWriteSettingsLabel = stringResource(R.string.assistant_page_local_tools_perm_write_settings)
     val permDndLabel = stringResource(R.string.assistant_page_local_tools_perm_dnd_access)
     val permAccessibilityLabel = stringResource(R.string.assistant_page_local_tools_perm_accessibility_service)
@@ -138,10 +177,8 @@ internal fun PermissionedSwitch(
 
     var showDialog by remember { mutableStateOf(false) }
     var pendingSpecialResume by remember { mutableStateOf(false) }
-    // Bumped on ON_RESUME so permissionMissing recomputes when the user returns from settings.
     var resumeTrigger by remember { mutableStateOf(0) }
 
-    // Runtime permission launcher
     val runtimePermLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
@@ -157,19 +194,12 @@ internal fun PermissionedSwitch(
             }
         }
 
-    // Special permission settings launcher
     val specialPermLauncher =
         rememberLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult(),
         ) {
-            // result is ignored — actual check happens on ON_RESUME
         }
 
-    // Lifecycle observer: handles both special-perm resume and re-evaluating
-    // the permissionMissing hint when the user returns from settings.
-    // Keyed on lifecycleOwner only — the closure reads other state, so re-installing
-    // on every state change would be wasteful (and was a measured perf bug across the
-    // ~30 PermissionedSwitch instances rendered on this screen).
     val lifecycleOwner = LocalLifecycleOwner.current
     DisposableEffect(lifecycleOwner) {
         val observer =
@@ -269,11 +299,6 @@ internal fun PermissionedSwitch(
         }
     }
 
-    // Recomputed each ON_RESUME via resumeTrigger so the hint reflects any
-    // permissions the user toggled in system settings while we were paused.
-    // Key on a stable string derived from the perms list — Compose can't compare
-    // raw List<String> for structural equality across recomps, so passing the list
-    // directly invalidated this remember on every parent recomp.
     val permsKey = remember(requiredRuntimePerms) { requiredRuntimePerms.joinToString(",") }
     val permissionMissing =
         remember(
@@ -344,7 +369,6 @@ internal fun PermissionedSwitch(
                     onCheckedChange(false)
                     return@Switch
                 }
-                // Turning ON
                 requestPermission()
             },
         )
@@ -359,14 +383,6 @@ internal fun PermissionedSwitch(
     }
 }
 
-/**
- * Subtitle row for the Termux toggle: shows a colored dot summarising the integration
- * state plus a "Verify" affordance that runs an end-to-end smoke test (sends a tiny
- * command through Termux and waits for the result). The dot is ONLY green after a
- * successful verification within the last hour — that's the only signal that proves
- * `allow-external-apps=true` is actually in effect, since we cannot read Termux's
- * private home dir.
- */
 @Composable
 internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
     val ctx = LocalContext.current
@@ -388,9 +404,6 @@ internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
     var verifying by remember { mutableStateOf(false) }
     var lastVerifyError by remember { mutableStateOf<String?>(null) }
 
-    // Reads the process-scoped timestamp from TermuxIntegration so a successful verify
-    // earlier in this session keeps the dot green even after the user navigates off the
-    // page and returns. resumeTick triggers a recompute on every onResume.
     val lastVerifiedOkAt = remember(resumeTick) { TermuxIntegration.lastVerifiedOkAtMs }
     val verifiedRecently =
         lastVerifiedOkAt > 0 &&
@@ -430,7 +443,6 @@ internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
 
     val verifyHint = stringResource(R.string.assistant_page_local_tools_termux_verify)
     val verifyingHint = stringResource(R.string.assistant_page_local_tools_termux_verifying)
-    // 验证结果文案：同样在 Composable 作用域取好（避免 LocalContext.getString）
     val verifyOkMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_ok)
     val verifyPropsMissingMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_props_missing)
     val verifyNoPermissionMsg = stringResource(R.string.assistant_page_local_tools_termux_verify_no_permission)
@@ -456,7 +468,7 @@ internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
                                 when (result) {
                                     TermuxIntegration.VerifyResult.Ok -> {
                                         TermuxIntegration.markVerifiedOk()
-                                        resumeTick++ // force recompose so verifiedRecently flips
+                                        resumeTick++
                                         toaster.show(
                                             verifyOkMsg,
                                         )
@@ -524,15 +536,121 @@ internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
     }
 }
 
+// 58 个本地工具枚举项一对一映射图标，分支数与密封类子类数一致
+@Suppress("CyclomaticComplexMethod")
+internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
+    when (option) {
+        LocalToolOption.JavascriptEngine -> HugeIcons.JavaScript
+        LocalToolOption.TimeInfo -> HugeIcons.Clock01
+        LocalToolOption.Clipboard -> HugeIcons.Clipboard
+        LocalToolOption.Tts -> HugeIcons.VolumeHigh
+        LocalToolOption.AskUser -> HugeIcons.MessageQuestion
+        LocalToolOption.ScreenTime -> HugeIcons.SmartPhone01
+        LocalToolOption.Diagnostics -> HugeIcons.Bug01
+        LocalToolOption.ModelTesting -> HugeIcons.Activity01
+        LocalToolOption.DeviceInfo -> HugeIcons.SmartPhone01
+        LocalToolOption.SystemIntents -> HugeIcons.Calendar03
+        LocalToolOption.Toast -> HugeIcons.Message01
+        LocalToolOption.Notification -> HugeIcons.Notification02
+        LocalToolOption.Share -> HugeIcons.Share01
+        LocalToolOption.ChartDisplay -> HugeIcons.ChartLineData01
+        LocalToolOption.Location -> HugeIcons.Location01
+        LocalToolOption.Contacts -> HugeIcons.Contact
+        LocalToolOption.CallLog -> HugeIcons.SmartPhone01
+        LocalToolOption.SmsInbox -> HugeIcons.Message01
+        LocalToolOption.CameraPhoto -> HugeIcons.Camera01
+        LocalToolOption.MicRecorder -> HugeIcons.Mic01
+        LocalToolOption.SpeechToText -> HugeIcons.Mic01
+        LocalToolOption.Fingerprint -> HugeIcons.FingerPrint
+        LocalToolOption.NotificationListener -> HugeIcons.Notification02
+        LocalToolOption.Files -> HugeIcons.Folder01
+        LocalToolOption.Download -> HugeIcons.Download04
+        LocalToolOption.MediaPlayer -> HugeIcons.Play
+        LocalToolOption.MediaScanner -> HugeIcons.Search01
+        LocalToolOption.Ssh -> HugeIcons.Connect
+        LocalToolOption.TelegramBot -> HugeIcons.Telegram
+        LocalToolOption.Browser -> HugeIcons.GlobalSearch
+        LocalToolOption.WebFetch -> HugeIcons.GlobalSearch
+        LocalToolOption.CronJobs -> HugeIcons.Clock02
+        LocalToolOption.Workflows -> HugeIcons.Activity01
+        LocalToolOption.SubAgents -> HugeIcons.AiBrain01
+        LocalToolOption.SkillImport -> HugeIcons.Sparkles
+        LocalToolOption.JsSkills -> HugeIcons.Code
+        LocalToolOption.McpControl -> HugeIcons.Connect
+        LocalToolOption.ExternalAutomation -> HugeIcons.Rocket01
+        LocalToolOption.Reliability -> HugeIcons.SecurityCheck
+        LocalToolOption.CostGuards -> HugeIcons.CoinsDollar
+        LocalToolOption.ScreenAutomation -> HugeIcons.CursorPointer01
+        LocalToolOption.AppLauncher -> HugeIcons.Rocket01
+        LocalToolOption.Termux -> HugeIcons.ComputerTerminal01
+        LocalToolOption.KeyboardControl -> HugeIcons.Keyboard
+        LocalToolOption.Torch -> HugeIcons.Flash
+        LocalToolOption.Vibrate -> HugeIcons.SmartPhone01
+        LocalToolOption.Brightness -> HugeIcons.Sun03
+        LocalToolOption.Volume -> HugeIcons.VolumeHigh
+        LocalToolOption.SmsSend -> HugeIcons.Message01
+        LocalToolOption.Wallpaper -> HugeIcons.Image02
+        LocalToolOption.Keystore -> HugeIcons.Key01
+        LocalToolOption.Shizuku -> HugeIcons.Bash
+        LocalToolOption.VaultTools -> HugeIcons.Database01
+        LocalToolOption.VaultExportEnv -> HugeIcons.Key01
+        LocalToolOption.Nfc -> HugeIcons.Wifi01
+        LocalToolOption.ExternalStorage -> HugeIcons.Folder01
+        LocalToolOption.Archive -> HugeIcons.Archive02
+        LocalToolOption.AppBackup -> HugeIcons.File01
+    }
+
+@Composable
+internal fun ToolOptionGroupIcon(
+    option: LocalToolOption,
+    checked: Boolean = false,
+) {
+    CardGroupIcon(
+        icon = iconForLocalToolOption(option),
+        containerColor =
+            if (checked) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                MaterialTheme.colorScheme.surfaceContainerHigh
+            },
+        contentColor =
+            if (checked) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+    )
+}
+
 internal fun CardGroupScope.toolSwitchItem(
     titleRes: Int,
     descRes: Int,
     checked: Boolean,
+    option: LocalToolOption? = null,
+    icon: ImageVector? = null,
     permissions: List<String> = emptyList(),
     usePermissionedSwitch: Boolean = true,
     onCheckedChange: (Boolean) -> Unit,
 ) {
+    val resolvedIcon = icon ?: option?.let(::iconForLocalToolOption) ?: HugeIcons.Tools
     item(
+        leadingContent = {
+            CardGroupIcon(
+                icon = resolvedIcon,
+                containerColor =
+                    if (checked) {
+                        MaterialTheme.colorScheme.primaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.surfaceContainerHigh
+                    },
+                contentColor =
+                    if (checked) {
+                        MaterialTheme.colorScheme.onPrimaryContainer
+                    } else {
+                        MaterialTheme.colorScheme.onSurfaceVariant
+                    },
+            )
+        },
         headlineContent = { Text(stringResource(titleRes)) },
         supportingContent = { Text(stringResource(descRes)) },
         trailingContent = {

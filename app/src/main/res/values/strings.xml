@@ -4174,4 +4174,11 @@
     <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="setting_media_page_asset_storage">Asset Storage</string>
     <string name="setting_page_media_desc">Configure image and video generation services</string>
+    <string name="search_picker_off">Off</string>
+    <string name="search_picker_status_off">Off</string>
+    <string name="search_picker_off_description">Turn off web search</string>
+    <string name="setting_page_qq_group_1">RikkaHub Group 1</string>
+    <string name="setting_page_qq_group_2">RikkaHub Group 2</string>
+    <string name="setting_page_qq_group_3">RikkaHub Group 3</string>
+    <string name="setting_page_douyin_group_1">Douyin Group 1</string>
 </resources>

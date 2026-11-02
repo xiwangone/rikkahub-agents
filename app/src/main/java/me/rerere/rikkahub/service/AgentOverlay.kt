@@ -19,6 +19,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
+import java.util.concurrent.atomic.AtomicInteger
 
 /**
  * Lightweight top-of-screen pill that shows while a generation turn is active so the
@@ -26,11 +27,10 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
  * with FLAG_NOT_TOUCHABLE so it never blocks user gestures. No-ops silently if
  * SYSTEM_ALERT_WINDOW has not been granted — overlay is purely informational.
  *
- * Visibility is **state-driven, not edge-triggered**：以前的实现只在回合
- * 开始那一瞬判定前后台（`show()` 里判一次），于是「前台发起回合 → 用户退到后台」不会出现
- * 悬浮条，「后台发起回合 → 用户回到前台」也不会消失，表现为时有时无。现在改为：
- *  - 回合生命周期只记录 `active`（`show` / `hide` 由 GenerationLoop 调）；
- *  - 实际显隐由 [ProcessLifecycleOwner] 的 onStart / onStop 驱动（onStop && active → 显示）。
+ * Visibility is **state-driven and reference-counted across parallel turns**:
+ *  - [show] increments [activeTurns] and [hide] decrements it (clamped at 0), so when
+ *    multiple conversations run in parallel, one finishing turn does not prematurely
+ *    hide the overlay while another turn is still active.
  */
 object AgentOverlay {
     private const val TAG = "AgentOverlay"
@@ -38,8 +38,11 @@ object AgentOverlay {
     @Volatile private var view: TextView? = null
     private val mainHandler = Handler(Looper.getMainLooper())
 
-    /** 当前是否有回合在跑（由 GenerationLoop 的 onStart / onCompletion 驱动）。 */
-    @Volatile private var active = false
+    /** 当前活跃并行生成回合计数（由 GenerationLoop 的 onStart / onCompletion 驱动）。 */
+    private val activeTurns = AtomicInteger(0)
+
+    private val active: Boolean
+        get() = activeTurns.get() > 0
 
     /** 最近一次 show 传入的文案，供前后台切换后重新显示时复用。 */
     @Volatile private var lastText: String = ""
@@ -56,22 +59,9 @@ object AgentOverlay {
     private fun isEnabled(context: Context): Boolean =
         context.applicationContext.readBooleanPreference(PREF_ENABLED, true)
 
-    /**
-     * Whether the process is currently in the foreground (an Activity the user is looking at).
-     * When the app is foreground, the chat UI already shows its own "working" indicator, so the
-     * pill is pure visual clutter over the top bar — we suppress it and only surface it once the
-     * app goes to the background (or a headless surface drives the phone).
-     */
     private fun isForeground(): Boolean =
         ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
 
-    /**
-     * 注册前后台监听（幂等）。必须在**主线程**注册：`LifecycleRegistry.addObserver` 会断言主线程，
-     * 而 [show] 是从 GenerationLoop 的 flow `onStart` 调用的，那条链带 `flowOn(Dispatchers.IO)`
-     * —— 也就是说这里默认跑在 IO 线程。直接注册会抛
-     * "Method addObserver must be called on the main thread"，被 runCatching 吞掉后
-     * 只留下 `observerRegistered = true` 的假状态，于是后台永不显示悬浮条。
-     */
     private fun ensureObserver(app: Context) {
         if (observerRegistered) return
         mainHandler.post {
@@ -92,50 +82,49 @@ object AgentOverlay {
                 )
                 observerRegistered = true
             }.onFailure {
-                // 注册失败不要留下"已注册"假状态，否则永不重试
                 AppLog.w(TAG, "addObserver failed", it)
                 log("addObserver failed: ${it.message}")
             }
         }
     }
 
-    /** 诊断：同时写系统日志与 App 内存日志（后者可被 read_app_logs 读到）。 */
     private fun log(message: String) {
         AppLog.d(TAG, message)
         runCatching { AppLog.d(TAG, message) }
     }
 
-    /** 回合开始：记录状态并按当前前后台立即决定是否显示。 */
+    /** 回合开始：累加活跃回合数并按当前前后台立即决定是否显示。 */
     fun show(context: Context, text: String = context.getString(R.string.agent_overlay_working)) {
         val app = context.applicationContext
-        active = true
+        val count = activeTurns.incrementAndGet()
         lastText = text
         if (!canShow(app)) {
-            log("show: SYSTEM_ALERT_WINDOW not granted, no-op")
+            log("show: SYSTEM_ALERT_WINDOW not granted, no-op (activeTurns=$count)")
             return
         }
         if (!isEnabled(app)) {
-            log("show: overlay disabled by user, no-op")
+            log("show: overlay disabled by user, no-op (activeTurns=$count)")
             return
         }
         ensureObserver(app)
         if (isForeground()) {
-            // App is on screen; the chat UI has its own progress indicator. Drop the pill so it
-            // doesn't overlap the top bar — it will appear via the lifecycle observer if a later
-            // turn (or the rest of this one) leaves the app.
-            log("show: app in foreground, suppressing pill (will appear on background)")
+            log("show: app in foreground, suppressing pill (activeTurns=$count)")
             mainHandler.post { hideInternal(app) }
             return
         }
-        log("show: app in background, showing pill")
+        log("show: app in background, showing pill (activeTurns=$count)")
         mainHandler.post { showInternal(app, text) }
     }
 
-    /** 回合结束：清状态并移除悬浮条。 */
+    /** 回合结束：递减活跃回合数，仅当全部并行回合都结束时移除悬浮条。 */
     fun hide(context: Context) {
         val app = context.applicationContext
-        active = false
-        log("hide: turn finished, removing pill")
+        val remaining = activeTurns.updateAndGet { current -> (current - 1).coerceAtLeast(0) }
+        if (remaining > 0) {
+            log("hide: turn finished, $remaining turn(s) still active — keeping pill")
+            return
+        }
+        log("hide: all turns finished, removing pill")
         mainHandler.post { hideInternal(app) }
     }
 
@@ -175,7 +164,6 @@ object AgentOverlay {
             android.graphics.PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            // 紧贴状态栏下方（y=0），不遮挡屏幕上半部分
             y = 0
         }
         try {

@@ -4174,4 +4174,11 @@
     <string name="copied_to_clipboard">已复制到剪贴板</string>
     <string name="setting_media_page_asset_storage">素材存储</string>
     <string name="setting_page_media_desc">配置图片与视频生成服务</string>
+    <string name="search_picker_off">关闭</string>
+    <string name="search_picker_status_off">已关闭</string>
+    <string name="search_picker_off_description">不使用联网搜索</string>
+    <string name="setting_page_qq_group_1">RikkaHub 一群</string>
+    <string name="setting_page_qq_group_2">RikkaHub 二群</string>
+    <string name="setting_page_qq_group_3">RikkaHub 三群</string>
+    <string name="setting_page_douyin_group_1">抖音一群</string>
 </resources>

@@ -298,6 +298,7 @@ class ChatService(
             val fromDb = conversationRepo.getConversationById(conversationId) ?: return
             if (fromDb.messageNodes.isNotEmpty()) {
                 session.state.value = fromDb
+                session.markInitialized()
             }
         }
     }
@@ -529,8 +530,9 @@ class ChatService(
 
     private fun removeSession(conversationId: Uuid) {
         val session = sessions[conversationId] ?: return
-        if (session.isInUse) {
-            AppLog.d(TAG, "removeSession: skipped $conversationId (still in use)")
+        val hasQueued = messageQueues[conversationId]?.state?.value?.messages?.isNotEmpty() == true
+        if (session.isInUse || hasQueued) {
+            AppLog.d(TAG, "removeSession: skipped $conversationId (still in use or queued)")
             return
         }
         if (sessions.remove(conversationId, session)) {
@@ -620,15 +622,11 @@ class ChatService(
         ensureHydrated(conversationId)
     }
 
-    fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> {
-        val session = sessions[conversationId] ?: return flowOf(null)
-        return session.generationJob
-    }
+    fun getGenerationJobStateFlow(conversationId: Uuid): Flow<Job?> =
+        getOrCreateSession(conversationId).generationJob
 
-    fun getProcessingStatusFlow(conversationId: Uuid): StateFlow<String?> {
-        val session = sessions[conversationId] ?: return MutableStateFlow(null)
-        return session.processingStatus
-    }
+    fun getProcessingStatusFlow(conversationId: Uuid): StateFlow<String?> =
+        getOrCreateSession(conversationId).processingStatus
 
     fun getFloatingReplyMessageIdFlow(conversationId: Uuid): StateFlow<Uuid?> =
         getOrCreateSession(conversationId).floatingReplyMessageId
@@ -655,23 +653,32 @@ class ChatService(
     // ---- 初始化对话 ----
 
     suspend fun initializeConversation(conversationId: Uuid) {
-        getOrCreateSession(conversationId) // 确保 session 存在
-        val conversation = conversationRepo.getConversationById(conversationId)
-        if (conversation != null) {
-            updateConversation(conversationId, conversation)
-            settingsStore.updateAssistant(conversation.assistantId)
-        } else {
-            // 新建对话, 并添加预设消息
-            val currentSettings = settingsStore.settingsFlowRaw.first()
-            val assistant = currentSettings.getCurrentAssistant()
-            val newConversation =
-                Conversation
-                    .ofId(
-                        id = conversationId,
-                        assistantId = assistant.id,
-                        newConversation = true,
-                    ).updateCurrentMessages(assistant.presetMessages)
-            updateConversation(conversationId, newConversation)
+        val session = getOrCreateSession(conversationId)
+        session.initMutex.withLock {
+            if (session.isInitialized || session.isGenerating || session.state.value.messageNodes.isNotEmpty()) {
+                session.markInitialized()
+                settingsStore.updateAssistant(session.state.value.assistantId)
+                return@withLock
+            }
+            val conversation = conversationRepo.getConversationById(conversationId)
+            if (conversation != null) {
+                updateConversation(conversationId, conversation)
+                session.markInitialized()
+                settingsStore.updateAssistant(conversation.assistantId)
+            } else {
+                // 新建对话, 并添加预设消息
+                val currentSettings = settingsStore.settingsFlowRaw.first()
+                val assistant = currentSettings.getCurrentAssistant()
+                val newConversation =
+                    Conversation
+                        .ofId(
+                            id = conversationId,
+                            assistantId = assistant.id,
+                            newConversation = true,
+                        ).updateCurrentMessages(assistant.presetMessages)
+                updateConversation(conversationId, newConversation)
+                session.markInitialized()
+            }
         }
     }
 
@@ -765,6 +772,9 @@ class ChatService(
         val session = getOrCreateSession(conversationId)
         checkFilesDelete(conversation, session.state.value)
         session.state.value = conversation
+        if (conversation.messageNodes.isNotEmpty()) {
+            session.markInitialized()
+        }
     }
 
     fun updateConversationState(
