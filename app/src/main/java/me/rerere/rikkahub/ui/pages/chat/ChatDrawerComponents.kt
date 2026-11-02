@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyRow
@@ -39,8 +38,12 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.FolderAdd
+import me.rerere.hugeicons.stroke.Video01
+import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.Sorting01
+import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.TransactionHistory
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
@@ -49,57 +52,91 @@ import me.rerere.rikkahub.data.model.Folder
 import me.rerere.rikkahub.ui.components.ui.Tooltip
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.context.Navigator
-import me.rerere.rikkahub.ui.modifier.onClick
 import kotlin.uuid.Uuid
-
 
 @Composable
 internal fun DrawerActions(navController: Navigator) {
-    Column {
-        // 历史记录入口，行尾保留独立的搜索操作
-        Surface(
+    Column(
+        verticalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        DrawerEntry(
+            icon = HugeIcons.TransactionHistory,
+            text = stringResource(R.string.chat_page_history),
             onClick = { navController.navigate(Screen.History) },
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(horizontal = 4.dp),
-            shape = MaterialTheme.shapes.medium,
-            color = MaterialTheme.colorScheme.surfaceContainerLow,
-        ) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Row(
-                    modifier = Modifier
+            trailingIcon = HugeIcons.Search01,
+            trailingDescription = stringResource(R.string.chat_page_search_chats),
+            onTrailingClick = { navController.navigate(Screen.MessageSearch) },
+        )
+
+        DrawerEntry(
+            icon = HugeIcons.Video01,
+            text = stringResource(R.string.media_creation_title),
+            onClick = { navController.navigate(Screen.MediaCreationSessions) },
+        )
+
+        DrawerEntry(
+            icon = HugeIcons.LanguageCircle,
+            text = stringResource(R.string.chat_page_menu_ai_translator),
+            onClick = { navController.navigate(Screen.Translator) },
+        )
+    }
+}
+
+@Composable
+private fun DrawerEntry(
+    icon: ImageVector,
+    text: String,
+    onClick: () -> Unit,
+    trailingIcon: ImageVector? = null,
+    trailingDescription: String? = null,
+    onTrailingClick: () -> Unit = {},
+) {
+    Surface(
+        onClick = onClick,
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .padding(horizontal = 4.dp),
+        shape = MaterialTheme.shapes.medium,
+        color = MaterialTheme.colorScheme.surfaceContainerLow,
+    ) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Row(
+                modifier =
+                    Modifier
                         .weight(1f)
                         .padding(horizontal = 8.dp, vertical = 10.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.TransactionHistory,
-                        contentDescription = null,
-                        modifier = Modifier.size(18.dp),
-                        tint = MaterialTheme.colorScheme.onSurface,
-                    )
-                    Text(
-                        text = stringResource(R.string.chat_page_history),
-                        style = MaterialTheme.typography.bodyMedium,
-                        color = MaterialTheme.colorScheme.onSurface,
-                    )
-                }
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Icon(
+                    imageVector = icon,
+                    contentDescription = null,
+                    modifier = Modifier.size(18.dp),
+                    tint = MaterialTheme.colorScheme.onSurface,
+                )
+                Text(
+                    text = text,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                )
+            }
+            if (trailingIcon != null) {
                 Box(
-                    modifier = Modifier
-                        .padding(end = 4.dp)
-                        .size(32.dp)
-                        .clip(CircleShape)
-                        .clickable(
-                            role = Role.Button,
-                            onClick = { navController.navigate(Screen.MessageSearch) },
-                        ),
+                    modifier =
+                        Modifier
+                            .padding(end = 4.dp)
+                            .size(32.dp)
+                            .clip(CircleShape)
+                            .clickable(
+                                role = Role.Button,
+                                onClick = onTrailingClick,
+                            ),
                     contentAlignment = Alignment.Center,
                 ) {
                     Icon(
-                        imageVector = HugeIcons.Search01,
-                        contentDescription = stringResource(R.string.chat_page_search_chats),
+                        imageVector = trailingIcon,
+                        contentDescription = trailingDescription,
                         modifier = Modifier.size(18.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -148,13 +185,11 @@ internal fun FolderBar(
     onCreate: () -> Unit,
     onRename: (Folder) -> Unit,
     onDelete: (Folder) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val moreOptionsLabel = stringResource(R.string.accessibility_more_options)
     LazyRow(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 4.dp),
+        modifier = modifier,
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -213,6 +248,71 @@ internal fun FolderBar(
 }
 
 @Composable
+internal fun ConversationSortButton(
+    sortByCreatedAt: Boolean,
+    onSortByCreatedAtChange: (Boolean) -> Unit,
+) {
+    var menuExpanded by remember { mutableStateOf(false) }
+    val currentLabel =
+        stringResource(
+            if (sortByCreatedAt) {
+                R.string.conversation_sort_created
+            } else {
+                R.string.conversation_sort_updated
+            },
+        )
+    Box {
+        Surface(
+            onClick = { menuExpanded = true },
+            shape = CircleShape,
+            color = MaterialTheme.colorScheme.surfaceContainerLow,
+        ) {
+            Tooltip(
+                tooltip = { Text(currentLabel) },
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Sorting01,
+                    contentDescription = currentLabel,
+                    modifier =
+                        Modifier
+                            .padding(8.dp)
+                            .size(16.dp),
+                )
+            }
+        }
+        DropdownMenu(
+            expanded = menuExpanded,
+            onDismissRequest = { menuExpanded = false },
+        ) {
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.conversation_sort_updated)) },
+                trailingIcon = {
+                    if (!sortByCreatedAt) {
+                        Icon(HugeIcons.Tick01, null, modifier = Modifier.size(18.dp))
+                    }
+                },
+                onClick = {
+                    menuExpanded = false
+                    if (sortByCreatedAt) onSortByCreatedAtChange(false)
+                },
+            )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.conversation_sort_created)) },
+                trailingIcon = {
+                    if (sortByCreatedAt) {
+                        Icon(HugeIcons.Tick01, null, modifier = Modifier.size(18.dp))
+                    }
+                },
+                onClick = {
+                    menuExpanded = false
+                    if (!sortByCreatedAt) onSortByCreatedAtChange(true)
+                },
+            )
+        }
+    }
+}
+
+@Composable
 internal fun FolderChip(
     label: String,
     selected: Boolean,
@@ -232,11 +332,9 @@ internal fun FolderChip(
         modifier =
             Modifier
                 .clip(CircleShape)
-                .heightIn(min = 48.dp)
                 .semantics {
                     toggleableState = ToggleableState(selected)
-                }
-                .combinedClickable(
+                }.combinedClickable(
                     role = Role.Button,
                     onClick = onClick,
                     onLongClickLabel = onLongClickLabel,

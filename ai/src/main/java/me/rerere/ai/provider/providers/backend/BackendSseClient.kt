@@ -31,13 +31,7 @@ enum class ConnectionState {
  * - 基础 SSE / EventSource 模式
  * - 热流 + turn_done 多轮收尾
  * - 断线重连与连接状态（指数退避）
- *
- * 健壮性：热流单连接多消费者；网络错误指数退避重连（1s→2s→4s…封顶 30s）；HTTP 错误不重连；
- * 连接状态经 [connectionState] 暴露（可驱动顶栏状态点）。
- *
- * 断流补拉：重连恢复（onOpen 且 attempt>0）后调用 [historyLoader] 拉取服务端 /history，
- * 对比本地已渲染的 text/reasoning 累计做差值补发（差值事件写回同一热流）——
- * 弥合断流窗口丢掉的尾部内容；无 loader 或无可补内容时安静跳过。
+ * - [close] 主动关闭连接并停止重连，避免回合结束后后台线程泄漏与多会话串流
  */
 class BackendSseClient(
     private val baseUrl: String,
@@ -62,6 +56,12 @@ class BackendSseClient(
     private val localText = StringBuilder()
     private val localReasoning = StringBuilder()
 
+    @Volatile
+    private var closed = false
+
+    @Volatile
+    private var currentEventSource: EventSource? = null
+
     private val _connectionState = MutableStateFlow(ConnectionState.DISCONNECTED)
     val connectionState: StateFlow<ConnectionState> = _connectionState.asStateFlow()
 
@@ -74,11 +74,20 @@ class BackendSseClient(
 
     fun connect(): Flow<SseEvent> = sharedFlow.asSharedFlow()
 
+    /** 主动关闭 SSE 连接并禁止后续自动重连。 */
+    fun close() {
+        closed = true
+        _connectionState.value = ConnectionState.DISCONNECTED
+        runCatching { currentEventSource?.cancel() }
+        currentEventSource = null
+    }
+
     /**
      * 建立（或重建）SSE 连接。[attempt] 为重连次数（0=首次），用于指数退避。
      * 连接/事件写回同一 [destination] 热流——消费者无感。
      */
     private fun startConnect(destination: MutableSharedFlow<SseEvent>, attempt: Int = 0) {
+        if (closed) return
         val request =
             Request.Builder()
                 .url(baseUrl.toHttpUrl()!!.resolve("/events")!!)
@@ -95,16 +104,17 @@ class BackendSseClient(
                     eventSource: EventSource,
                     response: Response,
                 ) {
+                    if (closed) {
+                        runCatching { eventSource.cancel() }
+                        return
+                    }
                     _connectionState.value = ConnectionState.CONNECTED
-                    // 重连恢复（非首次连接）：异步补拉 /history 差值，弥合断流窗口丢失内容
                     if (attempt > 0) {
                         Thread {
                             runCatching { backfill(destination) }.onFailure {
                                 android.util.Log.w("BackendSse", "断流补拉失败", it)
                             }
                         }.start()
-                        // 审批/提问事件不属于 /history，断流窗口内发生会永久丢失 →
-                        // 重连后探测服务端是否仍在等待应答，是则提示用户，避免无声挂起。
                         Thread {
                             runCatching {
                                 if (statusLoader?.invoke()?.pendingPrompt == true) {
@@ -127,12 +137,11 @@ class BackendSseClient(
                     type: String?,
                     data: String,
                 ) {
+                    if (closed) return
                     try {
                         val event = json.decodeFromString<SseEvent>(data)
-                        // 维护本地累计（差值补拉的去重基准）；turn_done 视为单 turn 边界，重置累计
                         when (event.kind) {
                             "text" -> event.text?.let { synchronized(lock) { localText.append(it) } }
-                            // 与 provider 层同源：serve 的 reasoning 帧正文在 text 字段
                             "reasoning" ->
                                 (event.reasoning ?: event.text)?.let {
                                     synchronized(lock) { localReasoning.append(it) }
@@ -153,39 +162,42 @@ class BackendSseClient(
                     t: Throwable?,
                     response: Response?,
                 ) {
+                    if (closed) return
                     val httpError = response != null && !response.isSuccessful
                     if (httpError) {
-                        // HTTP 错误（401/404 等）：不重连——调用方超时/异常兜底
                         _connectionState.value = ConnectionState.DISCONNECTED
                         return
                     }
-                    // 网络错误/流中断：指数退避重连（封顶 maxReconnectDelayMs）
                     _connectionState.value = ConnectionState.RECONNECTING
                     scheduleReconnect(destination, attempt)
                 }
 
                 override fun onClosed(eventSource: EventSource) {
-                    // 服务端关闭：尝试重连（下一条 submit 也会触发）
+                    if (closed) return
                     _connectionState.value = ConnectionState.RECONNECTING
                     scheduleReconnect(destination, attempt)
                 }
             }
 
         val factory = EventSources.createFactory(client)
-        // 连接在独立线程建立，避免阻塞调用方
         Thread {
+            if (closed) return@Thread
             runCatching {
-                factory.newEventSource(request, listener)
+                val es = factory.newEventSource(request, listener)
+                currentEventSource = es
+                if (closed) es.cancel()
             }.onFailure {
-                _connectionState.value = ConnectionState.RECONNECTING
-                scheduleReconnect(destination, attempt)
+                if (!closed) {
+                    _connectionState.value = ConnectionState.RECONNECTING
+                    scheduleReconnect(destination, attempt)
+                }
             }
         }.start()
     }
 
     /** 指数退避重连：1s→2s→4s…封顶 maxReconnectDelayMs（默认 30s） */
     private fun scheduleReconnect(destination: MutableSharedFlow<SseEvent>, attempt: Int) {
-        if (!reconnectEnabled) {
+        if (closed || !reconnectEnabled) {
             _connectionState.value = ConnectionState.DISCONNECTED
             return
         }
@@ -198,16 +210,14 @@ class BackendSseClient(
             } catch (_: InterruptedException) {
                 return@Thread
             }
-            startConnect(destination, attempt + 1)
+            if (!closed) {
+                startConnect(destination, attempt + 1)
+            }
         }.start()
     }
 
-    /**
-     * 断流补拉：取 /history 最后一条非空 assistant 消息，与本地已渲染累计做差值比较
-     * ——服务端已生成而本地未收到的尾部文本/推理补发为差值事件。
-     * 差值定位见 [computeBackfillDiff]；定位不到（内容错位）时不补，保证不重复渲染。
-     */
     private fun backfill(destination: MutableSharedFlow<SseEvent>) {
+        if (closed) return
         val loader = historyLoader ?: return
         val history = runCatching { loader() }.getOrNull() ?: return
         val last =
@@ -218,12 +228,9 @@ class BackendSseClient(
         val hText = last.content ?: ""
         val hReasoning = last.reasoning ?: ""
 
-        // 快照本地累计（跨线程用 lock 保护）
         val (locText, locReasoning) =
             synchronized(lock) { localText.toString() to localReasoning.toString() }
 
-        // text 差值补发：在完整文本里定位本地累计的最后一次出现，补其后的尾部。
-        // 二次确认：快照后无新事件推进累计才补，避免与实时流内容重叠造成重复渲染。
         val textDiff =
             synchronized(lock) {
                 val cur = localText.toString()
@@ -237,7 +244,6 @@ class BackendSseClient(
             destination.tryEmit(SseEvent(kind = "text", text = textDiff))
         }
 
-        // reasoning 差值补发（同理）
         val reasoningDiff =
             synchronized(lock) {
                 val cur = localReasoning.toString()
@@ -262,13 +268,6 @@ class BackendSseClient(
     }
 }
 
-/**
- * 断流补拉的差值定位：在服务端给出的**完整文本**里定位本地累计的最后一次出现，
- * 返回其后缺失的尾部；定位不到（内容错位）时返回 null——宁可不补，也不重复渲染。
- *
- * 不能用前缀判据：/history 的完整文本可能是多个 turn 的拼接，而本地累计在 turn_done
- * 会重置、只覆盖当前 turn，前缀关系因此并不成立（失配时旧实现静默不补＝漏内容）。
- */
 internal fun computeBackfillDiff(full: String, local: String): String? {
     if (full.isBlank()) return null
     if (local.isEmpty()) return full

@@ -427,7 +427,7 @@ private fun CardGroupScope.AboutRow(
                 ) {
                     Icon(
                         imageVector = DiscordIcon,
-                        contentDescription = "Discord",
+                        contentDescription = null,
                         tint = MaterialTheme.colorScheme.secondary,
                     )
                 }
@@ -658,7 +658,7 @@ private fun SettingShortcutEditor(
 }
 
 private data class QQGroup(
-    val name: String,
+    val nameRes: Int,
     val key: String? = null,
     val number: String? = null,
     val icon: ImageVector = TencentQQIcon,
@@ -666,10 +666,10 @@ private data class QQGroup(
 
 private val QQ_GROUPS =
     listOf(
-        QQGroup("RikkaHub 一群", "4POE46u9e_zoy1TkNfWdCvueR9CKFJdk"),
-        QQGroup("RikkaHub 二群", "Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0"),
-        QQGroup("RikkaHub 三群", "Qc9oP-9tXioZeQEvEvI2_owWtBAIx3lS"),
-        QQGroup("抖音一群", number = "569655479852", icon = HugeIcons.Tiktok),
+        QQGroup(R.string.setting_page_qq_group_1, "4POE46u9e_zoy1TkNfWdCvueR9CKFJdk"),
+        QQGroup(R.string.setting_page_qq_group_2, "Qsm0whzbPsm1UyNpR683ulLyMZ2Pqrw0"),
+        QQGroup(R.string.setting_page_qq_group_3, "Qc9oP-9tXioZeQEvEvI2_owWtBAIx3lS"),
+        QQGroup(R.string.setting_page_douyin_group_1, number = "569655479852", icon = HugeIcons.Tiktok),
     )
 
 @Composable
@@ -686,7 +686,7 @@ private fun QQGroupBottomSheet(onDismiss: () -> Unit) {
         ) {
             QQ_GROUPS.forEach { group ->
                 ListItem(
-                    headlineContent = { Text(group.name) },
+                    headlineContent = { Text(stringResource(group.nameRes)) },
                     supportingContent = group.number?.let { number -> { Text(number) } },
                     leadingContent = {
                         Icon(

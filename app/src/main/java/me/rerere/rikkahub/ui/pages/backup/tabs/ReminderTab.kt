@@ -8,10 +8,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.SegmentedButton
-import androidx.compose.material3.SegmentedButtonDefaults
-import androidx.compose.material3.SingleChoiceSegmentedButtonRow
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,12 +15,23 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock01
+import me.rerere.hugeicons.stroke.Notification02
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.BackupReminderConfig
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
+
+private val ReminderIntervals = listOf(1, 3, 7, 14, 30)
 
 @Composable
 fun ReminderTab(vm: BackupVM) {
@@ -44,53 +51,44 @@ fun ReminderTab(vm: BackupVM) {
                 .imePadding(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        // 助手侧提示：备份/上传可由助手执行，加密口令始终留在本机设置里（无需告诉助手）
         CardGroup(
             modifier = Modifier.fillMaxWidth(),
         ) {
             item(
+                leadingContent = { CardGroupIcon(HugeIcons.Sparkles) },
                 headlineContent = { Text(stringResource(R.string.backup_page_assistant_hint)) },
             )
         }
         CardGroup(
             modifier = Modifier.fillMaxWidth(),
         ) {
-            item(
-                trailingContent = {
-                    Switch(
-                        checked = config.enabled,
-                        onCheckedChange = { updateConfig(config.copy(enabled = it)) },
-                    )
-                },
+            switchItem(
+                checked = config.enabled,
+                onCheckedChange = { updateConfig(config.copy(enabled = it)) },
+                leadingContent = { CardGroupIcon(HugeIcons.Notification02) },
                 headlineContent = { Text(stringResource(R.string.backup_page_reminder_enable)) },
             )
 
             if (config.enabled) {
-                item(
+                formItem(
                     headlineContent = { Text(stringResource(R.string.backup_page_reminder_interval)) },
-                    supportingContent = {
-                        val intervals = listOf(1, 3, 7, 14, 30)
-                        SingleChoiceSegmentedButtonRow(
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            intervals.forEachIndexed { index, days ->
-                                SegmentedButton(
-                                    shape =
-                                        SegmentedButtonDefaults.itemShape(
-                                            index = index,
-                                            count = intervals.size,
-                                        ),
-                                    onClick = { updateConfig(config.copy(intervalDays = days)) },
-                                    selected = config.intervalDays == days,
-                                ) {
-                                    Text(stringResource(R.string.backup_page_reminder_interval_days, days))
-                                }
-                            }
-                        }
+                    trailingContent = {
+                        CardGroupValue(
+                            stringResource(R.string.backup_page_reminder_interval_days, config.intervalDays),
+                        )
                     },
-                )
+                ) {
+                    ConnectedChoiceButtons(
+                        options = ReminderIntervals,
+                        selected = config.intervalDays,
+                        onSelect = { updateConfig(config.copy(intervalDays = it)) },
+                    ) { days, selected ->
+                        ConnectedChoiceLabel(text = days.toString(), selected = selected)
+                    }
+                }
 
                 item(
+                    leadingContent = { CardGroupIcon(HugeIcons.Clock01) },
                     headlineContent = {
                         Text(
                             if (config.lastBackupTime == 0L) {

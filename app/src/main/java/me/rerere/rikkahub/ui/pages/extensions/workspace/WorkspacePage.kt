@@ -2,28 +2,24 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.DropdownMenu
-import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -46,12 +42,15 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
 import me.rerere.hugeicons.stroke.File02
-import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.ItemAction
+import me.rerere.rikkahub.ui.components.ui.ItemActionMenu
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -95,7 +94,11 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
         ) {
             if (workspaces.isEmpty()) {
                 item {
-                    EmptyWorkspaceState()
+                    ExtensionEmptyState(
+                        message = stringResource(R.string.workspace_page_empty),
+                        description = stringResource(R.string.workspace_page_empty_desc),
+                        icon = HugeIcons.File02,
+                    )
                 }
             }
 
@@ -187,35 +190,6 @@ fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
 }
 
 @Composable
-private fun EmptyWorkspaceState() {
-    Column(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 48.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Icon(
-            imageVector = HugeIcons.File02,
-            contentDescription = null,
-            modifier = Modifier.size(48.dp),
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = stringResource(R.string.workspace_page_empty),
-            style = MaterialTheme.typography.bodyLarge,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-        Text(
-            text = stringResource(R.string.workspace_page_empty_desc),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-    }
-}
-
-@Composable
 private fun WorkspaceTypeOption(
     icon: ImageVector,
     title: String,
@@ -225,7 +199,7 @@ private fun WorkspaceTypeOption(
     ListItem(
         headlineContent = { Text(title) },
         supportingContent = { Text(description, style = MaterialTheme.typography.bodySmall) },
-        leadingContent = { Icon(icon, contentDescription = null) },
+        leadingContent = { CardGroupIcon(icon) },
         modifier = Modifier.fillMaxWidth().clickable(onClick = onClick),
     )
 }
@@ -238,100 +212,70 @@ private fun WorkspaceCard(
     onDelete: () -> Unit,
     onOpen: () -> Unit,
 ) {
-    var menuExpanded by remember { mutableStateOf(false) }
-
-    Card(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable(onClick = onOpen),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+    Surface(
+        onClick = onOpen,
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth(),
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
+            CardGroupIcon(if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02)
+            Column(
                 modifier =
                     Modifier
-                        .fillMaxWidth()
-                        .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
+                        .weight(1f)
+                        .padding(horizontal = 16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                Icon(
-                    imageVector = if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02,
-                    contentDescription = null,
-                    modifier = Modifier.size(22.dp),
-                    tint = MaterialTheme.colorScheme.primary,
+                Text(
+                    text = workspace.name,
+                    style = MaterialTheme.typography.bodyLarge,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
-                Column(
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .padding(horizontal = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(
-                        text = workspace.name,
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    Text(
-                        text = workspace.statusLabel(),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                }
-                Box {
-                    IconButton(onClick = { menuExpanded = true }) {
-                        Icon(HugeIcons.MoreVertical, contentDescription = null)
-                    }
-                    DropdownMenu(
-                        expanded = menuExpanded,
-                        onDismissRequest = { menuExpanded = false },
-                    ) {
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.common_rename)) },
-                            leadingIcon = { Icon(HugeIcons.Edit01, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onRename()
-                            },
+                Text(
+                    text = workspace.statusLabel(),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            ItemActionMenu(
+                actions =
+                    buildList {
+                        add(
+                            ItemAction(
+                                text = stringResource(R.string.common_rename),
+                                icon = HugeIcons.Edit01,
+                                onClick = onRename,
+                            ),
                         )
                         if (workspace.isSsh()) {
-                            DropdownMenuItem(
-                                text = { Text(stringResource(R.string.workspace_ssh_edit_connection)) },
-                                leadingIcon = { Icon(HugeIcons.ServerStack01, contentDescription = null) },
-                                onClick = {
-                                    menuExpanded = false
-                                    onEditSsh()
-                                },
+                            add(
+                                ItemAction(
+                                    text = stringResource(R.string.workspace_ssh_edit_connection),
+                                    icon = HugeIcons.ServerStack01,
+                                    onClick = onEditSsh,
+                                ),
                             )
                         }
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(R.string.common_delete),
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.Delete01,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            },
+                        add(
+                            ItemAction(
+                                text = stringResource(R.string.common_delete),
+                                icon = HugeIcons.Delete01,
+                                destructive = true,
+                                onClick = onDelete,
+                            ),
                         )
-                    }
-                }
-            }
+                    },
+            )
         }
     }
 }
@@ -357,7 +301,6 @@ private fun EditWorkspaceDialog(
                 onValueChange = { name = it },
                 modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.workspace_page_name)) },
-                singleLine = true,
                 isError = isDuplicate,
                 supportingText =
                     if (isDuplicate) {
@@ -365,12 +308,13 @@ private fun EditWorkspaceDialog(
                     } else {
                         null
                     },
+                singleLine = true,
             )
         },
         confirmButton = {
             TextButton(
                 onClick = { onConfirm(trimmedName) },
-                enabled = name.isNotBlank() && !isDuplicate,
+                enabled = trimmedName.isNotEmpty() && !isDuplicate,
             ) {
                 Text(stringResource(R.string.common_save))
             }

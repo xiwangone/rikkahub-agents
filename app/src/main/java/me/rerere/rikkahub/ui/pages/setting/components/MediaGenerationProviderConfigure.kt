@@ -560,20 +560,20 @@ internal fun presetMediaModelsFor(setting: MediaGenerationProviderSetting): List
 
         is MediaGenerationProviderSetting.Aliyun ->
             listOf(
-                MediaGenerationModel("wan2.7-image-pro", MediaKind.IMAGE, "万相 2.7 图像 Pro"),
-                MediaGenerationModel("wan2.7-image", MediaKind.IMAGE, "万相 2.7 图像"),
-                MediaGenerationModel("wanx2.1-t2i-plus", MediaKind.IMAGE, "万相 2.1 文生图 Plus"),
-                MediaGenerationModel("wanx2.1-t2i-turbo", MediaKind.IMAGE, "万相 2.1 文生图 Turbo"),
-                MediaGenerationModel("wanx2.0-t2i-turbo", MediaKind.IMAGE, "万相 2.0 文生图 Turbo"),
-                MediaGenerationModel("qwen-image", MediaKind.IMAGE, "千问图像生成"),
-                MediaGenerationModel("qwen-image-edit", MediaKind.IMAGE, "千问图像编辑"),
-                MediaGenerationModel("wan3.0-video", MediaKind.VIDEO, "万相 3.0 视频"),
-                MediaGenerationModel("wan2.6-t2v", MediaKind.VIDEO, "万相 2.6 文生视频"),
-                MediaGenerationModel("wan2.6-i2v", MediaKind.VIDEO, "万相 2.6 图生视频"),
-                MediaGenerationModel("wanx2.1-t2v-plus", MediaKind.VIDEO, "万相 2.1 文生视频 Plus"),
-                MediaGenerationModel("wanx2.1-t2v-turbo", MediaKind.VIDEO, "万相 2.1 文生视频 Turbo"),
-                MediaGenerationModel("wanx2.1-i2v-plus", MediaKind.VIDEO, "万相 2.1 图生视频 Plus"),
-                MediaGenerationModel("wanx2.1-i2v-turbo", MediaKind.VIDEO, "万相 2.1 图生视频 Turbo"),
+                MediaGenerationModel("wan2.7-image-pro", MediaKind.IMAGE, "Wan 2.7 Image Pro"),
+                MediaGenerationModel("wan2.7-image", MediaKind.IMAGE, "Wan 2.7 Image"),
+                MediaGenerationModel("wanx2.1-t2i-plus", MediaKind.IMAGE, "Wanx 2.1 T2I Plus"),
+                MediaGenerationModel("wanx2.1-t2i-turbo", MediaKind.IMAGE, "Wanx 2.1 T2I Turbo"),
+                MediaGenerationModel("wanx2.0-t2i-turbo", MediaKind.IMAGE, "Wanx 2.0 T2I Turbo"),
+                MediaGenerationModel("qwen-image", MediaKind.IMAGE, "Qwen Image"),
+                MediaGenerationModel("qwen-image-edit", MediaKind.IMAGE, "Qwen Image Edit"),
+                MediaGenerationModel("wan3.0-video", MediaKind.VIDEO, "Wan 3.0 Video"),
+                MediaGenerationModel("wan2.6-t2v", MediaKind.VIDEO, "Wan 2.6 T2V"),
+                MediaGenerationModel("wan2.6-i2v", MediaKind.VIDEO, "Wan 2.6 I2V"),
+                MediaGenerationModel("wanx2.1-t2v-plus", MediaKind.VIDEO, "Wanx 2.1 T2V Plus"),
+                MediaGenerationModel("wanx2.1-t2v-turbo", MediaKind.VIDEO, "Wanx 2.1 T2V Turbo"),
+                MediaGenerationModel("wanx2.1-i2v-plus", MediaKind.VIDEO, "Wanx 2.1 I2V Plus"),
+                MediaGenerationModel("wanx2.1-i2v-turbo", MediaKind.VIDEO, "Wanx 2.1 I2V Turbo"),
             )
 
         is MediaGenerationProviderSetting.Volcengine ->
@@ -582,25 +582,25 @@ internal fun presetMediaModelsFor(setting: MediaGenerationProviderSetting): List
                 MediaGenerationModel("doubao-seedream-5-0", MediaKind.IMAGE, "Seedream 5.0"),
                 MediaGenerationModel("doubao-seedream-4-5-251128", MediaKind.IMAGE, "Seedream 4.5"),
                 MediaGenerationModel("doubao-seedream-4-0-250828", MediaKind.IMAGE, "Seedream 4.0"),
-                MediaGenerationModel("doubao-seedream-3-0-t2i-250415", MediaKind.IMAGE, "Seedream 3.0 文生图"),
-                MediaGenerationModel("doubao-seededit-3-0-i2i-250628", MediaKind.IMAGE, "SeedEdit 3.0 图生图"),
+                MediaGenerationModel("doubao-seedream-3-0-t2i-250415", MediaKind.IMAGE, "Seedream 3.0 T2I"),
+                MediaGenerationModel("doubao-seededit-3-0-i2i-250628", MediaKind.IMAGE, "SeedEdit 3.0 I2I"),
                 MediaGenerationModel("doubao-seedance-2-0-260128", MediaKind.VIDEO, "Seedance 2.0"),
                 MediaGenerationModel("doubao-seedance-1-5-pro-251215", MediaKind.VIDEO, "Seedance 1.5 Pro"),
                 MediaGenerationModel("doubao-seedance-1-0-pro-250528", MediaKind.VIDEO, "Seedance 1.0 Pro"),
-                MediaGenerationModel("doubao-seedance-1-0-lite-t2v-250428", MediaKind.VIDEO, "Seedance 1.0 Lite 文生视频"),
-                MediaGenerationModel("doubao-seedance-1-0-lite-i2v-250428", MediaKind.VIDEO, "Seedance 1.0 Lite 图生视频"),
+                MediaGenerationModel("doubao-seedance-1-0-lite-t2v-250428", MediaKind.VIDEO, "Seedance 1.0 Lite T2V"),
+                MediaGenerationModel("doubao-seedance-1-0-lite-i2v-250428", MediaKind.VIDEO, "Seedance 1.0 Lite I2V"),
             )
 
         is MediaGenerationProviderSetting.MiniMax ->
             listOf(
                 MediaGenerationModel("MiniMax-H3", MediaKind.VIDEO, "MiniMax H3"),
-                MediaGenerationModel("MiniMax-Hailuo-02", MediaKind.VIDEO, "海螺 02 (Hailuo-02)"),
-                MediaGenerationModel("T2V-01-Director", MediaKind.VIDEO, "文生视频 Director"),
-                MediaGenerationModel("T2V-01", MediaKind.VIDEO, "文生视频 01"),
-                MediaGenerationModel("I2V-01-Director", MediaKind.VIDEO, "图生视频 Director"),
-                MediaGenerationModel("I2V-01-live", MediaKind.VIDEO, "图生视频 Live"),
-                MediaGenerationModel("I2V-01", MediaKind.VIDEO, "图生视频 01"),
-                MediaGenerationModel("S2V-01", MediaKind.VIDEO, "主体参考视频 01"),
+                MediaGenerationModel("MiniMax-Hailuo-02", MediaKind.VIDEO, "MiniMax Hailuo 02"),
+                MediaGenerationModel("T2V-01-Director", MediaKind.VIDEO, "T2V-01 Director"),
+                MediaGenerationModel("T2V-01", MediaKind.VIDEO, "T2V-01"),
+                MediaGenerationModel("I2V-01-Director", MediaKind.VIDEO, "I2V-01 Director"),
+                MediaGenerationModel("I2V-01-live", MediaKind.VIDEO, "I2V-01 Live"),
+                MediaGenerationModel("I2V-01", MediaKind.VIDEO, "I2V-01"),
+                MediaGenerationModel("S2V-01", MediaKind.VIDEO, "S2V-01"),
             )
 
         is MediaGenerationProviderSetting.OpenRouter ->

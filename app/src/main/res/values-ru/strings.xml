@@ -4182,4 +4182,11 @@
     <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
     <string name="setting_media_page_asset_storage">Хранилище медиафайлов</string>
     <string name="setting_page_media_desc">Настройка сервисов генерации изображений и видео</string>
+    <string name="search_picker_off">Выкл.</string>
+    <string name="search_picker_status_off">Выключено</string>
+    <string name="search_picker_off_description">Не использовать веб-поиск</string>
+    <string name="setting_page_qq_group_1">Группа RikkaHub 1</string>
+    <string name="setting_page_qq_group_2">Группа RikkaHub 2</string>
+    <string name="setting_page_qq_group_3">Группа RikkaHub 3</string>
+    <string name="setting_page_douyin_group_1">Группа Douyin 1</string>
 </resources>

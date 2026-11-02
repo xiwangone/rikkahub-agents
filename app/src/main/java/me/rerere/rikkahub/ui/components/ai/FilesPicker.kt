@@ -25,6 +25,7 @@ import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.FilledTonalButton
@@ -44,6 +45,7 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -55,6 +57,8 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import kotlinx.coroutines.Deferred
+import kotlinx.coroutines.launch
+import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
@@ -77,8 +81,9 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.datastore.findProvider
-import me.rerere.rikkahub.data.datastore.getCurrentChatModel
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Conversation
@@ -88,6 +93,7 @@ import me.rerere.rikkahub.ui.components.ui.ExtensionSelector
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.hooks.ChatInputState
+import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.workspace.WorkspaceShellStatus
 import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
@@ -96,7 +102,16 @@ private enum class FilesPickerPage {
     MAIN,
     MCP,
     EXTENSIONS,
+    SEARCH,
+    SEARCH_PROVIDER,
 }
+
+private val FilesPickerPage.parent: FilesPickerPage
+    get() =
+        when (this) {
+            FilesPickerPage.SEARCH_PROVIDER -> FilesPickerPage.SEARCH
+            else -> FilesPickerPage.MAIN
+        }
 
 @Composable
 internal fun FilesPicker(
@@ -124,7 +139,13 @@ internal fun FilesPicker(
     onBackendChange: (String) -> Unit = {},
 ) {
     val settings = LocalSettings.current
-    val provider = settings.getCurrentChatModel()?.findProvider(providers = settings.providers)
+    val settingsStore = koinInject<SettingsStore>()
+    val scope = rememberCoroutineScope()
+    val chatModel =
+        remember(settings, conversation.chatModelId, assistant.id) {
+            settings.findChatModelFor(conversation.chatModelId, assistant.id)
+        }
+    val provider = chatModel?.findProvider(providers = settings.providers)
     val navController = LocalNavController.current
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsState(initial = emptyList())
@@ -138,7 +159,7 @@ internal fun FilesPicker(
 
     var page by remember { mutableStateOf(FilesPickerPage.MAIN) }
     BackHandler(enabled = page != FilesPickerPage.MAIN) {
-        page = FilesPickerPage.MAIN
+        page = page.parent
     }
 
     AnimatedContent(
@@ -152,7 +173,6 @@ internal fun FilesPicker(
                     slideOutHorizontally { it } + fadeOut()
             }
         },
-        label = "FilesPickerPage",
     ) { currentPage ->
         when (currentPage) {
             FilesPickerPage.MCP -> McpPickerPage(
@@ -171,6 +191,39 @@ internal fun FilesPicker(
                 onUpdateConversation = onUpdateConversation,
                 onBack = { page = FilesPickerPage.MAIN },
                 onDismissAll = onDismiss,
+            )
+
+            FilesPickerPage.SEARCH -> SearchPickerPage(
+                enableSearch = assistant.enableWebSearch,
+                settings = settings,
+                model = chatModel,
+                onUpdateSearchMode = { mode ->
+                    applySearchModeChange(
+                        mode = mode,
+                        model = chatModel,
+                        settingsStore = settingsStore,
+                        scope = scope,
+                        onToggleLocalSearch = { enabled ->
+                            onUpdateAssistant(assistant.copy(enableWebSearch = enabled))
+                        },
+                    )
+                },
+                onSelectProvider = { page = FilesPickerPage.SEARCH_PROVIDER },
+                onBack = { page = FilesPickerPage.MAIN },
+                onDismissAll = onDismiss,
+            )
+
+            FilesPickerPage.SEARCH_PROVIDER -> SearchProviderPicker(
+                settings = settings,
+                onUpdateSearchService = { index ->
+                    scope.launch {
+                        settingsStore.update { current ->
+                            current.copy(searchServiceSelected = index)
+                        }
+                    }
+                    page = FilesPickerPage.SEARCH
+                },
+                onBack = { page = FilesPickerPage.SEARCH },
             )
 
             FilesPickerPage.MAIN -> Column(
@@ -201,12 +254,20 @@ internal fun FilesPicker(
                 val showWorkspace = workspaces.isNotEmpty()
                 val showMcp = settings.mcpServers.isNotEmpty()
                 val itemCount =
-                    4 + listOf(showWorkspace, showWorkspace && showCwd, showMcp).count { it }
+                    5 + listOf(showWorkspace, showWorkspace && showCwd, showMcp).count { it }
                 var itemIndex = 0
 
                 Column(
                     verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
                 ) {
+                    SearchPickerListItem(
+                        enableSearch = assistant.enableWebSearch,
+                        settings = settings,
+                        model = chatModel,
+                        shapes = ListItemDefaults.segmentedShapes(index = itemIndex++, count = itemCount),
+                        onClick = { page = FilesPickerPage.SEARCH },
+                    )
+
                     // 执行后端（AI 执行通道）：本机 / 后端服务
                     val backendMenuOpen = remember { mutableStateOf(false) }
                     Box {
@@ -368,12 +429,41 @@ internal fun FilesPicker(
                             )
                         },
                         trailingContent = {
-                            if (conversation.messageNodes.isNotEmpty()) {
-                                Text(
-                                    text = stringResource(R.string.chat_page_message_count, conversation.messageNodes.size),
-                                    style = MaterialTheme.typography.labelMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
+                            val contextTokens =
+                                remember(conversation.messageNodes) {
+                                    val messages = conversation.currentMessages
+                                    val msg = messages.lastOrNull { it.role == MessageRole.ASSISTANT }
+                                    val checkpoint = messages.lastOrNull { it.isContextCheckpoint }
+                                    if (msg == null || (checkpoint != null && checkpoint.createdAt > msg.createdAt)) {
+                                        null
+                                    } else {
+                                        msg.usage?.totalTokens?.takeIf { it > 0 }
+                                    }
+                                }
+                            val contextLength = chatModel?.contextLength?.takeIf { it > 0 }
+                            Row(
+                                verticalAlignment = Alignment.CenterVertically,
+                                horizontalArrangement = Arrangement.spacedBy(10.dp),
+                            ) {
+                                Column(horizontalAlignment = Alignment.End) {
+                                    if (conversation.messageNodes.isNotEmpty()) {
+                                        Text(
+                                            text = stringResource(R.string.chat_page_message_count, conversation.messageNodes.size),
+                                            style = MaterialTheme.typography.labelMedium,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                    if (contextTokens != null && contextLength != null) {
+                                        Text(
+                                            text = "${contextTokens.formatNumber()} / ${contextLength.formatNumber()}",
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        )
+                                    }
+                                }
+                                if (contextTokens != null && contextLength != null) {
+                                    ContextUsageRing(fraction = contextTokens.toFloat() / contextLength)
+                                }
                             }
                         },
                     ) {
@@ -421,7 +511,6 @@ internal fun FilesPicker(
         )
     }
 
-    // Injection Bottom Sheet (fallback if triggered externally)
     if (showInjectionSheet) {
         InjectionQuickConfigSheet(
             conversation = conversation,
@@ -434,7 +523,6 @@ internal fun FilesPicker(
         )
     }
 
-    // Compress Context Dialog
     if (showCompressDialog) {
         CompressContextDialog(
             onDismiss = {
@@ -715,6 +803,23 @@ internal fun CountBadge(count: Int) {
     ) {
         Text(count.toString())
     }
+}
+
+@Composable
+private fun ContextUsageRing(fraction: Float) {
+    val color =
+        when {
+            fraction >= 0.9f -> MaterialTheme.colorScheme.error
+            fraction >= 0.7f -> MaterialTheme.colorScheme.tertiary
+            else -> MaterialTheme.colorScheme.primary
+        }
+    CircularProgressIndicator(
+        progress = { fraction.coerceIn(0f, 1f) },
+        modifier = Modifier.size(24.dp),
+        color = color,
+        strokeWidth = 3.dp,
+        trackColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+    )
 }
 
 @Preview(showBackground = true)

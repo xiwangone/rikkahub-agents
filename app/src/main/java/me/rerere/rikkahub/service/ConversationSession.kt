@@ -9,10 +9,11 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.getAndUpdate
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.model.Conversation
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.uuid.Uuid
-import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "ConversationSession"
 private const val IDLE_TIMEOUT_MS = 5_000L
@@ -25,6 +26,17 @@ class ConversationSession(
 ) {
     // 会话状态
     val state = MutableStateFlow(initial)
+
+    // 会话是否已完成首次数据库/预设初始化；一旦初始化或已有内存消息，切换会话时不再用数据库旧快照覆盖内存流式状态
+    internal val initMutex = Mutex()
+
+    @Volatile
+    var isInitialized: Boolean = false
+        private set
+
+    fun markInitialized() {
+        isInitialized = true
+    }
 
     // 原子引用计数
     private val refCount = AtomicInteger(0)
@@ -52,7 +64,7 @@ class ConversationSession(
     private val activeJobs = java.util.Collections.synchronizedSet(mutableSetOf<Job>())
     val generationJob: StateFlow<Job?> = _generationJob.asStateFlow()
     val isGenerating: Boolean get() = _generationJob.value?.isActive == true
-    val isInUse: Boolean get() = refCount.get() > 0 || isGenerating
+    val isInUse: Boolean get() = refCount.get() > 0 || isGenerating || _generationJob.value != null
 
     // 空闲检查任务
     private var idleCheckJob: Job? = null
@@ -97,15 +109,8 @@ class ConversationSession(
      */
     @Synchronized
     fun setJob(job: Job?, cancelPrevious: Boolean = true) {
-        // Atomic swap so two concurrent setJob callers can't race-write a stale job.
-        // The previous code (cancel() then assign) had a window where two writers could
-        // each read the prior value, A cancels old, B reads old (already cancelled,
-        // no-op), A writes newA, B writes newB → A's job is untracked but still running;
-        // getJob() returns B; stopGeneration only cancels B; A leaks until completion.
         val previous = _generationJob.getAndUpdate { job }
         if (cancelPrevious && previous != null) {
-            // 诊断：「思考/正文截断」排查用 —— 记录是谁在取消一个**仍在跑**的生成。
-            // 只记 isActive 的（收尾中被换掉是正常语义，不必刷屏）。
             if (previous.isActive) {
                 val caller =
                     Thread.currentThread().stackTrace
@@ -119,13 +124,8 @@ class ConversationSession(
             previous.cancel()
         }
         if (job != null) activeJobs.add(job)
-        // Identity-checked completion handler: only null the StateFlow if the value is
-        // STILL the same job we just set. Without this an out-of-order setJob(B) →
-        // A.invokeOnCompletion → clobber-B race could null out the live job.
         job?.invokeOnCompletion { cause ->
             activeJobs.remove(job)
-            // 接续语义下，若新任务尚未进入协程体就被取消，需要把取消传播给被取代的前一个任务，
-            // 否则前一个任务已被取代又未真正接管 → 生成停滞。
             if (!cancelPrevious && cause is CancellationException) previous?.cancel()
             if (_generationJob.compareAndSet(job, null)) {
                 if (refCount.get() <= 0) {
@@ -159,12 +159,6 @@ class ConversationSession(
     }
 
     fun cleanup() {
-        // Use getAndUpdate (same as setJob) so cleanup() is consistent with the atomic
-        // swap used elsewhere. Direct .value = null would bypass the CAS and could
-        // theoretically race with a concurrent setJob that's running post-removal
-        // (e.g., a coroutine that had already acquired a session reference before
-        // dropSession removed it from the map). In practice the risk is tiny because
-        // cleanup() is only called after removal, but correctness still matters.
         val job = _generationJob.getAndUpdate { null }
         job?.cancel()
         idleCheckJob?.cancel()

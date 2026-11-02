@@ -580,6 +580,17 @@ class ChatVM(
         }
     }
 
+    /** 新会话尚未落库且无消息时，同步抽屉当前选中的文件夹。 */
+    fun updateDraftFolder(folderId: Uuid?) {
+        viewModelScope.launch {
+            if (conversation.value.messageNodes.isEmpty() && !conversationRepo.existsConversationById(_conversationId)) {
+                chatService.updateConversationState(_conversationId) { current ->
+                    if (current.messageNodes.isEmpty()) current.copy(folderId = folderId) else current
+                }
+            }
+        }
+    }
+
     fun toggleMessageFavorite(node: MessageNode) {
         viewModelScope.launch {
             val currentlyFavorited = favoriteRepository.isNodeFavorited(_conversationId, node.id)
