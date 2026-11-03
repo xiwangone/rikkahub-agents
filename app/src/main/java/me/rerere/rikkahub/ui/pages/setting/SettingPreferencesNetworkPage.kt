@@ -77,7 +77,6 @@ import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
 
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
-private const val DEFAULT_DNS_TEST_DOMAIN = "www.baidu.com"
 
 @Composable
 fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
@@ -109,7 +108,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     var customDnsDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS) }
     var dnsFallbackDraft by remember { mutableStateOf(true) }
     var dnsIpv6Draft by remember { mutableStateOf(false) }
-    var dnsTestDomain by remember { mutableStateOf(DEFAULT_DNS_TEST_DOMAIN) }
+    var dnsTestDomain by remember(net.dnsTestDomain) { mutableStateOf(net.dnsTestDomain) }
     var dnsTesting by remember { mutableStateOf(false) }
 
     var hostOverrideDialogVisible by remember { mutableStateOf(false) }
@@ -162,6 +161,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     customDnsServers = customDnsDraft.trim().ifEmpty { NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS },
                     dnsFallbackToSystem = dnsFallbackDraft,
                     dnsEnableIpv6 = dnsIpv6Draft,
+                    dnsTestDomain = dnsTestDomain.trim().ifEmpty { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
                 ),
             )
         }
@@ -225,17 +225,29 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     AppDnsResolver.testResolve(
-                        domain = dnsTestDomain.ifBlank { DEFAULT_DNS_TEST_DOMAIN },
+                        domain = dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
                         setting = targetSetting,
                     )
                 }
             }
             result.onSuccess { outcome ->
+                // IPv4 / IPv6 分组展示：堆在一起时前缀相同，看不出哪条是 v6，也不便判断 AAAA 是否真的拿到了。
+                val ipSummary =
+                    buildString {
+                        val v4 = outcome.addresses.filter { ':' !in it }
+                        val v6 = outcome.addresses.filter { ':' in it }
+                        if (v4.isNotEmpty()) append("IPv4 ").append(v4.take(2).joinToString(", "))
+                        if (v6.isNotEmpty()) {
+                            if (isNotEmpty()) append("  ·  ")
+                            append("IPv6 ").append(v6.take(2).joinToString(", "))
+                        }
+                        if (isEmpty()) append("—")
+                    }
                 toaster.show(
                     resources.getString(
                         R.string.setting_page_preferences_network_dns_test_success,
                         outcome.domain,
-                        outcome.addresses.take(3).joinToString(", "),
+                        ipSummary,
                         outcome.elapsedMs,
                     ),
                     type = ToastType.Success,
@@ -486,7 +498,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         label = {
                             Text(stringResource(R.string.setting_page_preferences_network_dns_test_domain))
                         },
-                        placeholder = { Text(DEFAULT_DNS_TEST_DOMAIN) },
+                        placeholder = { Text(NetworkSetting.DEFAULT_DNS_TEST_DOMAIN) },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         singleLine = true,
                     )
@@ -850,6 +862,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             customDnsDraft = net.customDnsServers
                             dnsFallbackDraft = net.dnsFallbackToSystem
                             dnsIpv6Draft = net.dnsEnableIpv6
+                            dnsTestDomain = net.dnsTestDomain
                             dnsDialogVisible = true
                         },
                         leadingContent = {
@@ -882,7 +895,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             Text(stringResource(R.string.setting_provider_page_test_connection))
                         },
                         supportingContent = {
-                            Text(dnsTestDomain.ifBlank { DEFAULT_DNS_TEST_DOMAIN })
+                            Text(dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN })
                         },
                         trailingContent = {
                             TextButton(

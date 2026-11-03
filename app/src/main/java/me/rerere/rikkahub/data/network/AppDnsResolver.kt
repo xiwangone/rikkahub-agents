@@ -191,7 +191,7 @@ object AppDnsResolver {
         setting: NetworkSetting,
     ): DnsTestOutcome {
         invalidateCache()
-        val target = domain.trim().ifEmpty { "www.baidu.com" }
+        val target = domain.trim().ifEmpty { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN }
         val start = System.nanoTime()
         val bootstrapServers = parseServerList(setting.customDnsServers)
             .ifEmpty { listOf("223.5.5.5", "119.29.29.29", "1.1.1.1", "8.8.8.8") }

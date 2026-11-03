@@ -296,6 +296,8 @@ data class NetworkSetting(
     val dnsFallbackToSystem: Boolean = true,
     /** 是否同时解析 IPv6 (AAAA) 记录。 */
     val dnsEnableIpv6: Boolean = false,
+    /** 「测试连接」用的域名（用户可自定义并保存；默认用 IANA 保留域名，全球可解析且带 AAAA）。 */
+    val dnsTestDomain: String = DEFAULT_DNS_TEST_DOMAIN,
 ) {
     companion object {
         const val TUNNEL_TAILSCALE = "tailscale"
@@ -309,6 +311,8 @@ data class NetworkSetting(
         const val DEFAULT_DOH_URL = "https://dns.alidns.com/dns-query"
         const val DEFAULT_DOT_HOST = "dns.alidns.com"
         const val DEFAULT_BOOTSTRAP_SERVERS = "223.5.5.5, 119.29.29.29, 1.1.1.1, 8.8.8.8"
+        /** RFC 2606 保留域名：永久存在、全球可解析、有 IPv4+IPv6，不含商业/地域色彩。 */
+        const val DEFAULT_DNS_TEST_DOMAIN = "example.com"
     }
 }
 
