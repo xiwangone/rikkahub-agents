@@ -17,6 +17,8 @@ import me.rerere.rikkahub.data.sync.s3.S3Client
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.io.IOException
@@ -31,7 +33,7 @@ private const val TAG = "S3Sync"
 
 // 7 个构造依赖 = 既有 6 个 + 新增的逻辑备份段（2026-11 外部交付）；
 // 拆成参数对象只会引入一层不必要的间接 —— 所有字段都是本类直接使用的稳定依赖。
-@Suppress("LongParameterList")
+@Suppress("TooManyFunctions", "LongParameterList")
 class S3Sync(
     private val settingsStore: SettingsStore,
     private val json: Json,
@@ -190,6 +192,7 @@ class S3Sync(
     }
 
     suspend fun prepareBackupFile(config: S3Config): PreparedBackup = withContext(Dispatchers.IO) {
+        cleanupStaleBackupTemps(context.cacheDir)
         // settings 的兼容判断要基于**用户原始勾选**：withLegacyExpanded 会把旧 FILES 展开成
         // 新枚举项，展开后再判断就再也识别不出“旧式配置”了。
         val wantSettings =
@@ -212,7 +215,7 @@ class S3Sync(
         var logical = LogicalExport()
 
         // Create zip file and backup data
-        ZipOutputStream(FileOutputStream(backupFile)).use { zipOut ->
+        ZipOutputStream(BufferedOutputStream(FileOutputStream(backupFile), 64 * 1024)).use { zipOut ->
             // 只有勾了 SETTINGS（或旧式配置）才带 settings.json，否则「只勾提供商/凭证」
             // 会顺带备份并恢复整份设置，粒度形同虚设。
             if (wantSettings) {
@@ -255,11 +258,25 @@ class S3Sync(
                 addFolderFilesToZip(zipOut, FileFolders.FONTS)
                 addFolderFilesToZip(zipOut, FileFolders.IMAGES)
             }
+            if (config.items.contains(S3Config.BackupItem.TOOL_OUTPUTS)) {
+                addFolderRecursiveToZip(zipOut, FileFolders.TOOL_OUTPUTS)
+            }
+
             // Media sessions retain their authoritative relativePath files under 06's directory.
             addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
 
+            if (config.items.contains(S3Config.BackupItem.WORKSPACE_DOCS)) {
+                backupWorkspaceDocs(zipOut)
+            }
+
             // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）
-            logical = logicalBackup.writeTo(zipOut, itemNames)
+            val effectiveLogicalItems =
+                if (backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
+                    LogicalDomains.expandImpliedForEncryptedBackup(itemNames)
+                } else {
+                    itemNames
+                }
+            logical = logicalBackup.writeTo(zipOut, effectiveLogicalItems)
         }
 
         AppLog.i(
@@ -272,6 +289,27 @@ class S3Sync(
             undecryptableCredentials = logical.undecryptableCredentials,
             providersIncluded = logical.providersIncluded,
         )
+    }
+
+
+    private fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
+        val workspacesRoot = File(context.filesDir, "workspaces")
+        if (!workspacesRoot.isDirectory) return
+        val excludeDirs = setOf("node_modules", "local-models", "cache", ".gradle", "build", ".git", "dist", ".next", ".venv")
+        workspacesRoot.listFiles().orEmpty().forEach { wsDir ->
+            val filesLayer = File(wsDir, "files")
+            if (!wsDir.isDirectory || !filesLayer.isDirectory) return@forEach
+            val wsName = wsDir.name
+            filesLayer.listFiles().orEmpty().forEach { top ->
+                val name = top.name
+                if (name in excludeDirs || name == "tmp" || name == "linux") return@forEach
+                if (top.isFile) {
+                    addFileToZip(zipOut, top, "workspaces/$wsName/files/$name")
+                } else if (top.isDirectory && RestoreFileTransaction.isSafeTreeEntry(filesLayer, top)) {
+                    addDirectoryToZip(zipOut, top, top, "workspaces/$wsName/files/$name/")
+                }
+            }
+        }
     }
 
     private fun requireBackupEncryption() {
@@ -290,28 +328,36 @@ class S3Sync(
         // 逻辑段（明文，整包口令加密）只暂存，等新库安装、Room 打开后写回。
         val logicalEntries = mutableMapOf<String, String>()
 
-        ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
-            var entry: ZipEntry?
-            while (zipIn.nextEntry.also { entry = it } != null) {
-                entry?.let { zipEntry ->
-                    AppLog.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            ZipInputStream(BufferedInputStream(FileInputStream(backupFile), 64 * 1024)).use { zipIn ->
+                var entry: ZipEntry?
+                while (zipIn.nextEntry.also { entry = it } != null) {
+                    entry?.let { zipEntry ->
+                        AppLog.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
 
-                    when (zipEntry.name) {
-                        "settings.json" -> {
-                            val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
-                            AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
-                            try {
-                                val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
-                                val settings = json.decodeFromString<Settings>(migratedJson)
-                                PendingDatabaseRestore.stageSettings(context, stage(), settings)
-                                AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
-                            } catch (e: CancellationException) {
-                                throw e
-                            } catch (e: Exception) {
-                                AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
-                                throw Exception("Failed to restore settings: ${e.message}", e)
+                        when (zipEntry.name) {
+                            "settings.json" -> {
+                                if (config.items.contains(S3Config.BackupItem.SETTINGS) ||
+                                    config.items.none { it in NEW_ITEM_KINDS }
+                                ) {
+                                    val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
+                                    AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
+                                    try {
+                                        val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
+                                        val settings = json.decodeFromString<Settings>(migratedJson)
+                                        PendingDatabaseRestore.stageSettings(context, stage(), settings)
+                                        AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
+                                    } catch (e: CancellationException) {
+                                        throw e
+                                    } catch (e: Exception) {
+                                        AppLog.e(TAG, "restoreFromBackupFile: Failed to restore settings", e)
+                                        throw Exception("Failed to restore settings: ${e.message}", e)
+                                    }
+                                } else {
+                                    AppLog.i(TAG, "restoreFromBackupFile: Skipping settings.json (SETTINGS not selected)")
+                                }
                             }
-                        }
 
                         "rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm" -> {
                             if (config.items.contains(S3Config.BackupItem.DATABASE)) {
@@ -322,8 +368,14 @@ class S3Sync(
                         // migration/ 段（按域逻辑备份）→ 暂存，启动后写回
                         else -> {
                             if (zipEntry.name.trimStart('/').startsWith(MigrationPackage.DIR + "/")) {
-                                logicalEntries[zipEntry.name.trimStart('/')] =
-                                    zipIn.readBytes().toString(Charsets.UTF_8)
+                                val normalizedName = zipEntry.name.trimStart('/')
+                                val selectedNames = config.items.map { it.name }.toSet()
+                                if (LogicalDomains.shouldRestoreEntry(normalizedName, selectedNames)) {
+                                    logicalEntries[normalizedName] =
+                                        zipIn.readBytes().toString(Charsets.UTF_8)
+                                } else {
+                                    skipEntry(zipEntry)
+                                }
                             } else {
                                 // 逐项还原：条目落在哪个目录，就要求本次勾了对应项
                                 val folder = zipEntry.name.substringBefore('/', "")
@@ -337,6 +389,14 @@ class S3Sync(
                                     } else skipEntry(zipEntry)
 
                                     FileFolders.SKILLS -> if (config.wants(S3Config.BackupItem.SKILLS)) {
+                                        PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    } else skipEntry(zipEntry)
+
+                                    FileFolders.TOOL_OUTPUTS -> if (config.items.contains(S3Config.BackupItem.TOOL_OUTPUTS)) {
+                                        PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    } else skipEntry(zipEntry)
+
+                                    "workspaces" -> if (config.items.contains(S3Config.BackupItem.WORKSPACE_DOCS)) {
                                         PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry)
 
@@ -358,14 +418,12 @@ class S3Sync(
             }
         }
 
-        @Suppress("TooGenericExceptionCaught") // 发布失败要清理 stage 后原样重抛，底层异常类型不可枚举
-        databaseStage?.let { stage ->
-            try {
+            databaseStage?.let { stage ->
                 PendingDatabaseRestore.publish(context, stage)
-            } catch (failure: Throwable) {
-                stage.deleteRecursively()
-                throw failure
             }
+        } catch (failure: Throwable) {
+            databaseStage?.let { PendingDatabaseRestore.discardStage(it) }
+            throw failure
         }
 
         // 逻辑段暂存，待新库安装且 Room 打开后写回
@@ -380,7 +438,7 @@ class S3Sync(
         FileInputStream(file).use { fis ->
             val zipEntry = ZipEntry(entryName)
             zipOut.putNextEntry(zipEntry)
-            fis.copyTo(zipOut)
+            fis.copyTo(zipOut, bufferSize = 64 * 1024)
             zipOut.closeEntry()
             AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
         }

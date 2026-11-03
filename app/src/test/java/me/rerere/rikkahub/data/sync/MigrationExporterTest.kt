@@ -92,4 +92,30 @@ class MigrationExporterTest {
         assertTrue(LogicalDomains.anySelected(listOf("SCHEDULED_JOBS")))
         assertFalse(LogicalDomains.anySelected(listOf("DATABASE", "SETTINGS", "AVATARS")))
     }
+
+    @Test
+    fun `encrypted backup expands implied logical domains and filters restore entries symmetrically`() {
+        val fromSettings = LogicalDomains.expandImpliedForEncryptedBackup(listOf("SETTINGS", "AVATARS"))
+        assertTrue(LogicalDomains.PROVIDERS in fromSettings)
+        assertTrue(LogicalDomains.VAULT_CREDENTIALS in fromSettings)
+        assertFalse(LogicalDomains.SSH_HOSTS in fromSettings)
+
+        val fromDb = LogicalDomains.expandImpliedForEncryptedBackup(listOf("DATABASE"))
+        assertTrue(LogicalDomains.VAULT_CREDENTIALS in fromDb)
+        assertTrue(LogicalDomains.SSH_HOSTS in fromDb)
+        assertTrue(LogicalDomains.SCHEDULED_JOBS in fromDb)
+
+        assertTrue(
+            LogicalDomains.shouldRestoreEntry(
+                "${MigrationPackage.DIR}/${MigrationPackage.CREDENTIALS_NAME}",
+                setOf(LogicalDomains.VAULT_CREDENTIALS),
+            ),
+        )
+        assertFalse(
+            LogicalDomains.shouldRestoreEntry(
+                "${MigrationPackage.DIR}/${MigrationPackage.SSH_HOSTS_NAME}",
+                setOf(LogicalDomains.VAULT_CREDENTIALS),
+            ),
+        )
+    }
 }

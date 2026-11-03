@@ -64,10 +64,15 @@ class BackupVM(
     val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
     val localBackupItems =
         MutableStateFlow(
-            // 默认只勾设置+头像，保持存量配置行为：
-            // - 数据库含全部聊天记录（数十 MB 级），已移入高级区，需要时再勾；
-            // - 按域项目（提供商/凭证库/SSH）需先开启备份加密，默认不勾，避免未加密用户点备份直接报错。
-            listOf(WebDavConfig.BackupItem.SETTINGS, WebDavConfig.BackupItem.AVATARS),
+            // 默认勾选全部常用主区项（设置、头像、提供商、凭证库、SSH 主机）：
+            // SETTINGS 本就要求开启备份加密，默认勾上逻辑域可确保本地备份导出后换机/重装也能完整恢复凭证与密钥。
+            listOf(
+                WebDavConfig.BackupItem.SETTINGS,
+                WebDavConfig.BackupItem.AVATARS,
+                WebDavConfig.BackupItem.PROVIDERS,
+                WebDavConfig.BackupItem.VAULT_CREDENTIALS,
+                WebDavConfig.BackupItem.SSH_HOSTS,
+            ),
         )
 
     init {
@@ -262,8 +267,9 @@ class BackupVM(
      * 导出「迁移包」：换机可用（凭证与 provider 配置在包内是口令加密的明文形态）。
      * 范围由 [MigrationExporter] 固定为「把人带走」的全套；未开启备份加密时**拒绝导出**。
      */
-    suspend fun exportMigrationPackage(): MigrationExportResult =
+    suspend fun exportMigrationPackage(): MigrationExportResult = withContext(Dispatchers.IO) {
         migrationExporter.export(config = settings.value.activeWebDavConfig())
+    }
 
     /** 最近一次导入前生成的**回滚包**（同机备份），供 UI 告诉用户到哪里去找回退。 */
     val lastMigrationRollback = MutableStateFlow<File?>(null)
@@ -272,11 +278,18 @@ class BackupVM(
      * 导入「迁移包」：**全量覆盖**，但导入前会先自动做一次同机备份（回滚点）。
      * 不是迁移包 / 清单版本不兼容时直接失败，不会改到一半。
      */
-    suspend fun importMigrationPackage(file: File): MigrationImportResult = withContext(Dispatchers.IO) {
+    suspend fun importMigrationPackage(
+        file: File,
+        password: String? = null,
+    ): MigrationImportResult = withContext(Dispatchers.IO) {
         migrationImporter.import(
             config = settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
             file = file,
-            createRollbackPoint = { lastMigrationRollback.value = exportRollbackPoint() },
+            password = password,
+            createRollbackPoint = {
+                lastMigrationRollback.value?.let { old -> if (old.exists()) old.delete() }
+                lastMigrationRollback.value = exportRollbackPoint()
+            },
         )
     }
 
@@ -295,26 +308,39 @@ class BackupVM(
     }
 
     /** 导出迁移包并上传云端（WebDAV）。返回结果供 UI 提示凭证数；本地临时包上传后清理。 */
-    suspend fun exportMigrationToWebDav(): MigrationExportResult {
+    suspend fun exportMigrationToWebDav(): MigrationExportResult = withContext(Dispatchers.IO) {
         val result = exportMigrationPackage()
-        webDavSync.uploadMigrationPackage(
-            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
-            result.file,
-        )
-        if (result.file.exists()) result.file.delete()
-        return result
+        try {
+            webDavSync.uploadMigrationPackage(
+                settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+                result.file,
+            )
+            result
+        } finally {
+            if (result.file.exists()) result.file.delete()
+        }
     }
 
-    /** 从云端取迁移包并导入（凭证合并导入，含回滚点）。 */
-    suspend fun importMigrationFromWebDav(item: WebDavBackupItem): MigrationImportResult {
-        val file = webDavSync.downloadMigrationPackage(
-            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
-            item,
-        )
+    /** 从云端取迁移包并导入（凭证合并导入，含回滚点；缺口令时保留缓存供输口令后重试）。 */
+    suspend fun importMigrationFromWebDav(
+        item: WebDavBackupItem,
+        password: String? = null,
+        cachedEncFile: File? = null,
+    ): MigrationImportResult = withContext(Dispatchers.IO) {
+        val file =
+            cachedEncFile?.takeIf { it.exists() }
+                ?: webDavSync.downloadMigrationPackage(
+                    settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+                    item,
+                )
+        var keepForPassword = false
         try {
-            return importMigrationPackage(file)
+            importMigrationPackage(file, password = password)
+        } catch (e: BackupNeedsPasswordException) {
+            keepForPassword = true
+            throw e
         } finally {
-            file.delete()
+            if (!keepForPassword && file.exists()) file.delete()
         }
     }
 
@@ -330,10 +356,12 @@ class BackupVM(
         }
     }
 
-    suspend fun restoreFromLocalFile(file: File) {
+    suspend fun restoreFromLocalFile(file: File, password: String? = null) {
+        // 本地文件导入时按包内实际存在的条目全量恢复，避免因导出区未勾选高级项（如 DATABASE/SKILLS）而静默丢数据
         webDavSync.restoreFromLocalFile(
-            file,
-            settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
+            file = file,
+            config = settings.value.activeWebDavConfig().copy(items = WebDavConfig.BackupItem.entries),
+            password = password,
         )
     }
 

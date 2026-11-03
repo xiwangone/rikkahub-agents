@@ -1,8 +1,5 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.File01
-import me.rerere.hugeicons.stroke.FileImport
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -33,14 +30,19 @@ import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.File01
+import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
+import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.WebDavBackupItemsSelector
+import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
@@ -49,10 +51,16 @@ import java.io.FileOutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
 
+private data class PendingPasswordRequest(
+    val mode: String, // "local", "migration", "cloud_migration"
+    val file: File?,
+    val cloudItem: WebDavBackupItem? = null,
+)
+
 @Composable
 fun ImportExportTab(
     vm: BackupVM,
-    onShowRestartDialog: () -> Unit
+    onShowRestartDialog: () -> Unit,
 ) {
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
@@ -68,6 +76,8 @@ fun ImportExportTab(
     var isExporting by remember { mutableStateOf(false) }
     var isRestoring by remember { mutableStateOf(false) }
     var showImportConfirmDialog by remember { mutableStateOf(false) }
+    var pendingPasswordReq by remember { mutableStateOf<PendingPasswordRequest?>(null) }
+    var pendingPasswordError by remember { mutableStateOf<String?>(null) }
 
     // 导入类型：local 为本地备份，chatbox 为 Chatbox 导入，cherry 为 Cherry Studio 导入，migration 为迁移包
     var importType by remember { mutableStateOf("local") }
@@ -77,7 +87,7 @@ fun ImportExportTab(
 
     // 创建文件保存的launcher
     val createDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.CreateDocument("application/zip")
+        contract = ActivityResultContracts.CreateDocument("application/zip"),
     ) { uri ->
         uri?.let { targetUri ->
             scope.launch {
@@ -88,15 +98,22 @@ fun ImportExportTab(
                     val localResult = if (migrationResult == null) vm.exportToFile() else null
                     val exportFile = migrationResult?.file ?: localResult!!.file
 
-                    // 复制到用户选择的位置
-                    context.contentResolver.openOutputStream(targetUri)?.use { outputStream ->
-                        FileInputStream(exportFile).use { inputStream ->
-                            inputStream.copyTo(outputStream)
+                    // 复制到用户选择的位置（大文件流式拷贝必须在 IO 调度器执行并确保临时文件清理）
+                    try {
+                        withContext(Dispatchers.IO) {
+                            val outputStream = context.contentResolver.openOutputStream(targetUri)
+                                ?: error("Unable to open target output stream")
+                            outputStream.use { out ->
+                                FileInputStream(exportFile).use { inputStream ->
+                                    inputStream.copyTo(out, bufferSize = 1 shl 16)
+                                }
+                            }
+                        }
+                    } finally {
+                        withContext(Dispatchers.IO) {
+                            if (exportFile.exists()) exportFile.delete()
                         }
                     }
-
-                    // 清理临时文件
-                    exportFile.delete()
 
                     val undecryptable = localResult?.stats?.undecryptableCredentials ?: 0
                     toaster.show(
@@ -134,7 +151,7 @@ fun ImportExportTab(
 
     // 创建文件选择的launcher
     val openDocumentLauncher = rememberLauncherForActivityResult(
-        contract = ActivityResultContracts.OpenDocument()
+        contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let { sourceUri ->
             scope.launch {
@@ -142,84 +159,73 @@ fun ImportExportTab(
                 runCatching {
                     when (importType) {
                         "local" -> {
-                            // 本地备份导入：处理zip文件
                             val tempFile =
                                 File(context.cacheDir, "temp_restore_${System.currentTimeMillis()}.zip")
-
-                            withContext(Dispatchers.IO) {
-
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-
-                                    FileOutputStream(tempFile).use { outputStream ->
-
-                                        inputStream.copyTo(outputStream)
-
-                                    }
-
-                                }
-                            }
-
-                            // 从临时文件恢复
-                            vm.restoreFromLocalFile(tempFile)
-
-                            // 清理临时文件
-                            tempFile.delete()
-                        }
-
-                        "chatbox" -> {
-                            // Chatbox Backup v2：处理 ZIP 文件
-                            val tempFile =
-                                File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.zip")
-
+                            var keepForPassword = false
                             try {
                                 withContext(Dispatchers.IO) {
                                     context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
                                         FileOutputStream(tempFile).use { outputStream ->
-                                            inputStream.copyTo(outputStream)
+                                            inputStream.copyTo(outputStream, bufferSize = 1 shl 16)
                                         }
                                     }
                                 }
+                                vm.restoreFromLocalFile(tempFile)
+                            } catch (e: BackupNeedsPasswordException) {
+                                keepForPassword = true
+                                pendingPasswordReq = PendingPasswordRequest(mode = "local", file = e.encFile ?: tempFile)
+                                pendingPasswordError = null
+                                throw e
+                            } finally {
+                                if (!keepForPassword && tempFile.exists()) {
+                                    withContext(Dispatchers.IO) { tempFile.delete() }
+                                }
+                            }
+                        }
 
+                        "chatbox" -> {
+                            val tempFile =
+                                File(context.cacheDir, "temp_chatbox_${System.currentTimeMillis()}.zip")
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream, bufferSize = 1 shl 16)
+                                        }
+                                    }
+                                }
                                 vm.restoreFromChatBox(tempFile)
                             } finally {
-                                tempFile.delete()
+                                withContext(Dispatchers.IO) { tempFile.delete() }
                             }
                         }
 
                         "cherry" -> {
-                            // Cherry Studio导入：处理zip文件
                             val tempFile =
                                 File(context.cacheDir, "temp_cherry_${System.currentTimeMillis()}.zip")
-
-                            withContext(Dispatchers.IO) {
-
-                                context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
-
-                                    FileOutputStream(tempFile).use { outputStream ->
-
-                                        inputStream.copyTo(outputStream)
-
-                                    }
-
-                                }
-                            }
-
-                            // 从Cherry Studio备份恢复
-                            vm.restoreFromCherryStudio(tempFile)
-
-                            // 清理临时文件
-                            tempFile.delete()
-                        }
-
-                        "migration" -> {
-                            // 迁移包：覆盖恢复 + 用本机密钥重建凭证与 provider 配置
-                            val tempFile =
-                                File(context.cacheDir, "temp_migration_${System.currentTimeMillis()}.zip")
                             try {
                                 withContext(Dispatchers.IO) {
                                     context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
                                         FileOutputStream(tempFile).use { outputStream ->
-                                            inputStream.copyTo(outputStream)
+                                            inputStream.copyTo(outputStream, bufferSize = 1 shl 16)
+                                        }
+                                    }
+                                }
+                                vm.restoreFromCherryStudio(tempFile)
+                            } finally {
+                                withContext(Dispatchers.IO) { tempFile.delete() }
+                            }
+                        }
+
+                        "migration" -> {
+                            val tempFile =
+                                File(context.cacheDir, "temp_migration_${System.currentTimeMillis()}.zip")
+                            var keepForPassword = false
+                            try {
+                                withContext(Dispatchers.IO) {
+                                    context.contentResolver.openInputStream(sourceUri)?.use { inputStream ->
+                                        FileOutputStream(tempFile).use { outputStream ->
+                                            inputStream.copyTo(outputStream, bufferSize = 1 shl 16)
                                         }
                                     }
                                 }
@@ -232,13 +238,19 @@ fun ImportExportTab(
                                     ),
                                     type = ToastType.Success,
                                 )
-                                // 工作区文件不随包：导入后提醒重装 rootfs
                                 toaster.show(
                                     resources.getString(R.string.backup_page_migration_rootfs_hint),
                                     type = ToastType.Info,
                                 )
+                            } catch (e: BackupNeedsPasswordException) {
+                                keepForPassword = true
+                                pendingPasswordReq = PendingPasswordRequest(mode = "migration", file = e.encFile ?: tempFile)
+                                pendingPasswordError = null
+                                throw e
                             } finally {
-                                tempFile.delete()
+                                if (!keepForPassword && tempFile.exists()) {
+                                    withContext(Dispatchers.IO) { tempFile.delete() }
+                                }
                             }
                         }
                     }
@@ -247,16 +259,18 @@ fun ImportExportTab(
                     if (importType != "migration") {
                         toaster.show(
                             resources.getString(R.string.backup_page_restore_success),
-                            type = ToastType.Success
+                            type = ToastType.Success,
                         )
                     }
                     onShowRestartDialog()
                 }.onFailure { e ->
-                    e.printStackTrace()
-                    toaster.show(
-                        resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
-                        type = ToastType.Error
-                    )
+                    if (e !is BackupNeedsPasswordException) {
+                        e.printStackTrace()
+                        toaster.show(
+                            resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                            type = ToastType.Error,
+                        )
+                    }
                 }
                 isRestoring = false
             }
@@ -266,7 +280,7 @@ fun ImportExportTab(
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
         verticalArrangement = Arrangement.spacedBy(16.dp),
-        contentPadding = PaddingValues(16.dp)
+        contentPadding = PaddingValues(16.dp),
     ) {
         stickyHeader {
             StickyHeader {
@@ -317,6 +331,7 @@ fun ImportExportTab(
                 item(
                     onClick = if (!isRestoring) {
                         {
+                            importType = "local"
                             showImportConfirmDialog = true
                         }
                     } else null,
@@ -535,8 +550,11 @@ fun ImportExportTab(
                         showImportConfirmDialog = false
                         // 迁移包保留自己的分支；其余入口维持既有行为（local）
                         importType = if (importType == "migration") "migration" else "local"
-                        openDocumentLauncher.launch(arrayOf("application/zip"))
-                    }
+                        // 兼容 .zip 与 .zip.enc / .enc 加密容器选择
+                        openDocumentLauncher.launch(
+                            arrayOf("application/zip", "application/octet-stream", "*/*"),
+                        )
+                    },
                 ) {
                     Text(stringResource(R.string.confirm))
                 }
@@ -577,10 +595,20 @@ fun ImportExportTab(
                                 onShowRestartDialog()
                             }
                             .onFailure { e ->
-                                toaster.show(
-                                    resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
-                                    type = ToastType.Error,
-                                )
+                                if (e is BackupNeedsPasswordException) {
+                                    pendingPasswordReq =
+                                        PendingPasswordRequest(
+                                            mode = "cloud_migration",
+                                            file = e.encFile,
+                                            cloudItem = cloudItem,
+                                        )
+                                    pendingPasswordError = null
+                                } else {
+                                    toaster.show(
+                                        resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                        type = ToastType.Error,
+                                    )
+                                }
                             }
                         isRestoring = false
                     }
@@ -595,4 +623,97 @@ fun ImportExportTab(
             },
         )
     }
+
+    // 换机/新设备未记住口令或口令不一致时，弹出输口令对话框完成导入
+    pendingPasswordReq?.let { req ->
+        PasswordPromptDialog(
+            onDismiss = {
+                val f = req.file
+                pendingPasswordReq = null
+                pendingPasswordError = null
+                scope.launch(Dispatchers.IO) {
+                    if (f != null && f.exists()) f.delete()
+                }
+            },
+            onConfirm = { password ->
+                pendingPasswordError = null
+                isRestoring = true
+                scope.launch {
+                    runCatching {
+                        when (req.mode) {
+                            "local" -> {
+                                val targetFile = requireNotNull(req.file) { "Missing local backup file" }
+                                vm.restoreFromLocalFile(targetFile, password = password)
+                                withContext(Dispatchers.IO) { if (targetFile.exists()) targetFile.delete() }
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_restore_success),
+                                    type = ToastType.Success,
+                                )
+                            }
+
+                            "migration" -> {
+                                val targetFile = requireNotNull(req.file) { "Missing migration file" }
+                                val result = vm.importMigrationPackage(targetFile, password = password)
+                                withContext(Dispatchers.IO) { if (targetFile.exists()) targetFile.delete() }
+                                toaster.show(
+                                    resources.getString(
+                                        R.string.backup_page_migration_import_success,
+                                        result.credentialsImported,
+                                        result.credentialsSkipped,
+                                    ),
+                                    type = ToastType.Success,
+                                )
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
+                                )
+                            }
+
+                            "cloud_migration" -> {
+                                val item = requireNotNull(req.cloudItem) { "Missing cloud migration item" }
+                                val result =
+                                    vm.importMigrationFromWebDav(
+                                        item = item,
+                                        password = password,
+                                        cachedEncFile = req.file,
+                                    )
+                                toaster.show(
+                                    resources.getString(
+                                        R.string.backup_page_migration_import_success,
+                                        result.credentialsImported,
+                                        result.credentialsSkipped,
+                                    ),
+                                    type = ToastType.Success,
+                                )
+                                toaster.show(
+                                    resources.getString(R.string.backup_page_migration_rootfs_hint),
+                                    type = ToastType.Info,
+                                )
+                            }
+                        }
+                    }.onSuccess {
+                        pendingPasswordReq = null
+                        pendingPasswordError = null
+                        onShowRestartDialog()
+                    }.onFailure { e ->
+                        if (e is BackupNeedsPasswordException || e is IllegalArgumentException) {
+                            pendingPasswordError =
+                                resources.getString(R.string.backup_page_encryption_wrong_password)
+                        } else {
+                            val f = req.file
+                            pendingPasswordReq = null
+                            pendingPasswordError = null
+                            withContext(Dispatchers.IO) { if (f != null && f.exists()) f.delete() }
+                            toaster.show(
+                                resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                type = ToastType.Error,
+                            )
+                        }
+                    }
+                    isRestoring = false
+                }
+            },
+            errorMessage = pendingPasswordError,
+        )
     }
+}
