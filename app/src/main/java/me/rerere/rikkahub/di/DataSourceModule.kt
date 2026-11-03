@@ -128,10 +128,7 @@ val dataSourceModule =
                                     }
                                 }
                             }
-                            db.execSQL(
-                                me.rerere.rikkahub.data.db.fts.MESSAGE_FTS_CREATE_SQL
-                                    .trimIndent(),
-                            )
+                            me.rerere.rikkahub.data.db.fts.createMessageFtsTables(db)
                         }
                     },
                 ).openHelperFactory(

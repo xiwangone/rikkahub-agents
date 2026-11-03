@@ -51,7 +51,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.core.net.toUri
 import coil3.compose.AsyncImage
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
@@ -174,17 +176,21 @@ fun UIAvatar(
             contract = ActivityResultContracts.GetContent(),
         ) { uri: Uri? ->
             uri?.let { selectedUri ->
-                val tempFile = File(context.appTempFolder, "avatar_pick_${System.currentTimeMillis()}.jpg")
-                runCatching {
-                    context.contentResolver.openInputStream(selectedUri)?.use { input ->
-                        tempFile.outputStream().use { output -> input.copyTo(output) }
-                    } ?: error("Failed to open input stream for $selectedUri")
-                    preCropTempFile?.delete()
-                    preCropTempFile = tempFile
-                    launchImageCrop(tempFile.toUri())
-                }.onFailure {
-                    tempFile.delete()
-                    launchImageCrop(selectedUri)
+                scope.launch {
+                    val tempFile = File(context.appTempFolder, "avatar_pick_${System.currentTimeMillis()}.jpg")
+                    runCatching {
+                        withContext(Dispatchers.IO) {
+                            context.contentResolver.openInputStream(selectedUri)?.use { input ->
+                                tempFile.outputStream().use { output -> input.copyTo(output) }
+                            } ?: error("Failed to open input stream for $selectedUri")
+                        }
+                        preCropTempFile?.delete()
+                        preCropTempFile = tempFile
+                        launchImageCrop(tempFile.toUri())
+                    }.onFailure {
+                        withContext(Dispatchers.IO) { tempFile.delete() }
+                        launchImageCrop(selectedUri)
+                    }
                 }
             }
         }

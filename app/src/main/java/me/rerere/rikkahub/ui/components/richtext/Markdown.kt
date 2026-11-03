@@ -189,6 +189,7 @@ private fun MarkdownPreview() {
 }
 
 private data class MarkdownParseResult(
+    val rawContent: String,
     val preprocessed: String,
     val astTree: ASTNode,
     val hasHtml: Boolean,
@@ -216,7 +217,7 @@ private fun parseMarkdown(content: String): MarkdownParseResult {
     val astTree = parser.buildMarkdownTreeFromString(preprocessed)
     // 后台解析期顺带预热引号区间缓存，避免主线程组合每个 TEXT 节点时重复扫描全文
     quotedTextRanges(preprocessed)
-    return MarkdownParseResult(preprocessed, astTree, astTree.containsHtml())
+    return MarkdownParseResult(content, preprocessed, astTree, astTree.containsHtml())
 }
 
 @Composable
@@ -249,13 +250,15 @@ fun MarkdownBlock(
     LaunchedEffect(Unit) {
         snapshotFlow { updatedContent }
             .distinctUntilChanged()
-            // 串行解析并丢弃积压的中间值：避免反复取消已在进行的解析，
-            // 同时保证最新内容一定被解析（不会停在旧结果上）
+            // 首帧已同步解析过的相同内容不再后台重跑一遍，避免列表滚动时每个块二次重组
             .conflate()
-            .map { parseMarkdown(it) }
+            .map { raw ->
+                val current = data
+                if (current != null && current.rawContent == raw) current else parseMarkdown(raw)
+            }
             .catch { exception -> AppLog.e(TAG, "MarkdownBlock: failed to parse markdown", exception) }
             .flowOn(Dispatchers.Default)
-            .collect { setData(it) }
+            .collect { if (it !== data) setData(it) }
     }
 
     val parsed = data ?: return
@@ -374,16 +377,14 @@ object HeaderStyle {
 private val FENCE_MARKER_REGEX = Regex("^[ \t]{0,3}(```+|~~~+)")
 private val QUOTE_PAIRS = mapOf('"' to '"', '“' to '”', '「' to '」', '『' to '』')
 
-@Volatile
-private var cachedQuotedSource: String? = null
-
-@Volatile
-private var cachedQuotedRanges: List<IntRange> = emptyList()
+private val quotedRangesCache = android.util.LruCache<String, List<IntRange>>(64)
 
 /** Locate paired quote spans, ignoring fenced and inline code. Unclosed quotes are ignored. */
 @Suppress("CyclomaticComplexMethod", "NestedBlockDepth") // 行级状态机扫描引号配对（跳代码块与行内码），拆开会割裂与渲染端的行号对齐
 internal fun quotedTextRanges(source: String): List<IntRange> {
-    if (source === cachedQuotedSource || source == cachedQuotedSource) return cachedQuotedRanges
+    synchronized(quotedRangesCache) {
+        quotedRangesCache.get(source)?.let { return it }
+    }
     val pairs = QUOTE_PAIRS
     val result = mutableListOf<IntRange>()
     var fence: Char? = null
@@ -432,8 +433,9 @@ internal fun quotedTextRanges(source: String): List<IntRange> {
         lineStart = lineEnd + 1
         if (lineEnd == source.length) break
     }
-    cachedQuotedSource = source
-    cachedQuotedRanges = result
+    synchronized(quotedRangesCache) {
+        quotedRangesCache.put(source, result)
+    }
     return result
 }
 
@@ -750,7 +752,7 @@ internal fun MarkdownNode(
             val text = node.getTextInNode(content)
             val highlightQuotes = LocalSettings.current.displaySetting.enableQuoteHighlight
             val quoteColor = MaterialTheme.colorScheme.tertiary
-            val annotatedText = remember(content, node.startOffset, node.endOffset, highlightQuotes, quoteColor) {
+            val annotatedText = remember(text, node.startOffset, node.endOffset, highlightQuotes, quoteColor) {
                 buildAnnotatedString {
                     append(text)
                     if (highlightQuotes) {

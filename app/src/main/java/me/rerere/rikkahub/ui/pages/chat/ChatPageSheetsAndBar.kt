@@ -49,7 +49,9 @@ import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
@@ -161,12 +163,16 @@ internal fun ChatFilesPickerSheet(
         }
     }
 
+    val ioScope = rememberCoroutineScope()
     var preCropTempFile by remember { mutableStateOf<File?>(null) }
     val (_, launchImageCrop) =
         useCropLauncher(
             onCroppedImageReady = { croppedUri ->
-                inputState.addImages(filesManager.createChatFilesByContents(listOf(croppedUri)))
-                dismissAll()
+                ioScope.launch {
+                    val uris = withContext(Dispatchers.IO) { filesManager.createChatFilesByContents(listOf(croppedUri)) }
+                    inputState.addImages(uris)
+                    dismissAll()
+                }
             },
             onCleanup = {
                 preCropTempFile?.delete()
@@ -178,30 +184,40 @@ internal fun ChatFilesPickerSheet(
             if (selectedUris.isNotEmpty()) {
                 AppLog.d("ImagePickButton", "Selected URIs: $selectedUris")
                 if (setting.displaySetting.skipCropImage) {
-                    inputState.addImages(filesManager.createChatFilesByContents(selectedUris))
-                    dismissAll()
+                    ioScope.launch {
+                        val uris = withContext(Dispatchers.IO) { filesManager.createChatFilesByContents(selectedUris) }
+                        inputState.addImages(uris)
+                        dismissAll()
+                    }
                 } else if (selectedUris.size == 1) {
-                    val tempFile = File(context.appTempFolder, "pick_temp_${System.currentTimeMillis()}.jpg")
-                    runCatching {
-                        val source = selectedUris.first()
-                        // HEIF/HEIC（尤其 HDR HEIF）交给 UCrop 前先解码转为 JPEG，规避裁剪解码失败
-                        val converted =
-                            ImageUtils.isHeifImage(context, source) &&
-                                ImageUtils.convertHeifToJpeg(context, source, tempFile)
-                        if (!converted) {
-                            context.contentResolver.openInputStream(source)?.use { input ->
-                                tempFile.outputStream().use { output -> input.copyTo(output) }
+                    ioScope.launch {
+                        val tempFile = File(context.appTempFolder, "pick_temp_${System.currentTimeMillis()}.jpg")
+                        runCatching {
+                            val source = selectedUris.first()
+                            // HEIF/HEIC（尤其 HDR HEIF）交给 UCrop 前先解码转为 JPEG，规避裁剪解码失败
+                            withContext(Dispatchers.IO) {
+                                val converted =
+                                    ImageUtils.isHeifImage(context, source) &&
+                                        ImageUtils.convertHeifToJpeg(context, source, tempFile)
+                                if (!converted) {
+                                    context.contentResolver.openInputStream(source)?.use { input ->
+                                        tempFile.outputStream().use { output -> input.copyTo(output) }
+                                    }
+                                }
                             }
+                            preCropTempFile = tempFile
+                            launchImageCrop(tempFile.toUri())
+                        }.onFailure {
+                            AppLog.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
+                            launchImageCrop(selectedUris.first())
                         }
-                        preCropTempFile = tempFile
-                        launchImageCrop(tempFile.toUri())
-                    }.onFailure {
-                        AppLog.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
-                        launchImageCrop(selectedUris.first())
                     }
                 } else {
-                    inputState.addImages(filesManager.createChatFilesByContents(selectedUris))
-                    dismissAll()
+                    ioScope.launch {
+                        val uris = withContext(Dispatchers.IO) { filesManager.createChatFilesByContents(selectedUris) }
+                        inputState.addImages(uris)
+                        dismissAll()
+                    }
                 }
             } else {
                 AppLog.d("ImagePickButton", "No images selected")

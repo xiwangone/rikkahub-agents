@@ -24,7 +24,6 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
@@ -51,7 +50,6 @@ import kotlinx.coroutines.flow.conflate
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.flowOn
 import kotlinx.coroutines.flow.map
-import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.ui.components.table.DataTable
@@ -128,16 +126,22 @@ fun MarkdownNew(
 ) {
     // 首帧不为主线程做长文的 markdown→HTML（同 MarkdownBlock 的理由）：长文先留空，
     // 下一帧由下面的后台管线补上；短文本保持同步以免闪烁。
-    val initialHtml =
+    val initialParsed =
         remember {
             val started = SystemClock.uptimeMillis()
-            val generated = if (content.length <= SYNC_HTML_MAX_CHARS) generateMarkdownHtml(content) else ""
-            Triple(generated, SystemClock.uptimeMillis() - started, content.length)
+            val doc =
+                if (content.length <= SYNC_HTML_MAX_CHARS) {
+                    val generated = generateMarkdownHtml(content)
+                    content to runCatching { Jsoup.parse(generated) }.getOrElse { Jsoup.parse("") }
+                } else {
+                    null
+                }
+            Triple(doc, SystemClock.uptimeMillis() - started, content.length)
         }
-    var html by remember { mutableStateOf(initialHtml.first) }
+    var parsedDoc by remember { mutableStateOf(initialParsed.first) }
     // 渲染性能埋点：只记一次、且只在长文/慢时记（I 级会落盘 → 重启后仍可回看）
     LaunchedEffect(Unit) {
-        val (_, costMs, len) = initialHtml
+        val (_, costMs, len) = initialParsed
         if (len > PERF_LOG_MIN_CHARS || costMs >= PERF_LOG_SLOW_MS) {
             AppLog.i(RENDER_PERF_TAG, "markdown→html 首帧 len=$len 耗时=${costMs}ms")
         }
@@ -150,21 +154,21 @@ fun MarkdownNew(
             // 串行生成并丢弃积压的中间值：避免反复取消已在进行的生成，
             // 同时保证最新内容一定被处理（不会停在旧结果上）
             .conflate()
-            .map { generateMarkdownHtml(it) }
+            .map { raw ->
+                val current = parsedDoc
+                if (current != null && current.first == raw) {
+                    current
+                } else {
+                    val generated = generateMarkdownHtml(raw)
+                    raw to runCatching { Jsoup.parse(generated) }.getOrElse { Jsoup.parse("") }
+                }
+            }
             .catch { AppLog.e(TAG, "MarkdownNew: failed to generate markdown HTML", it) }
             .flowOn(Dispatchers.Default)
-            .collect { html = it }
+            .collect { if (it !== parsedDoc) parsedDoc = it }
     }
 
-    // HTML 解析放到后台线程：文档较长时 Jsoup.parse 在组合期同步执行会拖慢首帧
-    val documentState =
-        produceState<org.jsoup.nodes.Document?>(initialValue = null, html) {
-            value =
-                withContext(Dispatchers.Default) {
-                    runCatching { Jsoup.parse(html) }.getOrElse { Jsoup.parse("") }
-                }
-        }
-    val document = documentState.value ?: return
+    val document = parsedDoc?.second ?: return
 
     ProvideTextStyle(style) {
         Column(modifier = modifier.padding(start = 4.dp)) {

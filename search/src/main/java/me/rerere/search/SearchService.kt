@@ -284,7 +284,7 @@ sealed class SearchServiceOptions {
 
     @Serializable
     @SerialName("bing_local")
-    class BingLocalOptions(
+    data class BingLocalOptions(
         override val id: Uuid = Uuid.random(),
     ) : SearchServiceOptions() {
         override val typeKey: String get() = "bing_local"

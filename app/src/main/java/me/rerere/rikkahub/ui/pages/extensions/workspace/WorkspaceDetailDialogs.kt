@@ -39,6 +39,13 @@ import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.util.fastForEach
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
+import androidx.compose.ui.text.style.TextOverflow
+import me.rerere.hugeicons.stroke.ArrowTurnBackward
+import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.rikkahub.data.log.AppLog
@@ -221,3 +228,170 @@ internal fun TagEditDialog(
         },
     )
 }
+
+@Composable
+internal fun WorkspaceRenameDialog(
+    entry: WorkspaceFileEntry,
+    takenNames: Set<String>,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf(entry.name) }
+    val trimmed = name.trim()
+    val illegal = workspaceIllegalNameChars.any { trimmed.contains(it) }
+    val conflict = trimmed in takenNames
+    val unchanged = trimmed == entry.name
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.common_rename)) },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.workspace_detail_rename_new_name)) },
+                    singleLine = true,
+                )
+                Text(
+                    text = entry.path,
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                when {
+                    illegal ->
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.workspace_detail_rename_invalid,
+                                    workspaceIllegalNameChars.joinToString(" "),
+                                ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+
+                    conflict ->
+                        Text(
+                            text = stringResource(R.string.workspace_detail_rename_exists, trimmed),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+
+                    unchanged ->
+                        Text(
+                            text = stringResource(R.string.workspace_detail_rename_unchanged),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = trimmed.isNotBlank() && !illegal && !conflict && !unchanged,
+                onClick = { onSubmit(trimmed) },
+            ) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
+internal fun WorkspaceDirectoryPickerDialog(
+    blockedPath: String?,
+    startPath: String,
+    onListDirectories: suspend (String) -> List<WorkspaceFileEntry>,
+    onConfirm: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var path by remember { mutableStateOf(startPath) }
+    var children by remember { mutableStateOf<List<WorkspaceFileEntry>?>(null) }
+    LaunchedEffect(path) { children = onListDirectories(path) }
+    val options =
+        children?.filter { child ->
+            blockedPath == null || (child.path != blockedPath && !child.path.startsWith("$blockedPath/"))
+        }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.workspace_detail_move_title), maxLines = 1, overflow = TextOverflow.Ellipsis)
+        },
+        text = {
+            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    IconButton(
+                        enabled = path.isNotBlank(),
+                        onClick = { path = path.substringBeforeLast('/', missingDelimiterValue = "") },
+                    ) {
+                        Icon(HugeIcons.ArrowTurnBackward, contentDescription = null)
+                    }
+                    Text(
+                        text = path.ifBlank { "/" },
+                        modifier = Modifier.weight(1f),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                when {
+                    options == null -> CircularProgressIndicator(modifier = Modifier.size(22.dp))
+
+                    options.isEmpty() ->
+                        Text(
+                            text = stringResource(R.string.workspace_detail_move_no_subdirectory),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+
+                    else ->
+                        LazyColumn(modifier = Modifier.heightIn(max = 280.dp)) {
+                            items(options, key = { it.path }) { dir ->
+                                TextButton(
+                                    onClick = { path = dir.path },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Folder01,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(18.dp),
+                                    )
+                                    Text(
+                                        text = dir.name,
+                                        modifier = Modifier.padding(start = 8.dp),
+                                        maxLines = 2,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = options != null,
+                onClick = { onConfirm(path) },
+            ) {
+                Text(stringResource(R.string.workspace_detail_move_here))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
