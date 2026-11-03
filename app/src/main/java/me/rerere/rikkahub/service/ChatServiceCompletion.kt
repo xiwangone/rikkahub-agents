@@ -391,6 +391,9 @@ private suspend fun ChatService.runGenerationStream(
                     .ConversationSystemAddendum
                     .get(conversationId),
             isToolAutoApproved = { toolName -> isToolAutoApprovedForConversation(conversationId, toolName) },
+            // 生成期间用户又发了消息：当前 step 结束就收尾（turn-end 派发新一轮），
+            // 不必等整轮 tool-call 循环跑完；只查不取，消费交给 dispatchNextQueuedMessage。
+            hasQueuedMessages = { (messageQueues[conversationId]?.size ?: 0) > 0 },
             messages =
                 conversation.currentMessages.let {
                     if (messageRange != null) it.subList(messageRange.start, messageRange.endInclusive + 1) else it

@@ -96,6 +96,8 @@ internal class GenerationAgentRun(
     private val onRetryDiagnosed: ((FailureDiagnosis) -> Unit)?,
     private val onAfterToolExecution: suspend (List<UIMessage>) -> List<UIMessage>?,
     private val onBeforeModelRequest: suspend () -> Unit,
+    /** 用户在生成期间是否排了补充消息（只查不取：消费必须由 turn-end 派发统一做，否则消息会丢）。 */
+    private val hasQueuedMessages: () -> Boolean = { false },
     private val isToolAutoApproved: suspend (String) -> Boolean,
     private val systemAddendum: String?,
     private val conversationSystemPrompt: String?,
@@ -897,6 +899,18 @@ internal class GenerationAgentRun(
                     messages.last().getTools().filter { it.isPending }.mapTo(LinkedHashSet()) { it.toolCallId },
                 ),
             )
+        }
+        // 用户在生成期间排队了补充消息：当前 step（工具执行完 / 一步回复完）已到边界。
+        // 不再继续下一 step，让 turn-end 的 dispatchNextQueuedMessage 把它作为**新一轮**发出
+        // —— 既不等整轮跑完，也不打断正在执行的工具（能走到这个边界时工具都已收尾）。
+        // ⚠ 只查不取：这里如果 drain，模型随后 stop 时消息会被吞没、永远没有回复
+        //   （2026-10-27 那次修复踩的就是这个坑）；消费统一由 turn-end 派发做。
+        if (step.stepIndex > 0 && hasQueuedMessages()) {
+            AppLog.i(
+                TAG,
+                "generateText: queued message pending at step boundary #${step.stepIndex}; ending turn so it is sent as a new one",
+            )
+            return StepDecision.Stop(AgentFinishReason.Completed)
         }
         return StepDecision.Continue
     }

@@ -367,6 +367,9 @@ class GenerationLoop(
         // result. ChatService uses this to reassert the foreground service before a background
         // continuation opens a new socket.
         onBeforeModelRequest: suspend () -> Unit = {},
+        // 用户在生成期间是否排了补充消息（只查不取）。为 true 时当前 step 结束后收尾，
+        // 让队列消息在 turn-end 作为新一轮发出，不必等整轮（多轮工具调用）跑完。
+        hasQueuedMessages: () -> Boolean = { false },
         // 取出用户在生成期间排队补充的消息，在**每个 step 结束（工具执行完）后**立即追加到
         // 请求历史，使「及时修正/补充」在下一 step 就被模型看到，而不必等整轮结束。
         // 返回的消息会随 GenerationChunk.Messages 一并 emit，由 ChatService 落库。
@@ -447,6 +450,7 @@ class GenerationLoop(
                 onRetryDiagnosed = onRetryDiagnosed,
                 onAfterToolExecution = onAfterToolExecution,
                 onBeforeModelRequest = onBeforeModelRequest,
+                hasQueuedMessages = hasQueuedMessages,
                 isToolAutoApproved = isToolAutoApproved,
                 systemAddendum = systemAddendum,
                 conversationSystemPrompt = conversationSystemPrompt,
