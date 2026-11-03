@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import androidx.activity.compose.BackHandler
+import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -102,7 +103,9 @@ fun ChatPage(
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹
-    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = LocalContext.current as androidx.activity.ComponentActivity)
+    // Lint: LocalContext 不应被强转为 Activity（ContextCastToActivity）→ 用 LocalActivity。
+    val hostActivity = checkNotNull(LocalActivity.current) { "ChatPage requires an Activity host" }
+    val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = hostActivity)
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     LaunchedEffect(selectedFolderId) {
         vm.updateDraftFolder(selectedFolderId)

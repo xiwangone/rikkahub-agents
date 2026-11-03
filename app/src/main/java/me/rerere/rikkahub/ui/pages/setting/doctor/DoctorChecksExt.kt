@@ -536,7 +536,13 @@ private fun DoctorChecks.buildExtendedDiagnosticsChecks(): List<DoctorCheck> =
                         // P1：版本/进程新鲜度——装了新包但进程跑旧代码
                                     run {
                                         val installed = runCatching {
-                                            context.packageManager.getPackageInfo(context.packageName, 0).longVersionCode
+                                            val pi = context.packageManager.getPackageInfo(context.packageName, 0)
+                                            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                                                pi.longVersionCode
+                                            } else {
+                                                @Suppress("DEPRECATION")
+                                                pi.versionCode.toLong()
+                                            }
                                         }.getOrNull()
                                         val running = BuildConfig.VERSION_CODE.toLong()
                                         val fresh = installed != null && installed == running

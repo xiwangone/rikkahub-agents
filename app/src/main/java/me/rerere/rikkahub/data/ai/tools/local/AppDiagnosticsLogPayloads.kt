@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.annotation.SuppressLint
+import android.os.Build
 import android.content.Context
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.JsonArray
@@ -284,15 +285,32 @@ internal fun buildInfoPayload(context: Context): String {
             val pm = context.packageManager
             val packageName = context.packageName
             val info =
-                runCatching { pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES) }.getOrNull()
-            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).withZone(ZoneId.systemDefault())
-            val signerSha256 =
                 runCatching {
-                    val cert = info?.signingInfo?.apkContentsSigners?.firstOrNull()?.toByteArray()
-                    cert?.let { bytes ->
-                        MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { b -> "%02x".format(b) }
+                    if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                        pm.getPackageInfo(packageName, PackageManager.GET_SIGNING_CERTIFICATES)
+                    } else {
+                        @Suppress("DEPRECATION")
+                        pm.getPackageInfo(packageName, PackageManager.GET_SIGNATURES)
                     }
                 }.getOrNull()
+            val formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).withZone(ZoneId.systemDefault())
+            val signerSha256 =
+                if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+                    runCatching {
+                        val cert = info?.signingInfo?.apkContentsSigners?.firstOrNull()?.toByteArray()
+                        cert?.let { bytes ->
+                            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { b -> "%02x".format(b) }
+                        }
+                    }.getOrNull()
+                } else {
+                    @Suppress("DEPRECATION")
+                    runCatching {
+                        val cert = info?.signatures?.firstOrNull()?.toByteArray()
+                        cert?.let { bytes ->
+                            MessageDigest.getInstance("SHA-256").digest(bytes).joinToString("") { b -> "%02x".format(b) }
+                        }
+                    }.getOrNull()
+                }
             val payload =
                 buildJsonObject {
                     put("packageName", packageName)
