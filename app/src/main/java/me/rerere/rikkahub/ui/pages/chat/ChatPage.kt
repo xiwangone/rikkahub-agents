@@ -103,8 +103,13 @@ fun ChatPage(
     val errors by vm.errors.collectAsStateWithLifecycle()
 
     // 新会话发出第一条消息前，跟随抽屉当前选中的文件夹
-    // Lint: LocalContext 不应被强转为 Activity（ContextCastToActivity）→ 用 LocalActivity。
-    val hostActivity = checkNotNull(LocalActivity.current) { "ChatPage requires an Activity host" }
+    // Lint: LocalContext 不应被强转为 Activity（ContextCastToActivity）→ 用 LocalActivity；
+    // 但 LocalActivity.current 的静态类型是 Activity，而 ViewModelStoreOwner 由 ComponentActivity 实现，
+    // 故再收窄一层。
+    val hostActivity =
+        checkNotNull(LocalActivity.current as? androidx.activity.ComponentActivity) {
+            "ChatPage requires a ComponentActivity host"
+        }
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = hostActivity)
     val selectedFolderId by drawerVm.selectedFolderId.collectAsStateWithLifecycle()
     LaunchedEffect(selectedFolderId) {
