@@ -606,7 +606,7 @@ private fun TopBarTunnelStatusBadge(
             tunnelState is TunnelState.Connecting ||
             tunnelState is TunnelState.Offline
 
-        fun persistConfig() {
+        suspend fun persistConfig() {
             settingsStore.update { current ->
                 current.copy(
                     networkSetting = current.networkSetting.copy(
@@ -618,22 +618,20 @@ private fun TopBarTunnelStatusBadge(
             }
         }
 
-        fun startTunnel() {
-            sheetScope.launch {
-                busy = true
-                val resolved = resolveTunnelAuthKey(credentialResolver, authKeyDraft).getOrElse {
-                    TsnetBridge.publish(TunnelState.Failed(it.message ?: "auth key resolve failed"))
-                    busy = false
-                    return@launch
-                }
-                TsnetBridge.start(
-                    context = context,
-                    controlURL = controlUrlDraft.trim(),
-                    authKey = resolved,
-                    hostname = hostnameDraft.trim().ifBlank { "rikkahub" },
-                )
+        suspend fun startTunnel() {
+            busy = true
+            val resolved = resolveTunnelAuthKey(credentialResolver, authKeyDraft).getOrElse {
+                TsnetBridge.publish(TunnelState.Failed(it.message ?: "auth key resolve failed"))
                 busy = false
+                return
             }
+            TsnetBridge.start(
+                context = context,
+                controlURL = controlUrlDraft.trim(),
+                authKey = resolved,
+                hostname = hostnameDraft.trim().ifBlank { "rikkahub" },
+            )
+            busy = false
         }
 
         ModalBottomSheet(onDismissRequest = { showDialog = false }) {
@@ -685,11 +683,13 @@ private fun TopBarTunnelStatusBadge(
                 ) {
                     FilledTonalButton(
                         onClick = {
-                            if (running) {
-                                sheetScope.launch { TsnetBridge.stop() }
-                            } else {
-                                persistConfig()
-                                startTunnel()
+                            sheetScope.launch {
+                                if (running) {
+                                    TsnetBridge.stop()
+                                } else {
+                                    persistConfig()
+                                    startTunnel()
+                                }
                             }
                         },
                         modifier = Modifier.weight(1f),
@@ -699,8 +699,10 @@ private fun TopBarTunnelStatusBadge(
                     }
                     Button(
                         onClick = {
-                            persistConfig()
-                            showDialog = false
+                            sheetScope.launch {
+                                persistConfig()
+                                showDialog = false
+                            }
                         },
                         modifier = Modifier.weight(1f),
                     ) {
