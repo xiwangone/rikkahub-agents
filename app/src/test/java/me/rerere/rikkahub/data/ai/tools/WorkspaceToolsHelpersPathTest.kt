@@ -35,9 +35,17 @@ class WorkspaceToolsHelpersPathTest {
                 // pass
             }
         }
+        // 空字符串键值存在但内容为空: require(isNotBlank) 抛 IllegalArgumentException
         try {
             obj("").absolutePath("path")
-            throw AssertionError("expected IllegalStateException for blank path")
+            throw AssertionError("expected IllegalArgumentException for blank path")
+        } catch (expected: IllegalArgumentException) {
+            // pass
+        }
+        // 键缺失: string() 返回 null, error() 抛 IllegalStateException
+        try {
+            buildJsonObject {}.absolutePath("path")
+            throw AssertionError("expected IllegalStateException for missing path key")
         } catch (expected: IllegalStateException) {
             // pass
         }
