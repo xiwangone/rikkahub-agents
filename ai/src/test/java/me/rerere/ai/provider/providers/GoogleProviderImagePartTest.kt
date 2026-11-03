@@ -32,15 +32,13 @@ class GoogleProviderImagePartTest {
         provider = GoogleProvider(OkHttpClient())
     }
 
-    private fun invokeParseMessagePart(json: String): UIMessagePart? {
-        val method = GoogleProvider::class.java.getDeclaredMethod(
-            "parseMessagePart",
-            JsonObject::class.java,
-            Int::class.javaPrimitiveType,
+    private fun invokeParseMessagePart(json: String): UIMessagePart? =
+        // parseMessagePart 已拆为顶层 internal 函数，不再是 GoogleProvider 的成员，
+        // 反射 getDeclaredMethod 会 NoSuchMethodException。
+        me.rerere.ai.provider.providers.google.parseMessagePart(
+            Json.parseToJsonElement(json).jsonObject,
+            0,
         )
-        method.isAccessible = true
-        return method.invoke(provider, Json.parseToJsonElement(json).jsonObject, 0) as UIMessagePart?
-    }
 
     private fun invokeBuildContents(messages: List<UIMessage>): JsonArray {
         val method = GoogleProvider::class.java.getDeclaredMethod(

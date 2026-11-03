@@ -61,14 +61,10 @@ class ChatCompletionsRequestMessageTest {
         ) as JsonArray
     }
 
-    private fun invokeParseMessage(message: JsonObject): UIMessage {
-        val method = ChatCompletionsAPI::class.java.getDeclaredMethod(
-            "parseMessage",
-            JsonObject::class.java,
-        )
-        method.isAccessible = true
-        return method.invoke(api, message) as UIMessage
-    }
+    private fun invokeParseMessage(message: JsonObject): UIMessage =
+        // parseMessage 已拆为顶层 internal 函数（ChatCompletionsResponseParser.kt），
+        // 反射旧成员会 NoSuchMethodException。
+        parseMessage(message)
 
     @Test
     fun `multi-round reasoning and tool calls should be correctly ordered`() {

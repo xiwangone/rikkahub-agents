@@ -4,10 +4,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import me.rerere.ai.core.TokenUsage
-import me.rerere.ai.util.KeyRoulette
-import okhttp3.OkHttpClient
 import org.junit.Assert.assertEquals
-import org.junit.Before
 import org.junit.Test
 
 /**
@@ -15,22 +12,10 @@ import org.junit.Test
  */
 class ChatCompletionsUsageParsingTest {
 
-    private lateinit var api: ChatCompletionsAPI
-
-    @Before
-    fun setUp() {
-        api = ChatCompletionsAPI(OkHttpClient(), KeyRoulette.default())
-    }
-
-    // Helper to invoke private parseTokenUsage via reflection
-    private fun parseTokenUsage(usage: JsonObject): TokenUsage? {
-        val method = ChatCompletionsAPI::class.java.getDeclaredMethod(
-            "parseTokenUsage",
-            JsonObject::class.java
-        )
-        method.isAccessible = true
-        return method.invoke(api, usage) as TokenUsage?
-    }
+    // Helper to invoke the top-level parseTokenUsage (ChatCompletionsResponseParser.kt).
+    // 同名成员已不存在，反射会 NoSuchMethodException；用全限定名避开与本方法重名。
+    private fun parseTokenUsage(usage: JsonObject): TokenUsage? =
+        me.rerere.ai.provider.providers.openai.parseTokenUsage(usage)
 
     // #1576: cached tokens 按 provider 方言兜底解析
     @Test
