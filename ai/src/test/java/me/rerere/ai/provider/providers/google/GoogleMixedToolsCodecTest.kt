@@ -42,7 +42,9 @@ class GoogleMixedToolsCodecTest {
 
     private fun parseCandidateMessage(candidate: JsonObject): UIMessage {
         val content = candidate["content"]!!.jsonObject
-        return provider.parseGoogleMessage(buildJsonObject {
+        // parseGoogleMessage 是 GoogleProviderHelpers.kt 里的顶层 internal 函数，
+        // 不属于 GoogleProvider 的成员 —— 写成 provider.parseGoogleMessage 会 Unresolved reference。
+        return parseGoogleMessage(buildJsonObject {
             put("role", content["role"]!!)
             put("content", content)
         })
