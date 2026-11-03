@@ -17,6 +17,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.Button
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.vault.CredentialResolver
+import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import androidx.compose.ui.Alignment
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
@@ -580,47 +590,124 @@ private fun TopBarTunnelStatusBadge(
     }
 
     if (showDialog) {
-        val controlLabel =
-            network.tailscaleControlUrl.ifBlank {
-                stringResource(R.string.chat_topbar_tunnel_default_control)
+        // 快捷卡片：点开左上角 IP 即可直接改配置并启/停，不用跳到设置页
+        val settingsStore: SettingsStore = koinInject()
+        val vaultRepository: CredentialVaultRepository = koinInject()
+        val context = LocalContext.current
+        val credentialResolver = remember(vaultRepository) { CredentialResolver(vaultRepository) }
+        val sheetScope = rememberCoroutineScope()
+
+        var controlUrlDraft by remember(settings) { mutableStateOf(network.tailscaleControlUrl) }
+        var authKeyDraft by remember(settings) { mutableStateOf(network.tailscaleAuthKey) }
+        var hostnameDraft by remember(settings) { mutableStateOf(network.tailscaleHostname) }
+        var busy by remember { mutableStateOf(false) }
+
+        val running = tunnelState is TunnelState.Connected ||
+            tunnelState is TunnelState.Connecting ||
+            tunnelState is TunnelState.Offline
+
+        fun persistConfig() {
+            settingsStore.update { current ->
+                current.copy(
+                    networkSetting = current.networkSetting.copy(
+                        tailscaleControlUrl = controlUrlDraft.trim(),
+                        tailscaleAuthKey = authKeyDraft.trim(),
+                        tailscaleHostname = hostnameDraft.trim().ifBlank { "rikkahub" },
+                    ),
+                )
             }
-        val hostLabel = network.tailscaleHostname.ifBlank { "rikkahub" }
-        AlertDialog(
-            onDismissRequest = { showDialog = false },
-            title = { Text(stringResource(R.string.chat_topbar_tunnel_dialog_title)) },
-            text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    Text(
-                        text = stringResource(R.string.tunnel_status_label, statusText),
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Text(
-                        text = stringResource(R.string.chat_topbar_tunnel_node_info, hostLabel, controlLabel),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+        }
+
+        fun startTunnel() {
+            sheetScope.launch {
+                busy = true
+                val resolved = resolveTunnelAuthKey(credentialResolver, authKeyDraft).getOrElse {
+                    TsnetBridge.publish(TunnelState.Failed(it.message ?: "auth key resolve failed"))
+                    busy = false
+                    return@launch
                 }
-            },
-            confirmButton = {
-                if (tunnelState is TunnelState.Connected || tunnelState is TunnelState.Connecting) {
-                    TextButton(
+                TsnetBridge.start(
+                    context = context,
+                    controlURL = controlUrlDraft.trim(),
+                    authKey = resolved,
+                    hostname = hostnameDraft.trim().ifBlank { "rikkahub" },
+                )
+                busy = false
+            }
+        }
+
+        ModalBottomSheet(onDismissRequest = { showDialog = false }) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp).padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.chat_topbar_tunnel_dialog_title),
+                    style = MaterialTheme.typography.titleMedium,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Box(
+                        modifier = Modifier.size(8.dp).clip(CircleShape).background(dotColor),
+                    )
+                    Text(statusText, style = MaterialTheme.typography.bodyMedium)
+                }
+                OutlinedTextField(
+                    value = controlUrlDraft,
+                    onValueChange = { controlUrlDraft = it },
+                    label = { Text(stringResource(R.string.tunnel_control_url_label)) },
+                    placeholder = { Text(stringResource(R.string.chat_topbar_tunnel_default_control)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                )
+                OutlinedTextField(
+                    value = authKeyDraft,
+                    onValueChange = { authKeyDraft = it },
+                    label = { Text(stringResource(R.string.tunnel_auth_key_label)) },
+                    placeholder = { Text(stringResource(R.string.tunnel_auth_key_placeholder)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                )
+                OutlinedTextField(
+                    value = hostnameDraft,
+                    onValueChange = { hostnameDraft = it },
+                    label = { Text(stringResource(R.string.tunnel_hostname_label)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = true,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    FilledTonalButton(
                         onClick = {
-                            scope.launch { TsnetBridge.stop() }
+                            if (running) {
+                                sheetScope.launch { TsnetBridge.stop() }
+                            } else {
+                                persistConfig()
+                                startTunnel()
+                            }
+                        },
+                        modifier = Modifier.weight(1f),
+                        enabled = !busy,
+                    ) {
+                        Text(stringResource(if (running) R.string.stop else R.string.tunnel_enable_title))
+                    }
+                    Button(
+                        onClick = {
+                            persistConfig()
                             showDialog = false
                         },
+                        modifier = Modifier.weight(1f),
                     ) {
-                        Text(
-                            text = stringResource(R.string.stop),
-                            color = MaterialTheme.colorScheme.error,
-                        )
+                        Text(stringResource(R.string.common_confirm))
                     }
                 }
-            },
-            dismissButton = {
-                TextButton(onClick = { showDialog = false }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
-            },
-        )
+            }
+        }
     }
 }

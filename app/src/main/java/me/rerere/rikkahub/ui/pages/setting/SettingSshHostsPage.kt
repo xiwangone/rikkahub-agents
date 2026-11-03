@@ -31,6 +31,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -144,10 +145,14 @@ fun SettingSshHostsPage() {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("sshHostsGroup") {
-                CardGroup(
-                    title = { Text(stringResource(R.string.setting_ssh_hosts_title)) },
-                ) {
-                    hosts.forEach { host ->
+                // ⚠ CardGroup 内部用 `remember { CardGroupScopeImpl() }` 缓存条目列表，而该列表不是 State：
+                // 列表数据（hosts）从空加载成 N 个时，LazyColumn 的 item 不保证会让 CardGroup 的 scope 重建，
+                // 表现为“数据已加载（日志可见）但页面空白、新加主机也不显示”。用 key(hosts) 强制重建。
+                key(hosts) {
+                    CardGroup(
+                        title = { Text(stringResource(R.string.setting_ssh_hosts_title)) },
+                    ) {
+                        hosts.forEach { host ->
                         item(
                             onClick = {
                                 editing = host
@@ -223,6 +228,7 @@ fun SettingSshHostsPage() {
                             )
                         },
                     )
+                }
                 }
             }
 
