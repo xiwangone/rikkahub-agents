@@ -2111,6 +2111,7 @@
     <string name="error_kind_quota">Недостаточно средств или квоты (пополните и повторите)</string>
     <string name="error_kind_rate_limit">Слишком много запросов (повторите позже)</string>
     <string name="error_kind_model_not_found">Модель отсутствует или снята с поддержки (выберите другую)</string>
+    <string name="error_select_model">Выбрать другую модель</string>
     <string name="error_kind_network">Сеть недоступна или адрес API не отвечает</string>
     <string name="error_kind_server">Сервис модели временно недоступен (повторим автоматически)</string>
     <string name="error_kind_context_length">Диалог превышает лимит контекста модели (сократите или создайте новый чат)</string>

@@ -3123,6 +3123,7 @@
     <string name="error_kind_quota">余额或额度不足（请充值后重试）</string>
     <string name="error_kind_rate_limit">请求太频繁被限流（稍后再试）</string>
     <string name="error_kind_model_not_found">模型不存在或已下线（请重新选择模型）</string>
+    <string name="error_select_model">重新选择模型</string>
     <string name="error_kind_network">网络不通或接口地址无法访问</string>
     <string name="error_kind_server">模型服务暂时不可用（稍后会自动重试）</string>
     <string name="error_kind_context_length">对话内容超出模型上下文上限（请精简或新开会话）</string>

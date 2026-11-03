@@ -2113,6 +2113,7 @@
     <string name="error_kind_quota">잔액 또는 할당량이 부족합니다(충전 후 재시도)</string>
     <string name="error_kind_rate_limit">요청이 너무 많아 제한되었습니다(잠시 후 재시도)</string>
     <string name="error_kind_model_not_found">모델이 없거나 제공이 종료되었습니다(다른 모델 선택)</string>
+    <string name="error_select_model">다른 모델 선택</string>
     <string name="error_kind_network">네트워크 불통 또는 엔드포인트에 접속할 수 없습니다</string>
     <string name="error_kind_server">모델 서비스를 일시적으로 사용할 수 없습니다(자동으로 재시도)</string>
     <string name="error_kind_context_length">대화가 모델 컨텍스트 한도를 초과했습니다(줄이거나 새 대화 시작)</string>

@@ -1710,6 +1710,7 @@
     <string name="error_kind_quota">الرصيد أو الحصة غير كافٍ (اشحن ثم أعد المحاولة)</string>
     <string name="error_kind_rate_limit">طلبات كثيرة جداً (أعد المحاولة بعد قليل)</string>
     <string name="error_kind_model_not_found">النموذج غير موجود أو تم إيقافه (اختر نموذجاً آخر)</string>
+    <string name="error_select_model">اختيار نموذج آخر</string>
     <string name="error_kind_network">الشبكة غير متصلة أو عنوان الخدمة غير متاح</string>
     <string name="error_kind_server">خدمة النموذج غير متاحة مؤقتاً (ستُعاد المحاولة تلقائياً)</string>
     <string name="error_kind_context_length">تجاوزت المحادثة حد سياق النموذج (اختصر أو ابدأ محادثة جديدة)</string>

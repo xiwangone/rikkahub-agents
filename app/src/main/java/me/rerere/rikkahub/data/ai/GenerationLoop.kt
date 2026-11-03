@@ -391,7 +391,8 @@ class GenerationLoop(
         // 只收集枚举与计数（不含任何内容）；统计开关关闭时记录为空操作。
         val runCtx = GenerationRunContext(android.os.SystemClock.elapsedRealtime())
         return flow {
-        val resolvedExecution = resolveBackendProvider(settings.executionBackend, model, settings.providers) ?: error("Provider not found")
+        val resolvedExecution = resolveBackendProvider(settings.executionBackend, model, settings.providers)
+            ?: throw ProviderUnavailableException(model.id.toString(), settings.executionBackend.takeIf { it.isNotBlank() })
         val provider = resolvedExecution.first
         val execModel = resolvedExecution.second
         val providerImpl = providerManager.getProviderByType(provider)

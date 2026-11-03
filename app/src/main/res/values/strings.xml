@@ -3090,6 +3090,7 @@
     <string name="error_kind_quota">Insufficient balance or quota (top up and retry)</string>
     <string name="error_kind_rate_limit">Too many requests (rate limited, retry shortly)</string>
     <string name="error_kind_model_not_found">Model missing or retired (pick another model)</string>
+    <string name="error_select_model">Select another model</string>
     <string name="error_kind_network">Network down or endpoint unreachable</string>
     <string name="error_kind_server">Model service temporarily unavailable (retries automatically)</string>
     <string name="error_kind_context_length">Conversation exceeds the model context limit (trim or start a new chat)</string>

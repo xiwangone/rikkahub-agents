@@ -2116,6 +2116,7 @@
     <string name="error_kind_quota">残高または割り当てが不足しています（チャージ後に再試行）</string>
     <string name="error_kind_rate_limit">リクエストが多すぎて制限されました（しばらくして再試行）</string>
     <string name="error_kind_model_not_found">モデルが存在しないか提供終了です（別のモデルを選択）</string>
+    <string name="error_select_model">別のモデルを選ぶ</string>
     <string name="error_kind_network">ネットワーク不通またはエンドポイントに到達できません</string>
     <string name="error_kind_server">モデルサービスが一時的に利用できません（自動で再試行します）</string>
     <string name="error_kind_context_length">会話がモデルのコンテキスト上限を超えています（短くするか新規チャット）</string>

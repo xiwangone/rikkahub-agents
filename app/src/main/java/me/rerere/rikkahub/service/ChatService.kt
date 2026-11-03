@@ -154,6 +154,9 @@ data class ChatError(
 
 enum class ChatErrorSolution {
     CheckTitleModelSettings,
+
+    /** 模型已不可用（供应商被删/改名）：给一个直接跳到模型设置的入口。 */
+    SelectModel,
 }
 
 

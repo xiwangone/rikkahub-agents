@@ -113,6 +113,14 @@ fun ErrorCard(
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     val checkTitleModelSettings = stringResource(R.string.chat_page_check_title_model_settings)
+    val selectModelLabel = stringResource(R.string.error_select_model)
+    // 两种可操作建议共用同一套链接渲染：都是跳模型设置
+    val solutionLabel =
+        when (error.solution) {
+            ChatErrorSolution.CheckTitleModelSettings -> checkTitleModelSettings
+            ChatErrorSolution.SelectModel -> selectModelLabel
+            else -> null
+        }
     val linkColor = MaterialTheme.colorScheme.primary
 
     // 5 秒后自动消失
@@ -182,7 +190,7 @@ fun ErrorCard(
                         color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.9f),
                     )
                 }
-                if (error.solution == ChatErrorSolution.CheckTitleModelSettings) {
+                if (solutionLabel != null) {
                     Text(
                         text =
                             buildAnnotatedString {
@@ -202,7 +210,7 @@ fun ErrorCard(
                                         },
                                     ),
                                 ) {
-                                    append(checkTitleModelSettings)
+                                    append(solutionLabel)
                                 }
                             },
                         style = MaterialTheme.typography.bodySmall,
