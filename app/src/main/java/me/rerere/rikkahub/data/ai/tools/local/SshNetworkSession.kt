@@ -250,12 +250,18 @@ internal fun openSshSession(
         val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
         jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
     }
+    // 先问隧道：tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号 —— userspace tsnet
+    // 只把出口开在 127.0.0.1:<随机端口>。终端页（SshTerminalPage）早已这样做，这里补齐，
+    // 否则 ssh_exec / ssh_exec_saved / SFTP 连 xEdge 网段会一律 "connection closed by foreign host"
+    // （TCP 看似建立、实际包没到对端，对端 sshd 日志里没有任何记录）。
+    // TunnelRouter 在隧道未运行或目标非 tailnet 时原样返回，不影响普通公网/内网 SSH。
+    val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)
     // Force IPv4 resolution before handing the address to JSch. Solves the "ssh works in
     // Termux but times out in our app" Pixel-only failure: Android's DnsResolver returns
     // AAAA first and JSch sits on the IPv6 SYN for the full timeout instead of falling
     // back to v4. setHostKeyAlias keeps known_hosts comparisons keyed by the human-readable
     // hostname so trust-on-first-use still works the same.
-    val resolution = resolveToIPv4(host)
+    val resolution = resolveToIPv4(dialHost)
     if (resolution.ip == null && resolution.fakeIp != null) {
         // Dialing the fake address (or the raw hostname, which the system resolver would map
         // to the same fake address) can never succeed from this process — say so precisely
@@ -263,9 +269,10 @@ internal fun openSshSession(
         throw FakeIpResolutionException(host, resolution.fakeIp)
     }
     val ipv4 = resolution.ip
-    val effectiveHost = ipv4 ?: host
-    val session = jsch.getSession(user, effectiveHost, port)
-    if (ipv4 != null && ipv4 != host) {
+    val effectiveHost = ipv4 ?: dialHost
+    val session = jsch.getSession(user, effectiveHost, dialPort)
+    // known_hosts 始终按用户填的原始 host 记录，代理端口每次不同也不影响信任判断
+    if (effectiveHost != host) {
         session.setHostKeyAlias(host)
     }
     if (!auth.password.isNullOrBlank()) session.setPassword(auth.password)
