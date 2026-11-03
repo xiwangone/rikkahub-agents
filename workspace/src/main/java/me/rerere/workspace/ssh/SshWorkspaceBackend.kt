@@ -12,6 +12,7 @@ import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.WorkspaceTreeEntry
 import me.rerere.workspace.WorkspaceTreeResult
+import me.rerere.workspace.normalizeWorkspacePath
 import me.rerere.workspace.shellQuote
 import me.rerere.workspace.statEntryCommand
 import me.rerere.workspace.parseShellEntries
