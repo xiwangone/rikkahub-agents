@@ -29,6 +29,42 @@ object LogicalDomains {
 
     /** 选择里是否含逻辑域 —— 这些域在包里是**明文**，因此必须整包口令加密。 */
     fun anySelected(names: Collection<String>): Boolean = names.any { isLogical(it) }
+
+    /**
+     * 当开启备份加密且勾选了 SETTINGS 或 DATABASE 时，自动补齐其依赖的跨机可解逻辑段：
+     * - 勾 SETTINGS / PROVIDERS 时补齐 VAULT_CREDENTIALS（防止配置中的 `$$凭证名` 引用在换机恢复后悬空）；
+     * - 勾 DATABASE 时补齐 VAULT_CREDENTIALS / SSH_HOSTS / SCHEDULED_JOBS（DB 内的 Keystore 密文换机后不可解，必须靠逻辑段重加密写回）。
+     */
+    fun expandImpliedForEncryptedBackup(names: Collection<String>): Set<String> {
+        val out = names.toMutableSet()
+        if ("SETTINGS" in out || PROVIDERS in out) {
+            out += PROVIDERS
+            out += VAULT_CREDENTIALS
+        }
+        if ("DATABASE" in out) {
+            out += VAULT_CREDENTIALS
+            out += SSH_HOSTS
+            out += SCHEDULED_JOBS
+        }
+        return out
+    }
+
+    /** 恢复侧按当前勾选过滤 `migration/` 逻辑段条目，保证 12 项细分粒度在打包与恢复两端严格对称。 */
+    fun shouldRestoreEntry(entryPath: String, selectedNames: Collection<String>): Boolean {
+        val normalized = entryPath.trimStart('/')
+        return when (normalized) {
+            "${MigrationPackage.DIR}/${MigrationPackage.MANIFEST_NAME}" -> true
+            "${MigrationPackage.DIR}/${MigrationPackage.CREDENTIALS_NAME}" ->
+                VAULT_CREDENTIALS in selectedNames || "SETTINGS" in selectedNames || "DATABASE" in selectedNames
+            "${MigrationPackage.DIR}/${MigrationPackage.PROVIDERS_NAME}" ->
+                PROVIDERS in selectedNames || "SETTINGS" in selectedNames
+            "${MigrationPackage.DIR}/${MigrationPackage.SSH_HOSTS_NAME}" ->
+                SSH_HOSTS in selectedNames || "DATABASE" in selectedNames
+            "${MigrationPackage.DIR}/${MigrationPackage.SCHEDULED_JOBS_NAME}" ->
+                SCHEDULED_JOBS in selectedNames || "DATABASE" in selectedNames
+            else -> false
+        }
+    }
 }
 
 /** 一次逻辑域导出的产物：zip 文本条目 + 供 UI 报告的统计。 */

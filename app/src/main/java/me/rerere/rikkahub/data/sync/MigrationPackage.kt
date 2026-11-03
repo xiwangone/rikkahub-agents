@@ -3,8 +3,12 @@ package me.rerere.rikkahub.data.sync
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import java.io.File
+import java.io.IOException
 import java.util.zip.ZipEntry
+import java.util.zip.ZipFile
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
 
@@ -114,11 +118,12 @@ object MigrationPackage {
         }
 }
 
+private const val ZIP_BUFFER_SIZE = 64 * 1024
+private const val STALE_TEMP_MAX_AGE_MS = 2L * 60 * 60 * 1000
+private const val DISK_SAFETY_MARGIN_BYTES = 16L * 1024 * 1024
+
 /**
  * 把若干文本条目追加进一个已有 zip，**写出到 [target]**（不改动 [source]）。
- *
- * 为什么这样做：常规备份包由 `WebDavSync.prepareBackupFile` 直接写成 zip，迁移包只需在它之上
- * 补 `migration/` 那几个明文段 —— 复制原条目再追加，比让备份侧知道"迁移"这件事更小也更稳。
  *
  * - [source] 里若已有与 [extraEntries] 同名的条目，以追加的为准（原条目被丢弃，避免 zip 内重名）；
  * - [target] 必须与 [source] 不是同一个文件（避免边读边写）。
@@ -129,8 +134,8 @@ internal fun appendTextEntriesToZip(
     target: File,
 ) {
     require(source.absolutePath != target.absolutePath) { "source and target must differ" }
-    ZipInputStream(source.inputStream().buffered()).use { zipIn ->
-        ZipOutputStream(target.outputStream().buffered()).use { zipOut ->
+    ZipInputStream(BufferedInputStream(source.inputStream(), ZIP_BUFFER_SIZE)).use { zipIn ->
+        ZipOutputStream(BufferedOutputStream(target.outputStream(), ZIP_BUFFER_SIZE)).use { zipOut ->
             copyZipEntriesExcept(zipIn, zipOut, extraEntries.keys)
             writeZipTextEntries(zipOut, extraEntries)
         }
@@ -147,7 +152,7 @@ private fun copyZipEntriesExcept(
     while (entry != null) {
         if (!entry.isDirectory && entry.name !in skip) {
             zipOut.putNextEntry(ZipEntry(entry.name))
-            zipIn.copyTo(zipOut)
+            zipIn.copyTo(zipOut, bufferSize = ZIP_BUFFER_SIZE)
             zipOut.closeEntry()
         }
         zipIn.closeEntry()
@@ -166,33 +171,107 @@ private fun writeZipTextEntries(
     }
 }
 
-/** 列出 zip 里的条目名（不解压内容）。读失败返回空列表，交给调用方判「不是迁移包」。 */
+/**
+ * 列出 zip 里的条目名（不解压内容）。
+ * 优先走 [ZipFile] 读取文件末尾 Central Directory（130MB+ 包 O(1) 毫秒级完成），
+ * 仅在流式无索引归档时回退到 [ZipInputStream]。
+ */
 internal fun listZipEntryNames(zipFile: File): List<String> =
     runCatching {
-        val names = mutableListOf<String>()
-        ZipInputStream(zipFile.inputStream().buffered()).use { zipIn ->
-            var entry = zipIn.nextEntry
-            while (entry != null) {
+        ZipFile(zipFile).use { zf ->
+            val names = mutableListOf<String>()
+            val entries = zf.entries()
+            while (entries.hasMoreElements()) {
+                val entry = entries.nextElement()
                 if (!entry.isDirectory) names += entry.name.trimStart('/')
-                zipIn.closeEntry()
-                entry = zipIn.nextEntry
             }
+            names
         }
-        names
-    }.getOrDefault(emptyList())
-
-/** 读取 zip 内某个文本条目的内容；不存在或读取失败返回 null。 */
-internal fun readTextEntry(zipFile: File, entryName: String): String? =
-    runCatching {
-        ZipInputStream(zipFile.inputStream().buffered()).use { zipIn ->
-            var entry = zipIn.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory && entry.name.trimStart('/') == entryName) {
-                    return@use zipIn.readBytes().decodeToString()
+    }.getOrElse {
+        runCatching {
+            val names = mutableListOf<String>()
+            ZipInputStream(BufferedInputStream(zipFile.inputStream(), ZIP_BUFFER_SIZE)).use { zipIn ->
+                var entry = zipIn.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) names += entry.name.trimStart('/')
+                    zipIn.closeEntry()
+                    entry = zipIn.nextEntry
                 }
-                zipIn.closeEntry()
-                entry = zipIn.nextEntry
             }
-            null
+            names
+        }.getOrDefault(emptyList())
+    }
+
+/**
+ * 读取 zip 内某个文本条目的内容；不存在或读取失败返回 null。
+ * 优先走 [ZipFile] Central Directory 直接定位位于包尾的 `migration/` 条目，
+ * 避免 [ZipInputStream] 顺序解压跳过前序 130MB+ 数据库与附件条目。
+ */
+internal fun readTextEntry(zipFile: File, entryName: String): String? {
+    val normalizedTarget = entryName.trimStart('/')
+    return runCatching {
+        ZipFile(zipFile).use { zf ->
+            val entry =
+                zf.getEntry(normalizedTarget)
+                    ?: zf.getEntry("/$normalizedTarget")
+                    ?: zf.entries().asSequence().firstOrNull {
+                        !it.isDirectory && it.name.trimStart('/') == normalizedTarget
+                    }
+                    ?: return@use null
+            zf.getInputStream(entry).use { it.readBytes().decodeToString() }
         }
-    }.getOrNull()
+    }.getOrElse {
+        runCatching {
+            ZipInputStream(BufferedInputStream(zipFile.inputStream(), ZIP_BUFFER_SIZE)).use { zipIn ->
+                var entry = zipIn.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory && entry.name.trimStart('/') == normalizedTarget) {
+                        return@use zipIn.readBytes().decodeToString()
+                    }
+                    zipIn.closeEntry()
+                    entry = zipIn.nextEntry
+                }
+                null
+            }
+        }.getOrNull()
+    }
+}
+
+/**
+ * 清理缓存目录中因上次进程被杀或异常中断残留的过期备份临时文件（默认超过 2 小时）。
+ */
+internal fun cleanupStaleBackupTemps(cacheDir: File, maxAgeMs: Long = STALE_TEMP_MAX_AGE_MS) {
+    if (!cacheDir.isDirectory) return
+    val cutoff = System.currentTimeMillis() - maxAgeMs
+    cacheDir.listFiles().orEmpty().forEach { file ->
+        if (!file.isFile || file.lastModified() >= cutoff) return@forEach
+        val name = file.name
+        val isBackupTemp =
+            name.startsWith("backup_") ||
+                name.startsWith("migration_") ||
+                name.startsWith("backup-db-") ||
+                name.startsWith("temp_restore_") ||
+                name.startsWith("temp_migration_") ||
+                name.startsWith("temp_chatbox_") ||
+                name.startsWith("temp_cherry_")
+        if (isBackupTemp) {
+            runCatching { file.delete() }
+        }
+    }
+}
+
+/**
+ * 写大文件前的磁盘可用空间预检（参考 Signal / Seedvault 备份预检策略）。
+ * 当目标分区报告了有效 `usableSpace` (> 0) 且不足 `requiredBytes + 16 MiB` 时提前抛清晰错误。
+ */
+internal fun ensureSufficientDiskSpace(targetDir: File, requiredBytes: Long) {
+    if (requiredBytes <= 0L) return
+    val dir = if (targetDir.isDirectory) targetDir else targetDir.parentFile ?: return
+    val usable = dir.usableSpace
+    val needed = requiredBytes + DISK_SAFETY_MARGIN_BYTES
+    if (usable in 1 until needed) {
+        val usableMb = usable / (1024 * 1024)
+        val neededMb = needed / (1024 * 1024)
+        throw IOException("磁盘剩余空间不足（当前可用约 ${usableMb}MB，至少需要 ${neededMb}MB）")
+    }
+}

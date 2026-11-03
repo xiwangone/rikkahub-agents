@@ -48,9 +48,25 @@ class MigrationImporter(
     suspend fun import(
         config: WebDavConfig,
         file: File,
+        password: String? = null,
         createRollbackPoint: suspend () -> Unit,
     ): MigrationImportResult {
-        val plainZip = backupEncryptionManager.maybeDecrypt(file)
+        val plainZip =
+            try {
+                backupEncryptionManager.maybeDecrypt(file, password = password)
+            } catch (e: IllegalStateException) {
+                throw BackupNeedsPasswordException(
+                    message = e.message ?: "Backup is encrypted",
+                    encFile = file,
+                    cause = e,
+                )
+            } catch (e: IllegalArgumentException) {
+                throw BackupNeedsPasswordException(
+                    message = e.message ?: "Backup is encrypted",
+                    encFile = file,
+                    cause = e,
+                )
+            }
         try {
             val manifest =
                 MigrationPackage.parseManifest(
@@ -72,7 +88,7 @@ class MigrationImporter(
                             listOf(WebDavConfig.BackupItem.DATABASE, WebDavConfig.BackupItem.SETTINGS)
                         },
                 )
-            webDavSync.restoreFromLocalFile(plainZip, scope)
+            webDavSync.restoreFromLocalFile(plainZip, scope, password = password)
 
             // ③ 只读统计（真正的写回发生在下次启动安装新库之后）
             val credentials =

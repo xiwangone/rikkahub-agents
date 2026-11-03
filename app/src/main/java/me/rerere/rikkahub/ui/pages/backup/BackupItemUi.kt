@@ -90,8 +90,8 @@ fun WebDavBackupItemsSelector(
     onChange: (List<WebDavConfig.BackupItem>) -> Unit,
 ) {
     BackupItemsSelectorContent(
-        coreItems = allItems.filter { it.isCoreItem() },
-        advancedItems = allItems.filter { !it.isCoreItem() },
+        coreItems = allItems.filter { it != WebDavConfig.BackupItem.FILES && it.isCoreItem() },
+        advancedItems = allItems.filter { it != WebDavConfig.BackupItem.FILES && !it.isCoreItem() },
         selectedItems = selectedItems,
         onChange = onChange,
         chip = { item, selected, onToggle ->
@@ -115,8 +115,8 @@ fun S3BackupItemsSelector(
     onChange: (List<S3Config.BackupItem>) -> Unit,
 ) {
     BackupItemsSelectorContent(
-        coreItems = allItems.filter { it.isCoreItem() },
-        advancedItems = allItems.filter { !it.isCoreItem() },
+        coreItems = allItems.filter { it != S3Config.BackupItem.FILES && it.isCoreItem() },
+        advancedItems = allItems.filter { it != S3Config.BackupItem.FILES && !it.isCoreItem() },
         selectedItems = selectedItems,
         onChange = onChange,
         chip = { item, selected, onToggle ->

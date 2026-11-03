@@ -12,19 +12,42 @@ import java.nio.file.Files
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
+import java.util.concurrent.atomic.AtomicLong
 
 /** One durable staging transaction for a DB, portable settings, and selected app-private files. */
 internal object PendingDatabaseRestore {
     private const val ROOT = "pending-db-restore"
     private const val MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024
+    private const val STALE_STAGE_MAX_AGE_MS = 2L * 60 * 60 * 1000
     private val databaseNames = setOf("rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm")
     private val allowedFileRoots = setOf("avatars", "upload", "skills", "fonts", "images", "tool_outputs", "workspaces", "workspace", "media_creation")
+    private val stageByteCounters = ConcurrentHashMap<String, AtomicLong>()
 
     fun createStage(context: Context): File {
         val root = root(context)
         check(!File(root, "pending").exists()) { "Another restore is pending" }
         check(root.isDirectory || root.mkdirs()) { "Cannot create restore staging root" }
-        return File(root, "incoming-${UUID.randomUUID()}").also { check(it.mkdirs()) }
+        cleanupStaleStages(root)
+        return File(root, "incoming-${UUID.randomUUID()}").also {
+            check(it.mkdirs())
+            stageByteCounters[it.absolutePath] = AtomicLong(0L)
+        }
+    }
+
+    private fun cleanupStaleStages(root: File) {
+        val cutoff = System.currentTimeMillis() - STALE_STAGE_MAX_AGE_MS
+        root.listFiles().orEmpty().forEach { dir ->
+            if (dir.isDirectory && dir.name.startsWith("incoming-") && dir.lastModified() < cutoff) {
+                stageByteCounters.remove(dir.absolutePath)
+                runCatching { dir.deleteRecursively() }
+            }
+        }
+    }
+
+    fun discardStage(stage: File) {
+        stageByteCounters.remove(stage.absolutePath)
+        if (stage.exists()) stage.deleteRecursively()
     }
 
     fun extractEntry(stage: File, entryName: String, input: InputStream) {
@@ -49,15 +72,17 @@ internal object PendingDatabaseRestore {
 
     private fun extractTo(out: File, input: InputStream, stage: File) {
         require(!out.exists()) { "Duplicate restore member: ${out.name}" }
-        val totalBefore = stage.walkTopDown().filter { it.isFile }.sumOf { it.length() }
+        val counter =
+            stageByteCounters.computeIfAbsent(stage.absolutePath) {
+                AtomicLong(stage.walkTopDown().filter { it.isFile }.sumOf { it.length() })
+            }
         out.parentFile?.let { check(it.isDirectory || it.mkdirs()) }
-        var total = totalBefore
         FileOutputStream(out).use { stream ->
             val buffer = ByteArray(64 * 1024)
             while (true) {
                 val count = input.read(buffer)
                 if (count < 0) break
-                total += count
+                val total = counter.addAndGet(count.toLong())
                 require(total <= MAX_TOTAL_BYTES) { "Restore archive exceeds uncompressed size limit" }
                 stream.write(buffer, 0, count)
             }
@@ -66,6 +91,7 @@ internal object PendingDatabaseRestore {
     }
 
     fun publish(context: Context, stage: File) {
+        stageByteCounters.remove(stage.absolutePath)
         val database = File(stage, DatabaseBackup.ARCHIVE_DATABASE)
         if (database.exists()) DatabaseBackup.validate(database)
         val payloadRoot = File(stage, "payload")

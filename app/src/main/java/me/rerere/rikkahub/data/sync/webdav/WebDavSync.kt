@@ -27,6 +27,9 @@ import me.rerere.rikkahub.data.sync.BackupStats
 import me.rerere.rikkahub.data.sync.PreparedBackup
 import me.rerere.rikkahub.data.sync.toStats
 import me.rerere.rikkahub.data.sync.RestoreFileTransaction
+import me.rerere.rikkahub.data.sync.cleanupStaleBackupTemps
+import java.io.BufferedInputStream
+import java.io.BufferedOutputStream
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.FileInputStream
@@ -268,7 +271,11 @@ class WebDavSync(
         AppLog.i(TAG, "deleteBackupFile: Deleted ${item.displayName}")
     }
 
-    suspend fun restoreFromLocalFile(file: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
+    suspend fun restoreFromLocalFile(
+        file: File,
+        config: WebDavConfig,
+        password: String? = null,
+    ) = withContext(Dispatchers.IO) {
         val config = config.withLegacyExpanded()
         AppLog.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
@@ -281,7 +288,22 @@ class WebDavSync(
         }
 
         try {
-            val plainFile = backupEncryptionManager.maybeDecrypt(file)
+            val plainFile =
+                try {
+                    backupEncryptionManager.maybeDecrypt(file, password = password)
+                } catch (e: IllegalStateException) {
+                    throw BackupNeedsPasswordException(
+                        message = e.message ?: "Backup is encrypted",
+                        encFile = file,
+                        cause = e,
+                    )
+                } catch (e: IllegalArgumentException) {
+                    throw BackupNeedsPasswordException(
+                        message = e.message ?: "Backup is encrypted",
+                        encFile = file,
+                        cause = e,
+                    )
+                }
             try {
                 restoreFromBackupFile(plainFile, config)
                 AppLog.i(TAG, "restoreFromLocalFile: Restore completed successfully")
@@ -292,6 +314,8 @@ class WebDavSync(
             }
         } catch (e: CancellationException) {
             throw e
+        } catch (e: BackupNeedsPasswordException) {
+            throw e
         } catch (e: Exception) {
             AppLog.e(TAG, "restoreFromLocalFile: Failed to restore from local file", e)
             throw Exception("Restore failed: ${e.message}", e)
@@ -299,6 +323,7 @@ class WebDavSync(
     }
 
     suspend fun prepareBackupFile(config: WebDavConfig): PreparedBackup = withContext(Dispatchers.IO) {
+        cleanupStaleBackupTemps(context.cacheDir)
         val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
@@ -317,7 +342,7 @@ class WebDavSync(
         var logical = LogicalExport()
 
         // Create zip file and backup data
-        ZipOutputStream(FileOutputStream(backupFile)).use { zipOut ->
+        ZipOutputStream(BufferedOutputStream(FileOutputStream(backupFile), 64 * 1024)).use { zipOut ->
             // settings.json —— 仅在勾选 SETTINGS（或兼容旧行为：未显式排除 SETTINGS 的老配置）时打包
             val wantSettings =
                 config.items.contains(WebDavConfig.BackupItem.SETTINGS) ||
@@ -345,34 +370,22 @@ class WebDavSync(
             }
 
             // 头像（独立小目录，与聊天图分离）——勾选 AVATARS 或旧 FILES 时都带（体积小）
-            if (config.items.any {
-                    it == WebDavConfig.BackupItem.AVATARS || it == WebDavConfig.BackupItem.FILES
-                }
-            ) {
+            if (WebDavConfig.BackupItem.AVATARS in config.items) {
                 addFolderFilesToZip(zipOut, FileFolders.AVATARS, flat = true)
             }
 
             // 聊天图片/附件 upload/（大头，仅显式勾 CHAT_FILES；FILES 兼容旧聚合也带）
-            if (config.items.any {
-                    it == WebDavConfig.BackupItem.CHAT_FILES || it == WebDavConfig.BackupItem.FILES
-                }
-            ) {
+            if (WebDavConfig.BackupItem.CHAT_FILES in config.items) {
                 addFolderFilesToZip(zipOut, FileFolders.UPLOAD, flat = true)
             }
 
             // 技能（递归）
-            if (config.items.any {
-                    it == WebDavConfig.BackupItem.SKILLS || it == WebDavConfig.BackupItem.FILES
-                }
-            ) {
+            if (WebDavConfig.BackupItem.SKILLS in config.items) {
                 addFolderRecursiveToZip(zipOut, FileFolders.SKILLS)
             }
 
             // 字体/贴图（顶层）
-            if (config.items.any {
-                    it == WebDavConfig.BackupItem.FONTS_IMAGES || it == WebDavConfig.BackupItem.FILES
-                }
-            ) {
+            if (WebDavConfig.BackupItem.FONTS_IMAGES in config.items) {
                 addFolderFilesToZip(zipOut, FileFolders.FONTS, flat = true)
                 addFolderFilesToZip(zipOut, FileFolders.IMAGES, flat = true)
             }
@@ -392,7 +405,13 @@ class WebDavSync(
 
             // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）。
             // 放在最后：MANIFEST 会记录本次勾选项，便于恢复侧核对。
-            logical = logicalBackup.writeTo(zipOut, itemNames)
+            val effectiveLogicalItems =
+                if (backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
+                    LogicalDomains.expandImpliedForEncryptedBackup(itemNames)
+                } else {
+                    itemNames
+                }
+            logical = logicalBackup.writeTo(zipOut, effectiveLogicalItems)
         }
 
         AppLog.i(
@@ -537,7 +556,9 @@ class WebDavSync(
         // 不能在这里写库：新库要等下次启动才安装，现在写会被覆盖（迁移包凭证"消失"的根因）。
         val logicalEntries = mutableMapOf<String, String>()
 
-        ZipInputStream(FileInputStream(backupFile)).use { zipIn ->
+        @Suppress("TooGenericExceptionCaught")
+        try {
+            ZipInputStream(BufferedInputStream(FileInputStream(backupFile), 64 * 1024)).use { zipIn ->
             var entry: ZipEntry?
             while (zipIn.nextEntry.also { entry = it } != null) {
                 entry?.let { zipEntry ->
@@ -648,10 +669,16 @@ class WebDavSync(
                             }
                         }
 
-                        // migration/ 段（明文 → 整包口令加密）——恢复时只暂存，启动后再写回
+                        // migration/ 段（明文 → 整包口令加密）——按勾选项过滤后暂存，启动后再写回
                         zipEntry.name.trimStart('/').startsWith(MigrationPackage.DIR + "/") -> {
-                            logicalEntries[zipEntry.name.trimStart('/')] =
-                                zipIn.readBytes().toString(Charsets.UTF_8)
+                            val normalizedName = zipEntry.name.trimStart('/')
+                            val selectedNames = config.items.map { it.name }.toSet()
+                            if (LogicalDomains.shouldRestoreEntry(normalizedName, selectedNames)) {
+                                logicalEntries[normalizedName] =
+                                    zipIn.readBytes().toString(Charsets.UTF_8)
+                            } else {
+                                skipEntry(zipEntry)
+                            }
                         }
 
                         else -> {
@@ -664,14 +691,12 @@ class WebDavSync(
             }
         }
 
-        @Suppress("TooGenericExceptionCaught") // 发布失败要清理 stage 后原样重抛，底层异常类型不可枚举
-        databaseStage?.let { stage ->
-            try {
+            databaseStage?.let { stage ->
                 PendingDatabaseRestore.publish(context, stage)
-            } catch (failure: Throwable) {
-                stage.deleteRecursively()
-                throw failure
             }
+        } catch (failure: Throwable) {
+            databaseStage?.let { PendingDatabaseRestore.discardStage(it) }
+            throw failure
         }
 
         // 逻辑段暂存（Keystore 密文），由 Application 在新库安装且 Room 打开后写回。
@@ -686,7 +711,7 @@ class WebDavSync(
         FileInputStream(file).use { fis ->
             val zipEntry = ZipEntry(entryName)
             zipOut.putNextEntry(zipEntry)
-            fis.copyTo(zipOut)
+            fis.copyTo(zipOut, bufferSize = 64 * 1024)
             zipOut.closeEntry()
             AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
         }
