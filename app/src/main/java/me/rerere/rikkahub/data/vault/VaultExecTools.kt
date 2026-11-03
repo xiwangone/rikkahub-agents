@@ -189,7 +189,16 @@ private suspend fun executeVaultSshSession(
     val knownHostsFile = java.io.File(context.filesDir, "vault_known_hosts")
     jsch.setKnownHosts(knownHostsFile.absolutePath)
     val isFirstConnect = isFirstKnownHostConnect(knownHostsFile, host)
-    val session: com.jcraft.jsch.Session = jsch.getSession(user, host, port)
+    // 与 SshNetworkSession / SshTerminalPage 保持一致：先问隧道。
+    // tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号，userspace tsnet 只把出口开在
+    // 127.0.0.1:<随机端口>；不解析会表现为 "connection is closed by foreign host"
+    // （TCP 看似建立、包没到对端，对端 sshd 日志无记录）。
+    val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)
+    val session: com.jcraft.jsch.Session = jsch.getSession(user, dialHost, dialPort)
+    // known_hosts 与首连判定仍按用户填的原始 host，代理端口每次不同也不影响信任
+    if (dialHost != host) {
+        session.setHostKeyAlias(host)
+    }
     if (auth == "key") {
         jsch.addIdentity("vault-key", secret.ensureTrailingNewline().encodeToByteArray(), null, null)
     } else {
