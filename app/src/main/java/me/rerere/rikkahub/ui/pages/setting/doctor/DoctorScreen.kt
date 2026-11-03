@@ -7,26 +7,34 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -38,31 +46,38 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalClipboardManager
-import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Bug01
+import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Earth
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.service.debug.DebugApiManager
-import me.rerere.rikkahub.service.debug.ListenConfig
 import me.rerere.rikkahub.service.debug.DebugApiStartFailure
-import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.service.debug.ListenConfig
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
 import me.rerere.rikkahub.ui.components.ui.CardGroup
-import me.rerere.rikkahub.ui.components.ui.Switch
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
-import me.rerere.rikkahub.data.datastore.SettingsStore
 
 @Composable
 fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
@@ -99,11 +114,9 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(horizontal = 8.dp, vertical = 8.dp),
+            contentPadding = innerPadding + PaddingValues(horizontal = 12.dp, vertical = 8.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            // Summary card — counts + actions. Always-rendered so the layout doesn't jump
-            // when running starts/stops; the "Run again" button shows a spinner inline.
             item(key = "summary") {
                 SummaryCard(
                     counts = severityCounts,
@@ -118,12 +131,10 @@ fun DoctorScreen(vm: DoctorViewModel = koinViewModel()) {
                 )
             }
 
-            // Experimental AI debug API switch (loopback only, token-gated; see DebugApiServer).
             item(key = "debug_api") {
                 DebugApiCard(manager = koinInject())
             }
 
-            // One CardGroup per category — matches the rest of the Settings UI exactly.
             DoctorCategory.entries.forEach { category ->
                 val rows = state.results.filter { it.category == category }
                 if (rows.isEmpty()) return@forEach
@@ -188,50 +199,66 @@ private fun SummaryCard(
     onRunAgain: () -> Unit,
     onCopyReport: () -> Unit,
 ) {
-    Column(
+    Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .padding(horizontal = 4.dp)
-                .background(
-                    MaterialTheme.colorScheme.surfaceContainerHigh,
-                    RoundedCornerShape(20.dp),
-                ).padding(16.dp),
-        verticalArrangement = Arrangement.spacedBy(14.dp),
+                .padding(horizontal = 4.dp),
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
     ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceEvenly,
+        Column(
+            modifier = Modifier.padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(14.dp),
         ) {
-            CountPill(stringResource(R.string.doctor_summary_fail), counts[Severity.FAIL] ?: 0, Severity.FAIL)
-            CountPill(stringResource(R.string.doctor_summary_warn), counts[Severity.WARN] ?: 0, Severity.WARN)
-            CountPill(stringResource(R.string.doctor_summary_ok), counts[Severity.OK] ?: 0, Severity.OK)
-            CountPill(stringResource(R.string.doctor_summary_info), counts[Severity.INFO] ?: 0, Severity.INFO)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(
-                onClick = onRunAgain,
-                enabled = !running,
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceEvenly,
             ) {
-                if (running) {
-                    CircularProgressIndicator(
-                        modifier =
-                            Modifier
-                                .size(16.dp)
-                                .padding(end = 0.dp),
-                        strokeWidth = 2.dp,
-                        color = MaterialTheme.colorScheme.onPrimary,
-                    )
-                    Text(
-                        stringResource(R.string.setting_page_doctor_running),
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
-                } else {
-                    Text(stringResource(R.string.setting_page_doctor_run_again))
-                }
+                CountPill(stringResource(R.string.doctor_summary_fail), counts[Severity.FAIL] ?: 0, Severity.FAIL)
+                CountPill(stringResource(R.string.doctor_summary_warn), counts[Severity.WARN] ?: 0, Severity.WARN)
+                CountPill(stringResource(R.string.doctor_summary_ok), counts[Severity.OK] ?: 0, Severity.OK)
+                CountPill(stringResource(R.string.doctor_summary_info), counts[Severity.INFO] ?: 0, Severity.INFO)
             }
-            OutlinedButton(onClick = onCopyReport) {
-                Text(stringResource(R.string.setting_page_doctor_copy_report))
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Button(
+                    onClick = onRunAgain,
+                    enabled = !running,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    if (running) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                            color = MaterialTheme.colorScheme.onPrimary,
+                        )
+                        Spacer(Modifier.width(8.dp))
+                        Text(stringResource(R.string.setting_page_doctor_running))
+                    } else {
+                        Icon(
+                            imageVector = HugeIcons.Refresh01,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                        Text(stringResource(R.string.setting_page_doctor_run_again))
+                    }
+                }
+                OutlinedButton(
+                    onClick = onCopyReport,
+                    modifier = Modifier.weight(1f),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Copy01,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                    Text(stringResource(R.string.setting_page_doctor_copy_report))
+                }
             }
         }
     }
@@ -248,12 +275,12 @@ private fun CountPill(
         Text(
             count.toString(),
             color = color,
-            style = MaterialTheme.typography.titleLarge,
+            style = MaterialTheme.typography.headlineSmall,
         )
         Text(
             label,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
-            style = MaterialTheme.typography.labelSmall,
+            style = MaterialTheme.typography.labelMedium,
         )
     }
 }
@@ -293,12 +320,8 @@ private fun FixButton(
 private fun severityColor(severity: Severity): Color =
     when (severity) {
         Severity.OK -> MaterialTheme.colorScheme.primary
-
         Severity.INFO -> MaterialTheme.colorScheme.tertiary
-
-        // Material doesn't define a stock warning colour — Google's HIG uses amber here.
         Severity.WARN -> Color(0xFFFFB300)
-
         Severity.FAIL -> MaterialTheme.colorScheme.error
     }
 
@@ -320,11 +343,10 @@ private fun copyToClipboard(
     cm.setPrimaryClip(ClipData.newPlainText(ctx.getString(R.string.doctor_report_clip_label), text))
 }
 
+@OptIn(ExperimentalLayoutApi::class)
 @Composable
 private fun DebugApiCard(manager: DebugApiManager) {
     val scope = rememberCoroutineScope()
-    // 网段预设是全局设置（Web 服务器 / 调试接口 / 本地 MCP 共用），与调试接口自身的
-    // CUSTOM_CIDRS 分开存储：预设只影响输入便利，不影响服务实际监听。
     val settingsStore = koinInject<SettingsStore>()
     val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val running by manager.running.collectAsStateWithLifecycle()
@@ -338,38 +360,51 @@ private fun DebugApiCard(manager: DebugApiManager) {
     var revealedToken by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    @Suppress("DEPRECATION")
     val clipboardManager = LocalClipboardManager.current
-    // 文案在 composable 作用域先取好：onClick lambda 内不能用 stringResource
     val savedMessageText = stringResource(R.string.setting_page_doctor_debug_api_saved)
-    CardGroup {
-        item(
+    val copiedMessageText = stringResource(R.string.setting_page_doctor_debug_api_copied)
+
+    CardGroup(
+        modifier = Modifier.padding(horizontal = 4.dp),
+        title = { Text(stringResource(R.string.setting_page_doctor_debug_api_title)) },
+    ) {
+        switchItem(
+            checked = running,
+            onCheckedChange = { enabled ->
+                scope.launch { manager.setEnabled(enabled) }
+            },
+            leadingContent = { CardGroupIcon(HugeIcons.Bug01) },
             headlineContent = {
                 Text(stringResource(R.string.setting_page_doctor_debug_api_title))
             },
             supportingContent = {
-                Column {
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(stringResource(R.string.setting_page_doctor_debug_api_desc))
-                    // 运行事实：在跑报实际地址，没跑说没跑（防“开关开着却不知死活”）
                     Text(
-                        if (running && port > 0) {
-                            stringResource(
-                                R.string.setting_page_doctor_debug_api_status_running,
-                                listenCfg.host,
-                                port,
-                            )
-                        } else {
-                            stringResource(R.string.setting_page_doctor_debug_api_status_stopped)
-                        },
+                        text =
+                            if (running && port > 0) {
+                                stringResource(
+                                    R.string.setting_page_doctor_debug_api_status_running,
+                                    listenCfg.host,
+                                    port,
+                                )
+                            } else {
+                                stringResource(R.string.setting_page_doctor_debug_api_status_stopped)
+                            },
+                        color = if (running) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     startError?.let { err ->
                         Text(
-                            stringResource(
-                                if (err == DebugApiStartFailure.TOKEN_REF_UNRESOLVED) {
-                                    R.string.setting_page_doctor_debug_api_err_ref
-                                } else {
-                                    R.string.setting_page_doctor_debug_api_err_port
-                                },
-                            ),
+                            text =
+                                stringResource(
+                                    if (err == DebugApiStartFailure.TOKEN_REF_UNRESOLVED) {
+                                        R.string.setting_page_doctor_debug_api_err_ref
+                                    } else {
+                                        R.string.setting_page_doctor_debug_api_err_port
+                                    },
+                                ),
+                            color = MaterialTheme.colorScheme.error,
                         )
                     }
                     if (running && port > 0 && port != DebugApiManager.PORT) {
@@ -377,166 +412,161 @@ private fun DebugApiCard(manager: DebugApiManager) {
                     }
                 }
             },
-            trailingContent = {
-                Switch(
-                    checked = running,
-                    onCheckedChange = { enabled ->
-                        scope.launch { manager.setEnabled(enabled) }
+        )
+
+        formItem(
+            leadingContent = { CardGroupIcon(HugeIcons.Earth) },
+            headlineContent = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen)) },
+        ) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                FilterChip(
+                    selected = listenCfg.mode == ListenConfig.MODE_LOOPBACK,
+                    onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LOOPBACK) } },
+                    label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_loopback)) },
+                )
+                FilterChip(
+                    selected = listenCfg.mode == ListenConfig.MODE_LAN,
+                    onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LAN) } },
+                    label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_lan)) },
+                )
+                FilterChip(
+                    selected = listenCfg.mode == ListenConfig.MODE_CUSTOM,
+                    onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_CUSTOM) } },
+                    label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_custom)) },
+                )
+                FilterChip(
+                    selected = listenCfg.mode == ListenConfig.MODE_ALL,
+                    onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_ALL) } },
+                    label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_all)) },
+                )
+            }
+            if (listenCfg.mode == ListenConfig.MODE_CUSTOM) {
+                var cidrInput by remember(listenCfg.mode) { mutableStateOf(listenCfg.cidrs) }
+                NetworkAccessField(
+                    value = cidrInput,
+                    onValueChange = { cidrInput = it },
+                    presets = settings.networkCidrPresets,
+                    onPresetsChange = { presets ->
+                        scope.launch { settingsStore.update { it.copy(networkCidrPresets = presets) } }
                     },
+                    label = stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                FilledTonalButton(
+                    onClick = {
+                        scope.launch {
+                            manager.setCustomCidrs(cidrInput)
+                            toaster.show(
+                                message = context.getString(R.string.setting_page_doctor_debug_api_saved),
+                            )
+                        }
+                    },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_apply))
+                }
+            }
+            if (listenCfg.mode == ListenConfig.MODE_ALL) {
+                Text(
+                    stringResource(R.string.setting_page_doctor_debug_api_listen_all_warn),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+            Text(
+                stringResource(R.string.setting_page_doctor_debug_api_exec_warn),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.error,
+            )
+        }
+
+        val live = if (revealedToken) manager.currentToken() else null
+        formItem(
+            leadingContent = { CardGroupIcon(HugeIcons.Key01) },
+            headlineContent = { Text(stringResource(R.string.setting_page_doctor_debug_api_token_hint)) },
+            supportingContent = {
+                Text(
+                    stringResource(
+                        R.string.setting_page_doctor_debug_api_current,
+                        live ?: tokenSourceLabel(storedToken),
+                    ),
                 )
             },
-        )
-        item(
-            headlineContent = {
-                Text(stringResource(R.string.setting_page_doctor_debug_api_listen))
-            },
-            supportingContent = {
-                Column {
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = listenCfg.mode == ListenConfig.MODE_LOOPBACK,
-                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LOOPBACK) } },
-                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_loopback)) },
-                        )
-                        FilterChip(
-                            selected = listenCfg.mode == ListenConfig.MODE_LAN,
-                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_LAN) } },
-                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_lan)) },
-                        )
-                    }
-                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                        FilterChip(
-                            selected = listenCfg.mode == ListenConfig.MODE_CUSTOM,
-                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_CUSTOM) } },
-                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_custom)) },
-                        )
-                        FilterChip(
-                            selected = listenCfg.mode == ListenConfig.MODE_ALL,
-                            onClick = { scope.launch { manager.setListenMode(ListenConfig.MODE_ALL) } },
-                            label = { Text(stringResource(R.string.setting_page_doctor_debug_api_listen_all)) },
-                        )
-                    }
-                    if (listenCfg.mode == ListenConfig.MODE_CUSTOM) {
-                        var cidrInput by remember(listenCfg.mode) { mutableStateOf(listenCfg.cidrs) }
-                        NetworkAccessField(
-                            value = cidrInput,
-                            onValueChange = { cidrInput = it },
-                            presets = settings.networkCidrPresets,
-                            onPresetsChange = { presets ->
-                                scope.launch { settingsStore.update { it.copy(networkCidrPresets = presets) } }
-                            },
-                            label = stringResource(R.string.setting_page_doctor_debug_api_cidrs_hint),
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        TextButton(onClick = {
-                            scope.launch {
-                                manager.setCustomCidrs(cidrInput)
-                                toaster.show(
-                                    message = context.getString(R.string.setting_page_doctor_debug_api_saved),
-                                )
-                            }
-                        }) {
-                            Text(stringResource(R.string.setting_page_doctor_debug_api_cidrs_apply))
-                        }
-                    }
-                    if (listenCfg.mode == ListenConfig.MODE_ALL) {
-                        Text(
-                            stringResource(R.string.setting_page_doctor_debug_api_listen_all_warn),
-                            color = MaterialTheme.colorScheme.error,
-                        )
-                    }
-                    Text(
-                        stringResource(R.string.setting_page_doctor_debug_api_exec_warn),
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            },
-        )
-        item(
-            headlineContent = {
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
                 SecretRefField(
                     value = tokenInput,
                     onValueChange = { tokenInput = it },
                     label = stringResource(R.string.setting_page_doctor_debug_api_token_hint),
                     singleLine = true,
+                    modifier = Modifier.weight(1f),
                 )
-            },
-            supportingContent = {
-                // 口令来源与有效性：引用要标明能否解析（防“看着像生效其实连不上”）；
-                // 自动生成的口令只存在内存，点「查看」才落明文，默认不常驻显示
-                val live = if (revealedToken) manager.currentToken() else null
-                Column {
-                    Text(
-                        stringResource(
-                            R.string.setting_page_doctor_debug_api_current,
-                            live ?: tokenSourceLabel(storedToken),
-                        ),
-                    )
-                    // 查看/复制放正文区：trailing 只留一个按钮，窄屏不会挤爆
-                    Row {
-                        TextButton(onClick = { revealedToken = !revealedToken }) {
-                            Text(
-                                stringResource(
-                                    if (revealedToken) {
-                                        R.string.setting_page_doctor_debug_api_hide
-                                    } else {
-                                        R.string.setting_page_doctor_debug_api_show
-                                    },
-                                ),
-                            )
+                OutlinedButton(
+                    onClick = {
+                        scope.launch {
+                            manager.setToken(tokenInput)
+                            tokenInput = ""
+                            revealedToken = false
+                            toaster.show(message = savedMessageText)
                         }
-                        TextButton(onClick = {
-                            manager.currentToken()?.let {
-                                clipboardManager.setText(AnnotatedString(it))
-                                toaster.show(
-                                    message = context.getString(
-                                        R.string.setting_page_doctor_debug_api_copied,
-                                    ),
-                                )
-                            }
-                        }) {
-                            Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
-                        }
-                    }
-                }
-            },
-            trailingContent = {
-                OutlinedButton(onClick = {
-                    scope.launch {
-                        manager.setToken(tokenInput)
-                        tokenInput = ""
-                        revealedToken = false
-                        toaster.show(
-                            message = savedMessageText,
-                        )
-                    }
-                }) {
+                    },
+                ) {
                     Text(stringResource(android.R.string.ok))
                 }
-            },
-        )
+            }
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                TextButton(onClick = { revealedToken = !revealedToken }) {
+                    Text(
+                        stringResource(
+                            if (revealedToken) {
+                                R.string.setting_page_doctor_debug_api_hide
+                            } else {
+                                R.string.setting_page_doctor_debug_api_show
+                            },
+                        ),
+                    )
+                }
+                TextButton(
+                    onClick = {
+                        manager.currentToken()?.let {
+                            clipboardManager.setText(AnnotatedString(it))
+                            toaster.show(message = copiedMessageText)
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.setting_page_doctor_debug_api_copy))
+                }
+            }
+        }
     }
 }
 
-/** 口令来源的可读形态：引用额外标明能否解析，明文只给掩码 */
 @Composable
-private fun tokenSourceLabel(stored: String): String = when {
-    stored.isBlank() -> stringResource(R.string.setting_page_doctor_debug_api_src_auto)
-    stored.startsWith(VaultProviderKeyRefs.PREFIX) -> stringResource(
-        if (VaultProviderKeyRefs.resolveOrNull(stored) != null) {
-            R.string.setting_page_doctor_debug_api_src_ref_ok
-        } else {
-            R.string.setting_page_doctor_debug_api_src_ref_bad
-        },
-        stored,
-    )
+private fun tokenSourceLabel(stored: String): String =
+    when {
+        stored.isBlank() -> stringResource(R.string.setting_page_doctor_debug_api_src_auto)
+        stored.startsWith(VaultProviderKeyRefs.PREFIX) ->
+            stringResource(
+                if (VaultProviderKeyRefs.resolveOrNull(stored) != null) {
+                    R.string.setting_page_doctor_debug_api_src_ref_ok
+                } else {
+                    R.string.setting_page_doctor_debug_api_src_ref_bad
+                },
+                stored,
+            )
+        else -> stringResource(R.string.setting_page_doctor_debug_api_src_custom, displayToken(stored))
+    }
 
-    else -> stringResource(R.string.setting_page_doctor_debug_api_src_custom, displayToken(stored))
-}
-
-/** 已配置口令的展示形态：$$引用只露凭证名；明文打中间掩码 */
-private fun displayToken(token: String): String = when {
-    token.isBlank() -> ""
-    token.startsWith("\$") -> token
-    else -> token.take(2) + "•".repeat((token.length - 4).coerceAtLeast(3)) + token.takeLast(2)
-}
+private fun displayToken(token: String): String =
+    when {
+        token.isBlank() -> ""
+        token.startsWith("\$") -> token
+        else -> token.take(2) + "•".repeat((token.length - 4).coerceAtLeast(3)) + token.takeLast(2)
+    }

@@ -4,53 +4,75 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.ListItem
+import androidx.compose.material3.FilledTonalButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
-import androidx.compose.ui.platform.LocalContext
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
-import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
-import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 
 /**
- * SSH 主机管理页：用户可视化配置主机（名称/地址/用户/认证），
- * AI 可通过 save_ssh_host / ssh_exec_saved / vault_ssh_exec 直接调用。
- * 凭证存 Room（现状）；Vault 加密存储为后续增强。
+ * SSH 主机管理页（Material 3 Expressive 分组卡片样式）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -61,21 +83,20 @@ fun SettingSshHostsPage() {
     val scope = rememberCoroutineScope()
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val context = LocalContext.current
-    val settings = LocalSettings.current
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var hosts by remember { mutableStateOf<List<SshHostEntity>>(emptyList()) }
     var editing by remember { mutableStateOf<SshHostEntity?>(null) }
     var showEdit by remember { mutableStateOf(false) }
 
-    // 加载主机列表
-    androidx.compose.runtime.LaunchedEffect(Unit) {
+    LaunchedEffect(Unit) {
         runCatching {
             sshHostRepository.getAll()
         }.onSuccess { list ->
-            me.rerere.rikkahub.data.log.AppLog.d("SshHostsPage", "加载主机列表: ${list.size} 个 ${list.map { it.name }}")
+            AppLog.d("SshHostsPage", "加载主机列表: ${list.size} 个 ${list.map { it.name }}")
             hosts = list
         }.onFailure { e ->
-            me.rerere.rikkahub.data.log.AppLog.w("SshHostsPage", "加载主机列表失败: ${e.message}")
+            AppLog.w("SshHostsPage", "加载主机列表失败: ${e.message}")
         }
     }
 
@@ -84,92 +105,133 @@ fun SettingSshHostsPage() {
             runCatching {
                 sshHostRepository.getAll()
             }.onSuccess { list ->
-                me.rerere.rikkahub.data.log.AppLog.d("SshHostsPage", "刷新主机列表: ${list.size} 个")
+                AppLog.d("SshHostsPage", "刷新主机列表: ${list.size} 个")
                 hosts = list
             }.onFailure { e ->
-                me.rerere.rikkahub.data.log.AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
+                AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
             }
         }
     }
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.setting_ssh_hosts_title)) },
                 navigationIcon = { BackButton() },
-                colors = CustomColors.topBarColors,
-            )
-        },
-        containerColor = CustomColors.topBarColors.containerColor,
-    ) { innerPadding ->
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(innerPadding),
-            contentPadding = PaddingValues(8.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            item("sshHostsTitle") {
-                Text(
-                    text = stringResource(R.string.setting_ssh_hosts_title),
-                    style = MaterialTheme.typography.titleSmallEmphasized,
-                    color = MaterialTheme.colorScheme.primary,
-                    modifier = Modifier.padding(start = 12.dp, top = 8.dp, bottom = 4.dp),
-                )
-            }
-            items(hosts, key = { it.name }) { host ->
-                ListItem(
-                    headlineContent = { Text(host.name) },
-                    supportingContent = { Text("${host.user}@${host.host}:${host.port}") },
-                    trailingContent = {
-                        Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                            TextButton(
-                                onClick = {
-                                    navController.navigate(me.rerere.rikkahub.Screen.SshTerminal(host.name))
-                                },
-                            ) {
-                                Text(stringResource(R.string.setting_ssh_host_connect), color = MaterialTheme.colorScheme.primary)
-                            }
-                            TextButton(
-                                onClick = {
-                                    scope.launch {
-                                        sshHostRepository.deleteByName(host.name)
-                                        reload()
-                                    }
-                                },
-                            ) {
-                                Text(stringResource(R.string.setting_ssh_host_delete), color = MaterialTheme.colorScheme.error)
-                            }
-                        }
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
-                            editing = host
-                            showEdit = true
-                        },
-                )
-            }
-            item("sshAdd") {
-                ListItem(
-                    headlineContent = {
-                        Text(
-                            stringResource(R.string.setting_ssh_host_add),
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    },
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .clickable {
+                actions = {
+                    IconButton(
+                        onClick = {
                             editing = null
                             showEdit = true
                         },
-                )
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Add01,
+                            contentDescription = stringResource(R.string.setting_ssh_host_add),
+                        )
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+                colors = CustomColors.topBarColors,
+            )
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = CustomColors.topBarColors.containerColor,
+    ) { innerPadding ->
+        LazyColumn(
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = innerPadding + PaddingValues(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            item("sshHostsGroup") {
+                CardGroup(
+                    title = { Text(stringResource(R.string.setting_ssh_hosts_title)) },
+                ) {
+                    hosts.forEach { host ->
+                        item(
+                            onClick = {
+                                editing = host
+                                showEdit = true
+                            },
+                            leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                            headlineContent = { Text(host.name) },
+                            supportingContent = {
+                                Text(
+                                    text = "${host.user}@${host.host}:${host.port}",
+                                    fontFamily = FontFamily.Monospace,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            trailingContent = {
+                                Row(
+                                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    FilledTonalButton(
+                                        onClick = {
+                                            navController.navigate(Screen.SshTerminal(host.name))
+                                        },
+                                        contentPadding = PaddingValues(horizontal = 12.dp, vertical = 6.dp),
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.ComputerTerminal01,
+                                            contentDescription = null,
+                                            modifier = Modifier.size(16.dp),
+                                        )
+                                        Spacer(Modifier.width(4.dp))
+                                        Text(
+                                            text = stringResource(R.string.setting_ssh_host_connect),
+                                            style = MaterialTheme.typography.labelMedium,
+                                        )
+                                    }
+                                    IconButton(
+                                        onClick = {
+                                            scope.launch {
+                                                sshHostRepository.deleteByName(host.name)
+                                                reload()
+                                            }
+                                        },
+                                    ) {
+                                        Icon(
+                                            imageVector = HugeIcons.Delete01,
+                                            contentDescription = stringResource(R.string.setting_ssh_host_delete),
+                                            tint = MaterialTheme.colorScheme.error,
+                                            modifier = Modifier.size(18.dp),
+                                        )
+                                    }
+                                }
+                            },
+                        )
+                    }
+                    item(
+                        onClick = {
+                            editing = null
+                            showEdit = true
+                        },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Add01,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
+                        headlineContent = {
+                            Text(
+                                stringResource(R.string.setting_ssh_host_add),
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                    )
+                }
             }
+
             item("sshHint") {
                 Text(
                     text = stringResource(R.string.setting_ssh_host_hint),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(horizontal = 12.dp),
+                    modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
         }
@@ -188,7 +250,7 @@ fun SettingSshHostsPage() {
                         reload()
                         showEdit = false
                     }.onFailure { e ->
-                        me.rerere.rikkahub.data.log.AppLog.w(
+                        AppLog.w(
                             "SshHostsPage",
                             "failed to save SSH host: name=${entity.name} err=${e.message}",
                         )
@@ -207,8 +269,6 @@ private fun SshHostEditDialog(
     onDismiss: () -> Unit,
     onSave: (SshHostEntity) -> Unit,
 ) {
-    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
-    val context = LocalContext.current
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var host by remember { mutableStateOf(initial?.host ?: "") }
     var port by remember { mutableStateOf((initial?.port ?: 22).toString()) }
@@ -218,29 +278,56 @@ private fun SshHostEditDialog(
     var passphrase by remember { mutableStateOf(initial?.passphrase ?: "") }
     var vaultCredentialRef by remember { mutableStateOf(initial?.vaultCredentialRef) }
     var templateRef by remember { mutableStateOf(initial?.templateRef) }
-    val scope = rememberCoroutineScope()
     var vaultEntries by remember { mutableStateOf<List<me.rerere.rikkahub.data.db.entity.VaultCredentialEntity>>(emptyList()) }
     var showVaultPicker by remember { mutableStateOf(false) }
-    // 生成新密钥对：生成后直接回填为本主机引用的凭证
     var showKeyGen by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
-    androidx.compose.runtime.LaunchedEffect(Unit) { vaultEntries = vaultRepo.getAll() }
+    LaunchedEffect(Unit) { vaultEntries = vaultRepo.getAll() }
     val serverTemplates = vaultEntries.filter { it.grp == "server" }
-    // 私钥候选：只显示 SSH 组凭证（ECS_SSH_KEY_* / GITHUB_SSH_KEY / PC_SSH_KEY 等），
-    // API key（DEEPSEEK 等）不是 SSH 私钥，不该出现在选择器里
     val keyCandidates = vaultEntries.filter { it.grp == "SSH" }
 
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (initial == null) R.string.setting_ssh_host_add else R.string.setting_ssh_host_edit)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.setting_ssh_host_name)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = host, onValueChange = { host = it }, label = { Text(stringResource(R.string.setting_ssh_host_addr)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.setting_ssh_host_port)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = user, onValueChange = { user = it }, label = { Text(stringResource(R.string.setting_ssh_host_user)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                // 三个认证材料都改成统一引用位：既可直接填明文（粘贴后一键入库），也可填 `$$引用`。
-                // 口令与私钥**分开成两位**，因此"私钥走引用、口令却明文"这种假安全不会再出现。
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.setting_ssh_host_name)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedTextField(
+                        value = host,
+                        onValueChange = { host = it },
+                        label = { Text(stringResource(R.string.setting_ssh_host_addr)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(0.68f),
+                    )
+                    OutlinedTextField(
+                        value = port,
+                        onValueChange = { port = it.filter { ch -> ch.isDigit() } },
+                        label = { Text(stringResource(R.string.setting_ssh_host_port)) },
+                        singleLine = true,
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                        modifier = Modifier.weight(0.32f),
+                    )
+                }
+                OutlinedTextField(
+                    value = user,
+                    onValueChange = { user = it },
+                    label = { Text(stringResource(R.string.setting_ssh_host_user)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 SecretRefField(
                     value = password,
                     onValueChange = { password = it },
@@ -256,7 +343,7 @@ private fun SshHostEditDialog(
                     label = stringResource(R.string.setting_ssh_host_private_key),
                     nameHint = "SSH_KEY",
                     typeHint = CredentialType.SSH_KEY,
-                    maxLines = 5,
+                    maxLines = 4,
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SecretRefField(
@@ -269,7 +356,6 @@ private fun SshHostEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                // 从服务器样板选择
                 if (serverTemplates.isNotEmpty()) {
                     OutlinedButton(onClick = { showTemplatePicker = true }, modifier = Modifier.fillMaxWidth()) {
                         Text(stringResource(R.string.setting_ssh_from_template))
@@ -299,10 +385,13 @@ private fun SshHostEditDialog(
                     }
                 }
                 if (templateRef != null) {
-                    Text(stringResource(R.string.setting_ssh_template_used, templateRef!!), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                    Text(
+                        stringResource(R.string.setting_ssh_template_used, templateRef!!),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
 
-                // 私钥：从 Vault 选择（引用，不明文粘贴）
                 if (keyCandidates.isNotEmpty()) {
                     Row(
                         modifier = Modifier.fillMaxWidth(),
@@ -311,21 +400,45 @@ private fun SshHostEditDialog(
                         OutlinedButton(
                             onClick = { showVaultPicker = true },
                             modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                         ) {
-                            Text(stringResource(R.string.setting_ssh_pick_vault_key))
+                            Icon(
+                                imageVector = HugeIcons.Key01,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.setting_ssh_pick_vault_key),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                         OutlinedButton(
                             onClick = { showKeyGen = true },
                             modifier = Modifier.weight(1f),
+                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                         ) {
-                            Text(stringResource(R.string.vault_new_key))
+                            Icon(
+                                imageVector = HugeIcons.Add01,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(4.dp))
+                            Text(
+                                text = stringResource(R.string.vault_new_key),
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
                         }
                     }
                     if (showVaultPicker) {
-                        // 统一选择器：支持搜索 + 按分组/类型筛选（条目多时快速定位）
                         VaultCredentialPickerDialog(
                             entries = keyCandidates,
-                            onPick = { vaultCredentialRef = it.name; showVaultPicker = false },
+                            onPick = {
+                                vaultCredentialRef = it.name
+                                showVaultPicker = false
+                            },
                             onDismiss = { showVaultPicker = false },
                         )
                     }
@@ -334,12 +447,18 @@ private fun SshHostEditDialog(
                             credentialName = "",
                             defaultGroup = "SSH",
                             onDismiss = { showKeyGen = false },
-                            // 生成成功即回填为本主机的凭证引用（免去"先生成再去选"两步）
-                            onSaved = { name -> vaultCredentialRef = name; showKeyGen = false },
+                            onSaved = { savedName ->
+                                vaultCredentialRef = savedName
+                                showKeyGen = false
+                            },
                         )
                     }
                     if (vaultCredentialRef != null) {
-                        Text(stringResource(R.string.setting_ssh_vault_key_used, vaultCredentialRef!!), style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                        Text(
+                            stringResource(R.string.setting_ssh_vault_key_used, vaultCredentialRef!!),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
                     }
                 }
             }

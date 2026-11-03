@@ -675,19 +675,69 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
      * 「事后扫消息」，因为一轮里的多步工具调用共用同一条消息、usage 被覆盖写入，那样会少算数倍。
      */
     suspend fun accumulateConvUsage(conversationId: String, usage: TokenUsage) {
-        val prev = getConvLifetimeUsage(conversationId) ?: LifetimeUsage()
-        setConvLifetimeUsage(
-            conversationId,
-            accumulateLifetimeUsage(
-                prev,
-                MessageUsageSnapshot(
-                    input = usage.promptTokens.toLong(),
-                    cached = usage.cachedTokens.coerceAtMost(usage.promptTokens).toLong(),
-                    output = usage.completionTokens.toLong(),
-                    cost = usage.cost ?: 0.0,
-                ),
-            ),
-        )
+        val prompt = usage.promptTokens.coerceAtLeast(0)
+        val snapshot =
+            MessageUsageSnapshot(
+                input = prompt.toLong(),
+                cached = usage.cachedTokens.coerceIn(0, prompt).toLong(),
+                output = usage.completionTokens.coerceAtLeast(0).toLong(),
+                cost = (usage.cost ?: 0.0).coerceAtLeast(0.0),
+            )
+        dataStore.edit { preferences ->
+            val current =
+                preferences[CONV_LIFETIME_USAGE]?.let {
+                    runCatching { JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(it) }.getOrNull()
+                } ?: emptyMap()
+            val prev = current[conversationId] ?: LifetimeUsage()
+            val next = accumulateLifetimeUsage(prev, snapshot)
+            val updated = LinkedHashMap(current).apply {
+                remove(conversationId)
+                put(conversationId, next)
+            }
+            val trimmed =
+                if (updated.size <= LIFETIME_KEEP) {
+                    updated
+                } else {
+                    LinkedHashMap(updated.entries.toList().takeLast(LIFETIME_KEEP).associate { it.key to it.value })
+                }
+            preferences[CONV_LIFETIME_USAGE] = JsonInstant.encodeToString<Map<String, LifetimeUsage>>(trimmed)
+        }
+    }
+
+    /**
+     * 确保某会话的累计用量至少不低于 [baseline]（用于 `/compact` 压缩删减历史节点前，
+     * 将存量消息的累计值固化到持久化账本中，避免历史/导入会话压缩后累计归零或变小）。
+     */
+    suspend fun ensureConvLifetimeBaseline(conversationId: String, baseline: LifetimeUsage) {
+        if (baseline.inputTokens <= 0L && baseline.outputTokens <= 0L && baseline.turns <= 0) return
+        dataStore.edit { preferences ->
+            val current =
+                preferences[CONV_LIFETIME_USAGE]?.let {
+                    runCatching { JsonInstant.decodeFromString<Map<String, LifetimeUsage>>(it) }.getOrNull()
+                } ?: emptyMap()
+            val prev = current[conversationId] ?: LifetimeUsage()
+            val mergedInput = maxOf(prev.inputTokens, baseline.inputTokens)
+            val merged =
+                LifetimeUsage(
+                    inputTokens = mergedInput,
+                    cachedTokens = maxOf(prev.cachedTokens, baseline.cachedTokens).coerceAtMost(mergedInput),
+                    outputTokens = maxOf(prev.outputTokens, baseline.outputTokens),
+                    turns = maxOf(prev.turns, baseline.turns),
+                    costUsd = maxOf(prev.costUsd, baseline.costUsd),
+                )
+            if (merged == prev && conversationId in current) return@edit
+            val updated = LinkedHashMap(current).apply {
+                remove(conversationId)
+                put(conversationId, merged)
+            }
+            val trimmed =
+                if (updated.size <= LIFETIME_KEEP) {
+                    updated
+                } else {
+                    LinkedHashMap(updated.entries.toList().takeLast(LIFETIME_KEEP).associate { it.key to it.value })
+                }
+            preferences[CONV_LIFETIME_USAGE] = JsonInstant.encodeToString<Map<String, LifetimeUsage>>(trimmed)
+        }
     }
 
     /** 写入某会话的累计用量；只保留最近 [LIFETIME_KEEP] 个会话，避免无界增长。 */

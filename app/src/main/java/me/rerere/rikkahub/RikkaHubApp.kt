@@ -507,6 +507,9 @@ class RikkaHubApp : Application() {
     private fun startNetworkChangeMonitor() {
         runCatching {
             val client = get<okhttp3.OkHttpClient>()
+            me.rerere.rikkahub.utils.NetworkChangeMonitor.addNetworkChangeListener {
+                me.rerere.rikkahub.data.network.AppDnsResolver.invalidateCache()
+            }
             me.rerere.rikkahub.utils.NetworkChangeMonitor.start(this, client)
         }.onFailure {
             AppLog.w(TAG, "startNetworkChangeMonitor failed", it)

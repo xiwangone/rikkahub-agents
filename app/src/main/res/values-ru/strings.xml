@@ -4189,4 +4189,19 @@
     <string name="setting_page_qq_group_2">Группа RikkaHub 2</string>
     <string name="setting_page_qq_group_3">Группа RikkaHub 3</string>
     <string name="setting_page_douyin_group_1">Группа Douyin 1</string>
+  <string name="setting_page_preferences_network_dns_title">Независимый DNS в приложении</string>
+  <string name="setting_page_preferences_network_dns_desc">Обход перехвата системного DNS через DoH, DoT или прямой пользовательский DNS</string>
+  <string name="setting_page_preferences_network_dns_mode_system">Системный DNS</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH (DNS over HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT (DNS over TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">Прямой DNS (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">Быстрые пресеты</string>
+  <string name="setting_page_preferences_network_dns_doh_url">URL-адрес DoH</string>
+  <string name="setting_page_preferences_network_dns_dot_host">Хост сервера DoT (порт 853)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">Пользовательские DNS / Bootstrap IP</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">IP-адреса через запятую для прямых запросов и начального разрешения DoH/DoT</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">Возврат к системному DNS при сбое</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">Запрашивать записи IPv6 (AAAA)</string>
+  <string name="setting_page_preferences_network_dns_test_domain">Тестовый домен</string>
+  <string name="setting_page_preferences_network_dns_test_success">Разрешено %1$s → %2$s (%3$d мс)</string>
 </resources>

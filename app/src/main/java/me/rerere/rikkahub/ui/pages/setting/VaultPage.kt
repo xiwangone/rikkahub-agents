@@ -5,23 +5,30 @@ import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -30,20 +37,24 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.material3.IconButton
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.LockKey
+import me.rerere.hugeicons.stroke.Shield01
+import me.rerere.hugeicons.stroke.Tick01
+import me.rerere.hugeicons.stroke.View
+import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
@@ -61,20 +72,22 @@ import me.rerere.rikkahub.data.vault.VaultImportOutcome
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 import java.io.BufferedReader
 import java.io.InputStreamReader
 
-/** 剪贴板标签：系统剪贴板条目名，不面向界面，无需资源化。 */
 private const val CLIPBOARD_LABEL = "vault-session"
 
 /**
- * 安全凭证库（二级设置页）。
- *
- * 功能设置区：指纹开关（MVP 占位，后续接 BiometricPrompt）、导入凭证、
- * 应急导出（后续）、撤销全部会话（后续）。
- * 入口 → 三级「密钥列表」页（VaultCredentialsPage）。
+ * 安全凭证库（二级设置页，Material 3 Expressive 分组卡片样式）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -84,7 +97,7 @@ fun VaultPage() {
     val vaultPreferences: VaultPreferences = koinInject()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    // 组合期预取文案：组合内容里用 context.getString 取资源会被 lint(LocalContextGetResourceValueCall) 判错
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val passwordRequiredStr = stringResource(R.string.vault_export_password_required)
 
     var credentialCount by remember { mutableStateOf(0) }
@@ -97,40 +110,37 @@ fun VaultPage() {
     var backupPassword by remember { mutableStateOf("") }
     var backupResult by remember { mutableStateOf<String?>(null) }
     var auditLogs by remember { mutableStateOf<List<VaultAuditLogEntity>>(emptyList()) }
-    // 审计筛选：按凭证名过滤（点条目里的凭证名即筛，再点取消）；不新增文案
     var auditFilter by remember { mutableStateOf<String?>(null) }
     var auditActionFilter by remember { mutableStateOf<String?>(null) }
-    var auditTimeDays by remember { mutableStateOf(0) } // 0=全部 1=近24h 7=近7天
-    val shownAudit = remember(auditLogs, auditFilter, auditActionFilter, auditTimeDays) {
-        val now = System.currentTimeMillis()
-        auditLogs.filter { log ->
-            (auditFilter == null || log.credentialName == auditFilter) &&
-                (auditActionFilter == null || log.action == auditActionFilter) &&
-                (auditTimeDays == 0 || log.tsMs >= now - auditTimeDays * 86_400_000L)
-        }
-    }
-    // 链路折叠：同凭证且相邻 1.5s 内 = 同一调用链（工具层 + 用途层两条噪声折成一条）
-    val auditGroups: List<List<VaultAuditLogEntity>> = remember(shownAudit) {
-        val groups = mutableListOf<MutableList<VaultAuditLogEntity>>()
-        shownAudit.forEach { log ->
-            val last = groups.lastOrNull()?.lastOrNull()
-            if (last != null && last.credentialName == log.credentialName && last.tsMs - log.tsMs < 1500) {
-                groups.last().add(log)
-            } else {
-                groups.add(mutableListOf(log))
+    var auditTimeDays by remember { mutableStateOf(0) }
+    val shownAudit =
+        remember(auditLogs, auditFilter, auditActionFilter, auditTimeDays) {
+            val now = System.currentTimeMillis()
+            auditLogs.filter { log ->
+                (auditFilter == null || log.credentialName == auditFilter) &&
+                    (auditActionFilter == null || log.action == auditActionFilter) &&
+                    (auditTimeDays == 0 || log.tsMs >= now - auditTimeDays * 86_400_000L)
             }
         }
-        groups
-    }
+    val auditGroups: List<List<VaultAuditLogEntity>> =
+        remember(shownAudit) {
+            val groups = mutableListOf<MutableList<VaultAuditLogEntity>>()
+            shownAudit.forEach { log ->
+                val last = groups.lastOrNull()?.lastOrNull()
+                if (last != null && last.credentialName == log.credentialName && last.tsMs - log.tsMs < 1500) {
+                    groups.last().add(log)
+                } else {
+                    groups.add(mutableListOf(log))
+                }
+            }
+            groups
+        }
 
-    // 阈值异常信号（仅提示，不阻断）：窗口内同凭证高频 / 用途过宽
     val auditAnomalies = remember(shownAudit) { AuditAnomalyDetector.detect(shownAudit) }
 
-    // 需授权门的用途（env_inject / export_env 等）在列表里高亮
     fun actionNeedsAuth(action: String): Boolean =
         CredentialPurpose.values().any { it.action == action && it.requiresAuthorization }
 
-    // 审计导出留档（JSON/CSV）+ 保留策略可配（D2）
     var auditExportFormat by remember { mutableStateOf("json") }
     val auditExportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
@@ -156,33 +166,34 @@ fun VaultPage() {
     val vaultSessionManager: VaultSessionManager = koinInject()
     val biometricEnabled by vaultPreferences.biometricEnabled.collectAsState(initial = true)
 
-    // ── 打开凭证库指纹门禁：开关开启时进入页面先验证，通过才展示敏感内容 ──
     val biometricBuffer: BiometricResultBuffer = koinInject()
     var unlocked by remember { mutableStateOf(!biometricEnabled) }
     LaunchedEffect(biometricEnabled) {
         if (biometricEnabled && !unlocked) {
-            val ok = VaultBiometric.authenticate(
-                context = context,
-                buffer = biometricBuffer,
-                title = context.getString(R.string.vault_biometric_open_title),
-            )
+            val ok =
+                VaultBiometric.authenticate(
+                    context = context,
+                    buffer = biometricBuffer,
+                    title = context.getString(R.string.vault_biometric_open_title),
+                )
             unlocked = ok
         }
     }
 
-    // 会话列表（页面级 state，签发/撤销后刷新）
     var sessionListState by remember { mutableStateOf<List<me.rerere.rikkahub.data.vault.VaultSessionInfo>>(emptyList()) }
+
     fun refreshSessionList() {
         scope.launch { sessionListState = vaultSessionManager.listSessions() }
     }
 
-    // ── 局部函数（必须先定义，供下方 launcher lambda 引用）──
     fun refreshCount() {
         scope.launch { credentialCount = repository.count() }
     }
+
     fun refreshAudit() {
         scope.launch { auditLogs = repository.recentAudit(100) }
     }
+
     fun formatTime(tsMs: Long): String {
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         return fmt.format(java.util.Date(tsMs))
@@ -190,7 +201,6 @@ fun VaultPage() {
     refreshCount()
     refreshAudit()
 
-    // 备份：整个库（含分组）加密导出 .vault
     val backupExportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
@@ -229,7 +239,6 @@ fun VaultPage() {
             }
         }
 
-    // 恢复：从 .vault 包导入（覆盖/合并）
     val backupRestoreLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
@@ -246,7 +255,6 @@ fun VaultPage() {
                                 VaultExporter.import(content, backupPassword)
                             }
                         restored.forEach { q ->
-                            // 名字统一规范化；且逐条容错——单条异常不应让整批恢复失败
                             runCatching {
                                 repository.save(
                                     CredentialVaultRepository.normalizeName(q.name),
@@ -255,8 +263,6 @@ fun VaultPage() {
                                     q.group.ifEmpty { "Other" },
                                     q.publicKey,
                                     type = q.type,
-                                    // 备份里带了元数据就必须还原：漏传等于"恢复一次备份，
-                                    // provider 引用处的 endpoint/header 全丢"
                                     metaJson = q.metaJson,
                                 )
                             }
@@ -270,7 +276,6 @@ fun VaultPage() {
             }
         }
 
-    // 导出：加密 .vault / 明文 CSV / Bitwarden JSON，写入用户选择的位置
     val exportLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
             if (uri != null) {
@@ -297,12 +302,13 @@ fun VaultPage() {
                                 repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
                             }
                         withContext(Dispatchers.IO) {
-                            val output = when (exportFormat) {
-                                VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
-                                VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
-                                VaultFormats.FORMAT_LOADCREDS -> VaultExporter.toLoadCreds(plaintexts)
-                                else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
-                            }
+                            val output =
+                                when (exportFormat) {
+                                    VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
+                                    VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
+                                    VaultFormats.FORMAT_LOADCREDS -> VaultExporter.toLoadCreds(plaintexts)
+                                    else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
+                                }
                             context.contentResolver.openOutputStream(uri)?.use { out ->
                                 out.write(output.encodeToByteArray())
                             }
@@ -318,7 +324,6 @@ fun VaultPage() {
             }
         }
 
-    // SAF 文件选择：导入 .vault 加密包 / CSV / Bitwarden JSON / load-creds.sh（自动识别，与导出对称）
     val importLauncher =
         rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
@@ -330,15 +335,15 @@ fun VaultPage() {
                                     BufferedReader(InputStreamReader(input)).use { it.readText() }
                                 } ?: ""
                             }
-                        // 扩展名兜底用：优先取 SAF 显示名，取不到再退回 URI 末段
                         val displayName =
                             runCatching {
                                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                                     if (cursor.moveToFirst()) {
-                                        // getColumnIndex 找不到列时返回 -1，直接拿去取值会越界（lint Range）：先判有效
                                         val nameIndex = cursor.getColumnIndex(OpenableColumns.DISPLAY_NAME)
                                         if (nameIndex >= 0) cursor.getString(nameIndex) else null
-                                    } else null
+                                    } else {
+                                        null
+                                    }
                                 }
                             }.getOrNull() ?: uri.lastPathSegment
                         when (val outcome = repository.importFromContent(content, displayName, importPassword)) {
@@ -356,11 +361,9 @@ fun VaultPage() {
                                         }
                             }
 
-                            // 识别失败：明确报错，不当成空内容静默导入 0 条
                             VaultImportOutcome.Unrecognized ->
                                 importResult = context.getString(R.string.vault_import_unrecognized)
 
-                            // 加密包缺口令：复用导出侧提示文案
                             VaultImportOutcome.PasswordRequired ->
                                 importResult = context.getString(R.string.vault_export_password_required)
                         }
@@ -374,489 +377,481 @@ fun VaultPage() {
 
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.setting_vault_title)) },
                 navigationIcon = { BackButton() },
+                scrollBehavior = scrollBehavior,
+                colors = CustomColors.topBarColors,
             )
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { padding ->
         if (unlocked) {
-        LazyColumn(
-            modifier = Modifier.fillMaxSize().padding(padding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            item {
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(stringResource(R.string.vault_credential_count, credentialCount), style = MaterialTheme.typography.titleMedium)
-                    Button(onClick = { navController.navigate(Screen.VaultCredentials) }) {
-                        Text(stringResource(R.string.vault_manage_credentials))
+            LazyColumn(
+                modifier = Modifier.fillMaxSize(),
+                contentPadding = padding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(16.dp),
+            ) {
+                item {
+                    CardGroup {
+                        item(
+                            onClick = { navController.navigate(Screen.VaultCredentials) },
+                            leadingContent = {
+                                CardGroupIcon(
+                                    icon = HugeIcons.Key01,
+                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                )
+                            },
+                            headlineContent = {
+                                Text(stringResource(R.string.vault_credential_count, credentialCount))
+                            },
+                            supportingContent = {
+                                Text(stringResource(R.string.vault_page_intro))
+                            },
+                            trailingContent = {
+                                Button(onClick = { navController.navigate(Screen.VaultCredentials) }) {
+                                    Text(stringResource(R.string.vault_manage_credentials))
+                                }
+                            },
+                        )
                     }
                 }
-                Text(
-                    text = stringResource(R.string.vault_page_intro),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
 
-            item {
-                androidx.compose.material3.Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.vault_fingerprint_title), style = MaterialTheme.typography.titleSmall)
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(stringResource(R.string.vault_fingerprint_desc), style = MaterialTheme.typography.bodySmall)
-                            Switch(
-                                checked = biometricEnabled,
-                                onCheckedChange = { scope.launch { vaultPreferences.setBiometricEnabled(it) } },
-                            )
-                        }
-                        Text(
-                            text = stringResource(R.string.vault_fingerprint_plan),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                item {
+                    var hasAppPin by remember { mutableStateOf<Boolean?>(null) }
+                    var pinDialogShown by remember { mutableStateOf(false) }
+                    var clearDialogShown by remember { mutableStateOf(false) }
+                    LaunchedEffect(Unit) { hasAppPin = VaultAppLock.hasPin(context) }
+
+                    CardGroup(
+                        title = { Text(stringResource(R.string.vault_fingerprint_title)) },
+                    ) {
+                        switchItem(
+                            checked = biometricEnabled,
+                            onCheckedChange = { scope.launch { vaultPreferences.setBiometricEnabled(it) } },
+                            leadingContent = { CardGroupIcon(HugeIcons.Shield01) },
+                            headlineContent = { Text(stringResource(R.string.vault_fingerprint_desc)) },
+                            supportingContent = { Text(stringResource(R.string.vault_fingerprint_plan)) },
                         )
-                        // App 内密码门禁：设备未设锁屏凭据、BiometricPrompt 不可用时，必须设置密码才能打开凭证库
-                        var hasAppPin by remember { mutableStateOf<Boolean?>(null) }
-                        var pinDialogShown by remember { mutableStateOf(false) }
-                        var clearDialogShown by remember { mutableStateOf(false) }
-                        LaunchedEffect(Unit) { hasAppPin = VaultAppLock.hasPin(context) }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.SpaceBetween,
-                            verticalAlignment = Alignment.CenterVertically,
+                        item(
+                            leadingContent = { CardGroupIcon(HugeIcons.LockKey) },
+                            headlineContent = { Text(stringResource(R.string.vault_applock_title)) },
+                            supportingContent = { Text(stringResource(R.string.vault_applock_desc)) },
+                            trailingContent = {
+                                Row {
+                                    when (hasAppPin) {
+                                        false ->
+                                            TextButton(onClick = { pinDialogShown = true }) {
+                                                Text(stringResource(R.string.vault_applock_set))
+                                            }
+                                        true -> {
+                                            TextButton(onClick = { pinDialogShown = true }) {
+                                                Text(stringResource(R.string.vault_applock_change))
+                                            }
+                                            TextButton(onClick = { clearDialogShown = true }) {
+                                                Text(stringResource(R.string.vault_applock_clear))
+                                            }
+                                        }
+                                        else -> {}
+                                    }
+                                }
+                            },
+                        )
+                    }
+
+                    if (pinDialogShown) {
+                        var pinInput by remember { mutableStateOf("") }
+                        var pinInput2 by remember { mutableStateOf("") }
+                        val ok = pinInput.length >= 4 && pinInput == pinInput2
+                        AlertDialog(
+                            onDismissRequest = { pinDialogShown = false },
+                            title = { Text(stringResource(R.string.vault_pin_setup_title)) },
+                            text = {
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    OutlinedTextField(
+                                        value = pinInput,
+                                        onValueChange = { pinInput = it },
+                                        label = { Text(stringResource(R.string.vault_pin_hint)) },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                    )
+                                    if (pinInput.isNotEmpty() && pinInput.length < 4) {
+                                        Text(
+                                            stringResource(R.string.vault_pin_too_short),
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                    OutlinedTextField(
+                                        value = pinInput2,
+                                        onValueChange = { pinInput2 = it },
+                                        label = { Text(stringResource(R.string.vault_pin_confirm_hint)) },
+                                        singleLine = true,
+                                        keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
+                                    )
+                                    if (pinInput2.isNotEmpty() && pinInput2 != pinInput) {
+                                        Text(
+                                            stringResource(R.string.vault_pin_mismatch),
+                                            color = MaterialTheme.colorScheme.error,
+                                            style = MaterialTheme.typography.bodySmall,
+                                        )
+                                    }
+                                }
+                            },
+                            confirmButton = {
+                                TextButton(
+                                    enabled = ok,
+                                    onClick = {
+                                        scope.launch {
+                                            VaultAppLock.setPin(context, pinInput)
+                                            hasAppPin = true
+                                            pinDialogShown = false
+                                        }
+                                    },
+                                ) { Text(stringResource(R.string.vault_pin_confirm)) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { pinDialogShown = false }) {
+                                    Text(stringResource(R.string.vault_pin_cancel))
+                                }
+                            },
+                        )
+                    }
+                    if (clearDialogShown) {
+                        AlertDialog(
+                            onDismissRequest = { clearDialogShown = false },
+                            title = { Text(stringResource(R.string.vault_applock_clear)) },
+                            text = { Text(stringResource(R.string.vault_applock_clear_confirm)) },
+                            confirmButton = {
+                                TextButton(
+                                    onClick = {
+                                        scope.launch {
+                                            VaultAppLock.clearPin(context)
+                                            hasAppPin = false
+                                            clearDialogShown = false
+                                        }
+                                    },
+                                ) { Text(stringResource(R.string.vault_applock_clear)) }
+                            },
+                            dismissButton = {
+                                TextButton(onClick = { clearDialogShown = false }) {
+                                    Text(stringResource(R.string.vault_pin_cancel))
+                                }
+                            },
+                        )
+                    }
+                }
+
+                item {
+                    var sessionMode by remember { mutableStateOf(false) }
+                    var allowedNamesInput by remember { mutableStateOf("") }
+                    LaunchedEffect(Unit) {
+                        sessionMode = vaultSessionManager.getSessionMode()
+                        if (vaultSessionManager.hasSession()) {
+                            sessionToken = vaultSessionManager.reissueToken()
+                        }
+                    }
+
+                    CardGroup(
+                        title = { Text(stringResource(R.string.vault_session_title)) },
+                    ) {
+                        formItem(
+                            leadingContent = { CardGroupIcon(HugeIcons.Clock02) },
+                            headlineContent = { Text(stringResource(R.string.vault_session_title)) },
+                            supportingContent = { Text(stringResource(R.string.vault_session_desc)) },
                         ) {
-                            Column(Modifier.weight(1f)) {
-                                Text(stringResource(R.string.vault_applock_title), style = MaterialTheme.typography.bodySmall)
+                            ConnectedChoiceButtons(
+                                options = listOf(false, true),
+                                selected = sessionMode,
+                                onSelect = { sessionMode = it },
+                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
+                            ) { manualMode, isSelected ->
+                                ConnectedChoiceLabel(
+                                    text =
+                                        stringResource(
+                                            if (manualMode) {
+                                                R.string.vault_session_mode_manual
+                                            } else {
+                                                R.string.vault_session_mode_ttl
+                                            },
+                                        ),
+                                    selected = isSelected,
+                                    icon = HugeIcons.Tick01,
+                                )
+                            }
+                            Text(
+                                text =
+                                    if (sessionMode) {
+                                        stringResource(R.string.vault_session_mode_manual_desc)
+                                    } else {
+                                        stringResource(R.string.vault_session_mode_ttl_desc)
+                                    },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            OutlinedTextField(
+                                value = allowedNamesInput,
+                                onValueChange = { allowedNamesInput = it },
+                                label = { Text(stringResource(R.string.vault_session_allowed_names)) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            Button(
+                                onClick = {
+                                    scope.launch {
+                                        runCatching {
+                                            if (biometricEnabled) {
+                                                val ok = VaultBiometric.authenticate(context, biometricBuffer, context.getString(R.string.vault_biometric_export_title))
+                                                if (!ok) {
+                                                    sessionResult = context.getString(R.string.vault_session_cancelled)
+                                                    return@launch
+                                                }
+                                            }
+                                            val token =
+                                                vaultSessionManager.issueToken(
+                                                    sessionMode = sessionMode,
+                                                    allowedNames =
+                                                        allowedNamesInput
+                                                            .split(',')
+                                                            .map { it.trim() }
+                                                            .filter { it.isNotEmpty() },
+                                                )
+                                            sessionToken = token
+                                            sessionResult =
+                                                if (sessionMode) {
+                                                    context.getString(R.string.vault_session_issued_manual)
+                                                } else {
+                                                    context.getString(R.string.vault_session_issued_ttl)
+                                                }
+                                            refreshSessionList()
+                                        }.onFailure { e ->
+                                            sessionResult = context.getString(R.string.vault_export_failed, e.message ?: "")
+                                        }
+                                    }
+                                },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.LockKey,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(stringResource(R.string.vault_session_issue))
+                            }
+                            sessionToken?.let { token ->
+                                var sessionTokenVisible by remember { mutableStateOf(false) }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = if (sessionTokenVisible) token else CredentialVaultRepository.mask(token),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        fontFamily = FontFamily.Monospace,
+                                        color = MaterialTheme.colorScheme.primary,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    IconButton(onClick = { sessionTokenVisible = !sessionTokenVisible }) {
+                                        Icon(
+                                            imageVector = if (sessionTokenVisible) HugeIcons.ViewOff else HugeIcons.View,
+                                            contentDescription = null,
+                                        )
+                                    }
+                                }
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    OutlinedButton(
+                                        onClick = {
+                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
+                                            sessionResult = context.getString(R.string.vault_session_copied)
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text(stringResource(R.string.vault_session_copy))
+                                    }
+                                    OutlinedButton(
+                                        onClick = {
+                                            scope.launch {
+                                                vaultSessionManager.revoke()
+                                                sessionToken = null
+                                                sessionResult = null
+                                                refreshSessionList()
+                                            }
+                                        },
+                                        modifier = Modifier.weight(1f),
+                                    ) {
+                                        Text(stringResource(R.string.vault_session_revoke))
+                                    }
+                                }
+                            }
+                            sessionResult?.let {
                                 Text(
-                                    stringResource(R.string.vault_applock_desc),
+                                    text = it,
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            when (hasAppPin) {
-                                false -> TextButton(onClick = { pinDialogShown = true }) {
-                                    Text(stringResource(R.string.vault_applock_set))
-                                }
-                                true -> {
-                                    TextButton(onClick = { pinDialogShown = true }) {
-                                        Text(stringResource(R.string.vault_applock_change))
-                                    }
-                                    TextButton(onClick = { clearDialogShown = true }) {
-                                        Text(stringResource(R.string.vault_applock_clear))
-                                    }
-                                }
-                                else -> {}
-                            }
-                        }
-                        if (pinDialogShown) {
-                            var pinInput by remember { mutableStateOf("") }
-                            var pinInput2 by remember { mutableStateOf("") }
-                            val ok = pinInput.length >= 4 && pinInput == pinInput2
-                            AlertDialog(
-                                onDismissRequest = { pinDialogShown = false },
-                                title = { Text(stringResource(R.string.vault_pin_setup_title)) },
-                                text = {
-                                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                        OutlinedTextField(
-                                            value = pinInput,
-                                            onValueChange = { pinInput = it },
-                                            label = { Text(stringResource(R.string.vault_pin_hint)) },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
-                                        )
-                                        if (pinInput.isNotEmpty() && pinInput.length < 4) {
-                                            Text(
-                                                stringResource(R.string.vault_pin_too_short),
-                                                color = MaterialTheme.colorScheme.error,
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
-                                        OutlinedTextField(
-                                            value = pinInput2,
-                                            onValueChange = { pinInput2 = it },
-                                            label = { Text(stringResource(R.string.vault_pin_confirm_hint)) },
-                                            singleLine = true,
-                                            keyboardOptions = KeyboardOptions(keyboardType = androidx.compose.ui.text.input.KeyboardType.NumberPassword),
-                                        )
-                                        if (pinInput2.isNotEmpty() && pinInput2 != pinInput) {
-                                            Text(
-                                                stringResource(R.string.vault_pin_mismatch),
-                                                color = MaterialTheme.colorScheme.error,
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                        }
-                                    }
-                                },
-                                confirmButton = {
-                                    TextButton(
-                                        enabled = ok,
-                                        onClick = {
-                                            scope.launch {
-                                                VaultAppLock.setPin(context, pinInput)
-                                                hasAppPin = true
-                                                pinDialogShown = false
-                                            }
-                                        },
-                                    ) { Text(stringResource(R.string.vault_pin_confirm)) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { pinDialogShown = false }) {
-                                        Text(stringResource(R.string.vault_pin_cancel))
-                                    }
-                                },
-                            )
-                        }
-                        if (clearDialogShown) {
-                            AlertDialog(
-                                onDismissRequest = { clearDialogShown = false },
-                                title = { Text(stringResource(R.string.vault_applock_clear)) },
-                                text = { Text(stringResource(R.string.vault_applock_clear_confirm)) },
-                                confirmButton = {
-                                    TextButton(
-                                        onClick = {
-                                            scope.launch {
-                                                VaultAppLock.clearPin(context)
-                                                hasAppPin = false
-                                                clearDialogShown = false
-                                            }
-                                        },
-                                    ) { Text(stringResource(R.string.vault_applock_clear)) }
-                                },
-                                dismissButton = {
-                                    TextButton(onClick = { clearDialogShown = false }) {
-                                        Text(stringResource(R.string.vault_pin_cancel))
-                                    }
-                                },
-                            )
                         }
                     }
                 }
-            }
 
-            item {
-                androidx.compose.material3.Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.vault_session_title), style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            text = stringResource(R.string.vault_session_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        var sessionMode by remember { mutableStateOf(false) }
-                        var sessionToken by remember { mutableStateOf<String?>(null) }
-                        // 名字级收敛：留空 = 不限制（默认，保持既有使用方式）
-                        var allowedNamesInput by remember { mutableStateOf("") }
-                        // 进入页面时从 DataStore 读回上次签发的会话模式 + 会话状态（避免退出重进丢失）
-                        LaunchedEffect(Unit) {
-                            sessionMode = vaultSessionManager.getSessionMode()
-                            if (vaultSessionManager.hasSession()) {
-                                // 会话已签发：重新生成同一 token 用于展示/复制（secret 持久化，token 可重算）
-                                sessionToken = vaultSessionManager.reissueToken()
-                            }
-                        }
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text(
-                                stringResource(R.string.vault_session_mode_ttl),
-                                style = MaterialTheme.typography.bodySmall,
-                                color =
-                                    if (!sessionMode) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f),
-                            )
-                            androidx.compose.material3.Switch(
-                                checked = sessionMode,
-                                onCheckedChange = { sessionMode = it },
-                            )
-                            Text(
-                                stringResource(R.string.vault_session_mode_manual),
-                                style = MaterialTheme.typography.bodySmall,
-                                color =
-                                    if (sessionMode) MaterialTheme.colorScheme.primary
-                                    else MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.weight(1f),
-                            )
-                        }
-                        Text(
-                            text =
-                                if (sessionMode) stringResource(R.string.vault_session_mode_manual_desc)
-                                else stringResource(R.string.vault_session_mode_ttl_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        OutlinedTextField(
-                            value = allowedNamesInput,
-                            onValueChange = { allowedNamesInput = it },
-                            label = { Text(stringResource(R.string.vault_session_allowed_names)) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        OutlinedButton(
-                            onClick = {
-                                scope.launch {
-                                    runCatching {
-                                        if (biometricEnabled) {
-                                            val ok = VaultBiometric.authenticate(context, biometricBuffer, context.getString(R.string.vault_biometric_export_title))
-                                            if (!ok) {
-                                                sessionResult = context.getString(R.string.vault_session_cancelled)
-                                                return@launch
-                                            }
-                                        }
-                                        val token =
-                                            vaultSessionManager.issueToken(
-                                                sessionMode = sessionMode,
-                                                allowedNames =
-                                                    allowedNamesInput
-                                                        .split(',')
-                                                        .map { it.trim() }
-                                                        .filter { it.isNotEmpty() },
-                                            )
-                                        sessionToken = token
-                                        // 动态文案：当场有效 vs 30 分钟（Bug 2 修复）
-                                        sessionResult = if (sessionMode) {
-                                            context.getString(R.string.vault_session_issued_manual)
-                                        } else {
-                                            context.getString(R.string.vault_session_issued_ttl)
-                                        }
-                                        refreshSessionList()
-                                    }.onFailure { e ->
-                                        sessionResult = context.getString(R.string.vault_export_failed, e.message ?: "")
-                                    }
-                                }
-                            },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(HugeIcons.LockKey, null, modifier = Modifier.padding(end = 8.dp))
-                            Text(stringResource(R.string.vault_session_issue))
-                        }
-                        sessionToken?.let { token ->
-                            // 会话 token 等同访问凭据：默认掩码，需要时再展开（与凭证值的处理一致）
-                            var sessionTokenVisible by remember { mutableStateOf(false) }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = if (sessionTokenVisible) token else CredentialVaultRepository.mask(token),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.primary,
-                                    modifier = Modifier.weight(1f),
-                                )
-                                IconButton(onClick = { sessionTokenVisible = !sessionTokenVisible }) {
-                                    Icon(
-                                        imageVector = if (sessionTokenVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                        contentDescription = null,
-                                    )
-                                }
-                            }
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            ) {
-                                OutlinedButton(
-                                    onClick = {
-                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
-                                        sessionResult = context.getString(R.string.vault_session_copied)
-                                    },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text(stringResource(R.string.vault_session_copy))
-                                }
-                                OutlinedButton(
-                                    onClick = { scope.launch { vaultSessionManager.revoke(); sessionToken = null; sessionResult = null } },
-                                    modifier = Modifier.weight(1f),
-                                ) {
-                                    Text(stringResource(R.string.vault_session_revoke))
-                                }
-                            }
-                        }
-                        sessionResult?.let {
-                            Text(it, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                        }
-                    }
-                }
-            }
-
-            item {
-                // 会话列表（多会话）
-                androidx.compose.material3.Surface(
-                    modifier = Modifier.fillMaxWidth(),
-                    shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-                    color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
-                ) {
-                    Column(Modifier.fillMaxWidth().padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                        Text(stringResource(R.string.vault_session_list_title), style = MaterialTheme.typography.titleSmall)
-                        Text(
-                            text = stringResource(R.string.vault_session_list_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        LaunchedEffect(Unit) {
-                            refreshSessionList()
-                        }
+                item {
+                    LaunchedEffect(Unit) { refreshSessionList() }
+                    CardGroup(
+                        title = { Text(stringResource(R.string.vault_session_list_title)) },
+                    ) {
                         if (sessionListState.isEmpty()) {
-                            Text(
-                                stringResource(R.string.vault_session_empty),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            item(
+                                leadingContent = { CardGroupIcon(HugeIcons.Key01) },
+                                headlineContent = { Text(stringResource(R.string.vault_session_empty)) },
+                                supportingContent = { Text(stringResource(R.string.vault_session_list_desc)) },
                             )
                         } else {
                             sessionListState.forEach { s ->
                                 val labelFallback = stringResource(R.string.vault_session_label_default)
-                                androidx.compose.material3.Surface(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    shape = androidx.compose.foundation.shape.RoundedCornerShape(8.dp),
-                                    color = MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                                ) {
-                                    Row(
-                                        modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                        verticalAlignment = Alignment.CenterVertically,
-                                    ) {
-                                        Column(Modifier.weight(1f)) {
-                                            Text(
-                                                text = s.label.ifBlank { labelFallback },
-                                                style = MaterialTheme.typography.bodySmall,
-                                            )
-                                            val remaining = s.remainingMs()
-                                            Text(
-                                                text = when {
-                                                    remaining == Long.MAX_VALUE -> stringResource(R.string.vault_session_remaining_session)
-                                                    remaining >= 24L * 60 * 60 * 1000 -> stringResource(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
-                                                    else -> stringResource(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
+                                val remaining = s.remainingMs()
+                                item(
+                                    leadingContent = { CardGroupIcon(HugeIcons.Key01) },
+                                    headlineContent = { Text(s.label.ifBlank { labelFallback }) },
+                                    supportingContent = {
+                                        Text(
+                                            when {
+                                                remaining == Long.MAX_VALUE -> stringResource(R.string.vault_session_remaining_session)
+                                                remaining >= 24L * 60 * 60 * 1000 -> stringResource(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
+                                                else -> stringResource(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
+                                            },
+                                        )
+                                    },
+                                    trailingContent = {
+                                        Row {
+                                            TextButton(
+                                                onClick = {
+                                                    scope.launch {
+                                                        val token = vaultSessionManager.reissueTokenFor(s.id)
+                                                        if (token != null) {
+                                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
+                                                            sessionResult = context.getString(R.string.vault_session_token_copied)
+                                                        }
+                                                    }
                                                 },
-                                                style = MaterialTheme.typography.labelSmall,
-                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                            )
-                                        }
-                                        TextButton(onClick = {
-                                            scope.launch {
-                                                // 复制该会话的 token（按会话 id 重新计算）
-                                                val token = vaultSessionManager.reissueTokenFor(s.id)
-                                                if (token != null) {
-                                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
-                                                    sessionResult = context.getString(R.string.vault_session_token_copied)
-                                                }
+                                            ) {
+                                                Text(stringResource(R.string.vault_session_copy))
                                             }
-                                        }) {
-                                            Text(stringResource(R.string.vault_session_copy))
-                                        }
-                                        TextButton(onClick = {
-                                            scope.launch {
-                                                vaultSessionManager.revokeSession(s.id)
-                                                refreshSessionList()
-                                                sessionResult = context.getString(R.string.vault_session_revoked)
-                                                // 若撤销的是最近会话，清空展示 token
-                                                if (sessionToken != null && vaultSessionManager.listSessions().isEmpty()) {
-                                                    sessionToken = null
-                                                }
+                                            TextButton(
+                                                onClick = {
+                                                    scope.launch {
+                                                        vaultSessionManager.revokeSession(s.id)
+                                                        refreshSessionList()
+                                                        sessionResult = context.getString(R.string.vault_session_revoked)
+                                                        if (sessionToken != null && vaultSessionManager.listSessions().isEmpty()) {
+                                                            sessionToken = null
+                                                        }
+                                                    }
+                                                },
+                                            ) {
+                                                Text(
+                                                    stringResource(R.string.vault_session_revoke),
+                                                    color = MaterialTheme.colorScheme.error,
+                                                )
                                             }
-                                        }) {
-                                            Text(stringResource(R.string.vault_session_revoke))
                                         }
-                                    }
-                                }
+                                    },
+                                )
                             }
                         }
                     }
                 }
-            }
 
-            item {
-                VaultAuditAndBackupSection(
-                shownAudit = shownAudit,
-                auditGroups = auditGroups,
-                auditAnomalies = auditAnomalies,
-                auditFilter = auditFilter,
-                onAuditFilterChange = { auditFilter = it },
-                auditActionFilter = auditActionFilter,
-                onAuditActionFilterChange = { auditActionFilter = it },
-                auditTimeDays = auditTimeDays,
-                onAuditTimeDaysChange = { auditTimeDays = it },
-                auditRetentionDays = auditRetentionDays,
-                auditCap = auditCap,
-                auditRollupMinutes = auditRollupMinutes,
-                onExportAudit = { fmt ->
-                    auditExportFormat = fmt
-                    auditExportLauncher.launch("vault-audit-${System.currentTimeMillis()}.$fmt")
-                },
-                onClearAuditConfirmed = {
-                    repository.clearAudit()
-                    refreshAudit()
-                },
-                importPassword = importPassword,
-                onImportPasswordChange = { importPassword = it },
-                onLaunchImport = {
-                    importLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
-                },
-                importResult = importResult,
-                exportFormat = exportFormat,
-                onExportFormatSelect = { fmt -> exportFormat = fmt; exportResult = null },
-                exportPassword = exportPassword,
-                onExportPasswordChange = { exportPassword = it },
-                onLaunchExport = {
-                    if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
-                        exportResult = passwordRequiredStr
-                    } else {
-                        val suffix = when (exportFormat) {
-                            VaultFormats.FORMAT_CSV -> ".csv"
-                            VaultFormats.FORMAT_BITWARDEN -> ".json"
-                            VaultFormats.FORMAT_LOADCREDS -> ".sh"
-                            else -> ".vault"
-                        }
-                        exportLauncher.launch("RikkaHub-Agents-Vault-${System.currentTimeMillis()}$suffix")
-                    }
-                },
-                exportResult = exportResult,
-                backupPassword = backupPassword,
-                onBackupPasswordChange = { backupPassword = it },
-                onLaunchBackupExport = { msg ->
-                    if (backupPassword.isBlank()) {
-                        backupResult = msg
-                    } else {
-                        backupExportLauncher.launch("RikkaHub-Agents-Vault-Backup-${System.currentTimeMillis()}.vault")
-                    }
-                },
-                onLaunchBackupRestore = {
-                    backupRestoreLauncher.launch(arrayOf("application/json", "*/*"))
-                },
-                backupResult = backupResult,
-                onShowClearDialog = { showClearDialog = true },
-                actionNeedsAuth = ::actionNeedsAuth,
-                formatTime = ::formatTime,
-            )
+                item {
+                    VaultAuditAndBackupSection(
+                        shownAudit = shownAudit,
+                        auditGroups = auditGroups,
+                        auditAnomalies = auditAnomalies,
+                        auditFilter = auditFilter,
+                        onAuditFilterChange = { auditFilter = it },
+                        auditActionFilter = auditActionFilter,
+                        onAuditActionFilterChange = { auditActionFilter = it },
+                        auditTimeDays = auditTimeDays,
+                        onAuditTimeDaysChange = { auditTimeDays = it },
+                        auditRetentionDays = auditRetentionDays,
+                        auditCap = auditCap,
+                        auditRollupMinutes = auditRollupMinutes,
+                        onExportAudit = { fmt ->
+                            auditExportFormat = fmt
+                            auditExportLauncher.launch("vault-audit-${System.currentTimeMillis()}.$fmt")
+                        },
+                        onClearAuditConfirmed = {
+                            repository.clearAudit()
+                            refreshAudit()
+                        },
+                        importPassword = importPassword,
+                        onImportPasswordChange = { importPassword = it },
+                        onLaunchImport = {
+                            importLauncher.launch(arrayOf("text/plain", "application/octet-stream", "*/*"))
+                        },
+                        importResult = importResult,
+                        exportFormat = exportFormat,
+                        onExportFormatSelect = { fmt ->
+                            exportFormat = fmt
+                            exportResult = null
+                        },
+                        exportPassword = exportPassword,
+                        onExportPasswordChange = { exportPassword = it },
+                        onLaunchExport = {
+                            if (exportFormat == VaultFormats.FORMAT_VAULT && exportPassword.isBlank()) {
+                                exportResult = passwordRequiredStr
+                            } else {
+                                val suffix =
+                                    when (exportFormat) {
+                                        VaultFormats.FORMAT_CSV -> ".csv"
+                                        VaultFormats.FORMAT_BITWARDEN -> ".json"
+                                        VaultFormats.FORMAT_LOADCREDS -> ".sh"
+                                        else -> ".vault"
+                                    }
+                                exportLauncher.launch("RikkaHub-Agents-Vault-${System.currentTimeMillis()}$suffix")
+                            }
+                        },
+                        exportResult = exportResult,
+                        backupPassword = backupPassword,
+                        onBackupPasswordChange = { backupPassword = it },
+                        onLaunchBackupExport = { msg ->
+                            if (backupPassword.isBlank()) {
+                                backupResult = msg
+                            } else {
+                                backupExportLauncher.launch("RikkaHub-Agents-Vault-Backup-${System.currentTimeMillis()}.vault")
+                            }
+                        },
+                        onLaunchBackupRestore = {
+                            backupRestoreLauncher.launch(arrayOf("application/json", "*/*"))
+                        },
+                        backupResult = backupResult,
+                        onShowClearDialog = { showClearDialog = true },
+                        actionNeedsAuth = ::actionNeedsAuth,
+                        formatTime = ::formatTime,
+                    )
+                }
             }
-        }
         } else {
-            // 锁屏占位：指纹未通过不展示任何敏感内容
             Column(
-                modifier = Modifier.fillMaxSize().padding(padding),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(padding),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
-                Text("🔒", style = MaterialTheme.typography.displayLarge)
+                CardGroupIcon(
+                    icon = HugeIcons.LockKey,
+                    containerSize = 56.dp,
+                    iconSize = 28.dp,
+                )
                 Text(
                     text = stringResource(R.string.vault_biometric_locked_hint),
                     style = MaterialTheme.typography.bodyMedium,
@@ -867,11 +862,12 @@ fun VaultPage() {
                 Button(
                     onClick = {
                         scope.launch {
-                            val ok = VaultBiometric.authenticate(
-                                context = context,
-                                buffer = biometricBuffer,
-                                title = biometricOpenTitle,
-                            )
+                            val ok =
+                                VaultBiometric.authenticate(
+                                    context = context,
+                                    buffer = biometricBuffer,
+                                    title = biometricOpenTitle,
+                                )
                             unlocked = ok
                         }
                     },
@@ -896,15 +892,13 @@ fun VaultPage() {
                     },
                 ) { Text(stringResource(R.string.vault_clear), color = MaterialTheme.colorScheme.error) }
             },
-            dismissButton = { TextButton(onClick = { showClearDialog = false }) { Text(stringResource(R.string.vault_cancel)) } },
+            dismissButton = {
+                TextButton(onClick = { showClearDialog = false }) {
+                    Text(stringResource(R.string.vault_cancel))
+                }
+            },
         )
     }
 }
 
-/**
- * 聚合行后缀：`×N`（技术标识，零新文案）；单次行为空串。
- *
- * 聚合只发生在机械取用上（`VaultAuditDefaults.ROLLUP_ACTIONS`），次数直接展示，
- * 不额外造文案；想看逐次请把窗口调小或直接看导出档。
- */
 internal fun auditCountSuffix(count: Int): String = if (count > 1) " ×$count" else ""

@@ -1,7 +1,10 @@
 package me.rerere.rikkahub.data.network
 
 import java.net.InetAddress
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.tunnel.isTailnetMagicDnsHost
 import okhttp3.Dns
 
 private val IPV4_LITERAL_RE = Regex("""^\d{1,3}(\.\d{1,3}){3}$""")
@@ -22,17 +25,12 @@ internal fun parseFixedAddress(value: String): InetAddress? {
 }
 
 /**
- * An OkHttp [Dns] that answers for hosts pinned in the network settings and delegates
- * everything else to [delegate].
- *
- * Some endpoints sit behind a shared anycast front where the address the system resolver
- * returns can be a slow or lossy route, while a different address of the same service is
- * fast and stable. Pinning the host keeps every request on the chosen address without
- * touching system-wide DNS or needing root.
- *
- * Several entries for the same host are allowed and act as an ordered fallback: the
- * addresses are returned in the configured order, and OkHttp dials them one by one,
- * moving to the next address when a connect attempt fails.
+ * 应用全局 OkHttp [Dns] 实现，按以下优先级解析主机名：
+ * 1. IP 字面量直接解析（不走任何网络请求）；
+ * 2. 用户配置的固定主机映射（`hostAddressOverrides`）；
+ * 3. Tailscale 内嵌隧道开启时的 MagicDNS 域名（`*.ts.net`）；
+ * 4. 应用内独立 DNS（DoH / DoT / 自定义直连 UDP+TCP DNS，绕过手机系统 DNS 劫持）；
+ * 5. 回退到 [delegate]（默认 `Dns.SYSTEM`）。
  */
 class HostOverrideDns(
     private val settingsStore: SettingsStore,
@@ -40,14 +38,34 @@ class HostOverrideDns(
 ) : Dns {
 
     override fun lookup(hostname: String): List<InetAddress> {
-        val fixed = settingsStore.settingsFlow.value.networkSetting.hostAddressOverrides
+        val cleanHost = hostname.trim()
+        parseFixedAddress(cleanHost)?.let { return listOf(it) }
+
+        val networkSetting = settingsStore.settingsFlow.value.networkSetting
+        val fixed = networkSetting.hostAddressOverrides
             .asSequence()
             .filter { it.enabled }
-            .filter { it.host.trim().equals(hostname, ignoreCase = true) }
-            .mapNotNull { parseFixedAddress(it.address) }
+            .filter { it.host.trim().equals(cleanHost, ignoreCase = true) }
+            .mapNotNull { entry ->
+                parseFixedAddress(entry.address)?.let { addr ->
+                    runCatching { InetAddress.getByAddress(cleanHost, addr.address) }.getOrDefault(addr)
+                }
+            }
             .distinct()
             .toList()
         if (fixed.isNotEmpty()) return fixed
-        return delegate.lookup(hostname)
+
+        // Tailscale 隧道开启时，MagicDNS (*.ts.net) 域名合成占位地址交给 TsnetSocketFactory 在拨号阶段走隧道直连
+        if (TsnetBridge.isRunning && isTailnetMagicDnsHost(cleanHost)) {
+            return listOf(
+                InetAddress.getByAddress(cleanHost, byteArrayOf(100, 64, 0, 1)),
+            )
+        }
+
+        if (networkSetting.dnsMode != NetworkSetting.DNS_MODE_SYSTEM) {
+            return AppDnsResolver.resolve(cleanHost, networkSetting, fallbackDns = delegate)
+        }
+
+        return delegate.lookup(cleanHost)
     }
 }

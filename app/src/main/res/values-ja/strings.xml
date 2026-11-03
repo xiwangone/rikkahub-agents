@@ -4185,4 +4185,19 @@
     <string name="setting_page_qq_group_2">RikkaHub グループ 2</string>
     <string name="setting_page_qq_group_3">RikkaHub グループ 3</string>
     <string name="setting_page_douyin_group_1">Douyin グループ 1</string>
+  <string name="setting_page_preferences_network_dns_title">アプリ内独立 DNS</string>
+  <string name="setting_page_preferences_network_dns_desc">DoH、DoT、カスタム DNS によりシステム DNS のハイジャックを回避します</string>
+  <string name="setting_page_preferences_network_dns_mode_system">システム DNS に従う</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH (DNS over HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT (DNS over TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">カスタム直接 DNS (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">クイックプリセット</string>
+  <string name="setting_page_preferences_network_dns_doh_url">DoH エンドポイント URL</string>
+  <string name="setting_page_preferences_network_dns_dot_host">DoT サーバーホスト (ポート 853)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">カスタム DNS / Bootstrap IP</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">カンマ区切りの IP アドレス（直接クエリおよび DoH/DoT ブートストラップ用）</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">失敗時にシステム DNS へフォールバック</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">IPv6 (AAAA) レコードを解決</string>
+  <string name="setting_page_preferences_network_dns_test_domain">テストドメイン</string>
+  <string name="setting_page_preferences_network_dns_test_success">解決成功 %1$s → %2$s (%3$d ms)</string>
 </resources>

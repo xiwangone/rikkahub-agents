@@ -17,7 +17,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.material3.Card
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -26,19 +25,22 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -49,11 +51,16 @@ import androidx.core.content.FileProvider
 import kotlinx.coroutines.delay
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
+import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import java.io.File
@@ -62,23 +69,75 @@ import java.util.Date
 import java.util.Locale
 
 /**
- * 应用层日志页面（LogPage 的三级页面）：
- * 记录 / 展示 ChatService 等应用层 logcat 日志，支持开关、导出（txt/分享）、
- * 关键字搜索、单条/全部复制。
+ * 独立路由入口（Screen.AppLog）：带顶栏与返回按钮。
  */
 @Composable
 fun AppLogPage(onBack: () -> Unit) {
     val context = LocalContext.current
-    var enabled by remember { mutableStateOf(AppLog.isEnabled(context)) }
-    var keyword by remember { mutableStateOf("") }
-
-    // 抓重点：只保留 I/W/E，过滤掉逐 token / 逐块渲染等详单
-    var importantOnly by remember { mutableStateOf(false) }
-    var logs by remember { mutableStateOf(AppLog.getLogs()) }
+    var clearGen by remember { mutableIntStateOf(0) }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
-    // 开启记录时每 1s 刷新一次日志快照
-    LaunchedEffect(Unit) {
+    Scaffold(
+        topBar = {
+            LargeFlexibleTopAppBar(
+                title = { Text(stringResource(R.string.log_page_app_logs_title)) },
+                navigationIcon = {
+                    FilledTonalIconButton(onClick = onBack) {
+                        Icon(
+                            imageVector = HugeIcons.ArrowLeft01,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
+                actions = {
+                    IconButton(
+                        onClick = {
+                            shareAppLogs(context, AppLog.exportText(""))
+                        },
+                    ) {
+                        Icon(HugeIcons.Share03, stringResource(R.string.log_page_export))
+                    }
+                    IconButton(
+                        onClick = {
+                            AppLog.clear()
+                            clearGen++
+                        },
+                    ) {
+                        Icon(HugeIcons.Delete01, stringResource(R.string.accessibility_clear_logs))
+                    }
+                },
+                scrollBehavior = scrollBehavior,
+                colors = CustomColors.topBarColors,
+            )
+        },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = CustomColors.topBarColors.containerColor,
+    ) { contentPadding ->
+        AppLogContent(
+            clearGeneration = clearGen,
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
+        )
+    }
+}
+
+/**
+ * 应用层日志核心内容（供 [LogPage] 内嵌 Tab 与独立 [AppLogPage] 共用，避免嵌套出现双顶栏）。
+ */
+@Composable
+internal fun AppLogContent(
+    clearGeneration: Int = 0,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    var enabled by remember { mutableStateOf(AppLog.isEnabled(context)) }
+    var keyword by remember { mutableStateOf("") }
+    var importantOnly by remember { mutableStateOf(false) }
+    var logs by remember(clearGeneration) { mutableStateOf(AppLog.getLogs()) }
+
+    LaunchedEffect(clearGeneration) {
         while (true) {
             logs = AppLog.getLogs()
             delay(1_000L)
@@ -100,128 +159,68 @@ fun AppLogPage(onBack: () -> Unit) {
             }
         }
 
-    Scaffold(
-        topBar = {
-            LargeFlexibleTopAppBar(
-                title = { Text(stringResource(R.string.log_page_app_logs_title)) },
-                navigationIcon = {
-                    FilledTonalIconButton(onClick = onBack) {
-                        Icon(
-                            imageVector = HugeIcons.ArrowLeft01,
-                            contentDescription = stringResource(R.string.back),
-                        )
-                    }
-                },
-                actions = {
-                    IconButton(
-                        onClick = {
-                            shareLogs(context, AppLog.exportText(keywordTrimmed))
-                        },
-                    ) {
-                        Icon(HugeIcons.Share03, stringResource(R.string.log_page_export))
-                    }
-                    IconButton(
-                        onClick = {
-                            AppLog.clear()
-                            logs = AppLog.getLogs()
-                        },
-                    ) {
-                        Icon(HugeIcons.Delete01, stringResource(R.string.accessibility_clear_logs))
-                    }
-                },
-                scrollBehavior = scrollBehavior,
-                colors = CustomColors.topBarColors,
-            )
-        },
-        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
-        containerColor = CustomColors.topBarColors.containerColor,
-    ) { contentPadding ->
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxSize()
-                    .padding(contentPadding),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            // 记录开关
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CustomColors.cardColorsOnSurfaceContainer,
+    LazyColumn(
+        modifier = modifier,
+        contentPadding = PaddingValues(16.dp),
+    ) {
+        item {
+            Column(
+                modifier = Modifier.padding(bottom = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Row(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(12.dp),
-                    horizontalArrangement = Arrangement.SpaceBetween,
-                ) {
-                    Column(modifier = Modifier.weight(1f)) {
-                        Text(
-                            text = stringResource(R.string.log_page_record_app_logs),
-                            style = MaterialTheme.typography.titleSmall,
-                            fontWeight = FontWeight.Bold,
-                        )
-                        Text(
-                            text = stringResource(R.string.log_page_record_app_logs_desc),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Switch(
+                CardGroup {
+                    switchItem(
                         checked = enabled,
                         onCheckedChange = { newValue ->
                             enabled = newValue
                             AppLog.setEnabled(context, newValue)
                         },
+                        leadingContent = { CardGroupIcon(HugeIcons.Bug01) },
+                        headlineContent = { Text(stringResource(R.string.log_page_record_app_logs)) },
+                        supportingContent = { Text(stringResource(R.string.log_page_record_app_logs_desc)) },
                     )
                 }
-            }
 
-            // 搜索框
-            OutlinedTextField(
-                value = keyword,
-                onValueChange = { keyword = it },
-                placeholder = { Text(stringResource(R.string.log_page_search_hint)) },
-                leadingIcon = { Icon(HugeIcons.Search01, null) },
-                singleLine = true,
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-            )
+                OutlinedTextField(
+                    value = keyword,
+                    onValueChange = { keyword = it },
+                    placeholder = { Text(stringResource(R.string.log_page_search_hint)) },
+                    leadingIcon = { Icon(HugeIcons.Search01, null) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
 
-            // 数量 + 复制全部
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                FilterChip(
-                    selected = importantOnly,
-                    onClick = { importantOnly = !importantOnly },
-                    label = { Text(stringResource(R.string.log_page_important_only)) },
-                )
-                Spacer(modifier = Modifier.width(8.dp))
-                Text(
-                    text = stringResource(R.string.log_page_log_count, filteredLogs.size),
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(modifier = Modifier.weight(1f))
-                TextButton(
-                    onClick = {
-                        if (filteredLogs.isNotEmpty()) {
-                            copyToClipboard(context, AppLog.exportText(keywordTrimmed))
-                        }
-                    },
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(stringResource(R.string.log_page_copy_all))
+                    FilterChip(
+                        selected = importantOnly,
+                        onClick = { importantOnly = !importantOnly },
+                        label = { Text(stringResource(R.string.log_page_important_only)) },
+                    )
+                    Spacer(modifier = Modifier.width(8.dp))
+                    Text(
+                        text = stringResource(R.string.log_page_log_count, filteredLogs.size),
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(modifier = Modifier.weight(1f))
+                    TextButton(
+                        onClick = {
+                            if (filteredLogs.isNotEmpty()) {
+                                copyToClipboard(context, AppLog.exportText(keywordTrimmed))
+                            }
+                        },
+                    ) {
+                        Text(stringResource(R.string.log_page_copy_all))
+                    }
                 }
             }
+        }
 
-            if (filteredLogs.isEmpty()) {
+        if (filteredLogs.isEmpty()) {
+            item {
                 Text(
                     text = stringResource(R.string.log_page_no_logs),
                     style = MaterialTheme.typography.bodyMedium,
@@ -232,21 +231,17 @@ fun AppLogPage(onBack: () -> Unit) {
                             .padding(top = 48.dp),
                     textAlign = TextAlign.Center,
                 )
-            } else {
-                LazyColumn(
-                    modifier = Modifier.fillMaxSize(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    contentPadding = PaddingValues(horizontal = 16.dp, vertical = 4.dp),
-                ) {
-                    itemsIndexed(filteredLogs, key = { index, _ -> index }) { _, entry ->
-                        AppLogCard(
-                            entry = entry,
-                            onClick = {
-                                copyToClipboard(context, formatEntry(entry))
-                            },
-                        )
-                    }
-                }
+            }
+        } else {
+            itemsIndexed(filteredLogs, key = { index, _ -> index }) { index, entry ->
+                AppLogCard(
+                    entry = entry,
+                    shape = cardGroupItemShape(index, filteredLogs.size),
+                    modifier = Modifier.padding(bottom = if (index == filteredLogs.lastIndex) 0.dp else 2.dp),
+                    onClick = {
+                        copyToClipboard(context, formatEntry(entry))
+                    },
+                )
             }
         }
     }
@@ -255,7 +250,9 @@ fun AppLogPage(onBack: () -> Unit) {
 @Composable
 private fun AppLogCard(
     entry: AppLog.Entry,
+    shape: Shape,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()) }
     val levelColor =
@@ -266,15 +263,17 @@ private fun AppLogCard(
             else -> MaterialTheme.colorScheme.primary
         }
 
-    Card(
+    Surface(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
+                .clip(shape)
                 .clickable(onClick = onClick),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
@@ -318,7 +317,7 @@ private fun copyToClipboard(
     Toast.makeText(context, R.string.log_page_copied, Toast.LENGTH_SHORT).show()
 }
 
-private fun shareLogs(
+internal fun shareAppLogs(
     context: Context,
     text: String,
 ) {

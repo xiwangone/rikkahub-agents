@@ -4185,4 +4185,19 @@
     <string name="setting_page_qq_group_2">RikkaHub 그룹 2</string>
     <string name="setting_page_qq_group_3">RikkaHub 그룹 3</string>
     <string name="setting_page_douyin_group_1">Douyin 그룹 1</string>
+  <string name="setting_page_preferences_network_dns_title">앱 내 독립 DNS</string>
+  <string name="setting_page_preferences_network_dns_desc">DoH, DoT 및 사용자 지정 DNS를 통해 시스템 DNS 하이재킹을 우회합니다</string>
+  <string name="setting_page_preferences_network_dns_mode_system">시스템 DNS 따르기</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH (DNS over HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT (DNS over TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">사용자 지정 직접 DNS (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">빠른 프리셋</string>
+  <string name="setting_page_preferences_network_dns_doh_url">DoH 엔드포인트 URL</string>
+  <string name="setting_page_preferences_network_dns_dot_host">DoT 서버 호스트 (포트 853)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">사용자 지정 DNS / 부트스트랩 IP</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">쉼표로 구분된 IP 주소 (직접 쿼리 및 DoH/DoT 부트스트랩용)</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">실패 시 시스템 DNS로 폴백</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">IPv6 (AAAA) 레코드 함께 조회</string>
+  <string name="setting_page_preferences_network_dns_test_domain">테스트 도메인</string>
+  <string name="setting_page_preferences_network_dns_test_success">조회 성공 %1$s → %2$s (%3$d ms)</string>
 </resources>

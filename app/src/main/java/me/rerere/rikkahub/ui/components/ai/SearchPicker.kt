@@ -23,6 +23,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.requiredSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -171,23 +172,27 @@ fun SearchPickerButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (model?.tools?.contains(BuiltInTools.Search) == true) {
                     Icon(
                         imageVector = HugeIcons.AiSearch02,
                         contentDescription = stringResource(R.string.use_web_search),
+                        modifier = Modifier.size(24.dp),
                     )
                 } else if (enableSearch && currentService != null) {
+                    // AIIcon 内部带 4.dp 内边距，外框给 32.dp 使实际图标绘制尺寸达到 24.dp，与两侧图标对齐
                     AutoAIIcon(
                         name = currentService.displayName,
+                        modifier = Modifier.requiredSize(32.dp),
                         color = Color.Transparent,
                     )
                 } else {
                     Icon(
                         imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }

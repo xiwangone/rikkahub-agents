@@ -76,6 +76,8 @@ import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.ui.components.ai.estimateAssistantToolSurface
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.utils.formatK
 import me.rerere.rikkahub.utils.formatNumber
@@ -204,6 +206,20 @@ fun ChatMessageNerdLine(
                                         .heightIn(max = maxTooltipHeight),
                                 title = { Text(stringResource(R.string.chat_message_usage_title)) },
                             ) {
+                                val assistant = appSettings.getCurrentAssistant()
+                                val toolSurfaceEstimate =
+                                    remember(
+                                        assistant.localTools,
+                                        assistant.workspaceId,
+                                        assistant.enableMemory,
+                                        assistant.mcpServers,
+                                        settings.toolSurfaceTrimming,
+                                    ) {
+                                        estimateAssistantToolSurface(
+                                            assistant = assistant,
+                                            trimmingEnabled = settings.toolSurfaceTrimming,
+                                        )
+                                    }
                                 MessageUsageDetails(
                                     totalUsage = usage,
                                     latestRequestUsage = latestUsageForDetails,
@@ -212,6 +228,8 @@ fun ChatMessageNerdLine(
                                     durationMillis = detailsDurationMillis,
                                     maxWidth = maxTooltipWidth,
                                     maxHeight = maxDetailsHeight,
+                                    sessionTotals = sessionTotals,
+                                    toolSurfaceEstimate = toolSurfaceEstimate,
                                 )
                             }
                         },
@@ -412,52 +430,7 @@ fun ChatMessageNerdLine(
                         ),
                     )
                 }
-                if (sessionTotals != null) {
-                var sessionPendingCopy by remember { mutableStateOf("") }
-                Row(
-                    modifier = Modifier.padding(top = 2.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    StatsItem(
-                        icon = {
-                            Icon(
-                                imageVector = HugeIcons.Upload02,
-                                contentDescription = stringResource(R.string.accessibility_input_tokens),
-                                tint = color,
-                                modifier = Modifier.size(12.dp),
-                            )
-                        },
-                        content = {
-                            Text(
-                                text = stringResource(R.string.stats_format, sessionTotals.inputTokens.toInt().formatNumber(), sessionTotals.cachedTokens.toInt().formatNumber(), sessionTotals.outputTokens.toInt().formatNumber()),
-                            )
-                        },
-                    )
-                    Box(
-                        modifier =
-                            Modifier
-                                .clickable(role = Role.Button, onClick = {
-                                    sessionPendingCopy =
-                                        "↑${sessionTotals.inputTokens.toInt().formatNumber()} tokens (${sessionTotals.cachedTokens.toInt().formatNumber()} cached) ↓${sessionTotals.outputTokens.toInt().formatNumber()} tokens"
-                                })
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .padding(2.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Copy01,
-                            contentDescription = stringResource(R.string.stats_copy_total),
-                            tint = color,
-                            modifier = Modifier.size(14.dp),
-                        )
-                    }
-                    LaunchedEffect(sessionPendingCopy) {
-                        if (sessionPendingCopy.isNotEmpty()) {
-                            clipboardManager.setText(AnnotatedString(sessionPendingCopy))
-                        }
-                    }
-                }
-            }
+
             // 上下文占用：已用 / 窗口 · 已用比例（进度条）。点击可填写窗口大小（选填）
             // Context usage is a per-request prompt size, not cumulative usage across tool turns.
             val contextUsage = message.lastRequestUsage()

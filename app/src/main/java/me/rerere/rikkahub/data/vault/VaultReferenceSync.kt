@@ -139,7 +139,11 @@ object VaultReferenceSync {
         ).also { if (it != settings.uploadS3Config) changed++ }
         val networkSetting = settings.networkSetting.copy(
             proxyPassword = renameInText(settings.networkSetting.proxyPassword, oldName, newName),
-        ).also { if (it != settings.networkSetting) changed++ }
+            tailscaleAuthKey = renameInText(settings.networkSetting.tailscaleAuthKey, oldName, newName),
+        ).also {
+            if (it.proxyPassword != settings.networkSetting.proxyPassword) changed++
+            if (it.tailscaleAuthKey != settings.networkSetting.tailscaleAuthKey) changed++
+        }
         val webBridgePassword = renameInText(settings.webBridgePassword, oldName, newName).also {
             if (it != settings.webBridgePassword) changed++
         }

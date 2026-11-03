@@ -42,6 +42,11 @@ import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Delete02
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.Edit02
+import me.rerere.hugeicons.stroke.Key01
+import androidx.compose.ui.graphics.Shape
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
@@ -77,6 +82,7 @@ internal fun CredentialRow(
     onDelete: () -> Unit,
     /** 平铺视图下在名称旁显示的组名（按分组视图下不传）。 */
     groupLabel: String? = null,
+    shape: Shape = cardGroupItemShape(0, 1),
 ) {
     val repository: CredentialVaultRepository = koinInject()
     val vaultPreferences: VaultPreferences = koinInject()
@@ -150,26 +156,58 @@ internal fun CredentialRow(
 
     androidx.compose.material3.Surface(
         modifier = Modifier.fillMaxWidth(),
-        shape = androidx.compose.foundation.shape.RoundedCornerShape(12.dp),
-        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f),
+        shape = shape,
+        color = CustomColors.cardColors.containerColor,
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier = Modifier.fillMaxWidth().clickable(onClick = onEdit).padding(horizontal = 14.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            CardGroupIcon(
+                icon = HugeIcons.Key01,
+                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.size(36.dp),
+                iconSize = 18.dp,
+            )
             Column(Modifier.weight(1f)) {
                 Row(
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                 ) {
-                    Text(entry.name, style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        text = entry.name,
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.weight(1f, fill = false),
+                    )
                     if (!groupLabel.isNullOrBlank()) {
-                        Text(
-                            text = groupLabel,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                        androidx.compose.material3.Surface(
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                            color = MaterialTheme.colorScheme.secondaryContainer,
+                        ) {
+                            Text(
+                                text = groupLabel,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
+                    }
+                    if (entry.type.isNotBlank()) {
+                        androidx.compose.material3.Surface(
+                            shape = androidx.compose.foundation.shape.RoundedCornerShape(999.dp),
+                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                        ) {
+                            Text(
+                                text = vaultTypeLabel(context, entry.type),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                            )
+                        }
                     }
                 }
                 if (entry.description.isNotBlank()) {

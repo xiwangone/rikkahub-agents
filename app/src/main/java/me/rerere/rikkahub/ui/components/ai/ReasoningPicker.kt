@@ -80,10 +80,14 @@ fun ReasoningButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier.size(22.dp),
+                modifier = Modifier.size(24.dp),
                 contentAlignment = Alignment.Center,
             ) {
-                Icon(reasoningLevel.icon(), null)
+                Icon(
+                    imageVector = reasoningLevel.icon(),
+                    contentDescription = null,
+                    modifier = Modifier.size(24.dp),
+                )
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))
         }

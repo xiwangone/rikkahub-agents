@@ -104,7 +104,7 @@ internal fun hostIsBlockedLiteral(host: String): Boolean {
  */
 internal fun OkHttpClient.withEgressGuard(allowPrivate: Boolean = false): OkHttpClient =
     newBuilder()
-        .dns(GuardedDns(Dns.SYSTEM, allowPrivate))
+        .dns(GuardedDns(this.dns, allowPrivate))
         .callTimeout(30, TimeUnit.SECONDS)
         .addNetworkInterceptor { chain ->
             val host = chain.request().url.host

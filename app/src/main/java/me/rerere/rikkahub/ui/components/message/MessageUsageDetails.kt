@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -12,37 +13,52 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.pluralStringResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.ProgressBarRangeInfo
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.progressBarRangeInfo
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.unit.dp
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.dp
 import me.rerere.ai.core.TokenUsage
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.costguards.TokenBudgetTracker
 import me.rerere.rikkahub.utils.formatK
 import me.rerere.rikkahub.utils.formatNumber
 import me.rerere.rikkahub.utils.toFixed
 import java.text.NumberFormat
 import java.util.Locale
 
-/** Details for one assistant message. Session totals deliberately stay outside this card. */
+/** Details for one assistant message plus session-wide cumulative usage and tool surface estimate. */
 @Composable
 internal fun MessageUsageDetails(
     totalUsage: TokenUsage,
@@ -52,7 +68,11 @@ internal fun MessageUsageDetails(
     durationMillis: Long?,
     maxWidth: androidx.compose.ui.unit.Dp,
     maxHeight: androidx.compose.ui.unit.Dp,
+    sessionTotals: TokenBudgetTracker.Totals? = null,
+    toolSurfaceEstimate: Pair<Int, Int>? = null,
 ) {
+    @Suppress("DEPRECATION")
+    val clipboardManager = LocalClipboardManager.current
     val latest = latestRequestUsage
     val latestCached = latest?.let { it.cachedTokens.coerceIn(0, it.promptTokens.coerceAtLeast(0)) } ?: 0
     val latestCacheRate = latest?.let { cacheHitRate(it.promptTokens, latestCached) }
@@ -190,6 +210,140 @@ internal fun MessageUsageDetails(
                 value = "${(duration / 1000f).toFixed(1)}s",
             )
         }
+
+        if (sessionTotals != null && (sessionTotals.inputTokens > 0L || sessionTotals.outputTokens > 0L)) {
+            var pendingSessionTotalsCopy by remember { mutableStateOf("") }
+            val sessionCached = sessionTotals.cachedTokens.coerceIn(0L, sessionTotals.inputTokens.coerceAtLeast(0L))
+            val avgPct =
+                if (sessionCached > 0L && sessionTotals.inputTokens > 0L) {
+                    String.format(
+                        Locale.US,
+                        "%.1f%%",
+                        sessionCached.toDouble() / sessionTotals.inputTokens.toDouble() * 100.0,
+                    )
+                } else {
+                    "0.0%"
+                }
+            val totalInputFormatted = sessionTotals.inputTokens.formatK()
+            val totalCachedFormatted = sessionCached.formatK()
+            val totalOutputFormatted = sessionTotals.outputTokens.formatK()
+
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                Text(
+                    text = stringResource(R.string.stats_total_input),
+                    style = MaterialTheme.typography.labelLarge,
+                )
+                Box(
+                    modifier =
+                        Modifier
+                            .clip(RoundedCornerShape(6.dp))
+                            .clickable(
+                                role = Role.Button,
+                                onClick = {
+                                    val base =
+                                        if (sessionCached > 0L && sessionTotals.inputTokens > 0L) {
+                                            "↑${totalInputFormatted} tokens (${totalCachedFormatted} cached · ${avgPct}) ↓${totalOutputFormatted} tokens"
+                                        } else {
+                                            "↑${totalInputFormatted} tokens ↓${totalOutputFormatted} tokens"
+                                        }
+                                    pendingSessionTotalsCopy =
+                                        if (sessionTotals.costUsd > 0.0) {
+                                            "$base · ${formatCost(sessionTotals.costUsd)}"
+                                        } else {
+                                            base
+                                        }
+                                },
+                            )
+                            .padding(4.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Copy01,
+                        contentDescription = stringResource(R.string.stats_copy_total),
+                        modifier = Modifier.size(14.dp),
+                        tint = LocalContentColor.current.copy(alpha = 0.7f),
+                    )
+                }
+            }
+            LaunchedEffect(pendingSessionTotalsCopy) {
+                if (pendingSessionTotalsCopy.isNotEmpty()) {
+                    clipboardManager.setText(AnnotatedString(pendingSessionTotalsCopy))
+                }
+            }
+
+            UsageDetailRow(
+                label = stringResource(R.string.stats_page_input_tokens),
+                value = totalInputFormatted,
+            )
+            if (sessionCached > 0L) {
+                UsageDetailRow(
+                    label = stringResource(R.string.stats_page_cached_tokens),
+                    value = totalCachedFormatted,
+                )
+                UsageDetailRow(
+                    label = stringResource(R.string.stats_page_cache_hit_rate),
+                    value =
+                        stringResource(
+                            R.string.chat_nerd_cached_hit,
+                            totalCachedFormatted,
+                            avgPct,
+                        ),
+                )
+            }
+            UsageDetailRow(
+                label = stringResource(R.string.stats_page_output_tokens),
+                value = totalOutputFormatted,
+            )
+            if (sessionTotals.costUsd > 0.0) {
+                UsageDetailRow(
+                    label = stringResource(R.string.accessibility_cost),
+                    value = formatCost(sessionTotals.costUsd),
+                )
+            }
+            if (sessionTotals.messageCount > 0) {
+                Text(
+                    text =
+                        pluralStringResource(
+                            R.plurals.chat_nerd_model_request_count,
+                            sessionTotals.messageCount,
+                            sessionTotals.messageCount,
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.7f),
+                )
+            }
+        }
+
+        if (toolSurfaceEstimate != null && toolSurfaceEstimate.first > 0) {
+            val toolTokensK = toolSurfaceEstimate.second.toLong().formatK()
+            HorizontalDivider()
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                Icon(
+                    imageVector = HugeIcons.Tools,
+                    contentDescription = null,
+                    tint = MaterialTheme.colorScheme.tertiary,
+                    modifier = Modifier.size(14.dp),
+                )
+                Text(
+                    text =
+                        stringResource(
+                            R.string.chat_input_tool_surface_summary,
+                            toolSurfaceEstimate.first,
+                            toolTokensK,
+                        ),
+                    style = MaterialTheme.typography.labelSmall,
+                    color = LocalContentColor.current.copy(alpha = 0.8f),
+                )
+            }
+        }
     }
 }
 
@@ -199,7 +353,6 @@ private fun ContextUsageBar(
     contextWindowTokens: Long?,
 ) {
     val latest = latestRequestUsage ?: return
-    // Composable 里读 Locale 必须走可观察的配置（LocalConfiguration），否则配置变化不会重组
     val locale = LocalConfiguration.current.locales[0]
     val promptTokens = latest.promptTokens.coerceAtLeast(0)
     val cachedTokens = latest.cachedTokens.coerceIn(0, promptTokens)

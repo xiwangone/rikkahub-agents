@@ -2,19 +2,20 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -26,12 +27,15 @@ import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cpu
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.ProviderModelStats
@@ -43,7 +47,11 @@ import me.rerere.rikkahub.ui.components.charts.ChartSeries
 import me.rerere.rikkahub.ui.components.charts.ChartSpec
 import me.rerere.rikkahub.ui.components.charts.ChartStyle
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.plus
 import java.util.Locale
 
 private fun formatTokens(value: Long): String = "%,d".format(Locale.US, value)
@@ -53,7 +61,6 @@ private fun formatCostCompact(cost: Double): String {
     return "$$trimmed"
 }
 
-/** 一行的展示名：优先用落盘快照，provider 删除/改名后仍可读。 */
 private fun ProviderModelStats.displayTitle(key: String): String {
     val providerKey = key.substringBefore("/")
     val modelId = key.substringAfter("/", "")
@@ -85,10 +92,11 @@ fun SettingUsageStatsPage() {
     ) { innerPadding ->
         if (stats.runs == 0L) {
             Column(
-                modifier = Modifier
-                    .fillMaxSize()
-                    .padding(innerPadding)
-                    .padding(24.dp),
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(innerPadding)
+                        .padding(24.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
@@ -100,38 +108,41 @@ fun SettingUsageStatsPage() {
             }
             return@Scaffold
         }
+        val rows = remember(stats) { stats.byProviderModel.entries.sortedByDescending { it.value.runs } }
         LazyColumn(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(innerPadding),
-            contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxSize(),
+            contentPadding = innerPadding + PaddingValues(16.dp),
         ) {
             item {
-                UsageRangeChips(range = range, onRangeChange = { range = it })
+                Column(
+                    modifier = Modifier.padding(bottom = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    UsageRangeChips(range = range, onRangeChange = { range = it })
+                    UsageOverviewCard(stats = stats)
+                    UsageProviderPieCard(stats = stats)
+                    Text(
+                        text = stringResource(R.string.usage_stats_detail),
+                        style = MaterialTheme.typography.titleSmallEmphasized,
+                        color = MaterialTheme.colorScheme.primary,
+                        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                    )
+                }
             }
-            item {
-                UsageOverviewCard(stats = stats)
-            }
-            item {
-                UsageProviderPieCard(stats = stats)
-            }
-            item {
-                Text(
-                    text = stringResource(R.string.usage_stats_detail),
-                    style = MaterialTheme.typography.titleMedium,
-                    fontWeight = FontWeight.SemiBold,
+            itemsIndexed(rows, key = { _, item -> item.key }) { index, (key, rowStats) ->
+                UsageDetailRow(
+                    key = key,
+                    stats = rowStats,
+                    shape = cardGroupItemShape(index, rows.size),
+                    modifier = Modifier.padding(bottom = if (index == rows.lastIndex) 0.dp else 2.dp),
                 )
-            }
-            val rows = stats.byProviderModel.entries.sortedByDescending { it.value.runs }
-            items(rows, key = { it.key }) { (key, rowStats) ->
-                UsageDetailRow(key = key, stats = rowStats)
             }
             item {
                 Text(
                     text = stringResource(R.string.usage_stats_note),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    modifier = Modifier.padding(top = 12.dp, start = 4.dp),
                 )
             }
         }
@@ -167,14 +178,16 @@ private fun UsageRangeChips(
 @Composable
 private fun UsageOverviewCard(stats: RangeUsageStats) {
     val notReported = stringResource(R.string.usage_stats_cost_not_reported)
-    Card(
+    Surface(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(16.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(16.dp),
             horizontalArrangement = Arrangement.SpaceEvenly,
         ) {
             UsageOverviewItem(
@@ -194,7 +207,10 @@ private fun UsageOverviewCard(stats: RangeUsageStats) {
 }
 
 @Composable
-private fun UsageOverviewItem(label: String, value: String) {
+private fun UsageOverviewItem(
+    label: String,
+    value: String,
+) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -204,6 +220,7 @@ private fun UsageOverviewItem(label: String, value: String) {
             style = MaterialTheme.typography.titleLarge,
             fontWeight = FontWeight.SemiBold,
             textAlign = TextAlign.Center,
+            color = MaterialTheme.colorScheme.primary,
         )
         Text(
             text = label,
@@ -216,14 +233,15 @@ private fun UsageOverviewItem(label: String, value: String) {
 @Composable
 private fun UsageProviderPieCard(stats: RangeUsageStats) {
     val hasCost = stats.costReportedRuns > 0
-    // 按 provider 卷起（同一 provider 的多个模型合并为一片）
-    val byProvider = stats.byProviderModel.entries.groupBy(
-        keySelector = { it.key.substringBefore("/") },
-        valueTransform = { it.value },
-    )
-    val names = byProvider.keys.map { key ->
-        byProvider.getValue(key).firstNotNullOfOrNull { it.providerName?.takeIf { name -> name.isNotBlank() } } ?: key
-    }
+    val byProvider =
+        stats.byProviderModel.entries.groupBy(
+            keySelector = { it.key.substringBefore("/") },
+            valueTransform = { it.value },
+        )
+    val names =
+        byProvider.keys.map { key ->
+            byProvider.getValue(key).firstNotNullOfOrNull { it.providerName?.takeIf { name -> name.isNotBlank() } } ?: key
+        }
     val values =
         byProvider.keys.map { key ->
             val rows = byProvider.getValue(key)
@@ -244,36 +262,41 @@ private fun UsageProviderPieCard(stats: RangeUsageStats) {
 }
 
 @Composable
-private fun UsageDetailRow(key: String, stats: ProviderModelStats) {
+private fun UsageDetailRow(
+    key: String,
+    stats: ProviderModelStats,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+) {
     val notReported = stringResource(R.string.usage_stats_cost_not_reported)
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Row(
-            modifier = Modifier
-                .fillMaxWidth()
-                .padding(horizontal = 16.dp, vertical = 12.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalAlignment = Alignment.CenterVertically,
             horizontalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            CardGroupIcon(icon = HugeIcons.Cpu)
             Column(modifier = Modifier.weight(1f)) {
                 Text(
                     text = stats.displayTitle(key),
-                    style = MaterialTheme.typography.bodyMedium,
+                    style = MaterialTheme.typography.bodyLarge,
                     fontWeight = FontWeight.Medium,
                 )
                 Text(
-                    text = "${formatTokens(stats.runs)} · ${formatTokens(stats.promptTokens + stats.completionTokens)}",
-                    style = MaterialTheme.typography.labelMedium,
+                    text = "${formatTokens(stats.runs)} · ${formatTokens(stats.promptTokens + stats.completionTokens)} tokens",
+                    style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
+            CardGroupValue(
                 text = if (stats.costReportedRuns > 0) formatCostCompact(stats.cost) else notReported,
-                style = MaterialTheme.typography.bodyMedium,
-                fontWeight = FontWeight.SemiBold,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
     }

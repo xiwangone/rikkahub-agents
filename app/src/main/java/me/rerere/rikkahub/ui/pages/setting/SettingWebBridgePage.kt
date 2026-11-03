@@ -1,23 +1,22 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
-import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -27,48 +26,45 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.Alignment
-import kotlinx.coroutines.launch
-import me.rerere.rikkahub.data.ai.BackendWebBridge
-import me.rerere.rikkahub.data.vault.SshKeyGenerator
-import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.CredentialType
-import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
-import org.koin.compose.koinInject
-import androidx.compose.runtime.getValue
-import androidx.compose.runtime.mutableStateOf
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
-import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
-import me.rerere.rikkahub.R
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Connect
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.LockKey
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.BackendWebBridge
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.data.vault.CredentialType
+import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.SshKeyGenerator
+import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
-import kotlinx.coroutines.launch
+import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 
-/**
- * Web 桥三级页（反向隧道到 ECS）。
- *
- * 全局配置：ECS 主机/用户名/SSH 端口/远程隧道端口。
- * 供 Backend 等 provider 选择「使用全局 Web 桥配置」复用（后续接入其他后端）。
- */
-@OptIn(ExperimentalMaterial3Api::class)
-/** Web 桥生成密钥入库时使用的固定凭证名（回填引用与写入必须一致）。 */
 private const val WEB_BRIDGE_KEY_NAME = "WEB_BRIDGE_SSH_KEY"
 
+/**
+ * Web 桥三级页（反向隧道到 ECS，Material 3 Expressive 分组卡片样式）。
+ */
+@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingWebBridgePage() {
     val settingsStore: SettingsStore = koinInject()
@@ -100,8 +96,11 @@ fun SettingWebBridgePage() {
     var webBridgeCredentialRef by remember(settings.webBridgeCredentialRef) {
         mutableStateOf(settings.webBridgeCredentialRef)
     }
-    /** 全局开关开启：把全局配置同步到所有 Backend provider 并启用（改一次即可）。 */
-    fun syncToBackendProviders(settings: Settings, enabled: Boolean): Settings {
+
+    fun syncToBackendProviders(
+        settings: Settings,
+        enabled: Boolean,
+    ): Settings {
         val newProviders =
             settings.providers.map { p ->
                 if (p is ProviderSetting.Backend) {
@@ -136,207 +135,201 @@ fun SettingWebBridgePage() {
     ) { innerPadding ->
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            contentPadding = innerPadding + PaddingValues(8.dp),
+            contentPadding = innerPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            // 总开关：开启时同步全局配置到 Backend provider 并启用
             item {
                 CardGroup(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     title = { Text(stringResource(R.string.setting_web_bridge_switch)) },
                 ) {
-                    item(
+                    switchItem(
+                        checked = settings.providers.any { it is ProviderSetting.Backend && it.webBridgeEnabled },
+                        onCheckedChange = { enabled ->
+                            scope.launch {
+                                settingsStore.update { s -> syncToBackendProviders(s, enabled) }
+                            }
+                        },
+                        leadingContent = { CardGroupIcon(HugeIcons.Connect) },
                         headlineContent = { Text(stringResource(R.string.setting_web_bridge_switch_desc)) },
                         supportingContent = { Text(stringResource(R.string.setting_web_bridge_switch_desc_detail)) },
-                        trailingContent = {
-                            Switch(
-                                checked = settings.providers.any { it is ProviderSetting.Backend && it.webBridgeEnabled },
-                                onCheckedChange = { enabled ->
-                                    scope.launch {
-                                        settingsStore.update { s -> syncToBackendProviders(s, enabled) }
-                                    }
-                                },
-                            )
-                        },
                     )
                 }
             }
 
             item {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(16.dp),
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp),
+                CardGroup(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = { Text(stringResource(R.string.setting_web_bridge_ecs_host)) },
                 ) {
-                    Text(
-                        text = stringResource(R.string.setting_web_bridge_desc_detail),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-
-                    OutlinedTextField(
-                        value = webBridgeEcsHost,
-                        onValueChange = {
-                            webBridgeEcsHost = it
-                            scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsHost = it.trim()) } }
-                        },
-                        label = { Text(stringResource(R.string.setting_web_bridge_ecs_host)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-
-                    OutlinedTextField(
-                        value = webBridgeEcsUser,
-                        onValueChange = {
-                            webBridgeEcsUser = it
-                            scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsUser = it.trim()) } }
-                        },
-                        label = { Text(stringResource(R.string.setting_web_bridge_ecs_user)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                    )
-
-                    OutlinedTextField(
-                        value = webBridgeSshPort,
-                        onValueChange = {
-                            webBridgeSshPort = it
-                            it.toIntOrNull()?.let { port ->
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsPort = port) } }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.setting_web_bridge_ssh_port)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-
-                    OutlinedTextField(
-                        value = webBridgeRemotePort,
-                        onValueChange = {
-                            webBridgeRemotePort = it
-                            it.toIntOrNull()?.let { port ->
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeRemotePort = port) } }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.setting_web_bridge_remote_port)) },
-                        supportingText = { Text(stringResource(R.string.setting_web_bridge_remote_port_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-
-                    OutlinedTextField(
-                        value = webBridgeLocalPort,
-                        onValueChange = {
-                            webBridgeLocalPort = it
-                            it.toIntOrNull()?.let { port ->
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeLocalPort = port) } }
-                            }
-                        },
-                        label = { Text(stringResource(R.string.setting_web_bridge_local_port)) },
-                        supportingText = { Text(stringResource(R.string.setting_web_bridge_local_port_desc)) },
-                        modifier = Modifier.fillMaxWidth(),
-                        singleLine = true,
-                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                    )
-
-                    // 私钥槽：可直接写 `$$引用`，也可粘贴私钥文本一键入库（按 SSH 类凭据预筛）
-                    SecretRefField(
-                        value = webBridgePrivateKeyPath,
-                        onValueChange = {
-                            webBridgePrivateKeyPath = it
-                            scope.launch { settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = it.trim()) } }
-                        },
-                        label = stringResource(R.string.setting_web_bridge_private_key),
-                        description = stringResource(R.string.setting_web_bridge_private_key_desc),
-                        nameHint = "WEB_BRIDGE_KEY",
-                        typeHint = CredentialType.SSH_KEY,
-                        singleLine = true,
-                    )
-
-                    // 密码槽：与私钥槽分开，因此"密钥 + 口令"可以同时引用
-                    SecretRefField(
-                        value = webBridgePassword,
-                        onValueChange = {
-                            webBridgePassword = it
-                            scope.launch { settingsStore.update { s -> s.copy(webBridgePassword = it.trim()) } }
-                        },
-                        label = stringResource(R.string.setting_web_bridge_password),
-                        description = stringResource(R.string.setting_web_bridge_password_desc),
-                        nameHint = "WEB_BRIDGE_PASSWORD",
-                        typeHint = CredentialType.BASIC_AUTH,
-                        singleLine = true,
-                    )
-
-                    // ── Vault 凭证引用（优先于上方私钥路径 / 密码，免明文保存）──
-                    // 统一用引用位组件：支持「引用已有 / 粘贴即入库」，并按用途预筛（SSH 类凭据），
-                    // 取代原先“手写输入框 + 全量名字下拉”那套。
-                    SecretRefField(
-                        value = webBridgeCredentialRef,
-                        onValueChange = {
-                            webBridgeCredentialRef = it
-                            scope.launch { settingsStore.update { s -> s.copy(webBridgeCredentialRef = it.trim()) } }
-                        },
-                        label = stringResource(R.string.web_bridge_credential_ref_label),
-                        description = stringResource(R.string.web_bridge_credential_ref_desc),
-                        nameHint = "WEB_BRIDGE",
-                        typeHint = CredentialType.SSH_KEY,
-                        singleLine = true,
-                    )
-
-                    // ── 生成 SSH 密钥 + 保存到密钥库开关 ──
-                    HorizontalDivider()
-                    Text(
-                        text = stringResource(R.string.setting_web_bridge_gen_key),
-                        style = MaterialTheme.typography.titleSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                    Text(
-                        text = stringResource(R.string.setting_web_bridge_gen_key_desc),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    val context = LocalContext.current
-    val webBridgeSshKeyVaultDesc = stringResource(R.string.web_bridge_ssh_key_vault_desc, java.time.LocalDate.now().toString())
-                    val vaultRepo: CredentialVaultRepository = koinInject()
-                    var keyInfo by remember { mutableStateOf<String?>(null) }
-                    var saveToVault by remember { mutableStateOf(true) }
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
+                    formItem(
+                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_title)) },
+                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_desc_detail)) },
                     ) {
-                        androidx.compose.material3.OutlinedButton(
+                        OutlinedTextField(
+                            value = webBridgeEcsHost,
+                            onValueChange = {
+                                webBridgeEcsHost = it
+                                scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsHost = it.trim()) } }
+                            },
+                            label = { Text(stringResource(R.string.setting_web_bridge_ecs_host)) },
+                            modifier = Modifier.fillMaxWidth(),
+                            singleLine = true,
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                value = webBridgeEcsUser,
+                                onValueChange = {
+                                    webBridgeEcsUser = it
+                                    scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsUser = it.trim()) } }
+                                },
+                                label = { Text(stringResource(R.string.setting_web_bridge_ecs_user)) },
+                                modifier = Modifier.weight(0.65f),
+                                singleLine = true,
+                            )
+                            OutlinedTextField(
+                                value = webBridgeSshPort,
+                                onValueChange = {
+                                    webBridgeSshPort = it
+                                    it.toIntOrNull()?.let { port ->
+                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsPort = port) } }
+                                    }
+                                },
+                                label = { Text(stringResource(R.string.setting_web_bridge_ssh_port)) },
+                                modifier = Modifier.weight(0.35f),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedTextField(
+                                value = webBridgeRemotePort,
+                                onValueChange = {
+                                    webBridgeRemotePort = it
+                                    it.toIntOrNull()?.let { port ->
+                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeRemotePort = port) } }
+                                    }
+                                },
+                                label = { Text(stringResource(R.string.setting_web_bridge_remote_port)) },
+                                supportingText = { Text(stringResource(R.string.setting_web_bridge_remote_port_desc)) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                            OutlinedTextField(
+                                value = webBridgeLocalPort,
+                                onValueChange = {
+                                    webBridgeLocalPort = it
+                                    it.toIntOrNull()?.let { port ->
+                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeLocalPort = port) } }
+                                    }
+                                },
+                                label = { Text(stringResource(R.string.setting_web_bridge_local_port)) },
+                                supportingText = { Text(stringResource(R.string.setting_web_bridge_local_port_desc)) },
+                                modifier = Modifier.weight(1f),
+                                singleLine = true,
+                                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            )
+                        }
+                    }
+
+                    formItem(
+                        leadingContent = { CardGroupIcon(HugeIcons.LockKey) },
+                        headlineContent = { Text(stringResource(R.string.web_bridge_credential_ref_label)) },
+                        supportingContent = { Text(stringResource(R.string.web_bridge_credential_ref_desc)) },
+                    ) {
+                        SecretRefField(
+                            value = webBridgePrivateKeyPath,
+                            onValueChange = {
+                                webBridgePrivateKeyPath = it
+                                scope.launch { settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = it.trim()) } }
+                            },
+                            label = stringResource(R.string.setting_web_bridge_private_key),
+                            description = stringResource(R.string.setting_web_bridge_private_key_desc),
+                            nameHint = "WEB_BRIDGE_KEY",
+                            typeHint = CredentialType.SSH_KEY,
+                            singleLine = true,
+                        )
+                        SecretRefField(
+                            value = webBridgePassword,
+                            onValueChange = {
+                                webBridgePassword = it
+                                scope.launch { settingsStore.update { s -> s.copy(webBridgePassword = it.trim()) } }
+                            },
+                            label = stringResource(R.string.setting_web_bridge_password),
+                            description = stringResource(R.string.setting_web_bridge_password_desc),
+                            nameHint = "WEB_BRIDGE_PASSWORD",
+                            typeHint = CredentialType.BASIC_AUTH,
+                            singleLine = true,
+                        )
+                        SecretRefField(
+                            value = webBridgeCredentialRef,
+                            onValueChange = {
+                                webBridgeCredentialRef = it
+                                scope.launch { settingsStore.update { s -> s.copy(webBridgeCredentialRef = it.trim()) } }
+                            },
+                            label = stringResource(R.string.web_bridge_credential_ref_label),
+                            description = stringResource(R.string.web_bridge_credential_ref_desc),
+                            nameHint = "WEB_BRIDGE",
+                            typeHint = CredentialType.SSH_KEY,
+                            singleLine = true,
+                        )
+                    }
+                }
+            }
+
+            item {
+                val context = LocalContext.current
+                val webBridgeSshKeyVaultDesc = stringResource(R.string.web_bridge_ssh_key_vault_desc, java.time.LocalDate.now().toString())
+                val vaultRepo: CredentialVaultRepository = koinInject()
+                var keyInfo by remember { mutableStateOf<String?>(null) }
+                var saveToVault by remember { mutableStateOf(true) }
+
+                CardGroup(
+                    modifier = Modifier.fillMaxWidth(),
+                    title = { Text(stringResource(R.string.setting_web_bridge_gen_key)) },
+                ) {
+                    switchItem(
+                        checked = saveToVault,
+                        onCheckedChange = { saveToVault = it },
+                        leadingContent = { CardGroupIcon(HugeIcons.Key01) },
+                        headlineContent = { Text(stringResource(R.string.setting_web_bridge_save_to_vault)) },
+                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_gen_key_desc)) },
+                    )
+                    formItem {
+                        OutlinedButton(
                             onClick = {
                                 scope.launch {
                                     runCatching {
-                                        val generated = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-                                            val key = SshKeyGenerator.generate()
-                                            val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
-                                            val file = java.io.File(dir, "web_bridge_rsa")
-                                            if (file.exists()) file.delete()
-                                            file.writeText(key.privateKeyPem)
-                                            file.setReadable(true, true)
-                                            file.setWritable(true, true)
-                                            file.setExecutable(false)
-                                            if (saveToVault) {
-                                                vaultRepo.save(
-                                                    name = WEB_BRIDGE_KEY_NAME,
-                                                    value = key.privateKeyPem,
-                                                    description = webBridgeSshKeyVaultDesc,
-                                                    group = "SSH",
-                                                    // 必须一起写：公钥留空 = 清空该条目公钥（不写就会与
-                                                    // 刚落库的新私钥失配，指纹匹配/`mergePublicKeyLine` 也找不到它）
-                                                    publicKey = key.publicKeyLine,
-                                                )
+                                        val generated =
+                                            withContext(Dispatchers.IO) {
+                                                val key = SshKeyGenerator.generate()
+                                                val dir = java.io.File(context.filesDir, "ssh_keys").apply { mkdirs() }
+                                                val file = java.io.File(dir, "web_bridge_rsa")
+                                                if (file.exists()) file.delete()
+                                                file.writeText(key.privateKeyPem)
+                                                file.setReadable(true, true)
+                                                file.setWritable(true, true)
+                                                file.setExecutable(false)
+                                                if (saveToVault) {
+                                                    vaultRepo.save(
+                                                        name = WEB_BRIDGE_KEY_NAME,
+                                                        value = key.privateKeyPem,
+                                                        description = webBridgeSshKeyVaultDesc,
+                                                        group = "SSH",
+                                                        publicKey = key.publicKeyLine,
+                                                    )
+                                                }
+                                                Triple(key, file.absolutePath, saveToVault)
                                             }
-                                            Triple(key, file.absolutePath, saveToVault)
-                                        }
                                         val (key, path, toVault) = generated
-                                        // 入库后**回填引用**而不是文件路径：这样"私钥免明文落库"才真正闭环，
-                                        // 同时也消除了「路径 / 引用」两套并存的语义重叠。
                                         val ref = if (toVault) "$VAULT_REF_PREFIX$WEB_BRIDGE_KEY_NAME" else path
                                         webBridgePrivateKeyPath = ref
                                         settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = ref) }
@@ -359,88 +352,87 @@ fun SettingWebBridgePage() {
                                     }
                                 }
                             },
-                            modifier = Modifier.weight(1f),
+                            modifier = Modifier.fillMaxWidth(),
                         ) {
                             Text(stringResource(R.string.setting_web_bridge_gen_key_btn))
                         }
-                        Text(
-                            stringResource(R.string.setting_web_bridge_save_to_vault),
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                        Switch(
-                            checked = saveToVault,
-                            onCheckedChange = { saveToVault = it },
-                        )
-                    }
-                    keyInfo?.let { info ->
-                        Text(
-                            text = info,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
-                        if (info.contains("ssh-rsa")) {
-                            androidx.compose.material3.OutlinedButton(
-                                onClick = {
-                                    val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
-                                    val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                    clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.resources.getString(R.string.web_bridge_clip_label), pub))
-                                    keyInfo = context.getString(R.string.setting_web_bridge_copy_success, pub)
-                                },
+                        keyInfo?.let { info ->
+                            Text(
+                                text = info,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Text(stringResource(R.string.web_bridge_copy_public_key))
+                            )
+                            if (info.contains("ssh-rsa")) {
+                                OutlinedButton(
+                                    onClick = {
+                                        val pub = info.substringAfter("ssh-rsa").substringBefore("\n").let { "ssh-rsa$it" }
+                                        val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
+                                        clipboard.setPrimaryClip(android.content.ClipData.newPlainText(context.resources.getString(R.string.web_bridge_clip_label), pub))
+                                        keyInfo = context.getString(R.string.setting_web_bridge_copy_success, pub)
+                                    },
+                                    modifier = Modifier.fillMaxWidth(),
+                                ) {
+                                    Text(stringResource(R.string.web_bridge_copy_public_key))
+                                }
                             }
                         }
                     }
                 }
             }
 
-            // 连接状态与操作（全局唯一控制点；provider 页只留引用开关）
             item {
                 val webBridge: BackendWebBridge = koinInject()
                 val bridgeState by webBridge.state.collectAsState()
                 CardGroup(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(horizontal = 8.dp),
+                    modifier = Modifier.fillMaxWidth(),
                     title = { Text(stringResource(R.string.web_bridge_connection)) },
                 ) {
-                    item(
-                        headlineContent = {
-                            Text(
-                                text =
-                                    when {
-                                        bridgeState.tunnelConnected ->
-                                            stringResource(
-                                                R.string.web_bridge_state_connected,
-                                                settings.webBridgeRemotePort,
-                                                settings.webBridgeLocalPort,
-                                            )
-                                        bridgeState.webServerRunning ->
-                                            stringResource(R.string.web_bridge_state_connecting)
-                                        else -> stringResource(R.string.web_bridge_state_disconnected)
-                                    },
+                    formItem(
+                        leadingContent = { CardGroupIcon(HugeIcons.Connect) },
+                        headlineContent = { Text(stringResource(R.string.web_bridge_connection)) },
+                        trailingContent = {
+                            Surface(
+                                shape = CircleShape,
                                 color =
                                     when {
-                                        bridgeState.tunnelConnected -> Color(0xFF22C55E)
-                                        bridgeState.webServerRunning -> Color(0xFFF59E0B)
-                                        else -> MaterialTheme.colorScheme.onSurfaceVariant
+                                        bridgeState.tunnelConnected -> MaterialTheme.colorScheme.primaryContainer
+                                        bridgeState.webServerRunning -> MaterialTheme.colorScheme.tertiaryContainer
+                                        else -> MaterialTheme.colorScheme.secondaryContainer
                                     },
-                            )
+                                contentColor =
+                                    when {
+                                        bridgeState.tunnelConnected -> MaterialTheme.colorScheme.onPrimaryContainer
+                                        bridgeState.webServerRunning -> MaterialTheme.colorScheme.onTertiaryContainer
+                                        else -> MaterialTheme.colorScheme.onSecondaryContainer
+                                    },
+                            ) {
+                                Text(
+                                    text =
+                                        when {
+                                            bridgeState.tunnelConnected ->
+                                                stringResource(
+                                                    R.string.web_bridge_state_connected,
+                                                    settings.webBridgeRemotePort,
+                                                    settings.webBridgeLocalPort,
+                                                )
+                                            bridgeState.webServerRunning ->
+                                                stringResource(R.string.web_bridge_state_connecting)
+                                            else -> stringResource(R.string.web_bridge_state_disconnected)
+                                        },
+                                    modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                                    style = MaterialTheme.typography.labelLarge,
+                                )
+                            }
                         },
-                    )
-                    if (bridgeState.message.isNotBlank()) {
-                        item {
+                    ) {
+                        if (bridgeState.message.isNotBlank()) {
                             Text(
                                 text = bridgeState.message,
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
-                    }
-                    item {
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -465,7 +457,7 @@ fun SettingWebBridgePage() {
                             ) {
                                 Text(stringResource(R.string.web_bridge_connect))
                             }
-                            androidx.compose.material3.OutlinedButton(
+                            OutlinedButton(
                                 onClick = { webBridge.stop() },
                                 enabled = bridgeState.webServerRunning || bridgeState.tunnelConnected,
                                 modifier = Modifier.weight(1f),

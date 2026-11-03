@@ -2,11 +2,18 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.ButtonDefaults
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
@@ -20,9 +27,11 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
@@ -39,6 +48,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.ToolOutputDialog
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxViewModel
@@ -55,8 +65,9 @@ fun SettingToolsPage(
     val termuxConfig by termuxVm.config.collectAsStateWithLifecycle()
     val displaySetting = settings.displaySetting
     var showOutputDialog by remember { mutableStateOf(false) }
-    var budgetDraft by remember(termuxConfig.turnBudgetMs) {
-        mutableStateOf((termuxConfig.turnBudgetMs / 60_000L).toString())
+    val currentBudgetMinutes = termuxConfig.turnBudgetMs / 60_000L
+    var budgetDraft by remember(currentBudgetMinutes) {
+        mutableStateOf(currentBudgetMinutes.toString())
     }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
@@ -154,7 +165,7 @@ fun SettingToolsPage(
             }
 
             CardGroup(title = { Text(stringResource(R.string.setting_tools_section_advanced)) }) {
-                item(
+                formItem(
                     leadingContent = {
                         CardGroupIcon(
                             icon = HugeIcons.Clock01,
@@ -165,6 +176,14 @@ fun SettingToolsPage(
                     headlineContent = { Text(stringResource(R.string.setting_termux_turn_budget)) },
                     supportingContent = { Text(stringResource(R.string.setting_termux_turn_budget_desc)) },
                     trailingContent = {
+                        CardGroupValue("$currentBudgetMinutes ${stringResource(R.string.setting_termux_unit_minutes)}")
+                    },
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(12.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         OutlinedTextField(
                             value = budgetDraft,
                             onValueChange = { input ->
@@ -172,24 +191,24 @@ fun SettingToolsPage(
                             },
                             label = { Text(stringResource(R.string.setting_termux_unit_minutes)) },
                             singleLine = true,
-                            modifier = Modifier.width(120.dp),
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                            modifier = Modifier.weight(1f),
                         )
-                    },
-                )
-                item(
-                    onClick = {
-                        budgetDraft.toLongOrNull()?.let { termuxVm.setTurnBudgetMinutes(it) }
-                    },
-                    leadingContent = {
-                        CardGroupIcon(
-                            icon = HugeIcons.CheckmarkCircle02,
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer,
-                            contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
-                        )
-                    },
-                    headlineContent = { Text(stringResource(R.string.setting_tools_apply_budget)) },
-                    supportingContent = { Text(stringResource(R.string.setting_tools_apply_budget_desc)) },
-                )
+                        FilledTonalButton(
+                            onClick = {
+                                budgetDraft.toLongOrNull()?.let { termuxVm.setTurnBudgetMinutes(it) }
+                            },
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.CheckmarkCircle02,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.setting_tools_apply_budget))
+                        }
+                    }
+                }
             }
 
             CardGroup(title = { Text(stringResource(R.string.setting_tools_section_approval)) }) {
