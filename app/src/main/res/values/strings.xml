@@ -4181,4 +4181,19 @@
     <string name="setting_page_qq_group_2">RikkaHub Group 2</string>
     <string name="setting_page_qq_group_3">RikkaHub Group 3</string>
     <string name="setting_page_douyin_group_1">Douyin Group 1</string>
+  <string name="setting_page_preferences_network_dns_title">App-independent DNS</string>
+  <string name="setting_page_preferences_network_dns_desc">Bypass system DNS hijacking via DoH, DoT, or direct custom DNS</string>
+  <string name="setting_page_preferences_network_dns_mode_system">Follow system DNS</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH (DNS over HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT (DNS over TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">Custom direct DNS (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">Quick presets</string>
+  <string name="setting_page_preferences_network_dns_doh_url">DoH endpoint URL</string>
+  <string name="setting_page_preferences_network_dns_dot_host">DoT server host (port 853)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">Custom DNS / Bootstrap IPs</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">Comma-separated IPv4/IPv6 literals used for direct queries and DoH/DoT bootstrap</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">Fall back to system DNS on failure</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">Query IPv6 (AAAA) records</string>
+  <string name="setting_page_preferences_network_dns_test_domain">Test domain</string>
+  <string name="setting_page_preferences_network_dns_test_success">Resolved %1$s → %2$s (%3$d ms)</string>
 </resources>

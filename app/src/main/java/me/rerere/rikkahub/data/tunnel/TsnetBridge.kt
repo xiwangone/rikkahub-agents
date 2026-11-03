@@ -8,6 +8,7 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import tsnetlib.Tsnetlib
 import java.io.File
+import java.util.concurrent.ConcurrentHashMap
 
 /**
  * 隧道对外状态：**单一来源** —— 由 [TsnetBridge] 与守护循环写回，UI 只读。
@@ -55,15 +56,27 @@ object TsnetBridge {
         _state.value = next
     }
 
-    /** 隧道是否在运行。 */
+    /** 隧道当前是否在运行。 */
     @Volatile
     var isRunning: Boolean = false
+        private set
+
+    /**
+     * 用户是否已开启隧道（本进程存活期内的期望状态）。
+     * 与 [isRunning] 区分：掉线自动重连需先关闭旧 native 实例再重新建连，
+     * 期间 [isRunning] 暂时为 false，但 [desiredRunning] 仍为 true，守护协程才能继续按退避周期重试。
+     */
+    @Volatile
+    var desiredRunning: Boolean = false
         private set
 
     /** 本节点在 tailnet 中的 IP（如 100.64.0.5）；未启动时为 null。 */
     @Volatile
     var nodeIp: String? = null
         private set
+
+    /** 同一目标复用已建的本地代理端口，避免每次连接都新建监听。 */
+    private val proxyCache = ConcurrentHashMap<String, Int>()
 
     /**
      * 启动隧道并等待拿到 tailnet IP。
@@ -78,9 +91,11 @@ object TsnetBridge {
         authKey: String,
         hostname: String,
     ): Result<String> = withContext(Dispatchers.IO) {
+        desiredRunning = true
         runCatching {
             nodeIp?.takeIf { isRunning }?.let { return@runCatching it }
             publish(TunnelState.Connecting)
+            proxyCache.clear()
             Tsnetlib.touch() // 触发 native 库加载
             val stateDir = File(context.filesDir, "tsnet").apply { mkdirs() }.absolutePath
             // 必须在拉起 server 之前开始喂接口：Android 上 native 侧枚举不到任何接口，
@@ -102,9 +117,6 @@ object TsnetBridge {
     /**
      * 查询 native 侧的真实连接状态。
      *
-     * 为什么需要：Kotlin 的 [isRunning] 只反映 start/stop 调用，感知不到后端掉线
-     * （网络切换、DERP 断连等）。自动恢复循环用它判断“是真连着还是假装连着”。
-     *
      * @return `connected <tailnet IP>` / `offline` / null（未运行或查询失败）
      */
     suspend fun status(): String? = withContext(Dispatchers.IO) {
@@ -112,9 +124,15 @@ object TsnetBridge {
         runCatching { Tsnetlib.status() }.getOrNull()?.takeIf { it.isNotBlank() }
     }
 
+    /** 用户主动停止隧道：清空期望状态并释放全部本地代理端口缓存。 */
     suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
+        desiredRunning = false
         runCatching {
-            if (!isRunning) return@runCatching
+            proxyCache.clear()
+            if (!isRunning) {
+                publish(TunnelState.Off)
+                return@runCatching
+            }
             // 先停探测，避免回调打到正在关闭的 server 上。
             runCatching { TsnetPathMonitor.stop() }
                 .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
@@ -127,48 +145,79 @@ object TsnetBridge {
     }
 
     /**
+     * 守护协程掉线重连前的底层复位：保留 [desiredRunning] = true，
+     * 仅停止已失效的 native 实例并清空旧本地代理端口缓存。
+     */
+    internal suspend fun resetForReconnect(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            proxyCache.clear()
+            if (!isRunning) return@runCatching
+            runCatching { TsnetPathMonitor.stop() }
+                .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
+            Tsnetlib.stop()
+            isRunning = false
+            nodeIp = null
+            publish(TunnelState.Offline)
+        }.onFailure { AppLog.w(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
+    }
+
+    /**
      * 把 tailnet 内的 [host]:[port] 映射成本地端口。
      * 返回本地端口号，调用方连 `127.0.0.1:<port>` 即可；不进隧道时不要去碰这些目标。
      */
     suspend fun proxyTo(host: String, port: Int): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             check(isRunning) { "tunnel not running" }
-            Tsnetlib.startProxy(host, port.toLong()).toInt()
+            val key = "${host.trim().lowercase()}:$port"
+            proxyCache[key]?.let { return@runCatching it }
+            Tsnetlib.startProxy(host.trim(), port.toLong()).toInt().also { proxyCache[key] = it }
         }.onFailure { AppLog.w(TAG, "proxy $host:$port failed: ${it.message}", it) }
     }
 
     suspend fun stopProxy(localPort: Int): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching { Tsnetlib.stopProxy(localPort.toLong()) }
-            .onFailure { AppLog.w(TAG, "stopProxy $localPort failed: ${it.message}", it) }
+        runCatching {
+            proxyCache.entries.removeIf { it.value == localPort }
+            Tsnetlib.stopProxy(localPort.toLong())
+        }.onFailure { AppLog.w(TAG, "stopProxy $localPort failed: ${it.message}", it) }
     }
 
-    /** 目标是否落在 tailnet 网段（100.64.0.0/10）。 */
+    /**
+     * 目标是否属于 Tailnet 路由范围：
+     * - Tailscale IPv4 CGNAT：`100.64.0.0/10`（`100.(64..127).(0..255).(0..255)`）
+     * - Tailscale IPv6 ULA：`fd7a:115c:a1e0::/48`
+     * - Tailscale MagicDNS 域名：`*.ts.net` 或 `*.beta.tailscale.net`
+     */
     fun isTailnetAddress(host: String): Boolean {
-        val parts = host.split('.')
+        val clean = host.trim().removeSurrounding("[", "]").trimEnd('.').lowercase()
+        if (clean.isEmpty()) return false
+        if (isTailnetMagicDnsHost(clean)) return true
+        if (clean.startsWith("fd7a:115c:a1e0:")) return true
+        val parts = clean.split('.')
         if (parts.size != 4) return false
         val a = parts[0].toIntOrNull() ?: return false
         val b = parts[1].toIntOrNull() ?: return false
-        return a == 100 && b in 64..127
+        val c = parts[2].toIntOrNull() ?: return false
+        val d = parts[3].toIntOrNull() ?: return false
+        return a == 100 && b in 64..127 && c in 0..255 && d in 0..255
     }
 
-    /** 同一目标复用已建的本地代理端口，避免每次连接都新建监听。 */
-    private val proxyCache = java.util.concurrent.ConcurrentHashMap<String, Int>()
 
     /**
-     * 同步版代理（供 JSch 这类阻塞 API 调用）：隧道未运行时返回 null。
+     * 同步版代理（供 JSch 与 OkHttp [TsnetSocketFactory] 调用）：隧道未运行时返回 null。
      */
     fun proxyToBlocking(host: String, port: Int): Int? {
         if (!isRunning) return null
-        val key = "$host:$port"
+        val cleanHost = host.trim().removeSurrounding("[", "]")
+        val key = "${cleanHost.lowercase()}:$port"
         proxyCache[key]?.let { return it }
         return runCatching {
-            Tsnetlib.startProxy(host, port.toLong()).toInt().also { proxyCache[key] = it }
+            Tsnetlib.startProxy(cleanHost, port.toLong()).toInt().also { proxyCache[key] = it }
         }.getOrNull()
     }
 
     /**
      * 把隧道能力接到 workspace 的 SSH 层（App 启动时调一次）。
-     * 只有「隧道在跑 + 目标是 tailnet 网段」才接管，其余一律原样放行。
+     * 只有「隧道在跑 + 目标是 tailnet 网段/域名」才接管，其余一律原样放行。
      */
     fun installSshRouter() {
         me.rerere.workspace.ssh.TunnelRouter.install { host, port ->
@@ -179,4 +228,10 @@ object TsnetBridge {
             }
         }
     }
+}
+
+/** 是否为 Tailnet MagicDNS 域名（供 DNS 层在隧道开启时合成占位地址交给 [TsnetSocketFactory] 拨号）。 */
+fun isTailnetMagicDnsHost(host: String): Boolean {
+    val clean = host.trim().trimEnd('.').lowercase()
+    return clean.endsWith(".ts.net") || clean.endsWith(".beta.tailscale.net")
 }

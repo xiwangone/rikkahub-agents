@@ -4181,4 +4181,19 @@
     <string name="setting_page_qq_group_2">RikkaHub 二群</string>
     <string name="setting_page_qq_group_3">RikkaHub 三群</string>
     <string name="setting_page_douyin_group_1">抖音一群</string>
+  <string name="setting_page_preferences_network_dns_title">应用内独立 DNS</string>
+  <string name="setting_page_preferences_network_dns_desc">支持 DoH、DoT 与自定义直连 DNS，配合引导 IP 绕开手机系统 DNS 劫持</string>
+  <string name="setting_page_preferences_network_dns_mode_system">跟随系统 DNS</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH 加密解析 (HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT 加密解析 (TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">自定义直连 DNS (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">公共 DNS 预设</string>
+  <string name="setting_page_preferences_network_dns_doh_url">DoH 服务端 URL</string>
+  <string name="setting_page_preferences_network_dns_dot_host">DoT 服务端主机 (默认 853 端口)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">自定义 DNS / 引导 Bootstrap IP</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">逗号分隔的 IP 地址，用于直连解析及 DoH/DoT 域名无劫持引导</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">解析失败时回退系统 DNS</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">同时解析 IPv6 (AAAA) 记录</string>
+  <string name="setting_page_preferences_network_dns_test_domain">测试域名</string>
+  <string name="setting_page_preferences_network_dns_test_success">解析成功 %1$s → %2$s (%3$d ms)</string>
 </resources>

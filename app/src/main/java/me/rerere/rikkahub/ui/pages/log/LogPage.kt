@@ -10,9 +10,10 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.material3.Card
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -22,19 +23,23 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
-import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalClipboard
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -42,10 +47,22 @@ import kotlinx.coroutines.launch
 import me.rerere.common.android.LogEntry
 import me.rerere.common.android.Logging
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.Share03
+import me.rerere.hugeicons.stroke.Text
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.JsonTree
+import me.rerere.rikkahub.ui.components.ui.PagerTab
+import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.rikkahub.utils.JsonInstantPretty
@@ -61,10 +78,13 @@ fun LogPage() {
 
 @Composable
 private fun LogPageContent() {
+    val context = LocalContext.current
     var logs by remember { mutableStateOf(Logging.getRecentLogs()) }
     var requestLoggingEnabled by remember { mutableStateOf(Logging.isRequestLoggingEnabled()) }
-    var selectedTab by remember { mutableStateOf(LogTab.Request) }
+    var appLogClearGeneration by remember { mutableIntStateOf(0) }
+    val pagerState = rememberPagerState { LogTab.entries.size }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val onAppTab = pagerState.currentPage == LogTab.App.ordinal
 
     Scaffold(
         topBar = {
@@ -72,13 +92,27 @@ private fun LogPageContent() {
                 title = { Text(stringResource(R.string.log_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {
+                    if (onAppTab) {
+                        IconButton(
+                            onClick = {
+                                shareAppLogs(context, AppLog.exportText(""))
+                            },
+                        ) {
+                            Icon(HugeIcons.Share03, stringResource(R.string.log_page_export))
+                        }
+                    }
                     IconButton(
                         onClick = {
-                            Logging.clear()
-                            logs = Logging.getRecentLogs()
+                            if (onAppTab) {
+                                AppLog.clear()
+                                appLogClearGeneration++
+                            } else {
+                                Logging.clear()
+                                logs = Logging.getRecentLogs()
+                            }
                         },
                     ) {
-                        Icon(HugeIcons.Delete01, null)
+                        Icon(HugeIcons.Delete01, stringResource(R.string.accessibility_clear_logs))
                     }
                 },
                 scrollBehavior = scrollBehavior,
@@ -88,57 +122,52 @@ private fun LogPageContent() {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
-        // 分类 Tab：请求 / 文本 / 应用
         Column(
-            modifier = Modifier.fillMaxSize().padding(contentPadding),
+            modifier =
+                Modifier
+                    .fillMaxSize()
+                    .padding(contentPadding),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                LogTab.entries.forEach { tab ->
-                    val selected = selectedTab == tab
-                    androidx.compose.material3.Surface(
-                        onClick = { selectedTab = tab },
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(50),
-                        color =
-                            if (selected) MaterialTheme.colorScheme.primary
-                            else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f),
-                        contentColor = if (selected) MaterialTheme.colorScheme.onPrimary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            stringResource(tab.labelRes),
-                            style = MaterialTheme.typography.labelMedium,
-                            modifier = Modifier.padding(vertical = 8.dp).fillMaxWidth(),
-                            textAlign = androidx.compose.ui.text.style.TextAlign.Center,
+            PagerTabs(
+                pagerState = pagerState,
+                tabs = LogTab.entries,
+                modifier = Modifier.padding(vertical = 4.dp),
+                contentPadding = PaddingValues(horizontal = 16.dp),
+            )
+
+            HorizontalPager(
+                state = pagerState,
+                modifier =
+                    Modifier
+                        .fillMaxWidth()
+                        .weight(1f),
+            ) { page ->
+                when (LogTab.entries[page]) {
+                    LogTab.Request -> {
+                        RequestLogList(
+                            logs = logs,
+                            requestLoggingEnabled = requestLoggingEnabled,
+                            onRequestLoggingChange = {
+                                requestLoggingEnabled = it
+                                Logging.setRequestLoggingEnabled(it)
+                            },
+                            modifier = Modifier.fillMaxSize(),
                         )
                     }
-                }
-            }
 
-            when (selectedTab) {
-                LogTab.Request -> {
-                    RequestLogList(
-                        logs = logs,
-                        requestLoggingEnabled = requestLoggingEnabled,
-                        onRequestLoggingChange = {
-                            requestLoggingEnabled = it
-                            Logging.setRequestLoggingEnabled(it)
-                        },
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
+                    LogTab.Text -> {
+                        TextLogList(
+                            logs = logs,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
 
-                LogTab.Text -> {
-                    TextLogList(
-                        logs = logs,
-                        modifier = Modifier.fillMaxSize(),
-                    )
-                }
-
-                LogTab.App -> {
-                    AppLogPage(onBack = {})
+                    LogTab.App -> {
+                        AppLogContent(
+                            clearGeneration = appLogClearGeneration,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
                 }
             }
         }
@@ -146,10 +175,17 @@ private fun LogPageContent() {
 }
 
 /** 日志分类 Tab */
-enum class LogTab(@StringRes val labelRes: Int) {
-    Request(me.rerere.rikkahub.R.string.log_tab_request),
-    Text(me.rerere.rikkahub.R.string.log_tab_text),
-    App(me.rerere.rikkahub.R.string.log_tab_app),
+enum class LogTab(
+    override val icon: ImageVector,
+    @StringRes val labelRes: Int,
+) : PagerTab {
+    Request(HugeIcons.ServerStack01, R.string.log_tab_request),
+    Text(HugeIcons.Text, R.string.log_tab_text),
+    App(HugeIcons.Bug01, R.string.log_tab_app),
+    ;
+
+    override val label: String
+        @Composable get() = stringResource(labelRes)
 }
 
 @Composable
@@ -170,19 +206,27 @@ private fun RequestLogList(
 
     LazyColumn(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
         contentPadding = PaddingValues(16.dp),
     ) {
         item {
-            RequestLoggingSwitchCard(
-                enabled = requestLoggingEnabled,
-                onEnabledChange = onRequestLoggingChange,
-            )
+            CardGroup(
+                modifier = Modifier.padding(bottom = 12.dp),
+            ) {
+                switchItem(
+                    checked = requestLoggingEnabled,
+                    onCheckedChange = onRequestLoggingChange,
+                    leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                    headlineContent = { Text(stringResource(R.string.log_page_record_requests)) },
+                    supportingContent = { Text(stringResource(R.string.log_page_record_requests_desc)) },
+                )
+            }
         }
 
-        items(requestLogs, key = { it.id }, contentType = { "request" }) { log ->
+        itemsIndexed(requestLogs, key = { _, it -> it.id }, contentType = { _, _ -> "request" }) { index, log ->
             RequestLogCard(
                 log = log,
+                shape = cardGroupItemShape(index, requestLogs.size),
+                modifier = Modifier.padding(bottom = if (index == requestLogs.lastIndex) 0.dp else 2.dp),
                 onClick = {
                     selectedLog = log
                     scope.launch { sheetState.show() }
@@ -207,75 +251,47 @@ private fun TextLogList(
     modifier: Modifier = Modifier,
 ) {
     var keyword by remember { mutableStateOf("") }
-    val textLogs = remember(logs, keyword) {
-        val kw = keyword.trim().lowercase(Locale.getDefault())
-        logs.filterIsInstance<LogEntry.TextLog>()
-            .sortedByDescending { it.timestamp }
-            .filter {
-                kw.isEmpty() ||
-                    it.tag.lowercase(Locale.getDefault()).contains(kw) ||
-                    it.message.lowercase(Locale.getDefault()).contains(kw)
-            }
-    }
+    val textLogs =
+        remember(logs, keyword) {
+            val kw = keyword.trim().lowercase(Locale.getDefault())
+            logs.filterIsInstance<LogEntry.TextLog>()
+                .sortedByDescending { it.timestamp }
+                .filter {
+                    kw.isEmpty() ||
+                        it.tag.lowercase(Locale.getDefault()).contains(kw) ||
+                        it.message.lowercase(Locale.getDefault()).contains(kw)
+                }
+        }
 
     Column(modifier = modifier) {
         OutlinedTextField(
             value = keyword,
             onValueChange = { keyword = it },
-            label = { Text(stringResource(R.string.log_page_search_hint)) },
+            placeholder = { Text(stringResource(R.string.log_page_search_hint)) },
+            leadingIcon = { Icon(HugeIcons.Search01, null) },
             singleLine = true,
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 4.dp),
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 4.dp),
         )
         Text(
             stringResource(R.string.log_page_log_count, textLogs.size),
-            style = MaterialTheme.typography.bodySmall,
+            style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 4.dp),
         )
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
             contentPadding = PaddingValues(16.dp),
         ) {
-            items(textLogs, key = { it.id }, contentType = { "text" }) { log ->
-                TextLogCard(log = log)
-            }
-        }
-    }
-}
-
-@Composable
-private fun RequestLoggingSwitchCard(
-    enabled: Boolean,
-    onEnabledChange: (Boolean) -> Unit,
-) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
-    ) {
-        Row(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(12.dp),
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            Column(modifier = Modifier.weight(1f)) {
-                Text(
-                    text = stringResource(R.string.log_page_record_requests),
-                    style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Bold,
-                )
-                Text(
-                    text = stringResource(R.string.log_page_record_requests_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+            itemsIndexed(textLogs, key = { _, it -> it.id }, contentType = { _, _ -> "text" }) { index, log ->
+                TextLogCard(
+                    log = log,
+                    shape = cardGroupItemShape(index, textLogs.size),
+                    modifier = Modifier.padding(bottom = if (index == textLogs.lastIndex) 0.dp else 2.dp),
                 )
             }
-            Switch(
-                checked = enabled,
-                onCheckedChange = onEnabledChange,
-            )
         }
     }
 }
@@ -283,19 +299,23 @@ private fun RequestLoggingSwitchCard(
 @Composable
 private fun RequestLogCard(
     log: LogEntry.RequestLog,
+    shape: Shape,
     onClick: () -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
-    Card(
+    Surface(
         modifier =
-            Modifier
+            modifier
                 .fillMaxWidth()
+                .clip(shape)
                 .clickable(onClick = onClick),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
-            modifier = Modifier.padding(12.dp),
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {
             Row(
@@ -360,8 +380,6 @@ private fun RequestLogCard(
 @Composable
 private fun RequestLogDetail(log: LogEntry.RequestLog) {
     val dateFormat = remember { SimpleDateFormat("yyyy-MM-dd HH:mm:ss.SSS", Locale.getDefault()) }
-    val clipboard = LocalClipboard.current
-    val scope = rememberCoroutineScope()
 
     SelectionContainer {
         LazyColumn(
@@ -433,7 +451,6 @@ private fun RequestLogDetail(log: LogEntry.RequestLog) {
                         fontWeight = FontWeight.Bold,
                         modifier = Modifier.padding(top = 8.dp),
                     )
-                    // 显示前兜底脱敏：即使旧记录 / 其他路径写入的日志包含明文 token 也不暴露
                     val maskedBody = remember(body) { LogRedactor.maskText(body) }
                     val jsonElement =
                         remember(maskedBody) {
@@ -506,7 +523,6 @@ private fun HeaderItem(
             color = MaterialTheme.colorScheme.primary,
         )
         Text(
-            // 输出前对敏感请求头（Authorization 等）兜底脱敏，避免明文 Bearer sk-xxx 暴露
             text = LogRedactor.maskHeader(key, value),
             style = MaterialTheme.typography.bodySmall,
             fontFamily = JetbrainsMono,
@@ -515,15 +531,20 @@ private fun HeaderItem(
 }
 
 @Composable
-private fun TextLogCard(log: LogEntry.TextLog) {
+private fun TextLogCard(
+    log: LogEntry.TextLog,
+    shape: Shape,
+    modifier: Modifier = Modifier,
+) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss", Locale.getDefault()) }
 
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
     ) {
         SelectionContainer {
-            Column(modifier = Modifier.padding(12.dp)) {
+            Column(modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.SpaceBetween,

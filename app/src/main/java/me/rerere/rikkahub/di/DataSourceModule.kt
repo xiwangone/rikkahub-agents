@@ -24,6 +24,7 @@ import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.data.network.HostOverrideDns
+import me.rerere.rikkahub.data.tunnel.TsnetSocketFactory
 import me.rerere.rikkahub.data.network.SettingsProxyAuthenticator
 import me.rerere.rikkahub.data.network.SettingsProxySelector
 import me.rerere.rikkahub.data.network.SettingsSocks5Authenticator
@@ -286,6 +287,7 @@ val dataSourceModule =
                 .proxySelector(SettingsProxySelector(settingsStore))
                 .proxyAuthenticator(SettingsProxyAuthenticator(settingsStore))
                 .dns(HostOverrideDns(settingsStore))
+                .socketFactory(TsnetSocketFactory())
                 .connectTimeout(20, TimeUnit.SECONDS)
                 .readTimeout(10, TimeUnit.MINUTES)
                 .writeTimeout(120, TimeUnit.SECONDS)

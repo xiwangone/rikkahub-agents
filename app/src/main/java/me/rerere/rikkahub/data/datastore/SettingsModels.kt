@@ -283,10 +283,32 @@ data class NetworkSetting(
     val tailscaleHostname: String = "rikkahub",
     /** WireGuard 配置（.conf 原文，手工粘贴）。 */
     val wireguardConfig: String = "",
+    // ── 应用内独立 DNS（绕过系统 DNS 劫持，支持 DoH / DoT / 自定义直连 DNS）──
+    /** 解析模式：system / doh / dot / custom。 */
+    val dnsMode: String = DNS_MODE_SYSTEM,
+    /** DoH 端点 URL（RFC 8484 application/dns-message）。 */
+    val dohUrl: String = DEFAULT_DOH_URL,
+    /** DoT 主机（支持 host 或 host:port，默认 853）。 */
+    val dotHost: String = DEFAULT_DOT_HOST,
+    /** 自定义直连 DNS 服务器与 DoH/DoT 引导 IP（逗号或空格分隔）。 */
+    val customDnsServers: String = DEFAULT_BOOTSTRAP_SERVERS,
+    /** 独立 DNS 全部失败时是否允许回退到系统 DNS。 */
+    val dnsFallbackToSystem: Boolean = true,
+    /** 是否同时解析 IPv6 (AAAA) 记录。 */
+    val dnsEnableIpv6: Boolean = false,
 ) {
     companion object {
         const val TUNNEL_TAILSCALE = "tailscale"
         const val TUNNEL_WIREGUARD = "wireguard"
+
+        const val DNS_MODE_SYSTEM = "system"
+        const val DNS_MODE_DOH = "doh"
+        const val DNS_MODE_DOT = "dot"
+        const val DNS_MODE_CUSTOM = "custom"
+
+        const val DEFAULT_DOH_URL = "https://dns.alidns.com/dns-query"
+        const val DEFAULT_DOT_HOST = "dns.alidns.com"
+        const val DEFAULT_BOOTSTRAP_SERVERS = "223.5.5.5, 119.29.29.29, 1.1.1.1, 8.8.8.8"
     }
 }
 

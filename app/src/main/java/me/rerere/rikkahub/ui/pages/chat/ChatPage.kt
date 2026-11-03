@@ -314,6 +314,26 @@ private fun ChatPageContent(
 ) {
     val sessionTotals by vm.sessionTotals.collectAsStateWithLifecycle()
     val lifetimeTotals by vm.lifetimeTotals.collectAsStateWithLifecycle()
+    val mergedTotals =
+        remember(lifetimeTotals, sessionTotals) {
+            lifetimeTotals?.let { lt ->
+                val input = maxOf(lt.inputTokens, sessionTotals.inputTokens)
+                val output = maxOf(lt.outputTokens, sessionTotals.outputTokens)
+                val cached = maxOf(lt.cachedTokens, sessionTotals.cachedTokens).coerceAtMost(input)
+                val cost = maxOf(lt.costUsd, sessionTotals.costUsd)
+                val count = maxOf(lt.turns, sessionTotals.messageCount)
+                me.rerere.rikkahub.costguards.TokenBudgetTracker.Totals(
+                    inputTokens = input,
+                    outputTokens = output,
+                    cachedTokens = cached,
+                    totalTokens = input + output,
+                    perMessageMax = sessionTotals.perMessageMax,
+                    messageCount = count,
+                    lastRequestHitPct = sessionTotals.lastRequestHitPct,
+                    costUsd = cost,
+                )
+            } ?: sessionTotals
+        }
     // 待发送队列长度：> 0 时输入区上方显示「待发送 N 条」
     val pendingQueue by vm.pendingQueue.collectAsStateWithLifecycle()
     val voiceState by vm.voiceSession.state.collectAsStateWithLifecycle()
@@ -646,6 +666,7 @@ private fun ChatPageContent(
                     vm.updateConversation(vm.conversation.value.copy(customSystemPrompt = newPrompt))
                     vm.saveConversationAsync()
                 },
+                sessionTotals = mergedTotals,
             )
         }
 

@@ -1,7 +1,5 @@
 package me.rerere.rikkahub.ui.components.ai
 
-import me.rerere.rikkahub.ui.components.message.formatCost
-import me.rerere.hugeicons.stroke.CoinsDollar
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
 import androidx.compose.animation.fadeIn
@@ -61,16 +59,13 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
-import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.composables.icons.lucide.ChevronDown
 import com.composables.icons.lucide.ChevronUp
@@ -92,11 +87,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.FullScreen
 import me.rerere.hugeicons.stroke.LockKey
-import me.rerere.hugeicons.stroke.Upload02
-import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.costguards.TokenBudgetTracker
@@ -124,8 +116,6 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.ui.hooks.ChatInputState
 import me.rerere.rikkahub.utils.SoundEffectPlayer
-import me.rerere.rikkahub.utils.formatK
-import me.rerere.rikkahub.utils.formatNumber
 import org.koin.compose.koinInject
 import kotlin.time.Duration.Companion.seconds
 import kotlin.uuid.Uuid
@@ -170,8 +160,6 @@ fun ChatInput(
     onSendClick: () -> Unit,
     onLongSendClick: () -> Unit,
 ) {
-    @Suppress("DEPRECATION") // 与项目现有 LocalClipboardManager 用法保持一致
-    val clipboardManager = LocalClipboardManager.current
     val toaster = LocalToaster.current
     val assistant = settings.resolveAssistantFor(conversationAssistantId)
     val settingsStore = koinInject<SettingsStore>()
@@ -367,15 +355,20 @@ fun ChatInput(
                         // 消息下方那行（本轮/上下文占用）不受影响，仍随压缩变化。
                         val mergedTotals =
                             lifetimeTotals?.let { lt ->
+                                val input = maxOf(lt.inputTokens, sessionTotals?.inputTokens ?: 0L)
+                                val output = maxOf(lt.outputTokens, sessionTotals?.outputTokens ?: 0L)
+                                val cached = maxOf(lt.cachedTokens, sessionTotals?.cachedTokens ?: 0L).coerceAtMost(input)
+                                val cost = maxOf(lt.costUsd, sessionTotals?.costUsd ?: 0.0)
+                                val count = maxOf(lt.turns, sessionTotals?.messageCount ?: 0)
                                 TokenBudgetTracker.Totals(
-                                    inputTokens = lt.inputTokens,
-                                    outputTokens = lt.outputTokens,
-                                    cachedTokens = lt.cachedTokens,
-                                    totalTokens = lt.inputTokens + lt.outputTokens,
+                                    inputTokens = input,
+                                    outputTokens = output,
+                                    cachedTokens = cached,
+                                    totalTokens = input + output,
                                     perMessageMax = sessionTotals?.perMessageMax ?: 0L,
-                                    messageCount = sessionTotals?.messageCount ?: 0,
+                                    messageCount = count,
                                     lastRequestHitPct = sessionTotals?.lastRequestHitPct ?: 0.0,
-                                    costUsd = lt.costUsd,
+                                    costUsd = cost,
                                 )
                             } ?: sessionTotals
                         Box(
@@ -630,26 +623,11 @@ private fun TextInputRow(
     // LocalContextGetResourceValueCall（只有 CI 的 Android Lint 能抓到）。
     val pasteLongTextAsFileMsg = stringResource(R.string.chat_input_paste_long_text_as_file)
 
-    @Suppress("DEPRECATION") // 与项目现有 LocalClipboardManager 用法保持一致
-    val clipboardManager = LocalClipboardManager.current
     val filesManager: FilesManager = koinInject()
     val assistant = settings.getCurrentAssistant()
     val quickMessages =
         remember(settings.quickMessages, assistant.quickMessageIds) {
             settings.getQuickMessagesOfAssistant(assistant)
-        }
-    val toolSurfaceEstimate =
-        remember(
-            assistant.localTools,
-            assistant.workspaceId,
-            assistant.enableMemory,
-            assistant.mcpServers,
-            settings.displaySetting.toolSurfaceTrimming,
-        ) {
-            estimateAssistantToolSurface(
-                assistant = assistant,
-                trimmingEnabled = settings.displaySetting.toolSurfaceTrimming,
-            )
         }
 
     Column(
@@ -835,147 +813,6 @@ keyboardOptions =
                     null
                 },
         )
-        // 显示累计 token 统计（底部输入栏）
-        if (sessionTotals != null && settings.displaySetting.showTokenUsage) {
-            var pendingSessionTotalsCopy by remember { mutableStateOf("") }
-            Row(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(horizontal = 4.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(4.dp),
-            ) {
-                Icon(
-                    imageVector = HugeIcons.Upload02,
-                    contentDescription = stringResource(R.string.stats_total_input),
-                    tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                    modifier = Modifier.size(12.dp),
-                )
-                // 复制用：保持原有缩写格式（用户指定，勿改）
-                val totalInput = sessionTotals.inputTokens.toInt().formatNumber()
-                val totalCached = sessionTotals.cachedTokens.toInt().formatNumber()
-                val totalOutput = sessionTotals.outputTokens.toInt().formatNumber()
-                // 展示用：不足 100 万按 K，达到 100 万进位到 M
-                val totalInputK = sessionTotals.inputTokens.formatK()
-                val totalOutputK = sessionTotals.outputTokens.formatK()
-                // 平均命中率：累计 cached / 累计 input
-                val avgPct =
-                    if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
-                        String.format(
-                            java.util.Locale.US,
-                            "%.1f%%",
-                            sessionTotals.cachedTokens.toDouble() / sessionTotals.inputTokens.toDouble() * 100.0,
-                        )
-                    } else {
-                        "0.0%"
-                    }
-                Text(
-                    text = stringResource(R.string.stats_format, totalInputK, avgPct, totalOutputK),
-                    style =
-                        MaterialTheme.typography.labelSmall.copy(
-                            color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                        ),
-                    // 占满剩余空间并允许收缩：文案较长时不会把后面的复制按钮挤出可视区
-                    modifier = Modifier.weight(1f, fill = false),
-                    // 允许两行：累计文案较长时不再被截断到"看不清后面"
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-                // 累计花费：仅当服务商上报 usage.cost 时显示
-                if (sessionTotals.costUsd > 0.0) {
-                    Icon(
-                        imageVector = HugeIcons.CoinsDollar,
-                        contentDescription = stringResource(R.string.accessibility_cost),
-                        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(12.dp),
-                    )
-                    Text(
-                        text = formatCost(sessionTotals.costUsd),
-                        style =
-                            MaterialTheme.typography.labelSmall.copy(
-                                color = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                            ),
-                    )
-                }
-                if (toolSurfaceEstimate.first > 0) {
-                    val toolTokensK = toolSurfaceEstimate.second.toLong().formatK()
-                    val toolSummaryMsg =
-                        stringResource(
-                            R.string.chat_input_tool_surface_summary,
-                            toolSurfaceEstimate.first,
-                            toolTokensK,
-                        )
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(2.dp),
-                        modifier =
-                            Modifier
-                                .clip(RoundedCornerShape(6.dp))
-                                .clickable {
-                                    toaster.show(
-                                        message = toolSummaryMsg,
-                                        duration = 2.seconds,
-                                        type = ToastType.Normal,
-                                    )
-                                }
-                                .padding(horizontal = 4.dp, vertical = 1.dp),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Tools,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f),
-                            modifier = Modifier.size(11.dp),
-                        )
-                        Text(
-                            text =
-                                stringResource(
-                                    R.string.chat_input_tool_surface_badge,
-                                    toolSurfaceEstimate.first,
-                                    toolTokensK,
-                                ),
-                            style =
-                                MaterialTheme.typography.labelSmall.copy(
-                                    color = MaterialTheme.colorScheme.tertiary.copy(alpha = 0.75f),
-                                ),
-                            maxLines = 1,
-                        )
-                    }
-                }
-                Box(
-                    modifier =
-                        Modifier
-                            .clickable(onClick = {
-                                // 对照本轮统计（NerdLine）复制格式：↑X tokens (Y cached · Z%) ↓W tokens
-                                val base =
-                                    if (sessionTotals.cachedTokens > 0 && sessionTotals.inputTokens > 0) {
-                                        "↑${totalInput} tokens (${totalCached} cached · ${avgPct}) ↓${totalOutput} tokens"
-                                    } else {
-                                        "↑${totalInput} tokens ↓${totalOutput} tokens"
-                                    }
-                                pendingSessionTotalsCopy =
-                                    if (sessionTotals.costUsd > 0.0) {
-                                        "$base · ${formatCost(sessionTotals.costUsd)}"
-                                    } else {
-                                        base
-                                    }
-                            })
-                            .padding(2.dp),
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.Copy01,
-                        contentDescription = stringResource(R.string.stats_copy_total),
-                        tint = MaterialTheme.colorScheme.secondary.copy(alpha = 0.5f),
-                        modifier = Modifier.size(14.dp),
-                    )
-                }
-                LaunchedEffect(pendingSessionTotalsCopy) {
-                    if (pendingSessionTotalsCopy.isNotEmpty()) {
-                        clipboardManager.setText(AnnotatedString(pendingSessionTotalsCopy))
-                    }
-                }
-            }
-        }
         if (isFullScreen) {
             FullScreenEditor(state = state) {
                 isFullScreen = false

@@ -10,6 +10,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import me.rerere.ai.core.TokenUsage
+import me.rerere.ai.core.sum
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.AskOption
 import me.rerere.ai.ui.AskQuestion
@@ -46,6 +47,8 @@ internal class BackendEventProcessor(
     private val sessionContext: BackendSessionContext,
 ) {
     private var usage: TokenUsage? = null
+    private var completedUsage: TokenUsage? = null
+    private var usageRequestCount = 0
     private var textStarted = false
     private var reasoningStarted = false
 
@@ -224,16 +227,29 @@ internal class BackendEventProcessor(
             "usage" -> {
                 val u = event.usage
                 if (u != null) {
+                    val prompt = u.promptTokens.toInt().coerceAtLeast(0)
+                    val completion = u.completionTokens.toInt().coerceAtLeast(0)
+                    val total = u.totalTokens.toInt().takeIf { it > 0 } ?: (prompt + completion)
                     val tokenUsage =
                         TokenUsage(
-                            promptTokens = u.promptTokens.toInt(),
-                            completionTokens = u.completionTokens.toInt(),
-                            cachedTokens = u.cacheHitTokens.toInt(),
-                            totalTokens = u.totalTokens.toInt(),
-                            cost = u.costUsd,
+                            promptTokens = prompt,
+                            completionTokens = completion,
+                            cachedTokens = u.cacheHitTokens.toInt().coerceIn(0, prompt),
+                            totalTokens = total,
+                            cost = u.costUsd ?: u.cost,
                         )
-                    usage = tokenUsage
-                    emit(StreamChunk.Usage(tokenUsage))
+                    usageRequestCount++
+                    val cumulative = completedUsage.sum(tokenUsage) ?: tokenUsage
+                    completedUsage = cumulative
+                    usage = cumulative
+                    emit(
+                        StreamChunk.Usage(
+                            usage = cumulative,
+                            lastUsage = tokenUsage,
+                            requestCount = usageRequestCount,
+                            latestUsageReported = true,
+                        ),
+                    )
                 }
             }
         }

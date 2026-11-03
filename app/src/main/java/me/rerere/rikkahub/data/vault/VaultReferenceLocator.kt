@@ -193,6 +193,7 @@ fun vaultDanglingRefsTool(
         checkName("Web 桥", settings.webBridgeCredentialRef.trim())
         checkText("Web Bridge 私钥路径", settings.webBridgePrivateKeyPath)
         checkText("全局代理密码", settings.networkSetting.proxyPassword)
+        checkText("Tailscale 认证密钥", settings.networkSetting.tailscaleAuthKey)
         checkText("Web 桥密码", settings.webBridgePassword)
         checkText("Web 服务访问密码", settings.webServerAccessPassword)
         val telegram = telegramBotPreferences.current()
@@ -325,6 +326,7 @@ fun vaultCredentialRefsTool(
 
         listOf(
             "全局代理密码" to settings.networkSetting.proxyPassword,
+            "Tailscale 认证密钥" to settings.networkSetting.tailscaleAuthKey,
             "Web 桥密码" to settings.webBridgePassword,
             "Web 服务访问密码" to settings.webServerAccessPassword,
             "Web Bridge 私钥路径" to settings.webBridgePrivateKeyPath,

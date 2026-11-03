@@ -40,7 +40,7 @@ object TunnelAutoStart {
             var retryIndex = 0
             while (true) {
                 // 用户没开（或已关、或启动失败回落）：静默待机 —— 不读配置、不建连。
-                if (!TsnetBridge.isRunning) {
+                if (!TsnetBridge.desiredRunning) {
                     retryIndex = 0
                     delay(HEALTH_POLL_MS)
                     continue
@@ -57,7 +57,7 @@ object TunnelAutoStart {
 
                 // 掉线或查询失败：先停再按退避重连（native 侧不接受重复 start）。
                 TsnetBridge.publish(TunnelState.Offline)
-                runCatching { TsnetBridge.stop() }
+                runCatching { TsnetBridge.resetForReconnect() }
                     .onFailure { AppLog.w(TAG, "reset before reconnect failed: ${it.message}", it) }
 
                 runCatching { settingsStore.awaitInitialized() }

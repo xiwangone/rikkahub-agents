@@ -17,12 +17,12 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.material3.Card
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
@@ -43,6 +43,7 @@ import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
@@ -55,7 +56,6 @@ import java.util.Locale
 @Composable
 fun StatsPage(vm: StatsVM = koinViewModel()) {
     val stats by vm.stats.collectAsStateWithLifecycle()
-
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     Scaffold(
@@ -83,19 +83,17 @@ fun StatsPage(vm: StatsVM = koinViewModel()) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = padding + PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+                contentPadding = padding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 item {
                     HeatmapCard(
                         conversationsPerDay = stats.conversationsPerDay,
-                        modifier = Modifier.padding(horizontal = 8.dp),
                     )
                 }
                 item {
                     StatsGrid(
                         stats = stats,
-                        modifier = Modifier.padding(horizontal = 8.dp),
                     )
                 }
             }
@@ -108,15 +106,20 @@ private fun HeatmapCard(
     conversationsPerDay: Map<LocalDate, Int>,
     modifier: Modifier = Modifier,
 ) {
-    Card(
+    Surface(
         modifier = modifier.fillMaxWidth(),
-        colors = CustomColors.cardColorsOnSurfaceContainer,
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text(stringResource(R.string.stats_page_heatmap_title), style = MaterialTheme.typography.titleMedium)
+            Text(
+                text = stringResource(R.string.stats_page_heatmap_title),
+                style = MaterialTheme.typography.titleSmallEmphasized,
+                color = MaterialTheme.colorScheme.primary,
+            )
 
             ChatHeatmap(conversationsPerDay = conversationsPerDay)
 
@@ -160,10 +163,8 @@ private fun ChatHeatmap(conversationsPerDay: Map<LocalDate, Int>) {
     val q3 = activeCounts.getOrElse((activeCounts.size * 0.75).toInt()) { 3 }
     val cellSize = 11.dp
     val cellSpacing = 2.dp
-    // Month label row height
     val monthLabelHeight = 14.dp
 
-    // Day-of-week labels (only Mon/Wed/Fri to save space, Sun=0)
     val dowLabels =
         listOf(
             "",
@@ -175,11 +176,9 @@ private fun ChatHeatmap(conversationsPerDay: Map<LocalDate, Int>) {
             "",
         )
 
-    // Shared scroll state so month labels + grid scroll together
     val scrollState = rememberScrollState(initial = Int.MAX_VALUE)
 
     Row(horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        // Fixed left column: spacer for month label row + DOW labels
         Column(
             modifier = Modifier.width(12.dp),
             verticalArrangement = Arrangement.spacedBy(cellSpacing),
@@ -202,12 +201,10 @@ private fun ChatHeatmap(conversationsPerDay: Map<LocalDate, Int>) {
             }
         }
 
-        // Scrollable area: month labels + heatmap grid share one scroll state
         Column(
             modifier = Modifier.horizontalScroll(scrollState),
             verticalArrangement = Arrangement.spacedBy(2.dp),
         ) {
-            // Month labels row
             Row(horizontalArrangement = Arrangement.spacedBy(cellSpacing)) {
                 for (weekIdx in 0 until numWeeks) {
                     val weekStart = startSunday.plusDays((weekIdx * 7).toLong())
@@ -242,7 +239,6 @@ private fun ChatHeatmap(conversationsPerDay: Map<LocalDate, Int>) {
                 }
             }
 
-            // Heatmap grid
             Row(horizontalArrangement = Arrangement.spacedBy(cellSpacing)) {
                 for (weekIdx in 0 until numWeeks) {
                     Column(verticalArrangement = Arrangement.spacedBy(cellSpacing)) {
@@ -276,10 +272,7 @@ private fun HeatmapCell(
     val color =
         when {
             alpha < 0f -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.3f)
-
-            // future
             alpha == 0f -> MaterialTheme.colorScheme.surfaceVariant
-
             else -> MaterialTheme.colorScheme.primary.copy(alpha = alpha)
         }
     Box(
@@ -298,10 +291,10 @@ private fun StatsGrid(
 ) {
     Column(
         modifier = modifier,
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             StatCard(
@@ -318,7 +311,7 @@ private fun StatsGrid(
             )
         }
         Row(
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             modifier = Modifier.fillMaxWidth(),
         ) {
             StatCard(
@@ -335,23 +328,25 @@ private fun StatsGrid(
             )
         }
         if (stats.totalCachedTokens > 0) {
-            StatCard(
+            Row(
+                horizontalArrangement = Arrangement.spacedBy(10.dp),
                 modifier = Modifier.fillMaxWidth(),
-                icon = HugeIcons.Zap,
-                label = stringResource(R.string.stats_page_cached_tokens),
-                value = formatTokens(stats.totalCachedTokens),
-            )
-            // Input tokens already include the cached ones, so the rate is the share of input
-            // served from cache. Surfacing it (issue #23) is what lets a user tell an unstable
-            // prompt prefix apart from an inherently expensive workload.
-            if (stats.totalPromptTokens > 0) {
-                val hit = stats.totalCachedTokens.coerceAtMost(stats.totalPromptTokens)
+            ) {
                 StatCard(
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.weight(1f),
                     icon = HugeIcons.Zap,
-                    label = stringResource(R.string.stats_page_cache_hit_rate),
-                    value = "${hit * 100 / stats.totalPromptTokens}%",
+                    label = stringResource(R.string.stats_page_cached_tokens),
+                    value = formatTokens(stats.totalCachedTokens),
                 )
+                if (stats.totalPromptTokens > 0) {
+                    val hit = stats.totalCachedTokens.coerceAtMost(stats.totalPromptTokens)
+                    StatCard(
+                        modifier = Modifier.weight(1f),
+                        icon = HugeIcons.Zap,
+                        label = stringResource(R.string.stats_page_cache_hit_rate),
+                        value = "${hit * 100 / stats.totalPromptTokens}%",
+                    )
+                }
             }
         }
         StatCard(
@@ -370,17 +365,16 @@ private fun StatCard(
     label: String,
     value: String,
 ) {
-    Card(modifier = modifier, colors = CustomColors.cardColorsOnSurfaceContainer) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
+    ) {
         Column(
             modifier = Modifier.padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(8.dp),
+            verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Icon(
-                imageVector = icon,
-                contentDescription = null,
-                tint = MaterialTheme.colorScheme.primary,
-                modifier = Modifier.size(20.dp),
-            )
+            CardGroupIcon(icon = icon)
             Text(
                 text = value,
                 style = MaterialTheme.typography.headlineSmall,

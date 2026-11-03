@@ -124,6 +124,8 @@ class BackendProvider(
         val reasoningSb = StringBuilder()
         val tools = mutableListOf<UIMessagePart.ServerTool>()
         var usage: TokenUsage? = null
+        var lastUsage: TokenUsage? = null
+        var requestCount = 1
 
         for (chunk in chunks) {
             when (chunk) {
@@ -159,7 +161,11 @@ class BackendProvider(
                     }
                 }
 
-                is StreamChunk.Usage -> usage = chunk.usage
+                is StreamChunk.Usage -> {
+                    usage = chunk.usage
+                    lastUsage = if (chunk.latestUsageReported) chunk.lastUsage ?: chunk.usage else null
+                    requestCount = maxOf(requestCount, chunk.requestCount)
+                }
                 else -> {}
             }
         }
@@ -178,9 +184,17 @@ class BackendProvider(
         return TextGenerationResult(
             id = UUID.randomUUID().toString(),
             model = params.model.modelId,
-            message = UIMessage(role = MessageRole.ASSISTANT, parts = parts, usage = usage),
+            message = UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = parts,
+                usage = usage,
+                lastUsage = lastUsage,
+                stepCount = if (usage != null) requestCount else 0,
+            ),
             finishReason = "stop",
             usage = usage,
+            lastUsage = lastUsage,
+            requestCount = requestCount,
         )
     }
 

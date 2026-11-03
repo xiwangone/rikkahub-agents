@@ -23,7 +23,10 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.TopAppBarDefaults
+import androidx.compose.ui.input.nestedscroll.nestedScroll
+import me.rerere.rikkahub.ui.theme.CustomColors
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -46,6 +49,8 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import androidx.compose.ui.platform.LocalResources
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultReferenceSync
@@ -124,9 +129,10 @@ fun VaultCredentialsPage() {
         )
     }
 
+    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     Scaffold(
         topBar = {
-            TopAppBar(
+            LargeFlexibleTopAppBar(
                 title = { Text(stringResource(R.string.vault_list_title, entries.size)) },
                 navigationIcon = { BackButton() },
                 actions = {
@@ -144,8 +150,12 @@ fun VaultCredentialsPage() {
                         Icon(HugeIcons.AddCircle, stringResource(R.string.vault_new))
                     }
                 },
+                scrollBehavior = scrollBehavior,
+                colors = CustomColors.topBarColors,
             )
         },
+        modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { padding ->
         if (entries.isEmpty()) {
             Column(
@@ -305,7 +315,8 @@ fun VaultCredentialsPage() {
                             }
                         }
                         if (collapsed) return@forEach
-                        sortedByOrder(grouped[group]!!).forEach { entry ->
+                        val groupList = sortedByOrder(grouped[group]!!)
+                        groupList.forEachIndexed { idx, entry ->
                             item(key = entry.id) {
                                 CredentialRow(
                                     entry = entry,
@@ -313,13 +324,15 @@ fun VaultCredentialsPage() {
                                     onRevealToggle = { toggleReveal(entry) },
                                     onEdit = { showEditor = EditorMode.Edit(entry) },
                                     onDelete = { deleteTarget = entry },
+                                    shape = cardGroupItemShape(idx, groupList.size),
                                 )
                             }
                         }
                     }
                 } else {
                     // 平铺：全库按 sortOrder 连排（默认最近更新在前），行内带组名小标
-                    sortedByOrder(filtered).forEach { entry ->
+                    val flatList = sortedByOrder(filtered)
+                    flatList.forEachIndexed { idx, entry ->
                         item(key = entry.id) {
                             CredentialRow(
                                 entry = entry,
@@ -327,7 +340,8 @@ fun VaultCredentialsPage() {
                                 onRevealToggle = { toggleReveal(entry) },
                                 onEdit = { showEditor = EditorMode.Edit(entry) },
                                 onDelete = { deleteTarget = entry },
-                            groupLabel = vaultGroupLabel(ctx, entry.grp),
+                                groupLabel = vaultGroupLabel(ctx, entry.grp),
+                                shape = cardGroupItemShape(idx, flatList.size),
                             )
                         }
                     }
@@ -338,6 +352,7 @@ fun VaultCredentialsPage() {
 
     // 新增/编辑 BottomSheet 弹窗
     val context = androidx.compose.ui.platform.LocalContext.current
+    val resources = LocalResources.current
     showEditor?.let { mode ->
         CredentialEditorDialog(
             mode = mode,
@@ -352,7 +367,7 @@ fun VaultCredentialsPage() {
                             if (repository.getByName(name) != null) {
                                 android.widget.Toast.makeText(
                                     context,
-                                    context.getString(R.string.vault_rename_target_exists),
+                                    resources.getString(R.string.vault_rename_target_exists),
                                     android.widget.Toast.LENGTH_LONG,
                                 ).show()
                                 return@launch
@@ -377,7 +392,7 @@ fun VaultCredentialsPage() {
                                 if (syncError is kotlinx.coroutines.CancellationException) throw syncError
                                 android.widget.Toast.makeText(
                                     context,
-                                    context.getString(
+                                    resources.getString(
                                         R.string.vault_rename_sync_failed,
                                         syncError.message?.let { " ($it)" }.orEmpty(),
                                     ),

@@ -77,8 +77,8 @@ fun SecretRefField(
     var notice by remember { mutableStateOf<String?>(null) }
     var visible by remember { mutableStateOf(false) }
 
-    LaunchedEffect(Unit) {
-        entries = runCatching { repository.getAll() }.getOrDefault(emptyList())
+    LaunchedEffect(showPicker) {
+        entries = runCatching { repository.getAll() }.getOrDefault(entries)
     }
 
     val isReference = value.startsWith(REF_PREFIX)
@@ -111,7 +111,18 @@ fun SecretRefField(
         isError = refMissing,
         singleLine = singleLine,
         maxLines = if (singleLine) 1 else maxLines,
-        visualTransformation = if (visible) VisualTransformation.None else PasswordVisualTransformation(),
+        visualTransformation = if (visible || isReference) VisualTransformation.None else PasswordVisualTransformation(),
+        leadingIcon = if (isReference) {
+            {
+                Icon(
+                    imageVector = HugeIcons.Key01,
+                    contentDescription = null,
+                    tint = if (refMissing) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+                )
+            }
+        } else {
+            null
+        },
         trailingIcon = {
             Row {
                 if (showVisibilityToggle) {

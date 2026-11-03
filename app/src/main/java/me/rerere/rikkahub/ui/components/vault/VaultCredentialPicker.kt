@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.vault
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -7,11 +8,16 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
@@ -19,18 +25,30 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.theme.CustomColors
 
 /** 「全部」筛选项：与类型标识一样用语言中立写法，避免为每种语言新增翻译。 */
 private const val FILTER_ALL = "all"
 
 /**
- * 凭证选择器：**搜索 + 按分组 / 按类型筛选**。
+ * 凭证选择器：**搜索 + 按分组 / 按类型筛选**（Material 3 Expressive 分段卡片样式）。
  *
  * 为什么需要：凭证条目增多后（数十条），各处"引用凭证"时靠记忆手输名字既慢又易错；
  * 统一用本选择器即可：输入关键词缩小范围，或按分组、按类型快速定位。
@@ -77,8 +95,16 @@ fun VaultCredentialPickerDialog(
                         value = query,
                         onValueChange = { query = it },
                         placeholder = { Text(stringResource(R.string.vault_search_hint)) },
+                        leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                        trailingIcon = {
+                            if (query.isNotEmpty()) {
+                                IconButton(onClick = { query = "" }) {
+                                    Icon(HugeIcons.Cancel01, contentDescription = null)
+                                }
+                            }
+                        },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().padding(bottom = 6.dp),
                     )
                 }
 
@@ -130,24 +156,94 @@ fun VaultCredentialPickerDialog(
                         text = "${filtered.size} / ${entries.size}",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(vertical = 4.dp),
                     )
                 }
 
                 items(filtered.size, key = { filtered[it].id }) { index ->
                     val entry = filtered[index]
-                    Column(modifier = Modifier.fillMaxWidth()) {
-                        TextButton(
-                            onClick = { onPick(entry) },
-                            modifier = Modifier.fillMaxWidth(),
+                    val shape = cardGroupItemShape(index, filtered.size)
+                    Surface(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(bottom = 2.dp)
+                            .clip(shape)
+                            .clickable { onPick(entry) },
+                        shape = shape,
+                        color = CustomColors.cardColors.containerColor,
+                    ) {
+                        Row(
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 12.dp, vertical = 10.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(10.dp),
                         ) {
-                            Text(entry.name)
-                        }
-                        if (entry.description.isNotBlank()) {
-                            Text(
-                                text = entry.description,
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                modifier = Modifier.padding(start = 12.dp, bottom = 4.dp),
+                            CardGroupIcon(
+                                icon = HugeIcons.Key01,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                modifier = Modifier.size(34.dp),
+                                iconSize = 18.dp,
+                            )
+                            Column(
+                                modifier = Modifier.weight(1f),
+                                verticalArrangement = Arrangement.spacedBy(2.dp),
+                            ) {
+                                Row(
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                ) {
+                                    Text(
+                                        text = entry.name,
+                                        style = MaterialTheme.typography.bodyMedium,
+                                        fontWeight = FontWeight.Medium,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                        modifier = Modifier.weight(1f, fill = false),
+                                    )
+                                    if (entry.grp.isNotBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(999.dp),
+                                            color = MaterialTheme.colorScheme.secondaryContainer,
+                                        ) {
+                                            Text(
+                                                text = vaultGroupLabelText(entry.grp),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                            )
+                                        }
+                                    }
+                                    if (entry.type.isNotBlank()) {
+                                        Surface(
+                                            shape = RoundedCornerShape(999.dp),
+                                            color = MaterialTheme.colorScheme.tertiaryContainer,
+                                        ) {
+                                            Text(
+                                                text = vaultTypeLabelText(entry.type),
+                                                style = MaterialTheme.typography.labelSmall,
+                                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                                modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
+                                            )
+                                        }
+                                    }
+                                }
+                                if (entry.description.isNotBlank()) {
+                                    Text(
+                                        text = entry.description,
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                            Icon(
+                                imageVector = HugeIcons.ArrowRight01,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.size(16.dp),
                             )
                         }
                     }

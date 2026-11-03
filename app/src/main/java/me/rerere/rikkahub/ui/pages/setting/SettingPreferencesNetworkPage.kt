@@ -1,25 +1,31 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -44,51 +50,68 @@ import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Refresh
+import me.rerere.hugeicons.stroke.Router
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.Shield01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.HostAddressOverride
+import me.rerere.rikkahub.data.datastore.NetworkSetting
+import me.rerere.rikkahub.data.network.AppDnsResolver
 import me.rerere.rikkahub.data.network.parseFixedAddress
 import me.rerere.rikkahub.data.network.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
-import androidx.compose.foundation.layout.width
-import androidx.compose.material3.Slider
-import androidx.compose.material3.Switch
-import kotlin.math.roundToInt
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import kotlin.math.roundToInt
 
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
+private const val DEFAULT_DNS_TEST_DOMAIN = "www.baidu.com"
 
 @Composable
 fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     val httpClient = koinInject<OkHttpClient>()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    var userAgent by remember(settings.networkSetting.userAgent) {
-        mutableStateOf(settings.networkSetting.userAgent)
+    val net = settings.networkSetting
+    var userAgent by remember(net.userAgent) {
+        mutableStateOf(net.userAgent)
     }
-    var proxyUrl by remember(settings.networkSetting.proxyUrl) {
-        mutableStateOf(settings.networkSetting.proxyUrl)
+    var proxyUrl by remember(net.proxyUrl) {
+        mutableStateOf(net.proxyUrl)
     }
-    var proxyUsername by remember(settings.networkSetting.proxyUsername) {
-        mutableStateOf(settings.networkSetting.proxyUsername)
+    var proxyUsername by remember(net.proxyUsername) {
+        mutableStateOf(net.proxyUsername)
     }
-    var proxyPassword by remember(settings.networkSetting.proxyPassword) {
-        mutableStateOf(settings.networkSetting.proxyPassword)
+    var proxyPassword by remember(net.proxyPassword) {
+        mutableStateOf(net.proxyPassword)
     }
     var proxyUrlDraft by remember { mutableStateOf("") }
     var proxyUsernameDraft by remember { mutableStateOf("") }
     var proxyPasswordDraft by remember { mutableStateOf("") }
     var proxyPasswordVisible by remember { mutableStateOf(false) }
     var proxyDialogVisible by remember { mutableStateOf(false) }
+
+    var dnsDialogVisible by remember { mutableStateOf(false) }
+    var dnsModeDraft by remember { mutableStateOf(NetworkSetting.DNS_MODE_SYSTEM) }
+    var dohUrlDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_DOH_URL) }
+    var dotHostDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_DOT_HOST) }
+    var customDnsDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS) }
+    var dnsFallbackDraft by remember { mutableStateOf(true) }
+    var dnsIpv6Draft by remember { mutableStateOf(false) }
+    var dnsTestDomain by remember { mutableStateOf(DEFAULT_DNS_TEST_DOMAIN) }
+    var dnsTesting by remember { mutableStateOf(false) }
+
     var hostOverrideDialogVisible by remember { mutableStateOf(false) }
     var hostOverrideDrafts by remember { mutableStateOf(emptyList<HostAddressOverride>()) }
     var hostOverrideHostDraft by remember { mutableStateOf("") }
@@ -126,6 +149,22 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         proxyUrlDraft = ""
         proxyUsernameDraft = ""
         proxyPasswordDraft = ""
+    }
+
+    fun saveDnsConfig() {
+        AppDnsResolver.invalidateCache()
+        vm.updateSettings { current ->
+            current.copy(
+                networkSetting = current.networkSetting.copy(
+                    dnsMode = dnsModeDraft,
+                    dohUrl = dohUrlDraft.trim().ifEmpty { NetworkSetting.DEFAULT_DOH_URL },
+                    dotHost = dotHostDraft.trim().ifEmpty { NetworkSetting.DEFAULT_DOT_HOST },
+                    customDnsServers = customDnsDraft.trim().ifEmpty { NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS },
+                    dnsFallbackToSystem = dnsFallbackDraft,
+                    dnsEnableIpv6 = dnsIpv6Draft,
+                ),
+            )
+        }
     }
 
     fun saveHostAddressOverrides(entries: List<HostAddressOverride>) {
@@ -179,6 +218,41 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         }
     }
 
+    fun testDns(targetSetting: NetworkSetting = net) {
+        if (dnsTesting) return
+        dnsTesting = true
+        scope.launch {
+            val result = withContext(Dispatchers.IO) {
+                runCatching {
+                    AppDnsResolver.testResolve(
+                        domain = dnsTestDomain.ifBlank { DEFAULT_DNS_TEST_DOMAIN },
+                        setting = targetSetting,
+                    )
+                }
+            }
+            result.onSuccess { outcome ->
+                toaster.show(
+                    resources.getString(
+                        R.string.setting_page_preferences_network_dns_test_success,
+                        outcome.domain,
+                        outcome.addresses.take(3).joinToString(", "),
+                        outcome.elapsedMs,
+                    ),
+                    type = ToastType.Success,
+                )
+            }.onFailure { error ->
+                toaster.show(
+                    resources.getString(
+                        R.string.backup_page_connection_failed,
+                        error.message.orEmpty(),
+                    ),
+                    type = ToastType.Error,
+                )
+            }
+            dnsTesting = false
+        }
+    }
+
     if (proxyDialogVisible) {
         AlertDialog(
             onDismissRequest = { proxyDialogVisible = false },
@@ -221,7 +295,6 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         label = { Text(stringResource(R.string.backup_page_username)) },
                         singleLine = true,
                     )
-                    // 统一为"引用 / 粘贴即入库"输入：默认不在此留存明文
                     SecretRefField(
                         value = proxyPasswordDraft,
                         onValueChange = { proxyPasswordDraft = it },
@@ -249,6 +322,190 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     enabled = !proxyUrlInvalid,
                 ) {
                     Text(stringResource(R.string.common_confirm))
+                }
+            },
+        )
+    }
+
+    if (dnsDialogVisible) {
+        val customServersInvalid = customDnsDraft.isNotBlank() &&
+            AppDnsResolver.parseServerList(customDnsDraft).isEmpty()
+        AlertDialog(
+            onDismissRequest = { dnsDialogVisible = false },
+            modifier = Modifier.imePadding(),
+            title = {
+                Text(stringResource(R.string.setting_page_preferences_network_dns_title))
+            },
+            text = {
+                Column(
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text(
+                        text = stringResource(R.string.setting_page_preferences_network_dns_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                    ) {
+                        listOf(
+                            NetworkSetting.DNS_MODE_SYSTEM to R.string.setting_page_preferences_network_dns_mode_system,
+                            NetworkSetting.DNS_MODE_DOH to R.string.setting_page_preferences_network_dns_mode_doh,
+                            NetworkSetting.DNS_MODE_DOT to R.string.setting_page_preferences_network_dns_mode_dot,
+                            NetworkSetting.DNS_MODE_CUSTOM to R.string.setting_page_preferences_network_dns_mode_custom,
+                        ).forEach { (modeKey, labelRes) ->
+                            FilterChip(
+                                selected = dnsModeDraft == modeKey,
+                                onClick = { dnsModeDraft = modeKey },
+                                label = { Text(stringResource(labelRes)) },
+                            )
+                        }
+                    }
+
+                    if (dnsModeDraft != NetworkSetting.DNS_MODE_SYSTEM) {
+                        Text(
+                            text = stringResource(R.string.setting_page_preferences_network_dns_presets),
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                        Row(
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                        ) {
+                            AppDnsResolver.PRESETS.forEach { preset ->
+                                val selected = when (dnsModeDraft) {
+                                    NetworkSetting.DNS_MODE_DOH -> dohUrlDraft.trim() == preset.dohUrl
+                                    NetworkSetting.DNS_MODE_DOT -> dotHostDraft.trim() == preset.dotHost
+                                    else -> customDnsDraft.trim() == preset.bootstrapIps
+                                }
+                                FilterChip(
+                                    selected = selected,
+                                    onClick = {
+                                        dohUrlDraft = preset.dohUrl
+                                        dotHostDraft = preset.dotHost
+                                        customDnsDraft = preset.bootstrapIps
+                                    },
+                                    label = { Text(preset.label) },
+                                )
+                            }
+                        }
+                    }
+
+                    if (dnsModeDraft == NetworkSetting.DNS_MODE_DOH) {
+                        OutlinedTextField(
+                            value = dohUrlDraft,
+                            onValueChange = { dohUrlDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(stringResource(R.string.setting_page_preferences_network_dns_doh_url))
+                            },
+                            placeholder = { Text(NetworkSetting.DEFAULT_DOH_URL) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            singleLine = true,
+                        )
+                    }
+
+                    if (dnsModeDraft == NetworkSetting.DNS_MODE_DOT) {
+                        OutlinedTextField(
+                            value = dotHostDraft,
+                            onValueChange = { dotHostDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(stringResource(R.string.setting_page_preferences_network_dns_dot_host))
+                            },
+                            placeholder = { Text(NetworkSetting.DEFAULT_DOT_HOST) },
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            singleLine = true,
+                        )
+                    }
+
+                    if (dnsModeDraft != NetworkSetting.DNS_MODE_SYSTEM) {
+                        OutlinedTextField(
+                            value = customDnsDraft,
+                            onValueChange = { customDnsDraft = it },
+                            modifier = Modifier.fillMaxWidth(),
+                            label = {
+                                Text(stringResource(R.string.setting_page_preferences_network_dns_custom_servers))
+                            },
+                            placeholder = { Text(NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS) },
+                            supportingText = {
+                                Text(
+                                    stringResource(
+                                        if (customServersInvalid) {
+                                            R.string.setting_page_preferences_network_host_overrides_invalid
+                                        } else {
+                                            R.string.setting_page_preferences_network_dns_custom_servers_desc
+                                        }
+                                    )
+                                )
+                            },
+                            isError = customServersInvalid,
+                            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                            singleLine = true,
+                        )
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_page_preferences_network_dns_fallback_system),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(
+                                checked = dnsFallbackDraft,
+                                onCheckedChange = { dnsFallbackDraft = it },
+                            )
+                        }
+
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.SpaceBetween,
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_page_preferences_network_dns_enable_ipv6),
+                                style = MaterialTheme.typography.bodyMedium,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Switch(
+                                checked = dnsIpv6Draft,
+                                onCheckedChange = { dnsIpv6Draft = it },
+                            )
+                        }
+                    }
+
+                    OutlinedTextField(
+                        value = dnsTestDomain,
+                        onValueChange = { dnsTestDomain = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = {
+                            Text(stringResource(R.string.setting_page_preferences_network_dns_test_domain))
+                        },
+                        placeholder = { Text(DEFAULT_DNS_TEST_DOMAIN) },
+                        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                        singleLine = true,
+                    )
+                }
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        saveDnsConfig()
+                        dnsDialogVisible = false
+                    },
+                    enabled = !customServersInvalid,
+                ) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { dnsDialogVisible = false }) {
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -285,7 +542,6 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                                 text = "${entry.host} → ${entry.address}",
                                 modifier = Modifier.weight(1f),
                             )
-                            // 逐条启用/禁用：固定 IP 暂时不可达时可以一键停用（回到系统解析），不必删掉重填。
                             Switch(
                                 checked = entry.enabled,
                                 onCheckedChange = { checked ->
@@ -370,7 +626,6 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        // 误触保护：草稿为空而已有配置时（多是把对话框打开后没动过直接点确定），保留原配置而不是清空。
                         val saved = vm.settings.value.networkSetting.hostAddressOverrides
                         saveHostAddressOverrides(
                             if (hostOverrideDrafts.isEmpty() && saved.isNotEmpty()) saved else hostOverrideDrafts,
@@ -416,6 +671,13 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     },
                 ) {
                     item(
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Refresh,
+                                containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                            )
+                        },
                         headlineContent = {
                             Text(stringResource(R.string.setting_page_preferences_network_auto_retry_desc))
                         },
@@ -511,6 +773,13 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             proxyPasswordVisible = false
                             proxyDialogVisible = true
                         },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Router,
+                                containerColor = MaterialTheme.colorScheme.secondaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                            )
+                        },
                         headlineContent = {
                             Text(stringResource(R.string.setting_page_config))
                         },
@@ -555,7 +824,86 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                 TunnelSettingSection(vm)
             }
             item {
-                val hostOverrides = settings.networkSetting.hostAddressOverrides
+                val dnsSummary = when (net.dnsMode) {
+                    NetworkSetting.DNS_MODE_DOH ->
+                        stringResource(R.string.setting_page_preferences_network_dns_mode_doh) +
+                            " · " + net.dohUrl.ifBlank { NetworkSetting.DEFAULT_DOH_URL }
+                    NetworkSetting.DNS_MODE_DOT ->
+                        stringResource(R.string.setting_page_preferences_network_dns_mode_dot) +
+                            " · " + net.dotHost.ifBlank { NetworkSetting.DEFAULT_DOT_HOST }
+                    NetworkSetting.DNS_MODE_CUSTOM ->
+                        stringResource(R.string.setting_page_preferences_network_dns_mode_custom) +
+                            " · " + net.customDnsServers.ifBlank { NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS }
+                    else -> stringResource(R.string.setting_page_preferences_network_dns_mode_system)
+                }
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_network_dns_title))
+                    },
+                ) {
+                    item(
+                        onClick = {
+                            dnsModeDraft = net.dnsMode
+                            dohUrlDraft = net.dohUrl
+                            dotHostDraft = net.dotHost
+                            customDnsDraft = net.customDnsServers
+                            dnsFallbackDraft = net.dnsFallbackToSystem
+                            dnsIpv6Draft = net.dnsEnableIpv6
+                            dnsDialogVisible = true
+                        },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Shield01,
+                                containerColor = if (net.dnsMode != NetworkSetting.DNS_MODE_SYSTEM) {
+                                    MaterialTheme.colorScheme.primaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.surfaceContainerHighest
+                                },
+                                contentColor = if (net.dnsMode != NetworkSetting.DNS_MODE_SYSTEM) {
+                                    MaterialTheme.colorScheme.onPrimaryContainer
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_dns_desc))
+                        },
+                        supportingContent = {
+                            Text(dnsSummary)
+                        },
+                        trailingContent = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        },
+                    )
+                    item(
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_provider_page_test_connection))
+                        },
+                        supportingContent = {
+                            Text(dnsTestDomain.ifBlank { DEFAULT_DNS_TEST_DOMAIN })
+                        },
+                        trailingContent = {
+                            TextButton(
+                                onClick = { testDns(net) },
+                                enabled = !dnsTesting,
+                            ) {
+                                if (dnsTesting) {
+                                    CircularProgressIndicator(
+                                        modifier = Modifier.size(18.dp),
+                                        strokeWidth = 2.dp,
+                                    )
+                                } else {
+                                    Text(stringResource(R.string.setting_provider_page_test))
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+            item {
+                val hostOverrides = net.hostAddressOverrides
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                     title = {
@@ -568,6 +916,13 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                             hostOverrideHostDraft = ""
                             hostOverrideAddressDraft = ""
                             hostOverrideDialogVisible = true
+                        },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.ServerStack01,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
                         },
                         headlineContent = {
                             Text(stringResource(R.string.setting_page_preferences_network_host_overrides_desc))

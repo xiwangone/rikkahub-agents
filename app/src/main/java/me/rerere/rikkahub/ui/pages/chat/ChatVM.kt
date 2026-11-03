@@ -117,8 +117,11 @@ class ChatVM(
                 old.messageNodes === new.messageNodes ||
                     (
                         old.messageNodes.size == new.messageNodes.size &&
-                            old.messageNodes.lastOrNull()?.currentMessage?.usage ==
-                            new.messageNodes.lastOrNull()?.currentMessage?.usage
+                            old.messageNodes.indices.all { i ->
+                                val a = old.messageNodes[i].currentMessage
+                                val b = new.messageNodes[i].currentMessage
+                                a.usage == b.usage && a.lastUsage == b.lastUsage && a.stepCount == b.stepCount
+                            }
                         )
             }
             .map { TokenBudgetTracker.aggregate(it) }

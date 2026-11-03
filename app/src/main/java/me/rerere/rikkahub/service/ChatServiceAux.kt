@@ -313,6 +313,9 @@ suspend fun ChatService.compressConversation(
                         messages = listOf(UIMessage.user(prompt)),
                         params = backgroundTextGenerationParams(model, conversationId),
                     )
+                result.usage?.let { compressUsage ->
+                    runCatching { settingsStore.accumulateConvUsage(conversationId.toString(), compressUsage) }
+                }
 
                 return result.message.toText()
                     ?.trim()
@@ -320,6 +323,7 @@ suspend fun ChatService.compressConversation(
                     ?: throw IllegalStateException("Failed to generate compressed summary")
             }
 
+            seedLifetimeUsageBeforeCompaction(conversationId, conversation)
             val chunks = splitMessages(messagesToCompress)
             AppLog.d(TAG, "压缩分块: messagesToCompress=${messagesToCompress.size} 块数=${chunks.size}（token 预算 6000/块）")
             val compressedSummaries =
@@ -375,35 +379,60 @@ suspend fun ChatService.compressConversation(
                 AppLog.w(TAG, "归档压缩历史失败: ${e.message}")
             }
 
-            // 记忆库联动：当启用记忆的助手完成多步工具调用链（>=3 次已执行工具）并触发压缩归档时，
-            // 自动提炼结构化工具执行轨迹写入 conditional 按需记忆层（不污染 core 常驻前缀缓存）。
-            runCatching {
-                val assistant = settings.getAssistantById(conversation.assistantId)
-                if (assistant?.enableMemory == true) {
-                    val traceDigest = buildAgentExecutionTraceDigest(conversation.title, messagesToCompress)
-                    if (traceDigest != null) {
-                        val scopeId =
-                            if (assistant.useGlobalMemory) {
-                                MemoryRepository.GLOBAL_MEMORY_ID
-                            } else {
-                                assistant.id.toString()
-                            }
-                        memoryRepository.addMemory(
-                            assistantId = scopeId,
-                            content = traceDigest,
-                            tier = MemoryRepository.TIER_CONDITIONAL,
-                        )
-                        AppLog.d(TAG, "已沉淀工具执行轨迹至 conditional 记忆: scope=$scopeId")
-                    }
-                }
-            }.onFailure { e ->
-                AppLog.w(TAG, "沉淀工具执行轨迹记忆失败: ${e.message}")
-            }
+            recordAgentTraceMemoryOnCompaction(settings, conversation, messagesToCompress)
 
             requireConversationUnchanged(conversationId, allMessages)
 
             saveConversation(conversationId, newConversation)
         }
+
+private suspend fun ChatService.seedLifetimeUsageBeforeCompaction(
+    conversationId: Uuid,
+    conversation: Conversation,
+) {
+    runCatching {
+        val preTotals = me.rerere.rikkahub.costguards.TokenBudgetTracker.aggregate(conversation)
+        settingsStore.ensureConvLifetimeBaseline(
+            conversationId.toString(),
+            me.rerere.rikkahub.costguards.LifetimeUsage(
+                inputTokens = preTotals.inputTokens,
+                cachedTokens = preTotals.cachedTokens,
+                outputTokens = preTotals.outputTokens,
+                turns = preTotals.messageCount,
+                costUsd = preTotals.costUsd,
+            ),
+        )
+    }
+}
+
+private suspend fun ChatService.recordAgentTraceMemoryOnCompaction(
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+    conversation: Conversation,
+    messagesToCompress: List<UIMessage>,
+) {
+    runCatching {
+        val assistant = settings.getAssistantById(conversation.assistantId)
+        if (assistant?.enableMemory == true) {
+            val traceDigest = buildAgentExecutionTraceDigest(conversation.title, messagesToCompress)
+            if (traceDigest != null) {
+                val scopeId =
+                    if (assistant.useGlobalMemory) {
+                        MemoryRepository.GLOBAL_MEMORY_ID
+                    } else {
+                        assistant.id.toString()
+                    }
+                memoryRepository.addMemory(
+                    assistantId = scopeId,
+                    content = traceDigest,
+                    tier = MemoryRepository.TIER_CONDITIONAL,
+                )
+                AppLog.d(TAG, "已沉淀工具执行轨迹至 conditional 记忆: scope=$scopeId")
+            }
+        }
+    }.onFailure { e ->
+        AppLog.w(TAG, "沉淀工具执行轨迹记忆失败: ${e.message}")
+    }
+}
 
 private fun buildAgentExecutionTraceDigest(
     conversationTitle: String,

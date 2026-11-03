@@ -4192,4 +4192,19 @@
     <string name="setting_page_qq_group_2">مجموعة RikkaHub 2</string>
     <string name="setting_page_qq_group_3">مجموعة RikkaHub 3</string>
     <string name="setting_page_douyin_group_1">مجموعة Douyin 1</string>
+  <string name="setting_page_preferences_network_dns_title">نظام DNS مستقل داخل التطبيق</string>
+  <string name="setting_page_preferences_network_dns_desc">تجاوز اختطاف DNS للنظام عبر DoH أو DoT أو DNS المخصص المباشر</string>
+  <string name="setting_page_preferences_network_dns_mode_system">اتباع DNS النظام</string>
+  <string name="setting_page_preferences_network_dns_mode_doh">DoH (DNS عبر HTTPS)</string>
+  <string name="setting_page_preferences_network_dns_mode_dot">DoT (DNS عبر TLS)</string>
+  <string name="setting_page_preferences_network_dns_mode_custom">DNS مباشر مخصص (UDP/TCP)</string>
+  <string name="setting_page_preferences_network_dns_presets">إعدادات مسبقة سريعة</string>
+  <string name="setting_page_preferences_network_dns_doh_url">عنوان URL لخدمة DoH</string>
+  <string name="setting_page_preferences_network_dns_dot_host">مضيف خادم DoT (منفذ 853)</string>
+  <string name="setting_page_preferences_network_dns_custom_servers">عناوين DNS المخصصة / Bootstrap IP</string>
+  <string name="setting_page_preferences_network_dns_custom_servers_desc">عناوين IP مفصولة بفواصل للاستعلام المباشر وتهيئة DoH/DoT</string>
+  <string name="setting_page_preferences_network_dns_fallback_system">الرجوع إلى DNS النظام عند الفشل</string>
+  <string name="setting_page_preferences_network_dns_enable_ipv6">استعلام سجلات IPv6 (AAAA)</string>
+  <string name="setting_page_preferences_network_dns_test_domain">نطاق الاختبار</string>
+  <string name="setting_page_preferences_network_dns_test_success">تم التحليل %1$s ← %2$s (%3$d مللي ثانية)</string>
 </resources>
