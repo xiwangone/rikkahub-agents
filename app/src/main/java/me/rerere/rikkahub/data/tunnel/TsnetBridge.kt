@@ -108,9 +108,28 @@ object TsnetBridge {
             publish(TunnelState.Connected(ip))
             AppLog.i(TAG, "tunnel up: ip=$ip")
             ip
-        }.onFailure {
-            publish(TunnelState.Failed(it.message ?: it::class.simpleName ?: "start failed"))
-            AppLog.w(TAG, "tunnel start failed: ${it.message}", it)
+        }.onFailure { e ->
+            // native 报 "already running" = 上一次 start 已成功、只是重连流程把 isRunning 重置了。
+            // 不能当失败处理：否则 isRunning 永久停在 false，proxyToBlocking() 会一律
+            // `if (!isRunning) return null` 放行直连，tailnet 目标（100.64.0.0/10）必然超时，
+            // 同时 UI 被 publish(Failed) 显示成"未连接"（隧道其实连着）。
+            // 以底层 status 为准恢复状态。
+            if (e.message?.contains("already running", ignoreCase = true) == true) {
+                val ip = runCatching { Tsnetlib.status() }.getOrNull()
+                    ?.trim()
+                    ?.removePrefix("connected")
+                    ?.trim()
+                    ?.takeIf { it.isNotEmpty() }
+                if (ip != null) {
+                    nodeIp = ip
+                    isRunning = true
+                    publish(TunnelState.Connected(ip))
+                    AppLog.i(TAG, "tunnel already running, state recovered: ip=$ip")
+                    return@onFailure
+                }
+            }
+            publish(TunnelState.Failed(e.message ?: e::class.simpleName ?: "start failed"))
+            AppLog.w(TAG, "tunnel start failed: ${e.message}", e)
         }
     }
 
