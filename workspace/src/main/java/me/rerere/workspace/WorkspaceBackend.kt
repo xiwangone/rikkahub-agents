@@ -100,7 +100,33 @@ data class WorkspaceLayout(
         path.removePrefix("$workspaceDir/").removePrefix(workspaceDir)
 
     fun isWritable(path: String): Boolean {
-        val normalized = path.trimEnd('/').ifBlank { "/" }
-        return writableRoots.any { root -> normalized == root || normalized.startsWith("$root/") }
+        // 先折叠 .. 与 . 再做前缀比对, 否则 "/root/../etc" 这类路径能通过 startsWith 检查
+        val normalized = normalizeWorkspacePath(path.trimEnd('/').ifBlank { "/" })
+        return writableRoots.any { root ->
+            val r = normalizeWorkspacePath(root)
+            normalized == r || normalized.startsWith("$r/")
+        }
     }
+}
+
+/**
+ * 按字面规范化执行环境内的绝对路径: 去掉多余的 / 与 ., 逐段解析 .., 不跟随软链。
+ *
+ * 审批闸门（[WorkspaceLayout.isWritable] 与 app 侧的 workspace 工具）在比较前必须
+ * 先经过这里, 否则 `/root/../etc` 这类路径可以绕过前缀检查跳过强制审批。
+ * 公开给 app 模块复用；ssh 后端内的 [me.rerere.workspace.ssh.normalizeAbsolute]
+ * 也委托到本函数，保证整条链路只有一种规范化语义。
+ */
+fun normalizeWorkspacePath(path: String): String {
+    require(path.startsWith("/")) { "Path must be absolute: $path" }
+    require(!path.contains('\u0000')) { "Path contains invalid character" }
+    val segments = ArrayDeque<String>()
+    path.split('/').forEach { segment ->
+        when (segment) {
+            "", "." -> Unit
+            ".." -> segments.removeLastOrNull()
+            else -> segments.addLast(segment)
+        }
+    }
+    return "/" + segments.joinToString("/")
 }

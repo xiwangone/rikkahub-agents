@@ -441,20 +441,7 @@ class SshWorkspaceBackend(
 }
 
 /** 按字面规范化绝对路径: 去掉 . 和多余的 /, 解析 .., 不跟随软链 */
-internal fun normalizeAbsolute(path: String): String {
-    val normalized = path.replace('\\', '/').trim()
-    require(normalized.startsWith("/")) { "Path must be absolute: $path" }
-    require(!normalized.contains('\u0000')) { "Path contains invalid character" }
-    val segments = ArrayDeque<String>()
-    normalized.split('/').forEach { segment ->
-        when (segment) {
-            "", "." -> Unit
-            ".." -> segments.removeLastOrNull()
-            else -> segments.addLast(segment)
-        }
-    }
-    return "/" + segments.joinToString("/")
-}
+internal fun normalizeAbsolute(path: String): String = normalizeWorkspacePath(path.replace('\\', '/').trim())
 
 private fun String.joinChild(name: String): String = if (this == "/") "/$name" else "$this/$name"
 

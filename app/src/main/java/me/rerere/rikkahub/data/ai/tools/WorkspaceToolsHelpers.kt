@@ -21,6 +21,7 @@ import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.normalizeWorkspacePath
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 
@@ -257,7 +258,8 @@ internal fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): S
     require(path.isNotBlank()) { "$name is required" }
     require(path.startsWith("/")) { "$name must be an absolute path inside Rootfs" }
     require(!path.contains('\u0000')) { "$name contains invalid character" }
-    return path
+    // 折叠 .. 与重复斜杠, 防止 "/rootfs/../etc" 绕过 isWritable 的前缀检查
+    return normalizeWorkspacePath(path)
 }
 
 // 免强制审批的可写安全区由工作区布局给出: 本地是文件区 + /tmp + /skills + /mnt/shared, 远程是工作区目录 + /tmp
