@@ -67,7 +67,7 @@ class GenerationForegroundService : Service() {
             ACTION_ACQUIRE -> {
                 val conversationId = intent.getStringExtra(EXTRA_CONVERSATION_ID)
                 if (conversationId == null) {
-                    finishForeground()
+                    stopSelf(startId)
                 } else {
                     activeConversations += conversationId
                     updateForegroundNotification()
@@ -76,10 +76,15 @@ class GenerationForegroundService : Service() {
 
             ACTION_RELEASE -> {
                 intent.getStringExtra(EXTRA_CONVERSATION_ID)?.let(activeConversations::remove)
-                if (activeConversations.isEmpty()) finishForeground() else updateForegroundNotification()
+                if (activeConversations.isEmpty()) {
+                    // 仅在无更新的 startId 排队时结束服务，避免并发 ACQUIRE 尚未执行 startForeground 就被提前终止导致崩溃
+                    stopSelf(startId)
+                } else {
+                    updateForegroundNotification()
+                }
             }
 
-            else -> finishForeground()
+            else -> stopSelf(startId)
         }
         return START_NOT_STICKY
     }

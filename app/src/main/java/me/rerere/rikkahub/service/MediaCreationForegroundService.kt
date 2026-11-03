@@ -83,9 +83,9 @@ class MediaCreationForegroundService : Service() {
 
     override fun onStartCommand(intent: Intent?, flags: Int, startId: Int): Int {
         when (intent?.action) {
-            ACTION_ACQUIRE -> acquire(intent)
-            ACTION_RELEASE -> release(intent)
-            else -> stopService()
+            ACTION_ACQUIRE -> handleAcquire(intent, startId)
+            ACTION_RELEASE -> handleRelease(intent, startId)
+            else -> stopSelf(startId)
         }
         return START_NOT_STICKY
     }
@@ -106,17 +106,17 @@ class MediaCreationForegroundService : Service() {
         stopService()
     }
 
-    private fun acquire(intent: Intent) {
-        val recordId = intent.getStringExtra(EXTRA_RECORD_ID) ?: return stopService()
-        val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: return stopService()
+    private fun handleAcquire(intent: Intent, startId: Int) {
+        val recordId = intent.getStringExtra(EXTRA_RECORD_ID) ?: return stopSelf(startId)
+        val sessionId = intent.getStringExtra(EXTRA_SESSION_ID) ?: return stopSelf(startId)
         activeRecords[recordId] = sessionId
         updateForegroundNotification()
     }
 
-    private fun release(intent: Intent) {
+    private fun handleRelease(intent: Intent, startId: Int) {
         intent.getStringExtra(EXTRA_RECORD_ID)?.let(activeRecords::remove)
         if (activeRecords.isEmpty()) {
-            stopService()
+            stopSelf(startId)
         } else {
             updateForegroundNotification()
         }

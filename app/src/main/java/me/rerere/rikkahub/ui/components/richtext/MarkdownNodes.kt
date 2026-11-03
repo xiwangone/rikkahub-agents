@@ -63,7 +63,9 @@ import androidx.compose.ui.unit.em
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import me.rerere.hugeicons.HugeIcons
@@ -369,8 +371,10 @@ internal fun TableNode(
             uri?.let {
                 scope.launch {
                     try {
-                        context.contentResolver.openOutputStream(it)?.use { outputStream ->
-                            outputStream.write(tableCsv.toByteArray())
+                        withContext(Dispatchers.IO) {
+                            context.contentResolver.openOutputStream(it)?.use { outputStream ->
+                                outputStream.write(tableCsv.toByteArray())
+                            }
                         }
                     } catch (e: IOException) {
                         // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞

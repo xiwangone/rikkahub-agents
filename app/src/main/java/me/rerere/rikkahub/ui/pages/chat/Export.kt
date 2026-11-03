@@ -254,14 +254,19 @@ fun ChatExportSheet(
                         uri?.let { selectedUri ->
                             scope.launch {
                                 try {
-                                    val jsonString =
-                                        context.contentResolver
-                                            .openInputStream(selectedUri)
-                                            ?.bufferedReader()
-                                            ?.use { it.readText() }
-                                    if (jsonString != null) {
-                                        val conversation = JsonInstant.decodeFromString<Conversation>(jsonString)
-                                        val newConversation = conversation.copy(id = kotlin.uuid.Uuid.random())
+                                    val newConversation =
+                                        withContext(Dispatchers.IO) {
+                                            val jsonString =
+                                                context.contentResolver
+                                                    .openInputStream(selectedUri)
+                                                    ?.bufferedReader()
+                                                    ?.use { it.readText() }
+                                            jsonString?.let {
+                                                JsonInstant.decodeFromString<Conversation>(it)
+                                                    .copy(id = kotlin.uuid.Uuid.random())
+                                            }
+                                        }
+                                    if (newConversation != null) {
                                         importRepo.insertConversation(newConversation)
                                         toaster.show(context.getString(R.string.export_import_success), type = ToastType.Success)
                                         onDismissRequest()
