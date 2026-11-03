@@ -127,7 +127,7 @@ internal fun ProviderConfigureGoogle(
                     context.contentResolver
                         .openInputStream(uri)
                         ?.bufferedReader()
-                        ?.readText()
+                        ?.use { it.readText() }
                         ?: return@rememberLauncherForActivityResult
                 val json = Json.parseToJsonElement(content).jsonObject
                 onEdit(

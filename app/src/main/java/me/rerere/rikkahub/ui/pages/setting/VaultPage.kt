@@ -39,7 +39,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.rikkahub.R
@@ -135,8 +137,10 @@ fun VaultPage() {
             if (uri != null) {
                 scope.launch {
                     runCatching {
-                        val text = if (auditExportFormat == "csv") AuditExporter.toCsv(shownAudit) else AuditExporter.toJson(shownAudit)
-                        context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                        withContext(Dispatchers.IO) {
+                            val text = if (auditExportFormat == "csv") AuditExporter.toCsv(shownAudit) else AuditExporter.toJson(shownAudit)
+                            context.contentResolver.openOutputStream(uri)?.use { it.write(text.toByteArray()) }
+                        }
                     }
                 }
             }
@@ -208,9 +212,11 @@ fun VaultPage() {
                             entries.mapNotNull { e ->
                                 repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
                             }
-                        val vaultJson = VaultExporter.exportWithGroups(backupPassword, plaintexts)
-                        context.contentResolver.openOutputStream(uri)?.use { out ->
-                            out.write(vaultJson.encodeToByteArray())
+                        withContext(Dispatchers.IO) {
+                            val vaultJson = VaultExporter.exportWithGroups(backupPassword, plaintexts)
+                            context.contentResolver.openOutputStream(uri)?.use { out ->
+                                out.write(vaultJson.encodeToByteArray())
+                            }
                         }
                         plaintexts.forEach { q ->
                             repository.logAccess(q.name, "backup", "backup")
@@ -231,11 +237,14 @@ fun VaultPage() {
                 val restoreFailedStr = context.getString(R.string.vault_backup_restore_failed)
                 scope.launch {
                     runCatching {
-                        val content =
-                            context.contentResolver.openInputStream(uri)?.use { input ->
-                                BufferedReader(InputStreamReader(input)).readText()
-                            } ?: ""
-                        val restored = VaultExporter.import(content, backupPassword)
+                        val restored =
+                            withContext(Dispatchers.IO) {
+                                val content =
+                                    context.contentResolver.openInputStream(uri)?.use { input ->
+                                        BufferedReader(InputStreamReader(input)).use { it.readText() }
+                                    } ?: ""
+                                VaultExporter.import(content, backupPassword)
+                            }
                         restored.forEach { q ->
                             // 名字统一规范化；且逐条容错——单条异常不应让整批恢复失败
                             runCatching {
@@ -287,14 +296,16 @@ fun VaultPage() {
                             entries.mapNotNull { e ->
                                 repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
                             }
-                        val output = when (exportFormat) {
-                            VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
-                            VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
-                            VaultFormats.FORMAT_LOADCREDS -> VaultExporter.toLoadCreds(plaintexts)
-                            else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
-                        }
-                        context.contentResolver.openOutputStream(uri)?.use { out ->
-                            out.write(output.encodeToByteArray())
+                        withContext(Dispatchers.IO) {
+                            val output = when (exportFormat) {
+                                VaultFormats.FORMAT_CSV -> VaultFormats.toCsv(plaintexts)
+                                VaultFormats.FORMAT_BITWARDEN -> VaultFormats.toBitwarden(plaintexts)
+                                VaultFormats.FORMAT_LOADCREDS -> VaultExporter.toLoadCreds(plaintexts)
+                                else -> VaultExporter.exportWithGroups(exportPassword, plaintexts)
+                            }
+                            context.contentResolver.openOutputStream(uri)?.use { out ->
+                                out.write(output.encodeToByteArray())
+                            }
                         }
                         plaintexts.forEach { q ->
                             repository.logAccess(q.name, "export", "export-$exportFormat")
@@ -314,9 +325,11 @@ fun VaultPage() {
                 scope.launch {
                     runCatching {
                         val content =
-                            context.contentResolver.openInputStream(uri)?.use { input ->
-                                BufferedReader(InputStreamReader(input)).readText()
-                            } ?: ""
+                            withContext(Dispatchers.IO) {
+                                context.contentResolver.openInputStream(uri)?.use { input ->
+                                    BufferedReader(InputStreamReader(input)).use { it.readText() }
+                                } ?: ""
+                            }
                         // 扩展名兜底用：优先取 SAF 显示名，取不到再退回 URI 末段
                         val displayName =
                             runCatching {

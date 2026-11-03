@@ -161,9 +161,14 @@ class DebugApiServer(
             // 固定读 files/logs 下最新的 *.log（FileLogSink 落盘处），固定目录无路径穿越
             val tail = runCatching {
                 logsDir?.listFiles()?.filter { it.isFile && it.extension == "log" }?.maxByOrNull { it.lastModified() }?.let { f ->
-                    val bytes = f.readBytes()
-                    val start = if (bytes.size > max) bytes.size - max else 0
-                    String(bytes, start, bytes.size - start)
+                    java.io.RandomAccessFile(f, "r").use { raf ->
+                        val len = raf.length()
+                        val readLen = minOf(len, max.toLong()).toInt()
+                        if (len > readLen) raf.seek(len - readLen)
+                        val buf = ByteArray(readLen)
+                        raf.readFully(buf)
+                        String(buf, Charsets.UTF_8)
+                    }
                 }
             }.getOrNull()
             audit("/debug/logs", call.request.local.remoteHost, HttpStatusCode.OK)
