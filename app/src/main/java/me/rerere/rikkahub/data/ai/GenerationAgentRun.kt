@@ -905,7 +905,10 @@ internal class GenerationAgentRun(
         // —— 既不等整轮跑完，也不打断正在执行的工具（能走到这个边界时工具都已收尾）。
         // ⚠ 只查不取：这里如果 drain，模型随后 stop 时消息会被吞没、永远没有回复
         //   （2026-10-27 那次修复踩的就是这个坑）；消费统一由 turn-end 派发做。
-        if (step.stepIndex > 0 && hasQueuedMessages()) {
+        // ⚠ 必须 `step.pendingTools.isEmpty()`：本轮刚发起的工具还没执行时不能停，
+        //   否则它会被标成 interrupted_before_execution（用户侧现象：工具卡「已拒绝 / 有打断提示」）。
+        //   用户口径：未完成不要打断 —— 工具全部跑完才收尾。
+        if (step.stepIndex > 0 && step.pendingTools.isEmpty() && hasQueuedMessages()) {
             AppLog.i(
                 TAG,
                 "generateText: queued message pending at step boundary #${step.stepIndex}; ending turn so it is sent as a new one",
