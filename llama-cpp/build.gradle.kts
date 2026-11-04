@@ -19,14 +19,15 @@ android {
             cmake {
                 // C++17 and RTTI/exceptions are required: common links nlohmann/json
                 // and a Jinja implementation, both of which throw.
+                // 注意不要加 -fvisibility=hidden：libllama / libllama-common 是共享库，
+                // 而 JNI 侧调用的 common_chat_* 等 C++ 符号没有显式导出标记，
+                // 隐藏后链接 llamajni 会直接报 undefined symbol。
                 cppFlags += listOf(
                     "-std=c++17",
                     "-fexceptions",
                     "-frtti",
                     "-ffunction-sections",
                     "-fdata-sections",
-                    "-fvisibility=hidden",
-                    "-fvisibility-inlines-hidden",
                 )
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
