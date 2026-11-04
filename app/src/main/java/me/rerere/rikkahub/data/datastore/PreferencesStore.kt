@@ -590,6 +590,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     transformLock.withLock {
                         if (settingsFlow.value.init || observedRevision == memoryRevision.get()) {
                             settingsFlow.value = decoded
+                            me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(decoded.networkSetting)
                         }
                         if (!settingsFlow.value.init) initialization.complete(Unit)
                     }
@@ -624,10 +625,12 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         val previous = settingsFlow.value
         memoryRevision.incrementAndGet()
         settingsFlow.value = settings
+        me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(settings.networkSetting)
         try {
             persistSettingsTo(dataStore, settings)
         } catch (failure: Throwable) {
             settingsFlow.value = previous
+            me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(previous.networkSetting)
             memoryRevision.incrementAndGet()
             throw failure
         }

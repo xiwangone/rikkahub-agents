@@ -4,6 +4,8 @@ import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import tsnetlib.Tsnetlib
@@ -75,8 +77,18 @@ object TsnetBridge {
     var nodeIp: String? = null
         private set
 
+    /**
+     * 是否正在建连握手期间。守护协程据此避让，不把进行中的首次连接误判成掉线重连。
+     */
+    @Volatile
+    var isConnecting: Boolean = false
+        private set
+
     /** 同一目标复用已建的本地代理端口，避免每次连接都新建监听。 */
     private val proxyCache = ConcurrentHashMap<String, Int>()
+
+    /** 串行化 start / stop / resetForReconnect：native 侧是单例，并发进入会互相踩状态。 */
+    private val lifecycleMutex = Mutex()
 
     /**
      * 启动隧道并等待拿到 tailnet IP。
@@ -84,52 +96,66 @@ object TsnetBridge {
      * @param controlURL 协调服务器地址，如 `https://login.example.com`；空串交给底层默认行为
      * @param authKey preauth key（`tskey-auth-...`）
      * @param hostname 节点在 tailnet 中显示的名字
+     * @param keepDesiredOnFailure 掉线自愈重连时传 true，保留 [desiredRunning] 以便后续退避周期继续重试
      */
     suspend fun start(
         context: Context,
         controlURL: String,
         authKey: String,
         hostname: String,
+        keepDesiredOnFailure: Boolean = false,
     ): Result<String> = withContext(Dispatchers.IO) {
-        desiredRunning = true
-        runCatching {
-            nodeIp?.takeIf { isRunning }?.let { return@runCatching it }
-            publish(TunnelState.Connecting)
-            proxyCache.clear()
-            Tsnetlib.touch() // 触发 native 库加载
-            val stateDir = File(context.filesDir, "tsnet").apply { mkdirs() }.absolutePath
-            // 必须在拉起 server 之前开始喂接口：Android 上 native 侧枚举不到任何接口，
-            // 网络监视要靠这里注册的快照回调才能启动。失败只记日志，不影响启动。
-            runCatching { TsnetPathMonitor.start(context) }
-                .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
-            val ip = Tsnetlib.start(controlURL, authKey, hostname, stateDir)
-            nodeIp = ip
-            isRunning = true
-            publish(TunnelState.Connected(ip))
-            AppLog.i(TAG, "tunnel up: ip=$ip")
-            ip
-        }.onFailure { e ->
-            // native 报 "already running" = 上一次 start 已成功、只是重连流程把 isRunning 重置了。
-            // 不能当失败处理：否则 isRunning 永久停在 false，proxyToBlocking() 会一律
-            // `if (!isRunning) return null` 放行直连，tailnet 目标（100.64.0.0/10）必然超时，
-            // 同时 UI 被 publish(Failed) 显示成"未连接"（隧道其实连着）。
-            // 以底层 status 为准恢复状态。
-            if (e.message?.contains("already running", ignoreCase = true) == true) {
-                val ip = runCatching { Tsnetlib.status() }.getOrNull()
-                    ?.trim()
-                    ?.removePrefix("connected")
-                    ?.trim()
-                    ?.takeIf { it.isNotEmpty() }
-                if (ip != null) {
+        lifecycleMutex.withLock {
+            desiredRunning = true
+            isConnecting = true
+            try {
+                runCatching {
+                    nodeIp?.takeIf { isRunning }?.let { return@runCatching it }
+                    publish(TunnelState.Connecting)
+                    proxyCache.clear()
+                    Tsnetlib.touch() // 触发 native 库加载
+                    val stateDir = File(context.filesDir, "tsnet").apply { mkdirs() }.absolutePath
+                    // 必须在拉起 server 之前开始喂接口：Android 上 native 侧枚举不到任何接口，
+                    // 网络监视要靠这里注册的快照回调才能启动。失败只记日志，不影响启动。
+                    runCatching { TsnetPathMonitor.start(context) }
+                        .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
+                    val ip = Tsnetlib.start(controlURL, authKey, hostname, stateDir)
                     nodeIp = ip
                     isRunning = true
                     publish(TunnelState.Connected(ip))
-                    AppLog.i(TAG, "tunnel already running, state recovered: ip=$ip")
-                    return@onFailure
+                    AppLog.i(TAG, "tunnel up: ip=$ip")
+                    ip
+                }.onFailure { e ->
+                    // native 报 "already running" = 上一次 start 已成功、只是重连流程把 isRunning 重置了。
+                    // 不能当失败处理：否则 isRunning 永久停在 false，proxyToBlocking() 会一律
+                    // `if (!isRunning) return null` 放行直连，tailnet 目标（100.64.0.0/10）必然超时，
+                    // 同时 UI 被 publish(Failed) 显示成"未连接"（隧道其实连着）。
+                    // 以底层 status 为准恢复状态。
+                    if (e.message?.contains("already running", ignoreCase = true) == true) {
+                        val ip = runCatching { Tsnetlib.status() }.getOrNull()
+                            ?.trim()
+                            ?.removePrefix("connected")
+                            ?.trim()
+                            ?.takeIf { it.isNotEmpty() }
+                        if (ip != null) {
+                            nodeIp = ip
+                            isRunning = true
+                            publish(TunnelState.Connected(ip))
+                            AppLog.i(TAG, "tunnel already running, state recovered: ip=$ip")
+                            return@onFailure
+                        }
+                    }
+                    // 用户主动开启且确实没连上：回落成"未开启"，守护协程不再空转重试；
+                    // 掉线自愈路径（keepDesiredOnFailure）保留期望状态，交给退避周期继续重试。
+                    if (!isRunning && !keepDesiredOnFailure) {
+                        desiredRunning = false
+                    }
+                    publish(TunnelState.Failed(e.message ?: e::class.simpleName ?: "start failed"))
+                    AppLog.w(TAG, "tunnel start failed: ${e.message}", e)
                 }
+            } finally {
+                isConnecting = false
             }
-            publish(TunnelState.Failed(e.message ?: e::class.simpleName ?: "start failed"))
-            AppLog.w(TAG, "tunnel start failed: ${e.message}", e)
         }
     }
 
@@ -145,22 +171,24 @@ object TsnetBridge {
 
     /** 用户主动停止隧道：清空期望状态并释放全部本地代理端口缓存。 */
     suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
-        desiredRunning = false
-        runCatching {
-            proxyCache.clear()
-            if (!isRunning) {
+        lifecycleMutex.withLock {
+            desiredRunning = false
+            runCatching {
+                proxyCache.clear()
+                if (!isRunning) {
+                    publish(TunnelState.Off)
+                    return@runCatching
+                }
+                // 先停探测，避免回调打到正在关闭的 server 上。
+                runCatching { TsnetPathMonitor.stop() }
+                    .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
+                Tsnetlib.stop()
+                isRunning = false
+                nodeIp = null
                 publish(TunnelState.Off)
-                return@runCatching
-            }
-            // 先停探测，避免回调打到正在关闭的 server 上。
-            runCatching { TsnetPathMonitor.stop() }
-                .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
-            Tsnetlib.stop()
-            isRunning = false
-            nodeIp = null
-            publish(TunnelState.Off)
-            AppLog.i(TAG, "tunnel stopped")
-        }.onFailure { AppLog.w(TAG, "tunnel stop failed: ${it.message}", it) }
+                AppLog.i(TAG, "tunnel stopped")
+            }.onFailure { AppLog.w(TAG, "tunnel stop failed: ${it.message}", it) }
+        }
     }
 
     /**
@@ -168,16 +196,18 @@ object TsnetBridge {
      * 仅停止已失效的 native 实例并清空旧本地代理端口缓存。
      */
     internal suspend fun resetForReconnect(): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            proxyCache.clear()
-            if (!isRunning) return@runCatching
-            runCatching { TsnetPathMonitor.stop() }
-                .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
-            Tsnetlib.stop()
-            isRunning = false
-            nodeIp = null
-            publish(TunnelState.Offline)
-        }.onFailure { AppLog.w(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
+        lifecycleMutex.withLock {
+            runCatching {
+                proxyCache.clear()
+                if (!isRunning) return@runCatching
+                runCatching { TsnetPathMonitor.stop() }
+                    .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
+                Tsnetlib.stop()
+                isRunning = false
+                nodeIp = null
+                publish(TunnelState.Offline)
+            }.onFailure { AppLog.w(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
+        }
     }
 
     /**

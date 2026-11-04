@@ -134,8 +134,8 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
                 )
                 if (matched.isNotEmpty()) {
                     val fmt = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss", Locale.getDefault()).withZone(ZoneId.systemDefault())
-                    put("firstAt", fmt.format(Instant.ofEpochMilli(matched.first().timestamp)))
-                    put("lastAt", fmt.format(Instant.ofEpochMilli(matched.last().timestamp)))
+                    put("firstAt", fmt.format(Instant.ofEpochMilli(matched.last().timestamp)))
+                    put("lastAt", fmt.format(Instant.ofEpochMilli(matched.first().timestamp)))
                 }
                 put("hint", "仅统计；默认不含 D 级（要详细传 level=D）；要具体行时带 keyword/level 再调用（limit 默认 50）")
             }.toString()
@@ -256,12 +256,20 @@ internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String 
  * 只含 I/W/E 级（D 级按设计不落盘）。支持 `lines`（尾部行数，默认 200，最大 2000）与 `keyword` 过滤。
  */
 internal fun fileLogsPayload(context: Context, params: JsonObject): String {
+    val level = params["level"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase(Locale.US)?.take(1)
+    val kind =
+        if (level == "D") {
+            me.rerere.rikkahub.data.log.FileLogSink.KIND_SSE
+        } else {
+            me.rerere.rikkahub.data.log.FileLogSink.KIND_APP
+        }
+    val maxDays = if (kind == me.rerere.rikkahub.data.log.FileLogSink.KIND_SSE) 1 else 7
     val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 2000)
-    val days = (params["days"]?.jsonPrimitive?.intOrNull ?: 7).coerceIn(1, 7)
+    val days = (params["days"]?.jsonPrimitive?.intOrNull ?: maxDays).coerceIn(1, maxDays)
     val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     val raw =
         me.rerere.rikkahub.data.log.FileLogSink.recentLines(
-            me.rerere.rikkahub.data.log.FileLogSink.KIND_APP,
+            kind,
             lines,
             days,
         )
@@ -271,7 +279,7 @@ internal fun fileLogsPayload(context: Context, params: JsonObject): String {
         } else {
             raw.lineSequence().filter { it.contains(keyword, ignoreCase = true) }.joinToString("\n")
         }
-    return if (filtered.isBlank()) "(no app log records on disk in the last $days day(s))" else filtered
+    return if (filtered.isBlank()) "(no $kind log records on disk in the last $days day(s))" else filtered
 }
 
 // ---------- get_build_info ----------

@@ -176,6 +176,7 @@ suspend fun ChatService.generateSuggestion(
                 ),
             )
         }.onFailure {
+            if (it is CancellationException) throw it
             // Suggestion generation is auxiliary — log only, don't push onto the
             // user-facing error stream (mirrors the generateTitle failure handling).
             AppLog.w(TAG, "generateSuggestion failed", it)

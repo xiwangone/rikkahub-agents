@@ -131,6 +131,38 @@ object AppDnsResolver {
     @Volatile
     private var lastConfigKey: String = ""
 
+    @Volatile
+    private var activeNetworkSetting: NetworkSetting = NetworkSetting()
+
+    fun updateNetworkSetting(setting: NetworkSetting) {
+        activeNetworkSetting = setting
+    }
+
+    /**
+     * 供非 OkHttp 调用方（如 JSch SSH 会话探测与直连）优先按当前应用内网络配置解析 IPv4 地址：
+     * 1. 用户配置的固定主机映射（`hostAddressOverrides`）；
+     * 2. 应用内独立 DNS（DoH / DoT / 自定义 DNS，绕过手机系统 DNS 劫持）。
+     * 未命中或未开启独立 DNS 时返回 null，由调用方继续走原有解析流程。
+     */
+    fun resolvePreferredIpv4(hostname: String): String? {
+        val cleanHost = hostname.trim()
+        if (cleanHost.isEmpty() || parseFixedAddress(cleanHost) != null) return null
+        val setting = activeNetworkSetting
+        val overrideIpv4 = setting.hostAddressOverrides
+            .asSequence()
+            .filter { it.enabled && it.host.trim().equals(cleanHost, ignoreCase = true) }
+            .mapNotNull { parseFixedAddress(it.address) }
+            .firstOrNull { it is java.net.Inet4Address }
+            ?.hostAddress
+        if (!overrideIpv4.isNullOrBlank()) return overrideIpv4
+        if (setting.dnsMode == NetworkSetting.DNS_MODE_SYSTEM) return null
+        return runCatching {
+            resolve(cleanHost, setting, fallbackDns = Dns { emptyList() })
+                .firstOrNull { it is java.net.Inet4Address }
+                ?.hostAddress
+        }.getOrNull()
+    }
+
     fun invalidateCache() {
         cache.clear()
     }

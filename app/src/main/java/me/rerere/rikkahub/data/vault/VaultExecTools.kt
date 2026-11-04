@@ -208,19 +208,25 @@ private suspend fun executeVaultSshSession(
     session.setConfig("ServerAliveInterval", "30")
     session.setConfig("ServerAliveCountMax", "3")
     session.connect(timeout * 1000)
-
-    if (isFirstConnect) {
-        session.hostKey?.let { hk ->
-            knownHostsFile.appendText("$host ${hk.type} ${hk.key}\n")
+    val (outBuf, errBuf, exit) =
+        try {
+            if (isFirstConnect) {
+                session.hostKey?.let { hk ->
+                    knownHostsFile.appendText("$host ${hk.type} ${hk.key}\n")
+                }
+            }
+            val channel = session.openChannel("exec") as ChannelExec
+            try {
+                channel.setCommand(withUtf8ConsoleEncoding(command, RemotePlatform.isWindowsServer(session.serverVersion)))
+                channel.connect()
+                val (oBuf, eBuf) = drainChannelStreams(channel, System.currentTimeMillis() + timeout * 1000L)
+                Triple(oBuf, eBuf, channel.exitStatus)
+            } finally {
+                runCatching { channel.disconnect() }
+            }
+        } finally {
+            runCatching { session.disconnect() }
         }
-    }
-
-    val channel = session.openChannel("exec") as ChannelExec
-    channel.setCommand(withUtf8ConsoleEncoding(command, RemotePlatform.isWindowsServer(session.serverVersion)))
-    channel.connect()
-    val (outBuf, errBuf) = drainChannelStreams(channel, System.currentTimeMillis() + timeout * 1000L)
-    val exit = channel.exitStatus
-    session.disconnect()
     val allSecrets = allVaultSecrets(repository)
     val stdout = SecretMasker.mask(outBuf.toString("UTF-8").trim(), allSecrets)
     val stderr = SecretMasker.mask(errBuf.toString("UTF-8").trim(), allSecrets)

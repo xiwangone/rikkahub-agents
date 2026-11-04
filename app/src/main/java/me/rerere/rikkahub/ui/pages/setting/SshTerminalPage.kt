@@ -161,15 +161,17 @@ fun SshTerminalPage(hostName: String) {
         scope.launch {
             withContext(Dispatchers.IO) {
                 val session = sessionRef.get() ?: return@withContext
+                var ch: com.jcraft.jsch.ChannelExec? = null
                 try {
-                    val ch = session.openChannel("exec") as com.jcraft.jsch.ChannelExec
-                    ch.setCommand(trimmed)
-                    ch.connect()
+                    val execChannel = session.openChannel("exec") as com.jcraft.jsch.ChannelExec
+                    ch = execChannel
+                    execChannel.setCommand(trimmed)
+                    execChannel.connect()
                     val buf = ByteArray(4096)
                     val outBuf = java.io.ByteArrayOutputStream()
                     val errBuf = java.io.ByteArrayOutputStream()
-                    val input = ch.inputStream
-                    val errIn = ch.errStream
+                    val input = execChannel.inputStream
+                    val errIn = execChannel.errStream
                     val deadline = System.currentTimeMillis() + 30000
                     while (System.currentTimeMillis() < deadline) {
                         while (input.available() > 0) {
@@ -180,19 +182,20 @@ fun SshTerminalPage(hostName: String) {
                             val n = errIn.read(buf)
                             if (n > 0) errBuf.write(buf, 0, n)
                         }
-                        if (ch.isClosed && input.available() <= 0 && errIn.available() <= 0) break
+                        if (execChannel.isClosed && input.available() <= 0 && errIn.available() <= 0) break
                         Thread.sleep(100)
                     }
                     val stdout = outBuf.toString("UTF-8").trim()
                     val stderr = errBuf.toString("UTF-8").trim()
                     if (stdout.isNotEmpty()) output += "$stdout\n"
                     if (stderr.isNotEmpty()) output += "stderr: $stderr\n"
-                    output += "[exit=${ch.exitStatus}]\n"
-                    ch.disconnect()
+                    output += "[exit=${execChannel.exitStatus}]\n"
                 } catch (e: JSchException) {
                     output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
                 } catch (e: IOException) {
                     output += appResources.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
+                } finally {
+                    runCatching { ch?.disconnect() }
                 }
             }
         }

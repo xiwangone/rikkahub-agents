@@ -42,6 +42,7 @@ class HostOverrideDns(
         parseFixedAddress(cleanHost)?.let { return listOf(it) }
 
         val networkSetting = settingsStore.settingsFlow.value.networkSetting
+        AppDnsResolver.updateNetworkSetting(networkSetting)
         val fixed = networkSetting.hostAddressOverrides
             .asSequence()
             .filter { it.enabled }

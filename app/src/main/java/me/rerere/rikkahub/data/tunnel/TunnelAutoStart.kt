@@ -39,8 +39,8 @@ object TunnelAutoStart {
             val resolver = CredentialResolver(vaultRepository)
             var retryIndex = 0
             while (true) {
-                // 用户没开（或已关、或启动失败回落）：静默待机 —— 不读配置、不建连。
-                if (!TsnetBridge.desiredRunning) {
+                // 用户没开（或已关、或启动失败回落）或正在建连握手：静默待机，不打断正在进行中的连接。
+                if (!TsnetBridge.desiredRunning || TsnetBridge.isConnecting) {
                     retryIndex = 0
                     delay(HEALTH_POLL_MS)
                     continue
@@ -81,6 +81,7 @@ object TunnelAutoStart {
                     controlURL = network.tailscaleControlUrl.trim(),
                     authKey = authKey,
                     hostname = network.tailscaleHostname.ifBlank { "rikkahub" },
+                    keepDesiredOnFailure = true,
                 )
                 if (result.isSuccess) {
                     retryIndex = 0

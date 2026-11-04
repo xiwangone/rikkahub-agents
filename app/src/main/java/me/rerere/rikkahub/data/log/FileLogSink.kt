@@ -97,7 +97,7 @@ object FileLogSink {
         runCatching { done.await(3, TimeUnit.SECONDS) }
     }
 
-    /** 读某类别最近 [days] 天的末尾 [maxLines] 行；日期和轮转文件均按时间顺序合并。 */
+    /** 读某类别最近 [days] 天的末尾 [maxLines] 行；从最新文件向旧文件按需倒序读取并恢复时间正序。 */
     fun recentLines(
         kind: String,
         maxLines: Int,
@@ -106,20 +106,15 @@ object FileLogSink {
         val dir = logsDir ?: return ""
         if (maxLines <= 0) return ""
         val dayCount = days.coerceIn(1, RETENTION_DAYS.toInt())
-        val collected = mutableListOf<String>()
         val today = LocalDate.now()
-        for (offset in dayCount - 1 downTo 0) {
-            val date = today.minusDays(offset.toLong()).format(fileDateFormatter)
-            val main = File(dir, "$kind-$date.log")
-            // rotate() 向 .N 推送最老文件，.1 最近，主文件最新。
-            val candidates = (maxFilesOf(kind) downTo 1).map { File(main.path + ".$it") } + main
-            for (file in candidates) {
-                if (file.exists()) {
-                    collected += runCatching { file.readLines() }.getOrDefault(emptyList())
-                }
+        val maxRotations = maxFilesOf(kind)
+        val candidateFiles =
+            (0 until dayCount).flatMap { offset ->
+                val date = today.minusDays(offset.toLong()).format(fileDateFormatter)
+                val main = File(dir, "$kind-$date.log")
+                listOf(main) + (1..maxRotations).map { File(main.path + ".$it") }
             }
-        }
-        return collected.takeLast(maxLines).joinToString("\n").trim()
+        return collectRecentLogLines(candidateFiles, maxLines)
     }
 
     private fun appendLineSync(
@@ -164,3 +159,49 @@ object FileLogSink {
         }
     }
 }
+
+private fun collectRecentLogLines(
+    filesNewestFirst: List<File>,
+    maxLines: Int,
+): String {
+    val chunksNewestFirst = mutableListOf<List<String>>()
+    var remaining = maxLines
+    for (file in filesNewestFirst) {
+        if (remaining <= 0) break
+        if (!file.exists()) continue
+        val tail = readFileTailLines(file, remaining)
+        if (tail.isNotEmpty()) {
+            chunksNewestFirst.add(tail)
+            remaining -= tail.size
+        }
+    }
+    if (chunksNewestFirst.isEmpty()) return ""
+    return chunksNewestFirst.asReversed().flatten().takeLast(maxLines).joinToString("\n").trim()
+}
+
+private fun readFileTailLines(
+    file: File,
+    maxLines: Int,
+): List<String> =
+    runCatching {
+        val len = file.length()
+        if (len <= 0L || maxLines <= 0) return@runCatching emptyList()
+        if (len <= 64L * 1024L) {
+            return@runCatching file.readLines().takeLast(maxLines)
+        }
+        java.io.RandomAccessFile(file, "r").use { raf ->
+            val windowBytes = minOf(len, maxOf(64L * 1024L, maxLines.toLong() * 512L))
+            val startOffset = len - windowBytes
+            raf.seek(startOffset)
+            val buf = ByteArray(windowBytes.toInt())
+            raf.readFully(buf)
+            val lines = String(buf, Charsets.UTF_8).lines()
+            val completeLines = if (startOffset > 0L && lines.size > 1) lines.drop(1) else lines
+            val nonEmpty = if (completeLines.lastOrNull()?.isEmpty() == true) completeLines.dropLast(1) else completeLines
+            if (nonEmpty.size >= maxLines || startOffset == 0L) {
+                nonEmpty.takeLast(maxLines)
+            } else {
+                file.readLines().takeLast(maxLines)
+            }
+        }
+    }.getOrDefault(emptyList())

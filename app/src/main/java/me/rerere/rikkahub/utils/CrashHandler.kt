@@ -81,7 +81,7 @@ object CrashHandler {
     ) {
         val dir = context.getDir("crash", Context.MODE_PRIVATE)
         dir.mkdirs()
-        val appLogTail = me.rerere.rikkahub.data.log.AppLog.getLogs().takeLast(50).joinToString("\n") {
+        val appLogTail = me.rerere.rikkahub.data.log.AppLog.getLogs().take(50).asReversed().joinToString("\n") {
             java.text.SimpleDateFormat("HH:mm:ss.SSS", java.util.Locale.getDefault()).format(it.timestamp) +
                 " ${it.level} ${it.tag}: ${it.message}"
         }

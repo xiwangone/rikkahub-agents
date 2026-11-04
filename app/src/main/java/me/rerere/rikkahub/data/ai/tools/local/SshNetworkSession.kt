@@ -58,6 +58,11 @@ private fun resolveToIPv4(host: String, context: Context? = null): SshResolution
         AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $cached (dns cache hit)")
         return SshResolution(cached)
     }
+    me.rerere.rikkahub.data.network.AppDnsResolver.resolvePreferredIpv4(host)?.let { preferredIp ->
+        sshDnsCache.put(host, preferredIp)
+        AppLog.i(TAG_SSH, "resolveToIPv4: $host -> $preferredIp (via AppDnsResolver)")
+        return SshResolution(preferredIp)
+    }
     return runCatching {
         val addrs = InetAddress.getAllByName(host)
         // Already a literal IP (v4 or v6)? getAllByName returns it as-is and the printed

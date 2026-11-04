@@ -223,7 +223,7 @@ private fun diagnosticsParameters(): InputSchema =
             })
             put("level", buildJsonObject {
                 put("type", "string")
-                put("description", "logs only: level filter D / I / W / E; omit to exclude verbose D (I/W/E only).")
+                put("description", "logs only: level filter D / I / W / E; omit to exclude verbose D (I/W/E only). logs_file only: level=D reads the detailed SSE log (sse-*.log, 1-day retention) because app-level D lines are never persisted; any other value reads the app log.")
             })
             put("keyword", buildJsonObject {
                 put("type", "string")
@@ -255,7 +255,7 @@ private fun diagnosticsParameters(): InputSchema =
             })
             put("days", buildJsonObject {
                 put("type", "integer")
-                put("description", "logs_file only: include this many most recent calendar days (default 7; maximum 7, matching disk retention).")
+                put("description", "logs_file only: include this many most recent calendar days (default 7; maximum 7, matching disk retention; with level=D the SSE log keeps 1 day, so maximum 1).")
             })
             put("which", buildJsonObject {
                 put("type", "string")

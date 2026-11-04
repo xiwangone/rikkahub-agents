@@ -121,6 +121,13 @@ internal class GenerationAgentRun(
 
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
+
+    /**
+     * 预算耗尽后进入的收尾轮：不向模型挂任何工具，只能产出一段文字总结。
+     * 否则模型可能在这一轮再次发起工具调用（长任务尤其容易），下一次步边界就被硬 Stop，
+     * 用户依旧拿不到任何收尾文字。
+     */
+    private var wrapUpTerminalStep = false
     private var tokenBudgetWarnInjected = false
     private var autoContinueCount = 0
     private var imageDowngradeApplied = false
@@ -402,6 +409,9 @@ internal class GenerationAgentRun(
         }
         outputTransformCache.clear()
 
+        // 收尾轮不挂工具：预算已耗尽（或进入宽限窗口），这一轮只允许产出一段文字收尾。
+        val stepTools = if (wrapUpTerminalStep) emptyList() else tools
+
         // Tool execution can finish after beforeStep has already run. Flush at the
         // final boundary before asking the provider for the next step.
         flushPendingOutput()
@@ -433,7 +443,7 @@ internal class GenerationAgentRun(
             } else {
                 ""
             }
-            val toolPrompts = tools.map { tool -> tool.systemPrompt(model, messages) }
+            val toolPrompts = stepTools.map { tool -> tool.systemPrompt(model, messages) }
             val (stableSystem, volatileSystem) = systemPromptBuilder.buildSections(
                 assistantPrompt = effectiveSystemPrompt,
                 memoryPrompt = memoryPrompt,
@@ -451,7 +461,7 @@ internal class GenerationAgentRun(
                     addendum = systemAddendum?.length ?: 0,
                     stable = stableSystem.length,
                     volatile = volatileSystem.length,
-                    toolCount = tools.size,
+                    toolCount = stepTools.size,
                     atMs = System.currentTimeMillis(),
                 ),
             )
@@ -479,7 +489,7 @@ internal class GenerationAgentRun(
             conversationLorebookIds = conversationLorebookIds,
             processingStatus = processingStatus,
             workspaceCwd = workspaceCwd,
-            hasReadableFileTool = tools.any { it.name in FILE_READ_TOOL_NAMES },
+            hasReadableFileTool = stepTools.any { it.name in FILE_READ_TOOL_NAMES },
         )
 
         val params = TextGenerationParams(
@@ -490,7 +500,7 @@ internal class GenerationAgentRun(
             presencePenalty = assistant.presencePenalty,
             maxTokens = assistant.maxTokens,
             maxStreamRetries = maxStreamRetries,
-            tools = tools,
+            tools = stepTools,
             reasoningLevel = assistant.reasoningLevel,
             customHeaders = buildList {
                 addAll(assistant.customHeaders)
@@ -835,6 +845,7 @@ internal class GenerationAgentRun(
             val remainingBudgetMs = ToolRuntimeLimits.turnBudgetMs - elapsedMs
             if (remainingBudgetMs in 1..WRAP_UP_GRACE_MS && !wrapUpInjected) {
                 wrapUpInjected = true
+                wrapUpTerminalStep = true
                 AppLog.w(TAG, "generateText: turn budget nearly exhausted (${remainingBudgetMs}ms left); injecting wrap-up reminder")
                 messages += UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
                 return StepDecision.Append(
@@ -842,6 +853,18 @@ internal class GenerationAgentRun(
                 )
             }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
+                // 预算已耗尽：步边界是按步采样的，一次长工具执行就可能整段跨过 120s 宽限窗口，
+                // 此时若直接 Stop，用户看到的是一次没有任何总结的硬切断。这里补一次收尾生成机会，
+                // 且整轮只补一次（wrapUpInjected 已置位时不再续命）。
+                if (!wrapUpInjected) {
+                    wrapUpInjected = true
+                    wrapUpTerminalStep = true
+                    AppLog.w(TAG, "generateText: turn budget exhausted at step #${step.stepIndex}; injecting wrap-up reminder for a final reply")
+                    messages += UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
+                    return StepDecision.Append(
+                        UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
+                    )
+                }
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #${step.stepIndex}; force-ending turn")
                 runCtx.abortReason = GenerationOutcome.TIMEOUT
                 return StepDecision.Stop(AgentFinishReason.BudgetExhausted(AgentFinishReason.Kind.WALL_CLOCK))

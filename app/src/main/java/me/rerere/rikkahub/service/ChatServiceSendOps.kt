@@ -324,6 +324,8 @@ internal suspend fun ChatService.tryFastPathRoute(
                     }
                 // Fall back to raw text if formatter throws or produces nothing.
                 formatted?.takeIf { it.isNotBlank() } ?: rawText
+            } catch (ce: CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w("FastPathRouter", "tool ${match.toolName} threw, falling back to LLM", t)
                 me.rerere.rikkahub.skills.FastPathRouterLog.record(

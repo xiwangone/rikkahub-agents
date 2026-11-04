@@ -181,11 +181,10 @@ class BackendWebBridge(
                     AppLog.d(TAG, "[jsch] $message")
                 }
             })
-            val session: Session = jsch.getSession(ecsUser, ecsHost, ecsPort)
-            if (vaultPassword != null) {
-                session.setPassword(vaultPassword)
-            } else if (password.isNotBlank()) {
-                session.setPassword(password)
+            val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(ecsHost, ecsPort)
+            val session: Session = jsch.getSession(ecsUser, dialHost, dialPort).apply {
+                setHostKeyAlias(ecsHost)
+                (vaultPassword ?: password.takeIf { it.isNotBlank() })?.let(::setPassword)
             }
             // 非交互：接受 host key（首次连接；生产应校验指纹）
             session.setConfig("StrictHostKeyChecking", "no")
