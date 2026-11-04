@@ -16,9 +16,10 @@ class SettingVM(
     private val settingsStore: SettingsStore,
     private val mcpManager: McpManager,
 ) : ViewModel() {
-    val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow
-            .stateIn(viewModelScope, SharingStarted.Lazily, Settings(init = true, providers = emptyList()))
+    // settingsFlow 本身已经是 StateFlow，且首帧就有磁盘值；再包一层 stateIn 会把初值变成
+    // Settings(init = true)（全默认：头像为空、开关全默认），页面首帧就会拿它渲染，
+    // 并且点击时拿这份默认快照整体写回，把头像与自定义设置覆盖掉。直接透传。
+    val settings: StateFlow<Settings> = settingsStore.settingsFlow
 
     /**
      * 快捷入口解析结果：稳定流（有变动才变），卡片不再随任何无关设置写入而重建/消失。
