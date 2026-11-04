@@ -77,6 +77,7 @@ import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
 import me.rerere.rikkahub.ui.context.LocalNavController
+import me.rerere.rikkahub.ui.context.LocalActivityResultRegistryOrNull
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.Navigator
 import me.rerere.rikkahub.ui.modifier.onClick
@@ -125,22 +126,29 @@ fun HighlightCodeBlock(
     val autoWrap = settings.displaySetting.codeBlockAutoWrap
     val showLineNumbers = settings.displaySetting.showLineNumbers
 
-    val createDocumentLauncher =
-        rememberLauncherForActivityResult(
-            contract = ActivityResultContracts.CreateDocument("*/*"),
-        ) { uri: Uri? ->
-            uri?.let {
-                scope.launch(Dispatchers.IO) {
-                    try {
-                        context.contentResolver.openOutputStream(it, "wt")?.use { outputStream ->
-                            outputStream.write(code.toByteArray(Charsets.UTF_8))
+    // 悬浮窗等独立 Compose 树里没有 ActivityResultRegistryOwner；此时不创建 launcher（另存为降级），
+    // 否则 rememberLauncherForActivityResult 会在组合期直接抛 "No ActivityResultRegistryOwner was provided"。
+    val hasResultOwner = LocalActivityResultRegistryOrNull.current != null
+    val createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>? =
+        if (hasResultOwner) {
+            rememberLauncherForActivityResult(
+                contract = ActivityResultContracts.CreateDocument("*/*"),
+            ) { uri: Uri? ->
+                uri?.let {
+                    scope.launch(Dispatchers.IO) {
+                        try {
+                            context.contentResolver.openOutputStream(it, "wt")?.use { outputStream ->
+                                outputStream.write(code.toByteArray(Charsets.UTF_8))
+                            }
+                        } catch (e: IOException) {
+                            // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
+                            AppLog.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                         }
-                    } catch (e: IOException) {
-                        // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
-                        AppLog.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                     }
                 }
             }
+        } else {
+            null
         }
 
     Column(
@@ -429,7 +437,7 @@ private fun HighlightCodeActions(
     scope: CoroutineScope,
     clipboardManager: Clipboard,
     code: String,
-    createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>,
+    createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>?,
     navController: Navigator,
     completeCodeBlock: Boolean = true,
     previewMode: Boolean = false,
@@ -499,7 +507,7 @@ private fun HighlightCodeActions(
                                     "svg" -> "svg"
                                     else -> "txt"
                                 }
-                            createDocumentLauncher.launch(
+                            createDocumentLauncher?.launch(
                                 "code_${
                                     Clock.System.now().toLocalDateTime(TimeZone.currentSystemDefault())
                                 }.$extension",

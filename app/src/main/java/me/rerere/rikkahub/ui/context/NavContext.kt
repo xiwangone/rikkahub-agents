@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.context
 
 import androidx.compose.runtime.compositionLocalOf
+import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.navigation3.runtime.NavKey
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.log.AppLog
@@ -74,3 +75,15 @@ val LocalNavController =
         AppLog.w("NavContext", "LocalNavController read without a provider; using no-op fallback")
         Navigator(mutableListOf())
     }
+
+/**
+ * 可空的 ActivityResultRegistryOwner。
+ *
+ * 悬浮窗这类**独立 Compose 树**里没有它（
+ * `LocalActivityResultRegistryOwner.current` 会抛
+ * "No ActivityResultRegistryOwner was provided"，该异常出现在 HighlightCodeBlock
+ * 组合期读取 rememberLauncherForActivityResult 时）。需要它的组件用这个可空版本判断：
+ * 有值才创建 launcher，没有就降级（例如代码块“另存为”按钮不显示效果）。
+ */
+val LocalActivityResultRegistryOrNull =
+    compositionLocalOf<ActivityResultRegistryOwner?> { null }

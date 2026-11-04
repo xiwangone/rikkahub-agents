@@ -61,6 +61,7 @@ import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
 import me.rerere.rikkahub.ui.activity.SafeModeActivity
 import me.rerere.rikkahub.ui.components.ui.TTSController
+import me.rerere.rikkahub.ui.context.LocalActivityResultRegistryOrNull
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalASRState
 import me.rerere.rikkahub.ui.context.LocalSettings
@@ -364,6 +365,7 @@ class RouteActivity : ComponentActivity() {
         SharedTransitionLayout {
             CompositionLocalProvider(
                 LocalNavController provides Navigator(backStack),
+                LocalActivityResultRegistryOrNull provides this@RouteActivity,
                 LocalSharedTransitionScope provides this,
                 LocalSettings provides settings,
                 LocalToaster provides toastState,
