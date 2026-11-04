@@ -426,6 +426,24 @@ internal data class ProbeOutcome(
  * and immediately surfaces the right network for the JSch handshake to follow.
  */
 internal suspend fun probeReachability(context: Context, host: String, port: Int): ProbeOutcome {
+    // 内嵌隧道：tailnet 地址（100.64.0.0/10、MagicDNS 名）只能经 App 内代理拨号，
+    // 原生 TCP 探测在这些地址上必然全部超时（隧道已 up、ip=100.64.0.9 时 SSH 仍报
+    // tcp_unreachable，且日志里从未出现过 proxy 调用 —— 根本没走到 openSshSession）。
+    // 这里直接放行：failures 留空，所以调用方的 `winningNetwork == null && failures.isNotEmpty()`
+    // 不会判失败；后续 openSshSession 里的 TunnelRouter 会把拨号改到 127.0.0.1:<localPort>。
+    if (me.rerere.rikkahub.data.tunnel.TsnetBridge.isRunning &&
+        me.rerere.rikkahub.data.tunnel.TsnetBridge.isTailnetAddress(host)
+    ) {
+        AppLog.i(TAG_SSH, "tcp probe skipped for tailnet host $host:$port (tunnel running → dial via proxy)")
+        return ProbeOutcome(
+            winningNetwork = null,
+            winningLabel = "tsnet",
+            failures = emptyList(),
+            resolvedIp = host,
+            totalMs = 0,
+            fakeIp = null,
+        )
+    }
     val probeStart = System.currentTimeMillis()
     // withContext(IO): the fake-IP branch may issue several blocking UDP queries.
     val resolution = withContext(Dispatchers.IO) { resolveToIPv4(host, context) }
