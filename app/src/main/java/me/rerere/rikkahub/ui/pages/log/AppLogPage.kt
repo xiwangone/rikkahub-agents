@@ -133,6 +133,7 @@ internal fun AppLogContent(
 ) {
     val context = LocalContext.current
     var enabled by remember { mutableStateOf(AppLog.isEnabled(context)) }
+    var verboseFile by remember { mutableStateOf(AppLog.isVerboseFileEnabled(context)) }
     var keyword by remember { mutableStateOf("") }
     var importantOnly by remember { mutableStateOf(false) }
     var logs by remember(clearGeneration) { mutableStateOf(AppLog.getLogs()) }
@@ -178,6 +179,16 @@ internal fun AppLogContent(
                         leadingContent = { CardGroupIcon(HugeIcons.Bug01) },
                         headlineContent = { Text(stringResource(R.string.log_page_record_app_logs)) },
                         supportingContent = { Text(stringResource(R.string.log_page_record_app_logs_desc)) },
+                    )
+                    switchItem(
+                        checked = verboseFile,
+                        onCheckedChange = { newValue ->
+                            verboseFile = newValue
+                            AppLog.setVerboseFileEnabled(context, newValue)
+                        },
+                        leadingContent = { CardGroupIcon(HugeIcons.Database02) },
+                        headlineContent = { Text(stringResource(R.string.log_page_verbose_file)) },
+                        supportingContent = { Text(stringResource(R.string.log_page_verbose_file_desc)) },
                     )
                 }
 

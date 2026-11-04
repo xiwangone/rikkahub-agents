@@ -2984,6 +2984,8 @@
   <string name="log_page_app_logs_title">Журнал уровня приложения</string>
   <string name="log_page_record_app_logs">Записывать журнал приложения</string>
   <string name="log_page_record_app_logs_desc">Записывает logcat уровня приложения текущего процесса (OcrTransformer / ChatService / performLocalOcr).</string>
+  <string name="log_page_verbose_file">Сохранять подробные логи (сырой поток)</string>
+  <string name="log_page_verbose_file_desc">Записывает исходные SSE-фрагменты в sse-*.log (1MB x 2 файла, хранение 1 день). Включайте при диагностике reasoning-потока или провайдера.</string>
   <string name="log_page_search_hint">Поиск по ключевому слову</string>
   <string name="log_page_important_only">Только важные</string>
   <string name="log_page_copy_all">Копировать всё</string>

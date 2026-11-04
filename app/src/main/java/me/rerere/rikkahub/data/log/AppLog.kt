@@ -22,8 +22,8 @@ object AppLog {
      * 内存缓存上限：按级别分两档，避免逐 token 的详细日志把关键事件挤掉。
      *
      * - 重要级（I/W/E）：保底 [MAX_IMPORTANT_LOGS] 条。审批、取消、错误等排查主线都在这里；
-     *   过去与详细日志共用 2000 条时，长会话/多工具调用下会被迅速冲掉（实测一份 04:44 的
-     *   审批时间线几分钟后已无法回溯，诊断窗口全部落在「抓不到」上）。
+     *   过去与详细日志共用 2000 条时，长会话/多工具调用下会被迅速冲掉
+     *   （一份审批时间线几分钟后就已无法回溯，诊断窗口全部落在“抓不到”上）。
      * - 详细级（D）：provider 逐 token 的 `onEvent`、渲染/审批诊断等噪音大户，单列
      *   [MAX_VERBOSE_LOGS] 条，互不挤占。
      *
@@ -45,6 +45,9 @@ object AppLog {
 
     private const val PREFS_NAME = "rikkahub.preferences"
     private const val PREF_APP_LOG_ENABLED = "app_log_enabled"
+
+    /** 详细级（D）原文是否落盘（默认关；排查 provider/思考流时临时开）。 */
+    private const val PREF_VERBOSE_FILE = "app_log_verbose_file"
 
     /** 一行日志：时间戳 / 级别 / tag / 消息（[repeat] 为去重合并计数） */
     data class Entry(
@@ -73,6 +76,10 @@ object AppLog {
     @Volatile
     private var enabled = false
 
+    /** 详细级原文落盘开关（与 [enabled] 独立：主日志可开、原文单独控制）。 */
+    @Volatile
+    private var verboseFileEnabled = false
+
     // ---- 公开开关 API ----
 
     fun isEnabled(context: Context): Boolean =
@@ -95,6 +102,24 @@ object AppLog {
     /** 应用启动时调用：读取持久化开关并同步到内存 */
     fun startIfEnabled(context: Context) {
         enabled = isEnabled(context)
+        verboseFileEnabled = isVerboseFileEnabled(context)
+    }
+
+    fun isVerboseFileEnabled(context: Context): Boolean =
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getBoolean(PREF_VERBOSE_FILE, false)
+
+    fun setVerboseFileEnabled(
+        context: Context,
+        value: Boolean,
+    ) {
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putBoolean(PREF_VERBOSE_FILE, value)
+            .apply()
+        verboseFileEnabled = value
     }
 
     // ---- 日志写入方法（调用 android.util.Log + 同步写 buffer） ----
@@ -246,10 +271,16 @@ object AppLog {
                 }
             }
         if (!isNewEntry) return
-        // 详细级（D）只留内存与 logcat，**不落盘**：逐 token 的原始流、渲染详单这类内容
-        // 写文件等于每块一次 IO，且会把 5×2MB / 7 天的文件日志刷满，真出问题时反而翻不到重点。
-        // 重要级（I/W/E）照旧持久化。
-        if (!important) return
+        // 详细级（D）：默认只留内存与 logcat，不落盘 —— 逐 token 的原始流写文件等于每块一次 IO，
+        // 且会把 5×2MB / 7 天的摘要日志刷满，真出问题时反而翻不到重点。
+        // 但排查 provider/思考流（如「thinking 正文丢」）必须看 SSE 原文，
+        // 所以给出独立开关 + 独立类别（sse，1MB×2 份且只留 1 天），开关默认关。
+        if (!important) {
+            if (verboseFileEnabled) {
+                FileLogSink.append(FileLogSink.KIND_SSE, "$level $safeTag: $safeMessage")
+            }
+            return
+        }
         // 文件持久化（与内存开关一致；时间戳由 FileLogSink 统一加）
         FileLogSink.append(FileLogSink.KIND_APP, "$level $safeTag: $safeMessage")
     }

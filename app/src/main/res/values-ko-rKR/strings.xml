@@ -2987,6 +2987,8 @@
   <string name="log_page_app_logs_title">앱 계층 로그</string>
   <string name="log_page_record_app_logs">앱 계층 로그 기록</string>
   <string name="log_page_record_app_logs_desc">현재 프로세스의 logcat 앱 계층 로그를 기록합니다(OcrTransformer / ChatService / performLocalOcr 관련)</string>
+  <string name="log_page_verbose_file">상세 로그 저장(원문 포함)</string>
+  <string name="log_page_verbose_file_desc">SSE 청크 원문을 sse-*.log에 기록합니다(1MB x 2개, 1일 보관). 추론 스트림이나 공급자 문제를 진단할 때 켜세요.</string>
   <string name="log_page_search_hint">로그 키워드 검색</string>
   <string name="log_page_important_only">중요 항목만</string>
   <string name="log_page_copy_all">전체 복사</string>

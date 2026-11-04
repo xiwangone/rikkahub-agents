@@ -2360,6 +2360,8 @@
   <string name="log_page_app_logs_title">App Logs</string>
   <string name="log_page_record_app_logs">Record app logs</string>
   <string name="log_page_record_app_logs_desc">Capture app-level logcat logs from this process (OcrTransformer / ChatService / performLocalOcr)</string>
+  <string name="log_page_verbose_file">Persist verbose logs (raw data stream)</string>
+  <string name="log_page_verbose_file_desc">Writes per-chunk SSE payloads to sse-*.log (1MB x 2 files, kept 1 day). Enable when diagnosing reasoning streams or provider issues.</string>
   <string name="log_page_search_hint">Search log keywords</string>
   <string name="log_page_important_only">Important only</string>
   <string name="log_page_copy_all">Copy all</string>

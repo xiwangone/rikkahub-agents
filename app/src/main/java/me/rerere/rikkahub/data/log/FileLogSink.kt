@@ -32,9 +32,29 @@ object FileLogSink {
      */
     const val KIND_BROWSER = "browser"
 
+    /**
+     * 详细级日志原文（SSE 逐块、含 reasoning_content 等）：默认不落盘，
+     * 仅在「详细日志落盘」开关打开时写入。因为原文量极大（每块一条），
+     * 单独一类 + 小配额 + 短保留，避免把摘要日志（[KIND_APP]）冲掉。
+     */
+    const val KIND_SSE = "sse"
+
     private const val MAX_FILE_SIZE = 2L * 1024 * 1024 // 2MB
     private const val MAX_FILES = 5
     private const val RETENTION_DAYS = 7L
+
+    // sse 类单独小配额：1MB × 2 份、保留 1 天。原文用于「当次排查」，不需要长期留存。
+    private const val SSE_MAX_FILE_SIZE = 1L * 1024 * 1024
+    private const val SSE_MAX_FILES = 2
+    private const val SSE_RETENTION_DAYS = 1L
+
+    private fun maxFileSizeOf(kind: String): Long =
+        if (kind == KIND_SSE) SSE_MAX_FILE_SIZE else MAX_FILE_SIZE
+
+    private fun maxFilesOf(kind: String): Int = if (kind == KIND_SSE) SSE_MAX_FILES else MAX_FILES
+
+    private fun retentionDaysOf(fileName: String): Long =
+        if (fileName.startsWith("$KIND_SSE-")) SSE_RETENTION_DAYS else RETENTION_DAYS
     private val fileDateFormatter = DateTimeFormatter.ofPattern("yyyy-MM-dd", Locale.US)
 
     private val executor =
@@ -91,8 +111,8 @@ object FileLogSink {
         for (offset in dayCount - 1 downTo 0) {
             val date = today.minusDays(offset.toLong()).format(fileDateFormatter)
             val main = File(dir, "$kind-$date.log")
-            // rotate() 向 .5 推送最老文件，.1 最近，主文件最新。
-            val candidates = (MAX_FILES downTo 1).map { File(main.path + ".$it") } + main
+            // rotate() 向 .N 推送最老文件，.1 最近，主文件最新。
+            val candidates = (maxFilesOf(kind) downTo 1).map { File(main.path + ".$it") } + main
             for (file in candidates) {
                 if (file.exists()) {
                     collected += runCatching { file.readLines() }.getOrDefault(emptyList())
@@ -108,8 +128,8 @@ object FileLogSink {
     ) {
         val dir = logsDir ?: return
         val file = File(dir, "${kind}-${dateFormat.format(Date())}.log")
-        if (file.exists() && file.length() > MAX_FILE_SIZE) {
-            rotate(file)
+        if (file.exists() && file.length() > maxFileSizeOf(kind)) {
+            rotateFiles(file, maxFilesOf(kind))
         }
         try {
             FileOutputStream(file, true).use { fos ->
@@ -120,8 +140,11 @@ object FileLogSink {
         }
     }
 
-    private fun rotate(file: File) {
-        for (i in MAX_FILES - 1 downTo 1) {
+    private fun rotateFiles(
+        file: File,
+        maxFiles: Int,
+    ) {
+        for (i in maxFiles - 1 downTo 1) {
             val from = File(file.path + ".$i")
             val to = File(file.path + ".${i + 1}")
             if (from.exists()) runCatching { if (to.exists()) to.delete(); from.renameTo(to) }
@@ -133,8 +156,10 @@ object FileLogSink {
 
     private fun cleanupOldFiles() {
         val dir = logsDir ?: return
-        val cutoff = System.currentTimeMillis() - RETENTION_DAYS * 24 * 60 * 60 * 1000
+        val now = System.currentTimeMillis()
         dir.listFiles()?.forEach { f ->
+            // sse（详细原文）保留 1 天，其余 7 天
+            val cutoff = now - retentionDaysOf(f.name) * 24 * 60 * 60 * 1000
             if (f.lastModified() < cutoff) runCatching { f.delete() }
         }
     }

@@ -2530,6 +2530,8 @@
     <string name="log_page_app_logs_title">應用層日誌</string>
     <string name="log_page_record_app_logs">記錄應用層日誌</string>
     <string name="log_page_record_app_logs_desc">記錄當前程序的 logcat 應用層日誌（OcrTransformer / ChatService / performLocalOcr 相關）</string>
+    <string name="log_page_verbose_file">詳細日誌落盤（含原始資料流）</string>
+    <string name="log_page_verbose_file_desc">將 SSE 逐塊原文寫入 sse-*.log（1MB x 2 份，保留 1 天）；排查思考流或供應商問題時開啟</string>
     <string name="log_page_copy_all">複製全部</string>
     <string name="log_page_export">匯出</string>
     <string name="log_page_export_empty">暫無日誌可匯出</string>

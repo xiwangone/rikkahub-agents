@@ -2987,6 +2987,8 @@
   <string name="log_page_app_logs_title">アプリ層ログ</string>
   <string name="log_page_record_app_logs">アプリ層ログを記録</string>
   <string name="log_page_record_app_logs_desc">現在のプロセスの logcat のアプリ層ログを記録します（OcrTransformer / ChatService / performLocalOcr 関連）</string>
+  <string name="log_page_verbose_file">詳細ログを保存（生データを含む）</string>
+  <string name="log_page_verbose_file_desc">SSE の各チャンク生データを sse-*.log に書き出します（1MB x 2 件、1 日保持）。推論ストリームやプロバイダ問題の調査時に有効化してください。</string>
   <string name="log_page_search_hint">ログのキーワードを検索</string>
   <string name="log_page_important_only">重要のみ</string>
   <string name="log_page_copy_all">すべてコピー</string>
