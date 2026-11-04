@@ -44,12 +44,15 @@ internal fun createApplyEditsTool(
     // 漏了这一条时，工具被自动放行后能直接写到可写区之外（免审批越界写）。
     // 参数是 JsonElement（不是 JsonObject），解析失败按“需要审批”处理，免得漏审。
     needsApproval = { args ->
-        needsApproval("workspace_apply_edits") ||
+        if (needsApproval("workspace_apply_edits")) {
+            true
+        } else {
             runCatching {
                 args.jsonObject["files"]
                     ?.jsonArray
                     ?.any { it.pathOutsideWritableRoots(layout, "path") }
-            }.getOrDefault(true)
+            }.getOrNull() ?: true
+        }
     },
     execute = { args ->
         runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args.jsonObject, workspaceId), workspaceRepository, args)

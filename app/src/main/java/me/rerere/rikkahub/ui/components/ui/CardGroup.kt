@@ -378,7 +378,6 @@ fun CardGroup(
         }
     }
 }
-}
 
 @Preview(showBackground = true, showSystemUi = true)
 @Composable
