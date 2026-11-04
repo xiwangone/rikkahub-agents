@@ -48,6 +48,9 @@ sealed interface TunnelState {
 object TsnetBridge {
     private const val TAG = "TsnetBridge"
 
+    /** native status() 的连接前缀；其余取值（如 "offline"）一律不是可用地址。 */
+    private const val CONNECTED_PREFIX = "connected"
+
     private val _state = MutableStateFlow<TunnelState>(TunnelState.Off)
 
     /** 供 UI 订阅的实时状态。 */
@@ -132,9 +135,13 @@ object TsnetBridge {
                     // 同时 UI 被 publish(Failed) 显示成"未连接"（隧道其实连着）。
                     // 以底层 status 为准恢复状态。
                     if (e.message?.contains("already running", ignoreCase = true) == true) {
-                        val ip = runCatching { Tsnetlib.status() }.getOrNull()
-                            ?.trim()
-                            ?.removePrefix("connected")
+                        // status() 在未连上时返回 "offline"（不是 null）——直接 removePrefix 会把
+                        // "offline" 当成 IP，从而 publish(Connected("offline"))、isRunning=true，
+                        // 代理随后向死隧道拨号。必须要求前缀确实是 connected 且后面还有地址。
+                        val rawStatus = runCatching { Tsnetlib.status() }.getOrNull()?.trim()
+                        val ip = rawStatus
+                            ?.takeIf { it.length > CONNECTED_PREFIX.length && it.startsWith(CONNECTED_PREFIX, ignoreCase = true) }
+                            ?.substring(CONNECTED_PREFIX.length)
                             ?.trim()
                             ?.takeIf { it.isNotEmpty() }
                         if (ip != null) {

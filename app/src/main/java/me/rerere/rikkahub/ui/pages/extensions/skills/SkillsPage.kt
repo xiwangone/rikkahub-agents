@@ -51,8 +51,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Globe
-import com.composables.icons.lucide.Lucide
+import me.rerere.hugeicons.stroke.Global
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
@@ -100,7 +99,7 @@ fun SkillsPage() {
                 actions = {
                     IconButton(onClick = { showCatalog = true }) {
                         Icon(
-                            imageVector = Lucide.Globe,
+                            imageVector = HugeIcons.Global,
                             contentDescription = stringResource(R.string.skill_store_title),
                         )
                     }

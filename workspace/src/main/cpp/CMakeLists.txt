@@ -40,5 +40,10 @@ target_link_libraries(${CMAKE_PROJECT_NAME}
         android
         log)
 
+target_compile_options(${CMAKE_PROJECT_NAME} PRIVATE -ffunction-sections -fdata-sections -fvisibility=hidden)
+target_link_options(${CMAKE_PROJECT_NAME} PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)
+target_compile_options(termux PRIVATE -ffunction-sections -fdata-sections -fvisibility=hidden)
+target_link_options(termux PRIVATE -Wl,--gc-sections -Wl,--exclude-libs,ALL)
+
 target_link_libraries(termux
         log)

@@ -67,9 +67,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.ChevronDown
-import com.composables.icons.lucide.ChevronUp
-import com.composables.icons.lucide.Lucide
 import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.HazeState
 import dev.chrisbanes.haze.blur.blurEffect
@@ -85,6 +82,8 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.asr.ASRStatus
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.FullScreen
@@ -342,9 +341,9 @@ fun ChatInput(
                                 Icon(
                                     imageVector =
                                         if (featureBarCollapsed) {
-                                            Lucide.ChevronDown
+                                            HugeIcons.ArrowDown01
                                         } else {
-                                            Lucide.ChevronUp
+                                            HugeIcons.ArrowUp01
                                         },
                                     contentDescription = stringResource(R.string.chat_input_toggle_toolbar),
                                     modifier = Modifier.size(18.dp),

@@ -38,9 +38,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import com.composables.icons.lucide.Globe
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.X
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Global
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Puzzle
@@ -109,7 +108,7 @@ internal fun FeaturedCatalogSheet(
                     }
                 }
                 IconButton(onClick = onDismiss) {
-                    Icon(Lucide.X, contentDescription = stringResource(R.string.cancel))
+                    Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.cancel))
                 }
             }
 
@@ -173,7 +172,7 @@ internal fun FeaturedCatalogSheet(
                 onClick = onManageSources,
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                Icon(Lucide.Globe, contentDescription = null, modifier = Modifier.size(16.dp))
+                Icon(HugeIcons.Global, contentDescription = null, modifier = Modifier.size(16.dp))
                 Text(
                     text = stringResource(R.string.skill_store_manage),
                     modifier = Modifier.padding(start = 8.dp),
@@ -405,7 +404,7 @@ internal fun StoreSourcesSheet(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Lucide.X, contentDescription = stringResource(R.string.cancel))
+                    Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.cancel))
                 }
             }
 

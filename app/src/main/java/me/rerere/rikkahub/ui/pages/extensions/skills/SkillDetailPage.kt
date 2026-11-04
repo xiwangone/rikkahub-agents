@@ -58,9 +58,8 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.composables.icons.lucide.Lucide
-import com.composables.icons.lucide.Play
-import com.composables.icons.lucide.X
+import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Play
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -137,7 +136,7 @@ fun SkillDetailPage(skillName: String) {
                     }
                     IconButton(onClick = { showTester = true }) {
                         Icon(
-                            imageVector = Lucide.Play,
+                            imageVector = HugeIcons.Play,
                             contentDescription = stringResource(R.string.skill_tester_title),
                         )
                     }
@@ -294,7 +293,7 @@ private fun SkillTesterSheet(
                     modifier = Modifier.weight(1f),
                 )
                 IconButton(onClick = onDismiss) {
-                    Icon(Lucide.X, contentDescription = stringResource(R.string.cancel))
+                    Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.cancel))
                 }
             }
 

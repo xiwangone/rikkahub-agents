@@ -98,7 +98,9 @@ object PendingLogicalApply {
             runCatching {
                 apply(payload, settingsStore, vaultRepository, sshHostRepository, scheduledJobRepository)
             }
-        return if (result.isSuccess) {
+        // apply() 返回 Boolean：部分段写回失败时它返回 false 而不是抛异常，
+        // 只看 isSuccess 会把这种情况当成成功并把暂存删掉（数据丢一次就没了）。
+        return if (result.isSuccess && result.getOrNull() == true) {
             // 只有全部写回成功才删暂存；失败时保留，下次启动再试（各段都是幂等 upsert）
             dir.deleteRecursively()
             AppLog.i(TAG, "applyPending: applied ${payload.entries.size} section(s)")

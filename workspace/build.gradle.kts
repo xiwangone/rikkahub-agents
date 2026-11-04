@@ -22,9 +22,7 @@ android {
 }
 
 dependencies {
-    implementation(libs.androidx.appcompat)
     implementation(libs.androidx.core.ktx)
-    implementation(libs.material)
     implementation(libs.kotlinx.serialization.json)
     implementation(libs.xz)
     // 远程工作区后端: 命令走 exec channel, 文件走 SFTP

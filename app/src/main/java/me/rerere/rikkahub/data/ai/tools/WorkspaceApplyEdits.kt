@@ -7,6 +7,7 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -39,7 +40,14 @@ internal fun createApplyEditsTool(
         Per file: {path, edits: [{old_text, new_text}], replace_all?}. Paths absolute inside the workspace.
     """.trimIndent().replace("\n", " "),
     parameters = { applyEditsParameters() },
-    needsApproval = { needsApproval("workspace_apply_edits") },
+    // 与 workspace_write_file / edit_file / create_folder 一致：任一路径落在可写区之外就要审批。
+    // 漏了这一条时，工具被自动放行后能直接写到可写区之外（免审批越界写）。
+    needsApproval = { args ->
+        needsApproval("workspace_apply_edits") ||
+            args["files"]
+                ?.jsonArray
+                ?.any { it.pathOutsideWritableRoots(layout, "path") } == true
+    },
     execute = { args ->
         runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args.jsonObject, workspaceId), workspaceRepository, args)
     },

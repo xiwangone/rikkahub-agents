@@ -20,8 +20,28 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
-# keep kotlinx serializable classes
--keep @kotlinx.serialization.Serializable class * {*;}
+# keep kotlinx serializable classes & generated serializers (official R8 rules:
+# preserves fields, constructors, Companion, and $serializer without pinning unused helper methods)
+-keepattributes *Annotation*, InnerClasses
+-dontnote kotlinx.serialization.AnnotationsKt
+-keepclassmembers class kotlinx.serialization.json.** {
+    *** Companion;
+}
+-keepclasseswithmembers class kotlinx.serialization.json.** {
+    kotlinx.serialization.KSerializer serializer(...);
+}
+-keep,includedescriptorclasses class *$$serializer { *; }
+-keepclassmembers class * {
+    @kotlinx.serialization.Serializable *;
+}
+-keepclassmembers @kotlinx.serialization.Serializable class * {
+    static *** Companion;
+    <fields>;
+    public <init>(...);
+}
+-keepclasseswithmembers class * {
+    kotlinx.serialization.KSerializer serializer(...);
+}
 
 # keep jlatexmath
 -keep class org.scilab.forge.jlatexmath.** {*;}

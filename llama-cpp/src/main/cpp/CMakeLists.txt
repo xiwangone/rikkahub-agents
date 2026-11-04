@@ -36,4 +36,10 @@ target_include_directories(llamajni PRIVATE
 
 find_library(ANDROID_LOG_LIB log)
 
+target_link_options(llamajni PRIVATE
+    -Wl,--gc-sections
+    -Wl,--icf=safe
+    -Wl,--exclude-libs,ALL
+)
+
 target_link_libraries(llamajni PRIVATE llama llama-common ${ANDROID_LOG_LIB})

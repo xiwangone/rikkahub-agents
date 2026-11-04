@@ -24,8 +24,9 @@ gomobile init
 # 2) 在本目录补 tool 依赖（只需一次，会写进 go.mod）
 go get -tool golang.org/x/mobile/cmd/gobind
 
-# 3) 生成 aar
-gomobile bind -target=android/arm64 -androidapi 24 -o tsnet.aar tsnetlib
+# 3) 生成 aar（带 -trimpath -ldflags="-s -w" 剥离调试段与符号表，并通过 ts_omit_* 标签裁剪内嵌网页/AWS/SSH/Taildrop 等未用模块，体积从 ~41MB 降至 ~15MB）
+TS_OMIT_TAGS="ts_omit_aws,ts_omit_bird,ts_omit_tap,ts_omit_kube,ts_omit_completion,ts_omit_ssh,ts_omit_webclient,ts_omit_synology,ts_omit_cloud,ts_omit_drive,ts_omit_taildrop,ts_omit_tpm,ts_omit_wakeonlan,ts_omit_captiveportal,ts_omit_systray,ts_omit_desktop_sessions"
+gomobile bind -target=android/arm64 -androidapi 24 -trimpath -ldflags="-s -w" -tags="$TS_OMIT_TAGS" -o tsnet.aar tsnetlib
 
 # 4) 解出产物，覆盖回工程
 #    tsnet.aar 内含 jni/arm64-v8a/libgojni.so 与 classes.jar

@@ -138,6 +138,11 @@ android {
     }
     androidResources {
         generateLocaleConfig = true
+        // 仅打包应用支持的 7 种语言资源，剥离三方库附带的 75+ 种未用语言字符串表
+        localeFilters += listOf("en", "zh", "b+zh+Hant", "ja", "ko-rKR", "ru", "ar")
+        // 排除 simple_dict 中 C++ 分词器未引用的 pos_dict（2.09MB）与 32 万行 idf.utf8（5.86MB，
+        // 运行时由 SimpleDictManager 生成单行占位文件），直接缩减 APK 资产体积约 2.76MB。
+        ignoreAssetsPatterns += listOf("pos_dict", "idf.utf8")
     }
     packaging {
         resources {
@@ -150,6 +155,10 @@ android {
             excludes += "/META-INF/LICENSE*"
             excludes += "/META-INF/NOTICE*"
             excludes += "/META-INF/DEPENDENCIES"
+            excludes += "/META-INF/*.kotlin_module"
+            excludes += "/META-INF/proguard/**"
+            excludes += "/META-INF/maven/**"
+            excludes += "DebugProbesKt.bin"
             // BouncyCastle 的 Picnic 后量子签名查找表（约 1.2MB），JSch 用不到
             excludes += "org/bouncycastle/pqc/crypto/picnic/**"
         }
@@ -282,9 +291,6 @@ dependencies {
     // okhttp
     implementation(libs.okhttp)
     implementation(libs.okhttp.sse)
-    implementation(libs.retrofit)
-    implementation(libs.retrofit.serialization.json)
-    implementation(libs.gson)
 
     // ktor client
     implementation(libs.ktor.client.core)
@@ -345,8 +351,7 @@ dependencies {
     // Reorderable (https://github.com/Calvin-LL/Reorderable/)
     implementation(libs.reorderable)
 
-    // lucide icons
-    implementation(libs.lucide.icons)
+    // huge icons
     implementation(libs.huge.icons)
 
     // image viewer

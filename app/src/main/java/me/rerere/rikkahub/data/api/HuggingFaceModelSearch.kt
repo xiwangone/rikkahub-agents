@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.api
 import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.model.HfModelDetail
 import me.rerere.rikkahub.data.model.HfModelSearchResult
-import retrofit2.HttpException
 import java.io.IOException
 
 /**
@@ -38,13 +37,13 @@ object HuggingFaceModelSearch {
 
     suspend fun listGgufFiles(api: HuggingFaceAPI, repoId: String): FilesResult = try {
         toFilesResult(api.getModel(repoId = repoId, blobs = true))
-    } catch (e: HttpException) {
+    } catch (e: HuggingFaceHttpException) {
         // HuggingFace answers both a private repo AND a nonexistent one with 401/403
         // unauthenticated (it does not leak which, to avoid revealing private repo names).
         // Either way there is nothing an unauthenticated client can do about it, so both map
         // to the same "requires access" result rather than a generic error.
-        if (e.code() == 401 || e.code() == 403) FilesResult.RequiresAccess
-        else FilesResult.Error("HTTP ${e.code()}")
+        if (e.code == 401 || e.code == 403) FilesResult.RequiresAccess
+        else FilesResult.Error("HTTP ${e.code}")
     } catch (e: IOException) {
         FilesResult.Error(e.message ?: "Network error")
     } catch (e: CancellationException) {

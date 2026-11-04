@@ -19,7 +19,15 @@ android {
             cmake {
                 // C++17 and RTTI/exceptions are required: common links nlohmann/json
                 // and a Jinja implementation, both of which throw.
-                cppFlags += listOf("-std=c++17", "-fexceptions", "-frtti")
+                cppFlags += listOf(
+                    "-std=c++17",
+                    "-fexceptions",
+                    "-frtti",
+                    "-ffunction-sections",
+                    "-fdata-sections",
+                    "-fvisibility=hidden",
+                    "-fvisibility-inlines-hidden",
+                )
                 arguments += listOf(
                     "-DANDROID_STL=c++_shared",
                     "-DLLAMAJNI_ENABLE_OPENCL=OFF",
