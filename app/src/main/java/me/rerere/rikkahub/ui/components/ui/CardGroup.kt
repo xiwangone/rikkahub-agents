@@ -337,13 +337,14 @@ fun CardGroup(
     onClick: (() -> Unit)? = null,
     content: @Composable CardGroupScope.() -> Unit,
 ) {
-    // 每次组合新建 scope：scope.items 是普通 MutableList（非 SnapshotStateList），
-    // 一旦跨组合记住它，"异步加载、初始为空"的数据（如从数据库读的列表）就不会反映到已组合的条目上
-    // —— 表现为数据已加载但页面空白、新加条目也不显示。分配开销远小于这类 bug 的代价。
-    val scope = CardGroupScopeImpl()
-    scope.content()
-
     Column(modifier = modifier) {
+        // 收集与渲染必须在**同一个重组范围**内：
+        // scope.items 是普通 MutableList（非 SnapshotStateList），Compose 观察不到它的变化。
+        // 若把 scope.content() 放在 Column 外面，状态变化只会让“收集”那一段重组，
+        // Column 自身参数未变就会被跳过 → 一直渲染旧列表，表现为「点了开关不变、重进才对」。
+        val scope = CardGroupScopeImpl()
+        scope.content()
+
         if (title != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
                 ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
@@ -354,8 +355,7 @@ fun CardGroup(
                                     start = CardGroupTitleHorizontalInset,
                                     top = CardGroupTitleVerticalInset,
                                     bottom = CardGroupTitleVerticalInset,
-                                )
-                                .then(
+                                ).then(
                                     if (onClick != null) Modifier.clickable { onClick() } else Modifier,
                                 ),
                     ) {
@@ -377,6 +377,7 @@ fun CardGroup(
             }
         }
     }
+}
 }
 
 @Preview(showBackground = true, showSystemUi = true)
