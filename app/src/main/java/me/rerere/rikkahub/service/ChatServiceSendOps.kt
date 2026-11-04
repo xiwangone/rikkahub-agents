@@ -60,8 +60,12 @@ internal fun ChatService.dispatchNextQueuedMessageImpl(
             scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
             return
         }
+        // 只有「真在等用户审批」的工具才该挡队列（isPending）。
+        // ⚠ 不能用 !isExecuted：被中断的开发残留工具会被 finishPendingTools 改成 Denied，
+        // 而 Denied 仍然 isExecuted == false → 队列永久卡在 pending-tool (unresolved)
+        // （用户侧现象：「发了没反应」，消息一直躺在待发送里）。
         val pendingToolExists =
-            session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
+            session.state.value.currentMessages.lastOrNull()?.getTools()?.any { it.isPending } == true
         if (pendingToolExists) {
             if (active != null && active.isActive) {
                 AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (job active)")
@@ -75,7 +79,7 @@ internal fun ChatService.dispatchNextQueuedMessageImpl(
                 runCatching { finishInterruptedPendingTools(conversationId) }
                     .onFailure { AppLog.w(TAG, "msg-dequeue: finalize pending tools failed", it) }
                 val stillPending =
-                    session.state.value.currentMessages.lastOrNull()?.getTools()?.any { !it.isExecuted } == true
+                    session.state.value.currentMessages.lastOrNull()?.getTools()?.any { it.isPending } == true
                 if (stillPending) {
                     AppLog.w(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (unresolved)")
                 } else {
