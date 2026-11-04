@@ -42,11 +42,14 @@ internal fun createApplyEditsTool(
     parameters = { applyEditsParameters() },
     // 与 workspace_write_file / edit_file / create_folder 一致：任一路径落在可写区之外就要审批。
     // 漏了这一条时，工具被自动放行后能直接写到可写区之外（免审批越界写）。
+    // 参数是 JsonElement（不是 JsonObject），解析失败按“需要审批”处理，免得漏审。
     needsApproval = { args ->
         needsApproval("workspace_apply_edits") ||
-            args["files"]
-                ?.jsonArray
-                ?.any { it.pathOutsideWritableRoots(layout, "path") } == true
+            runCatching {
+                args.jsonObject["files"]
+                    ?.jsonArray
+                    ?.any { it.pathOutsideWritableRoots(layout, "path") }
+            }.getOrDefault(true)
     },
     execute = { args ->
         runApplyEdits(resolveTargetWorkspaceId(workspaceRepository, args.jsonObject, workspaceId), workspaceRepository, args)
