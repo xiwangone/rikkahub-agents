@@ -98,7 +98,7 @@ fun SettingToolsPage(
                     onCheckedChange = { on ->
                         vm.updateSettings { current ->
                             current.copy(
-                                displaySetting = displaySetting.copy(toolSurfaceTrimming = on),
+                                displaySetting = current.displaySetting.copy(toolSurfaceTrimming = on),
                             )
                         }
                     },
@@ -121,7 +121,7 @@ fun SettingToolsPage(
                     onCheckedChange = { on ->
                         vm.updateSettings { current ->
                             current.copy(
-                                displaySetting = displaySetting.copy(toolStatsEnabled = on),
+                                displaySetting = current.displaySetting.copy(toolStatsEnabled = on),
                             )
                         }
                     },

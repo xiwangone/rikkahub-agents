@@ -98,6 +98,7 @@ fun AssistantBasicPage(id: String) {
             tags = tags,
             workspaces = workspaces,
             onUpdate = { vm.update(it) },
+            onUpdateAssistant = { vm.updateAssistant(it) },
             vm = vm,
         )
     }
@@ -111,6 +112,7 @@ internal fun AssistantBasicContent(
     tags: List<DataTag>,
     workspaces: List<WorkspaceEntity>,
     onUpdate: (Assistant) -> Unit,
+    onUpdateAssistant: ((Assistant) -> Assistant) -> Unit = { onUpdate(it(assistant)) },
     vm: AssistantDetailVM,
 ) {
     val modelListState =
@@ -121,7 +123,7 @@ internal fun AssistantBasicContent(
         )
     ModelListSheet(
         state = modelListState,
-        onSelect = { onUpdate(assistant.copy(chatModelId = it.id)) },
+        onSelect = { onUpdateAssistant { current -> current.copy(chatModelId = it.id) } },
     )
 
     Column(
@@ -146,11 +148,9 @@ internal fun AssistantBasicContent(
                 value = assistant.avatar,
                 name = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
                 onUpdate = { avatar ->
-                    onUpdate(
-                        assistant.copy(
-                            avatar = avatar,
-                        ),
-                    )
+                    onUpdateAssistant { current ->
+                        current.copy(avatar = avatar)
+                    }
                 },
                 modifier =
                     Modifier
@@ -166,11 +166,10 @@ internal fun AssistantBasicContent(
                 OutlinedTextField(
                     value = assistant.name,
                     onValueChange = {
-                        onUpdate(
-                            assistant.copy(
+                        onUpdateAssistant { current -> current.copy(
                                 name = it,
                             ),
-                        )
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     singleLine = true,
@@ -196,11 +195,10 @@ internal fun AssistantBasicContent(
                     options = listOf<WorkspaceEntity?>(null) + workspaces,
                     selectedOption = selectedWorkspace,
                     onOptionSelected = { workspace ->
-                        onUpdate(
-                            assistant.copy(
+                        onUpdateAssistant { current -> current.copy(
                                 workspaceId = workspace?.id?.let { Uuid.parse(it) },
                             ),
-                        )
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     optionToString = { workspace ->
@@ -211,11 +209,10 @@ internal fun AssistantBasicContent(
             switchItem(
                 checked = assistant.useAssistantAvatar,
                 onCheckedChange = {
-                    onUpdate(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             useAssistantAvatar = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_use_assistant_avatar_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_use_assistant_avatar)) },
@@ -223,11 +220,10 @@ internal fun AssistantBasicContent(
             switchItem(
                 checked = assistant.allowPerConversationModel,
                 onCheckedChange = {
-                    onUpdate(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             allowPerConversationModel = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_allow_conversation_model_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_allow_conversation_model)) },
@@ -250,7 +246,7 @@ internal fun AssistantBasicContent(
                     ReasoningButton(
                         reasoningLevel = assistant.reasoningLevel,
                         onUpdateReasoningLevel = { level ->
-                            onUpdate(assistant.copy(reasoningLevel = level))
+                            onUpdateAssistant { current -> current.copy(reasoningLevel = level) }
                         },
                     )
                 },
@@ -258,11 +254,10 @@ internal fun AssistantBasicContent(
             switchItem(
                 checked = assistant.streamOutput,
                 onCheckedChange = {
-                    onUpdate(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             streamOutput = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_stream_output_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_stream_output)) },
@@ -290,11 +285,10 @@ internal fun AssistantBasicContent(
                 Slider(
                     value = (assistant.streamIdleTimeoutMs / 1000L).toFloat(),
                     onValueChange = { v ->
-                        onUpdate(
-                            assistant.copy(
+                        onUpdateAssistant { current -> current.copy(
                                 streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
                             ),
-                        )
+                        }
                     },
                     valueRange = 0f..300f,
                     steps = 9,
@@ -304,7 +298,7 @@ internal fun AssistantBasicContent(
             switchItem(
                 checked = assistant.fastPathRouterEnabled,
                 onCheckedChange = {
-                    onUpdate(assistant.copy(fastPathRouterEnabled = it))
+                    onUpdateAssistant { current -> current.copy(fastPathRouterEnabled = it) }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_fast_path_router_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_fast_path_router)) },
@@ -319,11 +313,10 @@ internal fun AssistantBasicContent(
                     Switch(
                         checked = assistant.temperature != null,
                         onCheckedChange = { enabled ->
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     temperature = if (enabled) 1.0f else null,
                                 ),
-                            )
+                            }
                         },
                     )
                 },
@@ -338,11 +331,10 @@ internal fun AssistantBasicContent(
                         onValueChange = { value ->
                             temperatureInput = value
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { temperature ->
-                                onUpdate(
-                                    assistant.copy(
+                                onUpdateAssistant { current -> current.copy(
                                         temperature = temperature,
                                     ),
-                                )
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -362,11 +354,10 @@ internal fun AssistantBasicContent(
                     Switch(
                         checked = assistant.topP != null,
                         onCheckedChange = { enabled ->
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     topP = if (enabled) 1.0f else null,
                                 ),
-                            )
+                            }
                         },
                     )
                 },
@@ -381,11 +372,10 @@ internal fun AssistantBasicContent(
                         onValueChange = { value ->
                             topPInput = value
                             value.toFloatOrNull()?.takeIf { it in 0f..1f }?.let { nextTopP ->
-                                onUpdate(
-                                    assistant.copy(
+                                onUpdateAssistant { current -> current.copy(
                                         topP = nextTopP,
                                     ),
-                                )
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -405,11 +395,10 @@ internal fun AssistantBasicContent(
                     Switch(
                         checked = assistant.frequencyPenalty != null,
                         onCheckedChange = { enabled ->
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     frequencyPenalty = if (enabled) 0.5f else null,
                                 ),
-                            )
+                            }
                         },
                     )
                 },
@@ -424,11 +413,10 @@ internal fun AssistantBasicContent(
                         onValueChange = { value ->
                             frequencyPenaltyInput = value
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
-                                onUpdate(
-                                    assistant.copy(
+                                onUpdateAssistant { current -> current.copy(
                                         frequencyPenalty = next,
                                     ),
-                                )
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -448,11 +436,10 @@ internal fun AssistantBasicContent(
                     Switch(
                         checked = assistant.presencePenalty != null,
                         onCheckedChange = { enabled ->
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     presencePenalty = if (enabled) 0.3f else null,
                                 ),
-                            )
+                            }
                         },
                     )
                 },
@@ -467,11 +454,10 @@ internal fun AssistantBasicContent(
                         onValueChange = { value ->
                             presencePenaltyInput = value
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
-                                onUpdate(
-                                    assistant.copy(
+                                onUpdateAssistant { current -> current.copy(
                                         presencePenalty = next,
                                     ),
-                                )
+                                }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -508,7 +494,7 @@ internal fun AssistantBasicContent(
 
                     contextMessageLimitInput = value.toString()
                     if (value != assistant.contextMessageLimit) {
-                        onUpdate(assistant.copy(contextMessageLimit = value))
+                        onUpdateAssistant { current -> current.copy(contextMessageLimit = value) }
                     }
                 }
 
@@ -521,7 +507,7 @@ internal fun AssistantBasicContent(
                             contextMessageLimitInput = input
                             input.toIntOrNull()
                                 ?.takeIf { it != assistant.contextMessageLimit }
-                                ?.let { onUpdate(assistant.copy(contextMessageLimit = it)) }
+                                ?.let { onUpdateAssistant { current -> current.copy(contextMessageLimit = it) } }
                         }
                     },
                     modifier =
@@ -587,7 +573,7 @@ internal fun AssistantBasicContent(
                     val s = parseTokens(soft)
                     val h = parseTokens(hard)
                     if (s != assistant.tokenBudgetSoftCap || h != assistant.tokenBudgetHardCap) {
-                        onUpdate(assistant.copy(tokenBudgetSoftCap = s, tokenBudgetHardCap = h))
+                        onUpdateAssistant { current -> current.copy(tokenBudgetSoftCap = s, tokenBudgetHardCap = h) }
                     }
                 }
                 var tokenSoftInput by remember(assistant.id, assistant.tokenBudgetSoftCap) {
@@ -655,11 +641,10 @@ internal fun AssistantBasicContent(
                             } else {
                                 text.toIntOrNull()?.takeIf { it > 0 }
                             }
-                        onUpdate(
-                            assistant.copy(
+                        onUpdateAssistant { current -> current.copy(
                                 maxTokens = tokens,
                             ),
-                        )
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                     placeholder = {
@@ -680,11 +665,10 @@ internal fun AssistantBasicContent(
             switchItem(
                 checked = assistant.useGradientBackground,
                 onCheckedChange = {
-                    onUpdate(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             useGradientBackground = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_gradient_background_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_gradient_background)) },
@@ -699,11 +683,10 @@ internal fun AssistantBasicContent(
                         background = assistant.background,
                         backgroundOpacity = assistant.backgroundOpacity,
                         onUpdate = { background ->
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     background = background,
                                 ),
-                            )
+                            }
                         },
                     )
                 }
@@ -726,11 +709,10 @@ internal fun AssistantBasicContent(
                     Slider(
                         value = backgroundOpacity,
                         onValueChange = {
-                            onUpdate(
-                                assistant.copy(
+                            onUpdateAssistant { current -> current.copy(
                                     backgroundOpacity = it.toFixed(2).toFloatOrNull()?.coerceIn(0f, 1f) ?: 1.0f,
                                 ),
-                            )
+                            }
                         },
                         valueRange = 0f..1f,
                         steps = 19,

@@ -20,8 +20,8 @@
 # hide the original source file name.
 #-renamesourcefileattribute SourceFile
 
-# keep kotlinx serializable classes & generated serializers (official R8 rules:
-# preserves fields, constructors, Companion, and $serializer without pinning unused helper methods)
+# keep kotlinx serializable classes & generated serializers
+-keep @kotlinx.serialization.Serializable class * {*;}
 -keepattributes *Annotation*, InnerClasses
 -dontnote kotlinx.serialization.AnnotationsKt
 -keepclassmembers class kotlinx.serialization.json.** {

@@ -25,7 +25,11 @@ class HistoryVM(
     val assistant =
         settingsStore.settingsFlow
             .map { it.getCurrentAssistant() }
-            .stateIn(viewModelScope, SharingStarted.Eagerly, null)
+            .stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                settingsStore.settingsFlow.value.getCurrentAssistant(),
+            )
 
     val conversations =
         assistant

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.api
 
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.serialization.builtins.ListSerializer
 import me.rerere.rikkahub.data.model.HfModelDetail
 import me.rerere.rikkahub.data.model.HfModelSearchResult
 import me.rerere.rikkahub.utils.JsonInstant
@@ -52,7 +53,7 @@ interface HuggingFaceAPI {
                         httpClient.newCall(request).execute().use { response ->
                             if (!response.isSuccessful) throw HuggingFaceHttpException(response.code)
                             val body = response.body?.string().orEmpty()
-                            JsonInstant.decodeFromString<List<HfModelSearchResult>>(body)
+                            JsonInstant.decodeFromString(ListSerializer(HfModelSearchResult.serializer()), body)
                         }
                     }
 
@@ -70,7 +71,7 @@ interface HuggingFaceAPI {
                         httpClient.newCall(request).execute().use { response ->
                             if (!response.isSuccessful) throw HuggingFaceHttpException(response.code)
                             val body = response.body?.string().orEmpty()
-                            JsonInstant.decodeFromString<HfModelDetail>(body)
+                            JsonInstant.decodeFromString(HfModelDetail.serializer(), body)
                         }
                     }
             }

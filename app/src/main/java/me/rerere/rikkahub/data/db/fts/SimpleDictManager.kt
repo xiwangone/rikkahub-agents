@@ -31,9 +31,7 @@ object SimpleDictManager {
         // jieba_query 仅调用 MixSegment::Cut，从不使用 TF-IDF；写入单行有效占位即可满足构造，
         // 省去 5.86MB 磁盘占用与约 24MB 的 C++ unordered_map 内存常驻。
         val idfFile = File(destDir, "idf.utf8")
-        if (!idfFile.exists() || idfFile.length() == 0L) {
-            idfFile.writeText("的 1.0\n")
-        }
+        idfFile.writeText("的 1.0\n")
         versionFile.writeText(CURRENT_VERSION.toString())
         return destDir
     }

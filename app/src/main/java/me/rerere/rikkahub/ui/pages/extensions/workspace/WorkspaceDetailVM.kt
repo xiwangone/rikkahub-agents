@@ -85,8 +85,8 @@ class WorkspaceDetailVM(
         repository.mirrorsFlow()
             .stateIn(
                 viewModelScope,
-                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
-                me.rerere.workspace.WorkspaceMirrors(),
+                kotlinx.coroutines.flow.SharingStarted.Eagerly,
+                repository.mirrorsNow(),
             )
 
     /** 保存镜像配置并应用到已安装的 rootfs。 */
@@ -119,8 +119,8 @@ class WorkspaceDetailVM(
         repository.sdcardEnabledFlow()
             .stateIn(
                 viewModelScope,
-                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
-                false,
+                kotlinx.coroutines.flow.SharingStarted.Eagerly,
+                repository.sdcardEnabledNow(),
             )
 
     fun setSdcardAccess(enabled: Boolean) {
@@ -135,8 +135,8 @@ class WorkspaceDetailVM(
         repository.chrootEnabledFlow()
             .stateIn(
                 viewModelScope,
-                kotlinx.coroutines.flow.SharingStarted.WhileSubscribed(5_000),
-                false,
+                kotlinx.coroutines.flow.SharingStarted.Eagerly,
+                repository.chrootEnabledNow(),
             )
 
     /** chroot 后端是否就绪（脚本缺失时为 false）；开关开着但未就绪 = 实际在跑 proot。 */

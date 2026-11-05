@@ -77,10 +77,10 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
     val scope = rememberCoroutineScope()
     val chatFontFamily = rememberChatFontFamily(displaySetting)
 
-    fun updateDisplaySetting(setting: DisplaySetting) {
-        displaySetting = setting
+    fun updateDisplaySetting(transform: (DisplaySetting) -> DisplaySetting) {
+        displaySetting = transform(displaySetting)
         vm.updateSettings { current ->
-            current.copy(displaySetting = setting)
+            current.copy(displaySetting = transform(current.displaySetting))
         }
     }
 
@@ -97,13 +97,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         importCustomChatFontInternal(context, uri)
                     }
                 }.onSuccess { importedFont ->
-                    updateDisplaySetting(
-                        displaySetting.copy(
+                    updateDisplaySetting { s -> s.copy(
                             chatFontFamily = ChatFontFamily.CUSTOM,
                             chatCustomFontPath = importedFont.relativePath,
                             chatCustomFontName = importedFont.displayName,
                         ),
-                    )
+                    }
                     toaster.show(importSuccessMsg, type = ToastType.Success)
                 }.onFailure { error ->
                     toaster.show(importFailedMsg.format(error.message.orEmpty()), type = ToastType.Error)
@@ -140,13 +139,13 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     switchItem(
                         checked = displaySetting.showUserAvatar,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showUserAvatar = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showUserAvatar = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_user_avatar_title)) },
                     )
                     switchItem(
                         checked = displaySetting.showAssistantBubble,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showAssistantBubble = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showAssistantBubble = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_assistant_bubble_title)) },
                     )
@@ -157,7 +156,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         Slider(
                             value = displaySetting.bubbleOpacity,
                             onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(bubbleOpacity = it))
+                                updateDisplaySetting { s -> s.copy(bubbleOpacity = it) }
                             },
                             valueRange = 0.1f..1.0f,
                             steps = 8,
@@ -171,25 +170,25 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     switchItem(
                         checked = displaySetting.showModelIcon,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelIcon = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showModelIcon = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_chat_list_model_icon_title)) },
                     )
                     switchItem(
                         checked = displaySetting.showModelName,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showModelName = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showModelName = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_model_name_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_model_name_title)) },
                     )
                     switchItem(
                         checked = displaySetting.showDateTimeInMessage,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showDateTimeInMessage = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showDateTimeInMessage = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_datetime_in_message_title)) },
                     )
                     switchItem(
                         checked = displaySetting.showTokenUsage,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showTokenUsage = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showTokenUsage = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_token_usage_title)) },
                     )
@@ -200,25 +199,25 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     switchItem(
                         checked = displaySetting.showThinkingContent,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showThinkingContent = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showThinkingContent = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_thinking_content_title)) },
                     )
                     switchItem(
                         checked = displaySetting.autoCloseThinking,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(autoCloseThinking = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(autoCloseThinking = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_auto_collapse_thinking_title)) },
                     )
                     switchItem(
                         checked = displaySetting.enableLatexRendering,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableLatexRendering = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(enableLatexRendering = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_enable_latex_rendering_title)) },
                     )
                     switchItem(
                         checked = displaySetting.enableQuoteHighlight,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableQuoteHighlight = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(enableQuoteHighlight = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_quote_highlight_title)) },
                     )
@@ -237,7 +236,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                 if (family == ChatFontFamily.CUSTOM && displaySetting.chatCustomFontPath.isBlank()) {
                                     fontPickerLauncher.launch(CustomFontMimeTypesUI)
                                 } else {
-                                    updateDisplaySetting(displaySetting.copy(chatFontFamily = family))
+                                    updateDisplaySetting { s -> s.copy(chatFontFamily = family) }
                                 }
                             },
                             minHeight = 60.dp,
@@ -288,13 +287,12 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                     IconButton(
                                         onClick = {
                                             deleteCustomChatFontInternal(context, displaySetting.chatCustomFontPath)
-                                            updateDisplaySetting(
-                                                displaySetting.copy(
+                                            updateDisplaySetting { s -> s.copy(
                                                     chatFontFamily = ChatFontFamily.DEFAULT,
                                                     chatCustomFontPath = "",
                                                     chatCustomFontName = "",
                                                 ),
-                                            )
+                                            }
                                         },
                                     ) {
                                         Icon(
@@ -316,7 +314,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         Slider(
                             value = displaySetting.fontSizeRatio,
                             onValueChange = {
-                                updateDisplaySetting(displaySetting.copy(fontSizeRatio = it))
+                                updateDisplaySetting { s -> s.copy(fontSizeRatio = it) }
                             },
                             valueRange = 0.5f..2f,
                             steps = 11,
@@ -358,7 +356,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             options = RenderPerformance.entries,
                             selected = displaySetting.renderPerformance,
                             onSelect = { value ->
-                                updateDisplaySetting(displaySetting.copy(renderPerformance = value))
+                                updateDisplaySetting { s -> s.copy(renderPerformance = value) }
                             },
                         ) { value, selected ->
                             ConnectedChoiceLabel(
@@ -376,19 +374,19 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     switchItem(
                         checked = displaySetting.codeBlockAutoWrap,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoWrap = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(codeBlockAutoWrap = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_wrap_title)) },
                     )
                     switchItem(
                         checked = displaySetting.codeBlockAutoCollapse,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(codeBlockAutoCollapse = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(codeBlockAutoCollapse = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_code_block_auto_collapse_title)) },
                     )
                     switchItem(
                         checked = displaySetting.showLineNumbers,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showLineNumbers = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showLineNumbers = it) } },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_desc)) },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_show_line_numbers_title)) },
                     )

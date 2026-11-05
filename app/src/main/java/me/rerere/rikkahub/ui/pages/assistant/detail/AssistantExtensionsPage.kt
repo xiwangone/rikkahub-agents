@@ -104,7 +104,7 @@ fun AssistantExtensionsPage(id: String) {
                                         } else {
                                             assistant.quickMessageIds - quickMessageId
                                         }
-                                    vm.update(assistant.copy(quickMessageIds = newIds))
+                                    vm.updateAssistant { it.copy(quickMessageIds = newIds) }
                                 },
                                 onManage = { navController.navigate(Screen.QuickMessages) },
                             )
@@ -132,7 +132,7 @@ fun AssistantExtensionsPage(id: String) {
                                         } else {
                                             assistant.modeInjectionIds - injId
                                         }
-                                    vm.update(assistant.copy(modeInjectionIds = newIds))
+                                    vm.updateAssistant { it.copy(modeInjectionIds = newIds) }
                                 },
                                 onManage = { navController.navigate(Screen.Prompts) },
                             )
@@ -160,7 +160,7 @@ fun AssistantExtensionsPage(id: String) {
                                         } else {
                                             assistant.lorebookIds - injId
                                         }
-                                    vm.update(assistant.copy(lorebookIds = newIds))
+                                    vm.updateAssistant { it.copy(lorebookIds = newIds) }
                                 },
                                 onManage = { navController.navigate(Screen.Prompts) },
                             )
@@ -188,7 +188,7 @@ fun AssistantExtensionsPage(id: String) {
                                         } else {
                                             assistant.enabledSkills - name
                                         }
-                                    vm.update(assistant.copy(enabledSkills = newSkills))
+                                    vm.updateAssistant { it.copy(enabledSkills = newSkills) }
                                 },
                                 onManage = { navController.navigate(Screen.Skills) },
                             )

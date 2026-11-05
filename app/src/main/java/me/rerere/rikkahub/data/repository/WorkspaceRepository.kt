@@ -92,16 +92,19 @@ class WorkspaceRepository(
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
+    private fun me.rerere.rikkahub.data.datastore.Settings.toWorkspaceMirrors(): WorkspaceMirrors =
+        WorkspaceMirrors(
+            apk = workspaceApkMirror,
+            apt = workspaceAptMirror,
+            pip = workspacePipMirror,
+            npm = workspaceNpmMirror,
+        )
+
     /** 当前沙箱镜像配置（全局配置，应用时写入所有已安装 rootfs）。 */
+    fun mirrorsNow(): WorkspaceMirrors = settingsStore.settingsFlow.value.toWorkspaceMirrors()
+
     fun mirrorsFlow(): Flow<WorkspaceMirrors> =
-        settingsStore.settingsFlow.map { s ->
-            WorkspaceMirrors(
-                apk = s.workspaceApkMirror,
-                apt = s.workspaceAptMirror,
-                pip = s.workspacePipMirror,
-                npm = s.workspaceNpmMirror,
-            )
-        }
+        settingsStore.settingsFlow.map { s -> s.toWorkspaceMirrors() }
 
     /** 保存镜像配置并应用到所有已安装的 rootfs；返回实际写入成功的沙箱数量。 */
     suspend fun setMirrors(mirrors: WorkspaceMirrors): Int = withContext(Dispatchers.IO) {
@@ -142,6 +145,8 @@ class WorkspaceRepository(
     }
 
     /** 手机存储挂载开关（/sdcard，可选挂载）：设置流，订阅时同步内存桥。 */
+    fun sdcardEnabledNow(): Boolean = settingsStore.settingsFlow.value.workspaceSdcardEnabled
+
     fun sdcardEnabledFlow(): Flow<Boolean> =
         settingsStore.settingsFlow
             .map { it.workspaceSdcardEnabled }
@@ -154,6 +159,8 @@ class WorkspaceRepository(
     }
 
     /** chroot 后端开关（实验性）：设置流，订阅时同步内存桥。 */
+    fun chrootEnabledNow(): Boolean = settingsStore.settingsFlow.value.workspaceChrootEnabled
+
     fun chrootEnabledFlow(): Flow<Boolean> =
         settingsStore.settingsFlow
             .map { it.workspaceChrootEnabled }

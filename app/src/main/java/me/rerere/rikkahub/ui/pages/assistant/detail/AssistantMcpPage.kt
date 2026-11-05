@@ -89,7 +89,7 @@ fun AssistantMcpPage(id: String) {
                 ),
             assistant = assistant,
             servers = mcpServerConfigs,
-            onUpdateAssistant = { vm.update(it) },
+            onUpdateAssistant = { updated -> vm.updateAssistant { it.copy(mcpServers = updated.mcpServers) } },
         )
     }
 }

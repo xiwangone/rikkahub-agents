@@ -21,9 +21,7 @@ class AssistantVM(
     private val conversationRepo: ConversationRepository,
     private val filesManager: FilesManager,
 ) : ViewModel() {
-    val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow
-            .stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
+    val settings = settingsStore.settingsFlow
 
     fun updateSettings(transform: (Settings) -> Settings) {
         viewModelScope.launch { settingsStore.update(transform) }

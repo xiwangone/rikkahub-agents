@@ -197,22 +197,29 @@ class ChatVM(
     }
 
     // 用户设置
-    val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow.stateIn(viewModelScope, SharingStarted.Eagerly, Settings.dummy())
+    val settings: StateFlow<Settings> = settingsStore.settingsFlow
 
     // 网络搜索(每个助手独立)
     val enableWebSearch =
         settings
             .map {
                 it.getCurrentAssistant().enableWebSearch
-            }.stateIn(viewModelScope, SharingStarted.Eagerly, false)
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                settingsStore.settingsFlow.value.getCurrentAssistant().enableWebSearch,
+            )
 
     // 当前模型
     val currentChatModel =
         settings
             .map { settings ->
                 settings.getCurrentChatModel()
-            }.stateIn(viewModelScope, SharingStarted.Lazily, null)
+            }.stateIn(
+                viewModelScope,
+                SharingStarted.Eagerly,
+                settingsStore.settingsFlow.value.getCurrentChatModel(),
+            )
 
     // 错误状态
     val errors: StateFlow<List<ChatError>> = chatService.errors

@@ -16,9 +16,6 @@ class SettingVM(
     private val settingsStore: SettingsStore,
     private val mcpManager: McpManager,
 ) : ViewModel() {
-    // settingsFlow 本身已经是 StateFlow，且首帧就有磁盘值；再包一层 stateIn 会把初值变成
-    // Settings(init = true)（全默认：头像为空、开关全默认），页面首帧就会拿它渲染，
-    // 并且点击时拿这份默认快照整体写回，把头像与自定义设置覆盖掉。直接透传。
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
 
     /**
@@ -29,7 +26,7 @@ class SettingVM(
         settingsStore.settingsFlow
             .map { it.settingShortcutIds.mapNotNull { id -> SettingCatalog.byId(id) } }
             .distinctUntilChanged()
-            .stateIn(viewModelScope, SharingStarted.Lazily, emptyList())
+            .stateIn(viewModelScope, SharingStarted.Eagerly, shortcutEntriesNow())
 
     /** 同步取当前快捷入口（StateFlow 初值为空列表，进页首帧用它避免网格闪动）。 */
     fun shortcutEntriesNow(): List<SettingEntry> =

@@ -49,9 +49,11 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     var showLanguageDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
-    fun updateDisplaySetting(setting: DisplaySetting) {
-        displaySetting = setting
-        vm.updateSettings { current -> current.copy(displaySetting = setting) }
+    fun updateDisplaySetting(transform: (DisplaySetting) -> DisplaySetting) {
+        displaySetting = transform(displaySetting)
+        vm.updateSettings { current ->
+            current.copy(displaySetting = transform(current.displaySetting))
+        }
     }
 
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -127,7 +129,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     )
                     switchItem(
                         checked = displaySetting.sendOnEnter,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(sendOnEnter = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(sendOnEnter = it) } },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_send_on_enter_desc)) },
                     )
@@ -138,7 +140,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     switchItem(
                         checked = displaySetting.showMessageJumper,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(showMessageJumper = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(showMessageJumper = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_show_message_jumper_title))
                         },
@@ -149,7 +151,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     if (displaySetting.showMessageJumper) {
                         switchItem(
                             checked = displaySetting.messageJumperOnLeft,
-                            onCheckedChange = { updateDisplaySetting(displaySetting.copy(messageJumperOnLeft = it)) },
+                            onCheckedChange = { updateDisplaySetting { s -> s.copy(messageJumperOnLeft = it) } },
                             headlineContent = {
                                 Text(stringResource(R.string.setting_display_page_message_jumper_position_title))
                             },
@@ -160,7 +162,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     }
                     switchItem(
                         checked = displaySetting.enableAutoScroll,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableAutoScroll = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(enableAutoScroll = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_enable_auto_scroll_title))
                         },
@@ -176,7 +178,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     switchItem(
                         checked = displaySetting.useAppIconStyleLoadingIndicator,
                         onCheckedChange = {
-                            updateDisplaySetting(displaySetting.copy(useAppIconStyleLoadingIndicator = it))
+                            updateDisplaySetting { s -> s.copy(useAppIconStyleLoadingIndicator = it) }
                         },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_use_app_icon_style_loading_indicator_title))
@@ -187,7 +189,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     )
                     switchItem(
                         checked = displaySetting.enableBlurEffect,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableBlurEffect = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(enableBlurEffect = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_enable_blur_effect_title))
                         },
@@ -198,7 +200,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     switchItem(
                         checked = displaySetting.enableMessageGenerationHapticEffect,
                         onCheckedChange = {
-                            updateDisplaySetting(displaySetting.copy(enableMessageGenerationHapticEffect = it))
+                            updateDisplaySetting { s -> s.copy(enableMessageGenerationHapticEffect = it) }
                         },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_enable_message_generation_haptic_effect_title))
@@ -214,13 +216,13 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     switchItem(
                         checked = displaySetting.skipCropImage,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(skipCropImage = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(skipCropImage = it) } },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_skip_crop_image_desc)) },
                     )
                     switchItem(
                         checked = displaySetting.pasteLongTextAsFile,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(pasteLongTextAsFile = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(pasteLongTextAsFile = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_paste_long_text_as_file_title))
                         },
@@ -238,9 +240,8 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             Slider(
                                 value = displaySetting.pasteLongTextThreshold.toFloat(),
                                 onValueChange = {
-                                    updateDisplaySetting(
-                                        displaySetting.copy(pasteLongTextThreshold = it.toInt()),
-                                    )
+                                    updateDisplaySetting { s -> s.copy(pasteLongTextThreshold = it.toInt()) }
+
                                 },
                                 valueRange = 100f..10000f,
                                 modifier = Modifier.fillMaxWidth(),
@@ -262,11 +263,10 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                     .coerceIn(1_000, 50_000)
                                     .toFloat(),
                             onValueChange = {
-                                updateDisplaySetting(
-                                    displaySetting.copy(
+                                updateDisplaySetting { s -> s.copy(
                                         attachmentInlineThreshold = it.toInt(),
                                     ),
-                                )
+                                }
                             },
                             valueRange = 1000f..50000f,
                             modifier = Modifier.fillMaxWidth(),
@@ -279,7 +279,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                 CardGroup {
                     switchItem(
                         checked = displaySetting.enableVolumeKeyScroll,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(enableVolumeKeyScroll = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(enableVolumeKeyScroll = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_volume_key_scroll_title))
                         },
@@ -299,7 +299,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             Slider(
                                 value = displaySetting.volumeKeyScrollRatio,
                                 onValueChange = {
-                                    updateDisplaySetting(displaySetting.copy(volumeKeyScrollRatio = it))
+                                    updateDisplaySetting { s -> s.copy(volumeKeyScrollRatio = it) }
                                 },
                                 valueRange = 0.25f..1.0f,
                                 steps = 2,
@@ -316,7 +316,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     switchItem(
                         checked = displaySetting.ttsOnlyReadQuoted,
-                        onCheckedChange = { updateDisplaySetting(displaySetting.copy(ttsOnlyReadQuoted = it)) },
+                        onCheckedChange = { updateDisplaySetting { s -> s.copy(ttsOnlyReadQuoted = it) } },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_tts_only_read_quoted_title))
                         },
@@ -327,7 +327,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     switchItem(
                         checked = displaySetting.ttsOnlyReadOutsideBrackets,
                         onCheckedChange = {
-                            updateDisplaySetting(displaySetting.copy(ttsOnlyReadOutsideBrackets = it))
+                            updateDisplaySetting { s -> s.copy(ttsOnlyReadOutsideBrackets = it) }
                         },
                         headlineContent = {
                             Text(stringResource(R.string.setting_display_page_tts_read_outside_brackets_title))
@@ -339,7 +339,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     switchItem(
                         checked = displaySetting.autoPlayTTSAfterGeneration,
                         onCheckedChange = {
-                            updateDisplaySetting(displaySetting.copy(autoPlayTTSAfterGeneration = it))
+                            updateDisplaySetting { s -> s.copy(autoPlayTTSAfterGeneration = it) }
                         },
                         headlineContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_title)) },
                         supportingContent = { Text(stringResource(R.string.setting_display_page_auto_play_tts_desc)) },

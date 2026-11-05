@@ -13,9 +13,7 @@ import kotlin.uuid.Uuid
 class QuickMessagesVM(
     private val settingsStore: SettingsStore,
 ) : ViewModel() {
-    val settings =
-        settingsStore.settingsFlow
-            .stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
+    val settings = settingsStore.settingsFlow
 
     fun addQuickMessage(
         title: String,

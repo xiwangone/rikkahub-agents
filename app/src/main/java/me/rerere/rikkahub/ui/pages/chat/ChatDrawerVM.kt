@@ -51,7 +51,11 @@ class ChatDrawerVM(
         settingsStore.settingsFlow
             .map { it.displaySetting.sortConversationsByCreatedAt }
             .distinctUntilChanged()
-            .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+            .stateIn(
+                viewModelScope,
+                SharingStarted.WhileSubscribed(5_000),
+                settingsStore.settingsFlow.value.displaySetting.sortConversationsByCreatedAt,
+            )
 
     fun toggleConversationSortOrder() {
         viewModelScope.launch {

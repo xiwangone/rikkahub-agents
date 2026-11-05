@@ -48,7 +48,6 @@ class AssistantDetailVM(
         }
     }
 
-    // 直接透传：settingsFlow 本身是 StateFlow，首帧即有真实值，不需要 dummy 兜底。
     val settings: StateFlow<Settings> = settingsStore.settingsFlow
 
     val mcpServerConfigs =
@@ -59,12 +58,9 @@ class AssistantDetailVM(
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Eagerly,
-                initialValue = emptyList(),
+                initialValue = settingsStore.settingsFlow.value.mcpServers,
             )
 
-    // 兜底必须带上 assistantId：Assistant() 默认构造会生成**随机 UUID**，
-    // 旧快照一旦参与 update(assistant.copy(...)) 就匹配不到任何助手，表现为“点了没反应”；
-    // 若恰好匹配，则用旧快照覆盖，把刚设置的头像写回 Dummy 并触发旧文件删除。
     val assistant: StateFlow<Assistant> =
         settingsStore
             .settingsFlow
@@ -100,7 +96,7 @@ class AssistantDetailVM(
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Eagerly,
-                initialValue = emptyList(),
+                initialValue = settingsStore.settingsFlow.value.providers,
             )
 
     val tags =
@@ -111,7 +107,7 @@ class AssistantDetailVM(
             }.stateIn(
                 scope = viewModelScope,
                 started = SharingStarted.Eagerly,
-                initialValue = emptyList(),
+                initialValue = settingsStore.settingsFlow.value.assistantTags,
             )
 
     val workspaces: StateFlow<List<WorkspaceEntity>> =

@@ -33,6 +33,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
@@ -56,7 +57,8 @@ private val CardGroupPreviewHorizontalInset = 16.dp
 private val DefaultCardGroupIconContainerSize = 34.dp
 private val DefaultCardGroupIconGlyphSize = 18.dp
 
-private data class CardGroupItem(
+@PublishedApi
+internal data class CardGroupItem(
     val onClick: (() -> Unit)?,
     val modifier: Modifier,
     val overlineContent: (@Composable () -> Unit)?,
@@ -95,8 +97,10 @@ interface CardGroupScope {
     )
 }
 
-private class CardGroupScopeImpl : CardGroupScope {
-    val items = mutableListOf<CardGroupItem>()
+@PublishedApi
+internal class CardGroupScopeImpl : CardGroupScope {
+    @PublishedApi
+    internal val items = mutableListOf<CardGroupItem>()
 
     override fun item(
         onClick: (() -> Unit)?,
@@ -234,6 +238,7 @@ fun CardGroupValue(
 }
 
 @Composable
+@NonRestartableComposable
 private fun CardGroupFormItem(
     item: CardGroupItem,
     formContent: @Composable ColumnScope.() -> Unit,
@@ -279,6 +284,7 @@ private fun CardGroupFormItem(
 }
 
 @Composable
+@NonRestartableComposable
 private fun CardGroupListItem(
     item: CardGroupItem,
     count: Int,
@@ -331,20 +337,36 @@ private fun CardGroupListItem(
 }
 
 @Composable
-fun CardGroup(
+inline fun CardGroup(
     modifier: Modifier = Modifier,
-    title: (@Composable () -> Unit)? = null,
-    onClick: (() -> Unit)? = null,
+    noinline title: (@Composable () -> Unit)? = null,
+    noinline onClick: (() -> Unit)? = null,
     content: @Composable CardGroupScope.() -> Unit,
 ) {
-    Column(modifier = modifier) {
-        // 收集与渲染必须在**同一个重组范围**内：
-        // scope.items 是普通 MutableList（非 SnapshotStateList），Compose 观察不到它的变化。
-        // 若把 scope.content() 放在 Column 外面，状态变化只会让“收集”那一段重组，
-        // Column 自身参数未变就会被跳过 → 一直渲染旧列表，表现为「点了开关不变、重进才对」。
-        val scope = CardGroupScopeImpl()
-        scope.content()
+    // 必须使用 inline + 每次重组新建 CardGroupScopeImpl：
+    // 1) 非 inline 的 @Composable CardGroup 会将 content 包装为独立 ComposableLambdaImpl 子 RestartGroup，
+    //    状态变化时仅重跑子 lambda 而外层 CardGroup 因 $changed 未变直接 skipToGroupEnd() 跳过 Column 渲染；
+    // 2) remember { CardGroupScopeImpl() } + items.clear() 在父级重组但子 lambda 跳过时会把已收集条目清空成空白卡片。
+    val scope = CardGroupScopeImpl()
+    scope.content()
+    CardGroupLayout(
+        modifier = modifier,
+        title = title,
+        onClick = onClick,
+        items = scope.items,
+    )
+}
 
+@PublishedApi
+@Composable
+@NonRestartableComposable
+internal fun CardGroupLayout(
+    modifier: Modifier,
+    title: (@Composable () -> Unit)?,
+    onClick: (() -> Unit)?,
+    items: List<CardGroupItem>,
+) {
+    Column(modifier = modifier) {
         if (title != null) {
             CompositionLocalProvider(LocalContentColor provides MaterialTheme.colorScheme.primary) {
                 ProvideTextStyle(MaterialTheme.typography.titleSmallEmphasized) {
@@ -355,7 +377,8 @@ fun CardGroup(
                                     start = CardGroupTitleHorizontalInset,
                                     top = CardGroupTitleVerticalInset,
                                     bottom = CardGroupTitleVerticalInset,
-                                ).then(
+                                )
+                                .then(
                                     if (onClick != null) Modifier.clickable { onClick() } else Modifier,
                                 ),
                     ) {
@@ -364,8 +387,8 @@ fun CardGroup(
                 }
             }
         }
-        val count = scope.items.size
-        scope.items.fastForEachIndexed { index, item ->
+        val count = items.size
+        items.fastForEachIndexed { index, item ->
             val formContent = item.formContent
             if (formContent != null) {
                 CardGroupFormItem(item = item, formContent = formContent, count = count, index = index)

@@ -57,6 +57,7 @@ fun AssistantRequestPage(id: String) {
             innerPadding = innerPadding,
             assistant = assistant,
             onUpdate = { vm.update(it) },
+            onUpdateAssistant = { vm.updateAssistant(it) },
         )
     }
 }
@@ -66,6 +67,7 @@ internal fun AssistantRequestContent(
     innerPadding: PaddingValues,
     assistant: Assistant,
     onUpdate: (Assistant) -> Unit,
+    onUpdateAssistant: ((Assistant) -> Assistant) -> Unit = { onUpdate(it(assistant)) },
 ) {
     Column(
         modifier =
@@ -80,23 +82,19 @@ internal fun AssistantRequestContent(
     ) {
         CustomHeaders(
             headers = assistant.customHeaders,
-            onUpdate = {
-                onUpdate(
-                    assistant.copy(
-                        customHeaders = it,
-                    ),
-                )
+            onUpdate = { headers ->
+                onUpdateAssistant { current ->
+                    current.copy(customHeaders = headers)
+                }
             },
         )
 
         CustomBodies(
             customBodies = assistant.customBodies,
-            onUpdate = {
-                onUpdate(
-                    assistant.copy(
-                        customBodies = it,
-                    ),
-                )
+            onUpdate = { bodies ->
+                onUpdateAssistant { current ->
+                    current.copy(customBodies = bodies)
+                }
             },
         )
     }

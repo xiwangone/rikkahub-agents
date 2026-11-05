@@ -233,7 +233,7 @@ fun AssistantMemoryPage(id: String) {
 
                     MemoryTab.SETTINGS -> MemorySettingsTab(
                         assistant = assistant,
-                        onUpdateAssistant = { vm.update(it) },
+                        onUpdateAssistant = { transform -> vm.updateAssistant(transform) },
                     )
                 }
             }
@@ -244,7 +244,7 @@ fun AssistantMemoryPage(id: String) {
 @Composable
 private fun MemorySettingsTab(
     assistant: Assistant,
-    onUpdateAssistant: (Assistant) -> Unit,
+    onUpdateAssistant: ((Assistant) -> Assistant) -> Unit,
 ) {
     var showTimeReminderIntervalDialog by remember(assistant.id) { mutableStateOf(false) }
     var timeReminderIntervalInput by remember(assistant.id) { mutableStateOf("") }
@@ -270,7 +270,7 @@ private fun MemorySettingsTab(
                     enabled = interval != null,
                     onClick = {
                         interval?.let {
-                            onUpdateAssistant(assistant.copy(timeReminderIntervalMinutes = it))
+                            onUpdateAssistant { current -> current.copy(timeReminderIntervalMinutes = it) }
                         }
                         showTimeReminderIntervalDialog = false
                     },
@@ -298,11 +298,10 @@ private fun MemorySettingsTab(
             switchItem(
                 checked = assistant.enableMemory,
                 onCheckedChange = {
-                    onUpdateAssistant(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             enableMemory = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_memory)) },
@@ -310,11 +309,10 @@ private fun MemorySettingsTab(
             switchItem(
                 checked = assistant.useGlobalMemory,
                 onCheckedChange = {
-                    onUpdateAssistant(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             useGlobalMemory = it,
                         ),
-                    )
+                    }
                 },
                 enabled = assistant.enableMemory,
                 supportingContent = { Text(stringResource(R.string.assistant_page_global_memory_desc)) },
@@ -323,11 +321,10 @@ private fun MemorySettingsTab(
             switchItem(
                 checked = assistant.enableRecentChatsReference,
                 onCheckedChange = {
-                    onUpdateAssistant(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             enableRecentChatsReference = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_recent_chats)) },
@@ -338,11 +335,10 @@ private fun MemorySettingsTab(
             switchItem(
                 checked = assistant.enableTimeReminder,
                 onCheckedChange = {
-                    onUpdateAssistant(
-                        assistant.copy(
+                    onUpdateAssistant { current -> current.copy(
                             enableTimeReminder = it,
                         ),
-                    )
+                    }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_time_reminder)) },

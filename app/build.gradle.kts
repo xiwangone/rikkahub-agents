@@ -138,11 +138,11 @@ android {
     }
     androidResources {
         generateLocaleConfig = true
-        // 仅打包应用支持的 7 种语言资源，剥离三方库附带的 75+ 种未用语言字符串表
-        localeFilters += listOf("en", "zh", "b+zh+Hant", "ja", "ko-rKR", "ru", "ar")
+        // 仅打包应用支持的语言资源（含三方库常用的 zh-rCN/zh-rTW/zh-rHK/ko 变体），剥离 70+ 种未用语言表
+        localeFilters += listOf("en", "zh", "zh-rCN", "zh-rTW", "zh-rHK", "b+zh+Hant", "ja", "ko", "ko-rKR", "ru", "ar")
         // 排除 simple_dict 中 C++ 分词器未引用的 pos_dict（2.09MB）与 32 万行 idf.utf8（5.86MB，
-        // 运行时由 SimpleDictManager 生成单行占位文件），直接缩减 APK 资产体积约 2.76MB。
-        ignoreAssetsPatterns += listOf("pos_dict", "idf.utf8")
+        // 运行时由 SimpleDictManager 生成单行占位文件）；同时带 !glob 与无前缀后缀写法以兼容 AssetSet 与 aapt2。
+        ignoreAssetsPatterns += listOf("!pos_dict", "!pos_dict/**", "!idf.utf8", "pos_dict", "idf.utf8")
     }
     packaging {
         resources {

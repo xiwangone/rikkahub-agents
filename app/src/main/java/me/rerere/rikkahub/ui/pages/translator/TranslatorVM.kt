@@ -27,9 +27,7 @@ class TranslatorVM(
     private val generationHandler: GenerationLoop,
     private val historyRepository: TranslationHistoryRepository,
 ) : ViewModel() {
-    val settings: StateFlow<Settings> =
-        settingsStore.settingsFlow
-            .stateIn(viewModelScope, SharingStarted.Lazily, Settings.dummy())
+    val settings = settingsStore.settingsFlow
 
     val history = historyRepository.observeHistory()
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptyList())

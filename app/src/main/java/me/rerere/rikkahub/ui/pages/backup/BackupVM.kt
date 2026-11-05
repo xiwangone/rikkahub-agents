@@ -50,12 +50,7 @@ class BackupVM(
     private val migrationExporter: MigrationExporter,
     private val migrationImporter: MigrationImporter,
 ) : ViewModel() {
-    val settings =
-        settingsStore.settingsFlow.stateIn(
-            scope = viewModelScope,
-            started = SharingStarted.Eagerly,
-            initialValue = Settings.dummy(),
-        )
+    val settings = settingsStore.settingsFlow
 
     val webDavBackupItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
 
