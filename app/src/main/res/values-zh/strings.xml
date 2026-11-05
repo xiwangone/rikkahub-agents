@@ -69,7 +69,7 @@
   <string name="about_page_version">版本</string>
   <string name="about_page_website">RikkaHub 官网</string>
   <string name="add">添加</string>
-  <string name="app_name">RikkaHub Agents</string>
+  <string name="app_name">Yao</string>
   <string name="asr_button_content_description">语音识别</string>
   <string name="asr_button_stop">停止</string>
   <string name="assistant_detail_basic_desc">配置名称、头像、模型和参数</string>
@@ -1128,7 +1128,7 @@
   <string name="setting_page_search_title">搜索服务</string>
   <string name="setting_page_share">分享</string>
   <string name="setting_page_share_desc">分享本APP给朋友</string>
-  <string name="setting_page_share_text">RikkaHub Agents - 开源安卓 AI 助手（基于 RikkaHub）\n\n仓库: https://github.com/xiwangone/rikkahub-agents</string>
+  <string name="setting_page_share_text">Yao - 开源安卓 AI 助手（基于 RikkaHub）\n\n仓库: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">主题</string>
   <string name="setting_page_theme_setting_desc">自定义应用配色方案</string>
   <string name="setting_theme_page_preset_themes">预设主题</string>
@@ -1151,7 +1151,7 @@
   <string name="setting_page_web_capability">Web 能力</string>
   <string name="setting_page_web_server_address_note">地址说明</string>
   <string name="setting_page_web_server_address_note_desc">局域网地址：使用设备 WiFi IP，同一网络中的其他设备可访问。移动数据网络下不可用。\n本地地址：使用 localhost，仅限本设备访问。\nmDNS 地址：使用 .local 主机名，同一网络中的其他设备可通过名称访问，无需知道 IP。</string>
-  <string name="setting_page_web_server_desc">允许你通过网页访问 RikkaHub Agents</string>
+  <string name="setting_page_web_server_desc">允许你通过网页访问 Yao</string>
   <string name="setting_web_server_status_running">● 运行中</string>
   <string name="setting_web_server_status_stopped">○ 已停止</string>
   <string name="setting_page_web_server_error">错误</string>
@@ -1510,7 +1510,7 @@
   <string name="setting_model_page_enable_suggestion">启用聊天建议</string>
   <string name="setting_display_page_show_date_below_name_desc">是否在昵称或模型名称下方显示消息日期</string>
   <string name="setting_display_page_show_date_below_name_title">显示昵称下方日期</string>
-  <string name="accessibility_service_summary">当大模型使用屏幕自动化工具时，允许 RikkaHub Agents 点击、滑动、滚动、读取屏幕内容和截图。</string>
+  <string name="accessibility_service_summary">当大模型使用屏幕自动化工具时，允许 Yao 点击、滑动、滚动、读取屏幕内容和截图。</string>
   <string name="assistant_page_fast_path_router">快速路径路由</string>
   <string name="assistant_page_fast_path_router_desc">对于高置信度的请求（如“我的电量是多少”、“现在几点”或“列出工作流”），跳过大模型。匹配的工具直接运行，你立即得到答案。保守策略 — 任何含糊的请求仍会交给模型。记录到 logcat（标签：FastPathRouter）。</string>
   <string name="assistant_page_local_tools_app_launcher_desc">按包名打开已安装的应用（例如 Termux、设置）并列出可用应用。与屏幕自动化配合可实现完整的界面控制。</string>
@@ -1668,7 +1668,7 @@
   <string name="assistant_page_local_tools_wifi_desc">读取当前 Wi-Fi 连接（SSID、IP、信号）。读取 SSID 需要位置权限。</string>
   <string name="assistant_page_local_tools_wifi_title">Wi-Fi 信息</string>
   <string name="assistant_page_local_tools_workflows_desc">让助手创建由触发器运行的自动化 — WiFi 连接、定时、地理围栏、通知到达等。</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">工作流已启用。某些触发器类型需要开关无法请求的权限：\n\n• 地理围栏（你到达某地）：设置 → 应用 → RikkaHub Agents → 权限 → 位置 → 始终允许。\n• 通知到达：设置 → 应用 → 特殊访问权限 → 通知使用权 → 启用 RikkaHub Agents。\n• 应用启动/关闭：设置 → 无障碍 → 启用 RikkaHub Agents。\n• 蓝牙连接/断开：在系统询问时授予 BLUETOOTH_CONNECT。\n\n定时、WiFi、耳机、电源、屏幕开/关和电池触发器开箱即用。当你创建需要额外设置的工作流时，助手会即时提示。</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">工作流已启用。某些触发器类型需要开关无法请求的权限：\n\n• 地理围栏（你到达某地）：设置 → 应用 → Yao → 权限 → 位置 → 始终允许。\n• 通知到达：设置 → 应用 → 特殊访问权限 → 通知使用权 → 启用 Yao。\n• 应用启动/关闭：设置 → 无障碍 → 启用 Yao。\n• 蓝牙连接/断开：在系统询问时授予 BLUETOOTH_CONNECT。\n\n定时、WiFi、耳机、电源、屏幕开/关和电池触发器开箱即用。当你创建需要额外设置的工作流时，助手会即时提示。</string>
   <string name="assistant_page_local_tools_workflows_hint_title">工作流需要额外设置</string>
   <string name="assistant_page_local_tools_workflows_title">工作流</string>
   <string name="browser_address_bar_back">浏览器后退</string>
@@ -1716,7 +1716,7 @@
   <string name="local_llm_download_cancel">取消</string>
   <string name="local_llm_download_continue">下载</string>
   <string name="local_llm_download_default">下载默认模型</string>
-  <string name="local_llm_download_message">RikkaHub Agents 需要为此服务商下载一个入门模型。下载约 1.5 GB（Qwen2.5 1.5B Q8）。继续？</string>
+  <string name="local_llm_download_message">Yao 需要为此服务商下载一个入门模型。下载约 1.5 GB（Qwen2.5 1.5B Q8）。继续？</string>
   <string name="local_llm_download_progress">正在下载… %1$d%%</string>
   <string name="local_llm_download_title">下载默认模型</string>
   <string name="local_llm_downloading_format">正在下载… %1$d%%（%2$s / %3$s）</string>
@@ -1833,7 +1833,7 @@
   <string name="setting_page_accessibility_overlay_open_settings">授予在其他应用上层显示</string>
   <string name="setting_page_accessibility_overlay_section">活动悬浮窗</string>
   <string name="setting_page_accessibility_recent_section">最近操作</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub Agents 需要无障碍权限来为大模型执行点击、滑动和读取屏幕。打开 设置 &#x2192; 无障碍 &#x2192; 已安装的应用 &#x2192; RikkaHub Agents 并开启它。</string>
+  <string name="setting_page_accessibility_status_help">Yao 需要无障碍权限来为大模型执行点击、滑动和读取屏幕。打开 设置 &#x2192; 无障碍 &#x2192; 已安装的应用 &#x2192; Yao 并开启它。</string>
   <string name="setting_page_accessibility_status_not_running">服务：未运行</string>
   <string name="setting_page_accessibility_status_running">服务：运行中</string>
   <string name="setting_page_accessibility_status_section">状态</string>
@@ -1885,7 +1885,7 @@
   <string name="setting_page_notifications_recent_empty">尚未捕获任何通知。</string>
   <string name="setting_page_notifications_recent_section">最近活动</string>
   <string name="setting_page_notifications_status_connected">服务：已连接</string>
-  <string name="setting_page_notifications_status_help">RikkaHub Agents 需要通知访问权限来读取传入的通知。打开 设置 → 通知使用权 → 通知使用权 并启用 RikkaHub Agents。</string>
+  <string name="setting_page_notifications_status_help">Yao 需要通知访问权限来读取传入的通知。打开 设置 → 通知使用权 → 通知使用权 并启用 Yao。</string>
   <string name="setting_page_notifications_status_not_connected">服务：未连接</string>
   <string name="setting_page_notifications_status_section">状态</string>
   <string name="setting_page_notifications_whitelist_help">其通知会自动转发到你默认 Telegram 聊天的应用。留空 = 不转发任何内容。在选择器中逐个开关应用。</string>
@@ -1901,7 +1901,7 @@
   <string name="setting_page_notifications_whitelist_summary_n_plural">%1$d 个应用已加入白名单</string>
   <string name="setting_page_notifications_whitelist_summary_zero">无白名单应用</string>
   <string name="setting_page_permissions">权限</string>
-  <string name="setting_page_permissions_desc">自动发现的 RikkaHub Agents 使用的所有权限列表，每项都有一键授予按钮。</string>
+  <string name="setting_page_permissions_desc">自动发现的 Yao 使用的所有权限列表，每项都有一键授予按钮。</string>
   <string name="setting_page_permissions_group_auto">自动授予</string>
   <string name="setting_page_permissions_group_runtime">运行时权限</string>
   <string name="setting_page_permissions_group_services">服务与集成</string>
@@ -1959,7 +1959,7 @@
   <string name="setting_page_telegram_proxy_username">代理用户名</string>
   <string name="setting_page_telegram_proxy_password">代理密码</string>
   <string name="setting_page_telegram_battery_already_ok">已从电池优化中加入白名单。</string>
-  <string name="setting_page_telegram_battery_desc">屏幕关闭时，激进的 OEM 系统（小米、OPPO、一加、Vivo）会切断非白名单应用的网络。机器人只能在偶尔的维护窗口期投递消息。点击将 RikkaHub Agents 加入白名单。</string>
+  <string name="setting_page_telegram_battery_desc">屏幕关闭时，激进的 OEM 系统（小米、OPPO、一加、Vivo）会切断非白名单应用的网络。机器人只能在偶尔的维护窗口期投递消息。点击将 Yao 加入白名单。</string>
   <string name="setting_page_telegram_battery_needed">电池优化：未加入白名单 - 点击修复</string>
   <string name="setting_page_telegram_battery_ok">电池优化：已加入白名单</string>
   <string name="setting_page_telegram_boot_note">启动后，机器人也会在设备开机时自动启动。</string>
@@ -2034,7 +2034,7 @@
   <string name="setting_page_workflows_subtitle_ran_success">运行于 %1$s • 成功</string>
   <string name="setting_page_workflows_subtitle_when">时间：%1$s</string>
   <string name="setting_provider_aicore_release_stage">发布阶段</string>
-  <string name="setting_provider_aicore_status_help">在设备本地运行。需要安装了 AICore 应用的 Pixel 8/9/10，并且加入 GenAI Prompt-API 抢先体验计划（单独的选择加入）。如果你在首次运行时看到 ErrorCode 606 / FEATURE_NOT_FOUND，说明你安装了 AICore 但没有 Prompt-API 通道 — 通过 GenAI Prompt-API 抢先体验表单申请访问权限，然后重启。通过提示工程支持工具调用 — Gemini Nano 发出 &lt;tool_call&gt; 标记，由 RikkaHub Agents 解析并派发。</string>
+  <string name="setting_provider_aicore_status_help">在设备本地运行。需要安装了 AICore 应用的 Pixel 8/9/10，并且加入 GenAI Prompt-API 抢先体验计划（单独的选择加入）。如果你在首次运行时看到 ErrorCode 606 / FEATURE_NOT_FOUND，说明你安装了 AICore 但没有 Prompt-API 通道 — 通过 GenAI Prompt-API 抢先体验表单申请访问权限，然后重启。通过提示工程支持工具调用 — Gemini Nano 发出 &lt;tool_call&gt; 标记，由 Yao 解析并派发。</string>
   <string name="setting_provider_delete_body">这将永久移除 %1$s 及其所有已配置的模型。你可以稍后重新添加。</string>
   <string name="setting_provider_delete_cancel">取消</string>
   <string name="setting_provider_delete_confirm">移除</string>
@@ -2604,7 +2604,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku 服务未运行</string>
   <string name="setting_shizuku_section_help">设置帮助</string>
   <string name="setting_shizuku_help_title">配置 Shizuku</string>
-  <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 RikkaHub Agents 访问权限。</string>
+  <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 Yao 访问权限。</string>
   <string name="setting_ssh_hosts_title">SSH 主机</string>
   <string name="setting_ssh_host_delete">删除</string>
   <string name="setting_ssh_host_connect">连接</string>
@@ -3158,7 +3158,7 @@
   <string name="doctor_msg_browser_unneeded">%1$s 已存在。当前没有启用的工具需要它。</string>
   <string name="doctor_msg_browser_ok">%1$s 存在且可写 — Cookie 将持久化。</string>
   <string name="doctor_msg_termux_denied">未授予。请在本地工具中重新切换 Termux 开关以查看授权后对话框。</string>
-  <string name="doctor_msg_termux_ok">已授予 — RikkaHub Agents 可向 Termux 派发 Shell 命令。</string>
+  <string name="doctor_msg_termux_ok">已授予 — Yao 可向 Termux 派发 Shell 命令。</string>
   <string name="doctor_msg_termux_missing">Termux 未安装。需求方: %1$s.</string>
   <string name="doctor_msg_termux_installed">本机已安装 com.termux。</string>
   <string name="doctor_msg_dns_failed">DNS 解析失败或超时。网络变化时 NetworkChangeMonitor 会清空 OkHttp 连接池 — 如果持续红色，请检查网络连接。</string>
@@ -3258,7 +3258,7 @@
   <string name="doctor_summary_ok">正常</string>
   <string name="doctor_summary_info">信息</string>
   <string name="doctor_msg_open_failed">无法打开：%1$s</string>
-  <string name="doctor_report_clip_label">RikkaHub Agents 诊断报告</string>
+  <string name="doctor_report_clip_label">Yao 诊断报告</string>
   <string name="save">保存</string>
   <string name="backend_service_local">本机（local）</string>
   <string name="backend_service_current_badge">✅ 当前执行后端</string>
@@ -3368,8 +3368,8 @@
   <string name="mcp_page_clear">清空</string>
   <string name="mcp_page_oauth_required">需要 OAuth 授权</string>
   <string name="mcp_page_oauth_in_progress">正在授权，请在浏览器中完成…</string>
-  <string name="ssh_key_default_desc">SSH 密钥对（生成于 RikkaHub Agents）</string>
-  <string name="ssh_key_default_desc_with_type">SSH 密钥对（生成于 RikkaHub Agents, %1$s）</string>
+  <string name="ssh_key_default_desc">SSH 密钥对（生成于 Yao）</string>
+  <string name="ssh_key_default_desc_with_type">SSH 密钥对（生成于 Yao, %1$s）</string>
   <string name="ssh_key_dialog_generate_title">生成 SSH 密钥对</string>
   <string name="ssh_key_dialog_saved_title">密钥已保存</string>
   <string name="ssh_key_name_label">凭证名称（保存到凭证库）</string>
@@ -3408,7 +3408,7 @@
   <string name="vault_format_bitwarden_desc">Bitwarden JSON（明文）</string>
   <string name="vault_format_loadcreds_desc">load-creds.sh（明文，可与凭证库往返导入）</string>
   <string name="vault_page_plaintext_env_hint">明文格式：值中的 ${VAR} 将替换为环境变量值（未定义的保留原样）。</string>
-  <string name="doctor_report_header">RikkaHub Agents — 诊断报告</string>
+  <string name="doctor_report_header">Yao — 诊断报告</string>
   <string name="doctor_report_generated_at">生成时间: %1$s</string>
   <string name="doctor_report_summary">摘要: %1$s</string>
   <string name="tool_approvals_mcp_local_title">本地 MCP Server（供 Backend 使用）</string>
@@ -3417,11 +3417,8 @@
   <string name="file_editor_read_failed">读取文件失败</string>
   <string name="file_editor_saved">已保存</string>
   <string name="file_editor_save_failed">保存失败</string>
-  <string name="chat_nerd_input_tokens">%1$s 输入</string>
   <string name="chat_nerd_cached_hit">(%1$s 命中 · %2$s)</string>
-  <string name="chat_nerd_output_tokens">%1$s 输出</string>
   <string name="chat_nerd_message_total">消息合计</string>
-  <string name="chat_nerd_latest_usage">最近请求：%1$s 输入 · %2$s 输出</string>
   <string name="chat_message_usage_title">用量详情</string>
   <string name="chat_message_usage_open">打开用量详情</string>
   <string name="chat_message_usage_close">关闭用量详情</string>
@@ -3454,7 +3451,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">命令执行失败</string>
   <string name="perm_float_window_label">悬浮窗权限</string>
-  <string name="perm_float_window_desc">允许 RikkaHub Agents 在自动化进行时显示「智能体工作中」悬浮提示。</string>
+  <string name="perm_float_window_desc">允许 Yao 在自动化进行时显示「智能体工作中」悬浮提示。</string>
   <string name="perm_write_settings_label">修改系统设置</string>
   <string name="perm_write_settings_desc">允许通过 set_brightness 调节屏幕亮度。</string>
   <string name="perm_notification_policy_label">勿扰模式访问</string>
@@ -3488,7 +3485,7 @@
   <string name="perm_desc_call_log">list_call_log 使用。</string>
   <string name="perm_desc_sms">list_sms_inbox 和 search_sms 使用。</string>
   <string name="perm_desc_send_sms">send_sms 发送短信时使用。</string>
-  <string name="perm_desc_termux_cmd">允许 RikkaHub Agents 在 Termux 中启动命令（termux_run_command 工具）。</string>
+  <string name="perm_desc_termux_cmd">允许 Yao 在 Termux 中启动命令（termux_run_command 工具）。</string>
   <string name="perm_desc_fallback">一个或多个已启用工具需要此运行时权限。</string>
   <string name="approve">批准</string>
   <string name="deny">拒绝</string>
@@ -4178,7 +4175,7 @@
   <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
   <string name="s3_config_region_placeholder">us-east-1</string>
   <string name="mcp_transport_streamable_http">Streamable HTTP</string>
-  <string name="log_page_clip_label">RikkaHub Agents 应用日志</string>
+  <string name="log_page_clip_label">Yao 应用日志</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">获取当前日期与时间。</string>
     <string name="copied_to_clipboard">已复制到剪贴板</string>

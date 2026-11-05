@@ -107,7 +107,7 @@ fun launchAppTool(
             if (accessibilityRunning && !keyLocked && !confirmed) {
                 listOf(
                     UIMessagePart.Text(
-                        ToolErrors.envelopeFor(error = "launch_did_not_focus", message = "launch_did_not_focus", hint = "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often RikkaHub Agents itself) — do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen.", extra = ToolErrors.extraOf("requested" to pkg, "current_foreground" to finalForeground.orEmpty(), "woke_screen" to woke)).toString()
+                        ToolErrors.envelopeFor(error = "launch_did_not_focus", message = "launch_did_not_focus", hint = "The launch intent was dispatched but the OS did not move ${pkg} to the foreground within 2.5s. The user is likely actively viewing another app (often Yao itself) — do NOT pass package_name to read_window_tree on this turn. Either ask the user to switch to ${pkg}, or call read_window_tree with no package_name guard so you can see whatever IS currently on screen.", extra = ToolErrors.extraOf("requested" to pkg, "current_foreground" to finalForeground.orEmpty(), "woke_screen" to woke)).toString()
                     )
                 )
             } else {

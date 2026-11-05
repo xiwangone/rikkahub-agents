@@ -69,7 +69,7 @@
   <string name="about_page_version">Version</string>
   <string name="about_page_website">RikkaHub website</string>
   <string name="add">Add</string>
-  <string name="app_name">RikkaHub Agents</string>
+  <string name="app_name">Yao</string>
   <string name="asr_button_content_description">Speech Recognition</string>
   <string name="asr_button_stop">Stop</string>
   <string name="assistant_detail_basic_desc">Configure name, avatar, model, and parameters</string>
@@ -892,7 +892,7 @@
   <string name="notification_channel_telegram_bot">Telegram bot</string>
   <string name="notification_channel_telegram_bot_errors">Telegram bot errors</string>
   <string name="notification_telegram_listening_title">Telegram bot listening</string>
-  <string name="notification_telegram_routing_body">Routing inbound messages to RikkaHub Agents</string>
+  <string name="notification_telegram_routing_body">Routing inbound messages to Yao</string>
   <string name="notification_telegram_rejected_sender_body">Rejected sender %1$s (chat %2$s). Add to whitelist if that was you.</string>
   <string name="notification_telegram_disabled_title">Telegram bot disabled</string>
   <string name="notification_telegram_token_rejected_text">Token rejected (HTTP %1$d). Set a new token in Settings, Telegram bot.</string>
@@ -1169,7 +1169,7 @@
   <string name="setting_page_search_web_fetch_tools_desc">Let the assistant fetch and read web page content directly. On by default; turn off to rely only on your configured search provider.</string>
   <string name="setting_page_share">Share</string>
   <string name="setting_page_share_desc">Share this app with friends</string>
-  <string name="setting_page_share_text">RikkaHub Agents - Open Source Android AI assistant (fork of RikkaHub)\n\nRepo: https://github.com/xiwangone/rikkahub-agents</string>
+  <string name="setting_page_share_text">Yao - Open Source Android AI assistant (fork of RikkaHub)\n\nRepo: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">Theme</string>
   <string name="setting_page_theme_setting_desc">Customize app color scheme</string>
   <string name="setting_theme_page_preset_themes">Preset Themes</string>
@@ -1195,7 +1195,7 @@
   <string name="setting_page_web_capability">Web Capability</string>
   <string name="setting_page_web_server_address_note">Address Notes</string>
   <string name="setting_page_web_server_address_note_desc">LAN Address: Uses device WiFi IP, accessible to other devices on the same network. Unavailable on mobile data.\nLocal Address: Uses localhost, accessible on this device only.\nmDNS Address: Uses .local hostname, accessible by name from other devices on the same network without knowing the IP.</string>
-  <string name="setting_page_web_server_desc">Allow you access RikkaHub Agents via Web</string>
+  <string name="setting_page_web_server_desc">Allow you access Yao via Web</string>
   <string name="setting_web_server_status_running">● Running</string>
   <string name="setting_web_server_status_stopped">○ Stopped</string>
   <string name="setting_page_web_server_error">Error</string>
@@ -1609,7 +1609,7 @@
   <string name="setting_page_telegram_boot_note">When started, the bot also auto-starts on device boot.</string>
   <string name="setting_page_telegram_battery_ok">Battery optimization: whitelisted</string>
   <string name="setting_page_telegram_battery_needed">Battery optimization: not whitelisted - tap to fix</string>
-  <string name="setting_page_telegram_battery_desc">When the screen turns off, aggressive OEM ROMs (Xiaomi, OPPO, OnePlus, Vivo) cut network for non-whitelisted apps. The bot will only deliver during occasional maintenance windows. Tap to whitelist RikkaHub Agents.</string>
+  <string name="setting_page_telegram_battery_desc">When the screen turns off, aggressive OEM ROMs (Xiaomi, OPPO, OnePlus, Vivo) cut network for non-whitelisted apps. The bot will only deliver during occasional maintenance windows. Tap to whitelist Yao.</string>
   <string name="setting_page_telegram_battery_already_ok">Already whitelisted from battery optimization.</string>
   <string name="setting_page_telegram_proxy_enabled">Proxy</string>
   <string name="setting_page_telegram_proxy_enabled_desc">Route the bot\'s own network calls through a proxy. The bot must be stopped to edit.</string>
@@ -1738,7 +1738,7 @@
   <string name="assistant_page_local_tools_speech_to_text_desc">Listen to the microphone and convert spoken words to text.</string>
   <string name="assistant_page_local_tools_fingerprint_title">Fingerprint</string>
   <string name="assistant_page_local_tools_fingerprint_desc">Show the system biometric prompt to verify the user\'s identity.</string>
-  <string name="accessibility_service_summary">Lets RikkaHub Agents tap, swipe, scroll, read screen content, and take screenshots when the LLM uses the Screen automation tools.</string>
+  <string name="accessibility_service_summary">Lets Yao tap, swipe, scroll, read screen content, and take screenshots when the LLM uses the Screen automation tools.</string>
   <string name="assistant_page_local_tools_section_screen_automation">Screen &amp; terminal</string>
   <string name="assistant_page_local_tools_screen_automation_title">Screen automation</string>
   <string name="assistant_page_local_tools_screen_automation_desc">Let the LLM tap, swipe, scroll, read on-screen content, and take screenshots via Android\'s accessibility service.</string>
@@ -1783,7 +1783,7 @@
   <string name="setting_page_accessibility_status_section">Status</string>
   <string name="setting_page_accessibility_status_running">Service: Running</string>
   <string name="setting_page_accessibility_status_not_running">Service: Not running</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub Agents needs accessibility permission to perform taps, swipes, and read the screen for the LLM. Open Settings &#x2192; Accessibility &#x2192; Installed Apps &#x2192; RikkaHub Agents and turn it on.</string>
+  <string name="setting_page_accessibility_status_help">Yao needs accessibility permission to perform taps, swipes, and read the screen for the LLM. Open Settings &#x2192; Accessibility &#x2192; Installed Apps &#x2192; Yao and turn it on.</string>
   <string name="setting_page_accessibility_open_settings">Open Accessibility settings</string>
   <string name="setting_page_accessibility_diagnostics_section">Diagnostics</string>
   <string name="setting_page_accessibility_capture_diag">Capture diagnostic screenshot</string>
@@ -1801,7 +1801,7 @@
   <string name="setting_page_accessibility_overlay_help">Shows a small \"The agent is working\" pill at the top of the screen while the agent is automating, so you always know when it is driving the UI. Optional but recommended.</string>
   <string name="setting_page_accessibility_overlay_open_settings">Grant Display over other apps</string>
   <string name="setting_page_permissions">Permissions</string>
-  <string name="setting_page_permissions_desc">Auto-discovered list of every permission RikkaHub Agents uses, with a one-tap grant button for each.</string>
+  <string name="setting_page_permissions_desc">Auto-discovered list of every permission Yao uses, with a one-tap grant button for each.</string>
   <string name="setting_page_permissions_group_services">Services and integrations</string>
   <string name="setting_page_permissions_group_special">Special access</string>
   <string name="setting_page_permissions_group_runtime">Runtime permissions</string>
@@ -1814,13 +1814,13 @@
   <string name="setting_provider_delete_confirm">Remove</string>
   <string name="setting_provider_delete_cancel">Cancel</string>
   <string name="setting_provider_aicore_release_stage">Release stage</string>
-  <string name="setting_provider_aicore_status_help">On-device. Requires Pixel 8/9/10 with the AICore app installed AND enrollment in the GenAI Prompt-API early-access program (separate opt-in). If you see ErrorCode 606 / FEATURE_NOT_FOUND on first run, you have AICore installed but not the Prompt-API channel — request access via the GenAI Prompt-API early-access form, then reboot. Tool calling is supported via prompt engineering — Gemini Nano emits &lt;tool_call&gt; markup which RikkaHub Agents parses and dispatches.</string>
+  <string name="setting_provider_aicore_status_help">On-device. Requires Pixel 8/9/10 with the AICore app installed AND enrollment in the GenAI Prompt-API early-access program (separate opt-in). If you see ErrorCode 606 / FEATURE_NOT_FOUND on first run, you have AICore installed but not the Prompt-API channel — request access via the GenAI Prompt-API early-access form, then reboot. Tool calling is supported via prompt engineering — Gemini Nano emits &lt;tool_call&gt; markup which Yao parses and dispatches.</string>
   <string name="setting_page_notifications">Notifications</string>
   <string name="setting_page_notifications_desc">Notification access status, recent activity log, and the per-app whitelist that auto-forwards to Telegram.</string>
   <string name="setting_page_notifications_status_section">Status</string>
   <string name="setting_page_notifications_status_connected">Service: Connected</string>
   <string name="setting_page_notifications_status_not_connected">Service: Not connected</string>
-  <string name="setting_page_notifications_status_help">RikkaHub Agents needs notification access to read incoming notifications. Open Settings → Notification access → Notification access and enable RikkaHub Agents.</string>
+  <string name="setting_page_notifications_status_help">Yao needs notification access to read incoming notifications. Open Settings → Notification access → Notification access and enable Yao.</string>
   <string name="setting_page_notifications_open_settings">Open Notification access settings</string>
   <string name="setting_page_notifications_default_chat_set">Default Telegram chat: %1$s</string>
   <string name="setting_page_notifications_default_chat_unset">Default Telegram chat: not set (auto-route disabled)</string>
@@ -1850,7 +1850,7 @@
   <string name="assistant_page_local_tools_system_intents_title">System intents</string>
   <string name="assistant_page_local_tools_system_intents_desc">Let the assistant pre-fill system apps for you to finalise: Calendar event, new Contact, email composer, SMS composer, WiFi settings, Maps. Nothing is saved or sent without your tap in the destination app.</string>
   <string name="assistant_page_local_tools_workflows_hint_title">Workflows need extra setup</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">Workflows are enabled. Some trigger types need permissions the toggle can\'t request:\n\n• Geofences (you arrive somewhere): Settings → Apps → RikkaHub Agents → Permissions → Location → Allow all the time.\n• Notification arrives: Settings → Apps → Special access → Notification access → enable RikkaHub Agents.\n• App launches/closes: Settings → Accessibility → enable RikkaHub Agents.\n• Bluetooth connect/disconnect: grant BLUETOOTH_CONNECT when the system asks.\n\nSchedule, WiFi, headphones, power, screen on/off, and battery triggers work right out of the box. The assistant will flag any extra setup at the moment you author a workflow that needs it.</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">Workflows are enabled. Some trigger types need permissions the toggle can\'t request:\n\n• Geofences (you arrive somewhere): Settings → Apps → Yao → Permissions → Location → Allow all the time.\n• Notification arrives: Settings → Apps → Special access → Notification access → enable Yao.\n• App launches/closes: Settings → Accessibility → enable Yao.\n• Bluetooth connect/disconnect: grant BLUETOOTH_CONNECT when the system asks.\n\nSchedule, WiFi, headphones, power, screen on/off, and battery triggers work right out of the box. The assistant will flag any extra setup at the moment you author a workflow that needs it.</string>
   <string name="assistant_page_local_tools_workflows_title">Workflows</string>
   <string name="assistant_page_local_tools_workflows_desc">Let the assistant create automations that run on triggers — WiFi connect, schedule, geofence, notification arrival, and more.</string>
   <string name="setting_page_workflows_empty">No workflows yet. Ask your assistant to create one.</string>
@@ -2100,7 +2100,7 @@
   <string name="local_llm_litert_name">Local · LiteRT</string>
   <string name="local_llm_default_disabled">Run open models on this device. ~1.5 GB download required (Qwen2.5 1.5B Q8).</string>
   <string name="local_llm_download_title">Download default model</string>
-  <string name="local_llm_download_message">RikkaHub Agents needs to download a starter model for this provider. The download is ~1.5 GB (Qwen2.5 1.5B Q8). Continue?</string>
+  <string name="local_llm_download_message">Yao needs to download a starter model for this provider. The download is ~1.5 GB (Qwen2.5 1.5B Q8). Continue?</string>
   <string name="local_llm_download_continue">Download</string>
   <string name="local_llm_download_cancel">Cancel</string>
   <string name="local_llm_downloading_format">Downloading… %1$d%% (%2$s / %3$s)</string>
@@ -2597,7 +2597,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku service is not running</string>
   <string name="setting_shizuku_section_help">Setup help</string>
   <string name="setting_shizuku_help_title">Setting up Shizuku</string>
-  <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant RikkaHub Agents access.</string>
+  <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant Yao access.</string>
   <string name="setting_ssh_hosts_title">SSH hosts</string>
   <string name="setting_ssh_host_delete">Delete</string>
   <string name="setting_ssh_host_connect">Connect</string>
@@ -3225,7 +3225,7 @@
   <string name="doctor_summary_ok">OK</string>
   <string name="doctor_summary_info">Info</string>
   <string name="doctor_msg_open_failed">Could not open: %1$s</string>
-  <string name="doctor_report_clip_label">RikkaHub Agents diagnostic report</string>
+  <string name="doctor_report_clip_label">Yao diagnostic report</string>
   <string name="save">Save</string>
   <string name="backend_service_local">Local (this device)</string>
   <string name="backend_service_current_badge">✅ Current execution backend</string>
@@ -3335,8 +3335,8 @@
   <string name="mcp_page_clear">Clear</string>
   <string name="mcp_page_oauth_required">OAuth authorization required</string>
   <string name="mcp_page_oauth_in_progress">Authorizing, please complete in browser…</string>
-  <string name="ssh_key_default_desc">SSH key pair (generated by RikkaHub Agents)</string>
-  <string name="ssh_key_default_desc_with_type">SSH key pair (generated by RikkaHub Agents, %1$s)</string>
+  <string name="ssh_key_default_desc">SSH key pair (generated by Yao)</string>
+  <string name="ssh_key_default_desc_with_type">SSH key pair (generated by Yao, %1$s)</string>
   <string name="ssh_key_dialog_generate_title">Generate SSH key pair</string>
   <string name="ssh_key_dialog_saved_title">Key saved</string>
   <string name="ssh_key_name_label">Credential name (saved to vault)</string>
@@ -3375,7 +3375,7 @@
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (plaintext)</string>
   <string name="vault_format_loadcreds_desc">load-creds.sh (plaintext, round-trips with the vault)</string>
   <string name="vault_page_plaintext_env_hint">Plaintext format: ${VAR} in values is replaced by the environment variable value (undefined ones stay as-is).</string>
-  <string name="doctor_report_header">RikkaHub Agents — Diagnostic report</string>
+  <string name="doctor_report_header">Yao — Diagnostic report</string>
   <string name="doctor_report_generated_at">Generated at: %1$s</string>
   <string name="doctor_report_summary">Summary: %1$s</string>
   <string name="tool_approvals_mcp_local_title">Local MCP Server (for Backend use)</string>
@@ -3384,11 +3384,8 @@
   <string name="file_editor_read_failed">Failed to read file</string>
   <string name="file_editor_saved">Saved</string>
   <string name="file_editor_save_failed">Save failed</string>
-  <string name="chat_nerd_input_tokens">%1$s input</string>
   <string name="chat_nerd_cached_hit">(%1$s cached · %2$s)</string>
-  <string name="chat_nerd_output_tokens">%1$s output</string>
   <string name="chat_nerd_message_total">Message total</string>
-  <string name="chat_nerd_latest_usage">Last request: %1$s input · %2$s output</string>
   <string name="chat_message_usage_title">Usage details</string>
   <string name="chat_message_usage_open">Open usage details</string>
   <string name="chat_message_usage_close">Close usage details</string>
@@ -3421,7 +3418,7 @@
   <string name="notification_label_title">%1$s: %2$s</string>
   <string name="workspace_cmd_exec_failed">Command execution failed</string>
   <string name="perm_float_window_label">Floating window</string>
-  <string name="perm_float_window_desc">Allows RikkaHub Agents to show the agent-in-progress floating hint during automation.</string>
+  <string name="perm_float_window_desc">Allows Yao to show the agent-in-progress floating hint during automation.</string>
   <string name="perm_write_settings_label">Modify system settings</string>
   <string name="perm_write_settings_desc">Allows adjusting screen brightness via set_brightness.</string>
   <string name="perm_notification_policy_label">Do Not Disturb access</string>
@@ -3455,7 +3452,7 @@
   <string name="perm_desc_call_log">Used by list_call_log.</string>
   <string name="perm_desc_sms">Used by list_sms_inbox and search_sms.</string>
   <string name="perm_desc_send_sms">Used when sending SMS via send_sms.</string>
-  <string name="perm_desc_termux_cmd">Allows RikkaHub Agents to launch commands in Termux (termux_run_command tool).</string>
+  <string name="perm_desc_termux_cmd">Allows Yao to launch commands in Termux (termux_run_command tool).</string>
   <string name="perm_desc_fallback">One or more enabled tools require this runtime permission.</string>
   <string name="approve">Approve</string>
   <string name="deny">Deny</string>
@@ -4178,7 +4175,7 @@
   <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
   <string name="s3_config_region_placeholder">us-east-1</string>
   <string name="mcp_transport_streamable_http">Streamable HTTP</string>
-  <string name="log_page_clip_label">RikkaHub Agents App Log</string>
+  <string name="log_page_clip_label">Yao App Log</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">Get the current date and time.</string>
     <string name="copied_to_clipboard">Copied to clipboard</string>

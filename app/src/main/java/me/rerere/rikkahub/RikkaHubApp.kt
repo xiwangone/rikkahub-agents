@@ -156,7 +156,7 @@ class RikkaHubApp : Application() {
         // 统一文件日志器：app/req/text/lifecycle 四类写 filesDir/logs/*.log，杀进程不丢。
         FileLogSink.init(
             this,
-            "RikkaHub Agents ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) debug=${BuildConfig.DEBUG}",
+            "Yao ${BuildConfig.VERSION_NAME} (${BuildConfig.VERSION_CODE}) debug=${BuildConfig.DEBUG}",
         )
         Logging.persistSink = { entry ->
             when (entry) {

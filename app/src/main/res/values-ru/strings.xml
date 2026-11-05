@@ -7,7 +7,7 @@
   <string name="about_page_version">Версия</string>
   <string name="about_page_website">Сайт RikkaHub</string>
   <string name="add">Добавить</string>
-  <string name="app_name">RikkaHub Agents</string>
+  <string name="app_name">Yao</string>
   <string name="asr_button_content_description">Распознавание речи</string>
   <string name="asr_button_stop">Стоп</string>
   <string name="assistant_detail_basic_desc">Настройте имя, аватар, модель и параметры</string>
@@ -956,7 +956,7 @@
   <string name="setting_page_search_title">Служба поиска</string>
   <string name="setting_page_share">Поделиться</string>
   <string name="setting_page_share_desc">Поделиться этим приложением с друзьями</string>
-  <string name="setting_page_share_text">RikkaHub Agents — открытый Android AI-ассистент (форк RikkaHub)\n\nРепозиторий: https://github.com/xiwangone/rikkahub-agents</string>
+  <string name="setting_page_share_text">Yao — открытый Android AI-ассистент (форк RikkaHub)\n\nРепозиторий: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">Тема</string>
   <string name="setting_page_theme_setting_desc">Настроить цветовую схему приложения</string>
   <string name="setting_theme_page_preset_themes">Предустановленные темы</string>
@@ -978,7 +978,7 @@
   <string name="setting_page_web_server">Веб-сервер</string>
   <string name="setting_page_web_server_address_note">Примечания к адресу</string>
   <string name="setting_page_web_server_address_note_desc">LAN-адрес: использует IP-адрес устройства в Wi-Fi, доступен другим устройствам в той же сети. Недоступен при использовании мобильных данных.\nЛокальный адрес: использует localhost, доступен только на этом устройстве.\nАдрес mDNS: использует имя хоста .local, доступен по имени с других устройств в той же сети без знания IP-адреса.</string>
-  <string name="setting_page_web_server_desc">Разрешить доступ к RikkaHub Agents через веб</string>
+  <string name="setting_page_web_server_desc">Разрешить доступ к Yao через веб</string>
   <string name="setting_page_web_server_error">Ошибка</string>
   <string name="setting_page_web_server_jwt_enable">Включить аутентификацию</string>
   <string name="setting_page_web_server_jwt_enable_desc">Требовать проверку пароля при доступе к веб-интерфейсу</string>
@@ -1296,7 +1296,7 @@
   <!-- fork (agent) strings preserved from merge -->
   <string name="setting_display_page_show_date_below_name_desc">Показывать дату сообщения под ником или названием модели</string>
   <string name="setting_display_page_show_date_below_name_title">Показывать дату под именем</string>
-  <string name="accessibility_service_summary">Позволяет RikkaHub Agents нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана, когда LLM использует инструменты автоматизации экрана.</string>
+  <string name="accessibility_service_summary">Позволяет Yao нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана, когда LLM использует инструменты автоматизации экрана.</string>
   <string name="assistant_page_fast_path_router">Маршрутизатор быстрого пути</string>
   <string name="assistant_page_fast_path_router_desc">Пропуск LLM для высокоуверенных запросов вроде «какой у меня заряд», «который час» или «список рабочих процессов». Подходящий инструмент выполняется напрямую, и вы получаете мгновенный ответ. Консервативно — всё неоднозначное всё равно идёт к модели. Записывается в logcat (тег: FastPathRouter).</string>
   <string name="assistant_page_local_tools_app_launcher_desc">Открытие установленных приложений по имени пакета (например, Termux, Настройки) и список доступных приложений. В сочетании с автоматизацией экрана даёт полное управление интерфейсом.</string>
@@ -1415,7 +1415,7 @@
   <string name="assistant_page_local_tools_wifi_desc">Чтение текущего подключения Wi-Fi (SSID, IP, сигнал). Для SSID требуется разрешение на местоположение.</string>
   <string name="assistant_page_local_tools_wifi_title">Сведения о Wi-Fi</string>
   <string name="assistant_page_local_tools_workflows_desc">Позволяет ассистенту создавать автоматизации, запускаемые по триггерам — подключение WiFi, расписание, геозона, приход уведомления и другое.</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">Рабочие процессы включены. Некоторым типам триггеров нужны разрешения, которые переключатель не может запросить:\n\n• Геозоны (вы куда-то прибываете): Настройки → Приложения → RikkaHub Agents → Разрешения → Местоположение → Разрешить всегда.\n• Приходит уведомление: Настройки → Приложения → Особый доступ → Доступ к уведомлениям → включить RikkaHub Agents.\n• Запуск/закрытие приложений: Настройки → Специальные возможности → включить RikkaHub Agents.\n• Подключение/отключение Bluetooth: предоставьте BLUETOOTH_CONNECT, когда система спросит.\n\nТриггеры расписания, WiFi, наушников, питания, включения/выключения экрана и батареи работают сразу. Ассистент укажет на любую дополнительную настройку в момент, когда вы создаёте рабочий процесс, которому она нужна.</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">Рабочие процессы включены. Некоторым типам триггеров нужны разрешения, которые переключатель не может запросить:\n\n• Геозоны (вы куда-то прибываете): Настройки → Приложения → Yao → Разрешения → Местоположение → Разрешить всегда.\n• Приходит уведомление: Настройки → Приложения → Особый доступ → Доступ к уведомлениям → включить Yao.\n• Запуск/закрытие приложений: Настройки → Специальные возможности → включить Yao.\n• Подключение/отключение Bluetooth: предоставьте BLUETOOTH_CONNECT, когда система спросит.\n\nТриггеры расписания, WiFi, наушников, питания, включения/выключения экрана и батареи работают сразу. Ассистент укажет на любую дополнительную настройку в момент, когда вы создаёте рабочий процесс, которому она нужна.</string>
   <string name="assistant_page_local_tools_workflows_hint_title">Рабочим процессам нужна доп. настройка</string>
   <string name="assistant_page_local_tools_workflows_title">Рабочие процессы</string>
   <string name="browser_address_bar_back">Браузер назад</string>
@@ -1461,7 +1461,7 @@
   <string name="local_llm_download_cancel">Отмена</string>
   <string name="local_llm_download_continue">Загрузить</string>
   <string name="local_llm_download_default">Загрузить модель по умолчанию</string>
-  <string name="local_llm_download_message">RikkaHub Agents нужно загрузить стартовую модель для этого провайдера. Загрузка ~1,5 ГБ (Qwen2.5 1.5B Q8). Продолжить?</string>
+  <string name="local_llm_download_message">Yao нужно загрузить стартовую модель для этого провайдера. Загрузка ~1,5 ГБ (Qwen2.5 1.5B Q8). Продолжить?</string>
   <string name="local_llm_download_progress">Загрузка… %1$d%%</string>
   <string name="local_llm_download_title">Загрузить модель по умолчанию</string>
   <string name="local_llm_downloading_format">Загрузка… %1$d%% (%2$s / %3$s)</string>
@@ -1574,7 +1574,7 @@
   <string name="setting_page_accessibility_overlay_open_settings">Предоставить «Поверх других приложений»</string>
   <string name="setting_page_accessibility_overlay_section">Наложение активности</string>
   <string name="setting_page_accessibility_recent_section">Недавние действия</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub Agents нужно разрешение специальных возможностей для выполнения нажатий, проведений и чтения экрана для LLM. Откройте Настройки &#x2192; Специальные возможности &#x2192; Установленные приложения &#x2192; RikkaHub Agents и включите его.</string>
+  <string name="setting_page_accessibility_status_help">Yao нужно разрешение специальных возможностей для выполнения нажатий, проведений и чтения экрана для LLM. Откройте Настройки &#x2192; Специальные возможности &#x2192; Установленные приложения &#x2192; Yao и включите его.</string>
   <string name="setting_page_accessibility_status_not_running">Служба: не работает</string>
   <string name="setting_page_accessibility_status_running">Служба: работает</string>
   <string name="setting_page_accessibility_status_section">Статус</string>
@@ -1624,7 +1624,7 @@
   <string name="setting_page_notifications_recent_empty">Пока не захвачено ни одного уведомления.</string>
   <string name="setting_page_notifications_recent_section">Недавняя активность</string>
   <string name="setting_page_notifications_status_connected">Служба: подключена</string>
-  <string name="setting_page_notifications_status_help">RikkaHub Agents нужен доступ к уведомлениям для чтения входящих уведомлений. Откройте Настройки → Доступ к уведомлениям → Доступ к уведомлениям и включите RikkaHub Agents.</string>
+  <string name="setting_page_notifications_status_help">Yao нужен доступ к уведомлениям для чтения входящих уведомлений. Откройте Настройки → Доступ к уведомлениям → Доступ к уведомлениям и включите Yao.</string>
   <string name="setting_page_notifications_status_not_connected">Служба: не подключена</string>
   <string name="setting_page_notifications_status_section">Статус</string>
   <string name="setting_page_notifications_whitelist_help">Приложения, уведомления которых автоматически пересылаются в ваш чат Telegram по умолчанию. Пусто = ничего не пересылается. Включайте или выключайте каждое приложение в списке выбора.</string>
@@ -1640,7 +1640,7 @@
   <string name="setting_page_notifications_whitelist_summary_n_plural">%1$d приложений в белом списке</string>
   <string name="setting_page_notifications_whitelist_summary_zero">Нет приложений в белом списке</string>
   <string name="setting_page_permissions">Разрешения</string>
-  <string name="setting_page_permissions_desc">Автоматически обнаруженный список всех разрешений, используемых RikkaHub Agents, с кнопкой предоставления в одно нажатие для каждого.</string>
+  <string name="setting_page_permissions_desc">Автоматически обнаруженный список всех разрешений, используемых Yao, с кнопкой предоставления в одно нажатие для каждого.</string>
   <string name="setting_page_permissions_group_auto">Предоставлены автоматически</string>
   <string name="setting_page_permissions_group_runtime">Разрешения времени выполнения</string>
   <string name="setting_page_permissions_group_services">Службы и интеграции</string>
@@ -1690,7 +1690,7 @@
   <string name="setting_page_scheduled_jobs_subtitle_when">Когда: %1$s</string>
   <string name="setting_page_telegram">Telegram-бот</string>
   <string name="setting_page_telegram_battery_already_ok">Уже в белом списке оптимизации батареи.</string>
-  <string name="setting_page_telegram_battery_desc">При выключении экрана агрессивные OEM-прошивки (Xiaomi, OPPO, OnePlus, Vivo) отключают сеть для приложений не из белого списка. Бот сможет доставлять только во время редких окон обслуживания. Нажмите, чтобы добавить RikkaHub Agents в белый список.</string>
+  <string name="setting_page_telegram_battery_desc">При выключении экрана агрессивные OEM-прошивки (Xiaomi, OPPO, OnePlus, Vivo) отключают сеть для приложений не из белого списка. Бот сможет доставлять только во время редких окон обслуживания. Нажмите, чтобы добавить Yao в белый список.</string>
   <string name="setting_page_telegram_battery_needed">Оптимизация батареи: не в белом списке - нажмите для исправления</string>
   <string name="setting_page_telegram_battery_ok">Оптимизация батареи: в белом списке</string>
   <string name="setting_page_telegram_boot_note">После запуска бот также автоматически запускается при загрузке устройства.</string>
@@ -1765,7 +1765,7 @@
   <string name="setting_page_workflows_subtitle_ran_success">Запущен %1$s • Успех</string>
   <string name="setting_page_workflows_subtitle_when">Когда: %1$s</string>
   <string name="setting_provider_aicore_release_stage">Стадия выпуска</string>
-  <string name="setting_provider_aicore_status_help">На устройстве. Требуется Pixel 8/9/10 с установленным приложением AICore И регистрация в программе раннего доступа GenAI Prompt-API (отдельное согласие). Если при первом запуске вы видите ErrorCode 606 / FEATURE_NOT_FOUND, у вас установлен AICore, но нет канала Prompt-API — запросите доступ через форму раннего доступа GenAI Prompt-API, затем перезагрузитесь. Вызов инструментов поддерживается через инженерию запросов — Gemini Nano выдаёт разметку &lt;tool_call&gt;, которую RikkaHub Agents разбирает и обрабатывает.</string>
+  <string name="setting_provider_aicore_status_help">На устройстве. Требуется Pixel 8/9/10 с установленным приложением AICore И регистрация в программе раннего доступа GenAI Prompt-API (отдельное согласие). Если при первом запуске вы видите ErrorCode 606 / FEATURE_NOT_FOUND, у вас установлен AICore, но нет канала Prompt-API — запросите доступ через форму раннего доступа GenAI Prompt-API, затем перезагрузитесь. Вызов инструментов поддерживается через инженерию запросов — Gemini Nano выдаёт разметку &lt;tool_call&gt;, которую Yao разбирает и обрабатывает.</string>
   <string name="setting_provider_delete_body">Это навсегда удалит %1$s и все его настроенные модели. Вы сможете добавить его снова позже.</string>
   <string name="setting_provider_delete_cancel">Отмена</string>
   <string name="setting_provider_delete_confirm">Удалить</string>
@@ -2775,8 +2775,8 @@
   <string name="mcp_page_clear">Очистить</string>
   <string name="mcp_page_oauth_required">Требуется авторизация OAuth</string>
   <string name="mcp_page_oauth_in_progress">Идёт авторизация, завершите её в браузере…</string>
-  <string name="ssh_key_default_desc">Пара ключей SSH (создана в RikkaHub Agents)</string>
-  <string name="ssh_key_default_desc_with_type">Пара ключей SSH (создана в RikkaHub Agents, %1$s)</string>
+  <string name="ssh_key_default_desc">Пара ключей SSH (создана в Yao)</string>
+  <string name="ssh_key_default_desc_with_type">Пара ключей SSH (создана в Yao, %1$s)</string>
   <string name="ssh_key_dialog_generate_title">Создать пару ключей SSH</string>
   <string name="ssh_key_dialog_saved_title">Ключ сохранён</string>
   <string name="ssh_key_name_label">Имя учётных данных (сохраняется в хранилище)</string>
@@ -2815,7 +2815,7 @@
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (открытый текст)</string>
   <string name="vault_format_loadcreds_desc">load-creds.sh (открытый текст, совместим с хранилищем)</string>
   <string name="vault_page_plaintext_env_hint">Открытый формат: ${VAR} в значениях заменяется переменными окружения (неопределённые остаются как есть).</string>
-  <string name="doctor_report_header">RikkaHub Agents — отчёт диагностики</string>
+  <string name="doctor_report_header">Yao — отчёт диагностики</string>
   <string name="doctor_report_generated_at">Создано: %1$s</string>
   <string name="doctor_report_summary">Сводка: %1$s</string>
   <string name="tool_approvals_mcp_local_title">Локальный MCP-сервер (для бэкенда)</string>
@@ -2824,11 +2824,8 @@
   <string name="file_editor_read_failed">Не удалось прочитать файл</string>
   <string name="file_editor_saved">Сохранено</string>
   <string name="file_editor_save_failed">Не удалось сохранить</string>
-  <string name="chat_nerd_input_tokens">%1$s ввод</string>
   <string name="chat_nerd_cached_hit">(%1$s попадание · %2$s)</string>
-  <string name="chat_nerd_output_tokens">%1$s вывод</string>
   <string name="chat_nerd_message_total">Итого по сообщению</string>
-  <string name="chat_nerd_latest_usage">Последний запрос: вход %1$s · выход %2$s</string>
   <string name="chat_message_usage_title">Сведения об использовании</string>
   <string name="chat_message_usage_open">Открыть сведения об использовании</string>
   <string name="chat_message_usage_close">Закрыть сведения об использовании</string>
@@ -3114,7 +3111,7 @@
   <string name="setting_shizuku_toast_service_not_running">Служба Shizuku не запущена</string>
   <string name="setting_shizuku_section_help">Справка по настройке</string>
   <string name="setting_shizuku_help_title">Настройка Shizuku</string>
-  <string name="setting_shizuku_help_body">Установите Shizuku из GitHub releases и запустите службу: на root-устройствах — из приложения Shizuku; на Android 11+ — через беспроводную отладку (Для разработчиков → Беспроводная отладка → Сопряжение по коду, затем выполните команду запуска из Shizuku). После запуска нажмите «Разрешение» выше, чтобы дать доступ RikkaHub Agents.</string>
+  <string name="setting_shizuku_help_body">Установите Shizuku из GitHub releases и запустите службу: на root-устройствах — из приложения Shizuku; на Android 11+ — через беспроводную отладку (Для разработчиков → Беспроводная отладка → Сопряжение по коду, затем выполните команду запуска из Shizuku). После запуска нажмите «Разрешение» выше, чтобы дать доступ Yao.</string>
   <string name="setting_ssh_hosts_title">SSH-хосты</string>
   <string name="setting_ssh_host_delete">Удалить</string>
   <string name="setting_ssh_host_connect">Подключить</string>
@@ -3356,7 +3353,7 @@
   <string name="doctor_msg_browser_unneeded">%1$s существует. Сейчас нет включённых инструментов, которым это нужно.</string>
   <string name="doctor_msg_browser_ok">%1$s существует и доступен для записи — Cookie сохранятся.</string>
   <string name="doctor_msg_termux_denied">Не предоставлено. Переключите тумблер Termux в локальных инструментах заново, чтобы увидеть диалог разрешения.</string>
-  <string name="doctor_msg_termux_ok">Предоставлено — RikkaHub Agents может отправлять команды в Termux.</string>
+  <string name="doctor_msg_termux_ok">Предоставлено — Yao может отправлять команды в Termux.</string>
   <string name="doctor_msg_termux_missing">Termux не установлен. Требуется: %1$s.</string>
   <string name="doctor_msg_termux_installed">На устройстве установлен com.termux.</string>
   <string name="doctor_msg_dns_failed">Не удалось разрешить DNS или истёк тайм-аут. При смене сети NetworkChangeMonitor очищает пул соединений OkHttp — если ошибка не проходит, проверьте сеть.</string>
@@ -3456,7 +3453,7 @@
   <string name="doctor_summary_ok">ОК</string>
   <string name="doctor_summary_info">Инфо</string>
   <string name="doctor_msg_open_failed">Не удалось открыть: %1$s</string>
-  <string name="doctor_report_clip_label">Отчёт диагностики RikkaHub Agents</string>
+  <string name="doctor_report_clip_label">Отчёт диагностики Yao</string>
   <string name="save">Сохранить</string>
   <string name="backend_service_local">Это устройство (local)</string>
   <string name="backend_service_current_badge">✅ Текущий бэкенд</string>
@@ -4186,7 +4183,7 @@
   <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
   <string name="s3_config_region_placeholder">us-east-1</string>
   <string name="mcp_transport_streamable_http">Streamable HTTP</string>
-  <string name="log_page_clip_label">Журнал приложения RikkaHub Agents</string>
+  <string name="log_page_clip_label">Журнал приложения Yao</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">Получить текущую дату и время.</string>
     <string name="copied_to_clipboard">Скопировано в буфер обмена</string>

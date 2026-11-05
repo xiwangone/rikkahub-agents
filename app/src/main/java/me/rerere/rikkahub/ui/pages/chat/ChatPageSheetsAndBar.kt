@@ -460,12 +460,15 @@ internal fun TopBar(
                             style = MaterialTheme.typography.labelSmall,
                         )
                     }
-                    TopBarTunnelStatusBadge(settings = settings)
                 }
             }
         },
         actions = {
-            // 本会话用了独立模型时，就地给一个恢复入口（顶栏右上角；执行后端已收进输入框的「更多」）
+            Column(
+                horizontalAlignment = Alignment.End,
+                verticalArrangement = Arrangement.Center,
+            ) {
+                Row {
             if (conversationModelOverride) {
                 IconButton(
                     onClick = onResetConversationModel,
@@ -496,6 +499,9 @@ internal fun TopBar(
                     imageVector = HugeIcons.MessageAdd01,
                     contentDescription = stringResource(R.string.chat_page_new_message),
                 )
+            }
+                }
+                TopBarTunnelStatusBadge(settings = settings)
             }
         },
     )
@@ -550,8 +556,9 @@ private fun TopBarTunnelStatusBadge(
     val scope = rememberCoroutineScope()
     val dotColor =
         when (tunnelState) {
-            is TunnelState.Connected -> MaterialTheme.colorScheme.primary
-            is TunnelState.Connecting, is TunnelState.Offline -> MaterialTheme.colorScheme.tertiary
+            // 固定语义色：绿=已连接 / 黄=连接中或离线 / 红=失败 / 灰=未启用
+            is TunnelState.Connected -> Color(0xFF34A853)
+            is TunnelState.Connecting, is TunnelState.Offline -> Color(0xFFF5A623)
             is TunnelState.Failed -> MaterialTheme.colorScheme.error
             is TunnelState.Off -> MaterialTheme.colorScheme.outline
         }
@@ -576,7 +583,7 @@ private fun TopBarTunnelStatusBadge(
         Box(
             modifier =
                 Modifier
-                    .size(6.dp)
+                    .size(9.dp)
                     .clip(CircleShape)
                     .background(dotColor),
         )

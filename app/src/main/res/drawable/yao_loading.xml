@@ -1,0 +1,77 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+
+    <!-- 静态图形：爻（左两短笔 = 阴，右一长笔 = 阳），运行时按主题色 tint -->
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="128dp"
+            android:height="128dp"
+            android:viewportWidth="100"
+            android:viewportHeight="100">
+
+            <!-- 左·阴 上笔 -->
+            <path
+                android:name="yin_top"
+                android:pathData="M37,29 L37,43"
+                android:strokeColor="#333333"
+                android:strokeWidth="14"
+                android:strokeLineCap="round" />
+
+            <!-- 左·阴 下笔 -->
+            <path
+                android:name="yin_bot"
+                android:pathData="M37,57 L37,71"
+                android:strokeColor="#333333"
+                android:strokeWidth="14"
+                android:strokeLineCap="round" />
+
+            <!-- 右·阳 长笔 -->
+            <path
+                android:name="yang"
+                android:pathData="M64,29 L64,71"
+                android:strokeColor="#333333"
+                android:strokeWidth="14"
+                android:strokeLineCap="round" />
+        </vector>
+    </aapt:attr>
+
+    <!-- 动画：三笔依次淡入淡出，形成连续「书写—呼吸」的节拍 -->
+    <target android:name="yin_top">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:duration="1200"
+                android:valueFrom="1.0"
+                android:valueTo="0.25"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse"
+                android:startOffset="0" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="yin_bot">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:duration="1200"
+                android:valueFrom="1.0"
+                android:valueTo="0.25"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse"
+                android:startOffset="400" />
+        </aapt:attr>
+    </target>
+
+    <target android:name="yang">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:duration="1200"
+                android:valueFrom="1.0"
+                android:valueTo="0.25"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse"
+                android:startOffset="800" />
+        </aapt:attr>
+    </target>
+</animated-vector>

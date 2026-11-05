@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.os.Build
+import me.rerere.rikkahub.ui.components.ui.CappedLazyColumn
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -399,7 +400,7 @@ private fun LanguagePickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setting_language_title)) },
         text = {
-            LazyColumn {
+            CappedLazyColumn {
                 items(options.size) { index ->
                     val (tag, label) = options[index]
                     val shown = if (tag.isEmpty()) stringResource(R.string.setting_language_system) else label

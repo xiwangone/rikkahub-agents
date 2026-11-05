@@ -170,6 +170,9 @@ internal fun FloatingChatWindow(
                             style = MaterialTheme.typography.titleMedium,
                             modifier = Modifier.weight(1f).padding(top = 8.dp),
                         )
+                        TextButton(onClick = onOpen) {
+                            Text(stringResource(R.string.floating_chat_open_session))
+                        }
                         TextButton(onClick = onMinimize) { Text(stringResource(R.string.floating_chat_minimize)) }
                         TextButton(onClick = onClose) { Text(stringResource(R.string.floating_chat_close)) }
                     }

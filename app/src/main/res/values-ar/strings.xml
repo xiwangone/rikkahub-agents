@@ -7,7 +7,7 @@
   <string name="about_page_version">الإصدار</string>
   <string name="about_page_website">موقع RikkaHub</string>
   <string name="add">إضافة</string>
-  <string name="app_name">RikkaHub Agents</string>
+  <string name="app_name">Yao</string>
   <string name="assistant_detail_basic_desc">تكوين الاسم والصورة الرمزية والنموذج والمعاملات</string>
   <string name="assistant_detail_extensions_desc">إدارة الرسائل السريعة وحقن التوجيهات وكتب المعرفة والمهارات</string>
   <string name="assistant_detail_local_tools_desc">تمكين الأدوات المحلية مثل محرك JavaScript</string>
@@ -170,7 +170,7 @@
   <string name="setting_page_telegram_boot_note">عند البدء، يبدأ البوت أيضًا تلقائيًا عند إقلاع الجهاز.</string>
   <string name="setting_page_telegram_battery_ok">تحسين البطارية: في القائمة البيضاء</string>
   <string name="setting_page_telegram_battery_needed">تحسين البطارية: ليس في القائمة البيضاء - انقر للإصلاح</string>
-  <string name="setting_page_telegram_battery_desc">عند إطفاء الشاشة، تقطع أنظمة OEM العدوانية (Xiaomi، OPPO، OnePlus، Vivo) الشبكة عن التطبيقات غير المدرجة في القائمة البيضاء. لن يتمكن البوت من التسليم إلا أثناء فترات الصيانة العرضية. انقر لإضافة RikkaHub Agents إلى القائمة البيضاء.</string>
+  <string name="setting_page_telegram_battery_desc">عند إطفاء الشاشة، تقطع أنظمة OEM العدوانية (Xiaomi، OPPO، OnePlus، Vivo) الشبكة عن التطبيقات غير المدرجة في القائمة البيضاء. لن يتمكن البوت من التسليم إلا أثناء فترات الصيانة العرضية. انقر لإضافة Yao إلى القائمة البيضاء.</string>
   <string name="setting_page_telegram_battery_already_ok">مُضاف بالفعل إلى القائمة البيضاء لتحسين البطارية.</string>
   <string name="assistant_page_local_tools_media_player_desc">تشغيل وإيقاف الصوت من مسار ملف أو رابط.</string>
   <string name="assistant_page_local_tools_media_player_title">مشغّل الوسائط</string>
@@ -1011,7 +1011,7 @@
   <string name="setting_page_search_title">خدمة البحث</string>
   <string name="setting_page_share">مشاركة</string>
   <string name="setting_page_share_desc">شارك هذا التطبيق مع الأصدقاء</string>
-  <string name="setting_page_share_text">RikkaHub Agents - مساعد ذكاء اصطناعي مفتوح المصدر لنظام أندرويد (تفرّع من RikkaHub)\n\nالمستودع: https://github.com/xiwangone/rikkahub-agents</string>
+  <string name="setting_page_share_text">Yao - مساعد ذكاء اصطناعي مفتوح المصدر لنظام أندرويد (تفرّع من RikkaHub)\n\nالمستودع: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">إعدادات السمة</string>
   <string name="setting_page_tts_service">خدمة تحويل النص إلى كلام</string>
   <string name="setting_page_tts_service_desc">تكوين مزوّدي خدمة تحويل النص إلى كلام</string>
@@ -1019,7 +1019,7 @@
   <string name="setting_page_web_server">خادم الويب</string>
   <string name="setting_page_web_server_address_note">ملاحظات العنوان</string>
   <string name="setting_page_web_server_address_note_desc">عنوان الشبكة المحلية: يستخدم IP الـ WiFi للجهاز، يمكن الوصول إليه من الأجهزة الأخرى على نفس الشبكة. غير متاح على بيانات الجوال.\nالعنوان المحلي: يستخدم localhost، يمكن الوصول إليه من هذا الجهاز فقط.\nعنوان mDNS: يستخدم اسم مضيف ‎.local، يمكن الوصول إليه بالاسم من الأجهزة الأخرى على نفس الشبكة دون معرفة الـ IP.</string>
-  <string name="setting_page_web_server_desc">السماح لك بالوصول إلى RikkaHub Agents عبر الويب</string>
+  <string name="setting_page_web_server_desc">السماح لك بالوصول إلى Yao عبر الويب</string>
   <string name="setting_page_web_server_error">خطأ</string>
   <string name="setting_page_web_server_jwt_enable">تمكين المصادقة</string>
   <string name="setting_page_web_server_jwt_enable_desc">طلب التحقق بكلمة مرور عند الوصول إلى واجهة الويب</string>
@@ -1318,7 +1318,7 @@
   <string name="assistant_page_local_tools_speech_to_text_desc">الاستماع إلى الميكروفون وتحويل الكلمات المنطوقة إلى نص.</string>
   <string name="assistant_page_local_tools_fingerprint_title">بصمة الإصبع</string>
   <string name="assistant_page_local_tools_fingerprint_desc">عرض مطالبة المقاييس الحيوية للنظام للتحقق من هوية المستخدم.</string>
-  <string name="accessibility_service_summary">يتيح لـ RikkaHub Agents النقر والسحب والتمرير وقراءة محتوى الشاشة والتقاط لقطات شاشة عندما يستخدم النموذج اللغوي أدوات أتمتة الشاشة.</string>
+  <string name="accessibility_service_summary">يتيح لـ Yao النقر والسحب والتمرير وقراءة محتوى الشاشة والتقاط لقطات شاشة عندما يستخدم النموذج اللغوي أدوات أتمتة الشاشة.</string>
   <string name="assistant_page_local_tools_section_screen_automation">الشاشة والطرفية</string>
   <string name="assistant_page_local_tools_screen_automation_title">أتمتة الشاشة</string>
   <string name="assistant_page_local_tools_screen_automation_desc">السماح للنموذج اللغوي بالنقر والسحب والتمرير وقراءة المحتوى المعروض على الشاشة والتقاط لقطات شاشة عبر خدمة إمكانية الوصول في Android.</string>
@@ -1363,7 +1363,7 @@
   <string name="setting_page_accessibility_status_section">الحالة</string>
   <string name="setting_page_accessibility_status_running">الخدمة: تعمل</string>
   <string name="setting_page_accessibility_status_not_running">الخدمة: لا تعمل</string>
-  <string name="setting_page_accessibility_status_help">يحتاج RikkaHub Agents إلى إذن إمكانية الوصول لتنفيذ النقرات والسحبات وقراءة الشاشة للنموذج اللغوي. افتح الإعدادات &#x2192; إمكانية الوصول &#x2192; التطبيقات المثبتة &#x2192; RikkaHub Agents وفعّله.</string>
+  <string name="setting_page_accessibility_status_help">يحتاج Yao إلى إذن إمكانية الوصول لتنفيذ النقرات والسحبات وقراءة الشاشة للنموذج اللغوي. افتح الإعدادات &#x2192; إمكانية الوصول &#x2192; التطبيقات المثبتة &#x2192; Yao وفعّله.</string>
   <string name="setting_page_accessibility_open_settings">فتح إعدادات إمكانية الوصول</string>
   <string name="setting_page_accessibility_diagnostics_section">التشخيص</string>
   <string name="setting_page_accessibility_capture_diag">التقاط لقطة شاشة تشخيصية</string>
@@ -1380,7 +1380,7 @@
   <string name="setting_page_accessibility_overlay_help">يعرض شارة صغيرة «الوكيل يعمل» في أعلى الشاشة أثناء قيام الوكيل بالأتمتة، لتعرف دائمًا متى يقود الواجهة. اختياري لكنه مُوصى به.</string>
   <string name="setting_page_accessibility_overlay_open_settings">منح العرض فوق التطبيقات الأخرى</string>
   <string name="setting_page_permissions">الأذونات</string>
-  <string name="setting_page_permissions_desc">قائمة مُكتشَفة تلقائيًا بكل إذن يستخدمه RikkaHub Agents، مع زر منح بنقرة واحدة لكل منها.</string>
+  <string name="setting_page_permissions_desc">قائمة مُكتشَفة تلقائيًا بكل إذن يستخدمه Yao، مع زر منح بنقرة واحدة لكل منها.</string>
   <string name="setting_page_permissions_group_services">الخدمات والتكاملات</string>
   <string name="setting_page_permissions_group_special">الوصول الخاص</string>
   <string name="setting_page_permissions_group_runtime">أذونات وقت التشغيل</string>
@@ -1393,13 +1393,13 @@
   <string name="setting_provider_delete_confirm">إزالة</string>
   <string name="setting_provider_delete_cancel">إلغاء</string>
   <string name="setting_provider_aicore_release_stage">مرحلة الإصدار</string>
-  <string name="setting_provider_aicore_status_help">على الجهاز. يتطلب Pixel 8/9/10 مع تثبيت تطبيق AICore والتسجيل في برنامج الوصول المبكر لـ GenAI Prompt-API (موافقة منفصلة). إذا رأيت ErrorCode 606 / FEATURE_NOT_FOUND عند أول تشغيل، فلديك AICore مثبت لكن دون قناة Prompt-API — اطلب الوصول عبر نموذج الوصول المبكر لـ GenAI Prompt-API، ثم أعد التشغيل. استدعاء الأدوات مدعوم عبر هندسة التوجيهات — يُصدر Gemini Nano ترميز &lt;tool_call&gt; الذي يحلله RikkaHub Agents ويوزّعه.</string>
+  <string name="setting_provider_aicore_status_help">على الجهاز. يتطلب Pixel 8/9/10 مع تثبيت تطبيق AICore والتسجيل في برنامج الوصول المبكر لـ GenAI Prompt-API (موافقة منفصلة). إذا رأيت ErrorCode 606 / FEATURE_NOT_FOUND عند أول تشغيل، فلديك AICore مثبت لكن دون قناة Prompt-API — اطلب الوصول عبر نموذج الوصول المبكر لـ GenAI Prompt-API، ثم أعد التشغيل. استدعاء الأدوات مدعوم عبر هندسة التوجيهات — يُصدر Gemini Nano ترميز &lt;tool_call&gt; الذي يحلله Yao ويوزّعه.</string>
   <string name="setting_page_notifications">الإشعارات</string>
   <string name="setting_page_notifications_desc">حالة الوصول إلى الإشعارات وسجل النشاط الأخير والقائمة البيضاء لكل تطبيق التي تُحوِّل تلقائيًا إلى Telegram.</string>
   <string name="setting_page_notifications_status_section">الحالة</string>
   <string name="setting_page_notifications_status_connected">الخدمة: متصلة</string>
   <string name="setting_page_notifications_status_not_connected">الخدمة: غير متصلة</string>
-  <string name="setting_page_notifications_status_help">يحتاج RikkaHub Agents إلى الوصول إلى الإشعارات لقراءة الإشعارات الواردة. افتح الإعدادات → الوصول إلى الإشعارات → الوصول إلى الإشعارات وفعّل RikkaHub Agents.</string>
+  <string name="setting_page_notifications_status_help">يحتاج Yao إلى الوصول إلى الإشعارات لقراءة الإشعارات الواردة. افتح الإعدادات → الوصول إلى الإشعارات → الوصول إلى الإشعارات وفعّل Yao.</string>
   <string name="setting_page_notifications_open_settings">فتح إعدادات الوصول إلى الإشعارات</string>
   <string name="setting_page_notifications_default_chat_set">دردشة Telegram الافتراضية: %1$s</string>
   <string name="setting_page_notifications_default_chat_unset">دردشة Telegram الافتراضية: غير مُعيَّنة (التوجيه التلقائي مُعطَّل)</string>
@@ -1429,7 +1429,7 @@
   <string name="assistant_page_local_tools_system_intents_title">نوايا النظام</string>
   <string name="assistant_page_local_tools_system_intents_desc">السماح للمساعد بالتعبئة المسبقة لتطبيقات النظام لتنهيها أنت: حدث تقويم، جهة اتصال جديدة، مُنشئ بريد إلكتروني، مُنشئ رسائل قصيرة، إعدادات WiFi، الخرائط. لا شيء يُحفظ أو يُرسل دون نقرتك في التطبيق الوجهة.</string>
   <string name="assistant_page_local_tools_workflows_hint_title">سير العمل يحتاج إلى إعداد إضافي</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">سير العمل مُمكَّن. تحتاج بعض أنواع المُحفِّزات إلى أذونات لا يستطيع المفتاح طلبها:\n\n• الأسوار الجغرافية (تصل إلى مكان ما): الإعدادات → التطبيقات → RikkaHub Agents → الأذونات → الموقع → السماح طوال الوقت.\n• وصول إشعار: الإعدادات → التطبيقات → الوصول الخاص → الوصول إلى الإشعارات → فعّل RikkaHub Agents.\n• تشغيل/إغلاق التطبيقات: الإعدادات → إمكانية الوصول → فعّل RikkaHub Agents.\n• اتصال/فصل Bluetooth: امنح BLUETOOTH_CONNECT عندما يسأل النظام.\n\nمُحفِّزات الجدولة وWiFi والسماعات والطاقة وتشغيل/إطفاء الشاشة والبطارية تعمل مباشرةً. سيشير المساعد إلى أي إعداد إضافي في اللحظة التي تُنشئ فيها سير عمل يحتاجه.</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">سير العمل مُمكَّن. تحتاج بعض أنواع المُحفِّزات إلى أذونات لا يستطيع المفتاح طلبها:\n\n• الأسوار الجغرافية (تصل إلى مكان ما): الإعدادات → التطبيقات → Yao → الأذونات → الموقع → السماح طوال الوقت.\n• وصول إشعار: الإعدادات → التطبيقات → الوصول الخاص → الوصول إلى الإشعارات → فعّل Yao.\n• تشغيل/إغلاق التطبيقات: الإعدادات → إمكانية الوصول → فعّل Yao.\n• اتصال/فصل Bluetooth: امنح BLUETOOTH_CONNECT عندما يسأل النظام.\n\nمُحفِّزات الجدولة وWiFi والسماعات والطاقة وتشغيل/إطفاء الشاشة والبطارية تعمل مباشرةً. سيشير المساعد إلى أي إعداد إضافي في اللحظة التي تُنشئ فيها سير عمل يحتاجه.</string>
   <string name="assistant_page_local_tools_workflows_title">سير العمل</string>
   <string name="assistant_page_local_tools_workflows_desc">السماح للمساعد بإنشاء أتمتة تعمل على مُحفِّزات — اتصال WiFi، جدولة، سور جغرافي، وصول إشعار، وغير ذلك.</string>
   <string name="setting_page_workflows_empty">لا يوجد سير عمل بعد. اطلب من مساعدك إنشاء واحد.</string>
@@ -1593,7 +1593,7 @@
   <string name="local_llm_litert_name">محلي · LiteRT</string>
   <string name="local_llm_default_disabled">تشغيل نماذج مفتوحة على هذا الجهاز. مطلوب تنزيل ~1.5 غيغابايت (Qwen2.5 1.5B Q8).</string>
   <string name="local_llm_download_title">تنزيل النموذج الافتراضي</string>
-  <string name="local_llm_download_message">يحتاج RikkaHub Agents إلى تنزيل نموذج بدء لهذا المزوّد. التنزيل ~1.5 غيغابايت (Qwen2.5 1.5B Q8). متابعة؟</string>
+  <string name="local_llm_download_message">يحتاج Yao إلى تنزيل نموذج بدء لهذا المزوّد. التنزيل ~1.5 غيغابايت (Qwen2.5 1.5B Q8). متابعة؟</string>
   <string name="local_llm_download_continue">تنزيل</string>
   <string name="local_llm_download_cancel">إلغاء</string>
   <string name="local_llm_downloading_format">جارٍ التنزيل… %1$d%% (%2$s / %3$s)</string>
@@ -2331,8 +2331,8 @@
   <string name="mcp_page_clear">مسح</string>
   <string name="mcp_page_oauth_required">يلزم تفويض OAuth</string>
   <string name="mcp_page_oauth_in_progress">جارٍ التفويض، أكمله في المتصفح…</string>
-  <string name="ssh_key_default_desc">زوج مفاتيح SSH (أُنشئ في RikkaHub Agents)</string>
-  <string name="ssh_key_default_desc_with_type">زوج مفاتيح SSH (أُنشئ في RikkaHub Agents، %1$s)</string>
+  <string name="ssh_key_default_desc">زوج مفاتيح SSH (أُنشئ في Yao)</string>
+  <string name="ssh_key_default_desc_with_type">زوج مفاتيح SSH (أُنشئ في Yao، %1$s)</string>
   <string name="ssh_key_dialog_generate_title">إنشاء زوج مفاتيح SSH</string>
   <string name="ssh_key_dialog_saved_title">تم حفظ المفتاح</string>
   <string name="ssh_key_name_label">اسم البيانات السرية (يُحفظ في الخزنة)</string>
@@ -2371,7 +2371,7 @@
   <string name="vault_format_bitwarden_desc">Bitwarden JSON (نص صريح)</string>
   <string name="vault_format_loadcreds_desc">load-creds.sh (نص صريح، متوافق مع المخزن)</string>
   <string name="vault_page_plaintext_env_hint">صيغة النص الصريح: يُستبدل ${VAR} بقيمة متغير البيئة (وما لم يُعرَّف يبقى كما هو).</string>
-  <string name="doctor_report_header">RikkaHub Agents — تقرير التشخيص</string>
+  <string name="doctor_report_header">Yao — تقرير التشخيص</string>
   <string name="doctor_report_generated_at">وقت الإنشاء: %1$s</string>
   <string name="doctor_report_summary">الملخص: %1$s</string>
   <string name="tool_approvals_mcp_local_title">خادم MCP المحلي (لواجهة Backend)</string>
@@ -2380,11 +2380,8 @@
   <string name="file_editor_read_failed">فشل قراءة الملف</string>
   <string name="file_editor_saved">تم الحفظ</string>
   <string name="file_editor_save_failed">فشل الحفظ</string>
-  <string name="chat_nerd_input_tokens">%1$s إدخال</string>
   <string name="chat_nerd_cached_hit">(%1$s إصابة · %2$s)</string>
-  <string name="chat_nerd_output_tokens">%1$s إخراج</string>
   <string name="chat_nerd_message_total">إجمالي الرسالة</string>
-  <string name="chat_nerd_latest_usage">آخر طلب: إدخال %1$s · إخراج %2$s</string>
   <string name="chat_message_usage_title">تفاصيل الاستخدام</string>
   <string name="chat_message_usage_open">فتح تفاصيل الاستخدام</string>
   <string name="chat_message_usage_close">إغلاق تفاصيل الاستخدام</string>
@@ -2672,7 +2669,7 @@
   <string name="setting_shizuku_toast_service_not_running">خدمة Shizuku غير مشغّلة</string>
   <string name="setting_shizuku_section_help">مساعدة الإعداد</string>
   <string name="setting_shizuku_help_title">إعداد Shizuku</string>
-  <string name="setting_shizuku_help_body">ثبّت Shizuku من إصدارات GitHub ثم شغّل الخدمة: على الأجهزة المروّتة شغّلها من تطبيق Shizuku، وعلى أندرويد 11+ اقترن عبر التصحيح اللاسلكي (خيارات المطوّر → التصحيح اللاسلكي → الاقتران برمز، ثم نفّذ أمر التشغيل الذي يعرضه Shizuku). بعد تشغيل الخدمة اضغط «الإذن» أعلاه لمنح RikkaHub Agents الوصول.</string>
+  <string name="setting_shizuku_help_body">ثبّت Shizuku من إصدارات GitHub ثم شغّل الخدمة: على الأجهزة المروّتة شغّلها من تطبيق Shizuku، وعلى أندرويد 11+ اقترن عبر التصحيح اللاسلكي (خيارات المطوّر → التصحيح اللاسلكي → الاقتران برمز، ثم نفّذ أمر التشغيل الذي يعرضه Shizuku). بعد تشغيل الخدمة اضغط «الإذن» أعلاه لمنح Yao الوصول.</string>
   <string name="setting_ssh_hosts_title">مضيفات SSH</string>
   <string name="setting_ssh_host_delete">حذف</string>
   <string name="setting_ssh_host_connect">اتصال</string>
@@ -2914,7 +2911,7 @@
   <string name="doctor_msg_browser_unneeded">‏%1$s موجود، ولا توجد أدوات مفعّلة تحتاجه حاليًا.</string>
   <string name="doctor_msg_browser_ok">‏%1$s موجود وقابل للكتابة — سيُحفظ ملف تعريف الارتباط.</string>
   <string name="doctor_msg_termux_denied">غير ممنوح. أعد تبديل مفتاح Termux في الأدوات المحلية لرؤية مربع الحوار بعد المنح.</string>
-  <string name="doctor_msg_termux_ok">ممنوح — يمكن لـ RikkaHub Agents إرسال أوامر الصدفة إلى Termux.</string>
+  <string name="doctor_msg_termux_ok">ممنوح — يمكن لـ Yao إرسال أوامر الصدفة إلى Termux.</string>
   <string name="doctor_msg_termux_missing">Termux غير مثبَّت. مطلوب لـ: %1$s.</string>
   <string name="doctor_msg_termux_installed">‏com.termux مثبَّت على هذا الجهاز.</string>
   <string name="doctor_msg_dns_failed">فشل تحليل DNS أو انتهت المهلة. عند تغيّر الشبكة يُفرّغ NetworkChangeMonitor مجمّع اتصالات OkHttp — وإن استمر الخطأ فتحقق من الشبكة.</string>
@@ -3014,7 +3011,7 @@
   <string name="doctor_summary_ok">سليم</string>
   <string name="doctor_summary_info">معلومات</string>
   <string name="doctor_msg_open_failed">تعذّر الفتح: %1$s</string>
-  <string name="doctor_report_clip_label">تقرير تشخيص RikkaHub Agents</string>
+  <string name="doctor_report_clip_label">تقرير تشخيص Yao</string>
   <string name="save">حفظ</string>
   <string name="backend_service_local">هذا الجهاز (local)</string>
   <string name="backend_service_current_badge">✅ الواجهة الخلفية الحالية</string>
@@ -4189,7 +4186,7 @@
   <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
   <string name="s3_config_region_placeholder">us-east-1</string>
   <string name="mcp_transport_streamable_http">Streamable HTTP</string>
-  <string name="log_page_clip_label">سجل تطبيق RikkaHub Agents</string>
+  <string name="log_page_clip_label">سجل تطبيق Yao</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">الحصول على التاريخ والوقت الحاليين.</string>
     <string name="copied_to_clipboard">تم النسخ إلى الحافظة</string>

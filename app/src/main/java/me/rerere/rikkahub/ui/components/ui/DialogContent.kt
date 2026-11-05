@@ -56,6 +56,7 @@ fun CappedLazyColumn(
     modifier: Modifier = Modifier,
     maxHeight: Dp = DefaultDialogContentMaxHeight,
     contentPadding: PaddingValues = PaddingValues(0.dp),
+    verticalArrangement: Arrangement.Vertical = Arrangement.Top,
     content: LazyListScope.() -> Unit,
 ) {
     LazyColumn(
@@ -63,6 +64,7 @@ fun CappedLazyColumn(
             .fillMaxWidth()
             .heightIn(max = maxHeight),
         contentPadding = contentPadding,
+        verticalArrangement = verticalArrangement,
         content = content,
     )
 }

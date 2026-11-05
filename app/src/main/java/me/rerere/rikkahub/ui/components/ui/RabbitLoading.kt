@@ -22,7 +22,7 @@ fun RabbitLoadingIndicator(modifier: Modifier = Modifier) {
             modifier = modifier,
             factory = { context ->
                 ImageView(context).apply {
-                    val drawable = AppCompatResources.getDrawable(context, R.drawable.rabbit) as? AnimatedVectorDrawable
+                    val drawable = AppCompatResources.getDrawable(context, R.drawable.yao_loading) as? AnimatedVectorDrawable
                     setImageDrawable(drawable)
                     drawable?.setTint(primaryColor)
                     drawable?.start()

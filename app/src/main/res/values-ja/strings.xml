@@ -7,7 +7,7 @@
   <string name="about_page_version">バージョン</string>
   <string name="about_page_website">RikkaHub 公式サイト</string>
   <string name="add">追加</string>
-  <string name="app_name">RikkaHub Agents</string>
+  <string name="app_name">Yao</string>
   <string name="asr_button_content_description">音声認識</string>
   <string name="asr_button_stop">停止</string>
   <string name="assistant_detail_basic_desc">名前、アバター、モデル、パラメータを設定</string>
@@ -961,7 +961,7 @@
   <string name="setting_page_search_title">検索サービス</string>
   <string name="setting_page_share">共有</string>
   <string name="setting_page_share_desc">このアプリを友達と共有</string>
-  <string name="setting_page_share_text">RikkaHub Agents - オープンソース Android AI アシスタント（RikkaHub の fork）\n\nリポジトリ: https://github.com/xiwangone/rikkahub-agents</string>
+  <string name="setting_page_share_text">Yao - オープンソース Android AI アシスタント（RikkaHub の fork）\n\nリポジトリ: https://github.com/xiwangone/rikkahub-agents</string>
   <string name="setting_page_theme_setting">テーマ</string>
   <string name="setting_page_theme_setting_desc">アプリの配色をカスタマイズ</string>
   <string name="setting_theme_page_preset_themes">プリセットテーマ</string>
@@ -983,7 +983,7 @@
   <string name="setting_page_web_server">Webサーバー</string>
   <string name="setting_page_web_server_address_note">アドレスメモ</string>
   <string name="setting_page_web_server_address_note_desc">LANアドレス: デバイスのWiFi IPを使用し、同じネットワーク上の他のデバイスからアクセス可能です。モバイルデータでは利用できません。\nローカルアドレス: localhostを使用し、このデバイスのみでアクセス可能です。\nmDNSアドレス: .localホスト名を使用し、IPを知らなくても同じネットワーク上の他のデバイスから名前でアクセス可能です。</string>
-  <string name="setting_page_web_server_desc">Web経由でRikkaHub Agentsにアクセスできるようにする</string>
+  <string name="setting_page_web_server_desc">Web経由でYaoにアクセスできるようにする</string>
   <string name="setting_page_web_server_error">エラー</string>
   <string name="setting_page_web_server_jwt_enable">認証を有効にする</string>
   <string name="setting_page_web_server_jwt_enable_desc">Webインターフェースにアクセスする際にパスワード認証が必要</string>
@@ -1301,7 +1301,7 @@
   <!-- fork (agent) strings preserved from merge -->
   <string name="setting_display_page_show_date_below_name_desc">ニックネームまたはモデル名の下にメッセージの日付を表示するかどうか</string>
   <string name="setting_display_page_show_date_below_name_title">名前の下に日付を表示</string>
-  <string name="accessibility_service_summary">LLM が画面自動化ツールを使用するとき、RikkaHub Agents がタップ、スワイプ、スクロール、画面内容の読み取り、スクリーンショットの撮影を行えるようにします。</string>
+  <string name="accessibility_service_summary">LLM が画面自動化ツールを使用するとき、Yao がタップ、スワイプ、スクロール、画面内容の読み取り、スクリーンショットの撮影を行えるようにします。</string>
   <string name="assistant_page_fast_path_router">ファストパスルーター</string>
   <string name="assistant_page_fast_path_router_desc">「バッテリーは？」「今何時？」「ワークフローを一覧表示」のような高信頼度のリクエストでは LLM をスキップします。一致するツールが直接実行され、即座に答えが得られます。保守的 — 曖昧なものはすべてモデルに送られます。logcat に記録（タグ：FastPathRouter）。</string>
   <string name="assistant_page_local_tools_app_launcher_desc">パッケージ名でインストール済みアプリ（例：Termux、設定）を開き、利用可能なアプリを一覧表示します。画面自動化と組み合わせて完全な UI 制御が可能です。</string>
@@ -1420,7 +1420,7 @@
   <string name="assistant_page_local_tools_wifi_desc">現在の Wi-Fi 接続（SSID、IP、信号）を読み取ります。SSID には位置情報の権限が必要です。</string>
   <string name="assistant_page_local_tools_wifi_title">Wi-Fi 情報</string>
   <string name="assistant_page_local_tools_workflows_desc">アシスタントがトリガーで実行される自動化を作成できます — WiFi 接続、スケジュール、ジオフェンス、通知到着など。</string>
-  <string name="assistant_page_local_tools_workflows_hint_message">ワークフローが有効になっています。一部のトリガータイプにはトグルでは要求できない権限が必要です：\n\n• ジオフェンス（どこかに到着）：設定 → アプリ → RikkaHub Agents → 権限 → 位置情報 → 常に許可。\n• 通知が届く：設定 → アプリ → 特別なアクセス → 通知へのアクセス → RikkaHub Agents を有効化。\n• アプリの起動/終了：設定 → ユーザー補助 → RikkaHub Agents を有効化。\n• Bluetooth の接続/切断：システムが尋ねたときに BLUETOOTH_CONNECT を付与。\n\nスケジュール、WiFi、ヘッドホン、電源、画面オン/オフ、バッテリーのトリガーはそのまま動作します。追加設定が必要なワークフローを作成する瞬間に、アシスタントが知らせます。</string>
+  <string name="assistant_page_local_tools_workflows_hint_message">ワークフローが有効になっています。一部のトリガータイプにはトグルでは要求できない権限が必要です：\n\n• ジオフェンス（どこかに到着）：設定 → アプリ → Yao → 権限 → 位置情報 → 常に許可。\n• 通知が届く：設定 → アプリ → 特別なアクセス → 通知へのアクセス → Yao を有効化。\n• アプリの起動/終了：設定 → ユーザー補助 → Yao を有効化。\n• Bluetooth の接続/切断：システムが尋ねたときに BLUETOOTH_CONNECT を付与。\n\nスケジュール、WiFi、ヘッドホン、電源、画面オン/オフ、バッテリーのトリガーはそのまま動作します。追加設定が必要なワークフローを作成する瞬間に、アシスタントが知らせます。</string>
   <string name="assistant_page_local_tools_workflows_hint_title">ワークフローには追加設定が必要</string>
   <string name="assistant_page_local_tools_workflows_title">ワークフロー</string>
   <string name="browser_address_bar_back">ブラウザを戻る</string>
@@ -1466,7 +1466,7 @@
   <string name="local_llm_download_cancel">キャンセル</string>
   <string name="local_llm_download_continue">ダウンロード</string>
   <string name="local_llm_download_default">デフォルトモデルをダウンロード</string>
-  <string name="local_llm_download_message">RikkaHub Agents はこのプロバイダー用にスターターモデルをダウンロードする必要があります。ダウンロードは約 1.5 GB（Qwen2.5 1.5B Q8）。続行しますか？</string>
+  <string name="local_llm_download_message">Yao はこのプロバイダー用にスターターモデルをダウンロードする必要があります。ダウンロードは約 1.5 GB（Qwen2.5 1.5B Q8）。続行しますか？</string>
   <string name="local_llm_download_progress">ダウンロード中… %1$d%%</string>
   <string name="local_llm_download_title">デフォルトモデルをダウンロード</string>
   <string name="local_llm_downloading_format">ダウンロード中… %1$d%%（%2$s / %3$s）</string>
@@ -1579,7 +1579,7 @@
   <string name="setting_page_accessibility_overlay_open_settings">他のアプリの上に表示を許可</string>
   <string name="setting_page_accessibility_overlay_section">アクティビティオーバーレイ</string>
   <string name="setting_page_accessibility_recent_section">最近の操作</string>
-  <string name="setting_page_accessibility_status_help">RikkaHub Agents は LLM のためにタップ、スワイプ、画面の読み取りを行うためにユーザー補助の権限が必要です。設定 &#x2192; ユーザー補助 &#x2192; インストール済みアプリ &#x2192; RikkaHub Agents を開いてオンにしてください。</string>
+  <string name="setting_page_accessibility_status_help">Yao は LLM のためにタップ、スワイプ、画面の読み取りを行うためにユーザー補助の権限が必要です。設定 &#x2192; ユーザー補助 &#x2192; インストール済みアプリ &#x2192; Yao を開いてオンにしてください。</string>
   <string name="setting_page_accessibility_status_not_running">サービス：未実行</string>
   <string name="setting_page_accessibility_status_running">サービス：実行中</string>
   <string name="setting_page_accessibility_status_section">ステータス</string>
@@ -1629,7 +1629,7 @@
   <string name="setting_page_notifications_recent_empty">まだ通知をキャプチャしていません。</string>
   <string name="setting_page_notifications_recent_section">最近のアクティビティ</string>
   <string name="setting_page_notifications_status_connected">サービス：接続済み</string>
-  <string name="setting_page_notifications_status_help">RikkaHub Agents は受信通知を読み取るために通知アクセスが必要です。設定 → 通知へのアクセス → 通知へのアクセス を開いて RikkaHub Agents を有効にしてください。</string>
+  <string name="setting_page_notifications_status_help">Yao は受信通知を読み取るために通知アクセスが必要です。設定 → 通知へのアクセス → 通知へのアクセス を開いて Yao を有効にしてください。</string>
   <string name="setting_page_notifications_status_not_connected">サービス：未接続</string>
   <string name="setting_page_notifications_status_section">ステータス</string>
   <string name="setting_page_notifications_whitelist_help">通知がデフォルトの Telegram チャットに自動転送されるアプリ。空 = 何も転送しません。ピッカーで各アプリをオン/オフ切り替えてください。</string>
@@ -1645,7 +1645,7 @@
   <string name="setting_page_notifications_whitelist_summary_n_plural">%1$d 個のアプリがホワイトリスト登録済み</string>
   <string name="setting_page_notifications_whitelist_summary_zero">ホワイトリストのアプリなし</string>
   <string name="setting_page_permissions">権限</string>
-  <string name="setting_page_permissions_desc">RikkaHub Agents が使用するすべての権限を自動検出した一覧。各項目にワンタップの付与ボタンがあります。</string>
+  <string name="setting_page_permissions_desc">Yao が使用するすべての権限を自動検出した一覧。各項目にワンタップの付与ボタンがあります。</string>
   <string name="setting_page_permissions_group_auto">自動付与</string>
   <string name="setting_page_permissions_group_runtime">実行時権限</string>
   <string name="setting_page_permissions_group_services">サービスと統合</string>
@@ -1695,7 +1695,7 @@
   <string name="setting_page_scheduled_jobs_subtitle_when">タイミング：%1$s</string>
   <string name="setting_page_telegram">Telegram ボット</string>
   <string name="setting_page_telegram_battery_already_ok">バッテリー最適化のホワイトリストに登録済みです。</string>
-  <string name="setting_page_telegram_battery_desc">画面が消えると、積極的な OEM ROM（Xiaomi、OPPO、OnePlus、Vivo）は未登録アプリのネットワークを遮断します。ボットはたまのメンテナンス時間にしか配信できません。タップして RikkaHub Agents をホワイトリストに登録してください。</string>
+  <string name="setting_page_telegram_battery_desc">画面が消えると、積極的な OEM ROM（Xiaomi、OPPO、OnePlus、Vivo）は未登録アプリのネットワークを遮断します。ボットはたまのメンテナンス時間にしか配信できません。タップして Yao をホワイトリストに登録してください。</string>
   <string name="setting_page_telegram_battery_needed">バッテリー最適化：未登録 - タップして修正</string>
   <string name="setting_page_telegram_battery_ok">バッテリー最適化：ホワイトリスト登録済み</string>
   <string name="setting_page_telegram_boot_note">開始すると、ボットはデバイス起動時にも自動的に起動します。</string>
@@ -1770,7 +1770,7 @@
   <string name="setting_page_workflows_subtitle_ran_success">%1$s に実行 • 成功</string>
   <string name="setting_page_workflows_subtitle_when">タイミング：%1$s</string>
   <string name="setting_provider_aicore_release_stage">リリース段階</string>
-  <string name="setting_provider_aicore_status_help">デバイス上で実行。AICore アプリがインストールされた Pixel 8/9/10 と、GenAI Prompt-API 早期アクセスプログラムへの登録（別途のオプトイン）が必要です。初回実行時に ErrorCode 606 / FEATURE_NOT_FOUND が表示された場合、AICore はインストール済みですが Prompt-API チャンネルがありません — GenAI Prompt-API 早期アクセスフォームでアクセスをリクエストし、再起動してください。ツール呼び出しはプロンプトエンジニアリングでサポート — Gemini Nano が &lt;tool_call&gt; マークアップを出力し、RikkaHub Agents が解析してディスパッチします。</string>
+  <string name="setting_provider_aicore_status_help">デバイス上で実行。AICore アプリがインストールされた Pixel 8/9/10 と、GenAI Prompt-API 早期アクセスプログラムへの登録（別途のオプトイン）が必要です。初回実行時に ErrorCode 606 / FEATURE_NOT_FOUND が表示された場合、AICore はインストール済みですが Prompt-API チャンネルがありません — GenAI Prompt-API 早期アクセスフォームでアクセスをリクエストし、再起動してください。ツール呼び出しはプロンプトエンジニアリングでサポート — Gemini Nano が &lt;tool_call&gt; マークアップを出力し、Yao が解析してディスパッチします。</string>
   <string name="setting_provider_delete_body">%1$s と構成済みのすべてのモデルが完全に削除されます。後で再追加できます。</string>
   <string name="setting_provider_delete_cancel">キャンセル</string>
   <string name="setting_provider_delete_confirm">削除</string>
@@ -2780,8 +2780,8 @@
   <string name="mcp_page_clear">クリア</string>
   <string name="mcp_page_oauth_required">OAuth 認証が必要</string>
   <string name="mcp_page_oauth_in_progress">認証中です。ブラウザで完了してください…</string>
-  <string name="ssh_key_default_desc">SSH キーペア（RikkaHub Agents で生成）</string>
-  <string name="ssh_key_default_desc_with_type">SSH キーペア（RikkaHub Agents で生成, %1$s）</string>
+  <string name="ssh_key_default_desc">SSH キーペア（Yao で生成）</string>
+  <string name="ssh_key_default_desc_with_type">SSH キーペア（Yao で生成, %1$s）</string>
   <string name="ssh_key_dialog_generate_title">SSH キーペアを生成</string>
   <string name="ssh_key_dialog_saved_title">キーを保存しました</string>
   <string name="ssh_key_name_label">資格情報名（資格情報庫に保存）</string>
@@ -2820,7 +2820,7 @@
   <string name="vault_format_bitwarden_desc">Bitwarden JSON（平文）</string>
   <string name="vault_format_loadcreds_desc">load-creds.sh（平文、資格情報ストアと往復可能）</string>
   <string name="vault_page_plaintext_env_hint">平文形式: 値中の ${VAR} は環境変数の値に置換されます（未定義のものはそのまま）。</string>
-  <string name="doctor_report_header">RikkaHub Agents — 診断レポート</string>
+  <string name="doctor_report_header">Yao — 診断レポート</string>
   <string name="doctor_report_generated_at">生成時刻: %1$s</string>
   <string name="doctor_report_summary">概要: %1$s</string>
   <string name="tool_approvals_mcp_local_title">ローカル MCP サーバー（Backend 用）</string>
@@ -2829,11 +2829,8 @@
   <string name="file_editor_read_failed">ファイルの読み込みに失敗</string>
   <string name="file_editor_saved">保存しました</string>
   <string name="file_editor_save_failed">保存に失敗</string>
-  <string name="chat_nerd_input_tokens">%1$s 入力</string>
   <string name="chat_nerd_cached_hit">(%1$s ヒット · %2$s)</string>
-  <string name="chat_nerd_output_tokens">%1$s 出力</string>
   <string name="chat_nerd_message_total">メッセージ合計</string>
-  <string name="chat_nerd_latest_usage">最新リクエスト：%1$s 入力 · %2$s 出力</string>
   <string name="chat_message_usage_title">使用量の詳細</string>
   <string name="chat_message_usage_open">使用量の詳細を開く</string>
   <string name="chat_message_usage_close">使用量の詳細を閉じる</string>
@@ -3117,7 +3114,7 @@
   <string name="setting_shizuku_toast_service_not_running">Shizuku サービスが稼働していません</string>
   <string name="setting_shizuku_section_help">設定のヘルプ</string>
   <string name="setting_shizuku_help_title">Shizuku の設定</string>
-  <string name="setting_shizuku_help_body">GitHub の releases から Shizuku をインストールし、サービスを起動します。root 化済み端末は Shizuku アプリから起動。Android 11 以降はワイヤレスデバッグでペア設定（開発者向けオプション → ワイヤレスデバッグ → ペア設定コードでペア設定し、Shizuku が表示する起動コマンドを実行）。サービスが動いたら、上の「権限」をタップして RikkaHub Agents にアクセスを許可してください。</string>
+  <string name="setting_shizuku_help_body">GitHub の releases から Shizuku をインストールし、サービスを起動します。root 化済み端末は Shizuku アプリから起動。Android 11 以降はワイヤレスデバッグでペア設定（開発者向けオプション → ワイヤレスデバッグ → ペア設定コードでペア設定し、Shizuku が表示する起動コマンドを実行）。サービスが動いたら、上の「権限」をタップして Yao にアクセスを許可してください。</string>
   <string name="setting_ssh_hosts_title">SSH ホスト</string>
   <string name="setting_ssh_host_delete">削除</string>
   <string name="setting_ssh_host_connect">接続</string>
@@ -3359,7 +3356,7 @@
   <string name="doctor_msg_browser_unneeded">%1$s は存在します。現在それを必要とする有効なツールはありません。</string>
   <string name="doctor_msg_browser_ok">%1$s は存在し書き込み可能 — Cookie が永続化されます。</string>
   <string name="doctor_msg_termux_denied">未付与。ローカルツールで Termux スイッチを入れ直して、認可後のダイアログを確認してください。</string>
-  <string name="doctor_msg_termux_ok">付与済み — RikkaHub Agents は Termux にシェルコマンドを送出できます。</string>
+  <string name="doctor_msg_termux_ok">付与済み — Yao は Termux にシェルコマンドを送出できます。</string>
   <string name="doctor_msg_termux_missing">Termux がインストールされていません。需求方: %1$s.</string>
   <string name="doctor_msg_termux_installed">本機に com.termux がインストールされています。</string>
   <string name="doctor_msg_dns_failed">DNS 解決に失敗、またはタイムアウトしました。ネットワーク変化時に NetworkChangeMonitor が OkHttp の接続プールを空にします — 赤が続く場合はネットワーク接続を確認してください。</string>
@@ -3459,7 +3456,7 @@
   <string name="doctor_summary_ok">正常</string>
   <string name="doctor_summary_info">情報</string>
   <string name="doctor_msg_open_failed">開けません: %1$s</string>
-  <string name="doctor_report_clip_label">RikkaHub Agents 診断レポート</string>
+  <string name="doctor_report_clip_label">Yao 診断レポート</string>
   <string name="save">保存</string>
   <string name="backend_service_local">本機（local）</string>
   <string name="backend_service_current_badge">✅ 現在の実行バックエンド</string>
@@ -4182,7 +4179,7 @@
   <string name="openrouter_routing_order_placeholder">anthropic, google-vertex</string>
   <string name="s3_config_region_placeholder">us-east-1</string>
   <string name="mcp_transport_streamable_http">Streamable HTTP</string>
-  <string name="log_page_clip_label">RikkaHub Agents アプリログ</string>
+  <string name="log_page_clip_label">Yao アプリログ</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">現在の日付と時刻を取得します。</string>
     <string name="copied_to_clipboard">クリップボードにコピーしました</string>

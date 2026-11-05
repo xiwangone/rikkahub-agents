@@ -55,12 +55,19 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.foundation.text.InlineTextContent
+import androidx.compose.foundation.text.appendInlineContent
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.Placeholder
+import androidx.compose.ui.text.PlaceholderVerticalAlign
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.window.PopupPositionProvider
 import kotlinx.coroutines.launch
@@ -255,47 +262,65 @@ fun ChatMessageNerdLine(
                                             }
                                         }
                                     }
-                                    .sizeIn(minHeight = 48.dp)
                                     .semantics {
                                         stateDescription = tooltipStateDescription
                                     }
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
                                 ) {
-                    if (message.finishedAt != null) {
-                        val durationMillis = message.generationTimeMs ?: Duration.between(
-                            message.createdAt.toJavaLocalDateTime(),
-                            message.finishedAt!!.toJavaLocalDateTime(),
-                        ).toMillis()
-                        if (durationMillis > 0) {
-                            val tps = usage.completionTokens.toFloat() / durationMillis * 1000
-                            val seconds = (durationMillis / 1000f).toFixed(1)
-                            StatsItem(
-                            icon = {
-                                Icon(
-                                    imageVector = HugeIcons.Zap,
-                                    contentDescription = stringResource(R.string.accessibility_speed),
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            },
-                            content = {
-                                Text(text = "${tps.toFixed(1)} tok/s")
-                            },
-                        )
-
-                        StatsItem(
-                            icon = {
-                                Icon(
-                                    imageVector = HugeIcons.Clock02,
-                                    contentDescription = stringResource(R.string.accessibility_duration),
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            },
-                            content = {
-                                Text(text = "${seconds}s")
-                            },
-                        )
+                    // 单行用量摘要：图标内联在文字里，行高由文字决定
+                    val summaryText = buildAnnotatedString {
+                        appendInlineContent("u_up", "↑")
+                        append(usage.promptTokens.formatNumber())
+                        if (usage.cachedTokens > 0 && usage.promptTokens > 0) {
+                            val pct = usage.cachedTokens.toDouble() / usage.promptTokens.toDouble() * 100.0
+                            append(" (")
+                            append(usage.cachedTokens.formatNumber())
+                            append(" · ")
+                            append(String.format(java.util.Locale.US, "%.1f%%", pct))
+                            append(")")
+                        }
+                        append(" ")
+                        appendInlineContent("u_down", "↓")
+                        append(usage.completionTokens.formatNumber())
+                        if (message.finishedAt != null) {
+                            val durationMillis = message.generationTimeMs ?: Duration.between(
+                                message.createdAt.toJavaLocalDateTime(),
+                                message.finishedAt!!.toJavaLocalDateTime(),
+                            ).toMillis()
+                            if (durationMillis > 0) {
+                                val tps = usage.completionTokens.toFloat() / durationMillis * 1000
+                                val seconds = (durationMillis / 1000f).toFixed(1)
+                                append(" ")
+                                appendInlineContent("u_zap", "Z")
+                                append("${tps.toFixed(1)} tok/s ")
+                                appendInlineContent("u_clock", "T")
+                                append("${seconds}s")
+                            }
                         }
                     }
+                    val iconEdge = 13.sp
+                    val inlineIcons = mapOf(
+                        "u_up" to InlineTextContent(Placeholder(iconEdge, iconEdge, PlaceholderVerticalAlign.Center)) {
+                            Icon(HugeIcons.Upload02, null, Modifier.fillMaxSize(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                        "u_down" to InlineTextContent(Placeholder(iconEdge, iconEdge, PlaceholderVerticalAlign.Center)) {
+                            Icon(HugeIcons.Download04, null, Modifier.fillMaxSize(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                        "u_zap" to InlineTextContent(Placeholder(iconEdge, iconEdge, PlaceholderVerticalAlign.Center)) {
+                            Icon(HugeIcons.Zap, null, Modifier.fillMaxSize(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                        "u_clock" to InlineTextContent(Placeholder(iconEdge, iconEdge, PlaceholderVerticalAlign.Center)) {
+                            Icon(HugeIcons.Clock02, null, Modifier.fillMaxSize(), tint = MaterialTheme.colorScheme.onSurfaceVariant)
+                        },
+                    )
+                    Text(
+                        text = summaryText,
+                        inlineContent = inlineIcons,
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
                         }
                     }
                     // 一键复制统计信息（与截图格式一致，方便直接粘贴给 AI 分析）
@@ -327,8 +352,7 @@ fun ChatMessageNerdLine(
                                         }
                                     pendingCopyText = statsText
                                 })
-                                .sizeIn(minWidth = 48.dp, minHeight = 48.dp)
-                                .padding(2.dp),
+                                .padding(horizontal = 2.dp),
                     ) {
                         Icon(
                             imageVector = HugeIcons.Copy01,
@@ -415,15 +439,17 @@ fun ChatMessageNerdLine(
                                         },
                                     // 比同组统计大一号，便于一眼看到当前上下文占用
                                     style = MaterialTheme.typography.labelMedium,
+                                    // 浅灰在深/浅主题下都偏淡，提到半强对比
+                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
                                 )
                                 if (usedRatio != null) {
                                     Spacer(Modifier.width(6.dp))
                                     Box(
                                         modifier =
                                             Modifier
-                                                .width(72.dp)
-                                                .height(6.dp)
-                                                .clip(RoundedCornerShape(3.dp))
+                                                .width(96.dp)
+                                                .height(8.dp)
+                                                .clip(RoundedCornerShape(4.dp))
                                                 // 底色用中性槽位：未填充部分清晰可见
                                                 // （原先用"同色 25% 透明"，导致剩余量几乎看不出）
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
@@ -433,11 +459,12 @@ fun ChatMessageNerdLine(
                                         val uncachedSeg = (ctxTokens - cachedSeg).coerceAtLeast(0L)
                                         val outputSeg = contextUsage.completionTokens.toLong().coerceAtLeast(0L)
                                         Row(
+                                            horizontalArrangement = Arrangement.spacedBy(1.dp),
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth(barRatio?.toFloat() ?: 0f)
                                                     .fillMaxHeight()
-                                                    .clip(RoundedCornerShape(3.dp)),
+                                                    .clip(RoundedCornerShape(4.dp)),
                                         ) {
                                             if (cachedSeg > 0L) {
                                                 Box(

@@ -41,5 +41,5 @@ object AccessibilityServiceHandle {
         return block(svc)
     }
 
-    fun notActiveEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "invalid_argument", message = "AccessibilityService not active", hint = "Enable RikkaHub Agents in Settings → Accessibility → Installed Apps")
+    fun notActiveEnvelope(): JsonObject = ToolErrors.envelopeFor(error = "invalid_argument", message = "AccessibilityService not active", hint = "Enable Yao in Settings → Accessibility → Installed Apps")
 }

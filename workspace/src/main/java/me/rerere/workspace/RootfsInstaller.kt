@@ -19,6 +19,9 @@ private const val MAX_TAR_MOD_TIME_SECONDS = 253_402_300_799L
 /** 安装流程结束，但 rootfs 未提供 Terminal 所需的可用 shell。 */
 class RootfsShellNotFoundException : IllegalStateException()
 
+// tar 解包（约 14 个）与安装编排（约 10 个）共享中断检查、路径归一化、权限写入等私有 helper，
+// 抽出独立类需把一批 private 提升为 internal；当前阶段保持单类，拆分留待专项重构。
+@Suppress("TooManyFunctions")
 class RootfsInstaller(
     private val manager: WorkspaceManager,
     private val patcher: RootfsPatcher = RootfsPatcher(),

@@ -349,6 +349,9 @@ private suspend fun ChatService.isToolAutoApprovedForConversation(
                 toolApprovalPreferences.current().contains(toolName))
     }
 
+// 节流状态容器：字段虽多（时间戳 / 后台任务 / 完成标记）但由同一组节流逻辑一起读写，
+// 拆成子类会引入无内聚的层级，故此处保持平铺。
+@Suppress("LongParameterList")
 private class StreamThrottleState(
     // 初始化为流启动时刻而非 0L，避免收到首个增量（刚吐出几个字）时立即触发同步落库阻塞流式读取
     var lastStreamPersistAtMs: Long = System.currentTimeMillis(),
@@ -568,7 +571,7 @@ private suspend fun ChatService.onGenerationStreamChunk(
                 saveConversation(conversationId, updatedConversation, syncFts = false)
             } else if (dueForPeriodicPersist && streamState.periodicPersistJob?.isActive != true) {
                 streamState.lastStreamPersistAtMs = nowMs
-                // 周期性防杀落盘放到独立后台任务中执行，避免 SQLite I/O 阻塞上游 SSE 流式吐字
+                // 周期性防杀落盘放到独立后台任务中执行，避免 SQLite I/O 阻塞 SSE 流式吐字
                 streamState.periodicPersistJob = appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     if (!streamState.streamCompleted) {
                         runCatching {
