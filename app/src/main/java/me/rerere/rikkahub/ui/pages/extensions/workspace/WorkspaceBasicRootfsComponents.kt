@@ -345,8 +345,9 @@ private val DEFAULT_ROOTFS_URL: String
         }
 
 private fun defaultRootfsUrlForDistro(distro: WorkspaceDistroInfo?): String {
-    val id = distro?.id?.lowercase().orEmpty()
-    val version = distro?.versionId.orEmpty()
+    // WorkspaceDistroInfo 的字段是 name / version（来自 os-release 的 ID / VERSION_ID）
+    val id = distro?.name?.lowercase().orEmpty()
+    val version = distro?.version.orEmpty()
     val pretty = distro?.prettyName?.lowercase().orEmpty()
     return when {
         id == "alpine" || pretty.contains("alpine") ->

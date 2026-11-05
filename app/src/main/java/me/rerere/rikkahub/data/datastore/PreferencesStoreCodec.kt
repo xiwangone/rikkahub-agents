@@ -148,11 +148,11 @@ internal fun loadWarmUiSettings(context: Context): Settings =
             themeId = prefs.getString(WARM_THEME_ID, null) ?: dummy.themeId,
             customThemes =
                 prefs.getString(WARM_CUSTOM_THEMES, null)
-                    ?.let { runCatching { JsonInstant.decodeFromString(it) }.getOrNull() }
+                    ?.let { runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(it) }.getOrNull() }
                     ?: dummy.customThemes,
             displaySetting =
                 prefs.getString(WARM_DISPLAY_SETTING, null)
-                    ?.let { runCatching { JsonInstant.decodeFromString(it) }.getOrNull() }
+                    ?.let { runCatching { JsonInstant.decodeFromString<DisplaySetting>(it) }.getOrNull() }
                     ?: dummy.displaySetting,
             developerMode = prefs.getBoolean(WARM_DEVELOPER_MODE, dummy.developerMode),
             assistantId =
