@@ -4,7 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.Stable
@@ -83,7 +83,7 @@ fun <T> rememberExporter(
 
     var pendingState by remember { mutableStateOf<ExporterState<T>?>(null) }
 
-    val createDocumentLauncher = rememberLauncherForActivityResult(
+    val createDocumentLauncher = rememberSafeLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/json")
     ) { uri ->
         uri?.let { pendingState?.writeToUri(it) }
@@ -138,7 +138,7 @@ fun <T> rememberImporter(
 
     var pendingState by remember { mutableStateOf<ImporterState<T>?>(null) }
 
-    val openDocumentLauncher = rememberLauncherForActivityResult(
+    val openDocumentLauncher = rememberSafeLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument()
     ) { uri ->
         uri?.let { pendingState?.handleUri(it) }

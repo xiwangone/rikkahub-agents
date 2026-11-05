@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.components
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Icon
@@ -118,17 +118,17 @@ internal fun ProviderConfigureGoogle(
     val toastServiceImported = stringResource(R.string.provider_import_service_account_success)
     val toastImportFailed = stringResource(R.string.provider_import_gcloud_failed)
     val serviceAccountJsonLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
-            uri ?: return@rememberLauncherForActivityResult
+            uri ?: return@rememberSafeLauncherForActivityResult
             try {
                 val content =
                     context.contentResolver
                         .openInputStream(uri)
                         ?.bufferedReader()
                         ?.use { it.readText() }
-                        ?: return@rememberLauncherForActivityResult
+                        ?: return@rememberSafeLauncherForActivityResult
                 val json = Json.parseToJsonElement(content).jsonObject
                 onEdit(
                     provider.copy(

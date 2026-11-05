@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -65,7 +65,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
     var isLoading by remember { mutableStateOf(false) }
 
     val jsonPickerLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
             uri?.let {
@@ -94,7 +94,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
         }
 
     val pngPickerLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
             uri?.let {

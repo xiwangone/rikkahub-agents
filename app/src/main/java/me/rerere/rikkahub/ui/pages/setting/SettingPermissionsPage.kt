@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,7 +54,7 @@ fun SettingPermissionsPage() {
     }
 
     val runtimeRequester =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
         ) {
             refreshNow()

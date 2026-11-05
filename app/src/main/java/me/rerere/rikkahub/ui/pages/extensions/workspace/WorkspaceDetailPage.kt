@@ -4,7 +4,7 @@ import android.content.Intent
 import android.provider.OpenableColumns
 import android.webkit.MimeTypeMap
 import androidx.activity.compose.BackHandler
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -108,10 +108,10 @@ fun WorkspaceDetailPage(id: String) {
     val resources = LocalResources.current
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
     val filePicker =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
-            if (uri == null) return@rememberLauncherForActivityResult
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             val fileName =
                 context.contentResolver.query(uri, null, null, null, null)?.use { cursor ->
                     if (cursor.moveToFirst()) {
@@ -121,7 +121,7 @@ fun WorkspaceDetailPage(id: String) {
                         null
                     }
                 } ?: uri.lastPathSegment ?: "imported_file"
-            val inputStream = context.contentResolver.openInputStream(uri) ?: return@rememberLauncherForActivityResult
+            val inputStream = context.contentResolver.openInputStream(uri) ?: return@rememberSafeLauncherForActivityResult
             vm.importFile(inputStream, fileName)
         }
     var exportTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
@@ -130,9 +130,9 @@ fun WorkspaceDetailPage(id: String) {
     var selectedWorkspacePaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     val clipboard = LocalClipboardManager.current
     val exportZipLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/zip")) { uri ->
             val entries = exportZipTargets.also { exportZipTargets = emptyList() }
-            if (uri == null || entries.isEmpty()) return@rememberLauncherForActivityResult
+            if (uri == null || entries.isEmpty()) return@rememberSafeLauncherForActivityResult
             val output = runCatching { context.contentResolver.openOutputStream(uri) }.getOrNull()
             if (output == null) {
                 toaster.show(resources.getString(R.string.workspace_detail_export_zip_failed, "cannot open destination"))
@@ -159,16 +159,16 @@ fun WorkspaceDetailPage(id: String) {
             }
         }
     val exportFolderLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocumentTree(),
         ) { uri ->
             val entry =
                 exportFolderTarget.also { exportFolderTarget = null }
-                    ?: return@rememberLauncherForActivityResult
-            if (uri == null) return@rememberLauncherForActivityResult
+                    ?: return@rememberSafeLauncherForActivityResult
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             val tree =
                 androidx.documentfile.provider.DocumentFile.fromTreeUri(context, uri)
-                    ?: return@rememberLauncherForActivityResult
+                    ?: return@rememberSafeLauncherForActivityResult
             val targetDir = tree.createDirectory(entry.name) ?: tree
             vm.exportFolder(entry, targetDir) { outcome ->
                 toaster.show(
@@ -181,11 +181,11 @@ fun WorkspaceDetailPage(id: String) {
             }
         }
     val exportLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.CreateDocument("*/*"),
         ) { uri ->
-            val entry = exportTarget.also { exportTarget = null } ?: return@rememberLauncherForActivityResult
-            if (uri == null) return@rememberLauncherForActivityResult
+            val entry = exportTarget.also { exportTarget = null } ?: return@rememberSafeLauncherForActivityResult
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             vm.exportFile(entry, uri, context.contentResolver)
         }
 

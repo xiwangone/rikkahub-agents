@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.components.richtext
 import android.content.ClipData
 import android.net.Uri
 import androidx.activity.compose.ManagedActivityResultLauncher
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.ScrollState
@@ -126,29 +126,24 @@ fun HighlightCodeBlock(
     val autoWrap = settings.displaySetting.codeBlockAutoWrap
     val showLineNumbers = settings.displaySetting.showLineNumbers
 
-    // 悬浮窗等独立 Compose 树里没有 ActivityResultRegistryOwner；此时不创建 launcher（另存为降级），
-    // 否则 rememberLauncherForActivityResult 会在组合期直接抛 "No ActivityResultRegistryOwner was provided"。
-    val hasResultOwner = LocalActivityResultRegistryOrNull.current != null
-    val createDocumentLauncher: ManagedActivityResultLauncher<String, Uri?>? =
-        if (hasResultOwner) {
-            rememberLauncherForActivityResult(
-                contract = ActivityResultContracts.CreateDocument("*/*"),
-            ) { uri: Uri? ->
-                uri?.let {
-                    scope.launch(Dispatchers.IO) {
-                        try {
-                            context.contentResolver.openOutputStream(it, "wt")?.use { outputStream ->
-                                outputStream.write(code.toByteArray(Charsets.UTF_8))
-                            }
-                        } catch (e: IOException) {
-                            // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
-                            AppLog.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
+    // 悬浮窗等独立 Compose 树里没有 ActivityResultRegistryOwner；
+    // rememberSafeLauncherForActivityResult 在缺失时用空 registry 兜底，不会在组合期抛异常（另存为降级）。
+    val createDocumentLauncher =
+        rememberSafeLauncherForActivityResult(
+            contract = ActivityResultContracts.CreateDocument("*/*"),
+        ) { uri: Uri? ->
+            uri?.let {
+                scope.launch(Dispatchers.IO) {
+                    try {
+                        context.contentResolver.openOutputStream(it, "wt")?.use { outputStream ->
+                            outputStream.write(code.toByteArray(Charsets.UTF_8))
                         }
+                    } catch (e: IOException) {
+                        // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
+                        AppLog.e(TAG, "HighlightCodeBlock: failed to save code to document", e)
                     }
                 }
             }
-        } else {
-            null
         }
 
     Column(

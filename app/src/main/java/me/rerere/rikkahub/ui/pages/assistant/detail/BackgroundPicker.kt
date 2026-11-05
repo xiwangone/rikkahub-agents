@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -50,7 +50,7 @@ fun BackgroundPicker(
     var urlInput by remember { mutableStateOf("") }
 
     val imagePickerLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.GetContent(),
         ) { uri: Uri? ->
             uri?.let {

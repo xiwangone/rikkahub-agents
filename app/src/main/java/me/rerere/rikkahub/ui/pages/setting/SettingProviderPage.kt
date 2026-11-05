@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
@@ -321,12 +321,12 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
     var showImportDialog by remember { mutableStateOf(false) }
 
     val scanQrCodeLauncher =
-        rememberLauncherForActivityResult(ScanQRCode()) { result ->
+        rememberSafeLauncherForActivityResult(ScanQRCode()) { result ->
             handleQRResult(result, onAdd, toaster, context)
         }
 
     val pickImageLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             ActivityResultContracts.PickVisualMedia(),
         ) { uri ->
             uri?.let {

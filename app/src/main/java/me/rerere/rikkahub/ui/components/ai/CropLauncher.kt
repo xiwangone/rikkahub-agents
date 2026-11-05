@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.components.ai
 import android.content.Intent
 import android.graphics.Bitmap
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.ActivityResultLauncher
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -33,7 +33,7 @@ internal fun useCropLauncher(
     var cropOutputUri by remember { mutableStateOf<Uri?>(null) }
 
     val cropActivityLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             ActivityResultContracts.StartActivityForResult(),
         ) { result ->
             when (result.resultCode) {

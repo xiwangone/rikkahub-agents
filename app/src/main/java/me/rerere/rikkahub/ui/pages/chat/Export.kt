@@ -5,7 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
@@ -248,7 +248,7 @@ fun ChatExportSheet(
                 // 导入
                 val importRepo = koinInject<ConversationRepository>()
                 val importLauncher =
-                    rememberLauncherForActivityResult(
+                    rememberSafeLauncherForActivityResult(
                         ActivityResultContracts.GetContent(),
                     ) { uri ->
                         uri?.let { selectedUri ->

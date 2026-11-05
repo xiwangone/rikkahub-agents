@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import android.content.Context
 import android.graphics.Typeface
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -87,10 +87,10 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
     val importSuccessMsg = stringResource(R.string.setting_display_page_custom_font_import_success)
     val importFailedMsg = stringResource(R.string.setting_display_page_custom_font_import_failed)
     val fontPickerLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
-            uri ?: return@rememberLauncherForActivityResult
+            uri ?: return@rememberSafeLauncherForActivityResult
             scope.launch {
                 runCatching {
                     withContext(Dispatchers.IO) {

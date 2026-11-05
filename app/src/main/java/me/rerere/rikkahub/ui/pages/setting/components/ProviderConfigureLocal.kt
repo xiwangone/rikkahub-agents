@@ -3,7 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting.components
 import android.content.Context
 import android.net.Uri
 import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -150,10 +150,10 @@ internal fun ColumnScope.ProviderConfigureLiteRT(
     val invalidModelToast = stringResource(R.string.toast_provider_invalid_model_file)
     val importFailedToastFmt = stringResource(R.string.toast_provider_import_failed)
     val importLocalLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri ->
-            uri ?: return@rememberLauncherForActivityResult
+            uri ?: return@rememberSafeLauncherForActivityResult
             scope.launch(Dispatchers.IO) {
                 val result = runCatching {
                     val fileName = queryOpenDocumentName(context, uri) ?: "imported.litertlm"

@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
@@ -141,7 +141,7 @@ internal fun ChatFilesPickerSheet(
             },
         )
     val cameraLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captureSuccessful ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.TakePicture()) { captureSuccessful ->
             if (captureSuccessful && cameraOutputUri != null) {
                 if (setting.displaySetting.skipCropImage) {
                     inputState.addImages(filesManager.createChatFilesByContents(listOf(cameraOutputUri!!)))
@@ -190,7 +190,7 @@ internal fun ChatFilesPickerSheet(
             },
         )
     val imagePickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
             if (selectedUris.isNotEmpty()) {
                 AppLog.d("ImagePickButton", "Selected URIs: $selectedUris")
                 if (setting.displaySetting.skipCropImage) {
@@ -235,7 +235,7 @@ internal fun ChatFilesPickerSheet(
         }
 
     val videoPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
             if (selectedUris.isNotEmpty()) {
                 inputState.addVideos(filesManager.createChatFilesByContents(selectedUris))
                 dismissAll()
@@ -243,7 +243,7 @@ internal fun ChatFilesPickerSheet(
         }
 
     val audioPickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.GetMultipleContents()) { selectedUris ->
             if (selectedUris.isNotEmpty()) {
                 inputState.addAudios(filesManager.createChatFilesByContents(selectedUris))
                 dismissAll()
@@ -251,7 +251,7 @@ internal fun ChatFilesPickerSheet(
         }
 
     val filePickerLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.OpenMultipleDocuments()) { uris ->
             if (uris.isNotEmpty()) {
                 val documents =
                     uris.mapNotNull { uri ->

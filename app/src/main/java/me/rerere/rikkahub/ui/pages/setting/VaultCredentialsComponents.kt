@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -98,7 +98,7 @@ internal fun CredentialRow(
     // 导出私钥：弹窗确认后由系统文件选择器选定落地位置
     var exportDialog by remember { mutableStateOf(false) }
     var exportContent by remember { mutableStateOf<String?>(null) }
-    val exportLauncher = rememberLauncherForActivityResult(
+    val exportLauncher = rememberSafeLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/x-pem-file")
     ) { uri ->
         val content = exportContent

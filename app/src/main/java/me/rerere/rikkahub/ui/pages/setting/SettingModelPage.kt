@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
@@ -351,8 +351,8 @@ private fun CapabilityTableSettingItem() {
     var baselineCount by remember { mutableStateOf(overrides.baselineEntryCount()) }
 
     val importLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
-            if (uri == null) return@rememberLauncherForActivityResult
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             scope.launch {
                 val text =
                     withContext(Dispatchers.IO) {
@@ -369,8 +369,8 @@ private fun CapabilityTableSettingItem() {
             }
         }
     val exportLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
-            if (uri == null) return@rememberLauncherForActivityResult
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             val text = overrides.exportBaselineText().orEmpty()
             scope.launch {
                 val ok =

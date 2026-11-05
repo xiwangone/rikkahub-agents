@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.mediacreation
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.PickVisualMediaRequest
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -99,15 +99,15 @@ internal fun MediaCreationComposer(
 
     // 系统相册返回时面板已经关闭，这里记住选中的文件该放进哪个角色
     var importRole by rememberSaveable { mutableStateOf(ImageRole.REFERENCE) }
-    val imagesPicker = rememberLauncherForActivityResult(
+    val imagesPicker = rememberSafeLauncherForActivityResult(
         ActivityResultContracts.PickMultipleVisualMedia(MAX_PICKED_IMAGES)
     ) { uris ->
         vm.importAssets(uris, MediaCreationAssetType.IMAGE, importRole)
     }
-    val imagePicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val imagePicker = rememberSafeLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         vm.importAssets(listOfNotNull(uri), MediaCreationAssetType.IMAGE, importRole)
     }
-    val videoPicker = rememberLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
+    val videoPicker = rememberSafeLauncherForActivityResult(ActivityResultContracts.PickVisualMedia()) { uri ->
         vm.importAssets(listOfNotNull(uri), MediaCreationAssetType.VIDEO, ImageRole.REFERENCE)
     }
 

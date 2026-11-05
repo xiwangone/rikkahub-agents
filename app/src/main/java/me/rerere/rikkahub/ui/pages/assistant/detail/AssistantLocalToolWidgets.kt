@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.assistant.detail
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -180,7 +180,7 @@ internal fun PermissionedSwitch(
     var resumeTrigger by remember { mutableStateOf(0) }
 
     val runtimePermLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { results ->
             val denied = results.filter { !it.value }.keys
@@ -195,7 +195,7 @@ internal fun PermissionedSwitch(
         }
 
     val specialPermLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.StartActivityForResult(),
         ) {
         }

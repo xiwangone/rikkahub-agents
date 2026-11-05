@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.ClipData
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
@@ -365,7 +365,7 @@ internal fun TableNode(
     val tableCsv = remember(headerCells, rows) { buildTableCsv(headerCells, rows) }
 
     val createDocumentLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.CreateDocument("text/csv"),
         ) { uri ->
             uri?.let {

@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.components.ui.permission
 
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -61,7 +61,7 @@ fun rememberPermissionState(permissions: Set<PermissionInfo>): PermissionState {
 
     // 多个权限请求启动器
     val multiplePermissionLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { results ->
             permissionState.handlePermissionResult(results)
@@ -69,7 +69,7 @@ fun rememberPermissionState(permissions: Set<PermissionInfo>): PermissionState {
 
     // 单个权限请求启动器
     val singlePermissionLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.RequestPermission(),
         ) { granted ->
             // 获取最后请求的权限（通过当前rationale权限或者denied权限推断）

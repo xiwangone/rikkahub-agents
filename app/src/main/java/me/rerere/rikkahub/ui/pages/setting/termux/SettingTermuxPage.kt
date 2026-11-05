@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting.termux
 
 import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -76,7 +76,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
     // Runtime-permission launcher for RUN_COMMAND, mirroring the PermissionedSwitch flow
     // on the assistant Local-tools page. If Termux is not installed the request no-ops.
     val runCommandPermLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.RequestMultiplePermissions(),
         ) { results ->
             val denied = results.filter { !it.value }.keys

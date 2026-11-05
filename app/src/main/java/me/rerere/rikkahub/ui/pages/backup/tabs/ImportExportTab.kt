@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -86,7 +86,7 @@ fun ImportExportTab(
     var exportType by remember { mutableStateOf("local") }
 
     // 创建文件保存的launcher
-    val createDocumentLauncher = rememberLauncherForActivityResult(
+    val createDocumentLauncher = rememberSafeLauncherForActivityResult(
         contract = ActivityResultContracts.CreateDocument("application/zip"),
     ) { uri ->
         uri?.let { targetUri ->
@@ -150,7 +150,7 @@ fun ImportExportTab(
     }
 
     // 创建文件选择的launcher
-    val openDocumentLauncher = rememberLauncherForActivityResult(
+    val openDocumentLauncher = rememberSafeLauncherForActivityResult(
         contract = ActivityResultContracts.OpenDocument(),
     ) { uri ->
         uri?.let { sourceUri ->

@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.components.message
 
 import android.content.Intent
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -88,11 +88,11 @@ internal fun EditedFilesList(
     val hasMore = editedFiles.size > DEFAULT_VISIBLE_COUNT
 
     val exportLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.CreateDocument("*/*"),
         ) { uri ->
-            val path = selectedPath.also { selectedPath = null } ?: return@rememberLauncherForActivityResult
-            if (uri == null) return@rememberLauncherForActivityResult
+            val path = selectedPath.also { selectedPath = null } ?: return@rememberSafeLauncherForActivityResult
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             scope.launch {
                 runCatching {
                     val outputStream = withContext(Dispatchers.IO) { context.contentResolver.openOutputStream(uri) }

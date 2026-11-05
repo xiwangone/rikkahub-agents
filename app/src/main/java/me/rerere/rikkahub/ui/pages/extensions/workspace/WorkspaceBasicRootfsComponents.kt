@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -67,10 +67,10 @@ internal fun InstallRootfsDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val pickArchiveLauncher =
-        rememberLauncherForActivityResult(
+        rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
         ) { uri: android.net.Uri? ->
-            if (uri == null) return@rememberLauncherForActivityResult
+            if (uri == null) return@rememberSafeLauncherForActivityResult
             scope.launch {
                 val name = uri.lastPathSegment?.substringAfterLast('/') ?: "rootfs.tar.gz"
                 val suffix =

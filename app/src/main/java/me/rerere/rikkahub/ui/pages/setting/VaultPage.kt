@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.provider.OpenableColumns
-import androidx.activity.compose.rememberLauncherForActivityResult
+import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -143,7 +143,7 @@ fun VaultPage() {
 
     var auditExportFormat by remember { mutableStateOf("json") }
     val auditExportLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
             if (uri != null) {
                 scope.launch {
                     runCatching {
@@ -202,7 +202,7 @@ fun VaultPage() {
     refreshAudit()
 
     val backupExportLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
                 val titleStr = context.getString(R.string.vault_biometric_export_title)
                 val cancelledStr = context.getString(R.string.vault_export_cancelled)
@@ -240,7 +240,7 @@ fun VaultPage() {
         }
 
     val backupRestoreLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null && backupPassword.isNotBlank()) {
                 val restoreSuccessStr = context.getString(R.string.vault_backup_restore_success)
                 val restoreFailedStr = context.getString(R.string.vault_backup_restore_failed)
@@ -277,7 +277,7 @@ fun VaultPage() {
         }
 
     val exportLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("*/*")) { uri ->
             if (uri != null) {
                 val titleStr = context.getString(R.string.vault_biometric_export_title)
                 val cancelledStr = context.getString(R.string.vault_export_cancelled)
@@ -325,7 +325,7 @@ fun VaultPage() {
         }
 
     val importLauncher =
-        rememberLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
+        rememberSafeLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
             if (uri != null) {
                 scope.launch {
                     runCatching {
