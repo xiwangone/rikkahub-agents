@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.components.message
 import androidx.compose.ui.draw.clip
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.layout.fillMaxHeight
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
@@ -260,62 +261,6 @@ fun ChatMessageNerdLine(
                                     }
                                     .padding(horizontal = 4.dp, vertical = 2.dp),
                                 ) {
-                    if (usagePresentation.multipleModelRequestCount != null) {
-                        Text(text = stringResource(R.string.chat_nerd_message_total))
-                    }
-                    // Input tokens
-                    StatsItem(
-                        icon = {
-                            Icon(
-                                imageVector = HugeIcons.Upload02,
-                                contentDescription = stringResource(R.string.accessibility_input_tokens),
-                                tint = MaterialTheme.colorScheme.primary,
-                                modifier = Modifier.size(12.dp),
-                            )
-                        },
-                        content = {
-                            Text(text = stringResource(R.string.chat_nerd_input_tokens, usage.promptTokens.formatNumber()))
-                            // Cached tokens (count + hit-%)
-                            if (usage.cachedTokens > 0 && usage.promptTokens > 0) {
-                                val pct = usage.cachedTokens.toDouble() / usage.promptTokens.toDouble() * 100.0
-                                Text(
-                                    text = stringResource(R.string.chat_nerd_cached_hit, message.usage?.cachedTokens?.formatNumber() ?: "0", String.format(java.util.Locale.US, "%.1f%%", pct)),
-                                )
-                            }
-                        },
-                    )
-                    // Output tokens
-                    StatsItem(
-                        icon = {
-                            Icon(
-                                imageVector = HugeIcons.Download04,
-                                contentDescription = stringResource(R.string.accessibility_output_tokens),
-                                tint = MaterialTheme.colorScheme.tertiary,
-                                modifier = Modifier.size(12.dp),
-                            )
-                        },
-                        content = {
-                            Text(text = stringResource(R.string.chat_nerd_output_tokens, usage.completionTokens.formatNumber()))
-                        },
-                    )
-                    // Cost (USD) — shown when the provider reports it (e.g. OpenRouter usage.cost)
-                    val cost = usage.cost
-                    if (cost != null && cost > 0.0) {
-                        StatsItem(
-                            icon = {
-                                Icon(
-                                    imageVector = HugeIcons.CoinsDollar,
-                                    contentDescription = stringResource(R.string.accessibility_cost),
-                                    tint = color,
-                                    modifier = Modifier.size(12.dp),
-                                )
-                            },
-                            content = {
-                                Text(text = formatCost(cost))
-                            },
-                        )
-                    }
-                    // TPS
                     if (message.finishedAt != null) {
                         val durationMillis = message.generationTimeMs ?: Duration.between(
                             message.createdAt.toJavaLocalDateTime(),
@@ -397,39 +342,6 @@ fun ChatMessageNerdLine(
                             clipboardManager.setText(AnnotatedString(pendingCopyText))
                         }
                     }
-                }
-                // For a multi-request message use only explicitly recorded lastUsage;
-                // the legacy fallback is safe only when stepCount is zero (one old request).
-                val latestUsage = usagePresentation.latestRequest
-                if (settings.showTokenUsage && usagePresentation.multipleModelRequestCount != null && latestUsage != null) {
-                    StatsItem(
-                        icon = {
-                            Icon(
-                                imageVector = HugeIcons.Upload02,
-                                contentDescription = null,
-                                tint = color,
-                                modifier = Modifier.size(12.dp),
-                            )
-                        },
-                        content = {
-                            Text(
-                                text = stringResource(
-                                    R.string.chat_nerd_latest_usage,
-                                    latestUsage.promptTokens.formatNumber(),
-                                    latestUsage.completionTokens.formatNumber(),
-                                ),
-                            )
-                        },
-                    )
-                }
-                usagePresentation.multipleModelRequestCount?.takeIf { settings.showTokenUsage }?.let { count ->
-                    Text(
-                        text = androidx.compose.ui.res.pluralStringResource(
-                            R.plurals.chat_nerd_model_request_count,
-                            count,
-                            count,
-                        ),
-                    )
                 }
 
             // 上下文占用：已用 / 窗口 · 已用比例（进度条）。点击可填写窗口大小（选填）
