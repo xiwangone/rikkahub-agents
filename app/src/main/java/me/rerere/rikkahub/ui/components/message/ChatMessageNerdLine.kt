@@ -269,7 +269,7 @@ fun ChatMessageNerdLine(
                             Icon(
                                 imageVector = HugeIcons.Upload02,
                                 contentDescription = stringResource(R.string.accessibility_input_tokens),
-                                tint = color,
+                                tint = MaterialTheme.colorScheme.primary,
                                 modifier = Modifier.size(12.dp),
                             )
                         },
@@ -290,6 +290,7 @@ fun ChatMessageNerdLine(
                             Icon(
                                 imageVector = HugeIcons.Download04,
                                 contentDescription = stringResource(R.string.accessibility_output_tokens),
+                                tint = MaterialTheme.colorScheme.tertiary,
                                 modifier = Modifier.size(12.dp),
                             )
                         },
@@ -450,11 +451,11 @@ fun ChatMessageNerdLine(
                 val usedRatio = windowTokens?.let { ctxTokens.toDouble() / it.toDouble() }
                 val barRatio = usedRatio?.coerceIn(0.0, 1.0)
                 // 占用分三档，取值来自主题色槽位，随主题与深浅色自适应：
-                // <50% 常规／50~75% 提醒／≥75% 警示。颜色只出现在进度条上，
+                // <50% 常规／50~80% 提醒／≥80% 警示。颜色只出现在进度条上，
                 // 文字保持中性色，避免同一信息重复着色。
                 val contextColor = when {
                     usedRatio == null -> color
-                    usedRatio >= 0.75 -> MaterialTheme.colorScheme.error
+                    usedRatio >= 0.8 -> MaterialTheme.colorScheme.error
                     usedRatio >= 0.5 -> MaterialTheme.colorScheme.tertiary
                     else -> MaterialTheme.colorScheme.primary
                 }
@@ -515,14 +516,45 @@ fun ChatMessageNerdLine(
                                                 // （原先用"同色 25% 透明"，导致剩余量几乎看不出）
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                                     ) {
-                                        Box(
+                                        // 三段构成：缓存 / 未命中输入 / 输出（与图例同色）
+                                        val cachedSeg = contextUsage.cachedTokens.toLong().coerceAtLeast(0L)
+                                        val uncachedSeg = (ctxTokens - cachedSeg).coerceAtLeast(0L)
+                                        val outputSeg = contextUsage.completionTokens.toLong().coerceAtLeast(0L)
+                                        Row(
                                             modifier =
                                                 Modifier
                                                     .fillMaxWidth(barRatio?.toFloat() ?: 0f)
                                                     .fillMaxHeight()
-                                                    .clip(RoundedCornerShape(3.dp))
-                                                    .background(contextColor),
-                                        )
+                                                    .clip(RoundedCornerShape(3.dp)),
+                                        ) {
+                                            if (cachedSeg > 0L) {
+                                                Box(
+                                                    Modifier
+                                                        .weight(cachedSeg.toFloat())
+                                                        .fillMaxHeight()
+                                                        .background(MaterialTheme.colorScheme.primary),
+                                                )
+                                            }
+                                            if (uncachedSeg > 0L) {
+                                                Box(
+                                                    Modifier
+                                                        .weight(uncachedSeg.toFloat())
+                                                        .fillMaxHeight()
+                                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
+                                                )
+                                            }
+                                            if (outputSeg > 0L) {
+                                                Box(
+                                                    Modifier
+                                                        .weight(outputSeg.toFloat())
+                                                        .fillMaxHeight()
+                                                        .background(MaterialTheme.colorScheme.tertiary),
+                                                )
+                                            }
+                                            if (cachedSeg + uncachedSeg + outputSeg == 0L) {
+                                                Box(Modifier.fillMaxSize().background(contextColor))
+                                            }
+                                        }
                                     }
                                     // 与自动压缩阈值联动（与"窗口占用"解耦）：达到阈值即给出可行动的建议，
                                     // 而不是让用户自己换算"多少才算多"。
