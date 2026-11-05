@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.datastore
 
 import java.util.Base64
+import java.util.concurrent.ConcurrentHashMap
 import javax.crypto.Cipher
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
@@ -24,13 +25,30 @@ internal object ProviderCredentialCipher {
     private const val TRANSFORMATION = "AES/GCM/NoPadding"
     private const val IV_SIZE = 12
     private const val TAG_LENGTH = 128
+    private const val MAX_CACHE_ENTRIES = 128
+
+    // 按 (keyIdentity, ciphertext) 缓存已验证通过的明文，避免每次设置项变更时重复进入 TEE 解密未改动的密文字段。
+    private val verifiedPlaintextByCipher = ConcurrentHashMap<String, String>()
+
+    private fun cacheKey(key: SecretKey, ciphertext: String): String =
+        "${System.identityHashCode(key)}:$ciphertext"
+
+    private fun putCache(cacheKeyStr: String, plaintext: String) {
+        if (verifiedPlaintextByCipher.size >= MAX_CACHE_ENTRIES) {
+            verifiedPlaintextByCipher.clear()
+        }
+        verifiedPlaintextByCipher[cacheKeyStr] = plaintext
+    }
 
     /** 加密明文，返回 Base64(IV + ciphertext)。 */
     fun encrypt(plaintext: String): String {
+        val key = getOrCreateKey()
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
+        cipher.init(Cipher.ENCRYPT_MODE, key)
         val encrypted = cipher.doFinal(plaintext.encodeToByteArray())
-        return Base64.getEncoder().encodeToString(cipher.iv + encrypted)
+        val result = Base64.getEncoder().encodeToString(cipher.iv + encrypted)
+        putCache(cacheKey(key, result), plaintext)
+        return result
     }
 
     /**
@@ -40,13 +58,18 @@ internal object ProviderCredentialCipher {
      *   由默认 providers 重新 seed，行为与 CodexCredentialStore 的失败语义一致。
      */
     fun decrypt(ciphertext: String): String? = runCatching {
+        val key = getOrCreateKey()
+        val cacheKeyStr = cacheKey(key, ciphertext)
+        verifiedPlaintextByCipher[cacheKeyStr]?.let { return@runCatching it }
         val bytes = Base64.getDecoder().decode(ciphertext)
         require(bytes.size > IV_SIZE)
         val iv = bytes.copyOfRange(0, IV_SIZE)
         val encrypted = bytes.copyOfRange(IV_SIZE, bytes.size)
         val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(TAG_LENGTH, iv))
-        cipher.doFinal(encrypted).decodeToString()
+        cipher.init(Cipher.DECRYPT_MODE, key, GCMParameterSpec(TAG_LENGTH, iv))
+        val plaintext = cipher.doFinal(encrypted).decodeToString()
+        putCache(cacheKeyStr, plaintext)
+        plaintext
     }.onFailure { e ->
         // 解密失败会让 providers 回退默认列表, 属高价值排查线索, 必须留痕并区分失败类别
         android.util.Log.w(
@@ -54,6 +77,10 @@ internal object ProviderCredentialCipher {
             "provider 凭证解密失败(${e.javaClass.simpleName}): ${e.message}",
         )
     }.getOrNull()
+
+    /** 判断存量字符串是否已是当前有效密钥加密的密文（命中缓存时 O(1) 无密码学开销）。 */
+    fun isValidCiphertext(raw: String?): Boolean =
+        !raw.isNullOrBlank() && decrypt(raw) != null
 
     private fun getOrCreateKey(): SecretKey = KeystoreAesKey.getOrCreate(KEY_ALIAS)
 }

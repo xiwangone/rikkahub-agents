@@ -1867,6 +1867,13 @@
   <string name="workspace_detail_will_delete">Будет удалено %s.</string>
   <string name="workspace_detail_installing">Установка</string>
   <string name="workspace_detail_reinstall_rootfs">Переустановить Rootfs</string>
+  <string name="workspace_detail_update_distro">Обновить дистрибутив</string>
+  <string name="workspace_detail_update_distro_desc">Обновить Rootfs в каталоге Linux %s с сохранением пользовательских файлов и зеркал или обновить установленные пакеты.</string>
+  <string name="workspace_detail_upgrade_packages">Обновить установленные пакеты (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">Обновление пакетов…</string>
+  <string name="workspace_detail_upgrade_packages_success">Пакеты дистрибутива обновлены</string>
+  <string name="workspace_detail_upgrade_packages_failed">Ошибка обновления пакетов: %1$s</string>
+  <string name="common_update">Обновить</string>
   <string name="workspace_detail_install_rootfs">Установить Rootfs</string>
   <string name="workspace_detail_mirrors">Зеркала пакетов</string>
   <string name="workspace_detail_mirror_apk">Пакеты Alpine</string>

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.distinctUntilChanged
@@ -32,9 +33,8 @@ class SettingVM(
     fun shortcutEntriesNow(): List<SettingEntry> =
         settingsStore.settingsFlow.value.let { s -> s.settingShortcutIds.mapNotNull { id -> SettingCatalog.byId(id) } }
 
-    /** Queue a change against the store's latest value, never a Compose snapshot. */
+    /** Queue a change against the store's latest value on a worker thread so JSON encoding never stalls Main. */
     fun updateSettings(transform: (Settings) -> Settings) {
-        viewModelScope.launch { settingsStore.update(transform) }
+        viewModelScope.launch(Dispatchers.Default) { settingsStore.update(transform) }
     }
-
 }

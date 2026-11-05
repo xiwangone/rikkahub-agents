@@ -89,7 +89,7 @@ internal const val STREAM_PERSIST_INTERVAL_MS = 8_000L
  * 内存态按此间隔提交；每个数据块携带全量快照，跳过的中间块由下一次提交自然补上，
  * 生成结束与兜底路径仍会提交最终状态。
  */
-internal const val STREAM_UI_INTERVAL_MS = 120L
+internal const val STREAM_UI_INTERVAL_MS = 32L
 
 /**
  * 进度通知的更新节流：更新通知要走系统跨进程调用并重绘通知栏，逐块更新在长回复下既拖慢

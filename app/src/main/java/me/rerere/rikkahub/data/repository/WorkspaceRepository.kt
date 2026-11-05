@@ -420,67 +420,135 @@ class WorkspaceRepository(
         return true
     }
 
+    private fun postInstallSetup(root: String) {
+        val linuxDir = manager.linuxDir(root)
+        runCatching { me.rerere.workspace.applyWorkspaceMirrors(linuxDir, mirrorsNow()) }
+        runCatching { me.rerere.workspace.installCaCerts(linuxDir, force = false) }
+    }
+
+    private suspend fun executeRootfsMutation(
+        id: String,
+        featureName: String?,
+        restoreStateOnFailure: Boolean,
+        logTag: String,
+        block: (WorkspaceEntity) -> Unit,
+    ): Boolean {
+        val workspace = dao.getById(id) ?: return false
+        if (featureName != null) {
+            requireLocalRootfs(workspace, featureName)
+        }
+        updateShellState(workspace, WorkspaceShellStatus.INSTALLING.name)
+        try {
+            runInterruptible(Dispatchers.IO) {
+                block(workspace)
+                postInstallSetup(workspace.root)
+            }
+            updateShellState(workspace, WorkspaceShellStatus.READY.name)
+            refreshWorkspaceStats(id)
+            return true
+        } catch (e: CancellationException) {
+            withContext(NonCancellable) {
+                restoreShellState(workspace)
+            }
+            throw e
+        } catch (e: InterruptedException) {
+            withContext(NonCancellable) {
+                restoreShellState(workspace)
+            }
+            throw CancellationException("Rootfs operation cancelled").also { it.initCause(e) }
+        } catch (e: Throwable) {
+            AppLog.e(TAG, "$logTag failed: workspace=${workspace.id}, root=${workspace.root}", e)
+            if (restoreStateOnFailure) {
+                restoreShellState(workspace)
+            } else {
+                updateShellState(workspace, WorkspaceShellStatus.BROKEN.name)
+            }
+            throw e
+        }
+    }
+
     /** 从本地归档文件安装 rootfs（离线/内网分发场景，无需下载）。 */
     suspend fun installRootfsFromFile(
         id: String,
         archivePath: String,
         onProgress: (RootfsInstallProgress) -> Unit = {},
-    ): Boolean {
-        val workspace = dao.getById(id) ?: return false
-        requireLocalRootfs(workspace, "Rootfs install from file")
-        updateShellState(workspace, WorkspaceShellStatus.INSTALLING.name)
-        try {
-            runInterruptible(Dispatchers.IO) {
-                rootfsInstaller.installFromFile(workspace.root, File(archivePath), onProgress)
-            }
-            updateShellState(workspace, WorkspaceShellStatus.READY.name)
-            return true
-        } catch (e: CancellationException) {
-            withContext(NonCancellable) {
-                restoreShellState(workspace)
-            }
-            throw e
-        } catch (e: InterruptedException) {
-            withContext(NonCancellable) {
-                restoreShellState(workspace)
-            }
-            throw CancellationException("Rootfs install cancelled").also { it.initCause(e) }
-        } catch (e: Throwable) {
-            AppLog.e(TAG, "installRootfsFromFile failed: workspace=${workspace.id}, archive=$archivePath", e)
-            updateShellState(workspace, WorkspaceShellStatus.BROKEN.name)
-            throw e
+    ): Boolean =
+        executeRootfsMutation(
+            id = id,
+            featureName = "Rootfs install from file",
+            restoreStateOnFailure = false,
+            logTag = "installRootfsFromFile($archivePath)",
+        ) { workspace ->
+            rootfsInstaller.installFromFile(workspace.root, File(archivePath), onProgress)
         }
-    }
 
     suspend fun installRootfs(
         id: String,
         url: String,
         onProgress: (RootfsInstallProgress) -> Unit = {},
-    ): Boolean {
-        val workspace = dao.getById(id) ?: return false
-        updateShellState(workspace, WorkspaceShellStatus.INSTALLING.name)
-        try {
-            // runInterruptible 让协程取消转成线程中断, 打断 install 内阻塞的下载/解压循环
-            runInterruptible(Dispatchers.IO) {
-                rootfsInstaller.install(workspace.root, url, onProgress)
-            }
-            updateShellState(workspace, WorkspaceShellStatus.READY.name)
-            return true
-        } catch (e: CancellationException) {
-            withContext(NonCancellable) {
-                restoreShellState(workspace)
-            }
-            throw e
-        } catch (e: InterruptedException) {
-            withContext(NonCancellable) {
-                restoreShellState(workspace)
-            }
-            throw CancellationException("Rootfs install cancelled").also { it.initCause(e) }
-        } catch (e: Throwable) {
-            AppLog.e(TAG, "installRootfs failed: workspace=${workspace.id}, root=${workspace.root}, url=$url", e)
-            updateShellState(workspace, WorkspaceShellStatus.BROKEN.name)
-            throw e
+    ): Boolean =
+        executeRootfsMutation(
+            id = id,
+            featureName = null,
+            restoreStateOnFailure = false,
+            logTag = "installRootfs($url)",
+        ) { workspace ->
+            rootfsInstaller.install(workspace.root, url, onProgress)
         }
+
+    /** 无损覆盖更新发行版 rootfs（保留用户数据目录与已有镜像/证书配置）。 */
+    suspend fun updateRootfs(
+        id: String,
+        url: String,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ): Boolean =
+        executeRootfsMutation(
+            id = id,
+            featureName = "Rootfs update",
+            restoreStateOnFailure = true,
+            logTag = "updateRootfs($url)",
+        ) { workspace ->
+            rootfsInstaller.update(workspace.root, url, onProgress)
+        }
+
+    /** 从本地归档无损覆盖更新发行版 rootfs。 */
+    suspend fun updateRootfsFromFile(
+        id: String,
+        archivePath: String,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ): Boolean =
+        executeRootfsMutation(
+            id = id,
+            featureName = "Rootfs update from file",
+            restoreStateOnFailure = true,
+            logTag = "updateRootfsFromFile($archivePath)",
+        ) { workspace ->
+            rootfsInstaller.updateFromFile(workspace.root, File(archivePath), onProgress)
+        }
+
+    /** 在现有发行版内通过系统包管理器（apk/apt/dnf/pacman）原位升级已安装软件包。 */
+    suspend fun upgradeDistroPackages(id: String): WorkspaceCommandResult {
+        val workspace = dao.getById(id) ?: error("Workspace not found: $id")
+        requireLocalRootfs(workspace, "Distro package upgrade")
+        val linuxDir = manager.linuxDir(workspace.root)
+        withContext(Dispatchers.IO) {
+            runCatching { me.rerere.workspace.applyWorkspaceMirrors(linuxDir, mirrorsNow()) }
+            runCatching { me.rerere.workspace.installCaCerts(linuxDir, force = false) }
+        }
+        val upgradeCmd =
+            "if command -v apk >/dev/null 2>&1; then " +
+                "apk update && apk upgrade --available; " +
+                "elif command -v apt-get >/dev/null 2>&1; then " +
+                "export DEBIAN_FRONTEND=noninteractive && apt-get update && " +
+                "apt-get dist-upgrade -y -o Dpkg::Options::=--force-confdef -o Dpkg::Options::=--force-confold; " +
+                "elif command -v dnf >/dev/null 2>&1; then " +
+                "dnf upgrade -y; " +
+                "elif command -v pacman >/dev/null 2>&1; then " +
+                "pacman -Syu --noconfirm; " +
+                "else echo "Unsupported package manager" >&2; exit 127; fi"
+        val result = executeCommand(id = id, command = upgradeCmd, timeoutMillis = 600_000L)
+        refreshWorkspaceStats(id)
+        return result
     }
 
     /** 工作区在执行环境内的目录约定, 工作区不存在时返回 null; 不解密凭据也不建立连接 */

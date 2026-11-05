@@ -91,6 +91,8 @@ fun WorkspaceDetailPage(id: String) {
     val folderExportProgress by vm.folderExportProgress.collectAsStateWithLifecycle()
     val settingsError by vm.settingsError.collectAsStateWithLifecycle()
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
+    val upgradingPackages by vm.upgradingPackages.collectAsStateWithLifecycle()
+    val packageUpgradeResult by vm.packageUpgradeResult.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
     val chrootEnabled by vm.chrootEnabled.collectAsStateWithLifecycle()
     val chrootBackendReady = vm.chrootBackendReady
@@ -101,6 +103,7 @@ fun WorkspaceDetailPage(id: String) {
     var moveTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var showPasteOverwrite by remember { mutableStateOf(false) }
     var showInstallDialog by remember { mutableStateOf(false) }
+    var showUpdateDialog by remember { mutableStateOf(false) }
     val mirrors by vm.mirrors.collectAsStateWithLifecycle()
     var previewImageUri by remember { mutableStateOf<String?>(null) }
     var openingFileName by remember { mutableStateOf<String?>(null) }
@@ -312,6 +315,8 @@ fun WorkspaceDetailPage(id: String) {
                             onEditSsh = { navController.navigate(Screen.WorkspaceSshEditor(id)) },
                             mirrors = mirrors,
                             onInstallRootfs = { showInstallDialog = true },
+                            onUpdateRootfs = { showUpdateDialog = true },
+                            upgradingPackages = upgradingPackages,
                             onToolApprovalChange = vm::setToolApproval,
                             onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
                             onApplyMirrors = vm::applyMirrors,
@@ -488,6 +493,8 @@ fun WorkspaceDetailPage(id: String) {
         if (showInstallDialog) {
             InstallRootfsDialog(
                 workspace = workspace,
+                isUpdate = false,
+                distro = state.distro,
                 onDismiss = { showInstallDialog = false },
                 onConfirm = { url ->
                     vm.installRootfs(url)
@@ -496,6 +503,26 @@ fun WorkspaceDetailPage(id: String) {
                 onConfirmFile = { path ->
                     vm.installRootfsFromFile(path)
                     showInstallDialog = false
+                },
+            )
+        }
+        if (showUpdateDialog) {
+            InstallRootfsDialog(
+                workspace = workspace,
+                isUpdate = true,
+                distro = state.distro,
+                onDismiss = { showUpdateDialog = false },
+                onConfirm = { url ->
+                    vm.updateRootfs(url)
+                    showUpdateDialog = false
+                },
+                onConfirmFile = { path ->
+                    vm.updateRootfsFromFile(path)
+                    showUpdateDialog = false
+                },
+                onUpgradePackages = {
+                    vm.upgradeDistroPackages()
+                    showUpdateDialog = false
                 },
             )
         }
@@ -546,6 +573,23 @@ fun WorkspaceDetailPage(id: String) {
         if (caRepairMessage != null) {
             toaster.show(message = caRepairMessage, type = ToastType.Success)
             vm.dismissCaRepairHint()
+        }
+    }
+
+    val packageUpgradeToast =
+        packageUpgradeResult?.let { outcome ->
+            val msg =
+                if (outcome.success) {
+                    stringResource(R.string.workspace_detail_upgrade_packages_success)
+                } else {
+                    stringResource(R.string.workspace_detail_upgrade_packages_failed, outcome.detail)
+                }
+            outcome.success to msg
+        }
+    LaunchedEffect(packageUpgradeToast) {
+        packageUpgradeToast?.let { (ok, msg) ->
+            toaster.show(message = msg, type = if (ok) ToastType.Success else ToastType.Error)
+            vm.dismissPackageUpgradeResult()
         }
     }
 

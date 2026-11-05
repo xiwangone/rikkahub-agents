@@ -70,6 +70,16 @@ class WorkspaceDetailVM(
     /** 最近一次「修复 CA 证书」写入的沙箱数量（null = 无待提示结果）。 */
     val caRepairCount = _caRepairCount.asStateFlow()
 
+    private val _upgradingPackages = MutableStateFlow(false)
+    val upgradingPackages = _upgradingPackages.asStateFlow()
+
+    private val _packageUpgradeResult = MutableStateFlow<PackageUpgradeOutcome?>(null)
+    val packageUpgradeResult = _packageUpgradeResult.asStateFlow()
+
+    fun dismissPackageUpgradeResult() {
+        _packageUpgradeResult.value = null
+    }
+
     /** 资源面板（磁盘/包数/内核）：仓库层进程内缓存 + 后台采集（退出页面不中断，重进即有）。 */
     val stats: kotlinx.coroutines.flow.StateFlow<WorkspaceStats?> =
         repository.statsById
@@ -697,14 +707,17 @@ class WorkspaceDetailVM(
         }
     }
 
-    fun installRootfs(url: String) {
+    private fun launchRootfsTask(
+        initialStage: RootfsInstallStage,
+        action: suspend (WorkspaceEntity, (RootfsInstallProgress) -> Unit) -> Unit,
+    ) {
         viewModelScope.launch {
             _installError.value = null
             val workspace = state.value.workspace ?: return@launch
-            _installProgress.value = RootfsInstallProgress(stage = RootfsInstallStage.DOWNLOADING)
+            _installProgress.value = RootfsInstallProgress(stage = initialStage)
             try {
                 terminalSessionManager.closeWorkspace(workspace.root)
-                repository.installRootfs(workspace.id, url) { progress ->
+                action(workspace) { progress ->
                     _installProgress.value = progress
                 }
                 loadWorkspace()
@@ -723,29 +736,57 @@ class WorkspaceDetailVM(
         }
     }
 
+    fun installRootfs(url: String) =
+        launchRootfsTask(RootfsInstallStage.DOWNLOADING) { workspace, onProgress ->
+            repository.installRootfs(workspace.id, url, onProgress)
+        }
+
     /** 从本地归档文件安装 rootfs（离线导入，无需下载）。 */
-    fun installRootfsFromFile(archivePath: String) {
+    fun installRootfsFromFile(archivePath: String) =
+        launchRootfsTask(RootfsInstallStage.EXTRACTING) { workspace, onProgress ->
+            repository.installRootfsFromFile(workspace.id, archivePath, onProgress)
+        }
+
+    /** 无损覆盖更新发行版 rootfs（保留用户数据目录与已有镜像/证书配置）。 */
+    fun updateRootfs(url: String) =
+        launchRootfsTask(RootfsInstallStage.DOWNLOADING) { workspace, onProgress ->
+            repository.updateRootfs(workspace.id, url, onProgress)
+        }
+
+    /** 从本地归档文件无损覆盖更新发行版 rootfs。 */
+    fun updateRootfsFromFile(archivePath: String) =
+        launchRootfsTask(RootfsInstallStage.EXTRACTING) { workspace, onProgress ->
+            repository.updateRootfsFromFile(workspace.id, archivePath, onProgress)
+        }
+
+    /** 原位升级当前发行版已安装软件包（apt / apk / dnf / pacman）。 */
+    fun upgradeDistroPackages() {
+        if (_upgradingPackages.value) return
         viewModelScope.launch {
-            _installError.value = null
-            val workspace = state.value.workspace ?: return@launch
-            _installProgress.value = RootfsInstallProgress(stage = RootfsInstallStage.EXTRACTING)
+            _upgradingPackages.value = true
             try {
-                terminalSessionManager.closeWorkspace(workspace.root)
-                repository.installRootfsFromFile(workspace.id, archivePath) { progress ->
-                    _installProgress.value = progress
-                }
+                val result = repository.upgradeDistroPackages(id)
                 loadWorkspace()
-                refresh()
+                if (result.exitCode == 0) {
+                    _packageUpgradeResult.value = PackageUpgradeOutcome(success = true)
+                } else {
+                    val detail = result.stderr.ifBlank { result.stdout }.take(200)
+                    _packageUpgradeResult.value =
+                        PackageUpgradeOutcome(
+                            success = false,
+                            detail = detail.ifBlank { "exit ${result.exitCode}" },
+                        )
+                }
             } catch (e: CancellationException) {
                 throw e
-            } catch (_: RootfsShellNotFoundException) {
-                _installError.value =
-                    context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_shell_missing)
             } catch (error: Throwable) {
-                _installError.value =
-                    error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rootfs_install)
+                _packageUpgradeResult.value =
+                    PackageUpgradeOutcome(
+                        success = false,
+                        detail = error.message.orEmpty(),
+                    )
             } finally {
-                _installProgress.value = null
+                _upgradingPackages.value = false
             }
         }
     }
@@ -854,4 +895,10 @@ data class FolderExportOutcome(
     val folderName: String,
     val fileCount: Int,
     val failures: Int,
+)
+
+/** 发行版软件包原位升级结果。 */
+data class PackageUpgradeOutcome(
+    val success: Boolean,
+    val detail: String = "",
 )

@@ -2196,6 +2196,13 @@
   <string name="workspace_detail_will_delete">Will delete %s.</string>
   <string name="workspace_detail_installing">Installing</string>
   <string name="workspace_detail_reinstall_rootfs">Reinstall Rootfs</string>
+  <string name="workspace_detail_update_distro">Update Distro</string>
+  <string name="workspace_detail_update_distro_desc">Overlay-extract a newer Rootfs archive into %s without wiping user files (/root, /home, /opt) or mirror settings, or upgrade installed packages in place.</string>
+  <string name="workspace_detail_upgrade_packages">Upgrade Installed Packages (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">Upgrading packages…</string>
+  <string name="workspace_detail_upgrade_packages_success">Distribution packages upgraded</string>
+  <string name="workspace_detail_upgrade_packages_failed">Package upgrade failed: %1$s</string>
+  <string name="common_update">Update</string>
   <string name="workspace_detail_install_rootfs">Install Rootfs</string>
   <string name="workspace_detail_mirrors">Package mirrors</string>
   <string name="workspace_detail_mirror_apk">Alpine packages</string>

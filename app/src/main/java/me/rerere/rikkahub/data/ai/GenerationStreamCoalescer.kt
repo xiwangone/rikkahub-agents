@@ -1,9 +1,13 @@
 package me.rerere.rikkahub.data.ai
 
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.channelFlow
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.ui.StreamChunk
-
 
 internal fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputRepetitionDetector(
     // 思考流比正文更易撞上短片段重复（路径 / 标识符 / 数字）：下限仍到 8 字符，
@@ -16,6 +20,9 @@ internal fun newReasoningRepetitionDetector(): OutputRepetitionDetector = Output
 /**
  * 按窗口合并相邻的同轨增量：每个 delta 都做一次折叠 + 全量投递，长回复下是 O(n²)。
  * 合并保持顺序与内容完全一致（同一 id 的连续增量拼接成一条），窗口为 0 时逐块透出。
+ *
+ * 首块立即透出以消除首字迟滞；窗口内累积的分块由尾随定时器在窗口到期时主动刷出，
+ * 避免模型短暂停顿时缓冲区分块滞留导致“先出几个字停住、随后蹦出一大段话”。
  */
 internal fun Flow<StreamChunk>.coalesceStreamDeltas(
     windowMs: Long,
@@ -25,33 +32,55 @@ internal fun Flow<StreamChunk>.coalesceStreamDeltas(
         collect { send(it) }
         return@channelFlow
     }
+    val mutex = Mutex()
     val buffer = mutableListOf<StreamChunk>()
-    var lastFlushMs = clock()
-    suspend fun flush() {
+    var lastFlushMs = 0L
+    var hasFlushedOnce = false
+    var trailingJob: Job? = null
+
+    suspend fun flushLocked() {
+        trailingJob?.cancel()
+        trailingJob = null
         if (buffer.isEmpty()) return
         // 先取快照再清空：mergeAdjacentDeltas 在只有一条时会原样返回入参，
         // 直接 clear() 会把待发的那条一起清掉（段首/尾部丢字的根因）。
         val batch = buffer.toList()
         buffer.clear()
-        mergeAdjacentDeltas(batch).forEach { send(it) }
+        hasFlushedOnce = true
         lastFlushMs = clock()
+        mergeAdjacentDeltas(batch).forEach { send(it) }
     }
+
     try {
         collect { chunk ->
             val coalescable = chunk is StreamChunk.TextDelta || chunk is StreamChunk.ReasoningDelta
-            if (!coalescable) {
-                flush()
-                send(chunk)
-                return@collect
+            mutex.withLock {
+                if (!coalescable) {
+                    flushLocked()
+                    send(chunk)
+                    return@withLock
+                }
+                buffer.add(chunk)
+                val now = clock()
+                val elapsed = now - lastFlushMs
+                if (!hasFlushedOnce || elapsed >= windowMs) {
+                    flushLocked()
+                } else if (trailingJob?.isActive != true) {
+                    val waitMs = (windowMs - elapsed).coerceAtLeast(1L)
+                    trailingJob = launch {
+                        delay(waitMs)
+                        mutex.withLock { flushLocked() }
+                    }
+                }
             }
-            buffer.add(chunk)
-            if (clock() - lastFlushMs >= windowMs) flush()
         }
     } finally {
+        trailingJob?.cancel()
         // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢
-        runCatching { flush() }
+        runCatching { mutex.withLock { flushLocked() } }
     }
 }
+
 internal fun mergeAdjacentDeltas(chunks: List<StreamChunk>): List<StreamChunk> {
     // 早返回也要给新列表：调用方可能持有入参并随后清空它（列表别名会让内容凭空消失）。
     if (chunks.size < 2) return chunks.toList()

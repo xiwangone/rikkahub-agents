@@ -23,6 +23,7 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -44,6 +45,7 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.Package01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.log.AppLog
@@ -51,6 +53,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.hooks.readStringPreference
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
+import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceMirrorPreset
 import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.workspace.WorkspaceShellStatus
@@ -59,13 +62,29 @@ import java.io.File
 @Composable
 internal fun InstallRootfsDialog(
     workspace: WorkspaceEntity,
+    isUpdate: Boolean = false,
+    distro: WorkspaceDistroInfo? = null,
     onDismiss: () -> Unit,
     onConfirm: (String) -> Unit,
     onConfirmFile: (String) -> Unit,
+    onUpgradePackages: (() -> Unit)? = null,
 ) {
-    var url by rememberSaveable(workspace.id) { mutableStateOf(DEFAULT_ROOTFS_URL) }
+    val initialUrl = remember(workspace.id, isUpdate, distro?.id, distro?.versionId) {
+        defaultRootfsUrlForDistro(distro)
+    }
+    var url by rememberSaveable(workspace.id, isUpdate) { mutableStateOf(initialUrl) }
+    var resolvingLxc by remember { mutableStateOf(false) }
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
+
+    LaunchedEffect(isUpdate, distro?.id) {
+        if (url.contains("/images/debian/trixie/")) {
+            resolvingLxc = true
+            resolveLxcDebianRootfs()?.let { url = it }
+            resolvingLxc = false
+        }
+    }
+
     val pickArchiveLauncher =
         rememberSafeLauncherForActivityResult(
             contract = ActivityResultContracts.OpenDocument(),
@@ -92,17 +111,49 @@ internal fun InstallRootfsDialog(
 
     AlertDialog(
         onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.workspace_detail_install_rootfs)) },
+        title = {
+            Text(
+                stringResource(
+                    if (isUpdate) R.string.workspace_detail_update_distro else R.string.workspace_detail_install_rootfs,
+                ),
+            )
+        },
         text = {
             Column(
                 modifier = Modifier.verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.workspace_detail_install_rootfs_desc, workspace.name),
+                    text =
+                        stringResource(
+                            if (isUpdate) {
+                                R.string.workspace_detail_update_distro_desc
+                            } else {
+                                R.string.workspace_detail_install_rootfs_desc
+                            },
+                            workspace.name,
+                        ),
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (isUpdate && onUpgradePackages != null) {
+                    OutlinedButton(
+                        onClick = onUpgradePackages,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Package01,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.width(6.dp))
+                        Text(
+                            text = stringResource(R.string.workspace_detail_upgrade_packages),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
                 OutlinedTextField(
                     value = url,
                     onValueChange = { url = it },
@@ -128,7 +179,12 @@ internal fun InstallRootfsDialog(
                             selected = selected,
                             onClick = {
                                 if (preset.lxcDebian) {
-                                    scope.launch { url = resolveLxcDebianRootfs() ?: preset.url }
+                                    url = preset.url
+                                    scope.launch {
+                                        resolvingLxc = true
+                                        url = resolveLxcDebianRootfs() ?: preset.url
+                                        resolvingLxc = false
+                                    }
                                 } else {
                                     url = preset.url
                                 }
@@ -233,10 +289,22 @@ internal fun InstallRootfsDialog(
         },
         confirmButton = {
             TextButton(
-                onClick = { onConfirm(url.trim()) },
-                enabled = url.isNotBlank(),
+                onClick = {
+                    val trimmed = url.trim()
+                    if (trimmed.contains("/images/debian/trixie/")) {
+                        scope.launch {
+                            resolvingLxc = true
+                            val resolved = resolveLxcDebianRootfs() ?: trimmed
+                            resolvingLxc = false
+                            onConfirm(resolved)
+                        }
+                    } else {
+                        onConfirm(trimmed)
+                    }
+                },
+                enabled = url.isNotBlank() && !resolvingLxc,
             ) {
-                Text(stringResource(R.string.common_install))
+                Text(stringResource(if (isUpdate) R.string.common_update else R.string.common_install))
             }
         },
         dismissButton = {
@@ -268,8 +336,28 @@ internal fun WorkspaceEntity.statusLabel(): String =
         shellStatus.toShellStatusLabel()
     }
 
-private const val DEFAULT_ROOTFS_URL =
-    "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.3-base-arm64.tar.gz"
+private val DEFAULT_ROOTFS_URL: String
+    get() =
+        if (isArm64Device) {
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.5-base-arm64.tar.gz"
+        } else {
+            "https://cdimage.ubuntu.com/ubuntu-base/releases/24.04/release/ubuntu-base-24.04.5-base-amd64.tar.gz"
+        }
+
+private fun defaultRootfsUrlForDistro(distro: WorkspaceDistroInfo?): String {
+    val id = distro?.id?.lowercase().orEmpty()
+    val version = distro?.versionId.orEmpty()
+    val pretty = distro?.prettyName?.lowercase().orEmpty()
+    return when {
+        id == "alpine" || pretty.contains("alpine") ->
+            PRESET_ROOTFS_URLS.firstOrNull { it.label.startsWith("Alpine") }?.url ?: DEFAULT_ROOTFS_URL
+        id == "debian" || pretty.contains("debian") ->
+            PRESET_ROOTFS_URLS.firstOrNull { it.lxcDebian }?.url ?: DEFAULT_ROOTFS_URL
+        (id == "ubuntu" || pretty.contains("ubuntu")) && (version.startsWith("26.") || pretty.contains("26.04")) ->
+            PRESET_ROOTFS_URLS.firstOrNull { it.label.startsWith("Ubuntu 26.04") }?.url ?: DEFAULT_ROOTFS_URL
+        else -> DEFAULT_ROOTFS_URL
+    }
+}
 
 private const val MAX_SAVED_ROOTFS_URLS = 5
 private const val ROOTFS_URL_HISTORY_KEY = "rootfs_url_history"
@@ -302,7 +390,7 @@ private fun presetRootfs(label: String, arm64: String, amd64: String, lxcDebian:
 
 private val lxcAbiDir: String get() = if (isArm64Device) "arm64" else "amd64"
 
-private suspend fun resolveLxcDebianRootfs(): String? =
+internal suspend fun resolveLxcDebianRootfs(): String? =
     withContext(Dispatchers.IO) {
         val bases =
             listOf(
@@ -350,14 +438,14 @@ private val PRESET_ROOTFS_URLS: List<PresetRootfsUrl>
             ),
             presetRootfs(
                 "Debian 13 trixie base",
-                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/arm64/default/20261001_05:24/rootfs.tar.xz",
-                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/amd64/default/20261001_05:24/rootfs.tar.xz",
+                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/arm64/default/20261105_05:24/rootfs.tar.xz",
+                "https://mirror.nju.edu.cn/lxc-images/images/debian/trixie/amd64/default/20261105_05:24/rootfs.tar.xz",
                 lxcDebian = true,
             ),
             presetRootfs(
-                "Alpine 3.24.2 minirootfs",
-                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-minirootfs-3.24.2-aarch64.tar.gz",
-                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-minirootfs-3.24.2-x86_64.tar.gz",
+                "Alpine 3.24.3 minirootfs",
+                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/aarch64/alpine-minirootfs-3.24.3-aarch64.tar.gz",
+                "https://dl-cdn.alpinelinux.org/alpine/v3.24/releases/x86_64/alpine-minirootfs-3.24.3-x86_64.tar.gz",
             ),
         )
 

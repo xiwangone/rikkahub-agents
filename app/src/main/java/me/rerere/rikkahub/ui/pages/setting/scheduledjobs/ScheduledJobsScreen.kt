@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting.scheduledjobs
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,13 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,16 +28,21 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.RelativeTimeStrings
@@ -95,12 +99,13 @@ fun ScheduledJobsScreen(vm: ScheduledJobsViewModel = koinViewModel()) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding + PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = innerPadding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(jobs, key = { it.id }) { job ->
+                itemsIndexed(jobs, key = { _, job -> job.id }) { index, job ->
                     ScheduledJobRow(
                         job = job,
+                        shape = cardGroupItemShape(index, jobs.size),
                         onToggle = { enabled -> vm.setEnabled(job.id, enabled) },
                         onTap = { nav.navigate(Screen.ScheduledJobDetail(job.id)) },
                     )
@@ -108,7 +113,7 @@ fun ScheduledJobsScreen(vm: ScheduledJobsViewModel = koinViewModel()) {
                 item {
                     TextButton(
                         onClick = { showHowItWorks = true },
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         Text(stringResource(R.string.setting_page_scheduled_jobs_how_it_works))
                     }
@@ -121,6 +126,7 @@ fun ScheduledJobsScreen(vm: ScheduledJobsViewModel = koinViewModel()) {
 @Composable
 private fun ScheduledJobRow(
     job: ScheduledJobEntity,
+    shape: Shape,
     onToggle: (Boolean) -> Unit,
     onTap: () -> Unit,
 ) {
@@ -141,25 +147,28 @@ private fun ScheduledJobRow(
                 stringResource(R.string.setting_page_scheduled_jobs_subtitle_ran, ago)
             }
         }
-    ListItem(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable { onTap() }
-                .padding(horizontal = 8.dp),
-        headlineContent = { Text(job.name) },
-        supportingContent = {
-            Text(
-                text = "${stringResource(R.string.setting_page_scheduled_jobs_subtitle_when, schedule)}\n$statusLine",
-                maxLines = 3,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        trailingContent = {
-            Switch(checked = job.enabled, onCheckedChange = onToggle)
-        },
-    )
-    HorizontalDivider()
+    Surface(
+        onClick = onTap,
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        ListItem(
+            colors = CustomColors.listItemColors,
+            leadingContent = { CardGroupIcon(HugeIcons.Clock02) },
+            headlineContent = { Text(job.name) },
+            supportingContent = {
+                Text(
+                    text = "${stringResource(R.string.setting_page_scheduled_jobs_subtitle_when, schedule)}\n$statusLine",
+                    maxLines = 3,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            trailingContent = {
+                Switch(checked = job.enabled, onCheckedChange = onToggle)
+            },
+        )
+    }
 }
 
 @Composable

@@ -295,6 +295,13 @@ fun SettingWebServerPage() {
                         },
                     )
                     item(
+                        onClick = {
+                            scope.launch {
+                                settingsStore.update {
+                                    it.copy(webServerJwtEnabled = !settings.webServerJwtEnabled)
+                                }
+                            }
+                        },
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable_desc)) },
                         trailingContent = {

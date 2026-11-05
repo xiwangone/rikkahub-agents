@@ -9,6 +9,8 @@ import java.io.InputStream
 import java.net.HttpURLConnection
 import java.net.URL
 import java.nio.file.Files
+import java.nio.file.LinkOption
+import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
 
 /** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */
@@ -25,59 +27,138 @@ class RootfsInstaller(
         root: String,
         url: String,
         onProgress: (RootfsInstallProgress) -> Unit = {},
-    ) {
-        require(url.isNotBlank()) { "Rootfs download url is required" }
-        manager.ensureWorkspace(root)
-        val format = ArchiveFormat.fromUrl(url)
-        val tempDir = manager.tempDir(root)
-        val archive = File(tempDir, "rootfs.${format.extension}")
-        val stagingDir = File(tempDir, "rootfs-staging")
-        val linuxDir = manager.linuxDir(root)
-
-        try {
-            stagingDir.deleteRecursively()
-            stagingDir.mkdirs()
-            download(url, archive, onProgress)
-            extractTar(archive, stagingDir, format, onProgress)
-            linuxDir.deleteRecursively()
-            require(stagingDir.renameTo(linuxDir)) {
-                "Failed to move rootfs into workspace"
-            }
-            patcher.patch(linuxDir)
-            ensureTerminalShellIsReady(root)
-            onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
-        } finally {
-            archive.delete()
-            stagingDir.deleteRecursively()
-        }
-    }
+    ) = executeUrlRootfsOperation(root, url, overlayOnly = false, onProgress = onProgress)
 
     /** 从本地归档文件安装 rootfs（离线/内网分发场景；与 URL 安装共用解压与补丁流程）。 */
     fun installFromFile(
         root: String,
         archive: File,
         onProgress: (RootfsInstallProgress) -> Unit = {},
+    ) = executeFileRootfsOperation(root, archive, overlayOnly = false, onProgress = onProgress)
+
+    /**
+     * 无损覆盖更新 rootfs：将新归档解压至暂存目录后覆盖合并进现有 [manager.linuxDir]，
+     * 保留用户目录（`/root`、`/home`、`/opt`、`/usr/local`）中的新增文件及已配置的镜像源/证书。
+     */
+    fun update(
+        root: String,
+        url: String,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ) = executeUrlRootfsOperation(root, url, overlayOnly = true, onProgress = onProgress)
+
+    /** 从本地归档文件无损覆盖更新 rootfs。 */
+    fun updateFromFile(
+        root: String,
+        archive: File,
+        onProgress: (RootfsInstallProgress) -> Unit = {},
+    ) = executeFileRootfsOperation(root, archive, overlayOnly = true, onProgress = onProgress)
+
+    private fun executeUrlRootfsOperation(
+        root: String,
+        url: String,
+        overlayOnly: Boolean,
+        onProgress: (RootfsInstallProgress) -> Unit,
+    ) {
+        require(url.isNotBlank()) { "Rootfs download url is required" }
+        manager.ensureWorkspace(root)
+        val format = ArchiveFormat.fromUrl(url)
+        val archive = File(manager.tempDir(root), "rootfs.${format.extension}")
+        try {
+            download(url, archive, onProgress)
+            applyArchiveToRootfs(root, archive, format, overlayOnly, onProgress)
+        } finally {
+            archive.delete()
+        }
+    }
+
+    private fun executeFileRootfsOperation(
+        root: String,
+        archive: File,
+        overlayOnly: Boolean,
+        onProgress: (RootfsInstallProgress) -> Unit,
     ) {
         require(archive.isFile) { "Rootfs archive not found: ${archive.absolutePath}" }
         manager.ensureWorkspace(root)
         val format = ArchiveFormat.fromFileName(archive.name)
-        val tempDir = manager.tempDir(root)
-        val stagingDir = File(tempDir, "rootfs-staging")
-        val linuxDir = manager.linuxDir(root)
+        applyArchiveToRootfs(root, archive, format, overlayOnly, onProgress)
+    }
 
+    private fun applyArchiveToRootfs(
+        root: String,
+        archive: File,
+        format: ArchiveFormat,
+        overlayOnly: Boolean,
+        onProgress: (RootfsInstallProgress) -> Unit,
+    ) {
+        val stagingDir = File(manager.tempDir(root), "rootfs-staging")
+        val linuxDir = manager.linuxDir(root)
+        val shouldOverlay = overlayOnly && linuxDir.isDirectory && manager.hasRootfs(root)
         try {
             stagingDir.deleteRecursively()
             stagingDir.mkdirs()
             extractTar(archive, stagingDir, format, onProgress)
-            linuxDir.deleteRecursively()
-            require(stagingDir.renameTo(linuxDir)) {
-                "Failed to move rootfs into workspace"
+            if (shouldOverlay) {
+                overlayDirectory(stagingDir, linuxDir, stagingDir)
+            } else {
+                linuxDir.deleteRecursively()
+                require(stagingDir.renameTo(linuxDir)) {
+                    "Failed to move rootfs into workspace"
+                }
             }
             patcher.patch(linuxDir)
             ensureTerminalShellIsReady(root)
             onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
         } finally {
             stagingDir.deleteRecursively()
+        }
+    }
+
+    private fun overlayDirectory(
+        sourceDir: File,
+        targetDir: File,
+        stagingRoot: File,
+    ) {
+        targetDir.mkdirs()
+        val children = sourceDir.listFiles().orEmpty()
+        for (child in children) {
+            checkInterrupted()
+            val relPath = child.relativeTo(stagingRoot).invariantSeparatorsPath
+            val dest = File(targetDir, child.name)
+            val srcPath = child.toPath()
+            val destPath = dest.toPath()
+            when {
+                Files.isSymbolicLink(srcPath) -> {
+                    if (relPath in PRESERVED_CONFIG_PATHS && dest.exists()) continue
+                    if (Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) {
+                        dest.deleteRecursively()
+                    }
+                    val linkTarget = Files.readSymbolicLink(srcPath)
+                    dest.parentFile?.mkdirs()
+                    Files.createSymbolicLink(destPath, linkTarget)
+                }
+
+                child.isDirectory -> {
+                    if (Files.isSymbolicLink(destPath) || (dest.exists() && !dest.isDirectory)) {
+                        dest.delete()
+                    }
+                    overlayDirectory(child, dest, stagingRoot)
+                }
+
+                else -> {
+                    if (relPath in PRESERVED_CONFIG_PATHS && dest.isFile && dest.length() > 0L) {
+                        continue
+                    }
+                    if (Files.isSymbolicLink(destPath) || dest.isDirectory) {
+                        dest.deleteRecursively()
+                    }
+                    dest.parentFile?.mkdirs()
+                    Files.copy(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING)
+                    dest.setReadable(child.canRead(), false)
+                    dest.setWritable(child.canWrite(), true)
+                    dest.setExecutable(child.canExecute(), false)
+                    runCatching { dest.setLastModified(child.lastModified()) }
+                }
+            }
         }
     }
 
@@ -547,5 +628,20 @@ class RootfsInstaller(
         private const val PROGRESS_STEP_BYTES = 512 * 1024
         private const val CONNECT_TIMEOUT_MS = 30_000
         private const val READ_TIMEOUT_MS = 60_000
+
+        /** 覆盖更新时保留已有用户配置的相对路径（避免抹掉镜像源、DNS 与已写入的 CA bundle）。 */
+        private val PRESERVED_CONFIG_PATHS =
+            setOf(
+                "etc/resolv.conf",
+                "etc/hosts",
+                "etc/hostname",
+                "etc/apk/repositories",
+                "etc/apt/sources.list",
+                "etc/pip.conf",
+                "etc/ssl/certs/ca-certificates.crt",
+                "root/.npmrc",
+                "root/.bashrc",
+                "root/.profile",
+            )
     }
 }

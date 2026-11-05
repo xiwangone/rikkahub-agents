@@ -156,7 +156,13 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         Slider(
                             value = displaySetting.bubbleOpacity,
                             onValueChange = {
-                                updateDisplaySetting { s -> s.copy(bubbleOpacity = it) }
+                                displaySetting = displaySetting.copy(bubbleOpacity = it)
+                            },
+                            onValueChangeFinished = {
+                                val target = displaySetting.bubbleOpacity
+                                vm.updateSettings { current ->
+                                    current.copy(displaySetting = current.displaySetting.copy(bubbleOpacity = target))
+                                }
                             },
                             valueRange = 0.1f..1.0f,
                             steps = 8,
@@ -314,7 +320,13 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                         Slider(
                             value = displaySetting.fontSizeRatio,
                             onValueChange = {
-                                updateDisplaySetting { s -> s.copy(fontSizeRatio = it) }
+                                displaySetting = displaySetting.copy(fontSizeRatio = it)
+                            },
+                            onValueChangeFinished = {
+                                val target = displaySetting.fontSizeRatio
+                                vm.updateSettings { current ->
+                                    current.copy(displaySetting = current.displaySetting.copy(fontSizeRatio = target))
+                                }
                             },
                             valueRange = 0.5f..2f,
                             steps = 11,

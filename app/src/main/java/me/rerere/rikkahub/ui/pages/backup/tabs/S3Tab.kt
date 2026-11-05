@@ -289,6 +289,7 @@ fun S3Tab(
                     },
                 )
                 item(
+                    onClick = { updateS3Config(s3Config.copy(pathStyle = !s3Config.pathStyle)) },
                     headlineContent = { Text(stringResource(R.string.backup_page_s3_path_style)) },
                     supportingContent = { Text(stringResource(R.string.backup_page_s3_path_style_desc)) },
                     trailingContent = {

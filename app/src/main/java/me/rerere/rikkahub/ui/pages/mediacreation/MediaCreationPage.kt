@@ -63,6 +63,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.model.MediaCreationNode
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -158,8 +159,10 @@ fun MediaCreationPage(id: String) {
                         }
                     }
                 },
+                colors = CustomColors.topBarColors,
             )
         },
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         // 底部的安全区和键盘留给输入区自己处理，它的背景要一直铺到屏幕底边
         val layoutDirection = LocalLayoutDirection.current

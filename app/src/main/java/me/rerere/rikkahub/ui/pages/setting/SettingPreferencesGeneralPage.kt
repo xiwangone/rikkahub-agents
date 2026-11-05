@@ -240,8 +240,13 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             Slider(
                                 value = displaySetting.pasteLongTextThreshold.toFloat(),
                                 onValueChange = {
-                                    updateDisplaySetting { s -> s.copy(pasteLongTextThreshold = it.toInt()) }
-
+                                    displaySetting = displaySetting.copy(pasteLongTextThreshold = it.toInt())
+                                },
+                                onValueChangeFinished = {
+                                    val target = displaySetting.pasteLongTextThreshold
+                                    vm.updateSettings { current ->
+                                        current.copy(displaySetting = current.displaySetting.copy(pasteLongTextThreshold = target))
+                                    }
                                 },
                                 valueRange = 100f..10000f,
                                 modifier = Modifier.fillMaxWidth(),
@@ -263,9 +268,12 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                                     .coerceIn(1_000, 50_000)
                                     .toFloat(),
                             onValueChange = {
-                                updateDisplaySetting { s -> s.copy(
-                                        attachmentInlineThreshold = it.toInt(),
-                                    )
+                                displaySetting = displaySetting.copy(attachmentInlineThreshold = it.toInt())
+                            },
+                            onValueChangeFinished = {
+                                val target = displaySetting.attachmentInlineThreshold
+                                vm.updateSettings { current ->
+                                    current.copy(displaySetting = current.displaySetting.copy(attachmentInlineThreshold = target))
                                 }
                             },
                             valueRange = 1000f..50000f,
@@ -299,7 +307,13 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             Slider(
                                 value = displaySetting.volumeKeyScrollRatio,
                                 onValueChange = {
-                                    updateDisplaySetting { s -> s.copy(volumeKeyScrollRatio = it) }
+                                    displaySetting = displaySetting.copy(volumeKeyScrollRatio = it)
+                                },
+                                onValueChangeFinished = {
+                                    val target = displaySetting.volumeKeyScrollRatio
+                                    vm.updateSettings { current ->
+                                        current.copy(displaySetting = current.displaySetting.copy(volumeKeyScrollRatio = target))
+                                    }
                                 },
                                 valueRange = 0.25f..1.0f,
                                 steps = 2,

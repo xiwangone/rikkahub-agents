@@ -44,25 +44,25 @@ data class RenderProfile(
             // 滚动与重组时掉帧。默认折叠为下面的行数，两处 UI 都有“点击展开”入口，内容不会丢。
             diffDefaultLines = 600,
             jsonVisibleChildren = 200,
-            outputFlushIntervalMs = 100L,
-            streamApplyIntervalMs = 100L,
+            outputFlushIntervalMs = 32L,
+            streamApplyIntervalMs = 32L,
             highlightCacheEntries = 24,
         )
 
-        /** 与引入档位之前的默认行为保持一致 */
+        /** 中档保持约 20fps 均匀帧率，且上下游窗口对齐避免拍频丢帧 */
         val MID = RenderProfile(
             diffDefaultLines = 300,
             jsonVisibleChildren = 100,
-            outputFlushIntervalMs = 200L,
-            streamApplyIntervalMs = 150L,
+            outputFlushIntervalMs = 48L,
+            streamApplyIntervalMs = 48L,
             highlightCacheEntries = 16,
         )
 
         val LOW = RenderProfile(
             diffDefaultLines = 120,
             jsonVisibleChildren = 40,
-            outputFlushIntervalMs = 300L,
-            streamApplyIntervalMs = 300L,
+            outputFlushIntervalMs = 80L,
+            streamApplyIntervalMs = 80L,
             highlightCacheEntries = 16,
         )
 

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui
 
-import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -38,9 +37,9 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
@@ -192,26 +191,18 @@ fun CardGroupIcon(
     containerSize: Dp = DefaultCardGroupIconContainerSize,
     iconSize: Dp = DefaultCardGroupIconGlyphSize,
 ) {
-    val animatedContainerColor by animateColorAsState(
-        targetValue = containerColor,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-    )
-    val animatedContentColor by animateColorAsState(
-        targetValue = contentColor,
-        animationSpec = MaterialTheme.motionScheme.defaultEffectsSpec(),
-    )
     Box(
         modifier =
             modifier
                 .size(containerSize)
-                .background(animatedContainerColor, CircleShape),
+                .background(containerColor, CircleShape),
         contentAlignment = Alignment.Center,
     ) {
         Icon(
             imageVector = icon,
             contentDescription = null,
             modifier = Modifier.size(iconSize),
-            tint = animatedContentColor,
+            tint = contentColor,
         )
     }
 }
@@ -292,42 +283,49 @@ private fun CardGroupListItem(
 ) {
     val isFirst = index == 0
     val isLast = index == count - 1
+    val onClick = item.onClick
 
-    val interactionSource = remember { MutableInteractionSource() }
-    val isPressed by interactionSource.collectIsPressedAsState()
-
-    val topCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isFirst) CardGroupCorner else CardGroupInnerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
-    val bottomCorner by animateDpAsState(
-        targetValue = if (isPressed || count == 1 || isLast) CardGroupCorner else CardGroupInnerCorner,
-        animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
-    )
+    val itemModifier =
+        if (onClick != null) {
+            val interactionSource = remember { MutableInteractionSource() }
+            val isPressed by interactionSource.collectIsPressedAsState()
+            val topCorner by animateDpAsState(
+                targetValue = if (isPressed || count == 1 || isFirst) CardGroupCorner else CardGroupInnerCorner,
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+            )
+            val bottomCorner by animateDpAsState(
+                targetValue = if (isPressed || count == 1 || isLast) CardGroupCorner else CardGroupInnerCorner,
+                animationSpec = MaterialTheme.motionScheme.fastSpatialSpec(),
+            )
+            item.modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    shape =
+                        RoundedCornerShape(
+                            topStart = topCorner,
+                            topEnd = topCorner,
+                            bottomStart = bottomCorner,
+                            bottomEnd = bottomCorner,
+                        )
+                    clip = true
+                }.clickable(
+                    interactionSource = interactionSource,
+                    indication = LocalIndication.current,
+                    onClick = onClick,
+                )
+        } else {
+            val staticShape = remember(index, count) { cardGroupItemShape(index, count) }
+            item.modifier
+                .fillMaxWidth()
+                .graphicsLayer {
+                    shape = staticShape
+                    clip = true
+                }
+        }
 
     ListItem(
         headlineContent = item.headlineContent ?: {},
-        modifier =
-            item.modifier
-                .fillMaxWidth()
-                .clip(
-                    RoundedCornerShape(
-                        topStart = topCorner,
-                        topEnd = topCorner,
-                        bottomStart = bottomCorner,
-                        bottomEnd = bottomCorner,
-                    ),
-                ).then(
-                    if (item.onClick != null) {
-                        Modifier.clickable(
-                            interactionSource = interactionSource,
-                            indication = LocalIndication.current,
-                            onClick = item.onClick,
-                        )
-                    } else {
-                        Modifier
-                    },
-                ),
+        modifier = itemModifier,
         overlineContent = item.overlineContent,
         supportingContent = item.supportingContent,
         leadingContent = item.leadingContent,

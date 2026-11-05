@@ -49,6 +49,7 @@ import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Avatar
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.components.richtext.MathBlock
 import me.rerere.rikkahub.ui.components.richtext.Mermaid
@@ -74,8 +75,10 @@ fun DebugPage(vm: DebugVM = koinViewModel()) {
                 navigationIcon = {
                     BackButton()
                 },
+                colors = CustomColors.topBarColors,
             )
         },
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { contentPadding ->
         val state = rememberPagerState { 4 }
         Column(

@@ -31,6 +31,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileScript
 import me.rerere.rikkahub.data.ai.AILogging
 import me.rerere.rikkahub.data.datastore.AiLogLevel
+import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
@@ -46,6 +48,10 @@ fun DeveloperPage(vm: DeveloperVM = koinViewModel()) {
                         maxLines = 1,
                     )
                 },
+                navigationIcon = {
+                    BackButton()
+                },
+                colors = CustomColors.topBarColors,
             )
         },
         bottomBar = {
@@ -62,6 +68,7 @@ fun DeveloperPage(vm: DeveloperVM = koinViewModel()) {
                 )
             }
         },
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         HorizontalPager(
             state = pager,
@@ -82,11 +89,14 @@ fun LoggingPaging(vm: DeveloperVM) {
     val level by vm.logLevel.collectAsStateWithLifecycle()
     LazyColumn(
         modifier = Modifier.fillMaxSize(),
-        contentPadding = PaddingValues(8.dp),
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         items(1) {
-            Card(modifier = Modifier.fillMaxWidth()) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CustomColors.cardColorsOnSurfaceContainer,
+            ) {
                 Column(modifier = Modifier.padding(12.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     Text(text = "AI Log Level")
                     AiLogLevel.entries.forEach { item ->
@@ -110,7 +120,7 @@ fun LoggingPaging(vm: DeveloperVM) {
         items(logs) { log ->
             when (log) {
                 is AILogging.Generation -> {
-                    Card {
+                    Card(colors = CustomColors.cardColorsOnSurfaceContainer) {
                         Column(
                             modifier = Modifier.fillMaxSize(),
                             verticalArrangement = Arrangement.spacedBy(8.dp),

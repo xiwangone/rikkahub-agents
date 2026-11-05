@@ -350,11 +350,15 @@ private suspend fun ChatService.isToolAutoApprovedForConversation(
     }
 
 private class StreamThrottleState(
-    var lastStreamPersistAtMs: Long = 0L,
+    // 初始化为流启动时刻而非 0L，避免收到首个增量（刚吐出几个字）时立即触发同步落库阻塞流式读取
+    var lastStreamPersistAtMs: Long = System.currentTimeMillis(),
     var lastUiCommitAtMs: Long = 0L,
     var lastNotificationAtMs: Long = 0L,
-    var pendingUiConversation: Conversation? = null,
+    @Volatile var pendingUiConversation: Conversation? = null,
     var floatingReplyMessageId: Uuid? = null,
+    var trailingUiFlushJob: Job? = null,
+    var periodicPersistJob: Job? = null,
+    @Volatile var streamCompleted: Boolean = false,
 )
 
 private suspend fun ChatService.runGenerationStream(
@@ -431,6 +435,11 @@ private suspend fun ChatService.onGenerationStreamCompletion(
     GenerationForegroundService.release(context, conversationId.toString())
 
     withContext(NonCancellable) {
+        streamState.streamCompleted = true
+        streamState.trailingUiFlushJob?.cancel()
+        streamState.trailingUiFlushJob = null
+        runCatching { streamState.periodicPersistJob?.join() }
+        streamState.periodicPersistJob = null
         streamState.pendingUiConversation?.let { latest ->
             streamState.pendingUiConversation = null
             updateConversation(conversationId, latest)
@@ -531,18 +540,42 @@ private suspend fun ChatService.onGenerationStreamChunk(
                     completedToolOutput = completedToolOutput,
                 )
             ) {
+                streamState.trailingUiFlushJob?.cancel()
+                streamState.trailingUiFlushJob = null
                 streamState.lastUiCommitAtMs = nowUiMs
                 streamState.pendingUiConversation = null
                 updateConversation(conversationId, updatedConversation)
+            } else if (streamState.trailingUiFlushJob?.isActive != true) {
+                val waitMs = (STREAM_UI_INTERVAL_MS - (nowUiMs - streamState.lastUiCommitAtMs)).coerceAtLeast(1L)
+                streamState.trailingUiFlushJob = appScope.launch {
+                    kotlinx.coroutines.delay(waitMs)
+                    if (!streamState.streamCompleted) {
+                        streamState.pendingUiConversation?.let { pending ->
+                            streamState.pendingUiConversation = null
+                            streamState.lastUiCommitAtMs = System.currentTimeMillis()
+                            updateConversation(conversationId, pending)
+                        }
+                    }
+                }
             }
 
             val needsImmediatePersist = hasToolTransitionNeedingImmediatePersist(chunk.messages.lastOrNull())
             val nowMs = System.currentTimeMillis()
             val dueForPeriodicPersist = nowMs - streamState.lastStreamPersistAtMs >= STREAM_PERSIST_INTERVAL_MS
-            if (needsImmediatePersist || dueForPeriodicPersist) {
-                if (dueForPeriodicPersist) streamState.lastStreamPersistAtMs = nowMs
-                // 流式途中的周期性落盘仅用于防杀进程丢内容，跳过全量结巴分词 FTS 重建（生成收尾时统一重建索引）
+            if (needsImmediatePersist) {
+                streamState.lastStreamPersistAtMs = nowMs
+                // 工具审批状态跃迁需立即同步落盘，确保挂起等待用户审批前状态已持久化
                 saveConversation(conversationId, updatedConversation, syncFts = false)
+            } else if (dueForPeriodicPersist && streamState.periodicPersistJob?.isActive != true) {
+                streamState.lastStreamPersistAtMs = nowMs
+                // 周期性防杀落盘放到独立后台任务中执行，避免 SQLite I/O 阻塞上游 SSE 流式吐字
+                streamState.periodicPersistJob = appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
+                    if (!streamState.streamCompleted) {
+                        runCatching {
+                            saveConversation(conversationId, updatedConversation, syncFts = false)
+                        }
+                    }
+                }
             }
 
             if (!isForeground.value &&

@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.workflow.ui
 
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,13 +7,13 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -29,17 +28,22 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Shape
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.RelativeTimeStrings
@@ -100,12 +104,13 @@ fun WorkflowsScreen(vm: WorkflowsViewModel = koinViewModel()) {
         } else {
             LazyColumn(
                 modifier = Modifier.fillMaxSize(),
-                contentPadding = innerPadding + PaddingValues(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
+                contentPadding = innerPadding + PaddingValues(16.dp),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
             ) {
-                items(workflows, key = { it.entity.id }) { loaded ->
+                itemsIndexed(workflows, key = { _, loaded -> loaded.entity.id }) { index, loaded ->
                     WorkflowRow(
                         loaded = loaded,
+                        shape = cardGroupItemShape(index, workflows.size),
                         onToggle = { enabled -> vm.setEnabled(loaded.entity.id, enabled) },
                         onTap = { nav.navigate(Screen.WorkflowDetail(loaded.entity.id)) },
                     )
@@ -113,7 +118,7 @@ fun WorkflowsScreen(vm: WorkflowsViewModel = koinViewModel()) {
                 item {
                     TextButton(
                         onClick = { showHowItWorks = true },
-                        modifier = Modifier.padding(8.dp),
+                        modifier = Modifier.padding(top = 8.dp),
                     ) {
                         Text(stringResource(R.string.setting_page_workflows_how_it_works))
                     }
@@ -126,6 +131,7 @@ fun WorkflowsScreen(vm: WorkflowsViewModel = koinViewModel()) {
 @Composable
 private fun WorkflowRow(
     loaded: Loaded,
+    shape: Shape,
     onToggle: (Boolean) -> Unit,
     onTap: () -> Unit,
 ) {
@@ -159,29 +165,32 @@ private fun WorkflowRow(
             }
         }
 
-    ListItem(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .clickable { onTap() }
-                .padding(horizontal = 8.dp),
-        headlineContent = { Text(loaded.entity.name) },
-        supportingContent = {
-            Text(
-                text = "${stringResource(R.string.setting_page_workflows_subtitle_when, triggerSummary)}\n$statusLine",
-                maxLines = 3,
-                style = MaterialTheme.typography.bodySmall,
-            )
-        },
-        trailingContent = {
-            Switch(
-                checked = loaded.entity.enabled,
-                onCheckedChange = onToggle,
-                modifier = Modifier.semantics { contentDescription = loaded.entity.name },
-            )
-        },
-    )
-    HorizontalDivider()
+    Surface(
+        onClick = onTap,
+        shape = shape,
+        color = CustomColors.listItemColors.containerColor,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        ListItem(
+            colors = CustomColors.listItemColors,
+            leadingContent = { CardGroupIcon(HugeIcons.Play) },
+            headlineContent = { Text(loaded.entity.name) },
+            supportingContent = {
+                Text(
+                    text = "${stringResource(R.string.setting_page_workflows_subtitle_when, triggerSummary)}\n$statusLine",
+                    maxLines = 3,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = loaded.entity.enabled,
+                    onCheckedChange = onToggle,
+                    modifier = Modifier.semantics { contentDescription = loaded.entity.name },
+                )
+            },
+        )
+    }
 }
 
 internal fun oneLineTriggerSummary(def: WorkflowDefinition): String =

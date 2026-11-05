@@ -275,6 +275,12 @@ fun SettingTelegramPage() {
                         .padding(horizontal = 8.dp),
                 ) {
                     item(
+                        onClick =
+                            if (!cfg.enabled) {
+                                { scope.launch { prefs.update { it.copy(proxyEnabled = !cfg.proxyEnabled) } } }
+                            } else {
+                                null
+                            },
                         headlineContent = { Text(stringResource(R.string.setting_page_telegram_proxy_enabled)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_telegram_proxy_enabled_desc)) },
                         trailingContent = {

@@ -48,6 +48,7 @@ import androidx.compose.ui.platform.ClipEntry
 import androidx.compose.ui.platform.LocalClipboard
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
@@ -59,7 +60,10 @@ import me.rerere.hugeicons.stroke.LanguageCircle
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.getText
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
@@ -107,6 +111,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                         onlyIcon = true,
                     )
                 },
+                colors = CustomColors.topBarColors,
             )
         },
         bottomBar = {
@@ -124,6 +129,7 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
                 targetLanguage = targetLanguage,
             )
         },
+        containerColor = CustomColors.topBarColors.containerColor,
     ) { paddingValues ->
         Column(
             modifier =
@@ -215,26 +221,27 @@ fun TranslatorPage(vm: TranslatorVM = koinViewModel()) {
             }
 
             if (history.isNotEmpty()) {
-                HorizontalDivider()
-                Text(stringResource(R.string.translator_history_title), style = MaterialTheme.typography.titleMedium)
-                history.forEach { entry ->
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
-                        TextButton(
-                            modifier = Modifier.weight(1f),
+                val deleteLabel = stringResource(R.string.translator_history_delete)
+                CardGroup(
+                    title = { Text(stringResource(R.string.translator_history_title)) },
+                ) {
+                    history.forEach { entry ->
+                        item(
                             onClick = { vm.reuseHistory(entry) },
-                        ) {
-                            Text(
-                                "${entry.targetLanguage}: ${entry.sourceText.take(48)}",
-                                maxLines = 1,
-                            )
-                        }
-                        TextButton(onClick = { vm.deleteHistory(entry.id) }) {
-                            Text(stringResource(R.string.translator_history_delete))
-                        }
+                            leadingContent = { CardGroupIcon(HugeIcons.LanguageCircle) },
+                            headlineContent = {
+                                Text(
+                                    text = "${entry.targetLanguage}: ${entry.sourceText.take(48)}",
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                )
+                            },
+                            trailingContent = {
+                                TextButton(onClick = { vm.deleteHistory(entry.id) }) {
+                                    Text(deleteLabel)
+                                }
+                            },
+                        )
                     }
                 }
             }

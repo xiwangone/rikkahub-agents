@@ -310,6 +310,7 @@ private fun ToolCategorySection(
         tools.forEach { toolName ->
             val checked = toolStates[toolName] ?: BrowserToolDefaults.DEFAULT_ENABLED[toolName] ?: false
             item(
+                onClick = { onToggle(toolName, !checked) },
                 headlineContent = { Text(toolDisplayTitle(toolName)) },
                 supportingContent = { Text(toolDisplayDesc(toolName)) },
                 trailingContent = {

@@ -321,7 +321,8 @@ internal class GenerationAgentRun(
         messages = upsertMessage(previous, last)
 
         val nowFlushMs = android.os.SystemClock.elapsedRealtime()
-        if (nowFlushMs - lastOutputFlushAtMs >= renderProfile.outputFlushIntervalMs) {
+        val effectiveFlushWindowMs = (renderProfile.outputFlushIntervalMs * 3L) / 4L
+        if (nowFlushMs - lastOutputFlushAtMs >= effectiveFlushWindowMs) {
             lastOutputFlushAtMs = nowFlushMs
             pendingOutputFlush.clear()
             messages = messages

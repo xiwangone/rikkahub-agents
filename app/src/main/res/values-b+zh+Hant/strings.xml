@@ -1887,6 +1887,13 @@
   <string name="workspace_detail_will_delete">將刪除 %s。</string>
   <string name="workspace_detail_installing">安裝中</string>
   <string name="workspace_detail_reinstall_rootfs">重新安裝 Rootfs</string>
+  <string name="workspace_detail_update_distro">更新發行版</string>
+  <string name="workspace_detail_update_distro_desc">將新版 Rootfs 歸檔無損覆蓋更新到 %s 的 Linux 目錄（保留 /root、/home、/opt 等使用者資料與鏡像源設定），或直接透過套件管理員原位升級已安裝套件。</string>
+  <string name="workspace_detail_upgrade_packages">原位升級已安裝套件 (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">正在升級套件…</string>
+  <string name="workspace_detail_upgrade_packages_success">發行版套件升級完成</string>
+  <string name="workspace_detail_upgrade_packages_failed">套件升級失敗：%1$s</string>
+  <string name="common_update">更新</string>
   <string name="workspace_detail_install_rootfs">安裝 Rootfs</string>
   <string name="workspace_detail_mirrors">套件管理器鏡像</string>
   <string name="workspace_detail_mirror_apk">Alpine 套件</string>

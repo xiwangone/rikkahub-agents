@@ -16,6 +16,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -180,45 +181,44 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
                 )
             }
 
-            item("settingsGroups") {
-                Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
-                    SettingGroup.entries.forEach { group ->
-                        val entries = SettingCatalog.entriesOf(group)
-                        val (containerColor, contentColor) = group.iconColors()
-                        CardGroup(
-                            title = { Text(stringResource(group.titleRes)) },
-                        ) {
-                            when (group) {
-                                SettingGroup.GENERAL -> ColorModeRow(navController, containerColor, contentColor)
-                                SettingGroup.ABOUT -> {
-                                    AboutRow(navController, containerColor, contentColor)
-                                    DocumentationRow(containerColor, contentColor)
-                                }
-                                else -> Unit
-                            }
-
-                            entries.forEach { entry ->
-                                item(
-                                    modifier = Modifier.testTag("setting_entry_${entry.id}"),
-                                    onClick = { navController.navigate(entry.screen) },
-                                    leadingContent = {
-                                        CardGroupIcon(
-                                            icon = entry.icon,
-                                            containerColor = containerColor,
-                                            contentColor = contentColor,
-                                        )
-                                    },
-                                    supportingContent = { Text(stringResource(entry.descRes)) },
-                                    headlineContent = { Text(stringResource(entry.titleRes)) },
-                                )
-                            }
-
-                            when (group) {
-                                SettingGroup.DATA -> ChatStorageRow(filesManager, navController, containerColor, contentColor)
-                                SettingGroup.ABOUT -> ShareRow(containerColor, contentColor)
-                                else -> Unit
-                            }
+            items(
+                items = SettingGroup.entries,
+                key = { "setting_group_${it.name}" },
+            ) { group ->
+                val entries = remember(group) { SettingCatalog.entriesOf(group) }
+                val (containerColor, contentColor) = group.iconColors()
+                CardGroup(
+                    title = { Text(stringResource(group.titleRes)) },
+                ) {
+                    when (group) {
+                        SettingGroup.GENERAL -> ColorModeRow(containerColor, contentColor)
+                        SettingGroup.ABOUT -> {
+                            AboutRow(navController, containerColor, contentColor)
+                            DocumentationRow(containerColor, contentColor)
                         }
+                        else -> Unit
+                    }
+
+                    entries.forEach { entry ->
+                        item(
+                            modifier = Modifier.testTag("setting_entry_${entry.id}"),
+                            onClick = { navController.navigate(entry.screen) },
+                            leadingContent = {
+                                CardGroupIcon(
+                                    icon = entry.icon,
+                                    containerColor = containerColor,
+                                    contentColor = contentColor,
+                                )
+                            },
+                            supportingContent = { Text(stringResource(entry.descRes)) },
+                            headlineContent = { Text(stringResource(entry.titleRes)) },
+                        )
+                    }
+
+                    when (group) {
+                        SettingGroup.DATA -> ChatStorageRow(filesManager, navController, containerColor, contentColor)
+                        SettingGroup.ABOUT -> ShareRow(containerColor, contentColor)
+                        else -> Unit
                     }
                 }
             }
@@ -326,7 +326,6 @@ private fun SecurityDegradedWarningCard() {
 
 @Composable
 private fun CardGroupScope.ColorModeRow(
-    navController: Navigator,
     containerColor: Color,
     contentColor: Color,
 ) {
@@ -344,11 +343,6 @@ private fun CardGroupScope.ColorModeRow(
             selected = colorMode,
             onSelect = {
                 colorMode = it
-                navController.navigate(Screen.Setting) {
-                    popUpTo(Screen.Setting) {
-                        inclusive = true
-                    }
-                }
             },
         ) { mode, selected ->
             ConnectedChoiceLabel(

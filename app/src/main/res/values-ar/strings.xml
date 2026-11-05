@@ -3250,6 +3250,13 @@
   <string name="workspace_detail_will_delete">سيُحذف %s.</string>
   <string name="workspace_detail_installing">جارٍ التثبيت</string>
   <string name="workspace_detail_reinstall_rootfs">إعادة تثبيت Rootfs</string>
+  <string name="workspace_detail_update_distro">تحديث التوزيعة</string>
+  <string name="workspace_detail_update_distro_desc">تحديث أرشيف Rootfs في دليل Linux لـ %s مع الحفاظ على ملفات المستخدم وإعدادات المرايا، أو ترقية الحزم المثبتة.</string>
+  <string name="workspace_detail_upgrade_packages">ترقية الحزم المثبتة (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">جارٍ ترقية الحزم…</string>
+  <string name="workspace_detail_upgrade_packages_success">تمت ترقية حزم التوزيعة</string>
+  <string name="workspace_detail_upgrade_packages_failed">فشلت ترقية الحزم: %1$s</string>
+  <string name="common_update">تحديث</string>
   <string name="workspace_detail_install_rootfs">تثبيت Rootfs</string>
   <string name="workspace_detail_mirrors">مرايا الحزم</string>
   <string name="workspace_detail_mirror_apk">حزم Alpine</string>

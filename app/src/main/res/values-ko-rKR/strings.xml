@@ -1869,6 +1869,13 @@
   <string name="workspace_detail_will_delete">%s을(를) 삭제합니다.</string>
   <string name="workspace_detail_installing">설치 중</string>
   <string name="workspace_detail_reinstall_rootfs">Rootfs 재설치</string>
+  <string name="workspace_detail_update_distro">배포판 업데이트</string>
+  <string name="workspace_detail_update_distro_desc">사용자 파일과 미러 설정을 유지한 채 %s의 Linux 디렉터리에 새 Rootfs를 덮어쓰거나 설치된 패키지를 업그레이드합니다.</string>
+  <string name="workspace_detail_upgrade_packages">설치된 패키지 업그레이드 (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">패키지 업그레이드 중…</string>
+  <string name="workspace_detail_upgrade_packages_success">배포판 패키지 업그레이드 완료</string>
+  <string name="workspace_detail_upgrade_packages_failed">패키지 업그레이드 실패: %1$s</string>
+  <string name="common_update">업데이트</string>
   <string name="workspace_detail_install_rootfs">Rootfs 설치</string>
   <string name="workspace_detail_mirrors">패키지 미러</string>
   <string name="workspace_detail_mirror_apk">Alpine 패키지</string>

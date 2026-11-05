@@ -347,6 +347,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                     },
                 )
                 item(
+                    onClick = { vm.setAptWrapEnabled(!config.aptWrapEnabled) },
                     headlineContent = { Text(stringResource(R.string.setting_termux_apt_wrap)) },
                     supportingContent = { Text(stringResource(R.string.setting_termux_apt_wrap_desc)) },
                     trailingContent = {

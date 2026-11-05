@@ -1872,6 +1872,13 @@
   <string name="workspace_detail_will_delete">%s を削除します。</string>
   <string name="workspace_detail_installing">インストール中</string>
   <string name="workspace_detail_reinstall_rootfs">Rootfs 再インストール</string>
+  <string name="workspace_detail_update_distro">ディストリビューションを更新</string>
+  <string name="workspace_detail_update_distro_desc">ユーザーファイルやミラー設定を保持したまま %s の Linux ディレクトリに新しい Rootfs を上書き展開するか、インストール済みパッケージを更新します。</string>
+  <string name="workspace_detail_upgrade_packages">パッケージをアップグレード (apt / apk)</string>
+  <string name="workspace_detail_upgrading_packages">パッケージを更新中…</string>
+  <string name="workspace_detail_upgrade_packages_success">パッケージの更新が完了しました</string>
+  <string name="workspace_detail_upgrade_packages_failed">パッケージ更新に失敗しました: %1$s</string>
+  <string name="common_update">更新</string>
   <string name="workspace_detail_install_rootfs">Rootfs をインストール</string>
   <string name="workspace_detail_mirrors">パッケージミラー</string>
   <string name="workspace_detail_mirror_apk">Alpine パッケージ</string>

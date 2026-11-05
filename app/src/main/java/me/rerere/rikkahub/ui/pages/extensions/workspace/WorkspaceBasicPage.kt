@@ -4,6 +4,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -18,6 +19,7 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -58,6 +60,7 @@ import me.rerere.hugeicons.stroke.Package01
 import me.rerere.hugeicons.stroke.PencilEdit01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.Play
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
@@ -94,6 +97,8 @@ internal fun WorkspaceBasicPage(
     onEditSsh: () -> Unit,
     mirrors: WorkspaceMirrors,
     onInstallRootfs: () -> Unit,
+    onUpdateRootfs: () -> Unit = {},
+    upgradingPackages: Boolean = false,
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
     onApplyMirrors: (WorkspaceMirrors) -> Unit,
@@ -114,10 +119,11 @@ internal fun WorkspaceBasicPage(
     val shellStatus = workspace?.shellStatus
     val remote = workspace?.isSsh() == true
     val remoteSettings = if (remote) workspace?.sshSettings() else null
-    val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name
+    val installing = installProgress != null || shellStatus == WorkspaceShellStatus.INSTALLING.name || upgradingPackages
     val rootfsReady = shellStatus == WorkspaceShellStatus.READY.name
     val installButtonText =
         when {
+            upgradingPackages -> stringResource(R.string.workspace_detail_upgrading_packages)
             installing -> stringResource(R.string.workspace_detail_installing)
             rootfsReady -> stringResource(R.string.workspace_detail_reinstall_rootfs)
             else -> stringResource(R.string.workspace_detail_install_rootfs)
@@ -278,18 +284,60 @@ internal fun WorkspaceBasicPage(
                             ShellStatusBadge(status = shellStatus, isInstalling = installing)
                         },
                     ) {
-                        Button(
-                            onClick = onInstallRootfs,
-                            enabled = workspace != null && !installing,
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Bash,
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                            Text(installButtonText)
+                        if (rootfsReady && !installing) {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                Button(
+                                    onClick = onUpdateRootfs,
+                                    enabled = workspace != null,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Refresh01,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                                    )
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text(
+                                        text = stringResource(R.string.workspace_detail_update_distro),
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                                OutlinedButton(
+                                    onClick = onInstallRootfs,
+                                    enabled = workspace != null,
+                                    modifier = Modifier.weight(1f),
+                                ) {
+                                    Icon(
+                                        imageVector = HugeIcons.Bash,
+                                        contentDescription = null,
+                                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                                    )
+                                    Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                    Text(
+                                        text = installButtonText,
+                                        maxLines = 1,
+                                        overflow = TextOverflow.Ellipsis,
+                                    )
+                                }
+                            }
+                        } else {
+                            Button(
+                                onClick = onInstallRootfs,
+                                enabled = workspace != null && !installing,
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                Icon(
+                                    imageVector = HugeIcons.Bash,
+                                    contentDescription = null,
+                                    modifier = Modifier.size(ButtonDefaults.IconSize),
+                                )
+                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                                Text(installButtonText)
+                            }
                         }
                         installProgress?.let { progress ->
                             RootfsProgress(progress)

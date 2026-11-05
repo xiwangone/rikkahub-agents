@@ -77,6 +77,9 @@ class SettingsStore(
     /** Defaults to the app-scoped store; injection permits isolated host-side persistence tests. */
     private val dataStore: DataStore<Preferences> = context.settingsStore,
 ) : KoinComponent {
+    private val appContext: Context = context.applicationContext ?: context
+    @Volatile
+    private var hasCompletedInitialDecode = false
     companion object {
         // 版本号
         val VERSION = intPreferencesKey("data_version")
@@ -269,6 +272,12 @@ class SettingsStore(
             throw cause
         }
         .map { preferences ->
+            if (settingsFlow.value.init && memoryRevision.get() == 0L) {
+                val preview = extractFastUiPreview(preferences, settingsFlow.value)
+                if (preview != settingsFlow.value) {
+                    settingsFlow.value = preview
+                }
+            }
             Settings(
                 favoriteModels = decodePrefOrDefault(preferences[FAVORITE_MODELS], emptyList()),
                 chatModelId = parseUuidPrefOrNull(preferences[SELECT_MODEL])
@@ -569,7 +578,11 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         }
         .distinctUntilChanged()
         .onEach {
-            get<PebbleEngine>().templateCache.invalidateAll()
+            if (hasCompletedInitialDecode) {
+                get<PebbleEngine>().templateCache.invalidateAll()
+            } else {
+                hasCompletedInitialDecode = true
+            }
         }
         // Preference decoding includes provider/model JSON and must not run on Main.
         .flowOn(Dispatchers.IO)
@@ -580,7 +593,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
     // A disk emission queued before a write may be stale. Revision-check it after
     // taking the same mutex used by updates, so it cannot overwrite newer memory.
-    val settingsFlow = MutableStateFlow(Settings.dummy())
+    val settingsFlow = MutableStateFlow(loadWarmUiSettings(appContext))
 
     init {
         scope.launch {
@@ -589,7 +602,10 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                     val observedRevision = memoryRevision.get()
                     transformLock.withLock {
                         if (settingsFlow.value.init || observedRevision == memoryRevision.get()) {
-                            settingsFlow.value = decoded
+                            if (settingsFlow.value.init || settingsFlow.value != decoded) {
+                                settingsFlow.value = decoded
+                            }
+                            saveWarmUiSettings(appContext, decoded)
                             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(decoded.networkSetting)
                         }
                         if (!settingsFlow.value.init) initialization.complete(Unit)
@@ -616,20 +632,23 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
     /** Explicit whole-settings replacement for backup/import restore flows only. */
     suspend fun replaceSettings(settings: Settings) {
         initialization.await()
-        transformLock.withLock { persistSettings(settings) }
+        transformLock.withLock { persistSettings(settings, forceFullWrite = true) }
     }
 
     @Suppress("LongMethod") // 逐字段平铺落盘，拆分会把同一份键清单割裂成多段（与仓内既有写法口径一致）
-    private suspend fun persistSettings(settings: Settings) {
+    private suspend fun persistSettings(settings: Settings, forceFullWrite: Boolean = false) {
         if (settings.init) error("Cannot persist dummy Settings")
         val previous = settingsFlow.value
         memoryRevision.incrementAndGet()
         settingsFlow.value = settings
+        saveWarmUiSettings(appContext, settings)
         me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(settings.networkSetting)
         try {
-            persistSettingsTo(dataStore, settings)
+            val diffBase = if (forceFullWrite) null else previous.takeIf { !it.init }
+            persistSettingsTo(dataStore, settings, diffBase)
         } catch (failure: Throwable) {
             settingsFlow.value = previous
+            saveWarmUiSettings(appContext, previous)
             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(previous.networkSetting)
             memoryRevision.incrementAndGet()
             throw failure

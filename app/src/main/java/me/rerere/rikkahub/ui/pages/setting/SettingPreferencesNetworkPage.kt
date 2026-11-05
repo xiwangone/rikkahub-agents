@@ -683,6 +683,10 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                     },
                 ) {
                     item(
+                        onClick = {
+                            val next = !settings.enableAutoRetry
+                            vm.updateSettings { current -> current.copy(enableAutoRetry = next) }
+                        },
                         leadingContent = {
                             CardGroupIcon(
                                 icon = HugeIcons.Refresh,
@@ -703,20 +707,27 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                         },
                     )
                     if (settings.enableAutoRetry) {
+                        var retryDraft by remember(settings.responseStreamMaxRetries) {
+                            mutableStateOf(settings.responseStreamMaxRetries)
+                        }
                         item(
                             headlineContent = {
                                 Text(
                                     stringResource(
                                         R.string.setting_page_preferences_network_auto_retry_count_desc,
-                                        settings.responseStreamMaxRetries,
+                                        retryDraft,
                                     )
                                 )
                             },
                             trailingContent = {
                                 Slider(
-                                    value = settings.responseStreamMaxRetries.toFloat(),
+                                    value = retryDraft.toFloat(),
                                     onValueChange = { v ->
-                                        vm.updateSettings { current -> current.copy(responseStreamMaxRetries = v.roundToInt()) }
+                                        retryDraft = v.roundToInt()
+                                    },
+                                    onValueChangeFinished = {
+                                        val target = retryDraft
+                                        vm.updateSettings { current -> current.copy(responseStreamMaxRetries = target) }
                                     },
                                     valueRange = 0f..10f,
                                     steps = 9,
