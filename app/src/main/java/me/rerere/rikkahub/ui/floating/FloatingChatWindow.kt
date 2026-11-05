@@ -45,6 +45,8 @@ import me.rerere.rikkahub.ui.components.message.MessagePartBlock
 import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.ui.context.LocalToaster
+import com.dokar.sonner.rememberToasterState
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
@@ -136,7 +138,11 @@ internal fun FloatingChatWindow(
                     ).getColorScheme(dark)
             }
         }
+    // 悬浮窗是独立 Compose 树：提示条要自带一份，否则渲染带图表/表格的消息时
+    // 读到 LocalToaster 的默认值会直接退出。
+    val toaster = rememberToasterState()
     CompositionLocalProvider(
+        LocalToaster provides toaster,
         LocalSettings provides settings,
         LocalDarkMode provides dark,
         LocalExtendColors provides if (dark) darkExtendColors() else lightExtendColors(),

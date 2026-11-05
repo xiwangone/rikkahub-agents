@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.theme
 
-import android.app.Activity
 import android.os.Build
 import androidx.compose.foundation.LocalOverscrollFactory
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -19,7 +18,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalView
+import androidx.activity.result.ActivityResultRegistryOwner
 import androidx.core.view.WindowCompat
+import me.rerere.rikkahub.ui.context.LocalActivityResultRegistryOrNull
+import me.rerere.rikkahub.utils.getActivity
 import kotlinx.serialization.Serializable
 import me.rerere.rikkahub.ui.hooks.rememberAmoledDarkMode
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
@@ -86,7 +88,11 @@ fun RikkahubTheme(
     val view = LocalView.current
     if (!view.isInEditMode) {
         DisposableEffect(view, darkTheme) {
-            val window = (view.context as Activity).window
+            // 悬浮窗等独立界面的 context 不是 Activity：跳过系统栏处理，避免类型转换失败
+            val window = view.context.getActivity()?.window
+            if (window == null) {
+                return@DisposableEffect onDispose { }
+            }
             val controller = WindowCompat.getInsetsController(window, view)
             val previousLightStatusBars = controller.isAppearanceLightStatusBars
             val previousLightNavigationBars = controller.isAppearanceLightNavigationBars
@@ -102,10 +108,14 @@ fun RikkahubTheme(
         }
     }
 
+    // 独立界面的 Compose 树（浏览器页、安全模式等）也要能创建结果启动器：
+    // 从当前 context 回溯宿主 Activity 并提供给整棵树；悬浮窗等无 Activity 时保持 null（走空实现）。
+    val resultRegistryOwner = LocalContext.current.getActivity() as? ActivityResultRegistryOwner
     CompositionLocalProvider(
         LocalDarkMode provides darkTheme,
         LocalExtendColors provides extendColors,
         LocalOverscrollFactory provides null,
+        LocalActivityResultRegistryOrNull provides resultRegistryOwner,
     ) {
         MaterialExpressiveTheme(
             colorScheme = colorSchemeConverted,
