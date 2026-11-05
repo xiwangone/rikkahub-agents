@@ -545,7 +545,7 @@ class WorkspaceRepository(
                 "dnf upgrade -y; " +
                 "elif command -v pacman >/dev/null 2>&1; then " +
                 "pacman -Syu --noconfirm; " +
-                "else echo "Unsupported package manager" >&2; exit 127; fi"
+                "else echo \"Unsupported package manager\" >&2; exit 127; fi"
         val result = executeCommand(id = id, command = upgradeCmd, timeoutMillis = 600_000L)
         refreshWorkspaceStats(id)
         return result

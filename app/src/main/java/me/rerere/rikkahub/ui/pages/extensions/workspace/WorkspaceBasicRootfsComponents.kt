@@ -69,7 +69,7 @@ internal fun InstallRootfsDialog(
     onConfirmFile: (String) -> Unit,
     onUpgradePackages: (() -> Unit)? = null,
 ) {
-    val initialUrl = remember(workspace.id, isUpdate, distro?.id, distro?.versionId) {
+    val initialUrl = remember(workspace.id, isUpdate, distro?.name, distro?.version) {
         defaultRootfsUrlForDistro(distro)
     }
     var url by rememberSaveable(workspace.id, isUpdate) { mutableStateOf(initialUrl) }
@@ -77,7 +77,7 @@ internal fun InstallRootfsDialog(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
 
-    LaunchedEffect(isUpdate, distro?.id) {
+    LaunchedEffect(isUpdate, distro?.name) {
         if (url.contains("/images/debian/trixie/")) {
             resolvingLxc = true
             resolveLxcDebianRootfs()?.let { url = it }

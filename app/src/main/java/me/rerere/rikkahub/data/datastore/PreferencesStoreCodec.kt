@@ -148,7 +148,7 @@ internal fun loadWarmUiSettings(context: Context): Settings =
             themeId = prefs.getString(WARM_THEME_ID, null) ?: dummy.themeId,
             customThemes =
                 prefs.getString(WARM_CUSTOM_THEMES, null)
-                    ?.let { runCatching { JsonInstant.decodeFromString<List<CustomTheme>>(it) }.getOrNull() }
+                    ?.let { runCatching { JsonInstant.decodeFromString<List<me.rerere.rikkahub.ui.theme.CustomTheme>>(it) }.getOrNull() }
                     ?: dummy.customThemes,
             displaySetting =
                 prefs.getString(WARM_DISPLAY_SETTING, null)
@@ -323,7 +323,7 @@ internal suspend fun persistSettingsTo(
             previous?.deletedBuiltInProviderIds,
             settings.deletedBuiltInProviderIds,
         ) { ids ->
-            JsonInstant.encodeToString(ids.map { it.toString() }.toSet())
+            JsonInstant.encodeToString(ids.orEmpty().map { it.toString() }.toSet())
         }
         preferences.putJsonIfChanged(
             AUTO_ENABLED_DEFAULT_SKILLS,
@@ -452,7 +452,7 @@ internal suspend fun persistSettingsTo(
             previous,
             previous?.webBridgePassword,
             settings.webBridgePassword,
-        ) { it }
+        ) { it.orEmpty() }
         preferences[WEB_BRIDGE_CREDENTIAL_REF] = settings.webBridgeCredentialRef
         preferences.putWebServerBlock(settings, previous)
         preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
@@ -511,7 +511,7 @@ internal fun MutablePreferences.putWebServerBlock(settings: Settings, previous: 
         previous,
         previous?.webServerAccessPassword,
         settings.webServerAccessPassword,
-    ) { it }
+    ) { it.orEmpty() }
     putJsonIfChanged(NETWORK_CIDR_PRESETS, previous, previous?.networkCidrPresets, settings.networkCidrPresets) {
         JsonInstant.encodeToString(it)
     }
