@@ -46,6 +46,8 @@ import me.rerere.rikkahub.ui.components.message.ThinkingStep
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalToaster
+import me.rerere.rikkahub.ui.context.NoopActivityResultRegistryOwner
+import androidx.activity.compose.LocalActivityResultRegistryOwner
 import com.dokar.sonner.rememberToasterState
 import me.rerere.rikkahub.ui.hooks.rememberCurrentColorMode
 import me.rerere.rikkahub.ui.theme.ColorMode
@@ -142,6 +144,8 @@ internal fun FloatingChatWindow(
     // 读到 LocalToaster 的默认值会直接退出。
     val toaster = rememberToasterState()
     CompositionLocalProvider(
+        // 悬浮窗没有宿主 Activity：给结果启动器一个空注册表，避免渲染带表格/代码块的消息时退出
+        LocalActivityResultRegistryOwner provides NoopActivityResultRegistryOwner,
         LocalToaster provides toaster,
         LocalSettings provides settings,
         LocalDarkMode provides dark,
