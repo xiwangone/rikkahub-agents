@@ -265,7 +265,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                             onValueChange = {
                                 updateDisplaySetting { s -> s.copy(
                                         attachmentInlineThreshold = it.toInt(),
-                                    ),
+                                    )
                                 }
                             },
                             valueRange = 1000f..50000f,

@@ -217,7 +217,7 @@ private fun AssistantPromptContent(
                 onCheckedChange = {
                     onUpdate { current -> current.copy(
                             allowConversationSystemPrompt = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = {
@@ -232,7 +232,7 @@ private fun AssistantPromptContent(
                 onCheckedChange = {
                     onUpdate { current -> current.copy(
                             allowConversationPromptInjection = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = {
@@ -299,7 +299,7 @@ private fun AssistantPromptContent(
                     onValueChange = {
                         onUpdate { current -> current.copy(
                                 messageTemplate = it,
-                            ),
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -406,7 +406,7 @@ private fun AssistantPromptContent(
                                             role = nextRole,
                                             parts = listOf(UIMessagePart.Text("")),
                                         ),
-                            ),
+                            )
                         }
                     },
                 )
@@ -433,7 +433,7 @@ private fun AssistantPromptContent(
                                                     msg
                                                 }
                                             },
-                                    ),
+                                    )
                                 }
                             },
                             modifier = Modifier.width(180.dp),
@@ -446,7 +446,7 @@ private fun AssistantPromptContent(
                                             current.presetMessages.filterIndexed { i, _ ->
                                                 i != index
                                             },
-                                    ),
+                                    )
                                 }
                             },
                         ) {
@@ -465,7 +465,7 @@ private fun AssistantPromptContent(
                                                 msg
                                             }
                                         },
-                                ),
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -487,7 +487,7 @@ private fun AssistantPromptContent(
                                         AssistantRegex(
                                             id = Uuid.random(),
                                         ),
-                            ),
+                            )
                         }
                     },
                 )
@@ -594,7 +594,7 @@ private fun AssistantRegexCard(
                                             reg
                                         }
                                     },
-                            ),
+                            )
                         }
                     },
                     modifier = Modifier.padding(start = 8.dp),
@@ -629,7 +629,7 @@ private fun AssistantRegexCard(
                                                 reg
                                             }
                                         },
-                                ),
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -648,7 +648,7 @@ private fun AssistantRegexCard(
                                                 reg
                                             }
                                         },
-                                ),
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -668,7 +668,7 @@ private fun AssistantRegexCard(
                                                 reg
                                             }
                                         },
-                                ),
+                                )
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -705,7 +705,7 @@ private fun AssistantRegexCard(
                                                         reg
                                                     }
                                                 },
-                                        ),
+                                        )
                                     }
                                 },
                                 label = {
@@ -748,7 +748,7 @@ private fun AssistantRegexCard(
                                                     reg
                                                 }
                                             },
-                                    ),
+                                    )
                                 }
                             },
                         )

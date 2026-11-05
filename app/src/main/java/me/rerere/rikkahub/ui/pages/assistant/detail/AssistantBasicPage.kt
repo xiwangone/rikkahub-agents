@@ -168,7 +168,7 @@ internal fun AssistantBasicContent(
                     onValueChange = {
                         onUpdateAssistant { current -> current.copy(
                                 name = it,
-                            ),
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -197,7 +197,7 @@ internal fun AssistantBasicContent(
                     onOptionSelected = { workspace ->
                         onUpdateAssistant { current -> current.copy(
                                 workspaceId = workspace?.id?.let { Uuid.parse(it) },
-                            ),
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -211,7 +211,7 @@ internal fun AssistantBasicContent(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             useAssistantAvatar = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_use_assistant_avatar_desc)) },
@@ -222,7 +222,7 @@ internal fun AssistantBasicContent(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             allowPerConversationModel = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_allow_conversation_model_desc)) },
@@ -256,7 +256,7 @@ internal fun AssistantBasicContent(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             streamOutput = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_stream_output_desc)) },
@@ -287,7 +287,7 @@ internal fun AssistantBasicContent(
                     onValueChange = { v ->
                         onUpdateAssistant { current -> current.copy(
                                 streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
-                            ),
+                            )
                         }
                     },
                     valueRange = 0f..300f,
@@ -315,7 +315,7 @@ internal fun AssistantBasicContent(
                         onCheckedChange = { enabled ->
                             onUpdateAssistant { current -> current.copy(
                                     temperature = if (enabled) 1.0f else null,
-                                ),
+                                )
                             }
                         },
                     )
@@ -333,7 +333,7 @@ internal fun AssistantBasicContent(
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { temperature ->
                                 onUpdateAssistant { current -> current.copy(
                                         temperature = temperature,
-                                    ),
+                                    )
                                 }
                             }
                         },
@@ -356,7 +356,7 @@ internal fun AssistantBasicContent(
                         onCheckedChange = { enabled ->
                             onUpdateAssistant { current -> current.copy(
                                     topP = if (enabled) 1.0f else null,
-                                ),
+                                )
                             }
                         },
                     )
@@ -374,7 +374,7 @@ internal fun AssistantBasicContent(
                             value.toFloatOrNull()?.takeIf { it in 0f..1f }?.let { nextTopP ->
                                 onUpdateAssistant { current -> current.copy(
                                         topP = nextTopP,
-                                    ),
+                                    )
                                 }
                             }
                         },
@@ -397,7 +397,7 @@ internal fun AssistantBasicContent(
                         onCheckedChange = { enabled ->
                             onUpdateAssistant { current -> current.copy(
                                     frequencyPenalty = if (enabled) 0.5f else null,
-                                ),
+                                )
                             }
                         },
                     )
@@ -415,7 +415,7 @@ internal fun AssistantBasicContent(
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
                                 onUpdateAssistant { current -> current.copy(
                                         frequencyPenalty = next,
-                                    ),
+                                    )
                                 }
                             }
                         },
@@ -438,7 +438,7 @@ internal fun AssistantBasicContent(
                         onCheckedChange = { enabled ->
                             onUpdateAssistant { current -> current.copy(
                                     presencePenalty = if (enabled) 0.3f else null,
-                                ),
+                                )
                             }
                         },
                     )
@@ -456,7 +456,7 @@ internal fun AssistantBasicContent(
                             value.toFloatOrNull()?.takeIf { it in 0f..2f }?.let { next ->
                                 onUpdateAssistant { current -> current.copy(
                                         presencePenalty = next,
-                                    ),
+                                    )
                                 }
                             }
                         },
@@ -643,7 +643,7 @@ internal fun AssistantBasicContent(
                             }
                         onUpdateAssistant { current -> current.copy(
                                 maxTokens = tokens,
-                            ),
+                            )
                         }
                     },
                     modifier = Modifier.fillMaxWidth(),
@@ -667,7 +667,7 @@ internal fun AssistantBasicContent(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             useGradientBackground = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_gradient_background_desc)) },
@@ -685,7 +685,7 @@ internal fun AssistantBasicContent(
                         onUpdate = { background ->
                             onUpdateAssistant { current -> current.copy(
                                     background = background,
-                                ),
+                                )
                             }
                         },
                     )
@@ -711,7 +711,7 @@ internal fun AssistantBasicContent(
                         onValueChange = {
                             onUpdateAssistant { current -> current.copy(
                                     backgroundOpacity = it.toFixed(2).toFloatOrNull()?.coerceIn(0f, 1f) ?: 1.0f,
-                                ),
+                                )
                             }
                         },
                         valueRange = 0f..1f,

@@ -300,7 +300,7 @@ private fun MemorySettingsTab(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             enableMemory = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_memory_desc)) },
@@ -311,7 +311,7 @@ private fun MemorySettingsTab(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             useGlobalMemory = it,
-                        ),
+                        )
                     }
                 },
                 enabled = assistant.enableMemory,
@@ -323,7 +323,7 @@ private fun MemorySettingsTab(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             enableRecentChatsReference = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_recent_chats_desc)) },
@@ -337,7 +337,7 @@ private fun MemorySettingsTab(
                 onCheckedChange = {
                     onUpdateAssistant { current -> current.copy(
                             enableTimeReminder = it,
-                        ),
+                        )
                     }
                 },
                 supportingContent = { Text(stringResource(R.string.assistant_page_time_reminder_desc)) },

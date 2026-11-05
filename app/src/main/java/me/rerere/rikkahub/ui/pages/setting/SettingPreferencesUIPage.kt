@@ -101,7 +101,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             chatFontFamily = ChatFontFamily.CUSTOM,
                             chatCustomFontPath = importedFont.relativePath,
                             chatCustomFontName = importedFont.displayName,
-                        ),
+                        )
                     }
                     toaster.show(importSuccessMsg, type = ToastType.Success)
                 }.onFailure { error ->
@@ -291,7 +291,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                                                     chatFontFamily = ChatFontFamily.DEFAULT,
                                                     chatCustomFontPath = "",
                                                     chatCustomFontName = "",
-                                                ),
+                                                )
                                             }
                                         },
                                     ) {
