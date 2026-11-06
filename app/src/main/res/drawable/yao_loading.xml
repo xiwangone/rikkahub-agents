@@ -9,15 +9,21 @@
             android:viewportWidth="100"
             android:viewportHeight="100">
 
-            <!-- 外环（缺口环，旋转时形成流动感） -->
-            <path
-                android:name="ring"
-                android:pathData="M50,12 A38,38 0 1,1 49.9,12"
-                android:strokeColor="#333333"
-                android:strokeWidth="7"
-                android:strokeLineCap="round"
-                android:trimPathStart="0"
-                android:trimPathEnd="0.72" />
+            <!-- 外环（缺口环，旋转时形成流动感）：rotation 只能挂在 group 上；
+                 直接挂 path（FullPath）会抛 IllegalArgumentException（炸的是每次发消息） -->
+            <group
+                android:name="ring_group"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:name="ring"
+                    android:pathData="M50,12 A38,38 0 1,1 49.9,12"
+                    android:strokeColor="#333333"
+                    android:strokeWidth="7"
+                    android:strokeLineCap="round"
+                    android:trimPathStart="0"
+                    android:trimPathEnd="0.72" />
+            </group>
 
             <!-- 爻：左两短（阴）+ 右一长（阳），加粗放大，小尺寸仍可辨 -->
             <path
@@ -43,8 +49,8 @@
         </vector>
     </aapt:attr>
 
-    <!-- 环持续旋转（trimPath 缺口在转） -->
-    <target android:name="ring">
+    <!-- 环持续旋转（trimPath 缺口在转）——目标必须是 group（path 不支持 rotation） -->
+    <target android:name="ring_group">
         <aapt:attr name="android:animation">
             <objectAnimator
                 android:propertyName="rotation"
