@@ -1,0 +1,77 @@
+name: 应用版本号覆盖（可选）
+description: >-
+  仅本次构建生效、不写回仓库。留空则沿用仓库值。
+  versionCode 只做整数校验（可填任意值，包括与已发版同号，便于同号覆盖安装）；
+  versionName 只允许字母数字与 ._-（防止空格/斜杠/& 弄坏 sed 或 gradle）。
+
+inputs:
+  version_code:
+    description: '目标 versionCode（留空=仓库值）。⚠ 必须 ≥ 目标设备已装版本，否则会提示降级、装不上'
+    required: false
+    default: ''
+  version_name:
+    description: '目标 versionName（留空=仓库值）'
+    required: false
+    default: ''
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      env:
+        VC: ${{ inputs.version_code }}
+        VN: ${{ inputs.version_name }}
+      run: |
+        set -euo pipefail
+        if [ -z "$VC" ] && [ -z "$VN" ]; then
+          CUR_CODE="$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)"
+          CUR_NAME="$(awk -F'"' '/versionName = /{print $2; exit}' app/build.gradle.kts)"
+          echo "未指定版本覆盖，沿用仓库值（versionCode=$CUR_CODE, versionName=$CUR_NAME）"
+          {
+            echo "### 版本号：未覆盖（沿用仓库值）"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+            echo "| versionCode | **$CUR_CODE** |"
+            echo "| versionName | **$CUR_NAME** |"
+            echo ""
+            echo "> 如需为本次构建单独指定，重新运行时填 version_code / version_name。"
+          } >> "$GITHUB_STEP_SUMMARY"
+          exit 0
+        fi
+        test -f app/build.gradle.kts || { echo "::error::缺 app/build.gradle.kts"; exit 1; }
+
+        OLD_CODE="$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)"
+        OLD_NAME="$(awk -F'"' '/versionName = /{print $2; exit}' app/build.gradle.kts)"
+
+        if [ -n "$VC" ]; then
+          echo "$VC" | grep -Eq '^[0-9]+$' || { echo "::error::versionCode 必须为整数（收到『$VC』）"; exit 1; }
+          # 缩进放宽：不依赖固定的 8 空格，避免格式化后被静默跳过
+          sed -i -E "s/^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*[0-9]+[[:space:]]*$/        versionCode = $VC/" app/build.gradle.kts
+          # 落地校验：sed 无匹配时也返回 0，必须回读确认真的改到了
+          grep -qE "^[[:space:]]*versionCode[[:space:]]*=[[:space:]]*$VC[[:space:]]*$" app/build.gradle.kts \
+            || { echo "::error::versionCode 覆盖未生效（未匹配到 versionCode 行）"; exit 1; }
+        fi
+
+        if [ -n "$VN" ]; then
+          echo "$VN" | grep -Eq '^[0-9A-Za-z][0-9A-Za-z._-]{0,31}$' \
+            || { echo "::error::versionName 只允许字母数字与 ._-，长度 1-32（收到『$VN』）"; exit 1; }
+          # 用 \1 保留原缩进；替换串里不放 & \ 等特殊字符（已被上面的白名单挡住）
+          sed -i -E "s/^([[:space:]]*)versionName[[:space:]]*=[[:space:]]*\"[^\"]*\"/\1versionName = \"$VN\"/" app/build.gradle.kts
+          grep -qE "^[[:space:]]*versionName[[:space:]]*=[[:space:]]*\"$VN\"[[:space:]]*$" app/build.gradle.kts \
+            || { echo "::error::versionName 覆盖未生效"; exit 1; }
+        fi
+
+        FINAL_CODE="$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)"
+        FINAL_NAME="$(awk -F'"' '/versionName = /{print $2; exit}' app/build.gradle.kts)"
+        echo "版本覆盖完成：versionCode $OLD_CODE → $FINAL_CODE，versionName $OLD_NAME → $FINAL_NAME"
+        {
+          echo "### 版本覆盖（仅本次构建）"
+          echo ""
+          echo "| 项 | 仓库值 | 本次使用 |"
+          echo "|---|---|---|"
+          echo "| versionCode | $OLD_CODE | **$FINAL_CODE** |"
+          echo "| versionName | $OLD_NAME | **$FINAL_NAME** |"
+          echo ""
+          echo "> versionCode 必须 ≥ 目标设备已装版本；低于已装值会提示降级、装不上。"
+        } >> "$GITHUB_STEP_SUMMARY"

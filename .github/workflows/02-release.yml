@@ -13,6 +13,11 @@ on:
         required: false
         type: boolean
         default: true
+      version_code:
+        description: '可选：指定 versionCode（留空=当前值+1）。⚠ 填了必须大于当前值，因为发版会推 master'
+        required: false
+        type: string
+        default: ''
 
 permissions:
   contents: write
@@ -61,10 +66,21 @@ jobs:
       - name: 发版时 bump 版本号（versionName/versionCode → release_tag）
         # 仅发版模式执行：构建前把 versionName 设为输入 tag，versionCode 递增
         if: ${{ steps.ver.outputs.mode == 'release' }}
+        env:
+          VC_OVERRIDE: ${{ inputs.version_code }}
         run: |
           TAG="${{ steps.ver.outputs.tag }}"
           OLD_CODE=$(awk '/versionCode = /{print $3; exit}' app/build.gradle.kts)
-          NEW_CODE=$((OLD_CODE + 1))
+          if [ -n "${VC_OVERRIDE}" ]; then
+            echo "${VC_OVERRIDE}" | grep -Eq '^[0-9]+$' || { echo "::error::version_code 必须为整数"; exit 1; }
+            if [ "${VC_OVERRIDE}" -le "$OLD_CODE" ]; then
+              echo "::error::version_code 必须大于当前仓库值 $OLD_CODE（发版会推 master，降号会影响后续所有构建）"; exit 1
+            fi
+            NEW_CODE="${VC_OVERRIDE}"
+            echo "versionCode 使用手填值 $NEW_CODE（未自动 +1）"
+          else
+            NEW_CODE=$((OLD_CODE + 1))
+          fi
           sed -i "s/versionName = \"[^\"]*\"/versionName = \"$TAG\"/" app/build.gradle.kts
           sed -i "s/versionCode = $OLD_CODE/versionCode = $NEW_CODE/" app/build.gradle.kts
           echo "bump: versionName → $TAG, versionCode $OLD_CODE → $NEW_CODE"
