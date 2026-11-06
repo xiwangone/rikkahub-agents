@@ -257,6 +257,11 @@ internal fun summaryForContent(content: JsonElement?): String? {
         val body = (stdout ?: "").lineSequence().take(GENERIC_SUMMARY_MAX_LINES).joinToString("\n")
         return body.ifBlank { null }
     }
+    // ② 纯文本输出（如 web_fetch 的 text 模式）：整段就是正文 → 取前若干行，
+    //    否则摘要为空、详情只能把全文摊开（长页面会变成一大块无法折叠的文本）
+    content.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.length > 200 }?.let { plain ->
+        return plain.lineSequence().take(GENERIC_SUMMARY_MAX_LINES).joinToString("\n")
+    }
     val obj = content.jsonObjectOrNull ?: return null
     GENERIC_LIST_KEYS.forEach { key ->
         val arr = obj[key]?.let { runCatching { it.jsonArray }.getOrNull() } ?: return@forEach

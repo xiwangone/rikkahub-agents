@@ -52,6 +52,10 @@ object WebFetchToolUI : ToolUIRenderer {
     }
 
     private fun longText(content: JsonElement?): String? {
+        // 纯文本输出（text / raw 模式）整段就是正文：同样取前 8 行做摘要
+        content?.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.length > 200 }?.let { plain ->
+            return plain.lineSequence().take(8).joinToString("\n")
+        }
         val obj = content?.jsonObjectOrNull ?: return null
         val longest = obj.entries.mapNotNull { (_, v) ->
             v.jsonPrimitiveOrNull?.contentOrNull?.takeIf { it.length > 200 }
