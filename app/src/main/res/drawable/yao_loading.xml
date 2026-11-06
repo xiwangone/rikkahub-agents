@@ -1,7 +1,7 @@
 <animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt">
 
-    <!-- 静态图形：爻（左两短笔 = 阴，右一长笔 = 阳），运行时按主题色 tint -->
+    <!-- 环 + 爻：环提供外轮廓（小尺寸也认得出），爻符居中 -->
     <aapt:attr name="android:drawable">
         <vector
             android:width="128dp"
@@ -9,40 +9,60 @@
             android:viewportWidth="100"
             android:viewportHeight="100">
 
-            <!-- 左·阴 上笔 -->
+            <!-- 外环（缺口环，旋转时形成流动感） -->
+            <path
+                android:name="ring"
+                android:pathData="M50,12 A38,38 0 1,1 49.9,12"
+                android:strokeColor="#333333"
+                android:strokeWidth="7"
+                android:strokeLineCap="round"
+                android:trimPathStart="0"
+                android:trimPathEnd="0.72" />
+
+            <!-- 爻：左两短（阴）+ 右一长（阳），加粗放大，小尺寸仍可辨 -->
             <path
                 android:name="yin_top"
-                android:pathData="M37,29 L37,43"
+                android:pathData="M38,36 L38,46"
                 android:strokeColor="#333333"
-                android:strokeWidth="14"
+                android:strokeWidth="12"
                 android:strokeLineCap="round" />
 
-            <!-- 左·阴 下笔 -->
             <path
                 android:name="yin_bot"
-                android:pathData="M37,57 L37,71"
+                android:pathData="M38,54 L38,64"
                 android:strokeColor="#333333"
-                android:strokeWidth="14"
+                android:strokeWidth="12"
                 android:strokeLineCap="round" />
 
-            <!-- 右·阳 长笔 -->
             <path
                 android:name="yang"
-                android:pathData="M64,29 L64,71"
+                android:pathData="M62,36 L62,64"
                 android:strokeColor="#333333"
-                android:strokeWidth="14"
+                android:strokeWidth="12"
                 android:strokeLineCap="round" />
         </vector>
     </aapt:attr>
 
-    <!-- 动画：三笔依次淡入淡出，形成连续「书写—呼吸」的节拍 -->
+    <!-- 环持续旋转（trimPath 缺口在转） -->
+    <target android:name="ring">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:duration="1400"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:repeatCount="infinite" />
+        </aapt:attr>
+    </target>
+
+    <!-- 三笔依次呼吸 -->
     <target android:name="yin_top">
         <aapt:attr name="android:animation">
             <objectAnimator
                 android:propertyName="strokeAlpha"
                 android:duration="1200"
                 android:valueFrom="1.0"
-                android:valueTo="0.25"
+                android:valueTo="0.3"
                 android:repeatCount="infinite"
                 android:repeatMode="reverse"
                 android:startOffset="0" />
@@ -55,7 +75,7 @@
                 android:propertyName="strokeAlpha"
                 android:duration="1200"
                 android:valueFrom="1.0"
-                android:valueTo="0.25"
+                android:valueTo="0.3"
                 android:repeatCount="infinite"
                 android:repeatMode="reverse"
                 android:startOffset="400" />
@@ -68,7 +88,7 @@
                 android:propertyName="strokeAlpha"
                 android:duration="1200"
                 android:valueFrom="1.0"
-                android:valueTo="0.25"
+                android:valueTo="0.3"
                 android:repeatCount="infinite"
                 android:repeatMode="reverse"
                 android:startOffset="800" />

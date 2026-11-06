@@ -14,8 +14,9 @@ import me.rerere.rikkahub.data.tunnel.TunnelState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
@@ -401,111 +402,102 @@ internal fun TopBar(
             onUpdateTitle(it)
         }
 
-    TopAppBar(
-        colors = TopAppBarDefaults.topAppBarColors(containerColor = Color.Transparent),
-        navigationIcon = {
+    Surface(
+        color = CustomColors.topBarColors.containerColor,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .statusBarsPadding()
+                    .padding(start = 4.dp, end = 4.dp, top = 4.dp, bottom = 6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             if (!bigScreen) {
-                IconButton(
-                    onClick = {
-                        scope.launch { drawerState.open() }
-                    },
-                ) {
+                IconButton(onClick = { scope.launch { drawerState.open() } }) {
                     Icon(
                         imageVector = HugeIcons.Menu03,
                         contentDescription = stringResource(R.string.accessibility_messages),
                     )
                 }
             }
-        },
-        title = {
-            val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
-            Surface(
-                onClick = {
-                    if (conversation.messageNodes.isNotEmpty()) {
-                        titleState.open(conversation.title)
-                    } else {
-                        toaster.show(editTitleWarning, type = ToastType.Warning)
-                    }
-                },
-                color = Color.Transparent,
-            ) {
-                Column {
-                    val assistant = settings.resolveAssistantFor(conversation.assistantId)
-                    val model = settings.findChatModelFor(conversation.chatModelId, conversation.assistantId)
-                    val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
-                    Text(
-                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                        maxLines = 1,
-                        style = MaterialTheme.typography.bodyMedium,
-                        overflow = TextOverflow.Ellipsis,
-                    )
-                    // 助手名单独一行：与模型/提供商挤同一行时，助手名会把后两者挤成省略号
-                    Text(
-                        text = assistant.name.ifBlank {
-                            stringResource(
-                                R.string.assistant_page_default_assistant,
-                            )
+            Column(modifier = Modifier.weight(1f)) {
+                val editTitleWarning = stringResource(R.string.chat_page_edit_title_warning)
+                val assistant = settings.resolveAssistantFor(conversation.assistantId)
+                val model = settings.findChatModelFor(conversation.chatModelId, conversation.assistantId)
+                val provider = model?.findProvider(providers = settings.providers, checkOverwrite = false)
+
+                // 行 1：标题 + 操作图标（同一 Row，天然对齐）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Surface(
+                        onClick = {
+                            if (conversation.messageNodes.isNotEmpty()) {
+                                titleState.open(conversation.title)
+                            } else {
+                                toaster.show(editTitleWarning, type = ToastType.Warning)
+                            }
                         },
-                        overflow = TextOverflow.Ellipsis,
-                        maxLines = 1,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        style = MaterialTheme.typography.labelSmall,
-                    )
-                    if (model != null && provider != null) {
+                        color = Color.Transparent,
+                        modifier = Modifier.weight(1f),
+                    ) {
                         Text(
-                            text = "${model.displayName} (${providerDisplayName(provider)})",
-                            overflow = TextOverflow.Ellipsis,
+                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
                             maxLines = 1,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.labelSmall,
+                            overflow = TextOverflow.Ellipsis,
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    if (conversationModelOverride) {
+                        IconButton(onClick = onResetConversationModel) {
+                            Icon(
+                                imageVector = HugeIcons.ArrowTurnBackward,
+                                contentDescription = stringResource(R.string.chat_page_conversation_model_reset),
+                            )
+                        }
+                    }
+                    IconButton(onClick = { onClickMenu() }) {
+                        Icon(
+                            imageVector = if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
+                            contentDescription = stringResource(R.string.chat_page_history),
+                        )
+                    }
+                    IconButton(onClick = { onNewChat() }) {
+                        Icon(
+                            imageVector = HugeIcons.MessageAdd01,
+                            contentDescription = stringResource(R.string.chat_page_new_message),
                         )
                     }
                 }
-            }
-        },
-        actions = {
-            Column(
-                // 居中：徽标宽度小于图标行，居中对齐才不会贴到屏幕最右侧
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Row {
-            if (conversationModelOverride) {
-                IconButton(
-                    onClick = onResetConversationModel,
-                ) {
-                    Icon(
-                        imageVector = HugeIcons.ArrowTurnBackward,
-                        contentDescription = stringResource(R.string.chat_page_conversation_model_reset),
-                    )
-                }
-            }
-            IconButton(
-                onClick = {
-                    onClickMenu()
-                },
-            ) {
-                Icon(
-                    imageVector = if (previewMode) HugeIcons.Cancel01 else HugeIcons.LeftToRightListBullet,
-                    contentDescription = stringResource(R.string.chat_page_history),
-                )
-            }
 
-            IconButton(
-                onClick = {
-                    onNewChat()
-                },
-            ) {
-                Icon(
-                    imageVector = HugeIcons.MessageAdd01,
-                    contentDescription = stringResource(R.string.chat_page_new_message),
+                // 行 2：助手名
+                Text(
+                    text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.labelSmall,
                 )
-            }
+
+                // 行 3：模型名 + 隧道（同一 Row，天然对齐）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text =
+                            if (model != null && provider != null) {
+                                "${model.displayName} (${providerDisplayName(provider)})"
+                            } else {
+                                ""
+                            },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TopBarTunnelStatusBadge(settings = settings)
                 }
-                TopBarTunnelStatusBadge(settings = settings)
             }
-        },
-    )
+        }
+    }
     titleState.EditStateContent { title, onUpdate ->
         AlertDialog(
             onDismissRequest = {
