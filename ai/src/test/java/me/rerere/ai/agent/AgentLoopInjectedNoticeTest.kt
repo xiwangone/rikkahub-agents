@@ -77,7 +77,8 @@ class AgentLoopInjectedNoticeTest {
         // 注入过的提醒必须进入某一次请求，并因此多出一次生成
         assertEquals(2, providerCalls)
         assertTrue(requests[1].any { it.toText().contains("PROGRESS NOTICE") })
-        assertEquals("turn 2", (events.last() as AgentEvent.Finished).message.toText().trim())
+        // 同一条助手消息会累积多步文本（turn 1 + turn 2），只断言第二步确实发生
+        assertTrue((events.last() as AgentEvent.Finished).message.toText().contains("turn 2"))
     }
 
     @Test
