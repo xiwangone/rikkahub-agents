@@ -162,8 +162,9 @@ private const val MAX_CONTENT_BYTES = 12L * 1024 * 1024
 private const val MAX_REMOTE_BYTES = 10L * 1024 * 1024
 private const val REMOTE_TIMEOUT_SECONDS = 10L
 
-/** 单次请求所有媒体 base64 的总预算（约合 7.5 MB 原始），超出部分降级为占位。 */
-private const val TOTAL_BASE64_BUDGET = 10 * 1024 * 1024
+/** 单次请求所有媒体 base64 的总预算（约合 15 MB 原始）。本地图也会先压到长边 2048 + JPEG q85 再计入，
+ *  但仍设上限：历史消息里的图会累积进每次请求，不封顶会让请求体无限变大。 */
+private const val TOTAL_BASE64_BUDGET = 20 * 1024 * 1024
 
 /** 远程图片压缩参数（与 FileEncoder 的口径保持一致：2048 长边 + JPEG q85）。 */
 private const val REMOTE_MAX_DIMENSION = 2048
