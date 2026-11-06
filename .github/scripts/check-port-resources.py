@@ -17,7 +17,8 @@ LOCALES = ('values', 'values-zh', 'values-b+zh+Hant', 'values-ja', 'values-ko-rK
 REQUIRED = {
     'chain_of_thought_collapsed', 'chain_of_thought_expanded',
     'chain_of_thought_running', 'chain_of_thought_step_count',
-    'chat_nerd_latest_usage', 'chat_nerd_message_total',
+    # `chat_nerd_latest_usage` 已随用量卡改版删除（f551a4df5），代码零引用，不再作为必备键
+    'chat_nerd_message_total',
     'chat_nerd_model_request_count', 'tool_status_interrupted',
     'search_detail_tavily_include_answer', 'search_detail_tavily_include_answer_desc',
 }
