@@ -12,6 +12,16 @@ on:
         options:
           - release
         default: release
+      version_code:
+        description: '可选：覆盖 versionCode（留空=用仓库值，仅本次构建生效）'
+        required: false
+        default: ''
+        type: string
+      version_name:
+        description: '可选：覆盖 versionName（留空=用仓库值，仅本次构建生效）'
+        required: false
+        default: ''
+        type: string
 
 concurrency:
   group: build-release-${{ github.ref }}
@@ -36,6 +46,28 @@ jobs:
       - name: 记录本次待验证 ref 与精确提交（不改分支、不发布 Release）
         run: |
           printf 'ref=%s\ncommit=%s\nbuild_type=release\n' "$GITHUB_REF" "$(git rev-parse HEAD)" | tee build-ref.txt
+          cat build-ref.txt >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 应用版本覆盖（可选，仅本次构建生效，不写回仓库）
+        env:
+          VERSION_CODE_OVERRIDE: ${{ inputs.version_code }}
+          VERSION_NAME_OVERRIDE: ${{ inputs.version_name }}
+        run: |
+          set -euo pipefail
+          if [ -z "${VERSION_CODE_OVERRIDE}" ] && [ -z "${VERSION_NAME_OVERRIDE}" ]; then
+            echo "未指定版本覆盖，使用仓库值"
+            exit 0
+          fi
+          test -f app/build.gradle.kts
+          if [ -n "${VERSION_CODE_OVERRIDE}" ]; then
+            echo "${VERSION_CODE_OVERRIDE}" | grep -Eq '^[0-9]+$' || { echo "versionCode 必须为整数"; exit 1; }
+            sed -i -E "s/^        versionCode = [0-9]+\$/        versionCode = ${VERSION_CODE_OVERRIDE}/" app/build.gradle.kts
+          fi
+          if [ -n "${VERSION_NAME_OVERRIDE}" ]; then
+            sed -i -E "s/^        versionName = \"[^\"]*\"\$/        versionName = \"${VERSION_NAME_OVERRIDE}\"/" app/build.gradle.kts
+          fi
+          grep -nE '^        version(Code|Name) =' app/build.gradle.kts | tee -a build-ref.txt
+          printf 'version_code=%s\nversion_name=%s\n' "${VERSION_CODE_OVERRIDE:-repo}" "${VERSION_NAME_OVERRIDE:-repo}" >> build-ref.txt
           cat build-ref.txt >> "$GITHUB_STEP_SUMMARY"
 
       - name: 准备构建环境
