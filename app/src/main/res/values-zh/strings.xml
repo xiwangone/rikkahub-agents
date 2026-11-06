@@ -868,7 +868,6 @@
   <string name="setting_display_page_chat_font_family_custom">自定义</string>
   <string name="setting_display_page_chat_font_family_monospace">等宽字体</string>
   <string name="setting_display_page_chat_font_family_serif">衬线体</string>
-  <string name="ai_progress_report_notice">【进度提醒】你已经连续多步只在调用工具，没有告诉用户任何进展。下一次工具调用前，先用一句话说明已完成什么、还有什么在做，然后继续。</string>
   <string name="ai_wrap_up_notice">【时间预算提醒】本轮可用时间即将耗尽。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
   <string name="ai_token_budget_notice">【token 预算提醒】本轮已达该助手的预算上限。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
   <string name="assistant_page_token_budget">token 预算（按每次请求算）</string>

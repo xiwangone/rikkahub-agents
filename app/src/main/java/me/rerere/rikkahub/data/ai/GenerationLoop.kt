@@ -99,10 +99,6 @@ internal const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 // 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上
 internal const val WRAP_UP_GRACE_MS = 120_000L
 
-// 连续工具步数达到该值就注入一次进度提醒：避免一条回复里几十步全是工具调用、用户全程无反馈。
-// 提醒只要求「先说一句进展」，不清空工具，不结束本轮。
-internal const val PROGRESS_NOTICE_EVERY_STEPS = 10
-
 // 流式期间「输出变换 + 界面投递」的合并窗口由当前渲染档位给出（见 data/perf/RenderProfile.kt）：
 // 每个 token 都做一次全量变换，在长会话下开销随消息数增长。同一窗口内只保留最新快照，
 // 并在 step 边界与生成结束时强制补齐，最终结果与逐次变换一致（窗口为 0 即恢复逐次处理）。
