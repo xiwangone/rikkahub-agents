@@ -49,7 +49,7 @@ jobs:
       - name: 扫描依赖漏洞
         run: |
           set -o pipefail
-          ./osv-scanner scan -r . --format table 2>&1 | tee osv-scan.log
+          ./osv-scanner scan -r . --config osv-scanner.toml --format table 2>&1 | tee osv-scan.log
 
       - name: 上传扫描日志
         if: always()

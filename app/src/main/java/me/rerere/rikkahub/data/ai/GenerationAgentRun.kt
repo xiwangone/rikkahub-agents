@@ -122,6 +122,9 @@ internal class GenerationAgentRun(
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
 
+    /** 注入收尾提醒后是否已经放行过一次真能跑完的生成（注入≠生成完成） */
+    private var wrapUpGraceUsed = false
+
     /**
      * 预算耗尽后进入的收尾轮：不向模型挂任何工具，只能产出一段文字总结。
      * 否则模型可能在这一轮再次发起工具调用（长任务尤其容易），下一次步边界就被硬 Stop，
@@ -865,6 +868,14 @@ internal class GenerationAgentRun(
                     return StepDecision.Append(
                         UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
                     )
+                }
+                // 注入过 ≠ 已经生成完：注入那一步的请求可能刚发出就被下面这条 Stop 砍掉
+                // （注入那一步的请求可能刚发出就被取消，用户拿到的是一份没有收尾文字的回复）
+                // → 额外放行一次能真跑完的收尾生成
+                if (!wrapUpGraceUsed) {
+                    wrapUpGraceUsed = true
+                    AppLog.w(TAG, "generateText: budget exhausted; allowing one final wrap-up generation at step #${step.stepIndex}")
+                    return StepDecision.Continue
                 }
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #${step.stepIndex}; force-ending turn")
                 runCtx.abortReason = GenerationOutcome.TIMEOUT

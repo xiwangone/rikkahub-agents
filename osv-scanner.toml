@@ -1,0 +1,31 @@
+# osv-scanner 豁免清单（CI 的 security.yml 会读本文件）
+#
+# 用途：把「已知但当前无法/不必修复」的漏洞显式登记，避免整条安全扫描永远红。
+# 纪律：
+#   1) 每条必须有 reason（为什么修不了 / 为什么不受影响）；
+#   2) 必须写 ignoreUntil，到期后重新评估（osv-scanner 到期会自动恢复报告）；
+#   3) 真升级掉依赖后，**删掉对应条目**，别让豁免长期挂着。
+#
+# 背景：全部命中的都在 golib/tsnet（内嵌 tailscale 的 Go 库），
+# 修它们要动 go.mod 并重新用 gomobile bind 生成 libgojni.so（约 40MB 产物），
+# 属于「改依赖 + 重建原生库」的独立任务，不在本次发版范围内。
+
+[[IgnoredVulns]]
+id = "GO-2026-5932"
+ignoreUntil = 2027-02-28
+reason = "golang.org/x/crypto/openpgp 是“停止维护/设计上不安全”的告警，无修复版本；tsnet 不用 openpgp 功能，仅作为 x/crypto 的传递依赖存在。属不可修项。"
+
+[[IgnoredVulns]]
+id = "GO-2026-6865"
+ignoreUntil = 2027-02-28
+reason = "github.com/klauspost/compress 1.20.0 的 panic 问题，修复版 1.20.2。当前只需在 go.mod 提版本并重建 libgojni.so（gomobile bind），已列入后续任务；该解压路径在本地单机场景不触发。"
+
+[[IgnoredVulns]]
+id = "GO-2026-6860"
+ignoreUntil = 2027-02-28
+reason = "golang.org/x/net 0.61.0 的 HTML 解析二次复杂度问题，修复版 0.62.0。tsnet 内嵌库不使用 HTML 解析路径；升级同样需重建 libgojni.so，列入后续任务。"
+
+[[IgnoredVulns]]
+id = "GO-2026-6866"
+ignoreUntil = 2027-02-28
+reason = "golang.org/x/net 0.61.0 的 raw text 命名空间渲染问题，修复版 0.62.0。同上：不触及该代码路径，升级随 libgojni.so 重建一并处理。"
