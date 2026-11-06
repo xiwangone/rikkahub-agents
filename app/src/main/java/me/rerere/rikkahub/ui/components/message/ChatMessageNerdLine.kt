@@ -22,7 +22,6 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -75,7 +74,6 @@ import kotlinx.datetime.toJavaLocalDateTime
 import me.rerere.ai.ui.UIMessage
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
-import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.DashboardSquare01
 import me.rerere.rikkahub.R

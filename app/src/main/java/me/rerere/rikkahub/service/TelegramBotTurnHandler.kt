@@ -50,11 +50,6 @@ import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_BURST
 import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_INTERVAL_MS
 import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_MIN_GAP_MS
 import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_PLACEHOLDER
-import me.rerere.rikkahub.service.TelegramBotService.Companion.PARSE_MODE_HTML
-import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_BURST_THRESHOLD_CHARS
-import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_INTERVAL_MS
-import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_EDIT_MIN_GAP_MS
-import me.rerere.rikkahub.service.TelegramBotService.Companion.STREAM_PLACEHOLDER
 import me.rerere.rikkahub.service.TelegramBotService.Companion.TAG
 
 internal suspend fun TelegramBotService.handleIncoming(
