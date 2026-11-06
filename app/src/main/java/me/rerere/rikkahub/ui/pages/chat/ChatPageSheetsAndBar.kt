@@ -465,7 +465,8 @@ internal fun TopBar(
         },
         actions = {
             Column(
-                horizontalAlignment = Alignment.End,
+                // 居中：徽标宽度小于图标行，居中对齐才不会贴到屏幕最右侧
+                horizontalAlignment = Alignment.CenterHorizontally,
                 verticalArrangement = Arrangement.Center,
             ) {
                 Row {
