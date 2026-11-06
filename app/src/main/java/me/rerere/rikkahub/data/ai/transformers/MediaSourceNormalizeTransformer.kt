@@ -162,8 +162,8 @@ private const val MAX_CONTENT_BYTES = 12L * 1024 * 1024
 private const val MAX_REMOTE_BYTES = 10L * 1024 * 1024
 private const val REMOTE_TIMEOUT_SECONDS = 10L
 
-/** 单次请求所有媒体 base64 的总预算（约合 4.5 MB 原始），超出部分降级为占位。 */
-private const val TOTAL_BASE64_BUDGET = 6 * 1024 * 1024
+/** 单次请求所有媒体 base64 的总预算（约合 7.5 MB 原始），超出部分降级为占位。 */
+private const val TOTAL_BASE64_BUDGET = 10 * 1024 * 1024
 
 /** 远程图片压缩参数（与 FileEncoder 的口径保持一致：2048 长边 + JPEG q85）。 */
 private const val REMOTE_MAX_DIMENSION = 2048
@@ -172,7 +172,10 @@ private const val REMOTE_JPEG_QUALITY = 85
 private const val UNAVAILABLE = "[Attachment unavailable: could not read its data on the device]"
 private const val TOO_LARGE = "[Attachment omitted: exceeds the size limit for inline sending]"
 private const val BLOCKED_HOST = "[Attachment omitted: remote host is not allowed]"
-private const val OVER_BUDGET = "[Attachment omitted: request media budget exceeded]"
+private const val OVER_BUDGET =
+    "[Attachment omitted: this request's total media size exceeded the limit (~10 MB after encoding). " +
+        "Tell the user to free space by clearing old images in Settings → Storage, or by deleting " +
+        "earlier messages containing images in this chat, then send again. Do not claim the file was received.]"
 
 private fun isMediaPart(part: UIMessagePart): Boolean =
     part is UIMessagePart.Image || part is UIMessagePart.Video || part is UIMessagePart.Audio
