@@ -69,7 +69,13 @@ internal fun ChatService.dispatchNextQueuedMessageImpl(
         if (pendingToolExists) {
             if (active != null && active.isActive) {
                 AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (job active)")
-                scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
+                // 工具在等用户批准时，job 结束后的重试必然落到下面的 finalizing 分支（把所有
+                // Pending 改成 Denied）→ 用户侧表现为「没做任何操作就被拒绝」。
+                // 因此只有队列里确实还有待发消息（用户想继续发）时才调度重试；
+                // 空队列时什么都不做，让用户的「批准」动作自己续跑。
+                if (queue.size > 0) {
+                    scheduleQueueDispatchAfter(active, appScope) { dispatchNextQueuedMessage(conversationId) }
+                }
                 return
             }
             // 本轮已无活跃生成者：悬挂工具不会再有执行者，先定案再重判。

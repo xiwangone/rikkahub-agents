@@ -58,7 +58,6 @@ import me.rerere.rikkahub.ui.components.ui.logoMorphShape
 import me.rerere.rikkahub.ui.components.ui.rememberAppLogoLayers
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
-import me.rerere.rikkahub.utils.SoundEffectPlayer
 import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.plus
 
@@ -68,14 +67,6 @@ fun SettingAboutPage() {
     val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val context = LocalContext.current
     val navController = LocalNavController.current
-    val soundOptions = remember { listOf(R.raw.bingbingbing, R.raw.gangguan) }
-    val soundEffectPlayer = remember(context) { SoundEffectPlayer(context) }
-    DisposableEffect(soundEffectPlayer) {
-        soundEffectPlayer.preload(*soundOptions.toIntArray())
-        onDispose {
-            soundEffectPlayer.release()
-        }
-    }
     val logoLayers = rememberAppLogoLayers()
     val logoContentDescription = stringResource(R.string.accessibility_app_logo)
     val emojiOptions =
@@ -160,13 +151,12 @@ fun SettingAboutPage() {
                                         indication = LocalIndication.current,
                                     ) {
                                         onBurst(logoCenterPx)
-                                        soundEffectPlayer.play(soundOptions.random())
                                         shapeIndex++
                                     }.drawAppLogo(logoLayers),
                         )
 
                         Text(
-                            text = "RikkaHub Agents",
+                            text = stringResource(R.string.app_name),
                             style =
                                 MaterialTheme.typography.headlineLargeEmphasized.copy(
                                     fontWeight = FontWeight.Black,
