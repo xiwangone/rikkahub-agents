@@ -727,6 +727,7 @@
   <string name="setting_display_page_chat_font_family_default">預設</string>
   <string name="setting_display_page_chat_font_family_monospace">等寬字體</string>
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
+  <string name="ai_progress_report_notice">【進度提醒】你已經連續多步只在呼叫工具，沒有告訴使用者任何進展。下一次工具呼叫前，先用一句話說明已完成什麼、還有什麼在做，然後繼續。</string>
   <string name="ai_wrap_up_notice">【時間預算提醒】本輪可用時間即將耗盡。請停止發起新的工具呼叫，結束正在進行的工作，並簡要總結已完成的內容與剩餘事項。</string>
   <string name="ai_auto_continue_prompt">【自動續寫】你上一則回覆在中途被截斷。請從中斷處繼續，不要重複已寫過的內容，把回覆寫完。</string>
   <string name="notification_channel_scheduled_jobs">定時任務</string>

@@ -737,6 +737,7 @@
   <string name="setting_display_page_chat_font_family_default">기본</string>
   <string name="setting_display_page_chat_font_family_monospace">고정폭</string>
   <string name="setting_display_page_chat_font_family_serif">명조체</string>
+  <string name="ai_progress_report_notice">【진행 알림】여러 단계 동안 도구 호출만 계속하고 사용자에게 아무것도 알리지 않았습니다. 다음 도구 호출 전에 완료된 일과 진행 중인 일을 한 문장으로 알린 뒤 계속하세요.</string>
   <string name="ai_wrap_up_notice">【시간 예산 알림】이번 턴의 실행 시간이 곧 한계에 도달합니다. 새로운 도구 호출을 시작하지 말고, 진행 중인 작업을 마무리한 뒤 완료된 내용과 남은 작업을 간단히 요약하세요.</string>
   <string name="ai_auto_continue_prompt">【자동 이어쓰기】이전 답변이 중간에 끊겼습니다. 끊긴 지점부터 이어서 작성하고, 이미 쓴 내용을 반복하지 말고 답변을 끝까지 완성하세요.</string>
   <string name="notification_channel_scheduled_jobs">예약 작업</string>

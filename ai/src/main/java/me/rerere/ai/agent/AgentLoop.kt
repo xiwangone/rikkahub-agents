@@ -69,10 +69,16 @@ internal class AgentLoop(
     suspend fun run() {
         while (true) {
             var reissueStep = false
+            // 步前注入了新消息（预算/进度提醒等）：即便当前没有待执行工具，也要再生成一步。
+            // 否则注入的提醒只进历史、不产生请求，用户看到的就是「提醒之后直接断」。
+            var appended = false
             when (val decision = hooks.beforeStep(stepContext())) {
                 StepDecision.Continue -> Unit
 
-                is StepDecision.Append -> history.add(decision.message)
+                is StepDecision.Append -> {
+                    history.add(decision.message)
+                    appended = true
+                }
                 is StepDecision.Replace -> applyHistory(decision.messages)
                 is StepDecision.RetryCurrentStep -> {
                     decision.inject?.let { history.add(it) }
@@ -91,13 +97,20 @@ internal class AgentLoop(
                 // Queue injection is only useful if this run can issue another model request.
                 // Otherwise leave queued input for the caller's normal turn-end dispatch.
                 if (steps < request.maxSteps) hooks.afterToolExecution(stepContext())
-            } else if (!reissueStep && current != null && steps > 0) {
+            } else if (!reissueStep && canFinishTurn(current, steps, appended)) {
                 return finish(AgentFinishReason.Completed)
             }
             if (steps >= request.maxSteps) return finish(AgentFinishReason.StepLimitReached)
             steps += generateStep()
         }
     }
+
+    /**
+     * 是否可以就地收尾：有上一条助手消息、已至少发出过一次请求，且本步没有新注入的消息。
+     * 注入过消息（[StepDecision.Append]）时必须再生成一步，否则提醒永远不会进入模型请求。
+     */
+    private fun canFinishTurn(current: UIMessage?, steps: Int, appended: Boolean): Boolean =
+        current != null && steps > 0 && !appended
 
     /** 换掉权威历史；末尾是助手消息时它仍是本轮正在积累的助手消息 */
     private fun applyHistory(messages: List<UIMessage>) {

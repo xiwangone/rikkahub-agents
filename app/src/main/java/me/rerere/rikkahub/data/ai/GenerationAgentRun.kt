@@ -122,6 +122,9 @@ internal class GenerationAgentRun(
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
 
+    /** 上次注入进度提醒时的步号（每 PROGRESS_NOTICE_EVERY_STEPS 步提醒一次对用户汇报） */
+    private var lastProgressNoticeStep = 0
+
     /**
      * 预算耗尽后进入的收尾轮：不向模型挂任何工具，只能产出一段文字总结。
      * 否则模型可能在这一轮再次发起工具调用（长任务尤其容易），下一次步边界就被硬 Stop，
@@ -869,6 +872,18 @@ internal class GenerationAgentRun(
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #${step.stepIndex}; force-ending turn")
                 runCtx.abortReason = GenerationOutcome.TIMEOUT
                 return StepDecision.Stop(AgentFinishReason.BudgetExhausted(AgentFinishReason.Kind.WALL_CLOCK))
+            }
+            // 进度汇报：连续多步只调工具、没对用户说话时提醒一句（不清空工具，不结束本轮）
+            if (step.stepIndex - lastProgressNoticeStep >= PROGRESS_NOTICE_EVERY_STEPS) {
+                lastProgressNoticeStep = step.stepIndex
+                AppLog.i(
+                    TAG,
+                    "generateText: ${step.stepIndex} steps without a user-facing report; injecting progress reminder",
+                )
+                messages += UIMessage.user(context.getString(R.string.ai_progress_report_notice)).copy(isSynthetic = true)
+                return StepDecision.Append(
+                    UIMessage.user(context.getString(R.string.ai_progress_report_notice)).copy(isSynthetic = true),
+                )
             }
             if (assistant.tokenBudgetSoftCap != null || assistant.tokenBudgetHardCap != null) {
                 val budgetStatus = TokenBudgetTracker.classify(
