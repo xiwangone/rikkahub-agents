@@ -5,11 +5,12 @@ on:
     branches: [master]
     paths-ignore:
       - 'docs/**'
-      - '*.md'
+      - '**.md'
       - '.github/workflows/*.yml'
       - '.github/dependabot.yml'
       - '.github/scripts/**'
       - '.github/ISSUE_TEMPLATE/**'
+      - '.github/release-notes/**'
   pull_request:
   workflow_dispatch:
 

@@ -9,6 +9,8 @@ on:
     paths-ignore:
       - '**.md'
       - 'docs/**'
+      # 文档/CI 自身文件改了不会影响 APK 产物，不必出包
+      - '.github/**'
   workflow_dispatch:
 
 concurrency:
