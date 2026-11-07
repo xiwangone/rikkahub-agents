@@ -394,15 +394,15 @@ class LocalTools(
         tools.add(batchMoveTool())
         tools.add(batchDeleteTool())
     },
-    ToolEntry(LocalToolOption.McpControl) { tools, _ ->
-        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListTool(settingsStore, mcpManager))
-        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpGetTool(settingsStore, mcpManager))
-        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpAddTool(settingsStore, mcpManager))
+    ToolEntry(LocalToolOption.McpControl) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListTool(settingsStore, mcpManager, invocationContext))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpGetTool(settingsStore, mcpManager, invocationContext))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpAddTool(settingsStore, mcpManager, invocationContext))
         tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpUpdateTool(settingsStore, mcpManager))
         tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpDeleteTool(settingsStore, mcpManager))
         tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetEnabledTool(settingsStore, mcpManager))
         tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpTestTool(settingsStore, mcpManager))
-        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListToolsTool(settingsStore, mcpManager))
+        tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpListToolsTool(settingsStore, mcpManager, invocationContext))
         tools.add(me.rerere.rikkahub.data.ai.mcp.control.mcpSetToolApprovalTool(settingsStore))
     },
     ToolEntry(LocalToolOption.ExternalAutomation) { tools, _ ->
@@ -431,8 +431,8 @@ class LocalTools(
         tools.add(me.rerere.rikkahub.subagent.subagentGetTool(subAgentRegistry))
         tools.add(me.rerere.rikkahub.subagent.subagentCancelTool(subAgentRegistry))
     },
-    ToolEntry(LocalToolOption.CostGuards) { tools, _ ->
-        tools.add(me.rerere.rikkahub.costguards.checkTokenUsageTool(settingsStore, conversationRepo))
+    ToolEntry(LocalToolOption.CostGuards) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.costguards.checkTokenUsageTool(settingsStore, conversationRepo, invocationContext))
         // L4 observability: measure the assembled tool surface (size, ordering, hash).
         // Registered after the other cost-guard tools; the lambda is read at execute()
         // time, by which point the whole list — this tool included — has been built.

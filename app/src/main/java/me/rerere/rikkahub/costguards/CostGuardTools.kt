@@ -11,7 +11,8 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import kotlin.uuid.Uuid
 
@@ -43,6 +44,7 @@ private fun errEnv(
 fun checkTokenUsageTool(
     settingsStore: SettingsStore,
     conversationRepo: ConversationRepository,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool =
     Tool(
         name = "check_token_usage",
@@ -74,18 +76,20 @@ fun checkTokenUsageTool(
             val params = args.jsonObject
             val rawConvId = params["conversation_id"]?.jsonPrimitive?.contentOrNull
             val settings = settingsStore.settingsFlow.first()
-            val assistant = settings.getCurrentAssistant()
-            val convId = rawConvId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+            val explicitConvId = rawConvId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+            val targetConvId = explicitConvId ?: invocationContext.callerConversationId
+            val fallbackAssistant = settings.resolveAssistantFor(invocationContext.callerAssistantId)
             val conv =
-                if (convId != null) {
-                    conversationRepo.getConversationById(convId)
+                if (targetConvId != null) {
+                    conversationRepo.getConversationById(targetConvId)
                 } else {
-                    // No conversation specified: pick the most recent for this assistant.
-                    conversationRepo.getRecentConversations(assistant.id, 1).firstOrNull()
+                    // No conversation specified: pick the most recent for the calling assistant.
+                    conversationRepo.getRecentConversations(fallbackAssistant.id, 1).firstOrNull()
                 } ?: return@Tool errEnv(
                     "no_conversation",
                     "no conversation found to compute token usage against",
                 )
+            val assistant = settings.resolveAssistantFor(conv.assistantId ?: invocationContext.callerAssistantId)
             val snapshot =
                 TokenBudgetTracker.snapshot(
                     conversation = conv,

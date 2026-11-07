@@ -3,7 +3,9 @@ package me.rerere.rikkahub.ui.pages.setting.doctor
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.subagent.SubAgentProfile
+import org.junit.Assert.assertFalse
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -153,5 +155,45 @@ class DoctorChecksRefreshTest {
     @Test fun `user-added skill is never flagged regardless of hash mismatch`() {
         val entries = listOf(SkillSeedEntry("my-skill", isBundled = false, storedHash = null, currentHash = "def"))
         assertTrue(staleSeedSkillNames(entries).isEmpty())
+    }
+
+    // ----- assistantModelBindingStatus (assistant.model_binding) -------------------------
+
+    @Test fun `assistant binding with valid assistant model resolves cleanly`() {
+        val assistant = Assistant(name = "Coder", chatModelId = chatModel.id)
+        val status =
+            assistantModelBindingStatus(
+                assistants = listOf(assistant),
+                currentAssistantId = assistant.id,
+                globalChatModelId = chatModel.id,
+                providers = providers,
+            )
+        assertFalse(status.hasBrokenBindings)
+        assertEquals("OpenAI/GPT-4o", status.effectiveModelLabel)
+        assertEquals("assistant_default", status.source)
+    }
+
+    @Test fun `assistant binding with dangling model uuid flags assistant name`() {
+        val danglingAssistant = Assistant(name = "BrokenBot", chatModelId = Uuid.random())
+        val status =
+            assistantModelBindingStatus(
+                assistants = listOf(danglingAssistant),
+                currentAssistantId = danglingAssistant.id,
+                globalChatModelId = chatModel.id,
+                providers = providers,
+            )
+        assertTrue(status.hasBrokenBindings)
+        assertEquals(listOf("BrokenBot"), status.brokenAssistants)
+    }
+
+    @Test fun `degradedProviderCredentialStatus flags only degraded providers`() {
+        val healthy = ProviderSetting.OpenAI(name = "HealthyOpenAI", apiKey = "sk-ok")
+        val degraded =
+            ProviderSetting.OpenAI(name = "BrokenVaultOpenAI", apiKey = "")
+                .withDegradedSecrets(mapOf("apiKey" to "enc:v1:corrupted"))
+        val status = degradedProviderCredentialStatus(listOf(healthy, degraded))
+        assertEquals(2, status.totalProviders)
+        assertTrue(status.hasDegraded)
+        assertEquals(listOf("BrokenVaultOpenAI"), status.degradedProviderNames)
     }
 }

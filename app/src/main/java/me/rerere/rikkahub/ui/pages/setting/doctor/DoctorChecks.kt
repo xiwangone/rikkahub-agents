@@ -708,6 +708,7 @@ class DoctorChecks(
                         fix = FixAction.OpenAppRoute(R.string.doctor_assistant_05, AppRouteKey.Assistant),
                     ),
                 )
+                addAll(buildAssistantModelChecks(settings))
 
                 // Row 3: Telegram-bot assistant override (if set)
                 val tg = telegramPrefs.current()

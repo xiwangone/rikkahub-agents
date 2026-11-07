@@ -65,6 +65,21 @@ internal suspend fun DoctorChecks.networkChecks(): List<DoctorCheck> =
                         fix = FixAction.OpenAppRoute(R.string.doctor_net_02, AppRouteKey.SettingProvider),
                     ),
                 )
+                val credStatus = degradedProviderCredentialStatus(provs)
+                if (credStatus.hasDegraded) {
+                    add(
+                        DoctorCheck(
+                            id = "net.provider_credentials",
+                            category = DoctorCategory.Network,
+                            labelRes = R.string.doctor_net_01,
+                            detail =
+                                "凭据解密失败已触发坏值保护（原密文保留在磁盘未覆盖）：" +
+                                    credStatus.degradedProviderNames.joinToString(", "),
+                            severity = Severity.WARN,
+                            fix = FixAction.OpenAppRoute(R.string.doctor_net_02, AppRouteKey.SettingProvider),
+                        ),
+                    )
+                }
             }
             // LiteRT accelerator status. The runtime's GPU -> CPU fallback is silent today:
             // if the device's OpenCL/OpenGL delegate fails to init (e.g. MLDrift's
@@ -806,3 +821,115 @@ internal data class SkillSeedEntry(
 
 internal fun staleSeedSkillNames(entries: List<SkillSeedEntry>): List<String> =
     entries.filter { it.isBundled && it.storedHash != it.currentHash }.map { it.name }
+
+
+internal data class AssistantModelBindingStatus(
+    val effectiveModelLabel: String?,
+    val source: String,
+    val brokenAssistants: List<String>,
+    val globalModelDangling: Boolean,
+) {
+    val hasBrokenBindings: Boolean
+        get() = globalModelDangling || brokenAssistants.isNotEmpty()
+}
+
+internal fun assistantModelBindingStatus(
+    assistants: List<me.rerere.rikkahub.data.model.Assistant>,
+    currentAssistantId: kotlin.uuid.Uuid,
+    globalChatModelId: kotlin.uuid.Uuid,
+    providers: List<ProviderSetting>,
+): AssistantModelBindingStatus {
+    val enabledModelsById =
+        providers
+            .filter { it.enabled }
+            .flatMap { p ->
+                p.models.map { m ->
+                    m.id to "${p.name}/${m.displayName.ifBlank { m.modelId }}"
+                }
+            }.toMap()
+    val brokenAssistants =
+        assistants
+            .filter { a ->
+                val modelId = a.chatModelId ?: return@filter false
+                modelId !in enabledModelsById
+            }.map { a -> a.name.ifBlank { a.id.toString().take(8) } }
+    val hasAnyConfiguredModels = providers.any { it.models.isNotEmpty() }
+    val globalDangling = hasAnyConfiguredModels && globalChatModelId !in enabledModelsById
+    val defaultAssistant =
+        assistants.firstOrNull { it.id == currentAssistantId } ?: assistants.firstOrNull()
+    val assistantModelId = defaultAssistant?.chatModelId
+    val (effectiveLabel, source) =
+        if (assistantModelId != null) {
+            enabledModelsById[assistantModelId] to "assistant_default"
+        } else {
+            enabledModelsById[globalChatModelId] to "global_default"
+        }
+    return AssistantModelBindingStatus(
+        effectiveModelLabel = effectiveLabel,
+        source = source,
+        brokenAssistants = brokenAssistants,
+        globalModelDangling = globalDangling && assistantModelId == null,
+    )
+}
+
+internal data class DegradedProviderCredentialStatus(
+    val totalProviders: Int,
+    val degradedProviderNames: List<String>,
+) {
+    val hasDegraded: Boolean
+        get() = degradedProviderNames.isNotEmpty()
+}
+
+internal fun degradedProviderCredentialStatus(
+    providers: List<ProviderSetting>,
+): DegradedProviderCredentialStatus =
+    DegradedProviderCredentialStatus(
+        totalProviders = providers.size,
+        degradedProviderNames =
+            providers
+                .filter { it.isCredentialDegraded }
+                .map { it.name.ifBlank { it.id.toString().take(8) } },
+    )
+
+internal fun DoctorChecks.buildAssistantModelChecks(
+    settings: me.rerere.rikkahub.data.datastore.Settings,
+): List<DoctorCheck> =
+    buildList {
+        val status =
+            assistantModelBindingStatus(
+                assistants = settings.assistants,
+                currentAssistantId = settings.assistantId,
+                globalChatModelId = settings.chatModelId,
+                providers = settings.providers,
+            )
+        val detail =
+            if (status.hasBrokenBindings) {
+                val brokenSummary =
+                    buildList {
+                        if (status.brokenAssistants.isNotEmpty()) {
+                            add("助手=${status.brokenAssistants.joinToString(", ")}")
+                        }
+                        if (status.globalModelDangling) {
+                            add("全局默认模型悬空")
+                        }
+                    }.joinToString("；")
+                "默认模型=${status.effectiveModelLabel ?: "未解析"} (${status.source})；悬空/未启用模型绑定：$brokenSummary"
+            } else {
+                "默认模型=${status.effectiveModelLabel ?: "未配置"} (${status.source})"
+            }
+        add(
+            DoctorCheck(
+                id = "assistant.model_binding",
+                category = DoctorCategory.AssistantInfo,
+                labelRes = R.string.doctor_assistant_01,
+                detail = detail,
+                severity = if (status.hasBrokenBindings) Severity.WARN else Severity.OK,
+                fix =
+                    if (status.hasBrokenBindings) {
+                        FixAction.OpenAppRoute(R.string.doctor_assistant_05, AppRouteKey.Assistant)
+                    } else {
+                        null
+                    },
+            ),
+        )
+    }

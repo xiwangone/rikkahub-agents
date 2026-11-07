@@ -27,7 +27,8 @@ import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.data.ai.mcp.McpTool
 import me.rerere.rikkahub.data.ai.mcp.buildMcpToolName
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.model.Assistant
 import kotlin.uuid.Uuid
 
@@ -265,7 +266,11 @@ internal fun classifyMcpError(message: String): Pair<String, String> {
 
 /** ---------- Tool factories ---------- */
 
-fun mcpListTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
+fun mcpListTool(
+    settingsStore: SettingsStore,
+    manager: McpManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Tool = Tool(
     name = "mcp_list",
     description = """
         List all configured MCP servers with their connection status and tool counts. Read-only.
@@ -284,7 +289,7 @@ fun mcpListTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
         // matches what actually gets dispatched. Not-enabled servers stay in the listing —
         // this is the diagnostic that makes "connected + listed but zero callable tools"
         // visible instead of a silent gap.
-        val assistantServerIds = settings.getCurrentAssistant().mcpServers
+        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers
         val arr = buildJsonArray {
             servers.forEach { config ->
                 add(
@@ -298,7 +303,11 @@ fun mcpListTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
     },
 )
 
-fun mcpGetTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
+fun mcpGetTool(
+    settingsStore: SettingsStore,
+    manager: McpManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Tool = Tool(
     name = "mcp_get",
     description = """
         Return the full configuration of a single MCP server by id, including its redacted
@@ -325,7 +334,8 @@ fun mcpGetTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
             ?: return@Tool errEnv("unknown_mcp_server_id", "no MCP server registered with id $serverId")
         val status = manager.syncingStatus.value[serverId]
         // #88: same resolution as mcp_list / McpManager.getAllAvailableTools().
-        val enabledForAssistant = isEnabledForAssistant(serverId, settings.getCurrentAssistant().mcpServers)
+        val enabledForAssistant =
+            isEnabledForAssistant(serverId, settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers)
         val toolList = buildJsonArray {
             config.commonOptions.tools.forEach { tool ->
                 addJsonObject {
@@ -347,7 +357,11 @@ fun mcpGetTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
     },
 )
 
-fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
+fun mcpAddTool(
+    settingsStore: SettingsStore,
+    manager: McpManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Tool = Tool(
     name = "mcp_add",
     description = """
         Add a new MCP server. Pass transport="sse" or "streamable_http", a unique name (≤60
@@ -454,7 +468,7 @@ fun mcpAddTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
                 mcpServers = old.mcpServers + config,
                 assistants = addServerToCallingAssistant(
                     assistants = old.assistants,
-                    callingAssistantId = old.getCurrentAssistant().id,
+                    callingAssistantId = old.resolveAssistantFor(invocationContext.callerAssistantId).id,
                     newServerId = newId,
                 ),
             )
@@ -714,7 +728,11 @@ fun mcpTestTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
     },
 )
 
-fun mcpListToolsTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
+fun mcpListToolsTool(
+    settingsStore: SettingsStore,
+    manager: McpManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Tool = Tool(
     name = "mcp_list_tools",
     description = """
         List the MCP tools exposed by one server (when id is provided), or aggregated across
@@ -750,7 +768,7 @@ fun mcpListToolsTool(settingsStore: SettingsStore, manager: McpManager): Tool = 
         // #88: same resolution as mcp_list / McpManager.getAllAvailableTools(). Not-enabled
         // servers stay in the listing (kept above, unchanged) — this only adds the flag so
         // the gap is diagnosable rather than filtering it away.
-        val assistantServerIds = settings.getCurrentAssistant().mcpServers
+        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers
         val arr = buildJsonArray {
             for (server in targets) {
                 val enabledForAssistant = isEnabledForAssistant(server.id, assistantServerIds)

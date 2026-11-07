@@ -14,7 +14,8 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import java.io.File
 
 // Whisper model paths that whisper-cli checks by default, in preference order.
@@ -364,7 +365,11 @@ private suspend fun findWhisperModelViaShell(context: Context): String? {
  * The LLM should call this FIRST when the user sends an audio file or asks for
  * transcription.
  */
-fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = Tool(
+fun whisperStatusTool(
+    context: Context,
+    settingsStore: SettingsStore,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Tool = Tool(
     name = "whisper_status",
     description = """
         Check whisper.cpp transcription readiness (Termux enabled, app reachable,
@@ -379,7 +384,7 @@ fun whisperStatusTool(context: Context, settingsStore: SettingsStore): Tool = To
         val missingSteps = mutableListOf<String>()
 
         // 1. Is Termux enabled in this assistant's local tools?
-        val assistant = settingsStore.settingsFlow.value.getCurrentAssistant()
+        val assistant = settingsStore.settingsFlow.value.resolveAssistantFor(invocationContext.callerAssistantId)
         val termuxEnabledInAssistant = assistant.localTools.contains(LocalToolOption.Termux)
         if (!termuxEnabledInAssistant) missingSteps.add("enable_termux_toggle")
 
