@@ -357,69 +357,71 @@ fun mcpGetTool(
     },
 )
 
+private val MCP_ADD_PARAMETERS: InputSchema = InputSchema.Obj(
+        properties = buildJsonObject {
+            put("transport", buildJsonObject {
+                put("type", "string")
+                put("description", "Either 'sse' or 'streamable_http'. Stdio is intentionally unsupported.")
+            })
+            put("name", buildJsonObject {
+                put("type", "string")
+                put("description", "Human-readable name shown to the user. Must be unique among existing servers (case-insensitive). Max 60 chars.")
+            })
+            put("url", buildJsonObject {
+                put("type", "string")
+                put("description", "http:// or https:// URL of the MCP endpoint. Other schemes are rejected.")
+            })
+            put("enabled", buildJsonObject {
+                put("type", "boolean")
+                put("description", "Whether the server is enabled on creation. Defaults to true.")
+            })
+            put("headers", buildJsonObject {
+                put("type", "array")
+                put("description", "Optional HTTP headers as [{name, value}, ...]. Max 32 entries.")
+                put("items", buildJsonObject {
+                    put("type", "object")
+                    put("properties", buildJsonObject {
+                        put("name", buildJsonObject { put("type", "string") })
+                        put("value", buildJsonObject { put("type", "string") })
+                    })
+                    put("required", buildJsonArray { add("name"); add("value") })
+                })
+            })
+            put("connect_timeout_seconds", buildJsonObject {
+                put("type", "integer")
+                put("description", "How long to wait for the first sync. Default 15, max 60.")
+            })
+        },
+        required = listOf("transport", "name", "url"),
+)
+
+private val MCP_ADD_DESCRIPTION = """
+    Add a new MCP server. Pass transport="sse" or "streamable_http", a unique name (≤60
+    chars), an http(s) url, optional enabled (default true), and optional headers as a
+    list of {name, value} pairs (max 32 entries; sensitive values like Authorization or
+    X-Api-Key are redacted in display layers but stored verbatim).
+
+    After registering, the tool waits up to connect_timeout_seconds (default 15, max 60)
+    for the first sync to complete and returns the resulting status. If still CONNECTING
+    when the timeout elapses, poll with mcp_test.
+
+    Typical flow: install your MCP server in Termux or on a remote box, expose it over
+    HTTP/SSE (e.g. via mcp-proxy), then mcp_add with the URL. Loopback URLs (localhost,
+    127.x.x.x, ::1) are accepted only in interactive contexts — scheduled jobs and other
+    headless callers cannot wire up loopback servers.
+
+    "Always Allow" is INTENTIONALLY not offered for this tool — a hostile MCP server can
+    exfiltrate everything the assistant has access to, so each install is per-call confirmed.
+""".trimIndent()
+
 fun mcpAddTool(
     settingsStore: SettingsStore,
     manager: McpManager,
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool = Tool(
     name = "mcp_add",
-    description = """
-        Add a new MCP server. Pass transport="sse" or "streamable_http", a unique name (≤60
-        chars), an http(s) url, optional enabled (default true), and optional headers as a
-        list of {name, value} pairs (max 32 entries; sensitive values like Authorization or
-        X-Api-Key are redacted in display layers but stored verbatim).
-
-        After registering, the tool waits up to connect_timeout_seconds (default 15, max 60)
-        for the first sync to complete and returns the resulting status. If still CONNECTING
-        when the timeout elapses, poll with mcp_test.
-
-        Typical flow: install your MCP server in Termux or on a remote box, expose it over
-        HTTP/SSE (e.g. via mcp-proxy), then mcp_add with the URL. Loopback URLs (localhost,
-        127.x.x.x, ::1) are accepted only in interactive contexts — scheduled jobs and other
-        headless callers cannot wire up loopback servers.
-
-        "Always Allow" is INTENTIONALLY not offered for this tool — a hostile MCP server can
-        exfiltrate everything the assistant has access to, so each install is per-call confirmed.
-    """.trimIndent(),
-    parameters = {
-        InputSchema.Obj(
-            properties = buildJsonObject {
-                put("transport", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Either 'sse' or 'streamable_http'. Stdio is intentionally unsupported.")
-                })
-                put("name", buildJsonObject {
-                    put("type", "string")
-                    put("description", "Human-readable name shown to the user. Must be unique among existing servers (case-insensitive). Max 60 chars.")
-                })
-                put("url", buildJsonObject {
-                    put("type", "string")
-                    put("description", "http:// or https:// URL of the MCP endpoint. Other schemes are rejected.")
-                })
-                put("enabled", buildJsonObject {
-                    put("type", "boolean")
-                    put("description", "Whether the server is enabled on creation. Defaults to true.")
-                })
-                put("headers", buildJsonObject {
-                    put("type", "array")
-                    put("description", "Optional HTTP headers as [{name, value}, ...]. Max 32 entries.")
-                    put("items", buildJsonObject {
-                        put("type", "object")
-                        put("properties", buildJsonObject {
-                            put("name", buildJsonObject { put("type", "string") })
-                            put("value", buildJsonObject { put("type", "string") })
-                        })
-                        put("required", buildJsonArray { add("name"); add("value") })
-                    })
-                })
-                put("connect_timeout_seconds", buildJsonObject {
-                    put("type", "integer")
-                    put("description", "How long to wait for the first sync. Default 15, max 60.")
-                })
-            },
-            required = listOf("transport", "name", "url"),
-        )
-    },
+    description = MCP_ADD_DESCRIPTION,
+    parameters = { MCP_ADD_PARAMETERS },
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject

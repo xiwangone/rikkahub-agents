@@ -20,6 +20,9 @@ import me.rerere.rikkahub.data.crypto.KeystoreAesKey
  * - 整包密文（历史及尚未拆分字段的配置项）：`Base64(IV(12B) + AES-GCM ciphertext)`
  * - 字段级密文（`providers` 内敏感字段）：`enc:v1:Base64(IV(12B) + AES-GCM ciphertext)`
  */
+// 加密入口与 degraded 状态管理天然聚合（同一份缓存/同一把密钥），拆到别的对象只会把状态散到多处；
+// 函数数保持在 11 个已是这条链路的自然下限，故对 TooManyFunctions 显式豁免。
+@Suppress("TooManyFunctions")
 internal object ProviderCredentialCipher {
 
     const val ENC_V1_PREFIX = "enc:v1:"
@@ -172,13 +175,6 @@ internal object ProviderCredentialCipher {
         }
     }
 
-    fun degradedFieldsForOwner(ownerId: String): List<String> {
-        val prefix = "$ownerId|"
-        return degradedFieldsBySlot.keys
-            .filter { it.startsWith(prefix) }
-            .map { it.removePrefix(prefix) }
-            .sorted()
-    }
 
     fun clearDegradedStateForTest() {
         degradedFieldsBySlot.clear()

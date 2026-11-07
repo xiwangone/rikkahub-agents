@@ -97,4 +97,26 @@ class AppDiagnosticsStatePayloadsTest {
     fun `label returns null for a null uuid`() {
         assertNull(modelLabel(settingsWith(Assistant()), null))
     }
+
+    @Test
+    fun `dangling conversation model uuid stays visible as unresolved`() {
+        val assistant = Assistant(chatModelId = assistantModel.id, allowPerConversationModel = true)
+        val dangling = Uuid.random()
+
+        val scope = resolveModelScope(settingsWith(assistant), dangling, assistant.id)
+
+        assertEquals(dangling, scope.modelId)
+        assertEquals("unresolved", scope.source)
+    }
+
+    @Test
+    fun `dangling assistant default stays visible as unresolved`() {
+        val dangling = Uuid.random()
+        val assistant = Assistant(chatModelId = dangling, allowPerConversationModel = true)
+
+        val scope = resolveModelScope(settingsWith(assistant), null, assistant.id)
+
+        assertEquals(dangling, scope.modelId)
+        assertEquals("unresolved", scope.source)
+    }
 }

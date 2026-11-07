@@ -431,7 +431,7 @@ internal suspend fun generationPayload(
         put("conversation_id", conversation.id.toString())
         put("conversation_title", conversation.title)
         put("assistant", conversationAssistant.name)
-        put("model", effectiveModelId?.let { modelLabel(settings, it) ?: it.toString() } ?: "unresolved")
+        put("model", effectiveModelId?.let { id -> modelLabel(settings, id) ?: "unresolved:$id" } ?: "unresolved")
         put("model_id", effectiveModelId?.toString()?.let { JsonPrimitive(it) } ?: JsonNull)
         put("model_source", scope.source)
         put(
@@ -489,14 +489,19 @@ internal fun resolveModelScope(
 ): ModelScope {
     val assistant = settings.resolveAssistantFor(conversationAssistantId)
     val perConversation = conversationChatModelId?.takeIf { assistant.allowPerConversationModel }
+    val configuredId = perConversation ?: assistant.chatModelId ?: settings.chatModelId
+    val resolvedId = settings.findChatModelFor(conversationChatModelId, conversationAssistantId)?.id
+    // UUID 悬空（模型被删 / 提供商被移除）：findChatModelFor 返回 null，但配置值还在 ——
+    // 保留 configuredId 并把来源标成 unresolved，否则调用方只能看到一个空值，无从判断是「没配」还是「配了但已失效」。
     val source = when {
+        resolvedId == null -> "unresolved"
         perConversation != null -> "conversation"
         assistant.chatModelId != null -> "assistant"
         else -> "global"
     }
     return ModelScope(
         assistant = assistant,
-        modelId = settings.findChatModelFor(conversationChatModelId, conversationAssistantId)?.id,
+        modelId = resolvedId ?: configuredId,
         source = source,
     )
 }

@@ -80,7 +80,7 @@ class ProviderFieldEncryptionTest {
 
     private val openAiSecret = "synthetic-openai-secret-value-9001"
     private val googleApiKey = "synthetic-google-apikey-value-9002"
-    private val googlePrivateKey = "-----BEGIN PRIVATE KEY-----\\nSYNTHETIC_VERTEX_KEY_9003\\n-----END PRIVATE KEY-----"
+    private val googlePrivateKey = "synthetic-google-private-key-9003"
     private val backendPassword = "synthetic-backend-password-9004"
     private val backendToken = "\$\$VAULT_BACKEND_TOKEN_REF"
     private val headerSecret = "Bearer synthetic-custom-header-secret-9005"

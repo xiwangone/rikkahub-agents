@@ -82,36 +82,32 @@ internal fun isAlreadyFieldEncryptedProvidersJson(
     return providers.all { provider -> !hasPlaintextSecretOnDisk(trimmed, provider) }
 }
 
-private fun hasPlaintextSecretOnDisk(diskJson: String, provider: ProviderSetting): Boolean {
-    fun isUnencryptedPlainSecret(v: String): Boolean =
-        v.isNotEmpty() &&
-            !v.startsWith(ProviderCredentialCipher.ENC_V1_PREFIX) &&
-            !v.startsWith(VAULT_REF_PREFIX)
+private fun hasPlaintextSecretOnDisk(diskJson: String, provider: ProviderSetting): Boolean =
+    provider.plainSecretValues().any { plain -> diskJson.contains(JsonInstant.encodeToString(plain)) }
 
-    val secrets = mutableListOf<String>()
-    when (provider) {
-        is ProviderSetting.OpenAI -> if (isUnencryptedPlainSecret(provider.apiKey)) secrets += provider.apiKey
-        is ProviderSetting.Google -> {
-            if (isUnencryptedPlainSecret(provider.apiKey)) secrets += provider.apiKey
-            if (isUnencryptedPlainSecret(provider.privateKey)) secrets += provider.privateKey
+/** 该 provider 内仍以裸明文存在的凭据值（`enc:v1:` 密文与 `$$` 引用都不算）。 */
+private fun ProviderSetting.plainSecretValues(): List<String> = buildList {
+    fun addIfPlain(v: String) {
+        if (v.isNotEmpty() && !v.startsWith(ProviderCredentialCipher.ENC_V1_PREFIX) && !v.startsWith(VAULT_REF_PREFIX)) {
+            add(v)
         }
-        is ProviderSetting.Claude -> if (isUnencryptedPlainSecret(provider.apiKey)) secrets += provider.apiKey
+    }
+    when (this@plainSecretValues) {
+        is ProviderSetting.OpenAI -> addIfPlain(apiKey)
+        is ProviderSetting.Google -> {
+            addIfPlain(apiKey)
+            addIfPlain(privateKey)
+        }
+        is ProviderSetting.Claude -> addIfPlain(apiKey)
         is ProviderSetting.Backend -> {
-            if (isUnencryptedPlainSecret(provider.password)) secrets += provider.password
-            if (isUnencryptedPlainSecret(provider.token)) secrets += provider.token
-            if (isUnencryptedPlainSecret(provider.webBridgePassword)) secrets += provider.webBridgePassword
+            addIfPlain(password)
+            addIfPlain(token)
+            addIfPlain(webBridgePassword)
         }
         else -> Unit
     }
-    provider.customHeaders.forEach { h ->
-        if (isUnencryptedPlainSecret(h.value)) secrets += h.value
-    }
-    provider.models.forEach { m ->
-        m.customHeaders.forEach { h ->
-            if (isUnencryptedPlainSecret(h.value)) secrets += h.value
-        }
-    }
-    return secrets.any { plain -> diskJson.contains(JsonInstant.encodeToString(plain)) }
+    customHeaders.forEach { addIfPlain(it.value) }
+    models.forEach { m -> m.customHeaders.forEach { addIfPlain(it.value) } }
 }
 
 /**
