@@ -447,7 +447,10 @@ fun ChatInput(
 
                                 // Reasoning
                                 val model = settings.findChatModelFor(conversationModelId, conversationAssistantId)
-                                if (model?.abilities?.contains(ModelAbility.REASONING) == true) {
+                                // 模型信息来自异步加载的设置：首帧 model 可能为 null。
+                                // 此时若不渲染，冷启动会看到该图标「稍后突然出现」（闪一下）。
+                                // 改为「未确认不支持就渲染」，保持位置稳定；确认不支持时才隐藏。
+                                if (model?.abilities?.contains(ModelAbility.REASONING) != false) {
                                     ReasoningButton(
                                         reasoningLevel = assistant.reasoningLevel,
                                         onUpdateReasoningLevel = {
