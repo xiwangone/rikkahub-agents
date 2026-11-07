@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.ai
 
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.interaction.PressInteraction
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -36,6 +37,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.DpSize
 import androidx.compose.ui.unit.dp
 import androidx.graphics.shapes.RoundedPolygon
+import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.hugeicons.HugeIcons
@@ -113,8 +115,25 @@ fun ReasoningPicker(
     val hapticFeedback = LocalHapticFeedback.current
     val previewLevel = levels[sliderState.value.roundToInt().coerceIn(0, levelCount - 1)]
 
+    // 拖动中不回写外部档位；松手后由档位变化自然同步。
+    // 此处刻意**不在** Release 回调里强行写 sliderState：那个回调闭包捕获的是组合时的
+    // currentIndex，拖动期间已过期，强写会把滑块拉回旧档位。
+    var isDragging by remember { mutableStateOf(false) }
+
     LaunchedEffect(currentIndex) {
-        sliderState.value = currentIndex.toFloat()
+        if (!isDragging && sliderState.value.roundToInt() != currentIndex) {
+            sliderState.value = currentIndex.toFloat()
+        }
+    }
+
+    // 用交互源跟踪拖动状态：拖动期间手上的位置是权威值，外部档位不得插回。
+    LaunchedEffect(interactionSource) {
+        interactionSource.interactions.collect { interaction ->
+            when (interaction) {
+                is PressInteraction.Press -> isDragging = true
+                is PressInteraction.Release, is PressInteraction.Cancel -> isDragging = false
+            }
+        }
     }
 
     LaunchedEffect(sliderState) {
@@ -185,12 +204,15 @@ fun ReasoningPicker(
         }
     }
 
+    // 只在**跨过整数刻度**时提交：拖动中每帧写外部、随即被外部回写会把滑块拉回手指位置之外，
+    // 表现为「循环滑动 + 卡顿」。按整数位去重后，一次拖动最多提交档位数次。
     LaunchedEffect(sliderState) {
-        snapshotFlow { sliderState.value }
-            .collect { value ->
-                val snappedIndex = value.roundToInt().coerceIn(0, levelCount - 1)
-                if (levels[snappedIndex] != reasoningLevel) {
-                    onUpdateReasoningLevel(levels[snappedIndex])
+        snapshotFlow { sliderState.value.roundToInt() }
+            .distinctUntilChanged()
+            .collect { snapped ->
+                val index = snapped.coerceIn(0, levelCount - 1)
+                if (levels[index] != reasoningLevel) {
+                    onUpdateReasoningLevel(levels[index])
                 }
             }
     }

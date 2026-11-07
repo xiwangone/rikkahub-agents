@@ -19,7 +19,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -34,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cpu
 import me.rerere.rikkahub.R
@@ -75,7 +75,7 @@ fun SettingUsageStatsPage() {
     val context = LocalContext.current
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var range by rememberSaveable { mutableStateOf(UsageRange.ALL_TIME) }
-    val revision by GenerationRunTracker.revision.collectAsState()
+    val revision by GenerationRunTracker.revision.collectAsStateWithLifecycle()
     val stats = remember(range, revision) { GenerationRunTracker.snapshot(context).rangeStats(range) }
 
     Scaffold(

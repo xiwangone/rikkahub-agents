@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.datastore
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.search.SearchServiceOptions
 import org.junit.Assert.assertEquals
-import org.junit.Assert.fail
 import org.junit.Test
 
 class SettingsDecodeTest {
@@ -18,13 +17,14 @@ class SettingsDecodeTest {
     }
 
     @Test
-    fun `malformed present setting fails instead of returning a default`() {
-        try {
-            decodePersistedSetting("not-json", emptyList<String>())
-            fail("Malformed persisted data must not silently become a default")
-        } catch (_: IllegalArgumentException) {
-            // Expected: the caller surfaces this as a failed initialization.
-        }
+    fun `malformed present setting falls back to default instead of failing the whole load`() {
+        // 设计变更（对应 #11：单个坏键曾导致启动崩溃循环、且用户进不去设置页自救）：
+        // 解析失败时不再抛出，而是逐项回退默认值；磁盘上的原始坏值**不会被覆盖**（仍可事后诊断）。
+        // 取舍：以「可启动 + 其余设置保留」换「静默降级」，因此失败必须记 ERROR 级日志。
+        assertEquals(
+            emptyList<String>(),
+            decodePersistedSetting("not-json", emptyList<String>()),
+        )
     }
 
     /**

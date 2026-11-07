@@ -18,7 +18,6 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,6 +26,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.asr.ASRProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Delete01
@@ -56,8 +56,8 @@ internal fun TTSProviderItem(
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
     val tts = LocalTTSState.current
-    val isSpeaking by tts.isSpeaking.collectAsState()
-    val isAvailable by tts.isAvailable.collectAsState()
+    val isSpeaking by tts.isSpeaking.collectAsStateWithLifecycle()
+    val isAvailable by tts.isAvailable.collectAsStateWithLifecycle()
 
     Card(
         modifier = modifier,

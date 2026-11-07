@@ -124,13 +124,15 @@ class BackendSseClient(
                         Thread {
                             runCatching {
                                 if (statusLoader?.invoke()?.pendingPrompt == true) {
-                                    destination.tryEmit(
+                                    val notice =
                                         SseEvent(
                                             kind = "notice",
                                             text = "服务端仍在等待应答（审批 / 提问）：请在通知栏处理，或重启服务后重试",
                                             level = "warn",
-                                        ),
-                                    )
+                                        )
+                                    if (!destination.tryEmit(notice)) {
+                                        android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=notice）")
+                                    }
                                 }
                             }
                         }.start()
@@ -249,7 +251,9 @@ class BackendSseClient(
                 }
             }
         if (!textDiff.isNullOrEmpty()) {
-            destination.tryEmit(SseEvent(kind = "text", text = textDiff))
+            if (!destination.tryEmit(SseEvent(kind = "text", text = textDiff))) {
+                android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=text, len=" + textDiff.length + "）")
+            }
         }
 
         val reasoningDiff =
@@ -262,7 +266,9 @@ class BackendSseClient(
                 }
             }
         if (!reasoningDiff.isNullOrEmpty()) {
-            destination.tryEmit(SseEvent(kind = "reasoning", reasoning = reasoningDiff))
+            if (!destination.tryEmit(SseEvent(kind = "reasoning", reasoning = reasoningDiff))) {
+                android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=reasoning, len=" + reasoningDiff.length + "）")
+            }
         }
     }
 

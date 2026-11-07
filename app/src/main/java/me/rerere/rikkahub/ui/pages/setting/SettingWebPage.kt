@@ -17,7 +17,6 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -49,7 +48,7 @@ fun SettingWebPage() {
     val webServerManager: WebServerManager = koinInject()
     val webBridge: BackendWebBridge = koinInject()
     val serverState by webServerManager.state.collectAsStateWithLifecycle()
-    val bridgeState by webBridge.state.collectAsState()
+    val bridgeState by webBridge.state.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val navController = LocalNavController.current
 

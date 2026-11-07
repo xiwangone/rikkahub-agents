@@ -448,6 +448,9 @@ internal fun ChatService.regenerateAtMessageImpl(
                     _generationDoneFlow.emit(conversationId)
                 } catch (e: CancellationException) {
                     throw e
+                } catch (e: CancellationException) {
+                    // 取消不是失败：吞掉会让「停止生成」变成一条错误提示。
+                    throw e
                 } catch (e: Exception) {
                     addError(e, conversationId, title = str(R.string.error_title_regenerate_message))
                 } finally {

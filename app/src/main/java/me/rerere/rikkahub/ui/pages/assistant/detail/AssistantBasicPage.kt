@@ -24,6 +24,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
@@ -282,12 +283,16 @@ internal fun AssistantBasicContent(
                     }
                 },
             ) {
+                // 拖动中只改本地 draft、松手才落库：原来每帧写一次设置，写入风暴 + 回写跳动。
+                var timeoutDraft by remember(assistant.streamIdleTimeoutMs) {
+                    mutableFloatStateOf((assistant.streamIdleTimeoutMs / 1000L).toFloat())
+                }
                 Slider(
-                    value = (assistant.streamIdleTimeoutMs / 1000L).toFloat(),
-                    onValueChange = { v ->
-                        onUpdateAssistant { current -> current.copy(
-                                streamIdleTimeoutMs = v.roundToInt().toLong() * 1000L,
-                            )
+                    value = timeoutDraft,
+                    onValueChange = { timeoutDraft = it },
+                    onValueChangeFinished = {
+                        onUpdateAssistant { current ->
+                            current.copy(streamIdleTimeoutMs = timeoutDraft.roundToInt().toLong() * 1000L)
                         }
                     },
                     valueRange = 0f..300f,
@@ -706,13 +711,14 @@ internal fun AssistantBasicContent(
                         )
                     },
                 ) {
+                    var opacityDraft by remember(backgroundOpacity) { mutableFloatStateOf(backgroundOpacity) }
                     Slider(
-                        value = backgroundOpacity,
+                        value = opacityDraft,
                         onValueChange = {
-                            onUpdateAssistant { current -> current.copy(
-                                    backgroundOpacity = it.toFixed(2).toFloatOrNull()?.coerceIn(0f, 1f) ?: 1.0f,
-                                )
-                            }
+                            opacityDraft = it.toFixed(2).toFloatOrNull()?.coerceIn(0f, 1f) ?: 1.0f
+                        },
+                        onValueChangeFinished = {
+                            onUpdateAssistant { current -> current.copy(backgroundOpacity = opacityDraft) }
                         },
                         valueRange = 0f..1f,
                         steps = 19,

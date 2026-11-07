@@ -113,6 +113,8 @@ class BackendWebBridge(
     }
 
     /** 建立反向隧道：本地 Web 端口 → 远端的 remoteTunnelPort */
+    // 隧道建立涉及多层错误分支，复杂度已达阈值（与仓内既有先例同口径）。
+    @Suppress("CyclomaticComplexMethod")
     private suspend fun connectTunnel(
         ecsHost: String,
         ecsPort: Int,
@@ -201,6 +203,9 @@ class BackendWebBridge(
             session.setPortForwardingR("", remoteTunnelPort, "127.0.0.1", localWebPort)
             AppLog.i(TAG, "SSH reverse tunnel established: remote:$remoteTunnelPort -> local:$localWebPort")
             true
+        } catch (e: CancellationException) {
+            // 取消不能当成「隧道失败」：否则切页/退出会把状态改成失败且不可恢复。
+            throw e
         } catch (e: Exception) {
             AppLog.e(TAG, "SSH tunnel failed", e)
             _state.value = _state.value.copy(message = context.getString(R.string.web_bridge_tunnel_failed, e.message))

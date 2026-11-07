@@ -5,13 +5,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
 import org.koin.compose.koinInject
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -60,7 +60,7 @@ internal fun BackendApprovalCard(
 ) {
     val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = org.koin.compose.koinInject()
     // 与通知栏状态同步：曾列入待办、现已不在集合 → 说明已在别处（通知栏）处理
-    val pendingIds by notifier.pendingIds.collectAsState()
+    val pendingIds by notifier.pendingIds.collectAsStateWithLifecycle()
     var everPending by remember(requestId) { mutableStateOf(false) }
     LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true }
     val approveDone = stringResource(R.string.backend_approval_approved)
@@ -145,7 +145,7 @@ internal fun BackendAskCard(
     onToolAnswer: ((toolCallId: String, answer: String) -> Unit)?,
 ) {
     val notifier: me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier = koinInject()
-    val pendingIds by notifier.pendingIds.collectAsState()
+    val pendingIds by notifier.pendingIds.collectAsStateWithLifecycle()
     var everPending by remember(requestId) { mutableStateOf(false) }
     LaunchedEffect(pendingIds) { if (requestId in pendingIds) everPending = true }
     var submitted by remember(requestId) { mutableStateOf(false) }
