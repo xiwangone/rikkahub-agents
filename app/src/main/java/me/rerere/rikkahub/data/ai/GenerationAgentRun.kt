@@ -851,9 +851,8 @@ internal class GenerationAgentRun(
                 wrapUpInjected = true
                 wrapUpTerminalStep = true
                 AppLog.w(TAG, "generateText: turn budget nearly exhausted (${remainingBudgetMs}ms left); injecting wrap-up reminder")
-                messages += UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
                 return StepDecision.Append(
-                    UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
+                    UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
                 )
             }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
@@ -864,9 +863,8 @@ internal class GenerationAgentRun(
                     wrapUpInjected = true
                     wrapUpTerminalStep = true
                     AppLog.w(TAG, "generateText: turn budget exhausted at step #${step.stepIndex}; injecting wrap-up reminder for a final reply")
-                    messages += UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
                     return StepDecision.Append(
-                        UIMessage.user(context.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
+                        UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
                     )
                 }
                 // 注入过 ≠ 已经生成完：注入那一步的请求可能刚发出就被下面这条 Stop 砍掉
@@ -893,9 +891,8 @@ internal class GenerationAgentRun(
                     (overSoft || overHard) && !tokenBudgetWarnInjected -> {
                         tokenBudgetWarnInjected = true
                         AppLog.w(TAG, "generateText: token budget crossed (overHard=$overHard); injecting wrap-up reminder")
-                        messages += UIMessage.user(context.getString(R.string.ai_token_budget_notice)).copy(isSynthetic = true)
                         return StepDecision.Append(
-                            UIMessage.user(context.getString(R.string.ai_token_budget_notice)).copy(isSynthetic = true),
+                            UIMessage.system(context.resources.getString(R.string.ai_token_budget_notice)).copy(isSynthetic = true),
                         )
                     }
 
@@ -918,7 +915,7 @@ internal class GenerationAgentRun(
                     TAG,
                     "generateText: reply ended without finish reason; auto-continuing ($autoContinueCount/$MAX_AUTO_CONTINUE)",
                 )
-                val prompt = UIMessage.user(context.getString(R.string.ai_auto_continue_prompt)).copy(isSynthetic = true)
+                val prompt = UIMessage.user(context.resources.getString(R.string.ai_auto_continue_prompt)).copy(isSynthetic = true)
                 messages += prompt
                 return StepDecision.RetryCurrentStep(inject = prompt)
             }
@@ -959,10 +956,37 @@ internal class GenerationAgentRun(
         if (!hasCompletedTool) return
         outputTransformCache.clear()
         flushPendingOutput()
+        attachTurnBudgetHint()
         onAfterToolExecution(messages)?.let { compactedMessages ->
             AppLog.i(TAG, "generateText: replacing request history after tool execution")
             messages = compactedMessages
         }
+    }
+
+    /**
+     * 工具使用预算：接近上限时把收尾指令附到**最后一次工具结果**里。
+     *
+     * 为什么不往会话里插一条消息：预算是工具执行侧的约束，插成 user/system 消息会让 UI 多出一个气泡，
+     * 观感像「被打断」；放进工具结果则模型照常看得到，且只出现在工具卡片内部。
+     * 与 [beforeStep] 的注入共用 [wrapUpInjected] 去重：先到先走，整轮只提醒一次。
+     */
+    private fun attachTurnBudgetHint() {
+        if (wrapUpInjected) return
+        val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
+        if (ToolRuntimeLimits.turnBudgetMs - elapsedMs > WRAP_UP_GRACE_MS) return
+        wrapUpInjected = true
+        wrapUpTerminalStep = true
+        val hint = UIMessagePart.Text(context.resources.getString(R.string.ai_wrap_up_notice))
+        messages = messages.mapIndexed { index, message ->
+            if (index != messages.lastIndex) return@mapIndexed message
+            val parts = message.parts.toMutableList()
+            val toolIndex = parts.indexOfLast { it is UIMessagePart.Tool && it.isExecuted }
+            if (toolIndex < 0) return@mapIndexed message
+            val tool = parts[toolIndex] as UIMessagePart.Tool
+            parts[toolIndex] = tool.copy(output = tool.output + hint)
+            message.copy(parts = parts)
+        }
+        AppLog.w(TAG, "generateText: turn budget nearly exhausted; hint attached to the last tool result")
     }
 
     /** 一步生成结束：可视化变换 + 收尾变换 + 断流判定 */
