@@ -76,7 +76,6 @@ class ExternalAutomationActivity : Activity() {
         } else {
             null
         }
-            ?: if (android.os.Build.VERSION.SDK_INT >= 34) launchedFromPackage else null
 
     private suspend fun handleAction(
         action: String?,

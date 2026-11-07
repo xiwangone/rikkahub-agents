@@ -59,9 +59,6 @@ fun ChatService.translateMessage(
                 saveConversation(conversationId, getConversationFlow(conversationId).value)
             } catch (e: CancellationException) {
                 throw e
-            } catch (e: CancellationException) {
-                // 取消不是失败：否则用户中断会弹「翻译失败」。
-                throw e
             } catch (e: Exception) {
                 // Clear translation field on error
                 clearTranslationField(conversationId, message.id)
