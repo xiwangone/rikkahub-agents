@@ -128,11 +128,17 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         request: Request
     ): Request {
         return if (providerSetting.vertexAI && providerSetting.useServiceAccount) {
+            val rawPrivateKey = providerSetting.privateKey.trim()
+            if (rawPrivateKey.startsWith("enc:v1:")) {
+                throw IllegalStateException(
+                    "Google Vertex AI service account privateKey is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the private key in Settings.",
+                )
+            }
             val accessToken = serviceAccountTokenProvider.fetchAccessToken(
                 serviceAccountEmail = providerSetting.serviceAccountEmail.trim(),
                 // 支持写成 `$$凭证名`：由上层注入的解析器换取真值（未注入时原样）
                 privateKeyPem = ProviderKeyRefs.expand(
-                    StringEscapeUtils.unescapeJson(providerSetting.privateKey.trim()),
+                    StringEscapeUtils.unescapeJson(rawPrivateKey),
                 ),
             )
             request.newBuilder()

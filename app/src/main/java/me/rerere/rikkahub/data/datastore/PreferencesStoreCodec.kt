@@ -57,7 +57,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.NETWORK_SETTING
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.OCR_LOCAL_ENABLED
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.OCR_MODEL
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.OCR_PROMPT
-import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.PROVIDERS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.QUICK_MESSAGES
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.RESPONSE_STREAM_MAX_RETRIES
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.S3_CONFIG
@@ -314,9 +313,7 @@ internal suspend fun persistSettingsTo(
         ) {
             JsonInstant.encodeToString(it)
         }
-        preferences.putEncryptedIfChanged(PROVIDERS, previous, previous?.providers, settings.providers) {
-            JsonInstant.encodeToString(it)
-        }
+        preferences.putProvidersFieldEncryptedIfChanged(previous, previous?.providers, settings.providers)
         preferences.putJsonIfChanged(
             DELETED_BUILTIN_PROVIDER_IDS,
             previous,

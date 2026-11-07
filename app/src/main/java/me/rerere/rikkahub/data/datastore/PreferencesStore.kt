@@ -319,13 +319,7 @@ class SettingsStore(
                     ?: DEFAULT_ASSISTANT_ID,
                 assistantTags = decodePrefOrDefault(preferences[ASSISTANT_TAGS], emptyList()),
                 mediaGenerationProviders = decodeEncryptedPrefOrDefault(preferences[MEDIA_GENERATION_PROVIDERS], emptyList()),
-                providers = decodeProvidersTolerant(
-                    preferences[PROVIDERS]?.let { raw ->
-                        // P0 凭证加密：providers 含 apiKey 等，落盘为 AES-GCM 密文。
-                        // 解密失败（旧版明文 / 密钥丢失）回退原文，保证平滑升级。
-                        ProviderCredentialCipher.decrypt(raw) ?: raw
-                    } ?: "[]"
-                ),
+                providers = decodeProvidersFieldEncrypted(preferences[PROVIDERS]),
                 deletedBuiltInProviderIds = preferences[DELETED_BUILTIN_PROVIDER_IDS]
                     ?.let { raw ->
                         JsonInstant.decodeFromString<Set<String>>(raw).map { Uuid.parse(it) }.toSet()

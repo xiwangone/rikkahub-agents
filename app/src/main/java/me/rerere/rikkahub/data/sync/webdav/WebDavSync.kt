@@ -355,10 +355,14 @@ class WebDavSync(
         ZipOutputStream(BufferedOutputStream(FileOutputStream(backupFile), 64 * 1024)).use { zipOut ->
             // settings.json —— 仅在勾选 SETTINGS（或兼容旧行为：未显式排除 SETTINGS 的老配置）时打包
             if (wantSettings) {
+                val redactedSettings =
+                    me.rerere.rikkahub.data.datastore.withRedactedProviderSecretsForBackup(
+                        settingsStore.settingsFlow.value,
+                    )
                 addVirtualFileToZip(
                     zipOut = zipOut,
                     name = "settings.json",
-                    content = json.encodeToString(settingsStore.settingsFlow.value)
+                    content = json.encodeToString(redactedSettings)
                 )
             }
 
@@ -569,7 +573,9 @@ class WebDavSync(
                                 AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                                 try {
                                     val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
-                                    val settings = json.decodeFromString<Settings>(migratedJson)
+                                    val settings = me.rerere.rikkahub.data.datastore.withSanitizedProvidersFromBackup(
+                                        json.decodeFromString<Settings>(migratedJson),
+                                    )
                                     PendingDatabaseRestore.stageSettings(context, stage(), settings)
                                     AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                                 } catch (e: CancellationException) {

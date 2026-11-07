@@ -652,3 +652,44 @@ val AICORE_NANO_FULL_MODEL: Model = Model(
 )
 
 val AICORE_DEFAULT_MODELS: List<Model> = listOf(AICORE_NANO_FAST_MODEL, AICORE_NANO_FULL_MODEL)
+
+const val ENC_V1_SECRET_PREFIX = "enc:v1:"
+
+fun String.isDegradedEncryptedSecret(): Boolean =
+    trimStart().startsWith(ENC_V1_SECRET_PREFIX)
+
+fun CustomHeader.isDegradedSecret(): Boolean =
+    value.isDegradedEncryptedSecret()
+
+fun Model.degradedSecretFields(): List<String> = buildList {
+    customHeaders.forEach { h ->
+        if (h.isDegradedSecret()) add("model($modelId).customHeaders[${h.name}]")
+    }
+    providerOverwrite?.degradedSecretFields()?.forEach { f ->
+        add("model($modelId).providerOverwrite.$f")
+    }
+}
+
+fun ProviderSetting.degradedSecretFields(): List<String> = buildList {
+    when (val p = this@degradedSecretFields) {
+        is ProviderSetting.OpenAI -> if (p.apiKey.isDegradedEncryptedSecret()) add("apiKey")
+        is ProviderSetting.Google -> {
+            if (p.apiKey.isDegradedEncryptedSecret()) add("apiKey")
+            if (p.privateKey.isDegradedEncryptedSecret()) add("privateKey")
+        }
+        is ProviderSetting.Claude -> if (p.apiKey.isDegradedEncryptedSecret()) add("apiKey")
+        is ProviderSetting.Backend -> {
+            if (p.password.isDegradedEncryptedSecret()) add("password")
+            if (p.token.isDegradedEncryptedSecret()) add("token")
+            if (p.webBridgePassword.isDegradedEncryptedSecret()) add("webBridgePassword")
+        }
+        else -> Unit
+    }
+    customHeaders.forEach { h ->
+        if (h.isDegradedSecret()) add("customHeaders[${h.name}]")
+    }
+    models.forEach { m -> addAll(m.degradedSecretFields()) }
+}
+
+val ProviderSetting.isCredentialDegraded: Boolean
+    get() = degradedSecretFields().isNotEmpty()

@@ -222,10 +222,14 @@ class S3Sync(
             // 只有勾了 SETTINGS（或旧式配置）才带 settings.json，否则「只勾提供商/凭证」
             // 会顺带备份并恢复整份设置，粒度形同虚设。
             if (wantSettings) {
+                val redactedSettings =
+                    me.rerere.rikkahub.data.datastore.withRedactedProviderSecretsForBackup(
+                        settingsStore.settingsFlow.value,
+                    )
                 addVirtualFileToZip(
                     zipOut = zipOut,
                     name = "settings.json",
-                    content = json.encodeToString(settingsStore.settingsFlow.value)
+                    content = json.encodeToString(redactedSettings)
                 )
             }
 
@@ -353,7 +357,9 @@ class S3Sync(
                                     AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                                     try {
                                         val migratedJson = SettingsJsonMigrator.migrate(settingsJson)
-                                        val settings = json.decodeFromString<Settings>(migratedJson)
+                                        val settings = me.rerere.rikkahub.data.datastore.withSanitizedProvidersFromBackup(
+                                            json.decodeFromString<Settings>(migratedJson),
+                                        )
                                         PendingDatabaseRestore.stageSettings(context, stage(), settings)
                                         AppLog.i(TAG, "restoreFromBackupFile: Settings restored successfully")
                                     } catch (e: CancellationException) {

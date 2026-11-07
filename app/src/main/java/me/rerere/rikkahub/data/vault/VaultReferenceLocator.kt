@@ -67,12 +67,17 @@ object VaultReferenceLocator {
     }
 
     /** 取出某提供方配置里可能与凭证有关的字段（拼接后做匹配）。 */
-    fun providerSecrets(provider: ProviderSetting): String = when (provider) {
-        is ProviderSetting.OpenAI -> provider.apiKey
-        is ProviderSetting.Claude -> provider.apiKey
-        is ProviderSetting.Google -> provider.apiKey
-        is ProviderSetting.Backend -> "${provider.token} ${provider.password}"
-        else -> ""
+    fun providerSecrets(provider: ProviderSetting): String {
+        val base = when (provider) {
+            is ProviderSetting.OpenAI -> provider.apiKey
+            is ProviderSetting.Claude -> provider.apiKey
+            is ProviderSetting.Google -> "${provider.apiKey} ${provider.privateKey}"
+            is ProviderSetting.Backend -> "${provider.token} ${provider.password} ${provider.webBridgePassword}"
+            else -> ""
+        }
+        val headers = (provider.customHeaders + provider.models.flatMap { it.customHeaders })
+            .joinToString(" ") { it.value }
+        return if (headers.isBlank()) base else "$base $headers"
     }
 
     fun mediaSecrets(provider: MediaGenerationProviderSetting): String = provider.apiKey

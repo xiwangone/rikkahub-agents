@@ -21,7 +21,12 @@ fun List<CustomHeader>.toHeaders(): Headers {
         this@toHeaders
             .filter { it.name.isNotBlank() }
             .forEach {
-                add(it.name, it.value)
+                if (it.value.trimStart().startsWith("enc:v1:")) {
+                    throw IllegalStateException(
+                        "Custom header '${it.name}' value is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the header value in Settings.",
+                    )
+                }
+                add(it.name, ProviderKeyRefs.expand(it.value))
             }
     }.build()
 }

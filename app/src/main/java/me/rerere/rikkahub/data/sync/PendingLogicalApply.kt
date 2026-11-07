@@ -6,7 +6,6 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
-import me.rerere.ai.provider.ProviderSetting
 import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
@@ -152,7 +151,7 @@ object PendingLogicalApply {
         }
 
         section(MigrationPackage.PROVIDERS_NAME) { raw ->
-            val providers = json.decodeFromString<List<ProviderSetting>>(raw)
+            val providers = me.rerere.rikkahub.data.datastore.decodeProvidersFieldEncrypted(raw)
             settingsStore.update { current -> current.copy(providers = providers) }
             AppLog.i(TAG, "providers: restored ${providers.size}")
         }

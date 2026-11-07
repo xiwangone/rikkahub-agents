@@ -26,6 +26,23 @@ object SettingsJsonMigrator {
         return runCatching {
             val root = JsonInstant.parseToJsonElement(settingsJson).jsonObject.toMutableMap()
 
+            // V0: 兼容导入含整包加密 providers 字符串的旧版备份 JSON
+            (root["providers"] as? kotlinx.serialization.json.JsonPrimitive)?.takeIf { it.isString }?.content?.let { raw ->
+                val trimmed = raw.trimStart { it.isWhitespace() || it == '﻿' }
+                val jsonText = if (trimmed.startsWith("[")) {
+                    trimmed
+                } else {
+                    me.rerere.rikkahub.data.datastore.ProviderCredentialCipher.decrypt(trimmed)
+                        ?.trimStart { it.isWhitespace() || it == '﻿' }
+                        ?.takeIf { it.startsWith("[") }
+                }
+                if (jsonText != null) {
+                    runCatching { JsonInstant.parseToJsonElement(jsonText) as? JsonArray }
+                        .getOrNull()
+                        ?.let { root["providers"] = it }
+                }
+            }
+
             // V1: 修复 mcpServers 中全限定类名的 type 字段
             root["mcpServers"]?.let { element ->
                 val migrated = migrateMcpServersJson(JsonInstant.encodeToString(element))

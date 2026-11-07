@@ -72,7 +72,14 @@ class BackendProvider(
     // custom 类型复用 OpenAI 兼容协议（baseUrl + token 作为 apiKey）
     private val chatCompletionsAPI = ChatCompletionsAPI(client = httpClient, keyRoulette = KeyRoulette.default())
 
-    private fun api(setting: ProviderSetting.Backend): BackendApi = clientFactory(setting)
+    private fun api(setting: ProviderSetting.Backend): BackendApi {
+        if (setting.password.trimStart().startsWith("enc:v1:") || setting.token.trimStart().startsWith("enc:v1:")) {
+            throw IllegalStateException(
+                "Backend provider credential is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the password or token in Settings.",
+            )
+        }
+        return clientFactory(setting)
+    }
 
     /**
      * 对话 → serve 会话路径 的映射（会话复用）。

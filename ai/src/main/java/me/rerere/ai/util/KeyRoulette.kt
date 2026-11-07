@@ -67,10 +67,22 @@ object ProviderKeyRefs {
 }
 
 private fun splitKey(key: String): List<String> {
+    if (key.trimStart().startsWith("enc:v1:")) {
+        throw IllegalStateException(
+            "Provider API key is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
+        )
+    }
     return key
         .split(SPLIT_KEY_REGEX)
         .map { it.trim() }
         .filter { it.isNotBlank() }
+        .onEach { token ->
+            if (token.startsWith("enc:v1:")) {
+                throw IllegalStateException(
+                    "Provider API key is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
+                )
+            }
+        }
         // 引用展开（`$$名` → 真实值）：未注入解析器时原样通过
         .map { ProviderKeyRefs.expand(it) }
         .distinct()
