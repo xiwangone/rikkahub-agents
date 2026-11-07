@@ -457,7 +457,7 @@ internal suspend fun generationPayload(
  * 模型 UUID → `提供商 / 模型名`。解析不到时回 null，由调用方标注 `unresolved:<uuid>` ——
  * 不静默编造名称（模型被删除 / 配置换机器后 UUID 可能对不上）。
  */
-private fun modelLabel(settings: Settings, id: kotlin.uuid.Uuid?): String? {
+internal fun modelLabel(settings: Settings, id: kotlin.uuid.Uuid?): String? {
     if (id == null) return null
     return settings.providers.firstNotNullOfOrNull { p ->
         p.models.firstOrNull { it.id == id }?.let { m -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" }
@@ -480,9 +480,9 @@ private fun assistantSettingsJson(assistant: Assistant): JsonObject = buildJsonO
  *
  * 取值走 `findChatModelFor`（与生成链路同序）；来源需回推一级，否则无法解释「为什么是这个模型」。
  */
-private class ModelScope(val assistant: Assistant, val modelId: kotlin.uuid.Uuid?, val source: String)
+internal class ModelScope(val assistant: Assistant, val modelId: kotlin.uuid.Uuid?, val source: String)
 
-private fun resolveModelScope(
+internal fun resolveModelScope(
     settings: Settings,
     conversationChatModelId: kotlin.uuid.Uuid?,
     conversationAssistantId: kotlin.uuid.Uuid,
