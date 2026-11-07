@@ -30,12 +30,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import com.dokar.sonner.ToastType
 import kotlinx.coroutines.Deferred
 import me.rerere.rikkahub.R
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
+import me.rerere.rikkahub.ui.context.LocalToaster
 
 @Composable
 fun CompressContextDialog(
@@ -47,6 +49,8 @@ fun CompressContextDialog(
     var keepRecentMessages by remember { mutableIntStateOf(32) }
     val tokenOptions = listOf(500, 1000, 2000, 4000)
     var currentDeferred by remember { mutableStateOf<Deferred<Result<Unit>>?>(null) }
+    val toaster = LocalToaster.current
+    val compactedMessage = stringResource(R.string.chat_page_compress_done)
     var errorMessage by remember { mutableStateOf<String?>(null) }
     val isLoading = currentDeferred?.isActive == true
 
@@ -54,7 +58,10 @@ fun CompressContextDialog(
     LaunchedEffect(currentDeferred) {
         val deferred = currentDeferred ?: return@LaunchedEffect
         runCatching { deferred.await() }.getOrNull()?.fold(
-            onSuccess = { onDismiss() },
+            onSuccess = {
+                onDismiss()
+                toaster.show(compactedMessage, type = ToastType.Success)
+            },
             onFailure = { errorMessage = it.message ?: "Compression failed" },
         )
         currentDeferred = null

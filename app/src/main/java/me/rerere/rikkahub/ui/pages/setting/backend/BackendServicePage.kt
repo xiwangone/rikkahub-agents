@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.backend
 
+import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -18,13 +19,13 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
-import kotlinx.coroutines.flow.first
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
@@ -50,6 +51,7 @@ fun BackendServicePage() {
     val settingsStore: SettingsStore = koinInject()
     val scope = rememberCoroutineScope()
     val settings by settingsStore.settingsFlow.collectAsState()
+    val context = LocalContext.current
 
     var showAddDialog by remember { mutableStateOf(false) }
     var editing by remember { mutableStateOf<BackendConnection?>(null) }
@@ -62,8 +64,15 @@ fun BackendServicePage() {
             onDismiss = { showAddDialog = false; editing = null },
             onSave = { conn ->
                 scope.launch {
-                    // 等待真实 settings 加载完成（避免 DataStore 大文件加载慢时 value 仍是 dummy(init=true)，被 update 静默拒绝）
-                    settingsStore.settingsFlow.first { !it.init }
+                    // 等待真实 settings 加载完成；初始化永久失败时不再无限挂起，给出可见提示。
+                    if (settingsStore.awaitReady() == null) {
+                        Toast.makeText(
+                            context,
+                            context.resources.getString(R.string.settings_initialization_failed),
+                            Toast.LENGTH_LONG,
+                        ).show()
+                        return@launch
+                    }
                     settingsStore.update { current ->
                         if (initial == null) {
                             current.copy(backendConnections = current.backendConnections + conn)

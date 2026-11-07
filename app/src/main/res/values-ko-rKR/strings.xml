@@ -352,6 +352,7 @@
   <string name="chat_page_compress_not_enough_messages">압축할 메시지가 부족합니다. 유지할 메시지 수를 줄이거나 더 많은 메시지를 추가하세요.</string>
   <string name="chat_page_compress_target_tokens">대상 토큰 크기</string>
   <string name="chat_page_compress_warning">압축은 모델에 전송되는 컨텍스트 요약만 업데이트하며 원본 메시지는 유지됩니다.</string>
+  <string name="chat_page_compress_done">압축 완료</string>
   <string name="chat_page_compressing">압축 중...</string>
   <string name="chat_page_conversation_system_prompt">대화 시스템 프롬프트</string>
   <string name="chat_page_conversation_system_prompt_clear">지우기</string>
@@ -4207,4 +4208,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">IPv6 (AAAA) 레코드 함께 조회</string>
   <string name="setting_page_preferences_network_dns_test_domain">테스트 도메인</string>
   <string name="setting_page_preferences_network_dns_test_success">조회 성공 %1$s → %2$s (%3$d ms)</string>
+  <string name="settings_initialization_failed">설정을 불러오지 못했습니다. 백업에서 복원하거나 앱을 다시 시작하세요.</string>
 </resources>

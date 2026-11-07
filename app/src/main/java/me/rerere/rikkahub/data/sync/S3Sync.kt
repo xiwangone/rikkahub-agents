@@ -55,7 +55,7 @@ class S3Sync(
     }
 
     suspend fun backupToS3(config: S3Config): BackupStats = withContext(Dispatchers.IO) {
-        val config = config.withLegacyExpanded()
+        // 展开交给 prepareBackupFile：它需要先看**原始勾选**做旧配置兼容判断。
         // 网络备份按迁移包逻辑：含明文密钥（settings apiKey / 逻辑域凭据）→ 必须整包口令加密
         requireBackupEncryption()
         val prepared = prepareBackupFile(config)
@@ -104,6 +104,8 @@ class S3Sync(
     }
 
     suspend fun restoreFromS3(config: S3Config, item: S3BackupItem) = withContext(Dispatchers.IO) {
+        // 旧配置兼容判断必须在展开前取：展开会把旧 FILES 抹掉，之后就认不出旧配置了。
+        val includeSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val client = getS3Client(config)
         val backupFile = File(context.cacheDir, item.displayName)
@@ -134,7 +136,7 @@ class S3Sync(
                 }
             try {
                 // Restore from backup file
-                restoreFromBackupFile(plainFile, config)
+                restoreFromBackupFile(plainFile, config, includeSettings)
             } finally {
                 if (plainFile != backupFile && plainFile.exists()) {
                     plainFile.delete()
@@ -160,6 +162,8 @@ class S3Sync(
         password: String,
         cachedEncFile: File? = null,
     ) = withContext(Dispatchers.IO) {
+        // 旧配置兼容判断必须在展开前取：展开会把旧 FILES 抹掉，之后就认不出旧配置了。
+        val includeSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val client = getS3Client(config)
         val backupFile = cachedEncFile?.takeIf { it.exists() } ?: File(context.cacheDir, item.displayName)
@@ -172,7 +176,7 @@ class S3Sync(
 
             val plainFile = backupEncryptionManager.maybeDecrypt(backupFile, password = password)
             try {
-                restoreFromBackupFile(plainFile, config)
+                restoreFromBackupFile(plainFile, config, includeSettings)
             } finally {
                 if (plainFile != backupFile && plainFile.exists()) {
                     plainFile.delete()
@@ -193,11 +197,9 @@ class S3Sync(
 
     suspend fun prepareBackupFile(config: S3Config): PreparedBackup = withContext(Dispatchers.IO) {
         cleanupStaleBackupTemps(context.cacheDir)
-        // settings 的兼容判断要基于**用户原始勾选**：withLegacyExpanded 会把旧 FILES 展开成
-        // 新枚举项，展开后再判断就再也识别不出“旧式配置”了。
-        val wantSettings =
-            config.items.contains(S3Config.BackupItem.SETTINGS) ||
-                config.items.none { it in NEW_ITEM_KINDS }
+        // 兼容判断在入口先取一次；withLegacyExpanded 保留 FILES 标记，展开后再判也成立。
+        // （3.0.3 发布包在 activeS3Config() 里提前展开且抹掉了 FILES，导致 settings.json 被静默丢弃。）
+        val wantSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
@@ -207,8 +209,9 @@ class S3Sync(
         }
 
         val itemNames = config.items.map { it.name }
-        // settings.json 含 provider apiKey；逻辑域是明文 JSON —— 任一被选中都必须整包加密
-        if (LogicalDomains.anySelected(itemNames) || config.items.contains(S3Config.BackupItem.SETTINGS)) {
+        // settings.json 含 provider apiKey；逻辑域是明文 JSON —— 任一被选中都必须整包加密。
+        // 旧配置默认带 settings.json（wantSettings），同样必须加密。
+        if (LogicalDomains.anySelected(itemNames) || wantSettings) {
             requireBackupEncryption()
         }
 
@@ -318,7 +321,13 @@ class S3Sync(
         }
     }
 
-    private suspend fun restoreFromBackupFile(backupFile: File, config: S3Config) = withContext(Dispatchers.IO) {
+    // 参数化后分支增多触发 detekt 阈值（与仓内既有先例同口径）
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
+    private suspend fun restoreFromBackupFile(
+        backupFile: File,
+        config: S3Config,
+        includeSettings: Boolean,
+    ) = withContext(Dispatchers.IO) {
         AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
         // Do not replace a live database in this process. Database members are validated in a
@@ -338,9 +347,8 @@ class S3Sync(
 
                         when (zipEntry.name) {
                             "settings.json" -> {
-                                if (config.items.contains(S3Config.BackupItem.SETTINGS) ||
-                                    config.items.none { it in NEW_ITEM_KINDS }
-                                ) {
+                                // includeSettings 是**展开前**算好的；展开后 items 里已没有 FILES。
+                                if (includeSettings) {
                                     val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
                                     AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                                     try {
@@ -469,23 +477,6 @@ class S3Sync(
     /** 本次备份是否需要 [item] 对应的内容（旧聚合项 FILES 视为"全量"）。 */
     private fun S3Config.wants(item: S3Config.BackupItem): Boolean =
         items.any { it == item || it == S3Config.BackupItem.FILES }
-
-    companion object {
-        /** 新拆分的枚举项（旧配置不含），用于 settings.json 的兼容判断。 */
-        private val NEW_ITEM_KINDS = setOf(
-            S3Config.BackupItem.SETTINGS,
-            S3Config.BackupItem.AVATARS,
-            S3Config.BackupItem.WORKSPACE_DOCS,
-            S3Config.BackupItem.SKILLS,
-            S3Config.BackupItem.CHAT_FILES,
-            S3Config.BackupItem.FONTS_IMAGES,
-            S3Config.BackupItem.TOOL_OUTPUTS,
-            S3Config.BackupItem.PROVIDERS,
-            S3Config.BackupItem.VAULT_CREDENTIALS,
-            S3Config.BackupItem.SSH_HOSTS,
-            S3Config.BackupItem.SCHEDULED_JOBS,
-        )
-    }
 
     /** 只打包目录顶层文件（avatars/upload/fonts/images 的旧打包语义）。 */
     private fun addFolderFilesToZip(zipOut: ZipOutputStream, folder: String) {

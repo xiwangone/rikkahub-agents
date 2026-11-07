@@ -23,6 +23,7 @@ import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
 import java.util.concurrent.atomic.AtomicLong
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.retryWhen
@@ -59,6 +60,9 @@ import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "PreferencesStore"
 private const val SETTINGS_READ_RETRIES = 3
+
+/** 消费者等待设置就绪的上限；初始化永久失败时避免协程无限挂起 */
+private const val SETTINGS_READY_TIMEOUT_MS = 20_000L
 
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
@@ -628,6 +632,23 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
 
     /** Wait for the first valid disk decode; propagates permanent read/decode failures. */
     suspend fun awaitInitialized() = initialization.await()
+
+    /**
+     * 等待设置首次可用，但**绝不无限挂起**：初始化永久失败（密钥/解码错误）或超时都返回 null，
+     * 由调用方给出可见反馈。用于“等不到设置就会静默失效”的 UI/服务路径。
+     */
+    suspend fun awaitReady(timeoutMs: Long = SETTINGS_READY_TIMEOUT_MS): Settings? =
+        withTimeoutOrNull(timeoutMs) {
+            try {
+                awaitInitialized()
+                settingsFlow.value.takeIf { !it.init }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Throwable) {
+                AppLog.w(TAG, "Settings unavailable for consumer", failure)
+                null
+            }
+        }
 
     /** Explicit whole-settings replacement for backup/import restore flows only. */
     suspend fun replaceSettings(settings: Settings) {

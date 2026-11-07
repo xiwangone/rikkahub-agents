@@ -456,6 +456,7 @@
   <string name="chat_page_compress_not_enough_messages">消息数量不足，无法压缩。请减少保留的消息数量或添加更多消息。</string>
   <string name="chat_page_compress_target_tokens">目标Token大小</string>
   <string name="chat_page_compress_warning">压缩只会更新发送给模型的上下文摘要，原始消息会保留。</string>
+  <string name="chat_page_compress_done">压缩完成</string>
   <string name="chat_page_compressing">正在压缩...</string>
   <string name="chat_page_conversation_system_prompt">对话系统提示</string>
   <string name="chat_page_conversation_system_prompt_clear">清除</string>
@@ -4203,4 +4204,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">同时解析 IPv6 (AAAA) 记录</string>
   <string name="setting_page_preferences_network_dns_test_domain">测试域名</string>
   <string name="setting_page_preferences_network_dns_test_success">解析成功 %1$s → %2$s (%3$d ms)</string>
+  <string name="settings_initialization_failed">设置加载失败，请从备份恢复或重启应用。</string>
 </resources>

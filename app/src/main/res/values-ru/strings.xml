@@ -354,6 +354,7 @@
   <string name="chat_page_compress_not_enough_messages">Недостаточно сообщений для сжатия. Уменьшите количество сохраняемых сообщений или добавьте больше сообщений.</string>
   <string name="chat_page_compress_target_tokens">Целевой размер токенов</string>
   <string name="chat_page_compress_warning">Сжатие обновляет только сводку контекста для модели; исходные сообщения сохраняются.</string>
+  <string name="chat_page_compress_done">Сжатие завершено</string>
   <string name="chat_page_compressing">Сжатие...</string>
   <string name="chat_page_conversation_system_prompt">Системный запрос для беседы</string>
   <string name="chat_page_conversation_system_prompt_clear">Очистить</string>
@@ -4211,4 +4212,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">Запрашивать записи IPv6 (AAAA)</string>
   <string name="setting_page_preferences_network_dns_test_domain">Тестовый домен</string>
   <string name="setting_page_preferences_network_dns_test_success">Разрешено %1$s → %2$s (%3$d мс)</string>
+  <string name="settings_initialization_failed">Не удалось загрузить настройки. Восстановите из резервной копии или перезапустите приложение.</string>
 </resources>

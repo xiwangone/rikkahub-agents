@@ -40,25 +40,41 @@ data class S3Config(
     }
 
     /**
-     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES）。
+     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS）。
      * 细分项成熟后 UI 不再展示 FILES，存量配置含 FILES 时执行前展开。
+     *
+     * **保留 FILES 本身**：它同时是"旧配置"标记。[Settings.activeS3Config] 等访问器
+     * 会在返回前就展开，调用方拿到的 items 里若没有 FILES，兼容判断就永远失效——
+     * 这正是 3.0.3 发布包里旧配置丢 settings.json 的根因。保留标记后，展开前后判断结果一致。
      */
     fun withLegacyExpanded(): S3Config {
         if (BackupItem.FILES !in items) return this
         val expanded =
             buildList {
                 items.forEach {
+                    add(it)
                     if (it == BackupItem.FILES) {
                         add(BackupItem.SKILLS)
                         add(BackupItem.CHAT_FILES)
                         add(BackupItem.FONTS_IMAGES)
-                    } else {
-                        add(it)
+                        add(BackupItem.AVATARS)
                     }
                 }
             }.distinct()
         return copy(items = expanded)
     }
+
+    /**
+     * 旧配置兼容判断：未命中任何新拆分项（只含 DATABASE/FILES 等旧枚举）时，历史行为是
+     * 备份/恢复默认带上 settings.json。
+     *
+     * 因为 [withLegacyExpanded] 保留 FILES 标记，**展开前后调用结果一致**；
+     * 但执行层仍建议在入口先判一次，避免未来某处再次"展开即抹除标记"。
+     */
+    fun includesSettingsByLegacyCompat(): Boolean =
+        items.contains(BackupItem.SETTINGS) ||
+            items.contains(BackupItem.FILES) ||
+            items.none { it in LEGACY_COMPAT_NEW_ITEM_KINDS }
 
     @Serializable
     enum class BackupItem {
@@ -78,7 +94,7 @@ data class S3Config(
         FONTS_IMAGES,
         /** 工具输出缓存（files/tool_outputs/） */
         TOOL_OUTPUTS,
-        /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES） */
+        /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS） */
         FILES,
 
         // ── 按域逻辑备份（数据库/设置的细分粒度）──
@@ -91,5 +107,22 @@ data class S3Config(
         SSH_HOSTS,
         /** 定时任务（scheduled_jobs 表，仅配置与游标，不含运行记录） */
         SCHEDULED_JOBS;
+    }
+
+    companion object {
+        /** 新拆分的枚举项（旧配置不含），用于 settings.json 的旧配置兼容判断 */
+        private val LEGACY_COMPAT_NEW_ITEM_KINDS = setOf(
+            BackupItem.SETTINGS,
+            BackupItem.AVATARS,
+            BackupItem.WORKSPACE_DOCS,
+            BackupItem.SKILLS,
+            BackupItem.CHAT_FILES,
+            BackupItem.FONTS_IMAGES,
+            BackupItem.TOOL_OUTPUTS,
+            BackupItem.PROVIDERS,
+            BackupItem.VAULT_CREDENTIALS,
+            BackupItem.SSH_HOSTS,
+            BackupItem.SCHEDULED_JOBS,
+        )
     }
 }

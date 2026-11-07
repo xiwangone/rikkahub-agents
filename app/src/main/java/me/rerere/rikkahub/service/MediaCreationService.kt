@@ -17,7 +17,6 @@ import kotlinx.coroutines.coroutineScope
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.ensureActive
-import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.job
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
@@ -283,7 +282,11 @@ class MediaCreationService(
 
     private suspend fun generate(recordId: Uuid) {
         val record = repository.getRecord(recordId) ?: return
-        val configuredSetting = settingsStore.settingsFlow.first { !it.init }
+        // 设置初始化永久失败时快速失败（由 run() 标记记录 FAILED），而不是永久挂起。
+        val configuredSetting = (
+            settingsStore.awaitReady()
+                ?: error(context.resources.getString(R.string.settings_initialization_failed))
+            )
             .mediaGenerationProviders.find { it.id == record.providerId }
             ?: error(context.getString(R.string.media_creation_error_provider_deleted, record.providerName))
         val setting = configuredSetting.withResolvedVaultCredentials()

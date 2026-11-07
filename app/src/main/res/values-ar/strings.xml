@@ -476,6 +476,7 @@
   <string name="chat_page_compress_not_enough_messages">لا توجد رسائل كافية للضغط. قلّل عدد الرسائل المُحتفظ بها أو أضف المزيد من الرسائل.</string>
   <string name="chat_page_compress_target_tokens">حجم الرموز المستهدف</string>
   <string name="chat_page_compress_warning">⚠️ ضغط السياق سيعيد تعيين جميع الرسائل في المحادثة الحالية</string>
+  <string name="chat_page_compress_done">تم ضغط السياق</string>
   <string name="chat_page_compressing">جارٍ الضغط...</string>
   <string name="chat_page_delete">حذف</string>
   <string name="chat_page_dismiss_error">تجاهل الخطأ</string>
@@ -4214,4 +4215,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">استعلام سجلات IPv6 (AAAA)</string>
   <string name="setting_page_preferences_network_dns_test_domain">نطاق الاختبار</string>
   <string name="setting_page_preferences_network_dns_test_success">تم التحليل %1$s ← %2$s (%3$d مللي ثانية)</string>
+  <string name="settings_initialization_failed">تعذّر تحميل الإعدادات. استعِد من نسخة احتياطية أو أعد تشغيل التطبيق.</string>
 </resources>

@@ -196,7 +196,12 @@ class MediaCreationVM(
 
     private suspend fun load() {
         val session = repository.getSession(sessionId) ?: return
-        val providers = settingsStore.settingsFlow.first { !it.init }.mediaGenerationProviders
+        // 设置初始化永久失败时绝不再无限等下去：给出可见错误，并按“无可用 provider”继续加载草稿。
+        val settings = settingsStore.awaitReady()
+        if (settings == null) {
+            _events.send(MediaCreationEvent.Error(context.resources.getString(R.string.settings_initialization_failed)))
+        }
+        val providers = settings?.mediaGenerationProviders.orEmpty()
         val assets = withContext(Dispatchers.IO) {
             val assets = session.draft.assets.filter { repository.resolve(it.path).isFile }
             // 草稿目录里不再被引用的文件是之前移除的素材

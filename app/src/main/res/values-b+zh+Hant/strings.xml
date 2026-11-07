@@ -348,6 +348,7 @@
   <string name="chat_page_compress_not_enough_messages">訊息不足，無法壓縮。請減少要保留的訊息數量，或新增更多訊息。</string>
   <string name="chat_page_compress_target_tokens">目標 Token 大小</string>
   <string name="chat_page_compress_warning">壓縮只會更新傳送給模型的上下文摘要，原始訊息會保留。</string>
+  <string name="chat_page_compress_done">壓縮完成</string>
   <string name="chat_page_compressing">正在壓縮...</string>
   <string name="chat_page_retrying">正在重試（第 %1$d/%2$d 次）· %3$s · 伺服器原話：%4$s</string>
   <string name="chat_page_conversation_system_prompt">對話系統提示</string>
@@ -4206,4 +4207,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">同時解析 IPv6 (AAAA) 記錄</string>
   <string name="setting_page_preferences_network_dns_test_domain">測試網域</string>
   <string name="setting_page_preferences_network_dns_test_success">解析成功 %1$s → %2$s (%3$d ms)</string>
+  <string name="settings_initialization_failed">設定載入失敗，請從備份還原或重新啟動應用程式。</string>
 </resources>

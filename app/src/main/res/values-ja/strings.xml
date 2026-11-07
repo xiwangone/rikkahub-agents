@@ -352,6 +352,7 @@
   <string name="chat_page_compress_not_enough_messages">圧縮するためのメッセージが不足しています。保持するメッセージ数を減らすか、メッセージを追加してください。</string>
   <string name="chat_page_compress_target_tokens">ターゲットトークンサイズ</string>
   <string name="chat_page_compress_warning">圧縮ではモデルに送信するコンテキスト要約のみが更新され、元のメッセージは保持されます。</string>
+  <string name="chat_page_compress_done">圧縮が完了しました</string>
   <string name="chat_page_compressing">圧縮中…</string>
   <string name="chat_page_conversation_system_prompt">会話システムプロンプト</string>
   <string name="chat_page_conversation_system_prompt_clear">クリア</string>
@@ -4207,4 +4208,5 @@
   <string name="setting_page_preferences_network_dns_enable_ipv6">IPv6 (AAAA) レコードを解決</string>
   <string name="setting_page_preferences_network_dns_test_domain">テストドメイン</string>
   <string name="setting_page_preferences_network_dns_test_success">解決成功 %1$s → %2$s (%3$d ms)</string>
+  <string name="settings_initialization_failed">設定の読み込みに失敗しました。バックアップから復元するか、アプリを再起動してください。</string>
 </resources>

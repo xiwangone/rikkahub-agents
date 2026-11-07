@@ -67,7 +67,7 @@ class WebDavSync(
     }
 
     suspend fun backup(config: WebDavConfig): BackupStats = withContext(Dispatchers.IO) {
-        val config = config.withLegacyExpanded()
+        // 展开交给 prepareBackupFile：它需要先看**原始勾选**做旧配置兼容判断。
         // 网络备份按迁移包逻辑：包里含明文密钥（settings 的 apiKey、逻辑域凭据），
         // 未开启口令加密时明确拒绝，绝不静默上传明文。
         requireBackupEncryption()
@@ -159,6 +159,8 @@ class WebDavSync(
     }
 
     suspend fun restore(config: WebDavConfig, item: WebDavBackupItem) = withContext(Dispatchers.IO) {
+        // 旧配置兼容判断在入口先取一次；withLegacyExpanded 保留 FILES 标记，展开后再判也成立。
+        val includeSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val client = getClient(config)
         // item.displayName is server-supplied (WebDavClient already reduces it to a bare
@@ -194,7 +196,7 @@ class WebDavSync(
                 }
             try {
                 // Restore from backup file
-                restoreFromBackupFile(plainFile, config)
+                restoreFromBackupFile(plainFile, config, includeSettings)
             } finally {
                 // 解密产生的临时明文 zip 清理
                 if (plainFile != backupFile && plainFile.exists()) {
@@ -237,6 +239,8 @@ class WebDavSync(
         password: String,
         cachedEncFile: File? = null,
     ) = withContext(Dispatchers.IO) {
+        // 旧配置兼容判断在入口先取一次；withLegacyExpanded 保留 FILES 标记，展开后再判也成立。
+        val includeSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val client = getClient(config)
         val backupFile =
@@ -252,7 +256,7 @@ class WebDavSync(
 
             val plainFile = backupEncryptionManager.maybeDecrypt(backupFile, password = password)
             try {
-                restoreFromBackupFile(plainFile, config)
+                restoreFromBackupFile(plainFile, config, includeSettings)
             } finally {
                 if (plainFile != backupFile && plainFile.exists()) {
                     plainFile.delete()
@@ -276,6 +280,8 @@ class WebDavSync(
         config: WebDavConfig,
         password: String? = null,
     ) = withContext(Dispatchers.IO) {
+        // 旧配置兼容判断在入口先取一次；withLegacyExpanded 保留 FILES 标记，展开后再判也成立。
+        val includeSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         AppLog.i(TAG, "restoreFromLocalFile: Starting restore from ${file.absolutePath}")
 
@@ -305,7 +311,7 @@ class WebDavSync(
                     )
                 }
             try {
-                restoreFromBackupFile(plainFile, config)
+                restoreFromBackupFile(plainFile, config, includeSettings)
                 AppLog.i(TAG, "restoreFromLocalFile: Restore completed successfully")
             } finally {
                 if (plainFile != file && plainFile.exists()) {
@@ -324,6 +330,9 @@ class WebDavSync(
 
     suspend fun prepareBackupFile(config: WebDavConfig): PreparedBackup = withContext(Dispatchers.IO) {
         cleanupStaleBackupTemps(context.cacheDir)
+        // 兼容判断在入口先取一次；withLegacyExpanded 保留 FILES 标记，展开后再判也成立。
+        // （3.0.3 发布包在 activeWebDavConfig() 里提前展开且抹掉了 FILES，导致 settings.json 被静默丢弃。）
+        val wantSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
         val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
@@ -334,8 +343,9 @@ class WebDavSync(
 
         // 逻辑域（提供商/凭证库/SSH/定时任务）与 settings.json（含 provider apiKey）在包里都是明文：
         // 选中任一即必须整包加密，否则明文密钥会落进本地文件或云端。
+        // 旧配置（只含 DATABASE/FILES）默认带 settings.json，同样必须加密。
         val itemNames = config.items.map { it.name }
-        if (LogicalDomains.anySelected(itemNames) || config.items.contains(WebDavConfig.BackupItem.SETTINGS)) {
+        if (LogicalDomains.anySelected(itemNames) || wantSettings) {
             requireBackupEncryption()
         }
 
@@ -344,10 +354,6 @@ class WebDavSync(
         // Create zip file and backup data
         ZipOutputStream(BufferedOutputStream(FileOutputStream(backupFile), 64 * 1024)).use { zipOut ->
             // settings.json —— 仅在勾选 SETTINGS（或兼容旧行为：未显式排除 SETTINGS 的老配置）时打包
-            val wantSettings =
-                config.items.contains(WebDavConfig.BackupItem.SETTINGS) ||
-                    // 旧配置 items 只含 DATABASE/FILES（不含新枚举）时默认仍带 settings，避免升级后丢设置
-                    config.items.none { it in NEW_ITEM_KINDS }
             if (wantSettings) {
                 addVirtualFileToZip(
                     zipOut = zipOut,
@@ -522,22 +528,6 @@ class WebDavSync(
     }
 
     companion object {
-        /** 新拆分的枚举项（旧配置不含），用于兼容判断 */
-        private val NEW_ITEM_KINDS = setOf(
-            WebDavConfig.BackupItem.SETTINGS,
-            WebDavConfig.BackupItem.AVATARS,
-            WebDavConfig.BackupItem.WORKSPACE_DOCS,
-            WebDavConfig.BackupItem.SKILLS,
-            WebDavConfig.BackupItem.CHAT_FILES,
-            WebDavConfig.BackupItem.FONTS_IMAGES,
-            WebDavConfig.BackupItem.TOOL_OUTPUTS,
-            // 逻辑域备份项：只勾这些时不应顺带把整份 settings.json 打进包（granularity）
-            WebDavConfig.BackupItem.PROVIDERS,
-            WebDavConfig.BackupItem.VAULT_CREDENTIALS,
-            WebDavConfig.BackupItem.SSH_HOSTS,
-            WebDavConfig.BackupItem.SCHEDULED_JOBS,
-        )
-
         /** workspace files 层递归打包时排除的目录名（可重建/巨大/敏感） */
         private val WORKSPACE_EXCLUDE_DIRS = setOf(
             "node_modules", "local-models", "cache", ".gradle", "build",
@@ -545,7 +535,13 @@ class WebDavSync(
         )
     }
 
-    private suspend fun restoreFromBackupFile(backupFile: File, config: WebDavConfig) = withContext(Dispatchers.IO) {
+    // 参数化后分支增多触发 detekt 阈值（与仓内既有先例同口径）
+    @Suppress("LongMethod", "CyclomaticComplexMethod")
+    private suspend fun restoreFromBackupFile(
+        backupFile: File,
+        config: WebDavConfig,
+        includeSettings: Boolean,
+    ) = withContext(Dispatchers.IO) {
         AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
         // Do not replace a live database in this process. Database members are validated in a
@@ -566,10 +562,9 @@ class WebDavSync(
 
                     when {
                         zipEntry.name == "settings.json" -> {
-                            // settings 恢复受 SETTINGS 控制；兼容旧包（老备份总是带 settings.json）
-                            if (config.items.contains(WebDavConfig.BackupItem.SETTINGS) ||
-                                config.items.none { it in NEW_ITEM_KINDS }
-                            ) {
+                            // settings 恢复受 SETTINGS 控制；兼容旧包（老备份总是带 settings.json）。
+                            // includeSettings 是**展开前**算好的，展开后 items 里已没有 FILES。
+                            if (includeSettings) {
                                 val settingsJson = zipIn.readBytes().toString(Charsets.UTF_8)
                                 AppLog.i(TAG, "restoreFromBackupFile: Restoring settings")
                                 try {
