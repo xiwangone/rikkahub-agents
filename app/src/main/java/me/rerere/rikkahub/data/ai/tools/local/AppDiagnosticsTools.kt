@@ -341,7 +341,10 @@ fun diagnosticsTool(
     // 再抄一遍是纯冗余（该工具 token 开销全场最大，相当一部分来自这层重复枚举）。
     description =
         "Inspect this app itself (kind list and semantics are in the `kind` enum). " +
-            "For logs prefer summary:true or level/keyword filters — raw logs are noisy.",
+            "For logs prefer summary:true or level/keyword filters — raw logs are noisy. " +
+            "generation separates the conversation's effective model (`model`, `model_id`, `model_source`) " +
+            "from the assistant default (`assistant_default_model`); `model` is the one actually in use, " +
+            "`observed_models` lists the models seen in this conversation's messages.",
     parameters = { diagnosticsParameters() },
     execute = { input ->
         val params = input.jsonObject

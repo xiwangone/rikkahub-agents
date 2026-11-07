@@ -15,7 +15,10 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -277,6 +280,10 @@ private suspend fun recentConversationsJson(
                         val tail = c.messageNodes.asReversed().take(3).flatMap { it.messages.asReversed() }
                         val lastAssistant = tail.firstOrNull { it.role == MessageRole.ASSISTANT && it.finishedAt != null }
                         put("lastModelUuid", lastAssistant?.modelId?.let { JsonPrimitive(it.toString()) } ?: JsonNull)
+                        put(
+                            "lastModelLabel",
+                            modelLabel(settings, lastAssistant?.modelId)?.let { JsonPrimitive(it) } ?: JsonNull,
+                        )
                         put("lastTurnMs", turnDurationMs(lastAssistant))
                     }
                 },
@@ -290,6 +297,7 @@ internal suspend fun conversationsPayload(
     settingsStore: SettingsStore,
     params: JsonObject,
 ): String {
+    val settings = settingsStore.settingsFlow.first()
     val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     // 无 id = 列最近会话（抽成独立函数：[conversationsPayload] 的圈复杂度已逼近 detekt 阈值 20）
     if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params)
@@ -361,6 +369,14 @@ internal suspend fun conversationsPayload(
             "modelUuids",
             JsonArray(allMessages.mapNotNull { it.modelId }.distinct().map { JsonPrimitive(it.toString()) }),
         )
+        // 同一份去重列表的可读版：UUID 自己认不出是哪个模型，解析失败标 unresolved 而不是丢项。
+        put(
+            "modelLabels",
+            JsonArray(
+                allMessages.mapNotNull { it.modelId }.distinct()
+                    .map { JsonPrimitive(modelLabel(settings, it) ?: "unresolved:$it") },
+            ),
+        )
         put("lastTurnMs", turnDurationMs(lastAssistant))
         put("messages", messagesJson)
         put("truncated", totalChars > 40_000)
@@ -382,10 +398,10 @@ internal suspend fun generationPayload(
     params: JsonObject,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val assistant = settings.getCurrentAssistant()
+    val currentAssistant = settings.getCurrentAssistant()
     val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     // 仓库没有「按 id 直取」，从最近若干条里找（缺省即最近一条）
-    val recent = runCatching { conversationRepo.getRecentConversations(assistant.id, 20) }.getOrElse { emptyList() }
+    val recent = runCatching { conversationRepo.getRecentConversations(currentAssistant.id, 20) }.getOrElse { emptyList() }
     val conversation =
         (if (idRaw.isNotBlank()) recent.firstOrNull { it.id.toString() == idRaw } else recent.firstOrNull())
             ?: return ToolErrors.envelopeFor(error = "conversation_not_found", message = "conversation_not_found").toString()
@@ -399,23 +415,34 @@ internal suspend fun generationPayload(
             .filter { it.role == me.rerere.ai.core.MessageRole.ASSISTANT }
     val lastAssistant = assistantMessages.firstOrNull { it.usage != null } ?: assistantMessages.firstOrNull()
 
+    // 两个口径必须分开报：`model` 原先取的是 assistant.chatModelId（助手默认），AI 自省时会
+    // 误把默认当成本会话在跑的模型。现在 model = 会话实际生效（与生成链路同口径），
+    // 默认值单列 assistant_default_model，并用 model_source 标明取自哪一级。
+    val conversationAssistant = settings.resolveAssistantFor(conversation.assistantId)
+    // 与生成链路同序同源（会话级 → 助手 → 全局），避免诊断口径与真实取值漂移。
+    // 取值与来源判定抽到 resolveModelScope，以免把 generationPayload 的圈复杂度推过 detekt 阈值。
+    val scope = resolveModelScope(settings, conversation.chatModelId, conversation.assistantId)
+    val effectiveModelId = scope.modelId
+    // 消息里实际出现过的模型（最硬证据）：会话中途换过模型时会多于一条。
+    val observedModelIds =
+        conversation.messageNodes.flatMap { it.messages }.mapNotNull { it.modelId }.distinct()
+
     return buildJsonObject {
         put("conversation_id", conversation.id.toString())
         put("conversation_title", conversation.title)
-        put("assistant", assistant.name)
+        put("assistant", conversationAssistant.name)
+        put("model", effectiveModelId?.let { modelLabel(settings, it) ?: it.toString() } ?: "unresolved")
+        put("model_id", effectiveModelId?.toString()?.let { JsonPrimitive(it) } ?: JsonNull)
+        put("model_source", scope.source)
         put(
-            "model",
-            assistant.chatModelId?.let { id ->
-                settings.providers.firstNotNullOfOrNull { p -> p.models.firstOrNull { it.id == id }?.let { m -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" } }
-            } ?: "inherit",
+            "assistant_default_model",
+            conversationAssistant.chatModelId?.let { modelLabel(settings, it) ?: it.toString() } ?: "inherit",
         )
-        put("settings", buildJsonObject {
-            put("temperature", assistant.temperature?.let { JsonPrimitive(it) } ?: JsonNull)
-            put("top_p", assistant.topP?.let { JsonPrimitive(it) } ?: JsonNull)
-            put("max_tokens", assistant.maxTokens?.let { JsonPrimitive(it) } ?: JsonNull)
-            put("context_message_limit", assistant.contextMessageLimit)
-            put("reasoning_level", assistant.reasoningLevel.name)
-        })
+        put(
+            "observed_models",
+            JsonArray(observedModelIds.map { JsonPrimitive(modelLabel(settings, it) ?: "unresolved:$it") }),
+        )
+        put("settings", assistantSettingsJson(conversationAssistant))
         val lastTurn = lastTurnJsonOf(lastAssistant)
         if (lastTurn == null) {
             put("last_turn", JsonNull)
@@ -427,10 +454,59 @@ internal suspend fun generationPayload(
 }
 
 /**
+ * 模型 UUID → `提供商 / 模型名`。解析不到时回 null，由调用方标注 `unresolved:<uuid>` ——
+ * 不静默编造名称（模型被删除 / 配置换机器后 UUID 可能对不上）。
+ */
+private fun modelLabel(settings: Settings, id: kotlin.uuid.Uuid?): String? {
+    if (id == null) return null
+    return settings.providers.firstNotNullOfOrNull { p ->
+        p.models.firstOrNull { it.id == id }?.let { m -> "${p.name} / ${m.displayName.ifBlank { m.modelId }}" }
+    }
+}
+
+/**
+ * 生成参数（温度 / top_p / 上限 / 上下文窗口 / 推理档）—— 抽出来只为压 [generationPayload] 的圈复杂度。
+ */
+private fun assistantSettingsJson(assistant: Assistant): JsonObject = buildJsonObject {
+    put("temperature", assistant.temperature?.let { JsonPrimitive(it) } ?: JsonNull)
+    put("top_p", assistant.topP?.let { JsonPrimitive(it) } ?: JsonNull)
+    put("max_tokens", assistant.maxTokens?.let { JsonPrimitive(it) } ?: JsonNull)
+    put("context_message_limit", assistant.contextMessageLimit)
+    put("reasoning_level", assistant.reasoningLevel.name)
+}
+
+/**
+ * 会话实际生效的模型 + 来源（会话级 / 助手默认 / 全局）。
+ *
+ * 取值走 `findChatModelFor`（与生成链路同序）；来源需回推一级，否则无法解释「为什么是这个模型」。
+ */
+private class ModelScope(val assistant: Assistant, val modelId: kotlin.uuid.Uuid?, val source: String)
+
+private fun resolveModelScope(
+    settings: Settings,
+    conversationChatModelId: kotlin.uuid.Uuid?,
+    conversationAssistantId: kotlin.uuid.Uuid,
+): ModelScope {
+    val assistant = settings.resolveAssistantFor(conversationAssistantId)
+    val perConversation = conversationChatModelId?.takeIf { assistant.allowPerConversationModel }
+    val source = when {
+        perConversation != null -> "conversation"
+        assistant.chatModelId != null -> "assistant"
+        else -> "global"
+    }
+    return ModelScope(
+        assistant = assistant,
+        modelId = settings.findChatModelFor(conversationChatModelId, conversationAssistantId)?.id,
+        source = source,
+    )
+}
+
+/**
  * 四档口径（消息 / 回合 / 生成 / 工具调用）。
  *
  * 抽成独立函数是为了把 [conversationsPayload] 的圈复杂度压回 detekt 阈值内（内联时 21 > 20）。
  */
+
 private fun turnCountsJson(messages: List<UIMessage>): JsonObject =
     buildJsonObject {
         put("messages", messages.size)
