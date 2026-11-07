@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.components.ui.permission
 
-import androidx.activity.ComponentActivity
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -8,6 +7,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
+import me.rerere.rikkahub.utils.getComponentActivity
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
@@ -50,7 +50,7 @@ import androidx.lifecycle.compose.LocalLifecycleOwner
 fun rememberPermissionState(permissions: Set<PermissionInfo>): PermissionState {
     val context = LocalContext.current
     val activity =
-        context as? ComponentActivity
+        context.getComponentActivity()
             ?: throw IllegalStateException("rememberPermissionState must be used within a ComponentActivity")
 
     // 创建权限状态对象

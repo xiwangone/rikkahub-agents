@@ -71,7 +71,10 @@ internal class BackendEventProcessor(
                     }
                 ) {
                     // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾
-                    runCatching { events.first() }.getOrNull()
+                    // 注意不能吞 CancellationException：取消必须继续向上传播（否则"停止生成"变成优雅完成）
+                    runCatching { events.first() }
+                        .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+                        .getOrNull()
                 } ?: break
 
             captureSessionPath(event)

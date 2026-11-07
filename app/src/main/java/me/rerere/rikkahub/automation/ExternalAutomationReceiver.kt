@@ -3,9 +3,12 @@ package me.rerere.rikkahub.automation
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
-import kotlinx.coroutines.CoroutineScope
+import android.os.Build
+import android.os.Process
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withTimeoutOrNull
+import me.rerere.rikkahub.AppScope
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import me.rerere.rikkahub.data.log.AppLog
@@ -25,12 +28,16 @@ class ExternalAutomationReceiver : BroadcastReceiver(), KoinComponent {
 
     private val config: ExternalAutomationConfig by inject()
     private val dispatcher: ExternalAutomationDispatcher by inject()
+    // 命名为 automationScope：避开与其它类 appScope 的同名跨文件误报（同上）
+    private val automationScope: AppScope by inject()
 
     override fun onReceive(context: Context, intent: Intent) {
         val pendingResult = goAsync()
-        CoroutineScope(Dispatchers.Default).launch {
+        automationScope.launch(Dispatchers.Default) {
             try {
-                handle(intent)
+                withTimeoutOrNull(8_500L) {
+                    handle(intent)
+                }
             } catch (t: Throwable) {
                 AppLog.w(TAG, "receiver dispatch failed", t)
             } finally {
@@ -46,7 +53,17 @@ class ExternalAutomationReceiver : BroadcastReceiver(), KoinComponent {
         val returnPackage = intent.getStringExtra(ExternalAutomationDispatcher.EXTRA_RETURN_PACKAGE)
         // Broadcast-receiver path lacks callingPackage. Treat caller as `<adb>` for log
         // purposes; trust gate will reject unless someone has explicitly opted-in.
-        val callerLabel = "<adb>"
+        val callerLabel =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+                val uid = sentFromUid
+                if (uid == Process.SHELL_UID || uid == Process.ROOT_UID || uid == Process.myUid()) {
+                    "<adb>"
+                } else {
+                    sentFromPackage ?: "<unverified_broadcast>"
+                }
+            } else {
+                "<adb>"
+            }
 
         when (val classification = dispatcher.classifyCaller(callerLabel)) {
             is ExternalAutomationDispatcher.TrustResult.Disabled -> {

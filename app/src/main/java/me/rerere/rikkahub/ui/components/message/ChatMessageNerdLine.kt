@@ -437,8 +437,13 @@ fun ChatMessageNerdLine(
                                         },
                                     // 比同组统计大一号，便于一眼看到当前上下文占用
                                     style = MaterialTheme.typography.labelMedium,
-                                    // 浅灰在深/浅主题下都偏淡，提到半强对比
-                                    color = MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f),
+                                    // <50% 用半强对比中性色，50%~80% 及 ≥80% 激活告警色
+                                    color =
+                                        if (usedRatio != null && usedRatio >= 0.5) {
+                                            contextColor
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.85f)
+                                        },
                                 )
                                 if (usedRatio != null) {
                                     Spacer(Modifier.width(6.dp))

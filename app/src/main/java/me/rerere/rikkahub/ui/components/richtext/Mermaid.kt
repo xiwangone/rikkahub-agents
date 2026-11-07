@@ -38,6 +38,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.escapeHtml
 import me.rerere.rikkahub.utils.exportImage
+import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.toCssHex
 
 @Composable
@@ -48,7 +49,7 @@ fun Mermaid(
     val colorScheme = MaterialTheme.colorScheme
     val darkMode = LocalDarkMode.current
     val context = LocalContext.current
-    val activity = LocalActivity.current
+    val activity = LocalActivity.current ?: context.getActivity()
     val toaster = LocalToaster.current
     val navController = LocalNavController.current
 
@@ -57,20 +58,16 @@ fun Mermaid(
             MermaidInterface(
                 onExportImage = { base64Image ->
                     runCatching {
-                        activity?.let {
-                            try {
-                                val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
-                                val bitmap =
-                                    BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)
-                                context.exportImage(
-                                    it,
-                                    bitmap,
-                                    "mermaid_${System.currentTimeMillis()}.png",
-                                )
-                            } catch (e: Exception) {
-                                e.printStackTrace()
+                        val imageBytes = Base64.decode(base64Image, Base64.DEFAULT)
+                        val bitmap =
+                            requireNotNull(BitmapFactory.decodeByteArray(imageBytes, 0, imageBytes.size)) {
+                                "Failed to decode mermaid image"
                             }
-                        }
+                        context.exportImage(
+                            activity,
+                            bitmap,
+                            "mermaid_${System.currentTimeMillis()}.png",
+                        )
                         toaster.show(
                             context.getString(R.string.mermaid_export_success),
                             type = ToastType.Success,

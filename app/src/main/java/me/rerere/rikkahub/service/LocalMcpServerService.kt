@@ -16,7 +16,6 @@ import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager
@@ -62,7 +61,9 @@ class LocalMcpServerService : Service() {
                     return START_NOT_STICKY
                 }
                 startObservingState()
-                startWithActiveProfile()
+                serviceScope.launch {
+                    startWithActiveProfile()
+                }
             }
 
             ACTION_STOP -> {
@@ -90,12 +91,9 @@ class LocalMcpServerService : Service() {
         return START_NOT_STICKY
     }
 
-    private fun startWithActiveProfile() {
-        val profile =
-            runBlocking {
-                val s = settingsStore.settingsFlowRaw.first()
-                s.activeLocalMcpProfileId?.let { id -> s.localMcpProfiles.firstOrNull { it.id == id } }
-            }
+    private suspend fun startWithActiveProfile() {
+        val s = settingsStore.settingsFlowRaw.first()
+        val profile = s.activeLocalMcpProfileId?.let { id -> s.localMcpProfiles.firstOrNull { it.id == id } }
         if (profile != null) manager.start(profile) else manager.start()
     }
 
@@ -118,7 +116,7 @@ class LocalMcpServerService : Service() {
                 startForeground(NOTIFICATION_ID, buildStartingNotification())
             }
             true
-        } catch (e: SecurityException) {
+        } catch (e: Exception) {
             AppLog.e(TAG, "Failed to start foreground service", e)
             false
         }

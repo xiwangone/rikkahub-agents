@@ -280,7 +280,6 @@ class MediaPlaybackService : Service() {
         releaseMediaPlayer()
         requestAudioFocus() // Still try to play when focus cannot be acquired, as before.
         currentSource = source
-        currentSource = source
 
         // Post the foreground notification BEFORE the synchronous metadata resolve below --
         // MediaMetadataRetriever can block for seconds on remote sources, and Android kills
@@ -621,14 +620,19 @@ class MediaPlaybackService : Service() {
                 ).setPriority(NotificationCompat.PRIORITY_LOW)
                 .build()
 
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-            startForeground(
-                NOTIFICATION_ID,
-                notification,
-                ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
-            )
-        } else {
-            startForeground(NOTIFICATION_ID, notification)
+        try {
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+                startForeground(
+                    NOTIFICATION_ID,
+                    notification,
+                    ServiceInfo.FOREGROUND_SERVICE_TYPE_MEDIA_PLAYBACK,
+                )
+            } else {
+                startForeground(NOTIFICATION_ID, notification)
+            }
+        } catch (e: Exception) {
+            AppLog.e(TAG, "Failed to start foreground service", e)
+            stopSelf()
         }
     }
 

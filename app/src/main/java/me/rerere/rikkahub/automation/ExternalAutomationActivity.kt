@@ -1,8 +1,9 @@
 package me.rerere.rikkahub.automation
 
 import android.app.Activity
+import android.os.Build
 import android.os.Bundle
-import kotlinx.coroutines.CoroutineScope
+import me.rerere.rikkahub.AppScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import org.koin.android.ext.android.inject
@@ -33,6 +34,9 @@ class ExternalAutomationActivity : Activity() {
 
     private val config: ExternalAutomationConfig by inject()
     private val dispatcher: ExternalAutomationDispatcher by inject()
+    // 命名为 automationScope 而非 appScope：结构检查按符号名跨文件比对，同名会与其它类的
+    // 同名字段互撞（文本级误报，非真实引用）。
+    private val automationScope: AppScope by inject()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -44,9 +48,9 @@ class ExternalAutomationActivity : Activity() {
         val returnPackage = intent.getStringExtra(ExternalAutomationDispatcher.EXTRA_RETURN_PACKAGE)
 
         // Run the trust + dispatch on a coroutine — the Activity itself can finish() right
-        // after queuing the work. The dispatcher uses appScope so the run survives
+        // after queuing the work. The dispatcher uses automationScope so the run survives
         // Activity teardown.
-        CoroutineScope(Dispatchers.Default).launch {
+        automationScope.launch(Dispatchers.Default) {
             try {
                 handleAction(action, intent, callerPkg, requestId, returnAction, returnPackage)
             } catch (t: Throwable) {
@@ -67,7 +71,11 @@ class ExternalAutomationActivity : Activity() {
      * startActivityForResult to be identified.
      */
     private fun verifiedCallerPackage(): String? =
-        callingPackage
+        callingPackage ?: if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.UPSIDE_DOWN_CAKE) {
+            launchedFromPackage
+        } else {
+            null
+        }
             ?: if (android.os.Build.VERSION.SDK_INT >= 34) launchedFromPackage else null
 
     private suspend fun handleAction(

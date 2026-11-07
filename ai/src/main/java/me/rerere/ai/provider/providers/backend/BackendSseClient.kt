@@ -67,7 +67,13 @@ class BackendSseClient(
 
     /** 单例热流：首次调用建立连接，后续调用复用同一事件流（重连也写回同一流） */
     private val sharedFlow: MutableSharedFlow<SseEvent> by lazy {
-        val flow = MutableSharedFlow<SseEvent>(extraBufferCapacity = 256)
+        // extraBufferCapacity 必须远大于峰值吞吐：无 replay 的热流在订阅建立前
+        // （connect() → 消费方开始收集之间有网络往返）tryEmit 会静默丢事件。
+        // 发射端在 OkHttp 线程，不能挂起 emit，只能靠大缓冲 + 失败日志兜底。
+        val flow = MutableSharedFlow<SseEvent>(
+            extraBufferCapacity = 4096,
+            onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND,
+        )
         startConnect(flow)
         flow
     }
@@ -151,7 +157,9 @@ class BackendSseClient(
                                 localReasoning.clear()
                             }
                         }
-                        destination.tryEmit(event)
+                        if (!destination.tryEmit(event)) {
+                            android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=" + event.kind + "）")
+                        }
                     } catch (_: Exception) {
                         // 解析失败则忽略
                     }

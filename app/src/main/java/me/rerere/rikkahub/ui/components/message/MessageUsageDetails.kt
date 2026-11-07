@@ -358,7 +358,7 @@ private fun ContextUsageBar(
     val cachedTokens = latest.cachedTokens.coerceIn(0, promptTokens)
     val uncachedInputTokens = promptTokens - cachedTokens
     val outputTokens = latest.completionTokens.coerceAtLeast(0)
-    val contextTokens = promptTokens.toLong() + outputTokens.toLong()
+    val contextTokens = promptTokens.toLong()
     val window = contextWindowTokens?.takeIf { it > 0L }
     val ratio = window?.let { contextTokens.toDouble() / it.toDouble() }
     val percent =

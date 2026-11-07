@@ -165,20 +165,22 @@ fun Context.getComponentActivity(): ComponentActivity? {
 }
 
 fun Context.exportImage(
-    activity: Activity,
+    activity: Activity?,
     bitmap: Bitmap,
-    fileName: String = "RikkaHub Agents Agents_Agents_${System.currentTimeMillis()}.png",
+    fileName: String = "Yao_${System.currentTimeMillis()}.png",
 ) {
     // 检查存储权限（Android 9及以下需要）
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                1,
-            )
+            if (activity != null) {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    1,
+                )
+            }
             return
         }
     }
@@ -226,20 +228,22 @@ fun Context.exportImage(
 }
 
 fun Context.exportImageFile(
-    activity: Activity,
+    activity: Activity?,
     file: File,
-    fileName: String = "RikkaHub Agents Agents_Agents_${System.currentTimeMillis()}.png",
+    fileName: String = "Yao_${System.currentTimeMillis()}.png",
 ) {
     // 检查存储权限（Android 9及以下需要）
     if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
         if (ContextCompat.checkSelfPermission(this, Manifest.permission.WRITE_EXTERNAL_STORAGE)
             != PackageManager.PERMISSION_GRANTED
         ) {
-            ActivityCompat.requestPermissions(
-                activity,
-                arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
-                1,
-            )
+            if (activity != null) {
+                ActivityCompat.requestPermissions(
+                    activity,
+                    arrayOf(Manifest.permission.WRITE_EXTERNAL_STORAGE),
+                    1,
+                )
+            }
             return
         }
     }

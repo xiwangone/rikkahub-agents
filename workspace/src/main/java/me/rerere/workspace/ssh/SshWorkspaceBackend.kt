@@ -320,6 +320,11 @@ class SshWorkspaceBackend(
         val src = resolve(area, source)
         val dst = resolve(area, target)
         require(src != dst) { "Source and target are the same path: $target" }
+        // 自嵌套守卫：本地后端（WorkspaceFileSystem.requireSameOperation）同样拦截。
+        // 没有它 overwrite 分支的 rm -rf dst 会先摧毁 src 的子树（如 copy a -> a/b）。
+        require(!dst.startsWith(src.trimEnd('/') + "/")) {
+            "Refusing to relocate '$source' into its own subtree: $target"
+        }
         val transfer = if (copy) "cp -a" else "mv -f"
         val result = runShell(
             """

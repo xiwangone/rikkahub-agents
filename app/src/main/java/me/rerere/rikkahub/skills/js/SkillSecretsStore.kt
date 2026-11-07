@@ -107,9 +107,12 @@ class SkillSecretsStore(context: Context) {
         val encrypted = cipher.doFinal(plain.toByteArray(StandardCharsets.UTF_8))
         encode(encrypted) to encode(iv)
     } catch (t: Throwable) {
-        AppLog.w(TAG, "Keystore-backed encrypt failed; falling back to obfuscated plaintext", t)
+        // Keystore 不可用时不再把明文（Base64 只是编码不是加密）落盘：
+        // 第三方 API key 明文写进 SharedPreferences 会被备份/root 提取。
+        // 标记降级并拒绝写入，调用方按异常提示用户。
         prefs.edit { putBoolean(PREF_KEY_SECURITY_DEGRADED, true) }
-        encode(plain.toByteArray(StandardCharsets.UTF_8)) to FALLBACK_IV_MARKER
+        AppLog.e(TAG, "Keystore-backed encrypt failed; refusing to store secret in plaintext", t)
+        throw IllegalStateException("Skill secret storage unavailable (keystore failure); secret NOT saved", t)
     }
 
     /** Whether the encryption keystore is unavailable and secrets are stored with

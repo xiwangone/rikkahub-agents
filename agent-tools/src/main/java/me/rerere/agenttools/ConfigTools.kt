@@ -64,8 +64,14 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     suspend fun revert(key: String): JsonObject {
         val last = readAudit().asReversed().firstOrNull { it["key"]?.jsonPrimitive?.contentOrNull == key }
         val current = load().toMutableMap()
-        current.remove(key)
-        val result = if (last != null) "removed current value (prior value in audit log)" else "no prior value; removed if present"
+        val prior = last?.get("value")
+        if (prior != null && prior !is JsonNull) {
+            // 工具描述承诺"恢复最近一次旧值"：把审计里的 prior 写回，而不是只删
+            current[key] = prior
+        } else {
+            current.remove(key)
+        }
+        val result = if (prior != null && prior !is JsonNull) "restored prior value from audit log" else "no prior value; removed if present"
         save(current)
         appendAudit("revert", key, JsonNull.toString(), null)
         return buildJsonObject {
