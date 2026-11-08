@@ -19,7 +19,7 @@
 #      inside chroot = the workspace files dir (bind-mounted), same semantics
 #      as the proot backend. chroot内没有 su 二进制（不 bind /system）。
 #   5. **挂载常驻**：exec/shell 结束时不再自动 unmount。
-#      依据（旧机实测）：单条命令的全量 mount×6 + umount×6 ≈ 630~670ms，
+#      依据：单条命令的全量 mount×6 + umount×6 ≈ 630~670ms，
 #      而 su 启动基线仅 ~40ms —— 多命令场景几乎全在重复挂载上白烧。
 #      常驻期间的卸载由 **App 侧兜底**：关 chroot 开关 / 删除或重装工作区
 #      （WorkspaceRepository.setChrootEnabled(false)、WorkspaceManager.deleteWorkspace）。
@@ -39,7 +39,9 @@ LOCKDIR="$ROOTFS/.chroot-lock"
 mounts_done() { grep -qF "$ROOTFS" /proc/mounts 2>/dev/null; }
 
 # 精确判"某个挂载点是否已挂"
-is_mounted() { grep -qF " $1 " /proc/mounts 2>/dev/null; }
+# toybox 的 `mountpoint -q` 直接问内核，不受 `/data/user/0` ↔ `/data/data` 这类
+# 路径别名影响（本 issue 的根因）；回退到字符串匹配，兼顾老设备上缺 mountpoint 的情况。
+is_mounted() { mountpoint -q "$1" 2>/dev/null || grep -qF " $1 " /proc/mounts 2>/dev/null; }
 
 all_mounted() {
     is_mounted "$ROOTFS/proc" &&
@@ -72,7 +74,7 @@ ensure_mount() { # $1=fstype $2=source $3=target
 }
 
 do_mounts() {
-    if [ -f "$MARKER" ] && all_mounted; then echo "already mounted"; return 0; fi
+    if [ -f "$MARKER" ] && all_mounted; then echo "already mounted" >&2; return 0; fi
     acquire_lock
     ensure_mount proc proc "$ROOTFS/proc" || { release_lock; exit 1; }
     ensure_mount sysfs sys "$ROOTFS/sys" || { release_lock; exit 1; }
@@ -94,7 +96,7 @@ do_mounts() {
     fi
     touch "$MARKER"
     release_lock
-    echo "mounted: proc sys dev devpts tmp"
+    echo "mounted: proc sys dev devpts tmp" >&2
 }
 
 do_unmount() {
@@ -128,7 +130,7 @@ do_fixes() {
 
 case "$1" in
     prepare)
-        do_mounts; do_fixes; echo "ready: $ROOTFS" ;;
+        do_mounts; do_fixes; echo "ready: $ROOTFS" >&2 ;;
     unmount)
         do_unmount ;;
     shell)
@@ -149,7 +151,9 @@ case "$1" in
         do_mounts; do_fixes
         export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
         export HOME=/root
-        chroot "$ROOTFS" /bin/sh -c "$*"
+        # 参数用 "$@" 逐个透传（"$*" 会把含空格的参数拼散）；
+        # PATH 必须在 chroot 内部再设一次 —— 外层 export 不会带进 chroot 里的 sh -c。
+        chroot "$ROOTFS" /bin/sh -c 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export PATH; exec "$@"' sh "$@"
         rc=$?
         # 挂载常驻（见文件头第 5 条）：不在这里 unmount
         exit $rc ;;

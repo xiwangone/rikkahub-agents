@@ -46,7 +46,11 @@ private suspend fun resolvePgpKey(
     if (text.isEmpty()) return PgpKeyResolution.Err("key 必填（条目引用或 armored PGP 密钥块）")
     if (isVaultReference(text)) {
         val name = text.removePrefix(VAULT_REF_PREFIX).trim()
-        val authCheck = context?.let { ctx -> { VaultSessionManager(ctx).hasActiveAuthorization() } }
+        val authCheck: (suspend () -> Boolean)? = if (context != null) {
+            { VaultSessionManager(context).hasActiveAuthorization() }
+        } else {
+            null
+        }
         val resolution = CredentialResolver(repository, isAuthorized = authCheck)
             .resolve(name, CredentialPurpose.LOCAL_USE, caller = caller)
         val granted = resolution as? CredentialResolution.Granted
@@ -116,7 +120,6 @@ private suspend fun resolvePgpPassphrase(
     o["passphrase"]?.jsonPrimitive?.contentOrNull,
     CredentialPurpose.LOCAL_USE,
     repository,
-    isAuthorized = context?.let { ctx -> { VaultSessionManager(ctx).hasActiveAuthorization() } },
     caller = caller,
 )?.toCharArray()
 
