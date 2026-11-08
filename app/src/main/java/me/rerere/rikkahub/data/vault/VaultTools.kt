@@ -174,38 +174,44 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
     },
     execute = { params ->
         val o = params.jsonObject
-        val name = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        if (name == null) {
-            listOf(UIMessagePart.Text("❌ name 必填"))
-        } else {
-            val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
-            val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
-            val pub = o["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
-            // meta：非敏感元数据（白名单见 CredentialMeta）—— AI 可在建占位时就写好账号/AK/region 等正位字段
-            val metaJson =
-                o["meta"]?.let { meta ->
-                    runCatching { meta.jsonObject }.getOrNull()?.let { obj ->
-                        CredentialMeta.encode(
-                            obj.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { c -> k to c } }.toMap(),
-                        )
-                    }
-                } ?: ""
-            repository.save(
-                name = name,
-                value = "", // 占位：值留空，用户稍后填写
-                description = desc,
-                group = group,
-                publicKey = pub,
-                metaJson = metaJson,
-            )
-            repository.logAccess(name, "ai-tool", "prepare")
-            listOf(
-                UIMessagePart.Text(
-                    "✅ 已创建凭证占位条目：$name [${group}]\n" +
-                        "值尚未填写。请用户到 安全凭证库 → $name 编辑，填入实际 key/token。" +
-                        if (pub.isNotBlank()) "\n公钥已记录（AI 可据此识别该密钥）。" else "",
-                ),
-            )
+        val rawName = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val finalName = rawName?.let { CredentialVaultRepository.normalizeName(it) }.orEmpty()
+        when {
+            rawName == null -> listOf(UIMessagePart.Text("❌ name 必填"))
+            !CredentialVaultRepository.validateCredentialName(finalName) ->
+                listOf(UIMessagePart.Text("❌ 凭证名称不合规（须大写蛇形且不超过 64 字符）：$rawName"))
+            repository.getByName(finalName) != null ->
+                listOf(UIMessagePart.Text("❌ 凭证已存在：$finalName（为防止覆盖已有凭证元数据与公钥，占位创建已拒绝；如需修改元数据请用 vault_credential_update）"))
+            else -> {
+                val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
+                val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
+                val pub = o["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
+                // meta：非敏感元数据（白名单见 CredentialMeta）—— AI 可在建占位时就写好账号/AK/region 等正位字段
+                val metaJson =
+                    o["meta"]?.let { meta ->
+                        runCatching { meta.jsonObject }.getOrNull()?.let { obj ->
+                            CredentialMeta.encode(
+                                obj.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { c -> k to c } }.toMap(),
+                            )
+                        }
+                    } ?: ""
+                repository.save(
+                    name = finalName,
+                    value = "", // 占位：值留空，用户稍后填写
+                    description = desc,
+                    group = group,
+                    publicKey = pub,
+                    metaJson = metaJson,
+                )
+                repository.logAccess(finalName, "ai-tool", "prepare")
+                listOf(
+                    UIMessagePart.Text(
+                        "✅ 已创建凭证占位条目：$finalName [${group}]\n" +
+                            "值尚未填写。请用户到 安全凭证库 → $finalName 编辑，填入实际 key/token。" +
+                            if (pub.isNotBlank()) "\n公钥已记录（AI 可据此识别该密钥）。" else "",
+                    ),
+                )
+            }
         }
     },
 )
@@ -278,7 +284,11 @@ fun vaultGenKeyTool(
                 },
         )
     },
+    needsApproval = { true },
     execute = { params ->
+        if (!VaultSessionManager(context).hasActiveAuthorization()) {
+            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        }
         val rawName = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val rawGroup = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val rawComment = params.jsonObject["comment"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
@@ -294,6 +304,14 @@ fun vaultGenKeyTool(
         // 默认名与分组按类型区分，避免 WireGuard/age 密钥落成 SSH 名字
         val name = rawName ?: defaultVaultKeyName(keyType)
         val group = rawGroup ?: defaultVaultKeyGroup(keyType)
+        // 名字统一规范化并校验，且禁止静默覆盖已存在的同名密钥
+        val finalName = CredentialVaultRepository.normalizeName(name)
+        if (!CredentialVaultRepository.validateCredentialName(finalName)) {
+            return@Tool listOf(UIMessagePart.Text("❌ 凭证名称不合规（须大写蛇形且不超过 64 字符）：$name"))
+        }
+        if (repository.getByName(finalName) != null) {
+            return@Tool listOf(UIMessagePart.Text("❌ 凭证名称已存在：$finalName（为防止静默覆盖现有私钥，请指定新的 name 或先显式删除旧条目）"))
+        }
         // 强制注释带 RikkaHub Agents 标识便于溯源；未指定时默认用途注释
         val comment =
             when {
@@ -303,8 +321,6 @@ fun vaultGenKeyTool(
             }
         val key = VaultKeyGenerator.generate(keyType, comment, uidStr ?: "")
         val fp = VaultKeyGenerator.fingerprintOf(key.publicText)
-        // 名字统一规范化（AI 传小写/空格也能落库）
-        val finalName = CredentialVaultRepository.normalizeName(name)
         repository.save(
             name = finalName,
             value = key.privateText,

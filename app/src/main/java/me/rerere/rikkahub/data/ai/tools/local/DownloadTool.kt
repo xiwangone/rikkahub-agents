@@ -43,6 +43,23 @@ fun downloadTool(context: Context): Tool = Tool(
         val filenameParam = params["filename"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotEmpty() }
 
         try {
+            val parsedJavaUri = runCatching { java.net.URI(url.trim()) }.getOrNull()
+            val scheme = parsedJavaUri?.scheme?.lowercase()
+            if (scheme != "http" && scheme != "https") {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        ToolErrors.envelopeFor(error = "invalid_argument", message = "url must use http or https scheme").toString()
+                    )
+                )
+            }
+            val host = parsedJavaUri.host
+            if (host.isNullOrBlank() || hostIsBlockedLiteral(host)) {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        ToolErrors.envelopeFor(error = "blocked_address", message = "blocked_private_address: $host").toString()
+                    )
+                )
+            }
             val uri = url.toUri()
             val rawName = filenameParam
                 ?: uri.lastPathSegment

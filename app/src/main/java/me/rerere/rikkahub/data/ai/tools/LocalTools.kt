@@ -348,7 +348,7 @@ class LocalTools(
         tools.add(me.rerere.rikkahub.data.ai.tools.local.launchActivityTool(context, invocationContext, interactiveToolStreamer))
         tools.add(me.rerere.rikkahub.data.ai.tools.local.openUrlTool(context, invocationContext, interactiveToolStreamer))
     },
-    ToolEntry(LocalToolOption.Termux) { tools, _ ->
+    ToolEntry(LocalToolOption.Termux) { tools, invocationContext ->
         tools.add(me.rerere.rikkahub.data.ai.tools.local.termuxRunCommandTool(context))
         // Persistent interactive (tmux-backed) sessions: ssh-with-prompts, sudo, REPLs,
         // stateful shells. start is approval-gated; send is hardline-guarded per call.
@@ -363,7 +363,7 @@ class LocalTools(
         tools.add(transcribeAudioFileTool(context))
         // whisper_status is a free read-only pre-flight check — no approval needed.
         // The LLM calls this BEFORE attempting transcription to know what's set up.
-        tools.add(whisperStatusTool(context, settingsStore))
+        tools.add(whisperStatusTool(context, settingsStore, invocationContext))
     },
     ToolEntry(LocalToolOption.NotificationListener) { tools, _ ->
         tools.add(listRecentNotificationsTool())
@@ -441,9 +441,9 @@ class LocalTools(
     )
 
     private fun vaultAndWorkflowToolEntries(): List<ToolEntry> = listOf(
-    ToolEntry(LocalToolOption.SkillImport) { tools, _ ->
-        tools.add(me.rerere.rikkahub.skills.skillInstallFromUrlTool(skillUrlImporter, settingsStore, skillManager))
-        tools.add(me.rerere.rikkahub.skills.skillInstallFromTextTool(skillUrlImporter, settingsStore, skillManager))
+    ToolEntry(LocalToolOption.SkillImport) { tools, invocationContext ->
+        tools.add(me.rerere.rikkahub.skills.skillInstallFromUrlTool(skillUrlImporter, settingsStore, skillManager, invocationContext))
+        tools.add(me.rerere.rikkahub.skills.skillInstallFromTextTool(skillUrlImporter, settingsStore, skillManager, invocationContext))
     },
     ToolEntry(LocalToolOption.JsSkills) { tools, _ ->
         tools.add(
@@ -465,13 +465,13 @@ class LocalTools(
         // 合并重复条目：引用重指向 + 删除多余条目（先比对值指纹）
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialMergeTool(
-                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
+                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences, context,
             ),
         )
         // 命名规范化：把历史脏名改成合规名（默认 dry_run，执行时同步引用）
         tools.add(
             me.rerere.rikkahub.data.vault.vaultCredentialNormalizeTool(
-                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences,
+                vaultRepository, settingsStore, sshHostRepository, telegramBotPreferences, context,
             ),
         )
         // 失效引用检查：配置引用了不存在的凭证名（否则要等 401 才发现）
@@ -492,10 +492,10 @@ class LocalTools(
         )
         tools.add(me.rerere.rikkahub.data.vault.vaultCredentialDeleteTool(context, vaultRepository))
         tools.add(me.rerere.rikkahub.data.vault.vaultGenKeyTool(context, vaultRepository))
-        tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpSignTool(vaultRepository, context))
         tools.add(me.rerere.rikkahub.data.vault.vaultPgpVerifyTool(vaultRepository))
         tools.add(me.rerere.rikkahub.data.vault.vaultPgpEncryptTool(vaultRepository))
-        tools.add(me.rerere.rikkahub.data.vault.vaultPgpDecryptTool(vaultRepository))
+        tools.add(me.rerere.rikkahub.data.vault.vaultPgpDecryptTool(vaultRepository, context))
         tools.add(me.rerere.rikkahub.data.vault.vaultSshExecTool(context, vaultRepository))
         tools.add(me.rerere.rikkahub.data.vault.vaultHttpExecTool(context, vaultRepository))
     },
@@ -626,11 +626,11 @@ class LocalTools(
         tools.add(keyboardSelectRangeTool(keyboardApiClient))
     },
     // AI 自诊断/自管理（第一批，纯读工具）。
-    ToolEntry(LocalToolOption.Diagnostics) { tools, _ ->
-        tools.add(diagnosticsTool(context, settingsStore, doctorChecks, conversationRepo))
+    ToolEntry(LocalToolOption.Diagnostics) { tools, invocationContext ->
+        tools.add(diagnosticsTool(context, settingsStore, doctorChecks, conversationRepo, invocationContext))
     },
-    ToolEntry(LocalToolOption.ModelTesting) { tools, _ ->
-        tools.add(testModelTool(providerManager, settingsStore, context))
+    ToolEntry(LocalToolOption.ModelTesting) { tools, invocationContext ->
+        tools.add(testModelTool(providerManager, settingsStore, context, invocationContext))
     },
     )
 

@@ -12,10 +12,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.Provider
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
@@ -23,7 +25,9 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks
 import java.util.concurrent.ConcurrentHashMap
 
@@ -49,44 +53,39 @@ fun testModelTool(
     providerManager: ProviderManager,
     settingsStore: SettingsStore,
     context: Context,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool = Tool(
     name = "test_model",
     description = """
-        Test a model endpoint (provider + model id): non-streaming, streaming, and tool-call support. Cached; force=true bypasses cache. Use to verify a provider works before relying on it.
+        Test a model endpoint (provider + model id): non-streaming, streaming, and tool-call support. Omit provider to test the active assistant/conversation chat model. Cached; force=true bypasses cache. Use to verify a provider works before relying on it.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("provider", buildJsonObject {
                     put("type", "string")
-                    put("description", "Provider name, e.g. 'OpenAI' / 'Google' / 'Claude'. Case-insensitive.")
+                    put("description", "Provider name or UUID, e.g. 'OpenAI' / 'Google' / 'Claude'. Omit to resolve from model_id or the active assistant/conversation model.")
                 })
                 put("model_id", buildJsonObject {
                     put("type", "string")
-                    put("description", "The model id to test. Omit to test the provider's first CHAT model.")
+                    put("description", "The model id, UUID, or display name to test. Omit to test the provider's first CHAT model (or the active chat model when provider is omitted).")
                 })
                 put("force", buildJsonObject {
                     put("type", "boolean")
                     put("description", "Bypass the result cache for this call. Default false.")
                 })
             },
-            required = listOf("provider"),
+            required = emptyList(),
         )
     },
     execute = {
         val params = it.jsonObject
-        val providerName = params["provider"]?.jsonPrimitive?.contentOrNull ?: error("provider is required")
-        val modelId = params["model_id"]?.jsonPrimitive?.contentOrNull
+        val providerName = params["provider"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { s -> s.isNotEmpty() }
+        val modelId = params["model_id"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { s -> s.isNotEmpty() }
         val force = params["force"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
 
         val settings = settingsStore.settingsFlow.first()
-        val providerSetting = settings.providers.firstOrNull { p ->
-            p.name.equals(providerName, ignoreCase = true) || p.id.toString().equals(providerName, ignoreCase = true)
-        } ?: error("Provider not found: $providerName")
-
-        val model = providerSetting.models.firstOrNull { m ->
-            modelId == null || m.modelId == modelId || m.id.toString() == modelId || m.displayName.equals(modelId, ignoreCase = true)
-        } ?: error("Model not found in provider $providerName${modelId?.let { " ($it)" } ?: ""}")
+        val (providerSetting, model) = resolveTestModelTarget(settings, providerName, modelId, invocationContext)
 
         val cacheKey = "${providerSetting.id}|${model.modelId}"
         if (!force) {
@@ -98,7 +97,7 @@ fun testModelTool(
         val provider = providerManager.getProviderByType(providerSetting)
         val results = probeProvider(provider, providerSetting, model)
         val payload = buildJsonObject {
-            put("provider", providerName)
+            put("provider", providerSetting.name)
             put("model", model.modelId)
             put("non_streaming", probeToJson(results.nonStreaming))
             put("streaming", probeToJson(results.streaming))
@@ -108,6 +107,43 @@ fun testModelTool(
         listOf(UIMessagePart.Text(payload))
     },
 )
+
+internal fun resolveTestModelTarget(
+    settings: Settings,
+    providerName: String?,
+    modelId: String?,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): Pair<ProviderSetting, Model> {
+    if (providerName != null) {
+        val providerSetting = settings.providers.firstOrNull { p ->
+            p.name.equals(providerName, ignoreCase = true) || p.id.toString().equals(providerName, ignoreCase = true)
+        } ?: error("Provider not found: $providerName")
+        val model = if (modelId == null) {
+            providerSetting.models.firstOrNull { m -> m.type == ModelType.CHAT }
+                ?: providerSetting.models.firstOrNull()
+        } else {
+            providerSetting.models.firstOrNull { m -> m.matchesModelQuery(modelId) }
+        } ?: error("Model not found in provider $providerName${modelId?.let { " ($it)" } ?: ""}")
+        return providerSetting to model
+    }
+    if (modelId != null) {
+        val searchPool = settings.providers.filter { it.enabled } + settings.providers.filterNot { it.enabled }
+        searchPool.forEach { p ->
+            p.models.firstOrNull { m -> m.matchesModelQuery(modelId) }?.let { m ->
+                return p to m
+            }
+        }
+        error("Model not found across providers: $modelId")
+    }
+    val activeModel = settings.findChatModelFor(null, invocationContext.callerAssistantUuid)
+        ?: error("provider is required when no active chat model is configured")
+    val providerSetting = settings.providers.firstOrNull { p -> p.models.any { m -> m.id == activeModel.id } }
+        ?: error("Provider not found for active model: ${activeModel.modelId}")
+    return providerSetting to activeModel
+}
+
+private fun Model.matchesModelQuery(query: String): Boolean =
+    modelId == query || id.toString().equals(query, ignoreCase = true) || displayName.equals(query, ignoreCase = true)
 
 // ---- test_model 内部辅助 ----
 
@@ -335,6 +371,7 @@ fun diagnosticsTool(
     settingsStore: SettingsStore,
     doctorChecks: DoctorChecks,
     conversationRepo: ConversationRepository,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool = Tool(
     name = "diagnostics",
     // 描述只留用途与关键用法：kind 全量枚举已在 parameters.kind（enum + joinToString）给出，
@@ -352,21 +389,21 @@ fun diagnosticsTool(
         val text = when (kind) {
             "health" -> appHealthPayload(doctorChecks, context)
             "build" -> buildInfoPayload(context)
-            "enabled_tools" -> enabledToolsPayload(settingsStore)
-            "usage" -> usageStatsPayload(context, settingsStore, params)
+            "enabled_tools" -> enabledToolsPayload(settingsStore, invocationContext)
+            "usage" -> usageStatsPayload(context, settingsStore, params, invocationContext)
             "settings" -> appSettingsPayload(settingsStore)
-            "assistants" -> assistantsPayload(settingsStore, params)
+            "assistants" -> assistantsPayload(settingsStore, params, invocationContext)
             "logs" -> appLogsPayload(context, params)
             "logs_file" -> fileLogsPayload(context, params)
             "requests" -> requestLogsPayload(context, params)
             "crash" -> crashSnapshotPayload(context, params)
             "lifecycle" -> lifecycleLogsPayload(context, params)
-            "conversation" -> conversationsPayload(conversationRepo, settingsStore, params)
-            "generation" -> generationPayload(conversationRepo, settingsStore, params)
+            "conversation" -> conversationsPayload(conversationRepo, settingsStore, params, invocationContext)
+            "generation" -> generationPayload(conversationRepo, settingsStore, params, invocationContext)
             "perf" -> perfPayload(context)
-            "models" -> modelsPayload(settingsStore, params)
+            "models" -> modelsPayload(settingsStore, params, invocationContext)
             "audit" -> auditPayload(params)
-            "tool_scope" -> toolScopePayload(context, settingsStore, params)
+            "tool_scope" -> toolScopePayload(context, settingsStore, params, invocationContext)
             "runs" -> runsPayload(context, params)
             else -> ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown kind '$kind'", hint = "kind must be one of: ${DIAGNOSTICS_KINDS.joinToString(" | ")}").toString()
         }

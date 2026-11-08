@@ -81,6 +81,7 @@ fun vaultCredentialMergeTool(
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
     telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
+    context: android.content.Context? = null,
 ): Tool = Tool(
     name = "vault_credential_merge",
     description =
@@ -98,7 +99,11 @@ fun vaultCredentialMergeTool(
             required = listOf("source", "target"),
         )
     },
+    needsApproval = { true },
     execute = { params ->
+        if (context != null && !VaultSessionManager(context).hasActiveAuthorization()) {
+            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+        }
         val source = params.jsonObject["source"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val target = params.jsonObject["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         if (source.isEmpty() || target.isEmpty()) {
@@ -202,6 +207,7 @@ fun vaultCredentialNormalizeTool(
     settingsStore: me.rerere.rikkahub.data.datastore.SettingsStore,
     sshHostRepository: me.rerere.rikkahub.data.repository.SshHostRepository,
     telegramBotPreferences: me.rerere.rikkahub.data.telegram.TelegramBotPreferences,
+    context: android.content.Context? = null,
 ): Tool = Tool(
     name = "vault_credential_normalize_names",
     description =
@@ -253,6 +259,9 @@ fun vaultCredentialNormalizeTool(
                 append("确认后请用 dry_run=false 执行（会自动同步配置引用）。")
             }
             return@Tool listOf(UIMessagePart.Text(body))
+        }
+        if (context != null && !VaultSessionManager(context).hasActiveAuthorization()) {
+            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再执行 dry_run=false"))
         }
 
         var done = 0

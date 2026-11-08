@@ -17,9 +17,10 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.TierSource
 import me.rerere.rikkahub.data.ai.tools.ToolCapabilities
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import kotlinx.serialization.json.booleanOrNull
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
@@ -39,9 +40,12 @@ import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
  * 当前启用的本地工具选项（按分类）。只读。
  * 用于回答"我现在能用哪些工具"，也可与 [tool_usage_stats] 对照找出"启用了却从未用过"的项。
  */
-internal suspend fun enabledToolsPayload(settingsStore: SettingsStore): String {
+internal suspend fun enabledToolsPayload(
+    settingsStore: SettingsStore,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): String {
             val settings = settingsStore.settingsFlow.first()
-            val assistant = settings.getCurrentAssistant()
+            val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
             val enabled = assistant.localTools
             val byCategory =
                 buildJsonObject {
@@ -205,6 +209,7 @@ internal suspend fun usageStatsPayload(
     context: Context,
     settingsStore: SettingsStore,
     params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
             val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
             val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
@@ -212,7 +217,7 @@ internal suspend fun usageStatsPayload(
             val snapshot = ToolUsageTracker.snapshot(context)
             val injected = ToolUsageTracker.injectedNames(context)
             val settings = settingsStore.settingsFlow.first()
-            val assistant = settings.getCurrentAssistant()
+            val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
             val extraCold = assistant.extraColdTools.toSet()
             val minCalls = (params["min_calls"]?.jsonPrimitive?.intOrNull ?: 10).coerceIn(1, 100_000)
             val payload =
@@ -367,9 +372,10 @@ internal suspend fun toolScopePayload(
     context: Context,
     settingsStore: SettingsStore,
     params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val assistant = settings.getCurrentAssistant()
+    val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
     val onlyTools = assistant.onlyTools
     val extraCold = assistant.extraColdTools.toSet()
     val injected = ToolUsageTracker.injectedNames(context)

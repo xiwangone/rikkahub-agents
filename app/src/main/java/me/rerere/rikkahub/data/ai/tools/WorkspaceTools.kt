@@ -484,6 +484,13 @@ private fun createShellTool(
             } else {
                 params.string("command") ?: error("command is required (or provide `preset`)")
             }
+        HardlineCommandGuard.checkCommand(command)?.let { blockedReason ->
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    ToolErrors.envelopeFor(error = ToolErrors.HARDLINE_BLOCKED, message = blockedReason).toString(),
+                ),
+            )
+        }
         val cwd = layout.relativeToWorkspace(params.string("cwd") ?: defaultCwd.orEmpty())
         val timeoutMillis = params.string("timeout")?.toLongOrNull()
             ?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)

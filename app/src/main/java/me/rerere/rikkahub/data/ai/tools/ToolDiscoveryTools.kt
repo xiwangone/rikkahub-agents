@@ -22,6 +22,23 @@ import me.rerere.ai.ui.UIMessagePart
  *
  * 注意：[allTools] 必须是**未精简**的完整工具列表，否则取不到完整说明。
  */
+internal fun effectiveDiscoveryTier(
+    toolName: String,
+    trimEnabled: Boolean = true,
+    scope: List<String> = emptyList(),
+    extraCold: Set<String> = emptySet(),
+    uiScene: UiScene = UiScene.UNKNOWN,
+): SurfaceTier {
+    if (toolName in extraCold) return SurfaceTier.COLD
+    if (!trimEnabled) return ToolSurfacePolicy.tierOf(toolName, extraCold, uiScene)
+    return if (scope.isEmpty()) {
+        ToolSurfacePolicy.tierOf(toolName, extraCold, uiScene)
+    } else {
+        ToolSurfacePolicy.tierOfWithScope(toolName, scope, extraCold, uiScene)
+    }
+}
+
+@Suppress("LongParameterList")
 internal fun buildToolDiscoveryTools(
     allTools: List<Tool>,
     conversationId: String? = null,
@@ -30,17 +47,22 @@ internal fun buildToolDiscoveryTools(
     context: Context? = null,
     // 当前 UI 场景：透传给档位判定，使 list_tools 显示的档位与实际注入一致。
     uiScene: UiScene = UiScene.UNKNOWN,
+    trimEnabled: Boolean = true,
+    scope: List<String> = emptyList(),
 ): List<Tool> =
     listOf(
-        listToolsTool(allTools, conversationId, extraCold, uiScene),
-        getToolSchemaTool(allTools, conversationId, extraCold, context, uiScene),
+        listToolsTool(allTools, conversationId, extraCold, uiScene, trimEnabled, scope),
+        getToolSchemaTool(allTools, conversationId, extraCold, context, uiScene, trimEnabled, scope),
     )
 
+@Suppress("LongParameterList")
 private fun listToolsTool(
     allTools: List<Tool>,
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
     uiScene: UiScene = UiScene.UNKNOWN,
+    trimEnabled: Boolean = true,
+    scope: List<String> = emptyList(),
 ): Tool =
     Tool(
         name = "list_tools",
@@ -80,7 +102,7 @@ private fun listToolsTool(
                                     buildJsonObject {
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
-                                        val tier = ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene)
+                                        val tier = effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold, uiScene)
                                         put("tier", tier.name.lowercase())
                                         // Only cold tools can lack a full schema; hot/warm always ship
                                         // the complete one. Reporting false for them is misleading and
@@ -103,12 +125,15 @@ private fun listToolsTool(
         },
     )
 
+@Suppress("LongParameterList")
 private fun getToolSchemaTool(
     allTools: List<Tool>,
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
     context: Context? = null,
     uiScene: UiScene = UiScene.UNKNOWN,
+    trimEnabled: Boolean = true,
+    scope: List<String> = emptyList(),
 ): Tool =
     Tool(
         name = "get_tool_schema",
@@ -131,7 +156,7 @@ private fun getToolSchemaTool(
         execute = { input ->
             val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
             val tool = allTools.firstOrNull { it.name == name }
-            if (tool != null && ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene) == SurfaceTier.COLD) {
+            if (tool != null && effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold, uiScene) == SurfaceTier.COLD) {
                 ToolSurfaceSession.markLoaded(conversationId, tool.name)
                 // 记录解锁：与调用次数对照，判断降温名单配得对不对（解锁后是否真用得上）。
                 context?.let { ToolUsageTracker.recordUnlock(it, tool.name) }

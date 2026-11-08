@@ -15,9 +15,9 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findChatModelFor
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -119,13 +119,17 @@ private const val PROMPT_PREVIEW_CHARS = 1200
  * 脱敏纪律：`custom_headers` / `custom_bodies` **只给键名与值长度**，绝不给值 —— 它们可能被
  * 用户填成明文 key。provider 侧 key 是 "$$凭证名" 引用，天然安全。
  */
-internal suspend fun assistantsPayload(settingsStore: SettingsStore, params: JsonObject): String {
+internal suspend fun assistantsPayload(
+    settingsStore: SettingsStore,
+    params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): String {
     val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
         ?: return "{\"error\":\"settings_unavailable\"}"
     val onlyId = params["assistant_id"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
     val full = params["full"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
     val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 200)
-    val current = settings.getCurrentAssistant().id
+    val current = settings.resolveAssistantFor(invocationContext.callerAssistantUuid).id
     val modelIndex = settings.providers.flatMap { p -> p.models.map { p to it } }.associateBy { it.second.id }
     val selected = settings.assistants
         .filter { onlyId.isEmpty() || it.id.toString() == onlyId }
@@ -258,9 +262,10 @@ private suspend fun recentConversationsJson(
     conversationRepo: ConversationRepository,
     settingsStore: SettingsStore,
     params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val assistant = settings.getCurrentAssistant()
+    val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
     val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 50) ?: 20
     val list = conversationRepo.getRecentConversations(assistant.id, limit)
     return buildJsonObject {
@@ -296,11 +301,12 @@ internal suspend fun conversationsPayload(
     conversationRepo: ConversationRepository,
     settingsStore: SettingsStore,
     params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
     val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
     // 无 id = 列最近会话（抽成独立函数：[conversationsPayload] 的圈复杂度已逼近 detekt 阈值 20）
-    if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params)
+    if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params, invocationContext)
     val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrElse {
         return ToolErrors.envelopeFor(error = "invalid_argument", message = "invalid conversation id '$idRaw'", hint = "Check the parameter values and retry with corrected arguments.").toString()
     }
@@ -396,14 +402,12 @@ internal suspend fun generationPayload(
     conversationRepo: ConversationRepository,
     settingsStore: SettingsStore,
     params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val currentAssistant = settings.getCurrentAssistant()
     val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-    // 仓库没有「按 id 直取」，从最近若干条里找（缺省即最近一条）
-    val recent = runCatching { conversationRepo.getRecentConversations(currentAssistant.id, 20) }.getOrElse { emptyList() }
     val conversation =
-        (if (idRaw.isNotBlank()) recent.firstOrNull { it.id.toString() == idRaw } else recent.firstOrNull())
+        resolveGenerationConversation(conversationRepo, settings, idRaw, invocationContext)
             ?: return ToolErrors.envelopeFor(error = "conversation_not_found", message = "conversation_not_found").toString()
 
     // 注意：当前这一轮往往已有一条 assistant 消息（记录工具调用），但它尚未收尾、usage 仍为空。
@@ -579,9 +583,30 @@ internal suspend fun auditPayload(params: JsonObject): String {
  * **只读白名单字段** —— 本函数不读 apiKey / privateKey / baseUrl 等敏感或标识字段，
  * 靠“只写白名单”而不是“记得别写”（provider 配置主体是加密存储的，这里只取明文元数据）。
  */
-internal suspend fun modelsPayload(settingsStore: SettingsStore, params: JsonObject): String {
+private suspend fun resolveGenerationConversation(
+    conversationRepo: ConversationRepository,
+    settings: Settings,
+    idRaw: String,
+    invocationContext: ToolInvocationContext,
+): me.rerere.rikkahub.data.model.Conversation? {
+    if (idRaw.isNotBlank()) {
+        val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrNull() ?: return null
+        return runCatching { conversationRepo.getConversationById(uuid) }.getOrNull()
+    }
+    invocationContext.callerConversationUuid?.let { callerUuid ->
+        runCatching { conversationRepo.getConversationById(callerUuid) }.getOrNull()?.let { return it }
+    }
+    val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
+    return runCatching { conversationRepo.getRecentConversations(assistant.id, 1).firstOrNull() }.getOrNull()
+}
+
+internal suspend fun modelsPayload(
+    settingsStore: SettingsStore,
+    params: JsonObject,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+): String {
     val settings = settingsStore.settingsFlow.first()
-    val assistant = settings.getCurrentAssistant()
+    val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
     val bound = assistant.chatModelId
     // 过滤：默认只回**启用**的 provider（全量 37 个 ≈ 59KB，会把上下文吃掉）；
     // 禁用的仅在 include_disabled=true 时给，或用 provider=名称/uuid 精确取。

@@ -23,6 +23,40 @@ private const val WEB_EXTRACT_TIMEOUT_MS = 30_000L
  * `web_fetch(extract_mode=...)`; it exists as its own tool because a model looking to
  * *read* a page reaches for a reading verb, not for a transport primitive.
  */
+/** URL 校验：空值 / 协议 / 私有地址字面量。返回 (url, 错误 JSON)，二者恰有一个非空。 */
+private fun resolveExtractTarget(obj: JsonObject): Pair<String?, String?> {
+    val url = obj["url"]?.jsonPrimitive?.contentOrNull?.trim()
+    if (url.isNullOrBlank()) return null to fmErrEnvelope("missing_url", "url is required")
+    if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) {
+        return null to fmErrEnvelope("bad_url", "url must start with http:// or https://")
+    }
+    // OkHttp routes a literal-IP host straight to the socket without consulting GuardedDns, so
+    // refuse private/loopback/link-local literals deterministically here; the egress interceptor
+    // still covers literal redirect hops.
+    val host = url.toHttpUrlOrNull()?.host
+    if (host != null && hostIsBlockedLiteral(host)) {
+        return null to ToolErrors.envelopeFor(
+            error = "blocked_address",
+            message = "blocked_private_address: $host",
+            hint = "This tool refuses private, loopback and link-local addresses.",
+        ).toString()
+    }
+    return url to null
+}
+
+/** mode 校验：非法值 / 不支持的 raw。 */
+private fun resolveExtractMode(obj: JsonObject): Pair<FetchExtract?, String?> {
+    val mode = parseExtractModeOrNull(obj["mode"]?.jsonPrimitive?.contentOrNull ?: "article")
+        ?: return null to fmErrEnvelope("bad_mode", "mode must be one of article, text, links, metadata")
+    if (mode == FetchExtract.RAW) {
+        return null to fmErrEnvelope(
+            "bad_mode",
+            "web_extract does not serve raw markup; use web_fetch with extract_mode='raw'",
+        )
+    }
+    return mode to null
+}
+
 fun webExtractTool(client: OkHttpClient): Tool = Tool(
     name = "web_extract",
     description = """
@@ -55,38 +89,10 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val url = obj["url"]?.jsonPrimitive?.contentOrNull?.trim()
-        if (url.isNullOrBlank()) {
-            return@Tool fmTextPart(fmErrEnvelope("missing_url", "url is required"))
-        }
-        if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) {
-            return@Tool fmTextPart(
-                fmErrEnvelope("bad_url", "url must start with http:// or https://"),
-            )
-        }
-        // OkHttp routes a literal-IP host straight to the socket without consulting the
-        // GuardedDns wrapper, so refuse a private/loopback/link-local literal deterministically
-        // here; withEgressGuard's interceptor still covers literal redirect hops.
-        url.toHttpUrlOrNull()?.host?.let { host ->
-            if (hostIsBlockedLiteral(host)) {
-                return@Tool fmTextPart(
-                    ToolErrors.envelopeFor(error = "blocked_address", message = "blocked_private_address: $host", hint = "This tool refuses private, loopback and link-local addresses.").toString()
-                )
-            }
-        }
-
-        val mode = parseExtractModeOrNull(obj["mode"]?.jsonPrimitive?.contentOrNull ?: "article")
-            ?: return@Tool fmTextPart(
-                fmErrEnvelope("bad_mode", "mode must be one of article, text, links, metadata"),
-            )
-        if (mode == FetchExtract.RAW) {
-            return@Tool fmTextPart(
-                fmErrEnvelope(
-                    "bad_mode",
-                    "web_extract does not serve raw markup; use web_fetch with extract_mode='raw'",
-                ),
-            )
-        }
+        val (url, urlError) = resolveExtractTarget(obj)
+        if (url == null) return@Tool fmTextPart(urlError.orEmpty())
+        val (mode, modeError) = resolveExtractMode(obj)
+        if (mode == null) return@Tool fmTextPart(modeError.orEmpty())
 
         val startIndex = obj["start_index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
         val maxChars = obj["max_chars"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
@@ -112,6 +118,12 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
                         headers = null,
                     )
                 }
+            } catch (e: IllegalArgumentException) {
+                ToolErrors.envelopeFor(
+                    error = "invalid_argument",
+                    message = e.message ?: "Malformed URL: $url",
+                    hint = "Pass a valid http:// or https:// URL.",
+                ).toString()
             } catch (e: java.io.InterruptedIOException) {
                 // OkHttp's callTimeout (set in withEgressGuard) fires this when a call, including
                 // a trickling read, runs past the advertised 30s limit; withTimeoutOrNull cannot

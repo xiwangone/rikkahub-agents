@@ -2,7 +2,9 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlin.uuid.Uuid
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import org.junit.Assert.assertEquals
@@ -110,13 +112,38 @@ class AppDiagnosticsStatePayloadsTest {
     }
 
     @Test
-    fun `dangling assistant default stays visible as unresolved`() {
-        val dangling = Uuid.random()
-        val assistant = Assistant(chatModelId = dangling, allowPerConversationModel = true)
+    fun `resolveTestModelTarget prefers CHAT model when modelId is omitted`() {
+        val embModel = Model(id = Uuid.random(), modelId = "text-embedding-3", displayName = "Emb", type = ModelType.EMBEDDING)
+        val chatModel = Model(id = Uuid.random(), modelId = "gpt-4o", displayName = "GPT-4o", type = ModelType.CHAT)
+        val mixedProvider = ProviderSetting.OpenAI(name = "MixedOpenAI", models = listOf(embModel, chatModel))
+        val settings = Settings(providers = listOf(mixedProvider))
 
-        val scope = resolveModelScope(settingsWith(assistant), null, assistant.id)
+        val (resolvedProvider, resolvedModel) = resolveTestModelTarget(settings, "MixedOpenAI", null)
 
-        assertEquals(dangling, scope.modelId)
-        assertEquals("unresolved", scope.source)
+        assertEquals("MixedOpenAI", resolvedProvider.name)
+        assertEquals("gpt-4o", resolvedModel.modelId)
+    }
+
+    @Test
+    fun `resolveTestModelTarget resolves caller assistant model when provider is omitted`() {
+        val globalAssistant = Assistant(name = "DefaultBot", chatModelId = globalModel.id)
+        val callerAssistant = Assistant(name = "CallerBot", chatModelId = assistantModel.id)
+        val testProvider = ProviderSetting.OpenAI(
+            id = Uuid.random(),
+            name = "Test Provider",
+            models = listOf(conversationModel, assistantModel, globalModel),
+        )
+        val settings = Settings(
+            assistantId = globalAssistant.id,
+            chatModelId = globalModel.id,
+            assistants = listOf(globalAssistant, callerAssistant),
+            providers = listOf(testProvider),
+        )
+        val ctx = ToolInvocationContext(callerAssistantId = callerAssistant.id.toString())
+
+        val (resolvedProvider, resolvedModel) = resolveTestModelTarget(settings, null, null, ctx)
+
+        assertEquals(testProvider.id, resolvedProvider.id)
+        assertEquals(assistantModel.id, resolvedModel.id)
     }
 }

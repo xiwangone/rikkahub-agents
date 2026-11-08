@@ -217,6 +217,24 @@ object HardlineCommandGuard {
      * the call is refused. This is the floor; a clueful MCP server should also gate
      * its own destructive tools with its own approval.
      */
+    private val SHELL_COMMAND_TOOLS = setOf(
+        "ssh_exec",
+        "ssh_exec_saved",
+        "shizuku_exec",
+        "workspace_shell",
+        "workspace_run_background",
+        "vault_ssh_exec",
+        "termux_session_start",
+    )
+
+    private fun checkSingleOrBatchCommands(input: JsonObject): String? {
+        val single = input["command"]?.jsonPrimitive?.contentOrNull
+        single?.let { checkCommand(it) }?.let { return it }
+        return input["commands"]?.jsonArray
+            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?.firstNotNullOfOrNull { checkCommand(it) }
+    }
+
     fun checkTool(toolName: String, inputJson: String): String? {
         if (inputJson.isBlank()) return null
         val obj = runCatching {
@@ -242,18 +260,10 @@ object HardlineCommandGuard {
                     checkCommand("${exe.orEmpty()} ${args.orEmpty()}")
                 } else null
             }
-            toolName == "ssh_exec" || toolName == "ssh_exec_saved" ->
-                checkCommand(input["command"]?.jsonPrimitive?.contentOrNull)
-            // 设备侧 shell 与沙箱工作区 shell 同构（单命令或 commands 批量），同一档检查。
-            // workspace_shell 此前漏挂：命令虽跑在沙箱内，但 /workspace 是全部资产
-            // （仓库 / 文档 / 技能快照）的挂载点，破坏性与设备侧同量级 → 对应的根路径规则见 PATTERNS。
-            toolName == "shizuku_exec" || toolName == "workspace_shell" -> {
-                val single = input["command"]?.jsonPrimitive?.contentOrNull
-                single?.let { checkCommand(it) }?.let { return it }
-                input["commands"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
-                    ?.firstNotNullOfOrNull { checkCommand(it) }
-            }
+            // 设备侧 shell、SSH 与沙箱工作区 shell 同构（单命令或 commands 批量），统一检查 command 与 commands[]。
+            toolName in SHELL_COMMAND_TOOLS -> checkSingleOrBatchCommands(input)
+            toolName == "termux_session_send" ->
+                checkCommand(input["input"]?.jsonPrimitive?.contentOrNull)
             toolName == "app_force_stop" || toolName == "app_disable" || toolName == "app_enable" || toolName == "app_uninstall" -> {
                 val pkg = input["package"]?.jsonPrimitive?.contentOrNull
                 checkCommand("am force-stop $pkg") // 复用 checkCommand 的 shell 注入防护；包名本身由工具内 PACKAGE_REGEX 兜底

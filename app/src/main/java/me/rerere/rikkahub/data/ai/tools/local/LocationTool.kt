@@ -76,7 +76,6 @@ fun locationTool(context: Context): Tool = Tool(
         }
         val timeoutMs = (params["timeout_ms"]?.jsonPrimitive?.intOrNull ?: 30000)
             .coerceIn(1000, 60000)
-            .coerceIn(1000, 30000)
 
         val payload: JsonObject = when {
             priority == null -> errorPayload("invalid_argument", "unknown accuracy: $accuracyStr")

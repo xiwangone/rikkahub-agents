@@ -309,7 +309,11 @@ fun telegramSendPhotoTool(prefs: TelegramBotPreferences, client: TelegramBotClie
     },
     execute = { input ->
         val p = input.jsonObject
-        val path = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val rawPath = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val path = AgentWorkspace.expand(rawPath)
+        PathSafetyGuard.check(path)?.let { v ->
+            return@Tool textPart(ToolErrors.envelopeFor(error = v.code, message = v.detail))
+        }
         val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
             ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
         val caption = p["caption"]?.jsonPrimitive?.contentOrNull
@@ -351,7 +355,11 @@ fun telegramSendDocumentTool(prefs: TelegramBotPreferences, client: TelegramBotC
     },
     execute = { input ->
         val p = input.jsonObject
-        val path = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val rawPath = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val path = AgentWorkspace.expand(rawPath)
+        PathSafetyGuard.check(path)?.let { v ->
+            return@Tool textPart(ToolErrors.envelopeFor(error = v.code, message = v.detail))
+        }
         val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
             ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
         val caption = p["caption"]?.jsonPrimitive?.contentOrNull

@@ -76,7 +76,7 @@ class ChatToolFactory(
 
         addAll(workspaceAndSkillTools(assistant, workspaceIdOverride, workspaceCwd))
 
-        val mcpTools = mcpManager.getAllAvailableTools()
+        val mcpTools = mcpManager.getAllAvailableTools(assistant.id)
         // 服务器名不是纯英文+数字（允许 _ 和 -）时无法组成合法的 mcp__<name>__tool 名，
         // 报错而非下发模型无法寻址的工具。
         val invalidNames = mcpTools
@@ -157,6 +157,8 @@ class ChatToolFactory(
                         extraCold = assistant.extraColdTools.toSet(),
                         context = context,
                         uiScene = uiScene,
+                        trimEnabled = trimEnabled,
+                        scope = if (scopeAsTier) effectiveToolScope else emptyList(),
                     )
             ).sortedBy { it.name }
         // 工具重绑到与模型看到的一致的那份列表上，否则「省了多少」永远是 0。

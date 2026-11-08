@@ -118,6 +118,17 @@ object PathSafetyGuard {
     private val OWN_APP_PREFIXES = listOf(
         "/data/data/${BuildConfig.APPLICATION_ID}",
         "/data/user/0/${BuildConfig.APPLICATION_ID}",
+        "/data/user_de/0/${BuildConfig.APPLICATION_ID}",
+    )
+
+    /** Sensitive internal subdirectories inside our own app sandbox (Room DB, DataStore, SharedPreferences, WebView cookies). */
+    private val OWN_APP_SENSITIVE_SUBDIRS = listOf(
+        "/databases",
+        "/datastore",
+        "/shared_prefs",
+        "/files/datastore",
+        "/files/browser-profile",
+        "/files/vault_known_hosts",
     )
 
     data class Violation(val code: String, val detail: String)
@@ -127,6 +138,31 @@ object PathSafetyGuard {
      *
      * Callers must convert to a structured error envelope via [fmErrEnvelope].
      */
+    private fun checkAppDataSandbox(canonical: String): Violation? {
+        val isAppDataDir = canonical.startsWith("/data/data/") ||
+            canonical.startsWith("/data/user/") ||
+            canonical.startsWith("/data/user_de/")
+        if (!isAppDataDir) return null
+        val matchedOwn = OWN_APP_PREFIXES.firstOrNull { own ->
+            canonical == own || canonical.startsWith("$own/")
+        } ?: return Violation(
+            "path_blocked",
+            "Paths inside other apps' private sandboxes (/data/data/<other>) cannot be accessed."
+        )
+        val relInsideOwn = canonical.removePrefix(matchedOwn)
+        val hitsSensitiveInternal = OWN_APP_SENSITIVE_SUBDIRS.any { sub ->
+            relInsideOwn == sub || relInsideOwn.startsWith("$sub/")
+        }
+        return if (hitsSensitiveInternal) {
+            Violation(
+                "path_blocked",
+                "Internal app database, DataStore, SharedPreferences, and browser profile paths cannot be accessed by file tools."
+            )
+        } else {
+            null
+        }
+    }
+
     fun check(raw: String?): Violation? {
         if (raw.isNullOrEmpty()) {
             return Violation("path_blocked", "Path must not be empty.")
@@ -151,18 +187,7 @@ object PathSafetyGuard {
             }
         }
 
-        // /data/data/<other-package> — allow only our own app sandbox
-        if (canonical.startsWith("/data/data/")) {
-            val isOwn = OWN_APP_PREFIXES.any { own ->
-                canonical == own || canonical.startsWith("$own/")
-            }
-            if (!isOwn) {
-                return Violation(
-                    "path_blocked",
-                    "Paths inside other apps' private sandboxes (/data/data/<other>) cannot be accessed."
-                )
-            }
-        }
+        checkAppDataSandbox(canonical)?.let { return it }
 
         // Path traversal: if the canonical form starts with a system prefix that the
         // raw path did NOT explicitly name, the caller tried to escape via ".."

@@ -32,6 +32,17 @@ class KeystoreToolsTest {
         assertNull(validateKeystoreAlias("a".repeat(64)))
     }
 
+    @Test fun `alias validation rejects reserved rikkahub prefix`() {
+        assertEquals(
+            "alias prefix 'rikkahub_' is reserved for internal app keys",
+            validateKeystoreAlias("rikkahub_providers_credentials"),
+        )
+        assertEquals(
+            "alias prefix 'rikkahub_' is reserved for internal app keys",
+            validateKeystoreAlias("RIKKAHUB_BACKUP_PASSWORD"),
+        )
+    }
+
     @Test fun `type validation enforces rsa purpose consistency`() {
         assertNull(validateKeystoreType("rsa_2048", listOf("sign", "verify")))
         assertNotNull(validateKeystoreType("rsa_2048", listOf("encrypt")))

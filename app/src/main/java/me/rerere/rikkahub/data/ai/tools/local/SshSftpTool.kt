@@ -106,7 +106,11 @@ fun sshUploadTool(
     execute = { input ->
         val p = input.jsonObject
         val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val localPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val rawLocalPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val localPath = AgentWorkspace.expand(rawLocalPath)
+        PathSafetyGuard.check(localPath)?.let { v ->
+            return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
+        }
         val remotePath = p["remote_path"]?.jsonPrimitive?.contentOrNull ?: error("remote_path is required")
         val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 600)
         val localFile = File(localPath)
@@ -166,7 +170,11 @@ fun sshDownloadTool(
         val p = input.jsonObject
         val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
         val remotePath = p["remote_path"]?.jsonPrimitive?.contentOrNull ?: error("remote_path is required")
-        val localPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val rawLocalPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val localPath = AgentWorkspace.expand(rawLocalPath)
+        PathSafetyGuard.check(localPath)?.let { v ->
+            return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
+        }
         val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 600)
         val localFile = File(localPath)
         // Ensure the local parent directory exists.

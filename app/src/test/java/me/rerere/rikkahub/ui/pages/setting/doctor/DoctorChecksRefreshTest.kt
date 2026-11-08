@@ -195,5 +195,7 @@ class DoctorChecksRefreshTest {
         assertEquals(2, status.totalProviders)
         assertTrue(status.hasDegraded)
         assertEquals(listOf("BrokenVaultOpenAI"), status.degradedProviderNames)
+        assertEquals(listOf("apiKey"), status.degradedFieldsByProvider["BrokenVaultOpenAI"])
+        assertEquals("BrokenVaultOpenAI(apiKey)", status.formatSummary())
     }
 }

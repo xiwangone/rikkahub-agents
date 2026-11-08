@@ -368,15 +368,18 @@ fun termuxSessionStartTool(context: Context): Tool = Tool(
         val name = TmuxOps.sessionName(input.jsonObject["name"]?.jsonPrimitive?.contentOrNull)
         val cols = input.jsonObject["cols"]?.jsonPrimitive?.intOrNull ?: DEFAULT_COLS
         val rows = input.jsonObject["rows"]?.jsonPrimitive?.intOrNull ?: DEFAULT_ROWS
+        val initial = input.jsonObject["command"]?.jsonPrimitive?.contentOrNull
+        if (!initial.isNullOrBlank()) {
+            // 先校验初始命令再创建 tmux 会话，避免被拦截的命令白白泄漏一个会话槽位
+            HardlineCommandGuard.checkCommand(initial)?.let {
+                return@Tool sessionErrorEnvelope("blocked_by_safety_floor", it)
+            }
+        }
         val started = tmux(context, TmuxOps.startArgv(name, cols, rows))
         if (started !is CaptureResult.Success) {
             return@Tool sessionErrorEnvelope("session_start_failed", "tmux new-session failed.")
         }
-        val initial = input.jsonObject["command"]?.jsonPrimitive?.contentOrNull
         if (!initial.isNullOrBlank()) {
-            HardlineCommandGuard.checkCommand(initial)?.let {
-                return@Tool sessionErrorEnvelope("blocked_by_safety_floor", it)
-            }
             tmux(context, TmuxOps.sendTextArgv(name, initial))
             tmux(context, TmuxOps.enterArgv(name))
         }

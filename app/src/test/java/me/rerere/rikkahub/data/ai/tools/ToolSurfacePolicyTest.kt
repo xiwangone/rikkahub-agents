@@ -78,6 +78,26 @@ class ToolSurfacePolicyTest {
         )
 
     @Test
+    fun `effectiveDiscoveryTier 把白名单外的热档工具判为 COLD 以允许 get_tool_schema 解锁`() {
+        assertEquals(
+            SurfaceTier.COLD,
+            effectiveDiscoveryTier(
+                toolName = "workspace_shell",
+                trimEnabled = true,
+                scope = listOf("web_fetch"),
+            ),
+        )
+        assertEquals(
+            SurfaceTier.HOT,
+            effectiveDiscoveryTier(
+                toolName = "workspace_shell",
+                trimEnabled = true,
+                scope = listOf("workspace_shell"),
+            ),
+        )
+    }
+
+    @Test
     fun `decide 标出策略热档来源`() =
         assertEquals(TierSource.POLICY_HOT, ToolSurfacePolicy.decide("workspace_shell").source)
 

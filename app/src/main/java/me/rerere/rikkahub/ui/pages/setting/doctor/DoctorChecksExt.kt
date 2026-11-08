@@ -75,7 +75,7 @@ internal suspend fun DoctorChecks.networkChecks(): List<DoctorCheck> =
                             labelRes = R.string.doctor_net_01,
                             detail =
                                 "凭据解密失败已触发坏值保护（原密文保留在磁盘未覆盖）：" +
-                                    credStatus.degradedProviderNames.joinToString(", "),
+                                    credStatus.formatSummary(),
                             severity = Severity.WARN,
                             fix = FixAction.OpenAppRoute(R.string.doctor_net_02, AppRouteKey.SettingProvider),
                         ),
@@ -876,21 +876,37 @@ internal fun assistantModelBindingStatus(
 internal data class DegradedProviderCredentialStatus(
     val totalProviders: Int,
     val degradedProviderNames: List<String>,
+    val degradedFieldsByProvider: Map<String, List<String>> = emptyMap(),
 ) {
     val hasDegraded: Boolean
         get() = degradedProviderNames.isNotEmpty()
+
+    fun formatSummary(): String =
+        degradedProviderNames.joinToString(", ") { name ->
+            val fields = degradedFieldsByProvider[name].orEmpty()
+            if (fields.isEmpty()) name else "$name(${fields.joinToString("/")})"
+        }
 }
 
 internal fun degradedProviderCredentialStatus(
     providers: List<ProviderSetting>,
-): DegradedProviderCredentialStatus =
-    DegradedProviderCredentialStatus(
+): DegradedProviderCredentialStatus {
+    val entries =
+        providers.mapNotNull { provider ->
+            val fields = provider.degradedSecretFields()
+            if (fields.isEmpty()) {
+                null
+            } else {
+                val label = provider.name.ifBlank { provider.id.toString().take(8) }
+                label to fields
+            }
+        }
+    return DegradedProviderCredentialStatus(
         totalProviders = providers.size,
-        degradedProviderNames =
-            providers
-                .filter { it.degradedSecretFields().isNotEmpty() }
-                .map { it.name.ifBlank { it.id.toString().take(8) } },
+        degradedProviderNames = entries.map { it.first },
+        degradedFieldsByProvider = entries.toMap(),
     )
+}
 
 internal fun DoctorChecks.buildAssistantModelChecks(
     settings: me.rerere.rikkahub.data.datastore.Settings,

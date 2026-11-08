@@ -24,8 +24,35 @@ private fun memoryPayload(
     put("scope_id", scopeId)
 }
 
-private fun memorySummaryContent(content: String): String =
-    content.take(80) + if (content.length > 80) "…" else ""
+private const val MEMORY_LIST_SUMMARY_CHARS = 80
+private const val MEMORY_SEARCH_MAX_CHARS = 1_500
+
+private fun memorySummaryContent(content: String, maxChars: Int = MEMORY_LIST_SUMMARY_CHARS): String =
+    content.take(maxChars) + if (content.length > maxChars) "…" else ""
+
+private fun memoryToolSchema(): InputSchema.Obj = InputSchema.Obj(
+    properties = buildJsonObject {
+        put("action", buildJsonObject {
+            put("type", "string")
+            put("enum", buildJsonArray { add("create"); add("edit"); add("delete"); add("list"); add("get") })
+            put("description", "Operation to perform: create, edit, delete, list, or get")
+        })
+        put("id", buildJsonObject {
+            put("type", "integer")
+            put("description", "The id of a memory record in the current scope (required for edit/delete/get)")
+        })
+        put("content", buildJsonObject {
+            put("type", "string")
+            put("description", "The content of the memory record (required for create/edit)")
+        })
+        put("tier", buildJsonObject {
+            put("type", "string")
+            put("enum", buildJsonArray { add("core"); add("conditional") })
+            put("description", "Optional memory tier: core (always injected) or conditional (retrieved on demand). When editing, omitted means keep the existing tier.")
+        })
+    },
+    required = listOf("action"),
+)
 
 fun buildMemoryTools(
     scopeId: String,
@@ -41,39 +68,7 @@ fun buildMemoryTools(
             Manage long-term memories only within the current assistant's configured memory scope (global or assistant-isolated): create, edit, delete, or list.
             Prefer editing a related record over creating a duplicate. Core memories are injected every turn; conditional memories are retrieved only on demand.
         """.trimIndent(),
-        parameters = {
-            InputSchema.Obj(
-                properties = buildJsonObject {
-                    put("action", buildJsonObject {
-                        put("type", "string")
-                        put("enum", buildJsonArray {
-                            add("create")
-                            add("edit")
-                            add("delete")
-                            add("list")
-                        })
-                        put("description", "Operation to perform: create, edit, delete, or list")
-                    })
-                    put("id", buildJsonObject {
-                        put("type", "integer")
-                        put("description", "The id of a memory record in the current scope (required for edit/delete)")
-                    })
-                    put("content", buildJsonObject {
-                        put("type", "string")
-                        put("description", "The content of the memory record (required for create/edit)")
-                    })
-                    put("tier", buildJsonObject {
-                        put("type", "string")
-                        put("enum", buildJsonArray {
-                            add("core")
-                            add("conditional")
-                        })
-                        put("description", "Optional memory tier: core (always injected) or conditional (retrieved on demand). When editing, omitted means keep the existing tier.")
-                    })
-                },
-                required = listOf("action"),
-            )
-        },
+        parameters = { memoryToolSchema() },
         execute = {
             val params = it.jsonObject
             val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
@@ -101,6 +96,12 @@ fun buildMemoryTools(
                     val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
                     memoryPayload(onUpdate(id, content, tier), scopeId)
                 }
+                "get" -> {
+                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
+                    val memory = onListAll().firstOrNull { it.id == id }
+                        ?: error("memory record not found in current scope: $id")
+                    memoryPayload(memory, scopeId, memory.content)
+                }
                 "delete" -> {
                     val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
                     onDelete(id)
@@ -110,7 +111,7 @@ fun buildMemoryTools(
                         put("scope_id", scopeId)
                     }
                 }
-                else -> error("unknown action: $action, must be one of [create, edit, delete, list]")
+                else -> error("unknown action: $action, must be one of [create, edit, delete, list, get]")
             }
             listOf(UIMessagePart.Text(payload.toString()))
         },
@@ -139,7 +140,7 @@ fun buildMemoryTools(
                 put("scope_id", scopeId)
                 put("results", buildJsonArray {
                     results.forEach { memory ->
-                        add(memoryPayload(memory, scopeId, memorySummaryContent(memory.content)))
+                        add(memoryPayload(memory, scopeId, memorySummaryContent(memory.content, MEMORY_SEARCH_MAX_CHARS)))
                     }
                 })
             }

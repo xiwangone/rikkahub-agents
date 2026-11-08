@@ -33,9 +33,6 @@ object ToolApprovalDefaults {
         "transcribe_audio_file",  // shells out to whisper-cli via Termux; reads arbitrary audio files
         "eval_javascript",
 
-        // Shell via Shizuku (shell UID, no root)
-        "shizuku_exec",
-
         // Remote shell (SSH)
         "ssh_exec",
         "ssh_exec_saved",
@@ -272,6 +269,10 @@ object ToolApprovalDefaults {
         // single bad turn wipe several credentials in a row.
         "vault_credential_delete",
         "vault_credential_merge",
+        "vault_credential_normalize_names",
+        "vault_gen_key",
+        "vault_pgp_sign",
+        "vault_pgp_decrypt",
     )
 
     /**
@@ -310,6 +311,7 @@ object ToolApprovalDefaults {
         //    possibly cloud / Downloads / Pictures
         "keystore_generate_key",
         "keystore_decrypt",
+        "keystore_delete_key",
         "nfc_write_tag",
         "grant_directory_access",
         // Credential vault destructive operations: deleting a credential is irreversible and

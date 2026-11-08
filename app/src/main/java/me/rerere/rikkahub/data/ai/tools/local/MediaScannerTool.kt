@@ -49,8 +49,18 @@ fun mediaScannerTool(context: Context): Tool = Tool(
                 )
             )
         }
+        val expandedPaths = paths.map { AgentWorkspace.expand(it) }
+        for (p in expandedPaths) {
+            PathSafetyGuard.check(p)?.let { v ->
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()
+                    )
+                )
+            }
+        }
 
-        MediaScannerConnection.scanFile(context, paths.toTypedArray(), null, null)
+        MediaScannerConnection.scanFile(context, expandedPaths.toTypedArray(), null, null)
         val payload = buildJsonObject {
             put("success", true)
             put("scanned", paths.size)

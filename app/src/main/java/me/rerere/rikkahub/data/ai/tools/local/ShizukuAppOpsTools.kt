@@ -317,10 +317,10 @@ fun settingsPutTool(context: Context): Tool = Tool(
         if (value == null || value.isBlank()) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_value", message = "invalid_value").toString())
         }
-        // value 也过一道注入校验：只允许字母数字/点/下划线/冒号/等号/横杠/空格（settings 值形态）
-        if (!Regex("^[a-zA-Z0-9._:=\\-\\s]{1,64}$").matches(value)) {
+        // value 也过一道注入校验：只允许字母数字/点/下划线/冒号/等号/横杠/单行空格（严禁 \n / \r / \t 防多行命令注入）
+        if (!Regex("^[a-zA-Z0-9._:=\\- ]{1,64}$").matches(value)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_value", message = "invalid_value").toString())
         }
-        shizukuExec(context, "settings put $ns $key $value")
+        shizukuExec(context, "settings put $ns $key '$value'")
     },
 )

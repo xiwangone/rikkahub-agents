@@ -423,7 +423,7 @@ fun sshExecSavedTool(
                 })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 30, max 300") })
             },
-            required = listOf("name", "command")
+            required = listOf("name")
         )
     },
     execute = { input ->

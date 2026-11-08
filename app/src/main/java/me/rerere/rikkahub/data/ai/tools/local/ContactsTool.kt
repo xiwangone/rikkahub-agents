@@ -44,7 +44,7 @@ private fun queryContactSubitems(
     }
 }
 
-private fun queryContacts(context: Context, uri: Uri): JsonObject = buildJsonObject {
+private fun queryContacts(context: Context, uri: Uri, maxRows: Int = Int.MAX_VALUE): JsonObject = buildJsonObject {
     put("contacts", buildJsonArray {
         context.contentResolver.query(
             uri,
@@ -53,7 +53,9 @@ private fun queryContacts(context: Context, uri: Uri): JsonObject = buildJsonObj
         )?.use { c ->
             val idIdx = c.getColumnIndexOrThrow(ContactsContract.Contacts._ID)
             val nameIdx = c.getColumnIndexOrThrow(ContactsContract.Contacts.DISPLAY_NAME)
-            while (c.moveToNext()) {
+            var count = 0
+            while (c.moveToNext() && count < maxRows) {
+                count++
                 val id = c.getLong(idIdx)
                 addJsonObject {
                     put("id", id)
@@ -122,7 +124,7 @@ fun searchContactsTool(context: Context): Tool = Tool(
                 .appendPath(query)
                 .appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY, limit.toString())
                 .build()
-            queryContacts(context, uri)
+            queryContacts(context, uri, limit)
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }
@@ -150,7 +152,7 @@ fun listContactsTool(context: Context): Tool = Tool(
             val uri = ContactsContract.Contacts.CONTENT_URI.buildUpon()
                 .appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY, limit.toString())
                 .build()
-            queryContacts(context, uri)
+            queryContacts(context, uri, limit)
         }
         listOf(UIMessagePart.Text(payload.toString()))
     }

@@ -90,8 +90,8 @@ private fun openOut(context: Context, raw: String): OutputStream? = if (isConten
 /** A single concrete file to be added to an archive: its entry name + a stream opener. */
 private data class ArchiveSource(val entryName: String, val open: () -> InputStream?)
 
-/** Recursively collect file sources from a file:// path (file or directory). */
-private fun collectFileSources(raw: String, baseDir: String?): List<ArchiveSource> {
+/** Recursively collect file sources from a file:// path (file or directory), excluding [excludeCanonical]. */
+private fun collectFileSources(raw: String, baseDir: String?, excludeCanonical: String? = null): List<ArchiveSource> {
     val root = File(raw.removePrefix("file://"))
     if (!root.exists()) return emptyList()
     val base = baseDir?.removePrefix("file://")?.let { File(it) }
@@ -101,9 +101,15 @@ private fun collectFileSources(raw: String, baseDir: String?): List<ArchiveSourc
         else -> f.name
     }
     return if (root.isFile) {
-        listOf(ArchiveSource(nameOf(root)) { runCatching { root.inputStream() }.getOrNull() })
+        if (excludeCanonical != null && runCatching { root.canonicalPath }.getOrNull() == excludeCanonical) {
+            emptyList()
+        } else {
+            listOf(ArchiveSource(nameOf(root)) { runCatching { root.inputStream() }.getOrNull() })
+        }
     } else {
-        root.walkTopDown().maxDepth(64).filter { it.isFile }.map { f ->
+        root.walkTopDown().maxDepth(64).filter { f ->
+            f.isFile && (excludeCanonical == null || runCatching { f.canonicalPath }.getOrNull() != excludeCanonical)
+        }.map { f ->
             ArchiveSource(nameOf(f)) { runCatching { f.inputStream() }.getOrNull() }
         }.toList()
     }
@@ -173,12 +179,13 @@ fun zipFilesTool(context: Context): Tool = Tool(
         for (src in sources) guardArchivePath(src)?.let { return@Tool it }
         guardArchivePath(destination)?.let { return@Tool it }
 
+        val destCanonical = if (isContent(destination)) null else runCatching { File(destination.removePrefix("file://")).canonicalPath }.getOrNull()
         val archiveSources = mutableListOf<ArchiveSource>()
         for (src in sources) {
             val collected = if (isContent(src)) {
                 collectContentSources(context, src)
             } else {
-                collectFileSources(src, baseDir)
+                collectFileSources(src, baseDir, destCanonical)
             }
             if (collected.isEmpty()) return@Tool arcErr("source_unreadable", "path" to src)
             archiveSources.addAll(collected)

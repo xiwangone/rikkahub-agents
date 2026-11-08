@@ -57,6 +57,7 @@ private fun loadKeyStore(): KeyStore = KeyStore.getInstance(ANDROID_KEYSTORE).ap
 internal fun validateKeystoreAlias(alias: String?): String? = when {
     alias.isNullOrBlank() -> "alias is required"
     !ALIAS_REGEX.matches(alias) -> "alias must match ^[a-zA-Z0-9_-]{1,64}$"
+    alias.startsWith("rikkahub_", ignoreCase = true) -> "alias prefix 'rikkahub_' is reserved for internal app keys"
     else -> null
 }
 
@@ -404,7 +405,7 @@ fun keystoreListKeysTool(): Tool = Tool(
     execute = {
         try {
             val ks = loadKeyStore()
-            val aliases = ks.aliases().toList()
+            val aliases = ks.aliases().toList().filterNot { it.startsWith("rikkahub_", ignoreCase = true) }
             listOf(UIMessagePart.Text(buildJsonObject {
                 put("keys", buildJsonArray {
                     aliases.forEach { alias ->

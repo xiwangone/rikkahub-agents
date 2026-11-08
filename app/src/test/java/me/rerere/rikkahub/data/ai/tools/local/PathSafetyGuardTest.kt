@@ -94,6 +94,26 @@ class PathSafetyGuardTest {
         assertEquals("path_blocked", v!!.code)
     }
 
+    @Test fun `other app user0 sandbox is blocked`() {
+        val v = PathSafetyGuard.check("/data/user/0/com.other.app/files/secret.txt")
+        assertNotNull(v)
+        assertEquals("path_blocked", v!!.code)
+    }
+
+    @Test fun `own app databases and datastore are blocked`() {
+        val db = PathSafetyGuard.check("/data/data/${BuildConfig.APPLICATION_ID}/databases/rikka_hub")
+        assertNotNull(db)
+        assertEquals("path_blocked", db!!.code)
+
+        val ds = PathSafetyGuard.check("/data/data/${BuildConfig.APPLICATION_ID}/files/datastore/settings.preferences_pb")
+        assertNotNull(ds)
+        assertEquals("path_blocked", ds!!.code)
+
+        val bp = PathSafetyGuard.check("/data/data/${BuildConfig.APPLICATION_ID}/files/browser-profile/Cookies")
+        assertNotNull(bp)
+        assertEquals("path_blocked", bp!!.code)
+    }
+
     @Test fun `data data root itself is blocked`() {
         // /data/data (no package suffix) — treated as another-app path
         val v = PathSafetyGuard.check("/data/data")

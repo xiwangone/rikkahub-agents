@@ -15,6 +15,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.shizuku.ShizukuManager
 
@@ -73,15 +74,24 @@ fun shizukuExecTool(context: Context): Tool = Tool(
                 ?.mapNotNull { it.jsonPrimitive.contentOrNull }
                 ?.take(MAX_BATCH_COMMANDS)
                 ?: emptyList()
-        val commands = when {
-            !single.isNullOrBlank() -> listOf(single)
-            batch.isNotEmpty() -> batch
-            else -> return@Tool listOf(
+        val combined =
+            (listOfNotNull(single?.takeIf { it.isNotBlank() }) + batch.filter { it.isNotBlank() })
+                .take(MAX_BATCH_COMMANDS)
+        if (combined.isEmpty()) {
+            return@Tool listOf(
                 UIMessagePart.Text(
                     ToolErrors.envelopeFor(error = "missing_param", message = "command or commands is required").toString()
                 )
             )
         }
+        combined.firstNotNullOfOrNull { HardlineCommandGuard.checkCommand(it) }?.let { blockedReason ->
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    ToolErrors.envelopeFor(error = ToolErrors.HARDLINE_BLOCKED, message = blockedReason).toString()
+                )
+            )
+        }
+        val commands = combined
         val timeoutMs =
             (input.jsonObject["timeout_ms"]?.jsonPrimitive?.intOrNull ?: DEFAULT_TIMEOUT_MS)
                 .coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS)

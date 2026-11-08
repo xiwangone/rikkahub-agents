@@ -10,8 +10,9 @@ import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.datastore.resolveAssistantFor
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.log.AppLog
 
@@ -82,10 +83,11 @@ private suspend fun applyAutoEnable(
     settingsStore: SettingsStore,
     skillName: String,
     existedBeforeInstall: Boolean,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): AutoEnableOutcome {
     return try {
         val settings = settingsStore.settingsFlow.first()
-        val assistant = settings.getCurrentAssistant()
+        val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
         val outcome = decideAutoEnable(assistant.enabledSkills, skillName, existedBeforeInstall)
         val newSet = outcome.updatedEnabledSkills
         if (newSet != null) {
@@ -132,6 +134,7 @@ fun skillInstallFromUrlTool(
     importer: SkillUrlImporter,
     settingsStore: SettingsStore,
     skillManager: SkillManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool = Tool(
     name = "skill_install_from_url",
     description = """
@@ -169,7 +172,7 @@ fun skillInstallFromUrlTool(
             is SkillUrlImporter.Result.Err -> err(r.code, r.detail)
             is SkillUrlImporter.Result.Ok -> {
                 val existedBefore = r.metadata.name in namesBeforeInstall
-                val outcome = applyAutoEnable(settingsStore, r.metadata.name, existedBefore)
+                val outcome = applyAutoEnable(settingsStore, r.metadata.name, existedBefore, invocationContext)
                 val payload = buildJsonObject {
                     put("ok", true)
                     put("name", r.metadata.name)
@@ -203,6 +206,7 @@ fun skillInstallFromTextTool(
     importer: SkillUrlImporter,
     settingsStore: SettingsStore,
     skillManager: SkillManager,
+    invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): Tool = Tool(
     name = "skill_install_from_text",
     description = """
@@ -245,7 +249,7 @@ fun skillInstallFromTextTool(
             is SkillUrlImporter.Result.Err -> err(r.code, r.detail)
             is SkillUrlImporter.Result.Ok -> {
                 val existedBefore = r.metadata.name in namesBeforeInstall
-                val outcome = applyAutoEnable(settingsStore, r.metadata.name, existedBefore)
+                val outcome = applyAutoEnable(settingsStore, r.metadata.name, existedBefore, invocationContext)
                 val payload = buildJsonObject {
                     put("ok", true)
                     put("name", r.metadata.name)

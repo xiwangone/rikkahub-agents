@@ -68,7 +68,14 @@ fun setWallpaperTool(context: Context): Tool = Tool(
         val target = obj["target"]?.jsonPrimitive?.contentOrNull ?: "both"
         validateWallpaperArgs(fileUri, target)?.let { return@Tool wallpaperErr(it) }
 
-        val path = fileUri!!.removePrefix("file://")
+        val path = AgentWorkspace.expand(fileUri!!.removePrefix("file://"))
+        PathSafetyGuard.check(path)?.let { v ->
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()
+                )
+            )
+        }
         val file = File(path)
         if (!file.exists() || !file.isFile) {
             return@Tool wallpaperErr("file not found: $path")

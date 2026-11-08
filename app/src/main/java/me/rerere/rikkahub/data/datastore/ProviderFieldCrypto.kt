@@ -55,6 +55,8 @@ internal fun MutablePreferences.putProvidersFieldEncryptedIfChanged(
     newValue: List<ProviderSetting>,
 ) {
     val existing = this[PROVIDERS]
+    // 注意：`Settings.init == true` 代表冷启动未完成完整解码的占位态（见 Settings.dummy / loadWarmUiSettings），
+    // `init == false` 才是已完整加载的真实态；因此仅在 `!previous.init`（真实态）且值未变、磁盘已是字段级密文时跳过写盘。
     val canSkipWrite =
         previous != null &&
             !previous.init &&
