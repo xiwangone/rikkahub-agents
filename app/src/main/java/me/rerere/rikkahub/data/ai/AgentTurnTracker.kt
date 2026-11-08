@@ -1,8 +1,8 @@
 package me.rerere.rikkahub.data.ai
 
 /**
- * Per-turn record of "did the agent take the user out of RikkaHub Agents?" — used by the
- * post-turn auto-return logic to decide whether to bring RikkaHub Agents back to the
+ * Per-turn record of "did the agent take the user out of Yao?" — used by the
+ * post-turn auto-return logic to decide whether to bring Yao back to the
  * foreground after the agent finishes. Reset at the start of every generation turn.
  *
  * Only navigation actions performed by the agent itself populate this. If the user

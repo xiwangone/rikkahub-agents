@@ -95,7 +95,7 @@ fun launchAppTool(
         val result = try {
             context.startActivity(intent)
             // Confirm the launched app actually took focus. If the user is physically
-            // in another app (e.g. RikkaHub Agents's own chat), the launch can be silently
+            // in another app (e.g. Yao's own chat), the launch can be silently
             // ignored and subsequent screen-automation calls will loop on
             // wrong_foreground_app. Only meaningful when AccessibilityService is bound;
             // when unbound we cannot verify and report confirmed_foreground:false.
