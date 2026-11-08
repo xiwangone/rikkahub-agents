@@ -131,8 +131,11 @@ case "$1" in
         # rootfs 系统目录本就该是 0:0，不动。app uid 取自 App 私有 data 目录属主。
         appuid=$(stat -c %u "$ROOTFS/../.." 2>/dev/null || echo "")
         [ -n "$appuid" ] || { echo "ERR: cannot resolve app uid" >&2; exit 1; }
+        # 数据区在 rootfs 的兄弟目录 files（挂载到 chroot 内 /workspace），
+        # 而 $ROOTFS/workspace 只是未挂载时的空挂载点 → 必须扫真实数据目录。
+        files_src="${CHROOT_FILES_SRC:-$ROOTFS/../files}"
         n=0
-        for area in "$ROOTFS/root" "$ROOTFS/workspace"; do
+        for area in "$ROOTFS/root" "$files_src"; do
             [ -d "$area" ] || continue
             before=$(find "$area" -user 0 2>/dev/null | wc -l)
             if [ "$before" -gt 0 ]; then
