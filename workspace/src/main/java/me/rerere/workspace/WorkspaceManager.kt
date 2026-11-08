@@ -55,7 +55,9 @@ class WorkspaceManager(
     )
 
     private val fileSystem = WorkspaceFileSystem(config)
-    private val background = WorkspaceBackgroundProcesses()
+    private val background = WorkspaceBackgroundProcesses(
+        cancelHook = { token -> listOfNotNull(chrootRunner, shellRunner).any { it.cancel(token) } },
+    )
     private val chrootProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
     /** 最近一次 ROOT_CHROOT 自动回退到 PROOT 的原因（null = 未触发回退）。 */
@@ -499,6 +501,7 @@ class WorkspaceManager(
         synchronized(backgroundLifecycleLock) {
             require(command.isNotBlank()) { "Command is required" }
             val workingDir = resolveCommandWorkingDir(root, cwd)
+            val taskToken = java.util.UUID.randomUUID().toString()
 
             val process = runnerFor(root).start(
                 WorkspaceShellContext(
@@ -511,9 +514,10 @@ class WorkspaceManager(
                     workingDir = workingDir,
                     timeoutMillis = 0L,
                     env = env,
+                    taskToken = taskToken,
                 )
             )
-            background.start(root, process, command, cwd)
+            background.start(root, process, command, cwd, taskToken)
         }
 
     fun backgroundStatus(root: String, id: String): BackgroundStatus? = background.status(root, id)

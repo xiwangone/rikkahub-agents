@@ -125,7 +125,30 @@ class ChrootShellRunner(
      * 写 `.chroot-exec-<UUID>`、却让 chroot 去读 `/.chroot-exec`，会让每条命令都以
      * `cannot open /.chroot-exec` 失败（2026-09-29 记录）；本函数与下方回归用例把两者钉在一起。
      */
-    internal fun execCommandFor(cmdFile: File): String = "exec /bin/sh /${cmdFile.name}"
+    internal fun execCommandFor(cmdFile: File): String = "setsid /bin/sh /${cmdFile.name}"
+
+    /** process.pid -> 命令文件 UUID，供 [cancel] 定位整棵任务树。 */
+    private val taskIds = java.util.concurrent.ConcurrentHashMap<Long, String>()
+
+    /**
+     * 杀整棵任务树：`setsid` 让命令自成进程组（pgid = 其 pid），
+     * 再用 root 权限 `pgrep -f <命令文件名>` 找到组首并 `kill -9 -pid` 杀全组。
+     */
+    override fun cancel(token: String): Boolean {
+        if (token.isBlank()) return false
+        val pattern = "\\.chroot-exec-" + token
+        // pgrep 拿到的是 setsid 进程本身；它的 pgid 必须从 /proc/<pid>/stat 第 5 字段读
+        // （toybox 的 `ps -o pgid=` 输出解析不可靠，会拿到空值 → kill -9 - 报错）。
+        val script =
+            "p=\$(pgrep -f '$pattern' | head -1); " +
+                "if [ -n \"\$p\" ]; then " +
+                "g=\$(cat /proc/\$p/stat 2>/dev/null | awk '{print \$5}'); " +
+                "[ -n \"\$g\" ] && kill -9 -\$g 2>/dev/null; " +
+                "kill -9 \"\$p\" 2>/dev/null; fi"
+        return runCatching {
+            ProcessBuilder("su", "-c", script).start().waitFor() == 0
+        }.getOrDefault(false)
+    }
 
     /**
      * 命令写入 rootfs 根下唯一文件（App 普通 uid 可写，chroot 内可读），避免引号地狱。
@@ -134,7 +157,8 @@ class ChrootShellRunner(
      * 后台/前台命令都会跑在默认目录且拿不到 tools 注入的变量（与 proot 行为不一致）。
      */
     internal fun writeCommandFile(context: WorkspaceShellContext): File {
-        val cmdFile = File(context.linuxDir, "$COMMAND_FILE-${UUID.randomUUID()}")
+        val token = context.taskToken.ifBlank { UUID.randomUUID().toString() }
+        val cmdFile = File(context.linuxDir, "$COMMAND_FILE-$token")
         val body = buildString {
             if (context.cwd.isNotBlank()) {
                 append("cd -- ").append(shellQuote(context.cwd)).append(" 2>/dev/null || true\n")

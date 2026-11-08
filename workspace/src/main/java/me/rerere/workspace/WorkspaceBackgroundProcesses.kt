@@ -65,9 +65,17 @@ data class BackgroundStatus(
  */
 class WorkspaceBackgroundProcesses(
     private val nowMillis: () -> Long = System::currentTimeMillis,
+    /** 后端提供的“杀整棵任务树”钩子（root 派生进程与 su 无父子关系，本地 kill 杀不到）。 */
+    private val cancelHook: ((String) -> Boolean)? = null,
 ) {
     private val entries = ConcurrentHashMap<String, Entry>()
     private val idCounter = AtomicInteger(0)
+
+    /** 先让后端终止任务树，再本地兜底 kill。 */
+    private fun cancelProcess(process: Process, taskToken: String) {
+        runCatching { cancelHook?.invoke(taskToken) }
+        runCatching { process.destroyForcibly() }
+    }
 
     /**
      * Registers [process] as a background task for [root] and starts daemon drain
@@ -75,11 +83,11 @@ class WorkspaceBackgroundProcesses(
      * has [MAX_BG_PROCESSES] running processes, in which case [process] is killed
      * before the exception is thrown.
      */
-    fun start(root: String, process: Process, command: String, cwd: String): BackgroundStatus {
+    fun start(root: String, process: Process, command: String, cwd: String, taskToken: String = ""): BackgroundStatus {
         synchronized(entries) {
             val runningForRoot = entries.values.count { it.root == root && it.process.isAlive }
             if (runningForRoot >= MAX_BG_PROCESSES) {
-                process.destroyForcibly()
+                cancelProcess(process, taskToken)
                 throw IllegalStateException(
                     "Too many running background processes for this workspace (max $MAX_BG_PROCESSES). " +
                         "Kill one with workspace_background_kill first."
@@ -93,6 +101,7 @@ class WorkspaceBackgroundProcesses(
                 command = command,
                 cwd = cwd,
                 startedAtMillis = nowMillis(),
+                taskToken = taskToken,
             )
             entries[id] = entry
             evictOldestExited(root)
@@ -121,7 +130,7 @@ class WorkspaceBackgroundProcesses(
         val entry = entries[id] ?: return@synchronized false
         if (entry.root != root) return@synchronized false
         entries.remove(id)
-        entry.process.destroyForcibly()
+        cancelProcess(entry.process, entry.taskToken)
         true
     }
 
@@ -129,7 +138,7 @@ class WorkspaceBackgroundProcesses(
     fun killAll(root: String): Unit = synchronized(entries) {
         entries.values
             .filter { it.root == root }
-            .forEach { entry -> entries.remove(entry.id)?.process?.destroyForcibly() }
+            .forEach { entry -> entries.remove(entry.id)?.process?.let { cancelProcess(it, entry.taskToken) } }
     }
 
     private fun evictOldestExited(root: String) {
@@ -168,6 +177,7 @@ class WorkspaceBackgroundProcesses(
         )
     }
 
+    @Suppress("LongParameterList")
     private class Entry(
         val id: String,
         val root: String,
@@ -175,6 +185,7 @@ class WorkspaceBackgroundProcesses(
         val command: String,
         val cwd: String,
         val startedAtMillis: Long,
+        val taskToken: String,
     ) {
         val stdout = TailBuffer(MAX_BG_OUTPUT_CHARS)
         val stderr = TailBuffer(MAX_BG_OUTPUT_CHARS)

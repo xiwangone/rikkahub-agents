@@ -23,6 +23,15 @@ interface WorkspaceShellRunner {
     fun unmount(context: WorkspaceShellContext): WorkspaceCommandResult? = null
 
     /**
+     * 终止 [process] 对应的**整个任务树**。
+     *
+     * 为何需要它：root 侧命令由 magiskd 直接 fork（ppid 不是 su 客户端），
+     * `Process.destroyForcibly()` 只杀 su 客户端，root 子进程会变孤儿继续跑。
+     * 默认 false = 无特殊处理，由调用方做本地 kill。
+     */
+    fun cancel(token: String): Boolean = false
+
+    /**
      * 数据区属主修复（§3 无损切换）：chroot 以 root 写过的文件属主为 0:0，
      * 切回 proot 后 app uid 无法读写。非 chroot 后端默认返回 null。
      */
@@ -54,6 +63,8 @@ data class WorkspaceShellContext(
     val bindMounts: List<WorkspaceBindMount> = emptyList(),
     val env: Map<String, String> = emptyMap(),
     val shellCompatibilityMode: Boolean = false,
+    /** 后台任务令牌：由调用方生成并贯穿到命令文件名，供取消时定位整棵进程组。 */
+    val taskToken: String = "",
 )
 
 class HostShellRunner : WorkspaceShellRunner {
