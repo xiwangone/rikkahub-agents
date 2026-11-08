@@ -289,7 +289,7 @@ fun mcpListTool(
         // matches what actually gets dispatched. Not-enabled servers stay in the listing —
         // this is the diagnostic that makes "connected + listed but zero callable tools"
         // visible instead of a silent gap.
-        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers
+        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantUuid).mcpServers
         val arr = buildJsonArray {
             servers.forEach { config ->
                 add(
@@ -335,7 +335,7 @@ fun mcpGetTool(
         val status = manager.syncingStatus.value[serverId]
         // #88: same resolution as mcp_list / McpManager.getAllAvailableTools().
         val enabledForAssistant =
-            isEnabledForAssistant(serverId, settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers)
+            isEnabledForAssistant(serverId, settings.resolveAssistantFor(invocationContext.callerAssistantUuid).mcpServers)
         val toolList = buildJsonArray {
             config.commonOptions.tools.forEach { tool ->
                 addJsonObject {
@@ -470,7 +470,7 @@ fun mcpAddTool(
                 mcpServers = old.mcpServers + config,
                 assistants = addServerToCallingAssistant(
                     assistants = old.assistants,
-                    callingAssistantId = old.resolveAssistantFor(invocationContext.callerAssistantId).id,
+                    callingAssistantId = old.resolveAssistantFor(invocationContext.callerAssistantUuid).id,
                     newServerId = newId,
                 ),
             )
@@ -770,7 +770,7 @@ fun mcpListToolsTool(
         // #88: same resolution as mcp_list / McpManager.getAllAvailableTools(). Not-enabled
         // servers stay in the listing (kept above, unchanged) — this only adds the flag so
         // the gap is diagnosable rather than filtering it away.
-        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantId).mcpServers
+        val assistantServerIds = settings.resolveAssistantFor(invocationContext.callerAssistantUuid).mcpServers
         val arr = buildJsonArray {
             for (server in targets) {
                 val enabledForAssistant = isEnabledForAssistant(server.id, assistantServerIds)

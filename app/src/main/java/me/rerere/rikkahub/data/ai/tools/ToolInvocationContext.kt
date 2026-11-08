@@ -1,4 +1,8 @@
+@file:OptIn(kotlin.uuid.ExperimentalUuidApi::class)
+
 package me.rerere.rikkahub.data.ai.tools
+
+import kotlin.uuid.Uuid
 
 /**
  * Phase 17 stability — context every tool factory in [LocalTools.getTools] sees about WHO
@@ -34,6 +38,14 @@ data class ToolInvocationContext(
     val isHeadless: Boolean = false,
     val modelCanSeeImages: Boolean = true,
 ) {
+    /** `callerAssistantId` 的强类型视图：null 或解析失败都回 null（调用方据此回退"当前助手"）。 */
+    val callerAssistantUuid: Uuid?
+        get() = callerAssistantId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+
+    /** `callerConversationId` 的强类型视图，同上。 */
+    val callerConversationUuid: Uuid?
+        get() = callerConversationId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
+
     companion object {
         /** No-knowledge fallback. Factories that depend on context MUST handle this. */
         val EMPTY = ToolInvocationContext()

@@ -384,7 +384,7 @@ fun whisperStatusTool(
         val missingSteps = mutableListOf<String>()
 
         // 1. Is Termux enabled in this assistant's local tools?
-        val assistant = settingsStore.settingsFlow.value.resolveAssistantFor(invocationContext.callerAssistantId)
+        val assistant = settingsStore.settingsFlow.value.resolveAssistantFor(invocationContext.callerAssistantUuid)
         val termuxEnabledInAssistant = assistant.localTools.contains(LocalToolOption.Termux)
         if (!termuxEnabledInAssistant) missingSteps.add("enable_termux_toggle")
 

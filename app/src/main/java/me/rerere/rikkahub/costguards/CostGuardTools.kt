@@ -77,8 +77,8 @@ fun checkTokenUsageTool(
             val rawConvId = params["conversation_id"]?.jsonPrimitive?.contentOrNull
             val settings = settingsStore.settingsFlow.first()
             val explicitConvId = rawConvId?.let { runCatching { Uuid.parse(it) }.getOrNull() }
-            val targetConvId = explicitConvId ?: invocationContext.callerConversationId
-            val fallbackAssistant = settings.resolveAssistantFor(invocationContext.callerAssistantId)
+            val targetConvId = explicitConvId ?: invocationContext.callerConversationUuid
+            val fallbackAssistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
             val conv =
                 if (targetConvId != null) {
                     conversationRepo.getConversationById(targetConvId)
@@ -89,7 +89,7 @@ fun checkTokenUsageTool(
                     "no_conversation",
                     "no conversation found to compute token usage against",
                 )
-            val assistant = settings.resolveAssistantFor(conv.assistantId ?: invocationContext.callerAssistantId)
+            val assistant = settings.resolveAssistantFor(conv.assistantId)
             val snapshot =
                 TokenBudgetTracker.snapshot(
                     conversation = conv,

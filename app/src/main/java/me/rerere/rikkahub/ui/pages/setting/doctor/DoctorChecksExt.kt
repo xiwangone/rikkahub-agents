@@ -887,7 +887,7 @@ internal fun degradedProviderCredentialStatus(
         totalProviders = providers.size,
         degradedProviderNames =
             providers
-                .filter { it.isCredentialDegraded }
+                .filter { it.degradedSecretFields().isNotEmpty() }
                 .map { it.name.ifBlank { it.id.toString().take(8) } },
     )
 
