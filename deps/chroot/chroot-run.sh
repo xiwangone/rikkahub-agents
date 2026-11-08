@@ -25,7 +25,7 @@ shift
 [ -d "$ROOTFS" ] || { echo "ERR: rootfs dir not found: $ROOTFS" >&2; exit 2; }
 [ "$(id -u)" = "0" ] || { echo "ERR: not root" >&2; exit 2; }
 
-CHROOT_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+CHROOT_PATH="/workspace/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
 WORKDIR="${CHROOT_WORKDIR:-/workspace}"
 
 HOST_SH="/system/bin/sh"
@@ -67,6 +67,14 @@ do_unmount() {
     return 0
 }
 
+# 额外绑定（与 proot 侧 bindMounts 对齐）：源不存在就跳过，失败只告警不阻断。
+bind_extra() { # $1=app_dir $2=相对源 $3=chroot 内目标
+    [ -d "$1/$2" ] || return 0
+    mkdir -p "$ROOTFS$3" 2>/dev/null
+    mount --bind "$1/$2" "$ROOTFS$3" 2>/dev/null || echo "WARN: bind $3 failed" >&2
+    return 0
+}
+
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
     mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
@@ -84,6 +92,18 @@ do_mounts() {
             echo "ERR: mount $ROOTFS/workspace failed" >&2
             return 1
         }
+    fi
+    # 与 proot 侧 bindMounts 对齐：这些路径在 proot 下是 bind 进来的，
+    # chroot 侧缺失就会"切过去功能少一块"（技能库/上传/工具输出/共享目录/App 数据库）。
+    # 源 = app filesDir 下的相对路径（$ROOTFS = filesDir/workspaces/<root>/linux）。
+    app_dir=$(cd "$ROOTFS/../../.." 2>/dev/null && pwd)
+    if [ -n "$app_dir" ]; then
+        bind_extra "$app_dir" skills /skills
+        bind_extra "$app_dir" tool_outputs /tool_outputs
+        bind_extra "$app_dir" upload /upload
+        bind_extra "$app_dir" shared /mnt/shared
+        bind_extra "$app_dir" databases /workspace/app-databases
+        bind_extra "$app_dir" shared_prefs /workspace/app-shared-prefs
     fi
     return 0
 }
