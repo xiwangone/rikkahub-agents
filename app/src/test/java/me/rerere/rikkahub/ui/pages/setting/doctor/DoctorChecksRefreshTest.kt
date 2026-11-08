@@ -189,8 +189,8 @@ class DoctorChecksRefreshTest {
     @Test fun `degradedProviderCredentialStatus flags only degraded providers`() {
         val healthy = ProviderSetting.OpenAI(name = "HealthyOpenAI", apiKey = "sk-ok")
         val degraded =
-            ProviderSetting.OpenAI(name = "BrokenVaultOpenAI", apiKey = "")
-                .withDegradedSecrets(mapOf("apiKey" to "enc:v1:corrupted"))
+            // degraded 状态 = 内存里还留着解不开的 enc:v1: 密文（判据只看前缀，无需额外构造器）
+            ProviderSetting.OpenAI(name = "BrokenVaultOpenAI", apiKey = "enc:v1:corrupted")
         val status = degradedProviderCredentialStatus(listOf(healthy, degraded))
         assertEquals(2, status.totalProviders)
         assertTrue(status.hasDegraded)
