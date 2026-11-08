@@ -141,7 +141,7 @@ class LocalApprovalBridge(private val context: Context) {
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
         )
         val notification = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(R.drawable.small_icon)
+            .setSmallIcon(R.drawable.ic_stat_yao)
             .setContentTitle(context.getString(R.string.mcp_approval_title, tool.name))
             .setContentText(summary)
             .setStyle(NotificationCompat.BigTextStyle().bigText(summary))

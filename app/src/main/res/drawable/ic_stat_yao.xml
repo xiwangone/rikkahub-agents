@@ -1,0 +1,39 @@
+<!--
+  状态栏 / 顶部胶囊（灵动岛）小图标：Yao 的「环 + 爻」符号，白色单色（系统会二次着色）。
+  图形取自 yao_loading.xml 的静态部分（去掉旋转与呼吸动画）——状态栏图标不能是 animated-vector。
+  尺寸 24dp 对齐 Android 状态栏规范，viewport 100 与品牌符号保持一致。
+-->
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp"
+    android:height="24dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+
+    <!-- 外环（缺口环，静态保留缺口以便小尺寸可辨） -->
+    <path
+        android:pathData="M50,12 A38,38 0 1,1 49.9,12"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="7"
+        android:strokeLineCap="round"
+        android:trimPathStart="0"
+        android:trimPathEnd="0.72" />
+
+    <!-- 阴：左两短 -->
+    <path
+        android:pathData="M38,36 L38,46"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
+    <path
+        android:pathData="M38,54 L38,64"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
+
+    <!-- 阳：右一长 -->
+    <path
+        android:pathData="M62,36 L62,64"
+        android:strokeColor="#FFFFFFFF"
+        android:strokeWidth="12"
+        android:strokeLineCap="round" />
+</vector>

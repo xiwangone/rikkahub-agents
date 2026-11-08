@@ -600,7 +600,7 @@ class MediaPlaybackService : Service() {
         val notification =
             NotificationCompat
                 .Builder(this, CHANNEL_ID)
-                .setSmallIcon(R.drawable.small_icon)
+                .setSmallIcon(R.drawable.ic_stat_yao)
                 .setContentTitle(currentTitle ?: currentSource ?: "Media")
                 .setContentText(
                     when {

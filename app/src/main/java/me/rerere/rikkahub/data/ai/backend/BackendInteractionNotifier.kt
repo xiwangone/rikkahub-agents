@@ -157,7 +157,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         val body = subject?.takeIf { it.isNotBlank() } ?: context.getString(R.string.backend_notif_tool_request, tool)
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.small_icon)
+                .setSmallIcon(R.drawable.ic_stat_yao)
                 .setContentTitle(context.getString(R.string.backend_notif_pending_approve, tool))
                 .setContentText(body)
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
@@ -259,7 +259,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         val remoteInput = RemoteInput.Builder(KEY_REPLY).setLabel(context.getString(R.string.backend_notif_reply_hint)).build()
         val notification =
             NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.small_icon)
+                .setSmallIcon(R.drawable.ic_stat_yao)
                 .setContentTitle(context.getString(R.string.backend_notif_ask_title))
                 .setContentText(questions.firstOrNull()?.prompt ?: context.getString(R.string.backend_notif_answer_hint))
                 .setStyle(NotificationCompat.BigTextStyle().bigText(body))
