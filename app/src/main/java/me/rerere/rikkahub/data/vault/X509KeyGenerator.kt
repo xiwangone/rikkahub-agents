@@ -32,7 +32,7 @@ object X509KeyGenerator {
     private const val VALIDITY_DAYS = 365L
 
     /** Subject 未填写时的默认标识。 */
-    const val DEFAULT_SUBJECT = "CN=rikkahub-agents"
+    const val DEFAULT_SUBJECT = "CN=Yao"
 
     private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
 

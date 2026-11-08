@@ -35,7 +35,7 @@ import org.bouncycastle.util.encoders.Hex
  * 结构：**Ed25519 主密钥**（certify + sign）+ 一个 **UID** + 自签名
  * + **ECDH (secp256r1) 加密子密钥**（签名/验签/加解密工具需要）。
  * ⚠ 加密子密钥用 secp256r1 而非 cv25519：bcpg 1.86 的 key converter 对 X25519 私钥
- * 有类型转换缺陷（实测 ClassCastException），见 规划/凭证密钥类型扩展-GPG操作-20260922.md §三。
+ * 有类型转换缺陷（会抛 ClassCastException），见 规划/凭证密钥类型扩展-GPG操作-20260922.md §三。
  *
  * ⚠ 私钥**不带 passphrase**：口令保护依赖 §N4（密钥槽/密码槽分离）尚未落地，
  * 当前的保护边界是凭证库自身的加密存储 + Vault 授权。
@@ -43,7 +43,7 @@ import org.bouncycastle.util.encoders.Hex
 object OpenPgpKeyGenerator {
 
     /** 未提供 UID 时使用的默认身份标识。 */
-    const val DEFAULT_UID = "RikkaHub Agents <agent@rikkahub-agents>"
+    const val DEFAULT_UID = "Yao <agent@yao>"
 
     // 密钥用途标志（RFC 4880 §5.2.3.21）：0x01 = certify，0x02 = sign
     private const val KEY_FLAG_CERTIFY = 0x01

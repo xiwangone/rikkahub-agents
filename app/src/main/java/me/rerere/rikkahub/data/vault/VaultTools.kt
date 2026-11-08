@@ -278,7 +278,7 @@ fun vaultGenKeyTool(
                 buildJsonObject {
                     put("name", buildJsonObject { put("type", "string"); put("description", "Credential name (default WEB_SSH_KEY)") })
                     put("group", buildJsonObject { put("type", "string"); put("description", "Vault group (default SSH)") })
-                    put("comment", buildJsonObject { put("type", "string"); put("description", "Public key comment suffix, e.g. 'pc-main@rikkahub-agents'. Default 'generated@rikkahub-agents'. Always include purpose + @rikkahub-agents for traceability.") })
+                    put("comment", buildJsonObject { put("type", "string"); put("description", "Public key comment suffix, e.g. 'pc-main@Yao'. Default 'generated@Yao'. Always include purpose + @Yao for traceability.") })
                     put("type", buildJsonObject { put("type", "string"); put("description", "Key type: ED25519 (recommended) / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP (default RSA for backward compat)") })
                     put("uid", buildJsonObject { put("type", "string"); put("description", "Identity for OPENPGP ('Name <email>') or subject for X.509 ('CN=host, O=Org'; a bare name is treated as CN). Defaults per type.") })
                 },
@@ -316,8 +316,8 @@ fun vaultGenKeyTool(
         val comment =
             when {
                 rawComment == null -> SshKeyGenerator.DEFAULT_COMMENT
-                "@rikkahub-agents" in rawComment || "@rikkahub" in rawComment -> rawComment
-                else -> "$rawComment@rikkahub-agents"
+                "@Yao" in rawComment || "@rikkahub-agents" in rawComment || "@rikkahub" in rawComment -> rawComment
+                else -> "$rawComment@Yao"
             }
         val key = VaultKeyGenerator.generate(keyType, comment, uidStr ?: "")
         val fp = VaultKeyGenerator.fingerprintOf(key.publicText)

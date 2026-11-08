@@ -44,7 +44,7 @@ class X509KeyGeneratorTest {
 
         val blank = X509KeyGenerator.generate(X509KeyGenerator.Kind.SELF_SIGNED_CERTIFICATE, "   ")
         assertTrue(
-            readCertificate(blank.publicText).subjectX500Principal.name.contains("CN=rikkahub-agents"),
+            readCertificate(blank.publicText).subjectX500Principal.name.contains("CN=Yao"),
         )
     }
 

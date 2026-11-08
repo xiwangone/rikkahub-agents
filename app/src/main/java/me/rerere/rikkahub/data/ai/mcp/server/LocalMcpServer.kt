@@ -49,7 +49,7 @@ class LocalMcpServer(
     private companion object {
         const val HOST = "127.0.0.1"
         const val PROTOCOL_VERSION = "2024-11-05"
-        const val SERVER_NAME = "rikkahub-agents"
+        const val SERVER_NAME = "Yao"
         const val SESSION_HEADER = "Mcp-Session-Id"
     }
 

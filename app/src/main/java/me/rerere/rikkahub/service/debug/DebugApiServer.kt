@@ -141,7 +141,7 @@ class DebugApiServer(
             }
             val body = buildString {
                 append("{\"ok\":true")
-                append(",\"app\":\"rikkahub-agents\"")
+                append(",\"app\":\"Yao\"")
                 append(",\"debugApi\":\"experimental\"")
                 append(",\"listen\":\"$listenHost:$boundPort\"")
                 append("}")

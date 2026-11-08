@@ -50,7 +50,7 @@ object SshKeyGenerator {
     fun generate(): SshKeyPair = generate(KeyType.RSA)
 
     /** 公钥行尾默认注释：标识生成方，便于服务器 authorized_keys 溯源。 */
-    const val DEFAULT_COMMENT = "generated@rikkahub-agents"
+    const val DEFAULT_COMMENT = "generated@Yao"
 
     data class SshKeyPair(
         val privateKeyPem: String,
