@@ -45,12 +45,17 @@ class ChrootShellRunner(
         }
     }
 
-    override fun start(context: WorkspaceShellContext): Process =
-        try {
-            newSuProcess(context.linuxDir, "shell")
+    override fun start(context: WorkspaceShellContext): Process {
+        // 后台任务必须真的执行 command：早前这里只传 "shell"，在 chroot 下会起一个等 stdin 的
+        // 交互 bash——命令从未执行，且该进程 hasAlive 恒真，5 个就把每工作区名额占满。
+        val cmdFile = writeCommandFile(context)
+        return try {
+            newSuProcess(context.linuxDir, execCommandFor(cmdFile))
         } catch (e: IOException) {
+            cmdFile.delete()
             throw IllegalStateException("chroot backend requires root: su not accessible (${e.message})", e)
         }
+    }
 
     /** 探测 root/chroot 能力（独立脚本 chroot-probe.sh，输出 summary 行）；失败或输出不完整返回 null。 */
     override fun probe(context: WorkspaceShellContext): ChrootProbeResult? = runCatching {
