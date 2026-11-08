@@ -50,7 +50,14 @@ class ChrootShellRunner(
         // 交互 bash——命令从未执行，且该进程 hasAlive 恒真，5 个就把每工作区名额占满。
         val cmdFile = writeCommandFile(context)
         return try {
-            newSuProcess(context.linuxDir, execCommandFor(cmdFile))
+            newSuProcess(context.linuxDir, execCommandFor(cmdFile)).also { process ->
+                // 只删自己的命令文件：同字符串服务的并发任务共用同一前缀，
+                // 用通配符清理会互删对方尚未读取的文件。
+                Thread {
+                    runCatching { process.waitFor() }
+                    cmdFile.delete()
+                }.apply { isDaemon = true }.start()
+            }
         } catch (e: IOException) {
             cmdFile.delete()
             throw IllegalStateException("chroot backend requires root: su not accessible (${e.message})", e)
@@ -120,12 +127,30 @@ class ChrootShellRunner(
      */
     internal fun execCommandFor(cmdFile: File): String = "exec /bin/sh /${cmdFile.name}"
 
-    /** 命令写入 rootfs 根下唯一文件（App 普通 uid 可写，chroot 内可读），避免引号地狱。 */
+    /**
+     * 命令写入 rootfs 根下唯一文件（App 普通 uid 可写，chroot 内可读），避免引号地狱。
+     *
+     * 写入 **cwd + env + 命令**：chroot 侧不继承调用方的进程环境，若不写进文件，
+     * 后台/前台命令都会跑在默认目录且拿不到 tools 注入的变量（与 proot 行为不一致）。
+     */
     internal fun writeCommandFile(context: WorkspaceShellContext): File {
         val cmdFile = File(context.linuxDir, "$COMMAND_FILE-${UUID.randomUUID()}")
-        cmdFile.writeText(context.command)
+        val body = buildString {
+            if (context.cwd.isNotBlank()) {
+                append("cd -- ").append(shellQuote(context.cwd)).append(" 2>/dev/null || true\n")
+            }
+            for ((k, v) in context.env) {
+                if (!ENV_NAME.matches(k)) continue
+                append("export ").append(k).append('=').append(shellQuote(v)).append('\n')
+            }
+            append(context.command)
+        }
+        cmdFile.writeText(body)
         return cmdFile
     }
+
+    /** POSIX 单引号转义（内嵌单引号拆成 `'\''`）。 */
+    private fun shellQuote(raw: String): String = "'" + raw.replace("'", "'\\''") + "'"
 
     private fun newSuProcess(
         linuxDir: File,
@@ -143,6 +168,8 @@ class ChrootShellRunner(
         const val COMMAND_FILE = ".chroot-exec"
         private val PROBE_SUMMARY = Regex("summary: pass=(\\d+) fail=(\\d+) warn=(\\d+)")
         private val PROBE_BRANCH = Regex("branch:\\s*([ABC])")
+        /** 环境变量名合法性（不合法的键直接丢弃，避免拼出入侵语句）。 */
+        private val ENV_NAME = Regex("[A-Za-z_][A-Za-z0-9_]*")
     }
 }
 

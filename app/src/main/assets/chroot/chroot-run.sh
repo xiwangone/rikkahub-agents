@@ -188,8 +188,6 @@ case "$1" in
         do_mounts || exit 1
         run_in_chroot /bin/sh -c "cd -- \"$WORKDIR\" 2>/dev/null || cd /root 2>/dev/null || cd /; $*"
         rc=$?
-        # 命令文件由 App 侧写入（.chroot-exec-<UUID>），执行完就地清掉，避免 rootfs 根下累积。
-        for f in "$ROOTFS"/.chroot-exec-*; do [ -f "$f" ] && rm -f "$f"; done
         exit $rc
         ;;
     *)

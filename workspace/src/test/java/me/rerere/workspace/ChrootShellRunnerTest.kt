@@ -72,8 +72,9 @@ class ChrootShellRunnerTest {
         val f2 = runner.writeCommandFile(ctx.copy(command = "echo two"))
 
         assertTrue(f1.parentFile == linux && f1.name.startsWith(".chroot-exec-"))
-        assertEquals("echo hi", f1.readText())
-        assertEquals("echo two", f2.readText())
+        // 文件内容 = （可选）cd + env 导出 + 命令；末尾必须是命令本体
+        assertTrue(f1.readText().endsWith("echo hi"))
+        assertTrue(f2.readText().endsWith("echo two"))
         assertTrue(f1 != f2)
         f1.delete()
         f2.delete()
