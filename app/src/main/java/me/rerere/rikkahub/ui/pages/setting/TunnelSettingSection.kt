@@ -78,6 +78,7 @@ fun TunnelSettingSection(vm: SettingVM) {
     var editingField by remember { mutableStateOf<TunnelField?>(null) }
     var showExitPicker by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
+    var showDevicesDialog by remember { mutableStateOf(false) }
     var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
 
     // 状态只有一个来源：[TsnetBridge.state]（由启动/停止与守护循环写回）。
@@ -114,7 +115,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             context = context,
             controlURL = controlUrl.trim(),
             authKey = resolved,
-            hostname = hostname.trim().ifBlank { "rikkahub" },
+            hostname = hostname.trim().ifBlank { "yao" },
         )
     }
 
@@ -124,7 +125,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                 networkSetting = current.networkSetting.copy(
                     tailscaleControlUrl = controlUrl.trim(),
                     tailscaleAuthKey = authKey.trim(),
-                    tailscaleHostname = hostname.trim().ifBlank { "rikkahub" },
+                    tailscaleHostname = hostname.trim().ifBlank { "yao" },
                 ),
             )
         }
@@ -241,7 +242,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                     HorizontalDivider()
                     TunnelRow(
                         title = stringResource(R.string.tunnel_hostname_label),
-                        value = hostname.ifBlank { "rikkahub" },
+                        value = hostname.ifBlank { "yao" },
                     ) { editingField = TunnelField.Hostname }
                     HorizontalDivider()
                     TunnelRow(
@@ -309,7 +310,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                         val peers = nodeStatus?.peers.orEmpty()
                         "${peers.count { it.online }}/${peers.size}"
                     },
-                    onClick = {},
+                    onClick = { showDevicesDialog = true },
                 )
             },
         )
@@ -374,6 +375,44 @@ fun TunnelSettingSection(vm: SettingVM) {
         )
     }
 
+    if (showDevicesDialog) {
+        val devicePeers = nodeStatus?.peers.orEmpty()
+        AlertDialog(
+            onDismissRequest = { showDevicesDialog = false },
+            title = { Text(stringResource(R.string.tunnel_devices)) },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                    if (devicePeers.isEmpty()) {
+                        Text(
+                            text = stringResource(R.string.tunnel_devices_empty),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else {
+                        devicePeers.forEach { peer ->
+                            val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
+                            val ip = peer.ips.firstOrNull().orEmpty()
+                            Text(
+                                text = if (peer.online) "● $name  $ip" else "○ $name  $ip",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = if (peer.online) {
+                                    MaterialTheme.colorScheme.onSurface
+                                } else {
+                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                },
+                            )
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showDevicesDialog = false }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
     if (showLogoutConfirm) {
         AlertDialog(
             onDismissRequest = { showLogoutConfirm = false },
@@ -425,7 +464,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                         TunnelField.Hostname -> OutlinedTextField(
                             value = hostname,
                             onValueChange = { hostname = it },
-                            placeholder = { Text("rikkahub") },
+                            placeholder = { Text("yao") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )

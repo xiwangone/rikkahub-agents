@@ -4123,6 +4123,7 @@
   <string name="tunnel_accept_routes_desc">Accept subnet ranges advertised by peers. Off by default so a peer LAN is not pulled into the tunnel.</string>
   <string name="tunnel_exit_node">Exit node</string>
   <string name="tunnel_exit_node_none">None</string>
+  <string name="tunnel_devices_empty">No peers yet</string>
   <string name="tunnel_devices">Devices</string>
   <string name="tunnel_logout">Sign out</string>
   <string name="tunnel_logout_desc">Invalidates this device on the control server and stops the tunnel.</string>
