@@ -1,162 +1,174 @@
 #!/system/bin/sh
-# chroot runtime helper — prepare / enter / leave a glibc distro rootfs.
-# Runs under `su -c` (root layer only: mount/chroot; everything else stays in
-# the Shizuku layer). Single capability surface, auditable.
+# chroot runtime helper (Branch A) — private mount namespace + true mounts + chroot.
+# Runs under `su -c` on rooted Android devices.
 #
 # Usage: su -c 'sh chroot-run.sh <rootfs_dir> <command...>'
-#   chroot-run.sh <dir> shell          → interactive shell inside chroot
-#   chroot-run.sh <dir> exec <cmd...>  → run one command inside chroot
-#   chroot-run.sh <dir> prepare        → mounts only (PATH/resolv/CA fixes applied once)
-#   chroot-run.sh <dir> unmount        → unmount in reverse order
+#   chroot-run.sh <dir> shell          → interactive shell inside chroot (private mount ns)
+#   chroot-run.sh <dir> exec <cmd...>  → run one command inside chroot (private mount ns)
+#   chroot-run.sh <dir> prepare        → one-time rootfs DNS/PATH setup + mount check
+#   chroot-run.sh <dir> unmount        → fallback recursive unmount & .chroot-* cleanup
 #
-# Runtime rules (from 2026-09-23/26 device tests):
-#   1. PATH must be set explicitly inside chroot (host root PATH leaks /system/bin
-#      which does not exist inside → everything "not found")
-#   2. resolv.conf must be a WRITTEN FILE — bind-mounting Termux's symlink
-#      mounts the link itself and DNS breaks
-#   3. mount order: proc sys dev devpts tmpfs(/tmp) workspace; unmount in REVERSE order
-#   4. commands run AS ROOT inside chroot (rooted devices only); /workspace
-#      inside chroot = the workspace files dir (bind-mounted), same semantics
-#      as the proot backend. chroot内没有 su 二进制（不 bind /system）。
-#   5. **挂载常驻**：exec/shell 结束时不再自动 unmount。
-#      依据：单条命令的全量 mount×6 + umount×6 ≈ 630~670ms，
-#      而 su 启动基线仅 ~40ms —— 多命令场景几乎全在重复挂载上白烧。
-#      常驻期间的卸载由 **App 侧兜底**：关 chroot 开关 / 删除或重装工作区
-#      （WorkspaceRepository.setChrootEnabled(false)、WorkspaceManager.deleteWorkspace）。
-#      需要立刻清理时：`chroot-run.sh <dir> unmount`。
-#   6. 并发安全：mount / unmount 段用 mkdir 原子锁（Android 的 sh 没有 flock），
-#      挂载逐项幂等 —— 旧版只按 "ROOTFS 是否出现在 /proc/mounts" 判"已挂"，
-#      部分残留会被误判成挂全了。
+# Architecture & safety guarantees (2026-11-08 Branch A):
+#   1. Private mount namespace: enters `unshare -m` and immediately sets
+#      `mount --make-rprivate /` (toybox 0.8.9 unshare lacks `--propagation`).
+#      When the command/shell exits, the kernel destroys the mount namespace
+#      automatically — leaving 0 mount entries in the host `/proc/mounts`.
+#   2. No `/proc/mounts` string-matching to skip mounts: `/data/user/0` vs `/data/data`
+#      path aliases and proot visibility cause false positives. Fresh mounts are
+#      performed inside each isolated mount namespace, backed by an EXIT/INT/TERM trap.
+#   3. Non-destructive switching: rootfs (`<workspace>/linux`) and workspace files
+#      (`<workspace>/files`) are shared with proot without altering existing files or
+#      leaving `.chroot-*` state markers behind.
 
-ROOTFS="$1"; shift
-[ -d "$ROOTFS" ] || { echo "ERR: rootfs dir not found: $ROOTFS"; exit 2; }
-[ "$(id -u)" = "0" ] || { echo "ERR: not root"; exit 2; }
+ROOTFS="$1"
+shift
+[ -d "$ROOTFS" ] || { echo "ERR: rootfs dir not found: $ROOTFS" >&2; exit 2; }
+[ "$(id -u)" = "0" ] || { echo "ERR: not root" >&2; exit 2; }
 
-MARKER="$ROOTFS/.chroot-mounted"
-FIXED="$ROOTFS/.chroot-fixed"
-LOCKDIR="$ROOTFS/.chroot-lock"
+CHROOT_PATH="/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+WORKDIR="${CHROOT_WORKDIR:-/workspace}"
 
-mounts_done() { grep -qF "$ROOTFS" /proc/mounts 2>/dev/null; }
+HOST_SH="/system/bin/sh"
+[ -x "$HOST_SH" ] || HOST_SH="/bin/sh"
 
-# 精确判"某个挂载点是否已挂"
-# toybox 的 `mountpoint -q` 直接问内核，不受 `/data/user/0` ↔ `/data/data` 这类
-# 路径别名影响（本 issue 的根因）；回退到字符串匹配，兼顾老设备上缺 mountpoint 的情况。
-is_mounted() { mountpoint -q "$1" 2>/dev/null || grep -qF " $1 " /proc/mounts 2>/dev/null; }
-
-all_mounted() {
-    is_mounted "$ROOTFS/proc" &&
-        is_mounted "$ROOTFS/sys" &&
-        is_mounted "$ROOTFS/dev" &&
-        is_mounted "$ROOTFS/dev/pts" &&
-        is_mounted "$ROOTFS/tmp" &&
-        is_mounted "$ROOTFS/workspace"
+# Enter an isolated mount namespace so all mounts self-destruct on process exit.
+# Toybox 0.8.9 `unshare` does not support `--propagation`, so we use `unshare -m`
+# followed by `mount --make-rprivate /` inside the new namespace.
+enter_private_ns() {
+    if [ "${_CHROOT_IN_NS:-0}" != "1" ]; then
+        if command -v unshare >/dev/null 2>&1; then
+            export _CHROOT_IN_NS=1
+            exec unshare -m "$HOST_SH" "$0" "$ROOTFS" "$@"
+        fi
+    fi
+    mount --make-rprivate / 2>/dev/null || mount --make-private / 2>/dev/null || true
 }
 
-# mkdir 原子锁：拿不到就等；30s 仍拿不到判为陈旧锁并强制拆掉（避免死锁卡住 App）
-acquire_lock() {
-    i=0
-    while ! mkdir "$LOCKDIR" 2>/dev/null; do
-        i=$((i + 1))
-        if [ "$i" -gt 300 ]; then
-            echo "WARN: chroot lock stuck >30s, breaking it" >&2
-            rm -rf "$LOCKDIR"
-        fi
-        sleep 0.1
+do_unmount_quiet() {
+    umount -R "$ROOTFS" 2>/dev/null || true
+    for m in \
+        "$ROOTFS/workspace" \
+        "$ROOTFS/skills" \
+        "$ROOTFS/tool_outputs" \
+        "$ROOTFS/tmp" \
+        "$ROOTFS/dev/pts" \
+        "$ROOTFS/dev" \
+        "$ROOTFS/sys" \
+        "$ROOTFS/proc"; do
+        umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
     done
-}
-
-release_lock() { rmdir "$LOCKDIR" 2>/dev/null; }
-
-# 幂等挂载：已挂则跳过（支持上次残留部分挂载的情况）
-ensure_mount() { # $1=fstype $2=source $3=target
-    if is_mounted "$3"; then return 0; fi
-    mount -t "$1" "$2" "$3" || { echo "ERR: mount $3 failed" >&2; return 1; }
-}
-
-do_mounts() {
-    if [ -f "$MARKER" ] && all_mounted; then echo "already mounted" >&2; return 0; fi
-    acquire_lock
-    ensure_mount proc proc "$ROOTFS/proc" || { release_lock; exit 1; }
-    ensure_mount sysfs sys "$ROOTFS/sys" || { release_lock; exit 1; }
-    mkdir -p "$ROOTFS/dev/pts"
-    if ! is_mounted "$ROOTFS/dev"; then
-        mount --bind /dev "$ROOTFS/dev" || { echo "ERR: mount $ROOTFS/dev failed" >&2; release_lock; exit 1; }
-    fi
-    ensure_mount devpts devpts "$ROOTFS/dev/pts" || { release_lock; exit 1; }
-    mkdir -p "$ROOTFS/tmp"
-    ensure_mount tmpfs tmpfs "$ROOTFS/tmp" || { release_lock; exit 1; }
-    # workspace files dir (sibling of the rootfs) → /workspace, same as proot
-    if [ -d "$ROOTFS/../files" ]; then
-        mkdir -p "$ROOTFS/workspace"
-        if ! is_mounted "$ROOTFS/workspace"; then
-            mount --bind "$ROOTFS/../files" "$ROOTFS/workspace" || echo "WARN: workspace bind failed" >&2
-        fi
-    else
-        echo "WARN: workspace files dir not found, /workspace unavailable" >&2
-    fi
-    touch "$MARKER"
-    release_lock
-    echo "mounted: proc sys dev devpts tmp" >&2
+    rm -rf "$ROOTFS"/.chroot-mounted "$ROOTFS"/.chroot-fixed "$ROOTFS"/.chroot-lock 2>/dev/null || true
 }
 
 do_unmount() {
-    acquire_lock
-    # reverse order, deepest-ish last-mounted first; idempotent
-    for m in "$ROOTFS/workspace" "$ROOTFS/tmp" "$ROOTFS/dev/pts" "$ROOTFS/dev" "$ROOTFS/sys" "$ROOTFS/proc"; do
-        umount "$m" 2>/dev/null
-    done
-    rm -f "$MARKER"
-    release_lock
-    if mounts_done; then
-        echo "WARN: some mounts remain under $ROOTFS (processes holding them?)" >&2
-        grep -F "$ROOTFS" /proc/mounts >&2
-        return 1
-    fi
+    do_unmount_quiet
+    rm -rf "$ROOTFS"/.chroot-* 2>/dev/null || true
     echo "unmounted clean"
+    return 0
 }
 
-# one-time fixes inside rootfs (idempotent, marked)
+do_mounts() {
+    mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
+    mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
+    mount -t sysfs sysfs "$ROOTFS/sys" 2>/dev/null \
+        || mount -t sysfs sys "$ROOTFS/sys" \
+        || { echo "ERR: mount $ROOTFS/sys failed" >&2; return 1; }
+    mount --bind /dev "$ROOTFS/dev" || { echo "ERR: mount $ROOTFS/dev failed" >&2; return 1; }
+    mkdir -p "$ROOTFS/dev/pts"
+    mount -t devpts devpts "$ROOTFS/dev/pts" 2>/dev/null \
+        || mount --bind /dev/pts "$ROOTFS/dev/pts" 2>/dev/null \
+        || { echo "ERR: mount $ROOTFS/dev/pts failed" >&2; return 1; }
+    mount -t tmpfs tmpfs "$ROOTFS/tmp" || { echo "ERR: mount $ROOTFS/tmp failed" >&2; return 1; }
+    if [ -d "$ROOTFS/../files" ]; then
+        mount --bind "$ROOTFS/../files" "$ROOTFS/workspace" || {
+            echo "ERR: mount $ROOTFS/workspace failed" >&2
+            return 1
+        }
+    fi
+    return 0
+}
+
+# Non-destructive DNS & PATH defaults: only populate if missing so existing rootfs
+# files keep their exact sha256 across proot <-> root chroot switches.
 do_fixes() {
-    [ -f "$FIXED" ] && return 0
-    # DNS: write file, never bind the host symlink
     mkdir -p "$ROOTFS/etc"
-    printf 'nameserver 223.5.5.5\nnameserver 119.29.29.29\n' > "$ROOTFS/etc/resolv.conf"
-    # PATH hygiene marker: profile hook keeps host /system/bin out
+    if [ ! -s "$ROOTFS/etc/resolv.conf" ] && [ ! -L "$ROOTFS/etc/resolv.conf" ]; then
+        printf 'nameserver 223.5.5.5\nnameserver 119.29.29.29\n' > "$ROOTFS/etc/resolv.conf"
+    fi
     mkdir -p "$ROOTFS/etc/profile.d"
-    printf 'export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin\n' \
-        > "$ROOTFS/etc/profile.d/00-path.sh"
-    touch "$FIXED"
+    if [ ! -s "$ROOTFS/etc/profile.d/00-path.sh" ]; then
+        printf 'export PATH=%s\n' "$CHROOT_PATH" > "$ROOTFS/etc/profile.d/00-path.sh"
+    fi
+}
+
+run_in_chroot() {
+    if [ -x "$ROOTFS/usr/bin/env" ]; then
+        chroot "$ROOTFS" /usr/bin/env -i \
+            HOME=/root \
+            TERM="${TERM:-xterm-256color}" \
+            PATH="$CHROOT_PATH" \
+            "$@"
+    else
+        PATH="$CHROOT_PATH" HOME=/root TERM="${TERM:-xterm-256color}" \
+            chroot "$ROOTFS" "$@"
+    fi
 }
 
 case "$1" in
     prepare)
-        do_mounts; do_fixes; echo "ready: $ROOTFS" >&2 ;;
+        enter_private_ns prepare
+        trap 'do_unmount_quiet' EXIT INT TERM
+        do_fixes
+        do_mounts || exit 1
+        echo "ready: $ROOTFS"
+        ;;
     unmount)
-        do_unmount ;;
+        do_unmount
+        ;;
+    fixowner)
+        # 数据区属主修复（§3 无损切换）：chroot 以 root 写过的文件属主 0:0，
+        # 切回 proot 后 app uid 读写会失败。范围只碰数据区（HOME=/root 与 /workspace），
+        # rootfs 系统目录本就该是 0:0，不动。app uid 取自 App 私有 data 目录属主。
+        appuid=$(stat -c %u "$ROOTFS/../.." 2>/dev/null || echo "")
+        [ -n "$appuid" ] || { echo "ERR: cannot resolve app uid" >&2; exit 1; }
+        n=0
+        for area in "$ROOTFS/root" "$ROOTFS/workspace"; do
+            [ -d "$area" ] || continue
+            before=$(find "$area" -user 0 2>/dev/null | wc -l)
+            if [ "$before" -gt 0 ]; then
+                find "$area" -user 0 -exec chown "$appuid:$appuid" {} + 2>/dev/null
+            fi
+            after=$(find "$area" -user 0 2>/dev/null | wc -l)
+            n=$((n + before - after))
+            [ "$after" -gt 0 ] && echo "WARN: $area still has $after zero-owner files" >&2
+        done
+        echo "fixowner: fixed zero-owner files = $n (uid=$appuid)" >&2
+        ;;
     shell)
-        do_mounts; do_fixes
-        export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/root TERM="${TERM:-xterm-256color}"
+        enter_private_ns shell
+        trap 'do_unmount_quiet' EXIT INT TERM
+        do_fixes
+        do_mounts || exit 1
         if [ -x "$ROOTFS/bin/bash" ]; then
-            chroot "$ROOTFS" /bin/bash -l
+            run_in_chroot /bin/bash -l
         else
-            echo "WARN: $ROOTFS/bin/bash missing; falling back to /bin/sh" >&2
-            chroot "$ROOTFS" /bin/sh -l
+            run_in_chroot /bin/sh -l
         fi
         rc=$?
-        # 挂载常驻（见文件头第 5 条）：不在这里 unmount
-        exit $rc ;;
+        exit $rc
+        ;;
     exec)
         shift
-        do_mounts; do_fixes
-        export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-        export HOME=/root
-        # 参数用 "$@" 逐个透传（"$*" 会把含空格的参数拼散）；
-        # PATH 必须在 chroot 内部再设一次 —— 外层 export 不会带进 chroot 里的 sh -c。
-        chroot "$ROOTFS" /bin/sh -c 'PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin; export PATH; exec "$@"' sh "$@"
+        enter_private_ns exec "$@"
+        trap 'do_unmount_quiet' EXIT INT TERM
+        do_fixes
+        do_mounts || exit 1
+        run_in_chroot /bin/sh -c "cd -- \"$WORKDIR\" 2>/dev/null || cd /root 2>/dev/null || cd /; $*"
         rc=$?
-        # 挂载常驻（见文件头第 5 条）：不在这里 unmount
-        exit $rc ;;
+        exit $rc
+        ;;
     *)
-        echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount}"; exit 2 ;;
+        echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount}" >&2
+        exit 2
+        ;;
 esac

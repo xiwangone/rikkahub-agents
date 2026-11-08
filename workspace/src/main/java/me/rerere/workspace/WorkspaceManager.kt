@@ -20,6 +20,7 @@ data class OptionalMounts(
     val onAccess: (target: String, path: String) -> Unit = { _, _ -> },
 )
 
+@Suppress("LongParameterList", "TooManyFunctions")
 class WorkspaceManager(
     private val baseDir: File,
     private val config: WorkspaceConfig = WorkspaceConfig(),
@@ -28,23 +29,120 @@ class WorkspaceManager(
     // 可选挂载（如 /sdcard）：开关 provider 为同步函数（调用点在普通函数里，
     // 调用方负责让它返回最新状态，如经内存缓存桥接设置项）。
     private val optionalMounts: OptionalMounts? = null,
-    // chroot 后端（实验性，root 设备）：enabled 返回 false 或 runner 未提供时回退 proot
+    // chroot 后端（root 设备）：按 backend 分派；不可用或 probe 失败时自动回退 proot 并上报原因
     private val chrootRunner: WorkspaceShellRunner? = null,
-    private val chrootEnabled: () -> Boolean = { false },
+    private val backend: () -> WorkspaceShellBackend = { WorkspaceShellBackend.PROOT },
 ) {
+    constructor(
+        baseDir: File,
+        config: WorkspaceConfig = WorkspaceConfig(),
+        shellRunner: WorkspaceShellRunner = HostShellRunner(),
+        bindMounts: List<WorkspaceBindMount> = emptyList(),
+        optionalMounts: OptionalMounts? = null,
+        chrootRunner: WorkspaceShellRunner? = null,
+        chrootEnabled: () -> Boolean,
+        @Suppress("UNUSED_PARAMETER") legacyMarker: Boolean = true,
+    ) : this(
+        baseDir = baseDir,
+        config = config,
+        shellRunner = shellRunner,
+        bindMounts = bindMounts,
+        optionalMounts = optionalMounts,
+        chrootRunner = chrootRunner,
+        backend = {
+            if (chrootEnabled()) WorkspaceShellBackend.ROOT_CHROOT else WorkspaceShellBackend.PROOT
+        },
+    )
+
     private val fileSystem = WorkspaceFileSystem(config)
     private val background = WorkspaceBackgroundProcesses()
+    private val chrootProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
 
-    /** shell 后端分派：chroot 开且 runner 就绪用 chroot，否则回退 proot。 */
-    private fun runnerFor(): WorkspaceShellRunner =
-        if (chrootEnabled() && chrootRunner != null) chrootRunner else shellRunner
+    /** 最近一次 ROOT_CHROOT 自动回退到 PROOT 的原因（null = 未触发回退）。 */
+    @Volatile
+    var lastFallbackReason: String? = null
+        internal set
+
+    /** 自动回退回调（供 Repository/UI 记录日志与展示顶部状态条）。 */
+    @Volatile
+    var onBackendFallback: (reason: String) -> Unit = {}
+
+    fun configuredBackend(): WorkspaceShellBackend = this.backend.invoke()
+
+    fun effectiveBackend(root: String = "default"): WorkspaceShellBackend =
+        when (configuredBackend()) {
+            WorkspaceShellBackend.PROOT -> WorkspaceShellBackend.PROOT
+            WorkspaceShellBackend.DISABLED -> WorkspaceShellBackend.DISABLED
+            WorkspaceShellBackend.ROOT_CHROOT -> {
+                if (chrootRunner == null || chrootProbeCache[root] == false || lastFallbackReason != null) {
+                    WorkspaceShellBackend.PROOT
+                } else {
+                    WorkspaceShellBackend.ROOT_CHROOT
+                }
+            }
+        }
+
+    fun recordFallback(reason: String) {
+        lastFallbackReason = reason
+        onBackendFallback(reason)
+    }
+
+    fun resetBackendState(root: String? = null) {
+        lastFallbackReason = null
+        if (root == null) {
+            chrootProbeCache.clear()
+        } else {
+            chrootProbeCache.remove(root)
+        }
+    }
+
+    /** shell 后端分派：按 backend 分派；ROOT_CHROOT 且 runner/probe 不可用时自动回退 PROOT 并上报原因。 */
+    private fun runnerFor(root: String): WorkspaceShellRunner =
+        when (configuredBackend()) {
+            WorkspaceShellBackend.PROOT -> {
+                lastFallbackReason = null
+                shellRunner
+            }
+            WorkspaceShellBackend.DISABLED -> {
+                lastFallbackReason = null
+                DisabledShellRunner
+            }
+            WorkspaceShellBackend.ROOT_CHROOT -> resolveRootChrootRunner(root)
+        }
+
+    private fun resolveRootChrootRunner(root: String): WorkspaceShellRunner {
+        val runner = chrootRunner
+        if (runner == null) {
+            recordFallback("runner_unavailable: chroot helper scripts missing")
+            return shellRunner
+        }
+        val cached = chrootProbeCache[root]
+        if (cached == false) {
+            return shellRunner
+        }
+        if (cached == null) {
+            val probeRes = probeChroot(root)
+            if (probeRes != null && !probeRes.supported) {
+                chrootProbeCache[root] = false
+                recordFallback("probe_failed(branch=${probeRes.branch}, fail=${probeRes.fail})")
+                return shellRunner
+            }
+            if (runner is ChrootShellRunner && probeRes == null) {
+                chrootProbeCache[root] = false
+                recordFallback("probe_unavailable: su not accessible")
+                return shellRunner
+            }
+            chrootProbeCache[root] = true
+        }
+        lastFallbackReason = null
+        return runner
+    }
 
     /**
-     * chroot 能力探测（root 层运行时检查：SELinux 域 / mount / chroot(2) / 跨 ns / 页大小）。
-     * 只用设备层能力，不碰任何发行版 rootfs；null = 非 chroot runner（回退 proot 态）。
+     * chroot 能力探测（经 WorkspaceShellRunner.probe 接口调用，避免强转）。
      */
     fun probeChroot(root: String): ChrootProbeResult? {
-        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val runner = chrootRunner ?: return null
         val context = WorkspaceShellContext(
             root = root,
             command = "probe",
@@ -62,12 +160,10 @@ class WorkspaceManager(
     fun chrootRunnerReady(): Boolean = chrootRunner != null
 
     /**
-     * chroot 常驻挂载的兜底卸载（非 chroot runner / 未挂载时无副作用）。
-     *
-     * 返回 null = 非 chroot 态（无需卸载）；否则返回脚本结果（调用方决定怎么记日志）。
+     * chroot 挂载的兜底卸载（经 WorkspaceShellRunner.unmount 接口调用，非 chroot runner 返回 null）。
      */
     fun unmountChroot(root: String): WorkspaceCommandResult? {
-        val runner = chrootRunner as? ChrootShellRunner ?: return null
+        val runner = chrootRunner ?: return null
         val context = WorkspaceShellContext(
             root = root,
             command = "unmount",
@@ -79,6 +175,22 @@ class WorkspaceManager(
             timeoutMillis = 30_000,
         )
         return runner.unmount(context)
+    }
+
+    /** 切离真 root 时修数据区属主（0:0 → app uid），保证切回 proot 后可读写。 */
+    fun fixChrootOwner(root: String): WorkspaceCommandResult? {
+        val runner = chrootRunner ?: return null
+        val context = WorkspaceShellContext(
+            root = root,
+            command = "fixowner",
+            cwd = "",
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = tempDir(root),
+            timeoutMillis = 120_000,
+        )
+        return runner.fixOwner(context)
     }
 
     // 让 startBackground 的启动+注册 与 deleteWorkspace 的 killAll+删除 互斥:
@@ -348,22 +460,28 @@ class WorkspaceManager(
         require(command.isNotBlank()) { "Command is required" }
         val workingDir = resolveCommandWorkingDir(root, cwd)
 
-        return runnerFor().execute(
-            WorkspaceShellContext(
-                root = root,
-                command = command,
-                cwd = cwd,
-                filesDir = filesDir(root),
-                linuxDir = linuxDir(root),
-                tempDir = tempDir(root),
-                workingDir = workingDir,
-                timeoutMillis = timeoutMillis,
-                stdin = stdin,
-                bindMounts = activeBindMounts(),
-                env = env,
-                shellCompatibilityMode = shellCompatibilityMode,
-            )
+        val ctx = WorkspaceShellContext(
+            root = root,
+            command = command,
+            cwd = cwd,
+            filesDir = filesDir(root),
+            linuxDir = linuxDir(root),
+            tempDir = tempDir(root),
+            workingDir = workingDir,
+            timeoutMillis = timeoutMillis,
+            stdin = stdin,
+            bindMounts = activeBindMounts(),
+            env = env,
+            shellCompatibilityMode = shellCompatibilityMode,
         )
+        val runner = runnerFor(root)
+        val result = runner.execute(ctx)
+        if (runner === chrootRunner && result.exitCode == -1 && result.stderr.contains("chroot backend unavailable")) {
+            chrootProbeCache[root] = false
+            recordFallback("su_unavailable: ${result.stderr}")
+            return shellRunner.execute(ctx)
+        }
+        return result
     }
 
     /**
@@ -382,7 +500,7 @@ class WorkspaceManager(
             require(command.isNotBlank()) { "Command is required" }
             val workingDir = resolveCommandWorkingDir(root, cwd)
 
-            val process = runnerFor().start(
+            val process = runnerFor(root).start(
                 WorkspaceShellContext(
                     root = root,
                     command = command,

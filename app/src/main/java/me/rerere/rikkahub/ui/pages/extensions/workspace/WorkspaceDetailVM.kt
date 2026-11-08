@@ -11,8 +11,6 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
-import me.rerere.rikkahub.data.repository.ChrootEnableException
-import me.rerere.rikkahub.data.repository.ChrootEnableFailure
 import me.rerere.rikkahub.data.repository.SettingsError
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.RootfsInstallProgress
@@ -21,6 +19,7 @@ import me.rerere.workspace.RootfsShellNotFoundException
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceFileEntry
+import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.WorkspaceStats
 import java.io.File
@@ -140,7 +139,19 @@ class WorkspaceDetailVM(
         }
     }
 
-    /** chroot 后端开关（实验性，root 设备，默认关）。 */
+    /** 本地工作区 Shell 后端（三态：PROOT / ROOT_CHROOT / DISABLED）。 */
+    val shellBackend: kotlinx.coroutines.flow.StateFlow<WorkspaceShellBackend> =
+        repository.shellBackendFlow()
+            .stateIn(
+                viewModelScope,
+                kotlinx.coroutines.flow.SharingStarted.Eagerly,
+                repository.shellBackendNow(),
+            )
+
+    private val _backendFallbackReason = MutableStateFlow(repository.shellBackendFallbackReason())
+    val backendFallbackReason: kotlinx.coroutines.flow.StateFlow<String?> = _backendFallbackReason.asStateFlow()
+
+    /** chroot 后端开关（兼容派生流）。 */
     val chrootEnabled: kotlinx.coroutines.flow.StateFlow<Boolean> =
         repository.chrootEnabledFlow()
             .stateIn(
@@ -152,25 +163,23 @@ class WorkspaceDetailVM(
     /** chroot 后端是否就绪（脚本缺失时为 false）；开关开着但未就绪 = 实际在跑 proot。 */
     val chrootBackendReady: Boolean = repository.chrootBackendReady()
 
-    fun setChrootEnabled(enabled: Boolean) {
+    fun effectiveShellBackend(): WorkspaceShellBackend =
+        repository.effectiveShellBackend(state.value.workspace?.root)
+
+    fun setShellBackend(target: WorkspaceShellBackend) {
         viewModelScope.launch {
             runCatching {
-                if (enabled) {
-                    // 预检用当前工作区目录作为 probe 参数（探测本身不碰 rootfs，目录仅占位）
-                    val root = state.value.workspace?.root
-                    if (root != null) repository.probeChroot(root)?.let { r ->
-                        if (r.fail > 0) {
-                            throw ChrootEnableException(
-                                ChrootEnableFailure.PROBE_FAILED,
-                                detail = r.raw.take(300),
-                                message = "chroot probe failed (${r.fail})",
-                            )
-                        }
-                    }
-                }
-                repository.setChrootEnabled(enabled)
-            }.onFailure { _settingsError.value = SettingsError.of(it) }
+                repository.setShellBackend(target)
+                _backendFallbackReason.value = repository.shellBackendFallbackReason()
+            }.onFailure {
+                _backendFallbackReason.value = repository.shellBackendFallbackReason() ?: it.message
+                _settingsError.value = SettingsError.of(it)
+            }
         }
+    }
+
+    fun setChrootEnabled(enabled: Boolean) {
+        setShellBackend(if (enabled) WorkspaceShellBackend.ROOT_CHROOT else WorkspaceShellBackend.PROOT)
     }
 
     /** 保存工作区画像标签（JSON 数组落库；阶段 3 任务路由的匹配键）。 */

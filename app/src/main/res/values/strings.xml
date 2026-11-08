@@ -3499,7 +3499,11 @@
   <string name="workspace_detail_chroot">chroot backend (experimental)</string>
   <string name="workspace_detail_chroot_desc">Requires a rooted device; shell runs via chroot when on, commands error out if unsupported, toggling off falls back.</string>
   <string name="workspace_detail_chroot_fallback">chroot backend unavailable: helper scripts missing — shells still run on proot.</string>
-  <string name="workspace_detail_chroot_confirm">AI commands will run inside chroot (experimental, rooted device).</string>
+  <string name="workspace_detail_chroot_confirm">Commands inside the sandbox will run as true root (UID 0): code can modify any file, install system modules, and read or write other apps\' data. Switch to root chroot?</string>
+  <string name="workspace_detail_backend_proot">proot</string>
+  <string name="workspace_detail_backend_root_chroot">root chroot</string>
+  <string name="workspace_detail_backend_disabled">Disabled</string>
+  <string name="workspace_detail_chroot_simulated_banner">Currently running simulated root (proot)</string>
   <string name="workspace_detail_compatibility_mode_desc">Try enabling this if the terminal fails to start. It may reduce performance. Applies to new terminal tabs and subsequent commands.</string>
   <string name="workspace_detail_settings_save_failed">Failed to save settings</string>
   <string name="workspace_detail_chroot_need_root">Chroot requires root: su is not available on this device. Grant this app root access in your root manager (e.g. Magisk) and retry.</string>

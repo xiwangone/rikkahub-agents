@@ -36,6 +36,7 @@ import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceEnvironmentInfo
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceStats
 import me.rerere.workspace.WorkspaceStorageArea
@@ -158,52 +159,134 @@ class WorkspaceRepository(
         mountSwitch.sdcardEnabled = enabled
     }
 
-    /** chroot 后端开关（实验性）：设置流，订阅时同步内存桥。 */
-    fun chrootEnabledNow(): Boolean = settingsStore.settingsFlow.value.workspaceChrootEnabled
+    private val rootChrootAuditLogged = java.util.concurrent.atomic.AtomicBoolean(false)
+
+    /** 本地工作区 Shell 后端（三态：PROOT / ROOT_CHROOT / DISABLED）。 */
+    fun shellBackendNow(): WorkspaceShellBackend =
+        WorkspaceShellBackend.fromPreference(
+            rawBackend = settingsStore.settingsFlow.value.workspaceShellBackend.name,
+            legacyChrootEnabled = settingsStore.settingsFlow.value.workspaceChrootEnabled,
+        )
+
+    fun shellBackendFlow(): Flow<WorkspaceShellBackend> =
+        settingsStore.settingsFlow
+            .map {
+                WorkspaceShellBackend.fromPreference(
+                    rawBackend = it.workspaceShellBackend.name,
+                    legacyChrootEnabled = it.workspaceChrootEnabled,
+                )
+            }
+            .onEach { mountSwitch.backend = it }
+
+    fun effectiveShellBackend(root: String? = null): WorkspaceShellBackend =
+        manager.effectiveBackend(root ?: "default")
+
+    fun shellBackendFallbackReason(): String? = manager.lastFallbackReason
+
+    /** chroot 后端开关（兼容派生属性）：设置流，订阅时同步内存桥。 */
+    fun chrootEnabledNow(): Boolean = shellBackendNow() == WorkspaceShellBackend.ROOT_CHROOT
 
     fun chrootEnabledFlow(): Flow<Boolean> =
-        settingsStore.settingsFlow
-            .map { it.workspaceChrootEnabled }
-            .onEach { mountSwitch.chrootEnabled = it }
+        shellBackendFlow().map { it == WorkspaceShellBackend.ROOT_CHROOT }
 
-    /** 开关 chroot 后端：写设置 + 同步内存桥（对后续 shell 启动即时生效）。 */
-    suspend fun setChrootEnabled(enabled: Boolean) = withContext(Dispatchers.IO) {
-        if (enabled && !isSuAccessible()) {
+    /**
+     * 切换本地 Shell 后端（PROOT / ROOT_CHROOT / DISABLED）：
+     * - 切离 ROOT_CHROOT 前执行兜底卸载（umount -R + 清理 .chroot-* 状态文件），不改数据目录；
+     * - 切到 ROOT_CHROOT 时若非 root / su 被拒 / probe 失败，自动回退 PROOT 并记录回退原因供 UI 顶栏明示；
+     * - 首次成功启用写审计日志（时间 + 后端 + S1 判定分支，不含路径与设备标识）。
+     */
+    suspend fun setShellBackend(target: WorkspaceShellBackend) = withContext(Dispatchers.IO) {
+        if (target != WorkspaceShellBackend.ROOT_CHROOT) {
+            dao.getAll().forEach { ws ->
+                manager.unmountChroot(ws.root)?.let { r ->
+                    if (r.exitCode != 0) {
+                        AppLog.w("Workspace", "chroot unmount on switch failed: ${r.stderr}")
+                    }
+                }
+                manager.fixChrootOwner(ws.root)?.let { r ->
+                    if (r.exitCode != 0) {
+                        AppLog.w("Workspace", "chroot fixowner on switch failed: ${r.stderr}")
+                    }
+                }
+            }
+            manager.resetBackendState()
+            settingsStore.update { current ->
+                current.copy(
+                    workspaceShellBackend = target,
+                    workspaceChrootEnabled = false,
+                )
+            }
+            mountSwitch.backend = target
+            return@withContext
+        }
+
+        if (!manager.chrootRunnerReady() || !isSuAccessible()) {
+            val reason = if (!manager.chrootRunnerReady()) "helper_scripts_missing" else "su_not_accessible"
+            manager.recordFallback(reason)
+            settingsStore.update { current ->
+                current.copy(
+                    workspaceShellBackend = WorkspaceShellBackend.PROOT,
+                    workspaceChrootEnabled = false,
+                )
+            }
+            mountSwitch.backend = WorkspaceShellBackend.PROOT
+            AppLog.w("WorkspaceAudit", "ts=${System.currentTimeMillis()} backend=PROOT fallback_from=ROOT_CHROOT branch=C reason=$reason")
             throw ChrootEnableException(
                 ChrootEnableFailure.ROOT_REQUIRED,
                 message = "chroot requires root: su not accessible on this device. " +
                     "Grant this app root access in your root manager (e.g. Magisk) and retry.",
             )
         }
-        if (enabled) {
-            val workspace = dao.getAll().firstOrNull()
-                ?: throw ChrootEnableException(
-                    ChrootEnableFailure.NO_WORKSPACE,
-                    message = "chroot probe: no workspace",
+
+        val workspace = dao.getAll().firstOrNull()
+            ?: throw ChrootEnableException(
+                ChrootEnableFailure.NO_WORKSPACE,
+                message = "chroot probe: no workspace",
+            )
+        val probeResult = manager.probeChroot(workspace.root)
+        if (probeResult != null && !probeResult.supported) {
+            val reason = "probe_failed(branch=${probeResult.branch}, fail=${probeResult.fail})"
+            manager.recordFallback(reason)
+            settingsStore.update { current ->
+                current.copy(
+                    workspaceShellBackend = WorkspaceShellBackend.PROOT,
+                    workspaceChrootEnabled = false,
                 )
-            manager.probeChroot(workspace.root)?.let { result ->
-                if (result.fail > 0) {
-                    throw ChrootEnableException(
-                        ChrootEnableFailure.PROBE_FAILED,
-                        detail = result.raw.take(400),
-                        message = "chroot probe failed (${result.fail} checks)",
-                    )
-                }
             }
+            mountSwitch.backend = WorkspaceShellBackend.PROOT
+            AppLog.w(
+                "WorkspaceAudit",
+                "ts=${System.currentTimeMillis()} backend=PROOT fallback_from=ROOT_CHROOT branch=${probeResult.branch} fail=${probeResult.fail}",
+            )
+            throw ChrootEnableException(
+                ChrootEnableFailure.PROBE_FAILED,
+                detail = probeResult.raw.take(400),
+                message = "chroot probe failed (${probeResult.fail} checks)",
+            )
         }
-        if (!enabled) {
-            // 关开关时卸载常驻挂载（不卸会留着 → 删工作区会 EBUSY）
-            dao.getAll().forEach { ws ->
-                manager.unmountChroot(ws.root)?.let { r ->
-                    if (r.exitCode != 0) {
-                        AppLog.w("Workspace", "chroot unmount on disable failed: ${r.stderr}")
-                    }
-                }
-            }
+
+        if (rootChrootAuditLogged.compareAndSet(false, true)) {
+            val branch = probeResult?.branch ?: "A"
+            val pass = probeResult?.pass ?: 0
+            val warn = probeResult?.warn ?: 0
+            AppLog.i(
+                "WorkspaceAudit",
+                "ts=${System.currentTimeMillis()} backend=ROOT_CHROOT branch=$branch pass=$pass fail=0 warn=$warn",
+            )
         }
-        settingsStore.update { current -> current.copy(workspaceChrootEnabled = enabled) }
-        mountSwitch.chrootEnabled = enabled
+        manager.resetBackendState(workspace.root)
+        settingsStore.update { current ->
+            current.copy(
+                workspaceShellBackend = WorkspaceShellBackend.ROOT_CHROOT,
+                workspaceChrootEnabled = true,
+            )
+        }
+        mountSwitch.backend = WorkspaceShellBackend.ROOT_CHROOT
     }
+
+    /** 开关 chroot 后端（兼容入口）：委托给 [setShellBackend]。 */
+    suspend fun setChrootEnabled(enabled: Boolean) =
+        setShellBackend(if (enabled) WorkspaceShellBackend.ROOT_CHROOT else WorkspaceShellBackend.PROOT)
 
     /** chroot 后端是否就绪（脚本缺失时为 false → 开关开着实际也走 proot；供 UI 显性提示）。 */
     fun chrootBackendReady(): Boolean = manager.chrootRunnerReady()

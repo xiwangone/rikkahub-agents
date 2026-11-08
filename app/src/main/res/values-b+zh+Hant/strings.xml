@@ -3513,7 +3513,11 @@
   <string name="workspace_detail_chroot">chroot 後端（實驗）</string>
   <string name="workspace_detail_chroot_desc">需已 root 裝置；開啟後 shell 經 chroot 執行，不支援時命令會報錯，關閉即回退。</string>
   <string name="workspace_detail_chroot_fallback">chroot 後端不可用（輔助腳本缺失）——shell 實際仍走 proot。</string>
-  <string name="workspace_detail_chroot_confirm">開啟後 AI 命令將在 chroot 內執行（實驗特性，root 裝置）。</string>
+  <string name="workspace_detail_chroot_confirm">開啟後命令將在真 root chroot 內執行：沙箱內程式碼可改任意檔案、可裝模組、可讀寫其他應用資料。確認切換？</string>
+  <string name="workspace_detail_backend_proot">proot</string>
+  <string name="workspace_detail_backend_root_chroot">root chroot</string>
+  <string name="workspace_detail_backend_disabled">關閉</string>
+  <string name="workspace_detail_chroot_simulated_banner">目前為模擬 root（proot）</string>
   <string name="workspace_detail_compatibility_mode_desc">若終端機無法啟動，可嘗試開啟此項。可能會降低效能。僅適用於新開的終端分頁與後續指令。</string>
   <string name="workspace_detail_delete_saved_url">刪除</string>
   <string name="workspace_detail_import_local_rootfs">從本機檔案匯入</string>

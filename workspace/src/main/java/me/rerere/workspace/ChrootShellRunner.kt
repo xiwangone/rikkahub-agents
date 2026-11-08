@@ -53,29 +53,30 @@ class ChrootShellRunner(
         }
 
     /** 探测 root/chroot 能力（独立脚本 chroot-probe.sh，输出 summary 行）；失败或输出不完整返回 null。 */
-    fun probe(context: WorkspaceShellContext): ChrootProbeResult? = runCatching {
+    override fun probe(context: WorkspaceShellContext): ChrootProbeResult? = runCatching {
         val process = ProcessBuilder(
             "su", "-c", "sh ${probeFile.absolutePath} ${context.linuxDir.absolutePath}",
         ).start()
         val result = process.readResult(30_000)
+        val branch = PROBE_BRANCH.find(result.stdout)?.groupValues?.getOrNull(1)
         PROBE_SUMMARY.find(result.stdout)?.groupValues?.let { g ->
+            val pass = g[1].toInt()
+            val fail = g[2].toInt()
+            val warn = g[3].toInt()
             ChrootProbeResult(
-                pass = g[1].toInt(),
-                fail = g[2].toInt(),
-                warn = g[3].toInt(),
+                pass = pass,
+                fail = fail,
+                warn = warn,
                 raw = result.stdout,
+                branch = branch ?: if (fail == 0) "A" else "B",
             )
         }
     }.getOrNull()
 
     /**
-     * 卸载常驻挂载：`sh chroot-run.sh <linuxDir> unmount`（幂等）。
-     *
-     * 挂载是常驻的（见 chroot-run.sh 文件头第 5 条），所以卸载必须在生命周期点显式调用：
-     * 关 chroot 开关（WorkspaceRepository.setChrootEnabled(false)）与删除工作区
-     * （WorkspaceManager.deleteWorkspace —— bind 挂载在时会 EBUSY，目录删不掉）。
+     * 兜底卸载与清理：`sh chroot-run.sh <linuxDir> unmount`（幂等，执行 umount -R 并清理 .chroot-*）。
      */
-    fun unmount(context: WorkspaceShellContext): WorkspaceCommandResult =
+    override fun unmount(context: WorkspaceShellContext): WorkspaceCommandResult =
         runCatching {
             newSuProcess(context.linuxDir, "unmount").readResult(30_000)
         }.getOrElse { e ->
@@ -83,6 +84,18 @@ class ChrootShellRunner(
                 exitCode = -1,
                 stdout = "",
                 stderr = "chroot unmount failed: ${e.message}",
+            )
+        }
+
+    /** 数据区属主修复：`sh chroot-run.sh <linuxDir> fixowner`（只碰 HOME 与 /workspace）。 */
+    override fun fixOwner(context: WorkspaceShellContext): WorkspaceCommandResult =
+        runCatching {
+            newSuProcess(context.linuxDir, "fixowner").readResult(120_000)
+        }.getOrElse { e ->
+            WorkspaceCommandResult(
+                exitCode = -1,
+                stdout = "",
+                stderr = "chroot fixowner failed: ${e.message}",
             )
         }
 
@@ -98,7 +111,7 @@ class ChrootShellRunner(
     /**
      * chroot 内要执行的命令：文件名取**实际写入的那个**（带 UUID），不能写死常量。
      * 写 `.chroot-exec-<UUID>`、却让 chroot 去读 `/.chroot-exec`，会让每条命令都以
-     * `cannot open /.chroot-exec` 失败（2026-09-29 旧机实测）；本函数与下方回归用例把两者钉在一起。
+     * `cannot open /.chroot-exec` 失败（2026-09-29 记录）；本函数与下方回归用例把两者钉在一起。
      */
     internal fun execCommandFor(cmdFile: File): String = "exec /bin/sh /${cmdFile.name}"
 
@@ -124,15 +137,17 @@ class ChrootShellRunner(
         /** 命令中转文件**前缀**（rootfs 根下；实际名 = 前缀 + UUID，见 writeCommandFile）。 */
         const val COMMAND_FILE = ".chroot-exec"
         private val PROBE_SUMMARY = Regex("summary: pass=(\\d+) fail=(\\d+) warn=(\\d+)")
+        private val PROBE_BRANCH = Regex("branch:\\s*([ABC])")
     }
 }
 
-/** chroot-probe.sh 的解析结果（pass/fail/warn 计数与原始输出）。 */
+/** chroot-probe.sh 的解析结果（pass/fail/warn 计数、S1 分支判定与原始输出）。 */
 data class ChrootProbeResult(
     val pass: Int,
     val fail: Int,
     val warn: Int,
     val raw: String,
+    val branch: String = if (fail == 0) "A" else "C",
 ) {
     /** fail=0 视为该设备支持 chroot 后端。 */
     val supported: Boolean

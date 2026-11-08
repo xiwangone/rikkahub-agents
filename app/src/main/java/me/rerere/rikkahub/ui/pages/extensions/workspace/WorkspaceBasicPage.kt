@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -84,6 +85,7 @@ import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.workspace.WorkspaceMirrors
 import me.rerere.workspace.WorkspaceShellStatus
+import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.WorkspaceStats
 import me.rerere.workspace.measureMirrorSpeeds
 import me.rerere.workspace.resolveMirrorProbeUrl
@@ -109,6 +111,12 @@ internal fun WorkspaceBasicPage(
     chrootBackendReady: Boolean,
     onChrootEnabledChange: (Boolean) -> Unit,
     onSetTags: (List<String>) -> Unit,
+    backend: WorkspaceShellBackend = if (chrootEnabled) WorkspaceShellBackend.ROOT_CHROOT else WorkspaceShellBackend.PROOT,
+    effectiveBackend: WorkspaceShellBackend = if (chrootEnabled && chrootBackendReady) WorkspaceShellBackend.ROOT_CHROOT else WorkspaceShellBackend.PROOT,
+    backendFallbackReason: String? = null,
+    onBackendChange: (WorkspaceShellBackend) -> Unit = { target ->
+        onChrootEnabledChange(target == WorkspaceShellBackend.ROOT_CHROOT)
+    },
 ) {
     var mirrorPicker by remember { mutableStateOf<MirrorPick?>(null) }
     val scope = rememberCoroutineScope()
@@ -362,17 +370,44 @@ internal fun WorkspaceBasicPage(
                             Text(stringResource(R.string.workspace_detail_compatibility_mode_desc))
                         },
                     )
-                    switchItem(
-                        checked = chrootEnabled,
-                        onCheckedChange = { enabled ->
-                            if (enabled) showChrootConfirm = true else onChrootEnabledChange(false)
-                        },
+                    item(
                         leadingContent = { CardGroupIcon(HugeIcons.Shield01) },
                         headlineContent = { Text(stringResource(R.string.workspace_detail_chroot)) },
                         supportingContent = {
-                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                val fallbackActive =
+                                    !backendFallbackReason.isNullOrBlank() ||
+                                        (backend == WorkspaceShellBackend.ROOT_CHROOT && (!chrootBackendReady || effectiveBackend == WorkspaceShellBackend.PROOT))
+                                if (fallbackActive) {
+                                    Text(
+                                        text = stringResource(R.string.workspace_detail_chroot_simulated_banner),
+                                        style = MaterialTheme.typography.labelMedium,
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                }
                                 Text(stringResource(R.string.workspace_detail_chroot_desc))
-                                if (chrootEnabled && !chrootBackendReady) {
+                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    FilterChip(
+                                        selected = backend == WorkspaceShellBackend.PROOT,
+                                        onClick = { onBackendChange(WorkspaceShellBackend.PROOT) },
+                                        label = { Text(stringResource(R.string.workspace_detail_backend_proot)) },
+                                    )
+                                    FilterChip(
+                                        selected = backend == WorkspaceShellBackend.ROOT_CHROOT,
+                                        onClick = {
+                                            if (backend != WorkspaceShellBackend.ROOT_CHROOT) {
+                                                showChrootConfirm = true
+                                            }
+                                        },
+                                        label = { Text(stringResource(R.string.workspace_detail_backend_root_chroot)) },
+                                    )
+                                    FilterChip(
+                                        selected = backend == WorkspaceShellBackend.DISABLED,
+                                        onClick = { onBackendChange(WorkspaceShellBackend.DISABLED) },
+                                        label = { Text(stringResource(R.string.workspace_detail_backend_disabled)) },
+                                    )
+                                }
+                                if (fallbackActive) {
                                     Text(
                                         text = stringResource(R.string.workspace_detail_chroot_fallback),
                                         style = MaterialTheme.typography.bodySmall,
@@ -392,7 +427,7 @@ internal fun WorkspaceBasicPage(
                             TextButton(
                                 onClick = {
                                     showChrootConfirm = false
-                                    onChrootEnabledChange(true)
+                                    onBackendChange(WorkspaceShellBackend.ROOT_CHROOT)
                                 },
                             ) {
                                 Text(stringResource(android.R.string.ok))

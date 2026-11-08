@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.WorkspaceShellBackend
+
 import android.content.Context
 import androidx.core.content.edit
 import androidx.datastore.core.DataStore
@@ -106,6 +108,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WEB_SERVER_PORT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_APK_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_APT_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_CHROOT_ENABLED
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_SHELL_BACKEND
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_NPM_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_PIP_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_SDCARD_ENABLED
@@ -455,7 +458,14 @@ internal suspend fun persistSettingsTo(
         preferences[SETTING_SHORTCUT_IDS] = settings.settingShortcutIds.joinToString("\u0001")
         preferences.putWorkspaceMirrors(settings)
         preferences[WORKSPACE_SDCARD_ENABLED] = settings.workspaceSdcardEnabled
-        preferences[WORKSPACE_CHROOT_ENABLED] = settings.workspaceChrootEnabled
+        val resolvedShellBackend =
+            if (settings.workspaceShellBackend == WorkspaceShellBackend.PROOT && settings.workspaceChrootEnabled) {
+                WorkspaceShellBackend.ROOT_CHROOT
+            } else {
+                settings.workspaceShellBackend
+            }
+        preferences[WORKSPACE_SHELL_BACKEND] = resolvedShellBackend.name
+        preferences[WORKSPACE_CHROOT_ENABLED] = resolvedShellBackend == WorkspaceShellBackend.ROOT_CHROOT
         preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
         preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
         preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName

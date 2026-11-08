@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.WorkspaceShellBackend
+
 import android.content.Context
 import androidx.datastore.core.IOException
 import androidx.datastore.core.DataStore
@@ -213,6 +215,7 @@ class SettingsStore(
         val WORKSPACE_NPM_MIRROR = stringPreferencesKey("workspace_npm_mirror")
         val WORKSPACE_SDCARD_ENABLED = booleanPreferencesKey("workspace_sdcard_enabled")
         val WORKSPACE_CHROOT_ENABLED = booleanPreferencesKey("workspace_chroot_enabled")
+        val WORKSPACE_SHELL_BACKEND = stringPreferencesKey("workspace_shell_backend")
         // 工作区资源画像缓存（JSON：id -> {rootBytes, packageCount, kernel, at}）。
         // 大工作区全树遍历可达分钟级，跨进程持久化让详情页秒显上次结果、后台静默刷新。
         val WORKSPACE_STATS_CACHE = stringPreferencesKey("workspace_stats_cache")
@@ -418,7 +421,16 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
                 workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
                 workspaceSdcardEnabled = preferences[WORKSPACE_SDCARD_ENABLED] ?: false,
-                workspaceChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED] ?: false,
+                workspaceChrootEnabled =
+                    WorkspaceShellBackend.fromPreference(
+                        rawBackend = preferences[WORKSPACE_SHELL_BACKEND],
+                        legacyChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED],
+                    ) == WorkspaceShellBackend.ROOT_CHROOT,
+                workspaceShellBackend =
+                    WorkspaceShellBackend.fromPreference(
+                        rawBackend = preferences[WORKSPACE_SHELL_BACKEND],
+                        legacyChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED],
+                    ),
                 workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),

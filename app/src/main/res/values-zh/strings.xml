@@ -3532,7 +3532,11 @@
   <string name="workspace_detail_chroot">chroot 后端（实验）</string>
   <string name="workspace_detail_chroot_desc">需已 root 设备；开启后 shell 经 chroot 执行，不支持时命令会报错，关闭即回退。</string>
   <string name="workspace_detail_chroot_fallback">chroot 后端不可用（辅助脚本缺失）——shell 实际仍走 proot。</string>
-  <string name="workspace_detail_chroot_confirm">开启后 AI 命令将在 chroot 内执行（实验特性，root 设备）。</string>
+  <string name="workspace_detail_chroot_confirm">开启后命令将在真 root chroot 内执行：沙箱内代码可改任意文件、可装模块、可读写其他应用数据。确认切换？</string>
+  <string name="workspace_detail_backend_proot">proot</string>
+  <string name="workspace_detail_backend_root_chroot">root chroot</string>
+  <string name="workspace_detail_backend_disabled">关闭</string>
+  <string name="workspace_detail_chroot_simulated_banner">当前为模拟 root（proot）</string>
   <string name="workspace_detail_compatibility_mode_desc">如果终端无法启动，请尝试启用此功能。这可能会降低性能。适用于新的终端标签页及后续命令。</string>
   <string name="workspace_detail_settings_save_failed">保存设置失败</string>
   <string name="workspace_detail_chroot_need_root">需要 root 权限：本机 su 不可用。请在 root 管理器（如 Magisk）中授予本应用权限后重试。</string>

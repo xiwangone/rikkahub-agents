@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.WorkspaceShellBackend
+
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.serialization.SerialName
@@ -204,6 +206,8 @@ data class Settings(
     val workspaceSdcardEnabled: Boolean = false,
     /** chroot 后端开关（实验性，root 设备，默认关）：开 → shell 经 chroot-run 执行。 */
     val workspaceChrootEnabled: Boolean = false,
+    /** 本地工作区 Shell 后端（三态：PROOT / ROOT_CHROOT / DISABLED；默认 PROOT）。 */
+    val workspaceShellBackend: WorkspaceShellBackend = WorkspaceShellBackend.PROOT,
     /** 工作区资源画像缓存（JSON 字符串：id -> {rootBytes, packageCount, kernel, at}）。 */
     val workspaceStatsCache: String = "{}",
     val webServerLocalhostOnly: Boolean = true,

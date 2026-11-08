@@ -15,6 +15,30 @@ interface WorkspaceShellRunner {
      * Throws IllegalStateException on setup failure (rootfs / proot / loader missing).
      */
     fun start(context: WorkspaceShellContext): Process
+
+    /** 探测后端运行能力（非 chroot 后端默认返回 null）。 */
+    fun probe(context: WorkspaceShellContext): ChrootProbeResult? = null
+
+    /** 卸载/清理后端挂载状态（非 chroot 后端默认返回 null）。 */
+    fun unmount(context: WorkspaceShellContext): WorkspaceCommandResult? = null
+
+    /**
+     * 数据区属主修复（§3 无损切换）：chroot 以 root 写过的文件属主为 0:0，
+     * 切回 proot 后 app uid 无法读写。非 chroot 后端默认返回 null。
+     */
+    fun fixOwner(context: WorkspaceShellContext): WorkspaceCommandResult? = null
+}
+
+object DisabledShellRunner : WorkspaceShellRunner {
+    override fun execute(context: WorkspaceShellContext): WorkspaceCommandResult =
+        WorkspaceCommandResult(
+            exitCode = -1,
+            stdout = "",
+            stderr = "workspace shell backend is disabled.",
+        )
+
+    override fun start(context: WorkspaceShellContext): Process =
+        throw IllegalStateException("workspace shell backend is disabled")
 }
 
 data class WorkspaceShellContext(

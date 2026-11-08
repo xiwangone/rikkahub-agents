@@ -70,7 +70,7 @@ val repositoryModule =
                         nativeLibraryDir = File(context.applicationInfo.nativeLibraryDir),
                     ),
                 chrootRunner = chrootShellRunnerOf(context),
-                chrootEnabled = { mountSwitch.chrootEnabled },
+                backend = { mountSwitch.backend },
                 // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析和写入免审批目录, 避免两处漂移
                 bindMounts =
                     listOf(
@@ -196,6 +196,7 @@ private fun chrootShellRunnerOf(context: Context): ChrootShellRunner? {
         }
         target.setExecutable(true, false)
     }
+    AppLog.i("Workspace", "chroot runner ready: scripts unpacked (S1 branch A/B/C probe enabled)")
     return ChrootShellRunner(
         scriptFile = File(dir, "chroot-run.sh"),
         probeFile = File(dir, "chroot-probe.sh"),

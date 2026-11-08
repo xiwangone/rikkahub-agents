@@ -94,6 +94,8 @@ fun WorkspaceDetailPage(id: String) {
     val upgradingPackages by vm.upgradingPackages.collectAsStateWithLifecycle()
     val packageUpgradeResult by vm.packageUpgradeResult.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
+    val shellBackend by vm.shellBackend.collectAsStateWithLifecycle()
+    val backendFallbackReason by vm.backendFallbackReason.collectAsStateWithLifecycle()
     val chrootEnabled by vm.chrootEnabled.collectAsStateWithLifecycle()
     val chrootBackendReady = vm.chrootBackendReady
     val stats by vm.stats.collectAsStateWithLifecycle()
@@ -326,6 +328,10 @@ fun WorkspaceDetailPage(id: String) {
                             chrootEnabled = chrootEnabled,
                             chrootBackendReady = chrootBackendReady,
                             onChrootEnabledChange = vm::setChrootEnabled,
+                            backend = shellBackend,
+                            effectiveBackend = vm.effectiveShellBackend(),
+                            backendFallbackReason = backendFallbackReason,
+                            onBackendChange = vm::setShellBackend,
                             onSetTags = vm::setTags,
                         )
                     }
