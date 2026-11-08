@@ -47,9 +47,13 @@ enter_private_ns() {
 do_unmount_quiet() {
     umount -R "$ROOTFS" 2>/dev/null || true
     for m in \
+        "$ROOTFS/workspace/app-databases" \
+        "$ROOTFS/workspace/app-shared-prefs" \
         "$ROOTFS/workspace" \
         "$ROOTFS/skills" \
         "$ROOTFS/tool_outputs" \
+        "$ROOTFS/upload" \
+        "$ROOTFS/mnt/shared" \
         "$ROOTFS/tmp" \
         "$ROOTFS/dev/pts" \
         "$ROOTFS/dev" \
@@ -159,7 +163,7 @@ case "$1" in
             [ -d "$area" ] || continue
             before=$(find "$area" -user 0 2>/dev/null | wc -l)
             if [ "$before" -gt 0 ]; then
-                find "$area" -user 0 -exec chown "$appuid:$appuid" {} + 2>/dev/null
+                find "$area" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
             fi
             after=$(find "$area" -user 0 2>/dev/null | wc -l)
             n=$((n + before - after))

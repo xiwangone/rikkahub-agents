@@ -23,6 +23,7 @@ class VaultProviderKeyRefsEmbeddedTest {
                 "PLAIN_KEY" to "sk-abc123",
                 "WITH_FIELD" to "primary",
                 "WITH_FIELD.header" to "X-Real-Header",
+                "WITH_FIELD.custom.auth_token" to "done",
             )
         )
     }
@@ -56,6 +57,15 @@ class VaultProviderKeyRefsEmbeddedTest {
         assertEquals(
             "X-Real-Header",
             VaultProviderKeyRefs.resolveEmbedded("\$\$WITH_FIELD.header"),
+        )
+    }
+
+    @Test
+    fun `multi-level field reference resolves`() {
+        // $$NAME.custom.key 这类多级自定义元数据字段不能被截断成 $$NAME.custom
+        assertEquals(
+            "Bearer done",
+            VaultProviderKeyRefs.resolveEmbedded("Bearer \$\$WITH_FIELD.custom.auth_token"),
         )
     }
 

@@ -114,7 +114,7 @@ object VaultProviderKeyRefs {
         return cache[raw.removePrefix(PREFIX)] ?: raw
     }
 
-    private val embeddedRef = Regex("\\$\\$[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)?")
+    private val embeddedRef = Regex("\\$\\$[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)*")
 
     /**
      * 解析文本中**任意位置**的 `$$名字` 片段：整值引用与“前缀 + 引用”两种形态都适用。
