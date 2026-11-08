@@ -25,6 +25,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"tailscale.com/ipn"
 	"tailscale.com/net/netmon"
 	"tailscale.com/tsnet"
 )
@@ -322,6 +323,151 @@ func Status() (string, error) {
 		return "offline", nil
 	}
 	return "connected " + st.Self.TailscaleIPs[0].String(), nil
+}
+
+// PeerStatus describes one tailnet peer for the app side.
+type peerStatus struct {
+	HostName   string   `json:"hostName"`
+	DNSName    string   `json:"dnsName,omitempty"`
+	OS         string   `json:"os,omitempty"`
+	IPs        []string `json:"ips,omitempty"`
+	Online     bool     `json:"online"`
+	ExitNode   bool     `json:"exitNode,omitempty"`
+	ExitOption bool     `json:"exitNodeOption,omitempty"`
+}
+
+// StatusJSON reports the node state plus the peer list; it never fails, errors
+// go into the "error" field. The app uses it to render the device list and the
+// current accept-routes / exit-node selection.
+func StatusJSON() string {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	out := map[string]any{"running": false}
+	if s == nil {
+		return marshalJSON(out)
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		out["error"] = err.Error()
+		return marshalJSON(out)
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	st, err := lc.Status(ctx)
+	if err != nil {
+		out["error"] = err.Error()
+		return marshalJSON(out)
+	}
+	out["running"] = st.BackendState == "Running"
+	out["backendState"] = st.BackendState
+	if st.Self != nil {
+		out["dnsName"] = st.Self.DNSName
+		out["hostName"] = st.Self.HostName
+		ips := make([]string, 0, len(st.Self.TailscaleIPs))
+		for _, ip := range st.Self.TailscaleIPs {
+			ips = append(ips, ip.String())
+		}
+		out["tailscaleIPs"] = ips
+	}
+	peers := make([]peerStatus, 0, len(st.Peer))
+	for _, p := range st.Peer {
+		item := peerStatus{
+			HostName:   p.HostName,
+			DNSName:    p.DNSName,
+			OS:         p.OS,
+			Online:     p.Online,
+			ExitNode:   p.ExitNode,
+			ExitOption: p.ExitNodeOption,
+		}
+		for _, ip := range p.TailscaleIPs {
+			item.IPs = append(item.IPs, ip.String())
+		}
+		peers = append(peers, item)
+	}
+	out["peers"] = peers
+	if prefs, perr := lc.GetPrefs(ctx); perr == nil {
+		out["acceptRoutes"] = prefs.RouteAll
+		out["exitNodeIP"] = prefs.ExitNodeIP.String()
+	}
+	return marshalJSON(out)
+}
+
+// SetAcceptRoutes turns acceptance of peers' subnet routes on or off
+// (Prefs.RouteAll). Tailscale's default is ON, which can pull a peer's LAN
+// into the tailnet; the app applies its own setting right after Start.
+func SetAcceptRoutes(on bool) error {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return errors.New("tsnet: not started")
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = lc.EditPrefs(ctx, &ipn.MaskedPrefs{Prefs: ipn.Prefs{RouteAll: on}, RouteAllSet: true})
+	return err
+}
+
+// SetExitNode routes all non-tailnet traffic through the peer with the given
+// Tailscale IP ("" turns it off). LAN access stays allowed.
+func SetExitNode(ip string) error {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return errors.New("tsnet: not started")
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return err
+	}
+	mp := &ipn.MaskedPrefs{
+		ExitNodeIPSet:            true,
+		ExitNodeIDSet:            true,
+		ExitNodeAllowLANAccessSet: true,
+	}
+	mp.ExitNodeAllowLANAccess = true
+	if ip != "" {
+		addr, perr := netip.ParseAddr(ip)
+		if perr != nil {
+			return perr
+		}
+		mp.ExitNodeIP = addr
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+	defer cancel()
+	_, err = lc.EditPrefs(ctx, mp)
+	return err
+}
+
+// Logout signs this node out of the tailnet (the control server invalidates the
+// stored state), then stops it.
+func Logout() error {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s != nil {
+		if lc, err := s.LocalClient(); err == nil {
+			ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+			_ = lc.Logout(ctx)
+			cancel()
+		}
+	}
+	return Stop()
+}
+
+// marshalJSON renders v as JSON, falling back to a fixed error object.
+func marshalJSON(v any) string {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return `{"error":"marshal failed"}`
+	}
+	return string(b)
 }
 
 // guardLogsDir points the log policy at dir unless the caller already chose a

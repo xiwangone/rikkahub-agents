@@ -4119,6 +4119,14 @@
   <string name="chat_input_agent_action_workspace_prompt">请检查当前工作区目录与环境状态，并自动执行以下工作区操作：\n</string>
   <string name="chat_input_agent_action_surface_title">诊断工具面 Token 占用</string>
   <string name="chat_input_agent_action_surface_prompt">请调用 tool_surface_report 分析当前会话的工具 Schema Token 占用分布，并给出冷热分层优化建议。</string>
+  <string name="tunnel_accept_routes">子网路由</string>
+  <string name="tunnel_accept_routes_desc">接受对端广播的网段。默认关闭，避免把对端的局域网拉进隧道。</string>
+  <string name="tunnel_exit_node">出口节点</string>
+  <string name="tunnel_exit_node_none">无</string>
+  <string name="tunnel_devices">设备</string>
+  <string name="tunnel_logout">退出登录</string>
+  <string name="tunnel_logout_desc">让本机在控制服务器上失效，并停止隧道。</string>
+  <string name="tunnel_logout_confirm">退出后需要重新授权才能连回，确定吗？</string>
   <string name="tunnel_enable_title">启用隧道</string>
   <string name="tunnel_enable_desc">仅本 App 走隧道，不接管系统 VPN / DNS</string>
   <string name="tunnel_status_label">状态：%1$s</string>

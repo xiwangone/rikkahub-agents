@@ -4123,6 +4123,14 @@
   <string name="chat_input_agent_action_workspace_prompt">現在のワークスペースディレクトリと環境状態を確認し、以下の自動化処理を実行してください：\n</string>
   <string name="chat_input_agent_action_surface_title">ツール面トークン占有分析</string>
   <string name="chat_input_agent_action_surface_prompt">tool_surface_report を呼び出して現在のツールスキーマトークン占有量を分析し、最適化案を提示してください。</string>
+  <string name="tunnel_accept_routes">Subnet routes</string>
+  <string name="tunnel_accept_routes_desc">Accept subnet ranges advertised by peers. Off by default so a peer LAN is not pulled into the tunnel.</string>
+  <string name="tunnel_exit_node">Exit node</string>
+  <string name="tunnel_exit_node_none">None</string>
+  <string name="tunnel_devices">Devices</string>
+  <string name="tunnel_logout">Sign out</string>
+  <string name="tunnel_logout_desc">Invalidates this device on the control server and stops the tunnel.</string>
+  <string name="tunnel_logout_confirm">You will need to authorize again to reconnect. Continue?</string>
   <string name="tunnel_enable_title">トンネルを有効化</string>
   <string name="tunnel_enable_desc">このアプリのみプロキシ経由で通信し、システム VPN / DNS には影響しません</string>
   <string name="tunnel_status_label">状態: %1$s</string>

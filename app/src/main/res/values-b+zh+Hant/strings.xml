@@ -4122,6 +4122,14 @@
   <string name="chat_input_agent_action_workspace_prompt">請檢查目前工作區目錄與環境狀態，並自動執行以下工作區操作：\n</string>
   <string name="chat_input_agent_action_surface_title">診斷工具面 Token 佔用</string>
   <string name="chat_input_agent_action_surface_prompt">請呼叫 tool_surface_report 分析目前對話的工具 Schema Token 佔用分佈，並給出冷熱分層最佳化建議。</string>
+  <string name="tunnel_accept_routes">子网路由</string>
+  <string name="tunnel_accept_routes_desc">接受对端广播的网段。默认关闭，避免把对端的局域网拉进隧道。</string>
+  <string name="tunnel_exit_node">出口节点</string>
+  <string name="tunnel_exit_node_none">无</string>
+  <string name="tunnel_devices">设备</string>
+  <string name="tunnel_logout">退出登录</string>
+  <string name="tunnel_logout_desc">让本机在控制服务器上失效，并停止隧道。</string>
+  <string name="tunnel_logout_confirm">退出后需要重新授权才能连回，确定吗？</string>
   <string name="tunnel_enable_title">啟用隧道</string>
   <string name="tunnel_enable_desc">僅本應用程式走隧道，不接管系統 VPN / DNS</string>
   <string name="tunnel_status_label">狀態：%1$s</string>

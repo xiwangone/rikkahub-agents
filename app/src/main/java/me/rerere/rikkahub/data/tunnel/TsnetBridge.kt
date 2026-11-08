@@ -45,6 +45,7 @@ sealed interface TunnelState {
  *
  * 调用约定：所有方法都是 suspend + Result，失败不抛给 UI 层。
  */
+@Suppress("TooManyFunctions")
 object TsnetBridge {
     private const val TAG = "TsnetBridge"
 
@@ -221,6 +222,35 @@ object TsnetBridge {
      * 把 tailnet 内的 [host]:[port] 映射成本地端口。
      * 返回本地端口号，调用方连 `127.0.0.1:<port>` 即可；不进隧道时不要去碰这些目标。
      */
+    /** 接受 peer 广播的子网路由（Prefs.RouteAll）；默认关，避免把对端 LAN 拉进 tailnet。 */
+    suspend fun setAcceptRoutes(on: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.setAcceptRoutes(on) }
+            .onFailure { AppLog.w(TAG, "setAcceptRoutes($on) failed: ${it.message}", it) }
+    }
+
+    /** 出口节点：传 peer 的 Tailscale IP，空串关闭；LAN 直连保持可用。 */
+    suspend fun setExitNode(ip: String): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.setExitNode(ip) }
+            .onFailure { AppLog.w(TAG, "setExitNode($ip) failed: ${it.message}", it) }
+    }
+
+    /** 节点与 peer 列表（JSON）：running / IP / 域名 / peers / acceptRoutes / exitNodeIP。 */
+    suspend fun statusJson(): String? = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.statusJSON() }
+            .onFailure { AppLog.w(TAG, "statusJSON failed: ${it.message}", it) }
+            .getOrNull()
+    }
+
+    /** 退出登录：服务端使该节点失效，随后停止隧道。 */
+    suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching {
+            Tsnetlib.logout()
+            isRunning = false
+            nodeIp = null
+            publish(TunnelState.Off)
+        }.onFailure { AppLog.w(TAG, "logout failed: ${it.message}", it) }
+    }
+
     suspend fun proxyTo(host: String, port: Int): Result<Int> = withContext(Dispatchers.IO) {
         runCatching {
             check(isRunning) { "tunnel not running" }

@@ -4119,6 +4119,14 @@
   <string name="chat_input_agent_action_workspace_prompt">Inspect the current workspace directory, verify environment status, and run the required automation commands:\n</string>
   <string name="chat_input_agent_action_surface_title">Analyze tool surface &amp; tokens</string>
   <string name="chat_input_agent_action_surface_prompt">Call tool_surface_report to analyze the current tool schema token footprint and suggest cold-tier optimizations.</string>
+  <string name="tunnel_accept_routes">Subnet routes</string>
+  <string name="tunnel_accept_routes_desc">Accept subnet ranges advertised by peers. Off by default so a peer LAN is not pulled into the tunnel.</string>
+  <string name="tunnel_exit_node">Exit node</string>
+  <string name="tunnel_exit_node_none">None</string>
+  <string name="tunnel_devices">Devices</string>
+  <string name="tunnel_logout">Sign out</string>
+  <string name="tunnel_logout_desc">Invalidates this device on the control server and stops the tunnel.</string>
+  <string name="tunnel_logout_confirm">You will need to authorize again to reconnect. Continue?</string>
   <string name="tunnel_enable_title">Enable tunnel</string>
   <string name="tunnel_enable_desc">Per-app proxy only, does not take over system VPN or DNS</string>
   <string name="tunnel_status_label">Status: %1$s</string>

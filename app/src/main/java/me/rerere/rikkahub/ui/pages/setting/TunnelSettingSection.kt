@@ -4,10 +4,12 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
@@ -15,6 +17,7 @@ import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -71,6 +74,11 @@ fun TunnelSettingSection(vm: SettingVM) {
     }
     var busy by remember { mutableStateOf(false) }
     var savedHint by remember { mutableStateOf(false) }
+    // 当前正在弹窗编辑的字段（null = 未打开）。
+    var editingField by remember { mutableStateOf<TunnelField?>(null) }
+    var showExitPicker by remember { mutableStateOf(false) }
+    var showLogoutConfirm by remember { mutableStateOf(false) }
+    var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
 
     // 状态只有一个来源：[TsnetBridge.state]（由启动/停止与守护循环写回）。
     // 开关只反映"此刻是否开着"，因此进程重启后自然显示为关，不会出现"开关开着却没连"。
@@ -86,10 +94,14 @@ fun TunnelSettingSection(vm: SettingVM) {
         tunnelState is TunnelState.Connecting ||
         tunnelState is TunnelState.Offline
 
-    // 输入框当前值与已保存值不一致时，才需要显示 保存 / 取消。
-    val dirty = controlUrl.trim() != network.tailscaleControlUrl ||
-        authKey.trim() != network.tailscaleAuthKey ||
-        hostname.trim().ifBlank { "rikkahub" } != network.tailscaleHostname
+    // 节点与 peer 列表只在已连上时拉取（设置页打开时一次，连上/断开时再一次）。
+    LaunchedEffect(tunnelState) {
+        nodeStatus = if (tunnelState is TunnelState.Connected) {
+            parseTunnelStatus(TsnetBridge.statusJson())
+        } else {
+            null
+        }
+    }
 
     /** 解析密钥后启动隧道；建连结果由 [TsnetBridge.state] 广播，这里只负责把失败原因也写回。 */
     suspend fun startTunnel() {
@@ -221,64 +233,313 @@ fun TunnelSettingSection(vm: SettingVM) {
 
         item(
             headlineContent = {
-                Column(
-                    modifier = Modifier.fillMaxWidth(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    OutlinedTextField(
-                        value = controlUrl,
-                        onValueChange = {
-                            controlUrl = it
-                            savedHint = false
-                        },
-                        label = { Text(text = stringResource(R.string.tunnel_control_url_label)) },
-                        placeholder = { Text(text = "https://login.example.com") },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    SecretRefField(
-                        value = authKey,
-                        onValueChange = {
-                            authKey = it
-                            savedHint = false
-                        },
-                        label = stringResource(R.string.tunnel_auth_key_label),
-                        placeholder = stringResource(R.string.tunnel_auth_key_placeholder),
-                        nameHint = "TAILSCALE_AUTH_KEY",
-                        singleLine = true,
-                    )
-                    OutlinedTextField(
-                        value = hostname,
-                        onValueChange = {
-                            hostname = it
-                            savedHint = false
-                        },
-                        label = { Text(text = stringResource(R.string.tunnel_hostname_label)) },
-                        singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    if (dirty) {
-                        Row(
-                            modifier = Modifier.fillMaxWidth(),
-                            horizontalArrangement = Arrangement.End,
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            TextButton(onClick = { cancel() }) {
-                                Text(text = stringResource(R.string.settings_cancel))
-                            }
-                            Button(onClick = { save() }, enabled = !busy) {
-                                Text(text = stringResource(R.string.chat_page_save))
-                            }
-                        }
-                    } else if (savedHint) {
+                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
+                    TunnelRow(
+                        title = stringResource(R.string.tunnel_control_url_label),
+                        value = controlUrl.ifBlank { "—" },
+                    ) { editingField = TunnelField.ControlUrl }
+                    HorizontalDivider()
+                    TunnelRow(
+                        title = stringResource(R.string.tunnel_hostname_label),
+                        value = hostname.ifBlank { "rikkahub" },
+                    ) { editingField = TunnelField.Hostname }
+                    HorizontalDivider()
+                    TunnelRow(
+                        title = stringResource(R.string.tunnel_auth_key_label),
+                        value = if (authKey.isBlank()) "—" else "••••••••••••",
+                    ) { editingField = TunnelField.AuthKey }
+                    if (savedHint) {
                         Text(
                             text = stringResource(R.string.tunnel_saved_hint),
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(top = 8.dp),
                         )
                     }
                 }
             },
         )
+
+        // 子网路由：接受对端广播的网段（默认关，避免把对端 LAN 拉进 tailnet）
+        item(
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.tunnel_accept_routes),
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.tunnel_accept_routes_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+            trailingContent = {
+                Switch(
+                    checked = nodeStatus?.acceptRoutes ?: false,
+                    enabled = nodeStatus?.running == true && !busy,
+                    onCheckedChange = { on ->
+                        scope.launch {
+                            TsnetBridge.setAcceptRoutes(on).onSuccess {
+                                nodeStatus = nodeStatus?.copy(acceptRoutes = on)
+                            }
+                        }
+                    },
+                )
+            },
+        )
+
+        // 出口节点
+        item(
+            headlineContent = {
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_exit_node),
+                    value = exitNodeLabel(nodeStatus, stringResource(R.string.tunnel_exit_node_none)),
+                    onClick = { showExitPicker = true },
+                )
+            },
+        )
+
+        // 设备：在线 / 总数
+        item(
+            headlineContent = {
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_devices),
+                    value = run {
+                        val peers = nodeStatus?.peers.orEmpty()
+                        "${peers.count { it.online }}/${peers.size}"
+                    },
+                    onClick = {},
+                )
+            },
+        )
+
+        // 退出登录：服务端失效 + 停止（危险操作）
+        item(
+            headlineContent = {
+                Text(
+                    text = stringResource(R.string.tunnel_logout),
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.error,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .clickable { showLogoutConfirm = true }
+                        .padding(vertical = 12.dp),
+                )
+            },
+            supportingContent = {
+                Text(
+                    text = stringResource(R.string.tunnel_logout_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            },
+        )
     }
+
+    if (showExitPicker) {
+        val exitPeers = nodeStatus?.peers.orEmpty().filter { it.canBeExitNode }
+        AlertDialog(
+            onDismissRequest = { showExitPicker = false },
+            title = { Text(stringResource(R.string.tunnel_exit_node)) },
+            text = {
+                Column {
+                    TextButton(onClick = {
+                        showExitPicker = false
+                        scope.launch {
+                            TsnetBridge.setExitNode("").onSuccess {
+                                nodeStatus = nodeStatus?.copy(exitNodeIp = "")
+                            }
+                        }
+                    }) { Text(stringResource(R.string.tunnel_exit_node_none)) }
+                    exitPeers.forEach { peer ->
+                        TextButton(onClick = {
+                            showExitPicker = false
+                            val ip = peer.ips.firstOrNull().orEmpty()
+                            scope.launch {
+                                TsnetBridge.setExitNode(ip).onSuccess {
+                                    nodeStatus = nodeStatus?.copy(exitNodeIp = ip)
+                                }
+                            }
+                        }) {
+                            Text(peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() })
+                        }
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = { showExitPicker = false }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
+    if (showLogoutConfirm) {
+        AlertDialog(
+            onDismissRequest = { showLogoutConfirm = false },
+            title = { Text(stringResource(R.string.tunnel_logout)) },
+            text = { Text(stringResource(R.string.tunnel_logout_confirm)) },
+            confirmButton = {
+                TextButton(onClick = {
+                    showLogoutConfirm = false
+                    scope.launch { TsnetBridge.logout() }
+                }) {
+                    Text(
+                        text = stringResource(R.string.tunnel_logout),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showLogoutConfirm = false }) {
+                    Text(stringResource(R.string.settings_cancel))
+                }
+            },
+        )
+    }
+
+    editingField?.let { field ->
+        AlertDialog(
+            onDismissRequest = { editingField = null },
+            title = {
+                Text(
+                    stringResource(
+                        when (field) {
+                            TunnelField.ControlUrl -> R.string.tunnel_control_url_label
+                            TunnelField.AuthKey -> R.string.tunnel_auth_key_label
+                            TunnelField.Hostname -> R.string.tunnel_hostname_label
+                        }
+                    )
+                )
+            },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    when (field) {
+                        TunnelField.ControlUrl -> OutlinedTextField(
+                            value = controlUrl,
+                            onValueChange = { controlUrl = it },
+                            placeholder = { Text("https://login.example.com") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TunnelField.Hostname -> OutlinedTextField(
+                            value = hostname,
+                            onValueChange = { hostname = it },
+                            placeholder = { Text("rikkahub") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TunnelField.AuthKey -> SecretRefField(
+                            value = authKey,
+                            onValueChange = { authKey = it },
+                            label = stringResource(R.string.tunnel_auth_key_label),
+                            placeholder = stringResource(R.string.tunnel_auth_key_placeholder),
+                            nameHint = "TAILSCALE_AUTH_KEY",
+                            singleLine = true,
+                        )
+                    }
+                }
+            },
+            confirmButton = {
+                TextButton(onClick = {
+                    editingField = null
+                    save()
+                }) { Text(stringResource(R.string.chat_page_save)) }
+            },
+            dismissButton = {
+                TextButton(onClick = {
+                    editingField = null
+                    cancel()
+                }) { Text(stringResource(R.string.settings_cancel)) }
+            },
+        )
+    }
+}
+
+/** 设置页里的一行“标题 — 当前值 ›”，点开弹窗编辑。 */
+@Composable
+private fun TunnelRow(title: String, value: String, onClick: () -> Unit) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(text = title, style = MaterialTheme.typography.bodyMedium)
+        Spacer(modifier = Modifier.weight(1f))
+        Text(
+            text = value,
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            maxLines = 1,
+        )
+        Text(text = "›", color = MaterialTheme.colorScheme.onSurfaceVariant)
+    }
+}
+
+/** 出口节点当前值：空 = 无；否则优先显示 peer 名，退化到 IP。 */
+private fun exitNodeLabel(status: TunnelStatus?, noneLabel: String): String {
+    val raw = status?.exitNodeIp?.trim().orEmpty()
+    val ip = raw.takeIf { it.isNotBlank() && it != "<nil>" && it != "invalid IP" } ?: return noneLabel
+    val peer = status?.peers?.firstOrNull { p -> p.ips.any { it == ip } }
+    return peer?.hostName?.takeIf { it.isNotBlank() } ?: ip
+}
+
+/** 可在隧道设置页弹窗编辑的字段。 */
+private enum class TunnelField { ControlUrl, AuthKey, Hostname }
+
+/** 一个 tailnet 对端。 */
+private data class TunnelPeer(
+    val hostName: String,
+    val dnsName: String,
+    val ips: List<String>,
+    val online: Boolean,
+    val canBeExitNode: Boolean,
+)
+
+/** tsnet 状态快照（来自 [TsnetBridge.statusJson]）。 */
+private data class TunnelStatus(
+    val running: Boolean = false,
+    val selfIps: List<String> = emptyList(),
+    val dnsName: String = "",
+    val peers: List<TunnelPeer> = emptyList(),
+    val acceptRoutes: Boolean = false,
+    val exitNodeIp: String = "",
+)
+
+/** 解析 Go 侧 StatusJSON；字段缺失一律取默认值，不抛异常。 */
+private fun parseTunnelStatus(raw: String?): TunnelStatus? {
+    if (raw.isNullOrBlank()) return null
+    return runCatching {
+        val o = org.json.JSONObject(raw)
+        val peers = mutableListOf<TunnelPeer>()
+        o.optJSONArray("peers")?.let { arr ->
+            for (i in 0 until arr.length()) {
+                val p = arr.optJSONObject(i) ?: continue
+                val ips = mutableListOf<String>()
+                p.optJSONArray("ips")?.let { a -> for (j in 0 until a.length()) ips += a.optString(j) }
+                peers += TunnelPeer(
+                    hostName = p.optString("hostName"),
+                    dnsName = p.optString("dnsName"),
+                    ips = ips,
+                    online = p.optBoolean("online"),
+                    canBeExitNode = p.optBoolean("exitNodeOption"),
+                )
+            }
+        }
+        val selfIps = mutableListOf<String>()
+        o.optJSONArray("tailscaleIPs")?.let { a ->
+            for (j in 0 until a.length()) selfIps += a.optString(j)
+        }
+        TunnelStatus(
+            running = o.optBoolean("running"),
+            selfIps = selfIps,
+            dnsName = o.optString("dnsName"),
+            peers = peers,
+            acceptRoutes = o.optBoolean("acceptRoutes"),
+            exitNodeIp = o.optString("exitNodeIP"),
+        )
+    }.getOrNull()
 }

@@ -4127,6 +4127,14 @@
   <string name="chat_input_agent_action_workspace_prompt">Проверьте текущий каталог рабочей области и состояние окружения, затем выполните необходимые команды автоматизации:\n</string>
   <string name="chat_input_agent_action_surface_title">Анализ токенов инструментов</string>
   <string name="chat_input_agent_action_surface_prompt">Вызовите tool_surface_report для анализа расхода токенов схем инструментов и предложите рекомендации по оптимизации.</string>
+  <string name="tunnel_accept_routes">Subnet routes</string>
+  <string name="tunnel_accept_routes_desc">Accept subnet ranges advertised by peers. Off by default so a peer LAN is not pulled into the tunnel.</string>
+  <string name="tunnel_exit_node">Exit node</string>
+  <string name="tunnel_exit_node_none">None</string>
+  <string name="tunnel_devices">Devices</string>
+  <string name="tunnel_logout">Sign out</string>
+  <string name="tunnel_logout_desc">Invalidates this device on the control server and stops the tunnel.</string>
+  <string name="tunnel_logout_confirm">You will need to authorize again to reconnect. Continue?</string>
   <string name="tunnel_enable_title">Включить туннель</string>
   <string name="tunnel_enable_desc">Прокси только для приложения, не перехватывает системный VPN / DNS</string>
   <string name="tunnel_status_label">Статус: %1$s</string>
