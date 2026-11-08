@@ -6,6 +6,7 @@ import java.util.Locale
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.degradedSecretFields
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.browser.BrowserToolDefaults
