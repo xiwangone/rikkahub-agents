@@ -152,12 +152,22 @@ interface AgentHooks {
      * 刚到达的用户补充写入请求历史；此时模型仍能在本轮内看到工具结果和补充内容。
      */
     suspend fun afterToolExecution(step: StepContext) {}
+
+    /**
+     * [afterToolExecution] 之后是否跳过本轮生成。
+     *
+     * 预算收尾把提醒附到工具结果后返回 true：本轮不再发请求，由下一轮 [beforeStep]
+     * 统一给出唯一一次无工具总结，避免同一份收尾内容发两次。
+     */
+    fun deferGeneration(): Boolean = false
 }
 
 /** 一步请求的实际内容：消息与参数。 */
 data class StepRequest(
     val messages: List<UIMessage>,
     val params: TextGenerationParams,
+    /** False hides executable tools from the provider for terminal summary steps. */
+    val toolsEnabled: Boolean = true,
 )
 
 /** [AgentHooks.beforeStep] 的输入。 */
@@ -179,8 +189,11 @@ sealed interface StepDecision {
     /** 不改历史，按 [AgentHooks.prepareStep] 的输出生成 */
     data object Continue : StepDecision
 
-    /** 在历史末尾追加一条消息后继续 */
-    data class Append(val message: UIMessage) : StepDecision
+    /** 在历史末尾追加一条消息后继续。terminalSummary=true 时允许额外的一次收尾请求越过 maxSteps。 */
+    data class Append(
+        val message: UIMessage,
+        val terminalSummary: Boolean = false,
+    ) : StepDecision
 
     /** 用 [messages] 替换本次运行的历史（保留本轮助手消息由实现方负责） */
     data class Replace(val messages: List<UIMessage>) : StepDecision
@@ -188,8 +201,12 @@ sealed interface StepDecision {
     /**
      * 重新发起本步（不计入已完成的生成），[inject] 会先写回历史末尾。
      * 用于「换个说法再试一次」的降级：图片读取失败退回可读工具、断流后要求续写。
+     * terminalSummary=true 时允许这次重发越过 maxSteps（预算收尾的唯一一次总结）。
      */
-    data class RetryCurrentStep(val inject: UIMessage? = null) : StepDecision
+    data class RetryCurrentStep(
+        val inject: UIMessage? = null,
+        val terminalSummary: Boolean = false,
+    ) : StepDecision
 
     /** 立刻结束本次运行，[reason] 随 [AgentEvent.Finished] 透出 */
     data class Stop(val reason: AgentFinishReason) : StepDecision

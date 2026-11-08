@@ -54,6 +54,7 @@ internal class AgentLoop(
 
     // 已完成的模型请求次数（maxSteps 的口径）；重发本步同样消耗一次请求额度
     private var steps = 0
+    private var activeTools: List<Tool> = request.tools
 
     init {
         val last = request.messages.lastOrNull()
@@ -66,9 +67,12 @@ internal class AgentLoop(
         }
     }
 
+    // 主循环天然多分支（步前决策 + 工具执行 + 步数/预算门控）；拆开会让时序更难跟，故在此抑制。
+    @Suppress("CyclomaticComplexMethod")
     suspend fun run() {
         while (true) {
             var reissueStep = false
+            var terminalSummaryAllowed = false
             // 步前注入了新消息（预算/进度提醒等）：即便当前没有待执行工具，也要再生成一步。
             // 否则注入的提醒只进历史、不产生请求，用户看到的就是「提醒之后直接断」。
             var appended = false
@@ -78,11 +82,13 @@ internal class AgentLoop(
                 is StepDecision.Append -> {
                     history.add(decision.message)
                     appended = true
+                    terminalSummaryAllowed = decision.terminalSummary
                 }
                 is StepDecision.Replace -> applyHistory(decision.messages)
                 is StepDecision.RetryCurrentStep -> {
                     decision.inject?.let { history.add(it) }
                     reissueStep = true
+                    terminalSummaryAllowed = decision.terminalSummary
                 }
 
                 is StepDecision.Stop -> return finish(decision.reason)
@@ -96,11 +102,16 @@ internal class AgentLoop(
                 executeTools(checkNotNull(workingMessage).getTools().filter { !it.isExecuted })
                 // Queue injection is only useful if this run can issue another model request.
                 // Otherwise leave queued input for the caller's normal turn-end dispatch.
+                // 返回 true = 已挂起收尾（如预算提醒附到了工具结果）：本轮不再生成，
+                // 回到循环顶部由 beforeStep 统一给唯一一次无工具总结，避免同一份总结发两次。
                 if (steps < request.maxSteps) hooks.afterToolExecution(stepContext())
+                // 已挂起收尾（预算提醒附到了工具结果）：本轮不生成，
+                // 回到循环顶部由 beforeStep 给唯一一次无工具总结。
+                if (steps < request.maxSteps && hooks.deferGeneration()) continue
             } else if (!reissueStep && canFinishTurn(current, steps, appended)) {
                 return finish(AgentFinishReason.Completed)
             }
-            if (steps >= request.maxSteps) return finish(AgentFinishReason.StepLimitReached)
+            if (steps >= request.maxSteps && !terminalSummaryAllowed) return finish(AgentFinishReason.StepLimitReached)
             steps += generateStep()
         }
     }
@@ -155,7 +166,10 @@ internal class AgentLoop(
     private suspend fun generateStep(): Int {
         val current = workingMessage
         val step = hooks.prepareStep(if (current == null) history.toList() else history + current)
-        val params = step.params.copy(tools = request.tools)
+        // Hooks may disable tools for a terminal summary step, but cannot inject tools.
+        val stepTools = if (step.toolsEnabled) request.tools else emptyList()
+        activeTools = stepTools
+        val params = step.params.copy(tools = stepTools)
         val base = current ?: UIMessage(
             role = MessageRole.ASSISTANT,
             parts = emptyList(),
@@ -388,7 +402,7 @@ internal class AgentLoop(
 
     private fun placeholder(): List<UIMessagePart> = listOf(UIMessagePart.Text(EMPTY_TOOL_OUTPUT))
 
-    private fun findTool(name: String) = request.tools.find { it.name == name }
+    private fun findTool(name: String) = activeTools.find { it.name == name }
 
     private suspend fun update(updated: UIMessage) {
         workingMessage = updated

@@ -62,6 +62,19 @@ import kotlin.uuid.Uuid
 
 private const val TAG = "GenerationAgentRun"
 
+/** 收尾窗口下限：至少给模型 30 秒写总结。 */
+private const val MIN_WRAP_UP_GRACE_MS = 30_000L
+
+/** 收尾窗口上限：最多 5 分钟，避免长预算时把整轮拖太久。 */
+private const val MAX_WRAP_UP_GRACE_MS = 5 * 60_000L
+
+/**
+ * 收尾窗口 = 轮次预算的 20%，夹在 [MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS] 之间。
+ * 20 分钟预算 → 4 分钟；1 分钟预算 → 30 秒（下限）。
+ */
+private fun wrapUpGraceMsForBudget(turnBudgetMs: Long): Long =
+    (turnBudgetMs / 5).coerceIn(MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS)
+
 /**
  * 一次生成轮回的执行体：把「请求模型 → 审批 → 执行工具 → 回灌」的排序交给 `me.rerere.ai.agent` 的循环，
  * 本类只保留这一层需要的东西 —— 请求组装、输出变换与投递节流、执行前的守卫判定、预算处置与归因计数。
@@ -122,8 +135,11 @@ internal class GenerationAgentRun(
     private var loopGuardTripCount = 0
     private var wrapUpInjected = false
 
-    /** 注入收尾提醒后是否已经放行过一次真能跑完的生成（注入≠生成完成） */
-    private var wrapUpGraceUsed = false
+    /** 收尾提醒已安排但最终请求尚未开始（工具结果附提醒或步边界注入）。 */
+    private var wrapUpFinalRequestPending = false
+
+    /** 最终纯文本总结请求已发出；下一步边界结束本轮。 */
+    private var wrapUpFinalRequestInFlight = false
 
     /**
      * 预算耗尽后进入的收尾轮：不向模型挂任何工具，只能产出一段文字总结。
@@ -174,7 +190,8 @@ internal class GenerationAgentRun(
             messages = messages,
             tools = tools,
             stream = assistant.streamOutput,
-            maxSteps = maxSteps,
+            // 预算收尾最多额外保留一次无工具总结请求；普通轮次仍由 beforeStep 限制在 maxSteps。
+            maxSteps = maxSteps + 1,
             retry = retryPolicy,
         )
 
@@ -525,7 +542,7 @@ internal class GenerationAgentRun(
             ),
         )
         onBeforeModelRequest()
-        return StepRequest(internalMessages, params)
+        return StepRequest(internalMessages, params, toolsEnabled = !wrapUpTerminalStep)
     }
 
     // 三条流各一套检测器 + 窗口合并，分支数由协议复杂度决定；拆开会让同一事件被多次裁定。
@@ -773,17 +790,21 @@ internal class GenerationAgentRun(
         scope.publish(tool.copy(executionStartedAt = System.currentTimeMillis()))
         val remainingMs = ToolRuntimeLimits.turnBudgetMs -
             (android.os.SystemClock.elapsedRealtime() - turnStartMs)
-        if (remainingMs <= 0L) {
-            AppLog.w(TAG, "generateText: ${toolDef.name} skipped — wall-clock budget already exceeded")
+        val wrapUpGraceMs = wrapUpGraceMsForBudget(ToolRuntimeLimits.turnBudgetMs)
+        if (wrapUpInjected || remainingMs <= wrapUpGraceMs) {
+            // 软预算：不再启动新工具。将提醒作为被拦截工具的结果返回，
+            // 随后 beforeStep 追加唯一的无工具总结请求。
+            wrapUpInjected = true
+            wrapUpTerminalStep = true
+            wrapUpFinalRequestPending = true
+            AppLog.w(TAG, "generateText: ${toolDef.name} skipped — entering wrap-up window (${remainingMs}ms left)")
             return ToolCallOutcome.Intercept(
-                ToolErrors.partsFor(
-                    ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
-                    "turn budget exceeded before tool started",
-                ),
+                listOf(UIMessagePart.Text(context.resources.getString(R.string.ai_wrap_up_notice))),
             )
         }
         return ToolCallOutcome.Execute(
-            timeout = remainingMs.milliseconds,
+            // 已开始的工作可越过软提醒点，但最多额外运行一个 grace，供干净收尾。
+            timeout = (remainingMs + wrapUpGraceMs).milliseconds,
             context = AuditContext(
                 conversationId = conversationId?.toString(),
                 modelId = model.modelId,
@@ -843,37 +864,37 @@ internal class GenerationAgentRun(
         outputTransformCache.clear()
         flushPendingOutput()
 
+        val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
+
+        if (wrapUpFinalRequestInFlight) {
+            // 最终纯文本请求已完成；停止继续消耗预算。
+            runCtx.abortReason = GenerationOutcome.TIMEOUT
+            return StepDecision.Stop(AgentFinishReason.BudgetExhausted(AgentFinishReason.Kind.WALL_CLOCK))
+        }
+        if (wrapUpFinalRequestPending) {
+            wrapUpFinalRequestPending = false
+            wrapUpFinalRequestInFlight = true
+            // 工具结果本身带有提醒；重新发同一步，进入禁用工具的终结总结。
+            // terminalSummary=true：即使已经撞上 maxSteps，也放行这一次总结请求。
+            return StepDecision.RetryCurrentStep(terminalSummary = true)
+        }
+
         if (step.stepIndex > 0) {
             // 优雅收尾：预算进入宽限窗口时注入一次性收尾指令（合成消息，不落库不进历史请求之外的地方）
-            val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
-            val remainingBudgetMs = ToolRuntimeLimits.turnBudgetMs - elapsedMs
-            if (remainingBudgetMs in 1..WRAP_UP_GRACE_MS && !wrapUpInjected) {
-                wrapUpInjected = true
-                wrapUpTerminalStep = true
+            val turnBudgetMs = ToolRuntimeLimits.turnBudgetMs
+            val remainingBudgetMs = turnBudgetMs - elapsedMs
+            val wrapUpGraceMs = wrapUpGraceMsForBudget(turnBudgetMs)
+            if (remainingBudgetMs in 1..wrapUpGraceMs && !wrapUpInjected) {
                 AppLog.w(TAG, "generateText: turn budget nearly exhausted (${remainingBudgetMs}ms left); injecting wrap-up reminder")
-                return StepDecision.Append(
-                    UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
-                )
+                return appendWrapUpSystemNotice()
             }
             if (elapsedMs > ToolRuntimeLimits.turnBudgetMs) {
                 // 预算已耗尽：步边界是按步采样的，一次长工具执行就可能整段跨过 120s 宽限窗口，
                 // 此时若直接 Stop，用户看到的是一次没有任何总结的硬切断。这里补一次收尾生成机会，
                 // 且整轮只补一次（wrapUpInjected 已置位时不再续命）。
                 if (!wrapUpInjected) {
-                    wrapUpInjected = true
-                    wrapUpTerminalStep = true
                     AppLog.w(TAG, "generateText: turn budget exhausted at step #${step.stepIndex}; injecting wrap-up reminder for a final reply")
-                    return StepDecision.Append(
-                        UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true),
-                    )
-                }
-                // 注入过 ≠ 已经生成完：注入那一步的请求可能刚发出就被下面这条 Stop 砍掉
-                // （注入那一步的请求可能刚发出就被取消，用户拿到的是一份没有收尾文字的回复）
-                // → 额外放行一次能真跑完的收尾生成
-                if (!wrapUpGraceUsed) {
-                    wrapUpGraceUsed = true
-                    AppLog.w(TAG, "generateText: budget exhausted; allowing one final wrap-up generation at step #${step.stepIndex}")
-                    return StepDecision.Continue
+                    return appendWrapUpSystemNotice()
                 }
                 AppLog.w(TAG, "generateText: wall-clock cap (${ToolRuntimeLimits.turnBudgetMs}ms) hit at step #${step.stepIndex}; force-ending turn")
                 runCtx.abortReason = GenerationOutcome.TIMEOUT
@@ -947,7 +968,22 @@ internal class GenerationAgentRun(
             )
             return StepDecision.Stop(AgentFinishReason.Completed)
         }
+        // 正常工具步数上限后只保留一次收尾请求额度，且必须由预算软收尾显式开启。
+        if (step.stepIndex >= maxSteps && !wrapUpTerminalStep) {
+            return StepDecision.Stop(AgentFinishReason.StepLimitReached)
+        }
         return StepDecision.Continue
+    }
+
+    private fun appendWrapUpSystemNotice(): StepDecision.Append {
+        wrapUpInjected = true
+        wrapUpTerminalStep = true
+        // AgentLoop 会放行这一次带 terminalSummary 标记的收尾请求。
+        val notice = UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
+        // AgentLoop 的 Append 会更新自己的历史；prepareStep 还会从本类 messages 构建请求，
+        // 两份历史都同步才能确保 provider 实际收到收尾提醒。
+        messages = messages + notice
+        return StepDecision.Append(notice, terminalSummary = true)
     }
 
     override suspend fun afterToolExecution(step: StepContext) {
@@ -963,6 +999,9 @@ internal class GenerationAgentRun(
         }
     }
 
+    /** 收尾提醒已挂起时跳过本轮生成，把唯一一次总结留给下一轮 [beforeStep]。 */
+    override fun deferGeneration(): Boolean = wrapUpFinalRequestPending
+
     /**
      * 工具使用预算：接近上限时把收尾指令附到**最后一次工具结果**里。
      *
@@ -973,10 +1012,10 @@ internal class GenerationAgentRun(
     private fun attachTurnBudgetHint() {
         if (wrapUpInjected) return
         val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
-        if (ToolRuntimeLimits.turnBudgetMs - elapsedMs > WRAP_UP_GRACE_MS) return
-        wrapUpInjected = true
-        wrapUpTerminalStep = true
+        val wrapUpGraceMs = wrapUpGraceMsForBudget(ToolRuntimeLimits.turnBudgetMs)
+        if (ToolRuntimeLimits.turnBudgetMs - elapsedMs > wrapUpGraceMs) return
         val hint = UIMessagePart.Text(context.resources.getString(R.string.ai_wrap_up_notice))
+        var attached = false
         messages = messages.mapIndexed { index, message ->
             if (index != messages.lastIndex) return@mapIndexed message
             val parts = message.parts.toMutableList()
@@ -984,9 +1023,15 @@ internal class GenerationAgentRun(
             if (toolIndex < 0) return@mapIndexed message
             val tool = parts[toolIndex] as UIMessagePart.Tool
             parts[toolIndex] = tool.copy(output = tool.output + hint)
+            attached = true
             message.copy(parts = parts)
         }
-        AppLog.w(TAG, "generateText: turn budget nearly exhausted; hint attached to the last tool result")
+        if (attached) {
+            wrapUpInjected = true
+            wrapUpTerminalStep = true
+            wrapUpFinalRequestPending = true
+            AppLog.w(TAG, "generateText: turn budget nearly exhausted; hint attached to the last tool result")
+        }
     }
 
     /** 一步生成结束：可视化变换 + 收尾变换 + 断流判定 */
