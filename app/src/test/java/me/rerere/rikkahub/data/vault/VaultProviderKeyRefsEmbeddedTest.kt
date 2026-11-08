@@ -34,20 +34,20 @@ class VaultProviderKeyRefsEmbeddedTest {
 
     @Test
     fun `whole value reference still resolves`() {
-        assertEquals("sk-abc123", VaultProviderKeyRefs.resolveEmbedded("$$PLAIN_KEY"))
+        assertEquals("sk-abc123", VaultProviderKeyRefs.resolveEmbedded("\$\$PLAIN_KEY"))
     }
 
     @Test
     fun `prefix plus reference resolves the fragment only`() {
         // 凭证里已是完整头值（含 Bearer），前缀拼接形态也能用
-        assertEquals("Bearer sk-abc123", VaultProviderKeyRefs.resolveEmbedded("Bearer $$PLAIN_KEY"))
+        assertEquals("Bearer sk-abc123", VaultProviderKeyRefs.resolveEmbedded("Bearer \$\$PLAIN_KEY"))
     }
 
     @Test
     fun `multiple fragments in one value all resolve`() {
         assertEquals(
             "sk-abc123:primary",
-            VaultProviderKeyRefs.resolveEmbedded("$$PLAIN_KEY:$$WITH_FIELD"),
+            VaultProviderKeyRefs.resolveEmbedded("\$\$PLAIN_KEY:\$\$WITH_FIELD"),
         )
     }
 
@@ -55,13 +55,13 @@ class VaultProviderKeyRefsEmbeddedTest {
     fun `field reference resolves`() {
         assertEquals(
             "X-Real-Header",
-            VaultProviderKeyRefs.resolveEmbedded("$$WITH_FIELD.header"),
+            VaultProviderKeyRefs.resolveEmbedded("\$\$WITH_FIELD.header"),
         )
     }
 
     @Test
     fun `unknown reference is left as is`() {
-        assertEquals("Bearer $$NO_SUCH_NAME", VaultProviderKeyRefs.resolveEmbedded("Bearer $$NO_SUCH_NAME"))
+        assertEquals("Bearer \$\$NO_SUCH_NAME", VaultProviderKeyRefs.resolveEmbedded("Bearer \$\$NO_SUCH_NAME"))
     }
 
     @Test
