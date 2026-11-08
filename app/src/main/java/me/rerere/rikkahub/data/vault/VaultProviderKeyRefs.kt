@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.vault
 
+import androidx.annotation.VisibleForTesting
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import java.util.concurrent.ConcurrentLinkedQueue
@@ -111,6 +112,26 @@ object VaultProviderKeyRefs {
     fun resolveValue(raw: String): String {
         if (!raw.startsWith(PREFIX)) return raw
         return cache[raw.removePrefix(PREFIX)] ?: raw
+    }
+
+    private val embeddedRef = Regex("\\$\\$[A-Za-z0-9_]+(?:\\.[A-Za-z0-9_]+)?")
+
+    /**
+     * 解析文本中**任意位置**的 `$$名字` 片段：整值引用与“前缀 + 引用”两种形态都适用。
+     *
+     * 与 [resolveValue] 的分工：后者要求整串就是引用（provider 密钥链路依赖“整值或原样”语义），
+     * 而 HTTP 头这类值是拼接形态（如 `Authorization: Bearer $$名字`），必须按片段替换。
+     * 未命中的片段**保持原样**（与 [resolveValue] 的降级行为一致，名字写错时调用方与用户都能发现）。
+     */
+    fun resolveEmbedded(raw: String): String {
+        if (!raw.contains(PREFIX)) return raw
+        return embeddedRef.replace(raw) { m -> cache[m.value.removePrefix(PREFIX)] ?: m.value }
+    }
+
+    /** 仅供单测注入缓存；生产路径只走 [refresh] / [updateOne]。 */
+    @VisibleForTesting
+    internal fun replaceCacheForTest(map: Map<String, String>) {
+        cache = map
     }
 
     /**

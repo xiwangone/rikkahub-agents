@@ -290,7 +290,7 @@ class McpManager(
     private fun McpServerConfig.resolveHeaders(): List<Pair<String, String>> {
         // 头部值支持 `$$凭证名`：出站前解析为真值（未命中保持原样）
         val base = commonOptions.headers.map { (n, v) ->
-            n to me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(v)
+            n to me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveEmbedded(v)
         }
         val token = commonOptions.oauth?.takeIf { it.enabled }?.accessToken
         val hasAuthHeader = base.any { it.first.equals("Authorization", ignoreCase = true) }
