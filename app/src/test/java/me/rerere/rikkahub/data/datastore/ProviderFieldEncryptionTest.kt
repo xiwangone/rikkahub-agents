@@ -220,8 +220,16 @@ class ProviderFieldEncryptionTest {
             assertFalse("secret '$secret' must NOT appear in PROVIDERS JSON", migratedRaw.contains(secret))
             assertFalse("secret '$secret' must NOT appear in settings.preferences_pb bytes", pbFileText.contains(secret))
         }
-        val firstObj = (JsonInstant.parseToJsonElement(migratedRaw) as JsonArray).first().jsonObject
-        assertTrue(firstObj["apiKey"]!!.jsonPrimitive.content.startsWith("enc:v1:"))
+        // 磁盘上的 providers 会与 DEFAULT_PROVIDERS 合并（内置 provider 排在前，见 PreferencesStore 的 merge 逻辑），
+        // 所以不能按「第一条」断言，必须按 name 定位自己造的那条。
+        val providerObjs = (JsonInstant.parseToJsonElement(migratedRaw) as JsonArray).map { it.jsonObject }
+        val customOpenAiObj = checkNotNull(
+            providerObjs.firstOrNull { it["name"]?.jsonPrimitive?.content == "CustomOpenAIGateway" },
+        ) { "custom provider missing from disk JSON; raw=$migratedRaw" }
+        assertTrue(
+            "custom provider apiKey must be field-encrypted on disk",
+            customOpenAiObj["apiKey"]?.jsonPrimitive?.content?.startsWith("enc:v1:") == true,
+        )
 
         perform { store.update { it.copy(titlePrompt = "Second unrelated update") } }.getOrThrow()
         val afterSecondUpdateRaw = perform { dataStore.data.first()[SettingsStore.PROVIDERS] }.getOrThrow()!!
