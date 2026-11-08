@@ -27,6 +27,7 @@ class ChrootShellRunner(
 
     override fun execute(context: WorkspaceShellContext): WorkspaceCommandResult {
         val cmdFile = writeCommandFile(context)
+        val token = cmdFile.name.removePrefix("$COMMAND_FILE-")
         try {
             val process = try {
                 newSuProcess(context.linuxDir, execCommandFor(cmdFile))
@@ -39,7 +40,15 @@ class ChrootShellRunner(
                         "Root device required, or switch backend back to proot.",
                 )
             }
-            return process.readResult(context.timeoutMillis, context.stdin)
+            val result = process.readResult(context.timeoutMillis, context.stdin)
+            // 前台超时：只杀 su 客户端不够（root 侧进程由 magiskd fork，与 su 无父子关系），
+            // 必须主动整组清理，否则命令会在后台继续跑。
+            if (result.timedOut) cancel(token)
+            return result
+        } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+            // 任何异常都得先清理 root 侧进程树再原样抛出（否则命令会在后台变成孤儿进程）。
+            cancel(token)
+            throw e
         } finally {
             cmdFile.delete()
         }
@@ -125,26 +134,28 @@ class ChrootShellRunner(
      * 写 `.chroot-exec-<UUID>`、却让 chroot 去读 `/.chroot-exec`，会让每条命令都以
      * `cannot open /.chroot-exec` 失败（2026-09-29 记录）；本函数与下方回归用例把两者钉在一起。
      */
-    internal fun execCommandFor(cmdFile: File): String = "setsid /bin/sh /${cmdFile.name}"
-
-    /** process.pid -> 命令文件 UUID，供 [cancel] 定位整棵任务树。 */
-    private val taskIds = java.util.concurrent.ConcurrentHashMap<Long, String>()
+    internal fun execCommandFor(cmdFile: File): String = "exec setsid /bin/sh /${cmdFile.name}"
 
     /**
-     * 杀整棵任务树：`setsid` 让命令自成进程组（pgid = 其 pid），
-     * 再用 root 权限 `pgrep -f <命令文件名>` 找到组首并 `kill -9 -pid` 杀全组。
+     * 杀整棵任务树：`setsid` 让命令自成进程组（pgid = 其 pid）。
+     *
+     * 遍历所有匹配 `/`.chroot-exec-<token> 的进程——不能只取 `head -1`：命中列表里往往先出现
+     * 还没执行 setsid 的 `chroot-run.sh` 包装进程，只杀它就会漏掉里层真正的组首。
+     * 对每个 pid 同时向 `-pid`、`-pgid` 与 `pid` 发 SIGKILL。
      */
     override fun cancel(token: String): Boolean {
-        if (token.isBlank()) return false
-        val pattern = "\\.chroot-exec-" + token
-        // pgrep 拿到的是 setsid 进程本身；它的 pgid 必须从 /proc/<pid>/stat 第 5 字段读
-        // （toybox 的 `ps -o pgid=` 输出解析不可靠，会拿到空值 → kill -9 - 报错）。
+        if (token.isBlank() || !TOKEN_SAFE.matches(token)) return false
+        // `[/][.]` 隔离写法：避免 pgrep 匹配到 cancel 自己的 su -c 命令行。
+        val pattern = "[/][.]chroot-exec-$token"
         val script =
-            "p=\$(pgrep -f '$pattern' | head -1); " +
-                "if [ -n \"\$p\" ]; then " +
-                "g=\$(cat /proc/\$p/stat 2>/dev/null | awk '{print \$5}'); " +
-                "[ -n \"\$g\" ] && kill -9 -\$g 2>/dev/null; " +
-                "kill -9 \"\$p\" 2>/dev/null; fi"
+            "pids=\$(pgrep -f '$pattern' 2>/dev/null || true); " +
+                "[ -n \"\$pids\" ] || exit 1; " +
+                "for p in \$pids; do " +
+                "g=\$(sed 's/.*) //' \"/proc/\$p/stat\" 2>/dev/null | awk '{print \$3}'); " +
+                "kill -9 -\$p 2>/dev/null || true; " +
+                "[ -n \"\$g\" ] && [ \"\$g\" -gt 1 ] 2>/dev/null && kill -9 -\$g 2>/dev/null || true; " +
+                "kill -9 \"\$p\" 2>/dev/null || true; " +
+                "done"
         return runCatching {
             ProcessBuilder("su", "-c", script).start().waitFor() == 0
         }.getOrDefault(false)
@@ -161,7 +172,12 @@ class ChrootShellRunner(
         val cmdFile = File(context.linuxDir, "$COMMAND_FILE-$token")
         val body = buildString {
             if (context.cwd.isNotBlank()) {
-                append("cd -- ").append(shellQuote(context.cwd)).append(" 2>/dev/null || true\n")
+                // 与 ProotShellRunner.prootCwd 对齐：cwd 是「相对工作区根」的路径（如 subdir 或 /subdir），
+                // 在 chroot 内必须解析到 /workspace/<path>；直接 cd 原始值会跑到 rootfs 根目录下。
+                val rel = context.cwd.trim().trimStart('/')
+                val target = if (rel.isEmpty()) "/workspace" else "/workspace/$rel"
+                append("cd -- ").append(shellQuote(target)).append(" 2>/dev/null || cd -- ")
+                    .append(shellQuote(context.cwd)).append(" 2>/dev/null || true\n")
             }
             for ((k, v) in context.env) {
                 if (!ENV_NAME.matches(k)) continue
@@ -192,6 +208,8 @@ class ChrootShellRunner(
         const val COMMAND_FILE = ".chroot-exec"
         private val PROBE_SUMMARY = Regex("summary: pass=(\\d+) fail=(\\d+) warn=(\\d+)")
         private val PROBE_BRANCH = Regex("branch:\\s*([ABC])")
+        /** 任务令牌只允许 UUID 形态字符：拼进 pgrep 模式前先挡住正则元字符。 */
+        private val TOKEN_SAFE = Regex("[A-Za-z0-9-]{8,64}")
         /** 环境变量名合法性（不合法的键直接丢弃，避免拼出入侵语句）。 */
         private val ENV_NAME = Regex("[A-Za-z_][A-Za-z0-9_]*")
     }

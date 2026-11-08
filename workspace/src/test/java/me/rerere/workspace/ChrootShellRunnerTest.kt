@@ -92,8 +92,8 @@ class ChrootShellRunnerTest {
 
         val inner = runner.execCommandFor(written)
 
-        // setsid：命令自成进程组，取消时可整组击杀（root 派生进程与 su 无父子关系）
-        assertEquals("setsid /bin/sh /${written.name}", inner)
+        // exec = chroot-run.sh 的子命令名（漏掉会被当成未知子命令 exit 2）；setsid 让命令自成进程组
+        assertEquals("exec setsid /bin/sh /${written.name}", inner)
         assertTrue(inner.endsWith("/${written.name}"))
         assertTrue(!inner.endsWith("/${ChrootShellRunner.COMMAND_FILE}"))
         written.delete()
