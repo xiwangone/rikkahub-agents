@@ -1,39 +1,41 @@
-<!--
-  状态栏 / 顶部胶囊（灵动岛）小图标：Yao 的「环 + 爻」符号，白色单色（系统会二次着色）。
-  图形取自 yao_loading.xml 的静态部分（去掉旋转与呼吸动画）——状态栏图标不能是 animated-vector。
-  尺寸 24dp 对齐 Android 状态栏规范，viewport 100 与品牌符号保持一致。
--->
 <vector xmlns:android="http://schemas.android.com/apk/res/android"
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="100"
     android:viewportHeight="100">
-
-    <!-- 外环（缺口环，静态保留缺口以便小尺寸可辨） -->
+    <!-- 外层交叠星轨环 -->
     <path
-        android:pathData="M50,12 A38,38 0 1,1 49.9,12"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="7"
+        android:fillColor="#00000000"
+        android:pathData="M50,7 A43,43 0 1,1 49.9,7"
+        android:strokeColor="@color/black"
         android:strokeLineCap="round"
-        android:trimPathStart="0"
-        android:trimPathEnd="0.72" />
-
-    <!-- 阴：左两短 -->
+        android:strokeWidth="6.5" />
     <path
-        android:pathData="M38,36 L38,46"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round" />
+        android:fillColor="#00000000"
+        android:pathData="M15,31 A44,31 0 1,1 85,69 A44,31 0 1,1 15,31"
+        android:strokeAlpha="0.52"
+        android:strokeColor="@color/black"
+        android:strokeLineCap="round"
+        android:strokeWidth="3.2" />
+    <!-- 中心「爻」字：上乂 + 中横 + 下乂（保留母图右下断开笔意，适配 24dp 状态栏） -->
     <path
-        android:pathData="M38,54 L38,64"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round" />
-
-    <!-- 阳：右一长 -->
+        android:fillColor="#00000000"
+        android:pathData="M63,25 C54,32 42,39 29,43 M36,25 L59,39 M64,41.5 L69,43.5"
+        android:strokeColor="@color/black"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6.8" />
     <path
-        android:pathData="M62,36 L62,64"
-        android:strokeColor="#FFFFFFFF"
-        android:strokeWidth="12"
-        android:strokeLineCap="round" />
+        android:fillColor="#00000000"
+        android:pathData="M33,49.5 L57,49.5"
+        android:strokeColor="@color/black"
+        android:strokeLineCap="round"
+        android:strokeWidth="6.8" />
+    <path
+        android:fillColor="#00000000"
+        android:pathData="M63,49.5 C58,62 46,71 29,76 M39,55 L50,65 M55,69 L68,75"
+        android:strokeColor="@color/black"
+        android:strokeLineCap="round"
+        android:strokeLineJoin="round"
+        android:strokeWidth="6.8" />
 </vector>

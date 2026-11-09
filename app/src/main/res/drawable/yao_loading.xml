@@ -1,7 +1,7 @@
 <animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:aapt="http://schemas.android.com/aapt">
 
-    <!-- 环 + 爻：环提供外轮廓（小尺寸也认得出），爻符居中 -->
+    <!-- 环 + 爻：外圈缺口环持续流转，中心真「爻」字（上乂 + 中横 + 下乂）依次呼吸 -->
     <aapt:attr name="android:drawable">
         <vector
             android:width="128dp"
@@ -9,43 +9,46 @@
             android:viewportWidth="100"
             android:viewportHeight="100">
 
-            <!-- 外环（缺口环，旋转时形成流动感）：rotation 只能挂在 group 上；
-                 直接挂 path（FullPath）会抛 IllegalArgumentException（炸的是每次发消息） -->
+            <!-- 外环（缺口环，旋转时形成流动感）：rotation 必须挂在 group 上 -->
             <group
                 android:name="ring_group"
                 android:pivotX="50"
                 android:pivotY="50">
                 <path
                     android:name="ring"
-                    android:pathData="M50,12 A38,38 0 1,1 49.9,12"
+                    android:pathData="M50,9 A41,41 0 1,1 49.9,9"
                     android:strokeColor="#333333"
-                    android:strokeWidth="7"
+                    android:strokeWidth="6.5"
                     android:strokeLineCap="round"
                     android:trimPathStart="0"
-                    android:trimPathEnd="0.72" />
+                    android:trimPathEnd="0.74" />
             </group>
 
-            <!-- 爻：左两短（阴）+ 右一长（阳），加粗放大，小尺寸仍可辨 -->
+            <!-- 爻·上「乂」 -->
             <path
                 android:name="yin_top"
-                android:pathData="M38,36 L38,46"
+                android:pathData="M63,25 C54,32 42,39 29,43 M36,25 L59,39 M64,41.5 L69,43.5"
                 android:strokeColor="#333333"
-                android:strokeWidth="12"
-                android:strokeLineCap="round" />
+                android:strokeWidth="6.8"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round" />
 
+            <!-- 爻·中横「一」 -->
             <path
                 android:name="yin_bot"
-                android:pathData="M38,54 L38,64"
+                android:pathData="M33,49.5 L57,49.5"
                 android:strokeColor="#333333"
-                android:strokeWidth="12"
+                android:strokeWidth="6.8"
                 android:strokeLineCap="round" />
 
+            <!-- 爻·下「乂」 -->
             <path
                 android:name="yang"
-                android:pathData="M62,36 L62,64"
+                android:pathData="M63,49.5 C58,62 46,71 29,76 M39,55 L50,65 M55,69 L68,75"
                 android:strokeColor="#333333"
-                android:strokeWidth="12"
-                android:strokeLineCap="round" />
+                android:strokeWidth="6.8"
+                android:strokeLineCap="round"
+                android:strokeLineJoin="round" />
         </vector>
     </aapt:attr>
 
@@ -61,7 +64,7 @@
         </aapt:attr>
     </target>
 
-    <!-- 三笔依次呼吸 -->
+    <!-- 上乂、中横、下乂三段依次呼吸 -->
     <target android:name="yin_top">
         <aapt:attr name="android:animation">
             <objectAnimator
