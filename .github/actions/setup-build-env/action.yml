@@ -63,3 +63,28 @@ runs:
         npm install -g pnpm >/dev/null 2>&1 && echo "pnpm 经 npm 安装：$(pnpm --version)" && exit 0
         echo "::warning::pnpm 安装失败，如后续步骤需要将自行处理"
         exit 0
+
+    # Gradle wrapper 的发行版（~200MB）下载超时会让整轮直接失败：
+    # gradle-wrapper 单次读取超时很短，网络一旦抖动就报 Read timed out，
+    # 而后续所有 gradle 步骤连带失败。这里先带重试地把它取到本地缓存目录，
+    # 失败时清理半成品重来（残留 .part 会让后续校验直接失败）。
+    - name: 预热 Gradle wrapper（失败重试）
+      shell: bash
+      run: |
+        set -o pipefail
+        if [ ! -x ./gradlew ]; then
+          echo "::warning::未找到 ./gradlew，跳过预热"
+          exit 0
+        fi
+        for i in 1 2 3; do
+          if ./gradlew --version >/dev/null 2>&1; then
+            echo "gradle wrapper 就绪（第 $i 次尝试）"
+            ./gradlew --version 2>&1 | head -3
+            exit 0
+          fi
+          echo "gradle wrapper 预取失败（第 $i 次），清理半成品后重试…"
+          find "$HOME/.gradle/wrapper/dists" -name '*.part' -delete 2>/dev/null || true
+          sleep 15
+        done
+        echo "::error::gradle wrapper 预取失败（重试 3 次仍失败）"
+        exit 1
