@@ -1,7 +1,7 @@
 # golib/tsnet —— 内嵌 Tailscale 的 Go 侧源码
 
 这里是 `app/src/main/jniLibs/arm64-v8a/libgojni.so` 与 `app/libs/tsnetlib.jar` 的**唯一源码**。
-`.so` 已入仓（当前约 21.7MB），**平时不需要重编译**；只有在改动本目录的 Go 代码、或升级 Tailscale 版本时才需要重新生成。
+`.so` 已入仓（当前约 30.4MB，**带完整调试符号**），**平时不需要重编译**；只有在改动本目录的 Go 代码、或升级 Tailscale 版本时才需要重新生成。
 
 ## 构建环境（容器持久盘）
 
@@ -37,9 +37,10 @@ gomobile init
 # 2) 在本目录补 tool 依赖（只需一次，会写进 go.mod）
 go get -tool golang.org/x/mobile/cmd/gobind
 
-# 3) 生成 aar（带 -trimpath -ldflags="-s -w" 剥离调试段与符号表，并通过 ts_omit_* 标签裁剪内嵌网页/AWS/SSH/Taildrop 等未用模块，体积从 ~41MB 降至 ~15MB）
+# 3) 生成 aar（-trimpath 去掉本地路径；**不要加 -ldflags="-s -w"** —— 那会剥离 12 个 .debug_* 段与 .symtab，
+#    native 崩溃栈就没了符号与行号。体积代价：带符号 ~30MB，strip 后 ~21MB；ts_omit_* 标签只裁模块不改符号）
 TS_OMIT_TAGS="ts_omit_aws,ts_omit_bird,ts_omit_tap,ts_omit_kube,ts_omit_completion,ts_omit_ssh,ts_omit_webclient,ts_omit_synology,ts_omit_cloud,ts_omit_drive,ts_omit_taildrop,ts_omit_tpm,ts_omit_wakeonlan,ts_omit_captiveportal,ts_omit_systray,ts_omit_desktop_sessions"
-gomobile bind -target=android/arm64 -androidapi 24 -trimpath -ldflags="-s -w" -tags="$TS_OMIT_TAGS" -o tsnet.aar tsnetlib
+gomobile bind -target=android/arm64 -androidapi 24 -trimpath -tags="$TS_OMIT_TAGS" -o tsnet.aar tsnetlib
 
 # 4) 解出产物，覆盖回工程
 #    tsnet.aar 内含 jni/arm64-v8a/libgojni.so 与 classes.jar
