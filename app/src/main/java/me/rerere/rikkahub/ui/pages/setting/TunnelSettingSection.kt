@@ -37,6 +37,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Global
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.NetworkSetting
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
 import me.rerere.rikkahub.data.tunnel.TunnelState
 import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
@@ -243,6 +244,8 @@ fun TunnelSettingSection(vm: SettingVM) {
                                 networkSetting = current.networkSetting.copy(tailscaleEnabled = enabled),
                             )
                         }
+                        // 留痕：与 TunnelAutoStart 的 restore 日志成对，定位「写没写入 / 读不读得到」。
+                        AppLog.i("TunnelSetting", "persist tailscaleEnabled=$enabled")
                         persistConfig()
                         scope.launch {
                             if (enabled) {

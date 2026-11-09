@@ -46,6 +46,14 @@ object TunnelAutoStart {
             ) {
                 AppLog.i(TAG, "restore tunnel on app start (enabled=true)")
                 TsnetBridge.markDesiredRunning()
+            } else {
+                // 留痕：区分「开关没落盘」与「已在连」——两者以前都是静默，无法定位。
+                AppLog.i(
+                    TAG,
+                    "restore skipped: enabled=" +
+                        settingsStore.settingsFlow.value.networkSetting.tailscaleEnabled +
+                        " desired=" + TsnetBridge.desiredRunning,
+                )
             }
             var retryIndex = 0
             while (true) {
