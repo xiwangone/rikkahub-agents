@@ -165,6 +165,9 @@ android {
         jniLibs {
             useLegacyPackaging = true
             pickFirsts += "lib/*/libtermux.so"
+            // AGP 打包时默认会 strip native 库 —— 仓里放的是带符号版本也白搭，
+            // 那样 native 崩溃栈就没符号/行号。代价：APK 约 +9MB。
+            keepDebugSymbols += "**/libgojni.so"
         }
     }
     lint {
