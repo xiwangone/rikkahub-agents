@@ -4216,7 +4216,7 @@
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">认证密钥</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 凭证名</string>
-  <string name="tunnel_hostname_label">终端名称</string>
+  <string name="tunnel_hostname_label">主机名</string>
   <string name="tunnel_advertise_routes_label">发布网段</string>
   <string name="tunnel_advertise_routes_none">未发布</string>
   <string name="tunnel_saved_hint">已保存</string>
