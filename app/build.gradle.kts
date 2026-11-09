@@ -433,6 +433,8 @@ dependencies {
     // Robolectric：在 host JVM（PC）上跑 Android framework 相关逻辑——WebView 回调、文件落盘、Log，
     // 不必连设备或模拟器。用 @Config(sdk = [34]) 钉住 android-all 镜像版本。
     testImplementation(libs.robolectric)
+    // Room migration tests (MigrationTestHelper) run as local unit tests under Robolectric.
+    testImplementation(libs.androidx.room.testing)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)
     androidTestImplementation(platform(libs.androidx.compose.bom))
