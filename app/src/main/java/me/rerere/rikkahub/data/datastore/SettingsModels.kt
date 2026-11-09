@@ -310,6 +310,8 @@ data class NetworkSetting(
     val hostAddressOverrides: List<HostAddressOverride> = emptyList(),
     // ── 内嵌隧道（per-app，不接管系统 VPN / DNS）──────────────────────────
     // 连接开关只存在于运行期（见 `TunnelState`）：重开 App 不自动连，所以这里不落盘 enabled。
+    /** 隧道总开关（用户手动控制）。落盘后用于下次启动时自动接回；不改进程保活。 */
+    val tailscaleEnabled: Boolean = false,
     /** 控制面 URL（自填，不写死；如自建 Headscale 或默认 Tailscale）。 */
     val tailscaleControlUrl: String = "",
     /** 认证密钥（preauth key，tskey-auth-...）。 */

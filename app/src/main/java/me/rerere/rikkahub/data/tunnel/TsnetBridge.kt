@@ -184,6 +184,14 @@ object TsnetBridge {
     }
 
     /**
+     * 冷启动恢复：仅标记「期望运行」，建连交给守护循环（它带 authKey 解析与退避）。
+     * 与 [start] 的区别：这里不碰隧道状态机，避免与并发建连抢 [lifecycleMutex]。
+     */
+    internal fun markDesiredRunning() {
+        desiredRunning = true
+    }
+
+    /**
      * 查询 native 侧的真实连接状态。
      *
      * @return `connected <tailnet IP>` / `offline` / null（未运行或查询失败）

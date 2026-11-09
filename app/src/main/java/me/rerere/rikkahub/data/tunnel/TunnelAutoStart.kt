@@ -12,17 +12,17 @@ import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
 /**
- * 隧道会话守护：**不自动连接**，只在用户手动开启后的存活期内保持/自愈。
+ * 隧道会话守护：**跟随 App 生命周期**。
  *
  * 边界（按用户口径）：
- * - 连接由开关触发 —— 开 = 建连、关 = 断开；
- * - 进程被划掉 → 隧道随进程消失，**下次打开 App 不会自动接回**（开关显示为关，点一下才连）；
- * - 本进程内用户开过之后，掉线仍自愈：每 [HEALTH_POLL_MS] 查一次 native 状态，
+ * - 连接由开关触发 —— 开 = 建连且落盘、关 = 断开且不再自动接；
+ * - 进程被划掉 → 隧道随进程消失；下次启动时若开关仍为开，自动接回（本类开头那段）；
+ * - 本进程内掉线仍自愈：每 [HEALTH_POLL_MS] 查一次 native 状态，
  *   按 5s / 15s / 60s 退避重连，否则掉一次线就得手动关再开两次。
+ * - **不做进程保活**（无前台服务）：归后台被系统回收时断，重进再连。
  *
- * ⚠ 为什么不在启动时自动连：冷启动时 `settingsFlow` 首帧是 `Settings.dummy()`，
- * 它代表不了用户配置（旧实现据此判断开关，会白等一个轮询周期才建连）。
- * 连接配置只在需要重连时读取 —— 那时设置早已加载完成。
+ * ⚠ 冷启动恢复为什么不能靠首帧：`settingsFlow` 首帧是 `Settings.dummy()`，代表不了
+ * 用户配置（旧实现据此判断开关，会白等一个轮询周期才建连）→ 先 `awaitInitialized()`。
  */
 object TunnelAutoStart {
     private const val TAG = "TunnelAutoStart"
@@ -37,6 +37,16 @@ object TunnelAutoStart {
         val appContext = context.applicationContext
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
             val resolver = CredentialResolver(vaultRepository)
+            // 冷启动恢复：等设置真正加载后再读开关，否则读到的是 dummy 默认值。
+            // 开关为开 → 只标记期望运行，实际建连交给下面带退避的循环。
+            runCatching { settingsStore.awaitInitialized() }
+                .onFailure { AppLog.w(TAG, "restore skipped: settings not initialized: ${it.message}", it) }
+            if (settingsStore.settingsFlow.value.networkSetting.tailscaleEnabled &&
+                !TsnetBridge.desiredRunning
+            ) {
+                AppLog.i(TAG, "restore tunnel on app start (enabled=true)")
+                TsnetBridge.markDesiredRunning()
+            }
             var retryIndex = 0
             while (true) {
                 // 用户没开（或已关、或启动失败回落）或正在建连握手：静默待机，不打断正在进行中的连接。

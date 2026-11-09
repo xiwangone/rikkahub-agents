@@ -237,6 +237,12 @@ fun TunnelSettingSection(vm: SettingVM) {
                     enabled = !busy,
                     onCheckedChange = { enabled ->
                         busy = true
+                        // 落盘总开关：跟随 App 生命周期 —— 下次启动读到关就自动接回，关就断开且不再接。
+                        vm.updateSettings { current ->
+                            current.copy(
+                                networkSetting = current.networkSetting.copy(tailscaleEnabled = enabled),
+                            )
+                        }
                         persistConfig()
                         scope.launch {
                             if (enabled) {
