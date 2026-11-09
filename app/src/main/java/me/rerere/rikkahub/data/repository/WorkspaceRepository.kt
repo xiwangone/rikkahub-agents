@@ -153,6 +153,12 @@ class WorkspaceRepository(
             .map { it.workspaceSdcardEnabled }
             .onEach { mountSwitch.sdcardEnabled = it }
 
+    /** 容器专用 DNS 配置同步流：订阅时自动同步到内存桥 [mountSwitch]。 */
+    fun shellDnsFlow(): Flow<Pair<String, List<String>>> =
+        settingsStore.settingsFlow
+            .map { it.shellDnsMode to it.shellDnsServers }
+            .onEach { (mode, servers) -> mountSwitch.updateShellDns(mode, servers) }
+
     /** 开关手机存储挂载：写设置 + 同步内存桥（对后续 shell 启动/路径解析即时生效）。 */
     suspend fun setSdcardAccess(enabled: Boolean) {
         settingsStore.update { current -> current.copy(workspaceSdcardEnabled = enabled) }

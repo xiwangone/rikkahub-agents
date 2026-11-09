@@ -2,40 +2,34 @@
     android:width="24dp"
     android:height="24dp"
     android:viewportWidth="100"
-    android:viewportHeight="100">
-    <!-- 外层交叠星轨环 -->
+    android:viewportHeight="100"
+    android:tint="#FFFFFFFF">
+    <!-- 外层单环：24dp 状态栏留边（r=41，线宽 7.0，单色白避免细发光环在状态栏糊成实心块） -->
     <path
         android:fillColor="#00000000"
-        android:pathData="M50,7 A43,43 0 1,1 49.9,7"
-        android:strokeColor="@color/black"
+        android:pathData="M50,9 A41,41 0 1,1 49.9,9"
+        android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="6.5" />
-    <path
-        android:fillColor="#00000000"
-        android:pathData="M15,31 A44,31 0 1,1 85,69 A44,31 0 1,1 15,31"
-        android:strokeAlpha="0.52"
-        android:strokeColor="@color/black"
-        android:strokeLineCap="round"
-        android:strokeWidth="3.2" />
-    <!-- 中心「爻」字：上乂 + 中横 + 下乂（保留母图右下断开笔意，适配 24dp 状态栏） -->
+        android:strokeWidth="7.0" />
+    <!-- 中心「爻」字：上乂 + 中横 + 下乂（圆角端点，适配 24dp 状态栏高对比识别） -->
     <path
         android:fillColor="#00000000"
         android:pathData="M63,25 C54,32 42,39 29,43 M36,25 L59,39 M64,41.5 L69,43.5"
-        android:strokeColor="@color/black"
+        android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="6.8" />
+        android:strokeWidth="7.2" />
     <path
         android:fillColor="#00000000"
         android:pathData="M33,49.5 L57,49.5"
-        android:strokeColor="@color/black"
+        android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
-        android:strokeWidth="6.8" />
+        android:strokeWidth="7.2" />
     <path
         android:fillColor="#00000000"
         android:pathData="M63,49.5 C58,62 46,71 29,76 M39,55 L50,65 M55,69 L68,75"
-        android:strokeColor="@color/black"
+        android:strokeColor="#FFFFFFFF"
         android:strokeLineCap="round"
         android:strokeLineJoin="round"
-        android:strokeWidth="6.8" />
+        android:strokeWidth="7.2" />
 </vector>

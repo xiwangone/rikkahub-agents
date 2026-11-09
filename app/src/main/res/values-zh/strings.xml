@@ -3529,7 +3529,7 @@
   <string name="assistant_page_time_reminder_interval_value">%1$d 分钟</string>
   <string name="tool_ui_shell_changed_files">命令改动的文件</string>
   <string name="workspace_detail_compatibility_mode">兼容模式</string>
-  <string name="workspace_detail_chroot">chroot 后端（实验）</string>
+  <string name="workspace_detail_chroot">Shell 后端</string>
   <string name="workspace_detail_chroot_desc">需已 root 设备；开启后 shell 经 chroot 执行，不支持时命令会报错，关闭即回退。</string>
   <string name="workspace_detail_chroot_fallback">chroot 后端不可用（辅助脚本缺失）——shell 实际仍走 proot。</string>
   <string name="workspace_detail_chroot_confirm">开启后命令将在真 root chroot 内执行：沙箱内代码可改任意文件、可装模块、可读写其他应用数据。确认切换？</string>
@@ -4218,4 +4218,19 @@
   <string name="setting_page_preferences_network_dns_test_domain">测试域名</string>
   <string name="setting_page_preferences_network_dns_test_success">解析成功 %1$s → %2$s (%3$d ms)</string>
   <string name="settings_initialization_failed">设置加载失败，请从备份恢复或重启应用。</string>
+  <string name="setting_page_preferences_network_shell_dns_title">Shell 容器 DNS</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto">自动</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto_desc">跟随系统网络，读不到时用公共 DNS 兜底</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom">自定义</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom_desc">手动指定容器内 /etc/resolv.conf</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_label">自定义 DNS 服务器</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_hint">每行或逗号分隔一个 IPv4/IPv6</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_invalid">请填写至少一个有效的非回环 IPv4 或 IPv6 地址</string>
+  <string name="setting_page_preferences_network_shell_dns_save">保存</string>
+  <string name="setting_page_preferences_network_shell_dns_saved">已保存 Shell 容器 DNS</string>
+  <string name="setting_page_preferences_network_shell_dns_effective">当前生效：%1$s</string>
+  <string name="setting_page_preferences_network_shell_dns_effective_auto">自动（跟随系统网络 / 223.5.5.5, 119.29.29.29 兜底）</string>
+  <string name="workspace_detail_backend_proot_desc">免 root，开箱可用。文件系统在用户态模拟，兼容性最好，性能略低。</string>
+  <string name="workspace_detail_backend_root_chroot_desc">需 root 设备。真 root 与真挂载，性能最高，可装系统包、改文件属主；未授权时自动回退 proot。</string>
+  <string name="workspace_detail_backend_disabled_desc">不启用沙箱 Shell：工作区命令会直接失败，适合只用文件工具的场景。</string>
 </resources>

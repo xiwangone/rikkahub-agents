@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.ShellDnsConfig
 import me.rerere.workspace.WorkspaceShellBackend
 
 import kotlinx.coroutines.flow.first
@@ -208,6 +209,10 @@ data class Settings(
     val workspaceChrootEnabled: Boolean = false,
     /** 本地工作区 Shell 后端（三态：PROOT / ROOT_CHROOT / DISABLED；默认 PROOT）。 */
     val workspaceShellBackend: WorkspaceShellBackend = WorkspaceShellBackend.PROOT,
+    /** Shell 容器专用 DNS 模式：auto（默认，跟随系统网络/公共 DNS 兜底）| custom（手动指定容器内 /etc/resolv.conf）。 */
+    val shellDnsMode: String = ShellDnsConfig.MODE_AUTO,
+    /** Shell 容器自定义 DNS 服务器列表（纯 IPv4/IPv6 地址，与 App HTTP DoH/DoT 独立）。 */
+    val shellDnsServers: List<String> = emptyList(),
     /** 工作区资源画像缓存（JSON 字符串：id -> {rootBytes, packageCount, kernel, at}）。 */
     val workspaceStatsCache: String = "{}",
     val webServerLocalhostOnly: Boolean = true,

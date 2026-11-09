@@ -13,9 +13,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearWavyProgressIndicator
@@ -31,6 +32,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
@@ -386,26 +388,63 @@ internal fun WorkspaceBasicPage(
                                     )
                                 }
                                 Text(stringResource(R.string.workspace_detail_chroot_desc))
-                                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    FilterChip(
-                                        selected = backend == WorkspaceShellBackend.PROOT,
-                                        onClick = { onBackendChange(WorkspaceShellBackend.PROOT) },
-                                        label = { Text(stringResource(R.string.workspace_detail_backend_proot)) },
-                                    )
-                                    FilterChip(
-                                        selected = backend == WorkspaceShellBackend.ROOT_CHROOT,
-                                        onClick = {
-                                            if (backend != WorkspaceShellBackend.ROOT_CHROOT) {
+                                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                                    listOf(
+                                        Triple(
+                                            WorkspaceShellBackend.PROOT,
+                                            R.string.workspace_detail_backend_proot,
+                                            R.string.workspace_detail_backend_proot_desc,
+                                        ),
+                                        Triple(
+                                            WorkspaceShellBackend.ROOT_CHROOT,
+                                            R.string.workspace_detail_backend_root_chroot,
+                                            R.string.workspace_detail_backend_root_chroot_desc,
+                                        ),
+                                        Triple(
+                                            WorkspaceShellBackend.DISABLED,
+                                            R.string.workspace_detail_backend_disabled,
+                                            R.string.workspace_detail_backend_disabled_desc,
+                                        ),
+                                    ).forEach { (option, labelRes, descRes) ->
+                                        val selected = backend == option
+                                        val onSelect = {
+                                            if (option == WorkspaceShellBackend.ROOT_CHROOT &&
+                                                backend != WorkspaceShellBackend.ROOT_CHROOT
+                                            ) {
                                                 showChrootConfirm = true
+                                            } else {
+                                                onBackendChange(option)
                                             }
-                                        },
-                                        label = { Text(stringResource(R.string.workspace_detail_backend_root_chroot)) },
-                                    )
-                                    FilterChip(
-                                        selected = backend == WorkspaceShellBackend.DISABLED,
-                                        onClick = { onBackendChange(WorkspaceShellBackend.DISABLED) },
-                                        label = { Text(stringResource(R.string.workspace_detail_backend_disabled)) },
-                                    )
+                                        }
+                                        Row(
+                                            modifier = Modifier
+                                                .fillMaxWidth()
+                                                .clickable(onClick = onSelect)
+                                                .padding(vertical = 4.dp),
+                                            verticalAlignment = Alignment.CenterVertically,
+                                        ) {
+                                            RadioButton(
+                                                selected = selected,
+                                                onClick = onSelect,
+                                            )
+                                            Column(
+                                                modifier = Modifier
+                                                    .weight(1f)
+                                                    .padding(start = 8.dp),
+                                            ) {
+                                                Text(
+                                                    text = stringResource(labelRes),
+                                                    style = MaterialTheme.typography.bodyLarge,
+                                                    color = MaterialTheme.colorScheme.onSurface,
+                                                )
+                                                Text(
+                                                    text = stringResource(descRes),
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                )
+                                            }
+                                        }
+                                    }
                                 }
                                 if (fallbackActive) {
                                     Text(

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.ShellDnsConfig
 import me.rerere.workspace.WorkspaceShellBackend
+import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 
 import android.content.Context
 import androidx.datastore.core.IOException
@@ -216,6 +218,8 @@ class SettingsStore(
         val WORKSPACE_SDCARD_ENABLED = booleanPreferencesKey("workspace_sdcard_enabled")
         val WORKSPACE_CHROOT_ENABLED = booleanPreferencesKey("workspace_chroot_enabled")
         val WORKSPACE_SHELL_BACKEND = stringPreferencesKey("workspace_shell_backend")
+        val SHELL_DNS_MODE = stringPreferencesKey("shell_dns_mode")
+        val SHELL_DNS_SERVERS = stringPreferencesKey("shell_dns_servers")
         // 工作区资源画像缓存（JSON：id -> {rootBytes, packageCount, kernel, at}）。
         // 大工作区全树遍历可达分钟级，跨进程持久化让详情页秒显上次结果、后台静默刷新。
         val WORKSPACE_STATS_CACHE = stringPreferencesKey("workspace_stats_cache")
@@ -431,6 +435,13 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                         rawBackend = preferences[WORKSPACE_SHELL_BACKEND],
                         legacyChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED],
                     ),
+                shellDnsMode = ShellDnsConfig.normalizeMode(preferences[SHELL_DNS_MODE]),
+                shellDnsServers =
+                    preferences[SHELL_DNS_SERVERS]?.let { raw ->
+                        runCatching { JsonInstant.decodeFromString<List<String>>(raw) }
+                            .getOrElse { ShellDnsConfig.parseServers(raw) }
+                            .let { list -> ShellDnsConfig.parseServers(list.joinToString("\n")) }
+                    } ?: emptyList(),
                 workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
@@ -617,6 +628,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                             }
                             saveWarmUiSettings(appContext, decoded)
                             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(decoded.networkSetting)
+                            runCatching { get<WorkspaceMountSwitch>().updateShellDns(decoded.shellDnsMode, decoded.shellDnsServers) }
                         }
                         if (!settingsFlow.value.init) initialization.complete(Unit)
                     }
@@ -670,6 +682,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         settingsFlow.value = settings
         saveWarmUiSettings(appContext, settings)
         me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(settings.networkSetting)
+        runCatching { get<WorkspaceMountSwitch>().updateShellDns(settings.shellDnsMode, settings.shellDnsServers) }
         try {
             val diffBase = if (forceFullWrite) null else previous.takeIf { !it.init }
             persistSettingsTo(dataStore, settings, diffBase)
@@ -677,6 +690,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             settingsFlow.value = previous
             saveWarmUiSettings(appContext, previous)
             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(previous.networkSetting)
+            runCatching { get<WorkspaceMountSwitch>().updateShellDns(previous.shellDnsMode, previous.shellDnsServers) }
             memoryRevision.incrementAndGet()
             throw failure
         }

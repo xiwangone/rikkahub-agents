@@ -5,6 +5,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.PixelFormat
+import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.provider.Settings
 import android.view.Gravity
@@ -13,6 +14,7 @@ import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
 import android.widget.ImageView
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.ComposeView
 import androidx.compose.ui.platform.ViewCompositionStrategy
 import androidx.lifecycle.ProcessLifecycleOwner
@@ -38,6 +40,7 @@ import me.rerere.rikkahub.ui.floating.FloatingChatWindow
 import me.rerere.rikkahub.ui.floating.FloatingToolAction
 import me.rerere.rikkahub.ui.floating.FloatingWindowLifecycleOwner
 import me.rerere.rikkahub.ui.floating.FloatingWindowState
+import me.rerere.rikkahub.ui.floating.resolveFloatingColorScheme
 import kotlin.uuid.Uuid
 
 private data class FloatingChatSnapshot(
@@ -94,7 +97,12 @@ internal class ChatFloatingOverlayController(
     private val configurationCallbacks =
         object : ComponentCallbacks {
             override fun onConfigurationChanged(newConfig: Configuration) {
-                root?.post { if (root != null) applyExpanded(policy.expanded) }
+                root?.post {
+                    if (root != null) {
+                        bubble?.let(::applyBubbleTheme)
+                        applyExpanded(policy.expanded)
+                    }
+                }
             }
 
             override fun onLowMemory() = Unit
@@ -122,7 +130,10 @@ internal class ChatFloatingOverlayController(
             }
         observerJobs +=
             scope.launch {
-                settingsStore.settingsFlow.collect { uiSettings.value = it }
+                settingsStore.settingsFlow.collect { latest ->
+                    uiSettings.value = latest
+                    root?.post { bubble?.let(::applyBubbleTheme) }
+                }
             }
         observerJobs +=
             scope.launch {
@@ -325,20 +336,29 @@ internal class ChatFloatingOverlayController(
         windowLifecycleOwner = null
     }
 
+    private fun applyBubbleTheme(icon: ImageView) {
+        val colorScheme = resolveFloatingColorScheme(overlayContext, uiSettings.value)
+        val pad = dp(6)
+        icon.setPadding(pad, pad, pad, pad)
+        icon.background =
+            GradientDrawable().apply {
+                shape = GradientDrawable.RECTANGLE
+                cornerRadius = dp(16).toFloat()
+                setColor(colorScheme.surfaceContainerHigh.toArgb())
+                setStroke(dp(1).coerceAtLeast(1), colorScheme.outlineVariant.toArgb())
+            }
+        icon.clipToOutline = true
+        icon.elevation = dp(8).toFloat()
+    }
+
     private fun buildContent(): FrameLayout {
         val frame = FrameLayout(overlayContext)
         val icon =
             ImageView(overlayContext).apply {
                 setImageResource(R.mipmap.ic_launcher)
                 contentDescription = overlayContext.getString(R.string.floating_chat_open)
-                scaleType = ImageView.ScaleType.CENTER_CROP
-                background =
-                    android.graphics.drawable.GradientDrawable().apply {
-                        shape = android.graphics.drawable.GradientDrawable.OVAL
-                        setColor(android.graphics.Color.TRANSPARENT)
-                    }
-                clipToOutline = true
-                elevation = dp(8).toFloat()
+                scaleType = ImageView.ScaleType.FIT_CENTER
+                applyBubbleTheme(this)
                 setOnClickListener {
                     policy = policy.expand()
                     applyExpanded(true)

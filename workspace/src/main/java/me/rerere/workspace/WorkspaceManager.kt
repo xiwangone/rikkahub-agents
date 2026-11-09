@@ -32,6 +32,7 @@ class WorkspaceManager(
     // chroot 后端（root 设备）：按 backend 分派；不可用或 probe 失败时自动回退 proot 并上报原因
     private val chrootRunner: WorkspaceShellRunner? = null,
     private val backend: () -> WorkspaceShellBackend = { WorkspaceShellBackend.PROOT },
+    private val dnsServers: () -> List<String> = { emptyList() },
 ) {
     constructor(
         baseDir: File,
@@ -475,6 +476,7 @@ class WorkspaceManager(
             bindMounts = activeBindMounts(),
             env = env,
             shellCompatibilityMode = shellCompatibilityMode,
+            dnsServers = dnsServers(),
         )
         val runner = runnerFor(root)
         val result = runner.execute(ctx)
@@ -513,8 +515,10 @@ class WorkspaceManager(
                     tempDir = tempDir(root),
                     workingDir = workingDir,
                     timeoutMillis = 0L,
+                    bindMounts = activeBindMounts(),
                     env = env,
                     taskToken = taskToken,
+                    dnsServers = dnsServers(),
                 )
             )
             background.start(root, process, command, cwd, taskToken)

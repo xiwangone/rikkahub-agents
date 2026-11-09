@@ -44,7 +44,7 @@ class ProotShellRunner(
         }
 
         context.tempDir.mkdirs()
-        patcher.patch(context.linuxDir)
+        patcher.patch(context.linuxDir, RootfsPatchOptions(nameservers = context.dnsServers))
         val process =
             ProcessBuilder(buildCommand(context, proot))
                 .directory(context.filesDir)
@@ -74,7 +74,7 @@ class ProotShellRunner(
         }
 
         context.tempDir.mkdirs()
-        patcher.patch(context.linuxDir)
+        patcher.patch(context.linuxDir, RootfsPatchOptions(nameservers = context.dnsServers))
         return ProcessBuilder(buildCommand(context, proot))
             .directory(context.filesDir)
             .redirectErrorStream(false)

@@ -3484,7 +3484,7 @@
 </string>
   <string name="tool_ui_shell_changed_files">الملفات التي غيّرها الأمر</string>
   <string name="workspace_detail_compatibility_mode">وضع التوافق</string>
-  <string name="workspace_detail_chroot">خلفية chroot (تجريبي)</string>
+  <string name="workspace_detail_chroot">خلفية Shell</string>
   <string name="workspace_detail_chroot_desc">يتطلب جهازاً به root؛ عند التفعيل يعمل shell عبر chroot، وإذا لم يكن مدعوماً تفشل الأوامر، والإيقاف يعيد الوضع السابق.</string>
   <string name="workspace_detail_chroot_fallback">خلفية chroot غير متاحة (ملفات مساعدة مفقودة) — يتم تشغيل shell عبر proot.</string>
   <string name="workspace_detail_chroot_confirm">عند التفعيل، يمكن للكود داخل الصندوق تعديل أي ملف وتثبيت الوحدات وقراءة أو كتابة بيانات التطبيقات الأخرى. هل تريد التبديل إلى root chroot؟</string>
@@ -4229,4 +4229,19 @@
   <string name="setting_page_preferences_network_dns_test_domain">نطاق الاختبار</string>
   <string name="setting_page_preferences_network_dns_test_success">تم التحليل %1$s ← %2$s (%3$d مللي ثانية)</string>
   <string name="settings_initialization_failed">تعذّر تحميل الإعدادات. استعِد من نسخة احتياطية أو أعد تشغيل التطبيق.</string>
+  <string name="setting_page_preferences_network_shell_dns_title">DNS حاوية Shell</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto">تلقائي</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto_desc">اتباع شبكة النظام، والرجوع إلى DNS العام عند عدم التوفر</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom">مخصص</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom_desc">تحديد /etc/resolv.conf داخل الحاوية يدوياً</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_label">خوادم DNS المخصصة</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_hint">عنوان IPv4/IPv6 واحد في كل سطر أو مفصول بفواصل</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_invalid">يرجى إدخال عنوان IPv4 أو IPv6 صالح واحد على الأقل غير استرجاعي</string>
+  <string name="setting_page_preferences_network_shell_dns_save">حفظ</string>
+  <string name="setting_page_preferences_network_shell_dns_saved">تم حفظ إعدادات DNS لحاوية Shell</string>
+  <string name="setting_page_preferences_network_shell_dns_effective">الساري حالياً: %1$s</string>
+  <string name="setting_page_preferences_network_shell_dns_effective_auto">تلقائي (DNS النظام / احتياطي 223.5.5.5, 119.29.29.29)</string>
+  <string name="workspace_detail_backend_proot_desc">بدون root وجاهز للاستخدام فوراً. يحاكي نظام الملفات في مساحة المستخدم لأفضل توافق مع أداء أقل قليلاً.</string>
+  <string name="workspace_detail_backend_root_chroot_desc">يتطلب جهازاً بصلاحيات root. يوفر root حقيقياً وربطاً فعلياً لأعلى أداء وتثبيت حزم النظام وتغيير الملكية، ويعود تلقائياً إلى proot عند عدم التفويض.</string>
+  <string name="workspace_detail_backend_disabled_desc">تعطيل صدفة الصندوق الرملي: تفشل أوامر مساحة العمل مباشرة، وهو مناسب عند استخدام أدوات الملفات فقط.</string>
 </resources>

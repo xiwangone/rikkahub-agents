@@ -15,14 +15,17 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.clickable
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
+import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
@@ -58,6 +61,7 @@ import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.HostAddressOverride
 import me.rerere.rikkahub.data.datastore.NetworkSetting
+import me.rerere.workspace.ShellDnsConfig
 import me.rerere.rikkahub.data.network.AppDnsResolver
 import me.rerere.rikkahub.data.network.parseFixedAddress
 import me.rerere.rikkahub.data.network.toProxyOrNull
@@ -110,6 +114,11 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
     var dnsIpv6Draft by remember { mutableStateOf(false) }
     var dnsTestDomain by remember(net.dnsTestDomain) { mutableStateOf(net.dnsTestDomain) }
     var dnsTesting by remember { mutableStateOf(false) }
+
+    val savedShellDnsMode = ShellDnsConfig.normalizeMode(settings.shellDnsMode)
+    val savedShellDnsText = remember(settings.shellDnsServers) { settings.shellDnsServers.joinToString("\n") }
+    var shellDnsModeDraft by remember(savedShellDnsMode) { mutableStateOf(savedShellDnsMode) }
+    var shellDnsServersDraft by remember(savedShellDnsText) { mutableStateOf(savedShellDnsText) }
 
     var hostOverrideDialogVisible by remember { mutableStateOf(false) }
     var hostOverrideDrafts by remember { mutableStateOf(emptyList<HostAddressOverride>()) }
@@ -165,6 +174,21 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                 ),
             )
         }
+    }
+
+    fun saveShellDns() {
+        val normalizedMode = ShellDnsConfig.normalizeMode(shellDnsModeDraft)
+        val parsedServers = ShellDnsConfig.parseServers(shellDnsServersDraft)
+        vm.updateSettings { current ->
+            current.copy(
+                shellDnsMode = normalizedMode,
+                shellDnsServers = parsedServers,
+            )
+        }
+        toaster.show(
+            resources.getString(R.string.setting_page_preferences_network_shell_dns_saved),
+            type = ToastType.Success,
+        )
     }
 
     fun saveHostAddressOverrides(entries: List<HostAddressOverride>) {
@@ -920,6 +944,129 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                                     )
                                 } else {
                                     Text(stringResource(R.string.setting_provider_page_test))
+                                }
+                            }
+                        },
+                    )
+                }
+            }
+            item {
+                val effectiveServers =
+                    ShellDnsConfig.effectiveServers(
+                        settings.shellDnsMode,
+                        settings.shellDnsServers.joinToString("\n"),
+                    )
+                val effectiveSummary =
+                    if (effectiveServers.isEmpty()) {
+                        stringResource(R.string.setting_page_preferences_network_shell_dns_effective_auto)
+                    } else {
+                        effectiveServers.joinToString(", ")
+                    }
+                val parsedDraftServers = ShellDnsConfig.parseServers(shellDnsServersDraft)
+                val customDraftInvalid =
+                    shellDnsModeDraft == ShellDnsConfig.MODE_CUSTOM && parsedDraftServers.isEmpty()
+
+                CardGroup(
+                    modifier = Modifier.padding(horizontal = 8.dp),
+                    title = {
+                        Text(stringResource(R.string.setting_page_preferences_network_shell_dns_title))
+                    },
+                ) {
+                    item(
+                        headlineContent = {
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                verticalArrangement = Arrangement.spacedBy(8.dp),
+                            ) {
+                                listOf(
+                                    Triple(
+                                        ShellDnsConfig.MODE_AUTO,
+                                        R.string.setting_page_preferences_network_shell_dns_mode_auto,
+                                        R.string.setting_page_preferences_network_shell_dns_mode_auto_desc,
+                                    ),
+                                    Triple(
+                                        ShellDnsConfig.MODE_CUSTOM,
+                                        R.string.setting_page_preferences_network_shell_dns_mode_custom,
+                                        R.string.setting_page_preferences_network_shell_dns_mode_custom_desc,
+                                    ),
+                                ).forEach { (modeKey, titleRes, descRes) ->
+                                    val selected = shellDnsModeDraft == modeKey
+                                    Row(
+                                        modifier = Modifier
+                                            .fillMaxWidth()
+                                            .clickable { shellDnsModeDraft = modeKey }
+                                            .padding(vertical = 4.dp),
+                                        verticalAlignment = Alignment.CenterVertically,
+                                    ) {
+                                        RadioButton(
+                                            selected = selected,
+                                            onClick = { shellDnsModeDraft = modeKey },
+                                        )
+                                        Column(
+                                            modifier = Modifier
+                                                .weight(1f)
+                                                .padding(start = 8.dp),
+                                        ) {
+                                            Text(
+                                                text = stringResource(titleRes),
+                                                style = MaterialTheme.typography.bodyLarge,
+                                            )
+                                            Text(
+                                                text = stringResource(descRes),
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                }
+
+                                OutlinedTextField(
+                                    value = shellDnsServersDraft,
+                                    onValueChange = { shellDnsServersDraft = it },
+                                    modifier = Modifier.fillMaxWidth(),
+                                    enabled = shellDnsModeDraft == ShellDnsConfig.MODE_CUSTOM,
+                                    label = {
+                                        Text(stringResource(R.string.setting_page_preferences_network_shell_dns_servers_label))
+                                    },
+                                    placeholder = {
+                                        Text("223.5.5.5\n119.29.29.29")
+                                    },
+                                    supportingText = {
+                                        Text(
+                                            stringResource(
+                                                if (customDraftInvalid) {
+                                                    R.string.setting_page_preferences_network_shell_dns_servers_invalid
+                                                } else {
+                                                    R.string.setting_page_preferences_network_shell_dns_servers_hint
+                                                },
+                                            ),
+                                        )
+                                    },
+                                    isError = customDraftInvalid,
+                                    minLines = 2,
+                                    maxLines = 5,
+                                )
+
+                                Row(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    horizontalArrangement = Arrangement.SpaceBetween,
+                                    verticalAlignment = Alignment.CenterVertically,
+                                ) {
+                                    Text(
+                                        text = stringResource(
+                                            R.string.setting_page_preferences_network_shell_dns_effective,
+                                            effectiveSummary,
+                                        ),
+                                        style = MaterialTheme.typography.bodySmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                    FilledTonalButton(
+                                        onClick = ::saveShellDns,
+                                        enabled = !customDraftInvalid,
+                                    ) {
+                                        Text(stringResource(R.string.setting_page_preferences_network_shell_dns_save))
+                                    }
                                 }
                             }
                         },

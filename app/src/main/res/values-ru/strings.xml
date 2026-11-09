@@ -3478,7 +3478,7 @@
   <string name="browser_address_bar_share">Поделиться ссылкой</string>
   <string name="tool_ui_shell_changed_files">Файлы, изменённые командой</string>
   <string name="workspace_detail_compatibility_mode">Режим совместимости</string>
-  <string name="workspace_detail_chroot">бэкенд chroot (эксперимент)</string>
+  <string name="workspace_detail_chroot">Бэкенд Shell</string>
   <string name="workspace_detail_chroot_desc">Требуется root-устройство; при включении shell работает через chroot, при отсутствии поддержки команды завершатся ошибкой, выключение возвращает прежний режим.</string>
   <string name="workspace_detail_chroot_fallback">Бэкенд chroot недоступен (нет вспомогательных скриптов) — команды выполняются через proot.</string>
   <string name="workspace_detail_chroot_confirm">В режиме root chroot код внутри песочницы может изменять любые файлы, устанавливать модули и читать или изменять данные других приложений. Переключить на root chroot?</string>
@@ -4226,4 +4226,19 @@
   <string name="setting_page_preferences_network_dns_test_domain">Тестовый домен</string>
   <string name="setting_page_preferences_network_dns_test_success">Разрешено %1$s → %2$s (%3$d мс)</string>
   <string name="settings_initialization_failed">Не удалось загрузить настройки. Восстановите из резервной копии или перезапустите приложение.</string>
+  <string name="setting_page_preferences_network_shell_dns_title">DNS контейнера Shell</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto">Авто</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto_desc">Следовать системной сети, при недоступности использовать публичный DNS</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom">Вручную</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom_desc">Вручную указать /etc/resolv.conf внутри контейнера</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_label">Пользовательские DNS-серверы</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_hint">По одному адресу IPv4/IPv6 на строку или через запятую</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_invalid">Укажите хотя бы один корректный не-loopback адрес IPv4 или IPv6</string>
+  <string name="setting_page_preferences_network_shell_dns_save">Сохранить</string>
+  <string name="setting_page_preferences_network_shell_dns_saved">Настройки DNS контейнера Shell сохранены</string>
+  <string name="setting_page_preferences_network_shell_dns_effective">Действует: %1$s</string>
+  <string name="setting_page_preferences_network_shell_dns_effective_auto">Авто (системный DNS / резерв 223.5.5.5, 119.29.29.29)</string>
+  <string name="workspace_detail_backend_proot_desc">Без root, готов к работе сразу. Эмулирует файловую систему в пространстве пользователя: лучшая совместимость при чуть меньшей скорости.</string>
+  <string name="workspace_detail_backend_root_chroot_desc">Требуется root-устройство. Настоящий root и прямое монтирование: максимальная производительность, установка системных пакетов и смена владельца; при отказе автоматически возвращается к proot.</string>
+  <string name="workspace_detail_backend_disabled_desc">Отключить песочницу Shell: команды рабочей области сразу завершаются ошибкой; подходит, когда нужны только файловые инструменты.</string>
 </resources>

@@ -30,7 +30,7 @@ class ChrootShellRunner(
         val token = cmdFile.name.removePrefix("$COMMAND_FILE-")
         try {
             val process = try {
-                newSuProcess(context.linuxDir, execCommandFor(cmdFile))
+                newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers)
             } catch (e: IOException) {
                 // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链
                 return WorkspaceCommandResult(
@@ -59,7 +59,7 @@ class ChrootShellRunner(
         // 交互 bash——命令从未执行，且该进程 hasAlive 恒真，5 个就把每工作区名额占满。
         val cmdFile = writeCommandFile(context)
         return try {
-            newSuProcess(context.linuxDir, execCommandFor(cmdFile)).also { process ->
+            newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers).also { process ->
                 // 只删自己的命令文件：同字符串服务的并发任务共用同一前缀，
                 // 用通配符清理会互删对方尚未读取的文件。
                 Thread {
@@ -124,9 +124,17 @@ class ChrootShellRunner(
     internal fun suCommand(
         linuxDir: File,
         inner: String,
+        dnsServers: List<String> = emptyList(),
     ): String {
         requireSafePath(linuxDir)
-        return "sh ${scriptFile.absolutePath} ${linuxDir.absolutePath} $inner"
+        val validDns = ShellDnsConfig.parseServers(dnsServers.joinToString(" "))
+        val dnsPrefix =
+            if (validDns.isEmpty()) {
+                ""
+            } else {
+                "CHROOT_DNS=${shellQuote(validDns.joinToString(" "))} "
+            }
+        return "${dnsPrefix}sh ${scriptFile.absolutePath} ${linuxDir.absolutePath} $inner"
     }
 
     /**
@@ -195,7 +203,18 @@ class ChrootShellRunner(
     private fun newSuProcess(
         linuxDir: File,
         inner: String,
-    ): Process = ProcessBuilder("su", "-c", suCommand(linuxDir, inner)).start()
+        dnsServers: List<String> = emptyList(),
+    ): Process {
+        val validDns = ShellDnsConfig.parseServers(dnsServers.joinToString(" "))
+        return ProcessBuilder("su", "-c", suCommand(linuxDir, inner, validDns))
+            .apply {
+                if (validDns.isNotEmpty()) {
+                    environment()["CHROOT_DNS"] = validDns.joinToString(" ")
+                } else {
+                    environment().remove("CHROOT_DNS")
+                }
+            }.start()
+    }
 
     private fun requireSafePath(file: File) {
         require(file.absolutePath.none { it == ' ' || it == '\'' || it == '"' || it == ';' || it == '$' }) {

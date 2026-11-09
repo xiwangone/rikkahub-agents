@@ -21,6 +21,7 @@ import me.rerere.workspace.ChrootShellRunner
 import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
+import me.rerere.workspace.ShellDnsConfig
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.ssh.SshConnectionPool
@@ -70,6 +71,13 @@ val repositoryModule =
                         legacyChrootEnabled = s.workspaceChrootEnabled,
                     )
                 },
+                persistedDnsServers = {
+                    val s = settingsStore.settingsFlow.value
+                    ShellDnsConfig.effectiveServers(
+                        s.shellDnsMode,
+                        s.shellDnsServers.joinToString("\n"),
+                    )
+                },
             )
         }
 
@@ -84,6 +92,7 @@ val repositoryModule =
                     ),
                 chrootRunner = chrootShellRunnerOf(context),
                 backend = { mountSwitch.backend },
+                dnsServers = { mountSwitch.effectiveDnsServers() },
                 // 同一份挂载表既用于 PRoot 的 -b 参数, 也用于文件工具的路径解析和写入免审批目录, 避免两处漂移
                 bindMounts =
                     listOf(

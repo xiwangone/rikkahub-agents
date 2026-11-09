@@ -3496,7 +3496,7 @@
   <string name="assistant_page_time_reminder_interval_value">%1$d min</string>
   <string name="tool_ui_shell_changed_files">Command changed files</string>
   <string name="workspace_detail_compatibility_mode">Compatibility mode</string>
-  <string name="workspace_detail_chroot">chroot backend (experimental)</string>
+  <string name="workspace_detail_chroot">Shell backend</string>
   <string name="workspace_detail_chroot_desc">Requires a rooted device; shell runs via chroot when on, commands error out if unsupported, toggling off falls back.</string>
   <string name="workspace_detail_chroot_fallback">chroot backend unavailable: helper scripts missing — shells still run on proot.</string>
   <string name="workspace_detail_chroot_confirm">Commands inside the sandbox will run as true root (UID 0): code can modify any file, install system modules, and read or write other apps\' data. Switch to root chroot?</string>
@@ -4218,4 +4218,19 @@
   <string name="setting_page_preferences_network_dns_test_domain">Test domain</string>
   <string name="setting_page_preferences_network_dns_test_success">Resolved %1$s → %2$s (%3$d ms)</string>
   <string name="settings_initialization_failed">Settings failed to load. Restore from a backup or restart the app.</string>
+  <string name="setting_page_preferences_network_shell_dns_title">Shell Container DNS</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto">Auto</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_auto_desc">Follow system network DNS, falling back to public DNS when unavailable</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom">Custom</string>
+  <string name="setting_page_preferences_network_shell_dns_mode_custom_desc">Manually specify container /etc/resolv.conf nameservers</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_label">Custom DNS servers</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_hint">One IPv4/IPv6 address per line or separated by commas</string>
+  <string name="setting_page_preferences_network_shell_dns_servers_invalid">Enter at least one valid non-loopback IPv4 or IPv6 address</string>
+  <string name="setting_page_preferences_network_shell_dns_save">Save</string>
+  <string name="setting_page_preferences_network_shell_dns_saved">Shell container DNS saved</string>
+  <string name="setting_page_preferences_network_shell_dns_effective">Effective: %1$s</string>
+  <string name="setting_page_preferences_network_shell_dns_effective_auto">Auto (system DNS / 223.5.5.5, 119.29.29.29 fallback)</string>
+  <string name="workspace_detail_backend_proot_desc">Rootless and ready out of the box. Simulates the filesystem in user space for best compatibility with slightly lower performance.</string>
+  <string name="workspace_detail_backend_root_chroot_desc">Requires a rooted device. True root and real mounts for maximum performance, system package installation, and ownership changes; automatically falls back to proot when unauthorized.</string>
+  <string name="workspace_detail_backend_disabled_desc">Disables the sandbox shell: workspace commands fail immediately, suitable when only file tools are needed.</string>
 </resources>

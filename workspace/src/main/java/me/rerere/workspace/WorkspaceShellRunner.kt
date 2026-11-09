@@ -65,6 +65,8 @@ data class WorkspaceShellContext(
     val shellCompatibilityMode: Boolean = false,
     /** 后台任务令牌：由调用方生成并贯穿到命令文件名，供取消时定位整棵进程组。 */
     val taskToken: String = "",
+    /** 容器内专用 DNS 服务器列表：空列表表示 auto（跟随系统/默认兜底），非空表示 custom。 */
+    val dnsServers: List<String> = emptyList(),
 )
 
 class HostShellRunner : WorkspaceShellRunner {

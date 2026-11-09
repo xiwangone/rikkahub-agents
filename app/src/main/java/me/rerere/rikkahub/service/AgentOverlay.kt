@@ -2,7 +2,7 @@ package me.rerere.rikkahub.service
 
 import android.annotation.SuppressLint
 import android.content.Context
-import android.graphics.Color
+import android.graphics.Typeface
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
 import android.os.Handler
@@ -12,12 +12,15 @@ import android.util.TypedValue
 import android.view.Gravity
 import android.view.WindowManager
 import android.widget.TextView
+import androidx.compose.ui.graphics.toArgb
 import androidx.lifecycle.DefaultLifecycleObserver
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleOwner
 import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.loadWarmUiSettings
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.ui.floating.resolveFloatingColorScheme
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import java.util.concurrent.atomic.AtomicInteger
 
@@ -128,25 +131,35 @@ object AgentOverlay {
         mainHandler.post { hideInternal(app) }
     }
 
+    private fun applyMaterialTheme(app: Context, tv: TextView) {
+        val density = app.resources.displayMetrics.density
+        val colorScheme = resolveFloatingColorScheme(app, loadWarmUiSettings(app))
+        tv.setTextColor(colorScheme.onSurface.toArgb())
+        tv.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
+        tv.typeface = Typeface.create("sans-serif-medium", Typeface.NORMAL)
+        val padH = (14 * density).toInt()
+        val padV = (8 * density).toInt()
+        tv.setPadding(padH, padV, padH, padV)
+        tv.elevation = 6f * density
+        tv.background = GradientDrawable().apply {
+            cornerRadius = 16f * density
+            setColor(colorScheme.surfaceContainerHigh.toArgb())
+            setStroke((1 * density).toInt().coerceAtLeast(1), colorScheme.outlineVariant.toArgb())
+        }
+    }
+
     @SuppressLint("RtlHardcoded")
     private fun showInternal(app: Context, text: String) {
         val existing = view
         if (existing != null) {
+            applyMaterialTheme(app, existing)
             existing.text = text
             return
         }
         val wm = app.getSystemService(Context.WINDOW_SERVICE) as? WindowManager ?: return
         val tv = TextView(app).apply {
             this.text = text
-            setTextColor(Color.WHITE)
-            setTextSize(TypedValue.COMPLEX_UNIT_SP, 12f)
-            val pad = (12 * app.resources.displayMetrics.density).toInt()
-            val padV = (6 * app.resources.displayMetrics.density).toInt()
-            setPadding(pad, padV, pad, padV)
-            background = GradientDrawable().apply {
-                cornerRadius = 100f
-                setColor(0xCC202020.toInt())
-            }
+            applyMaterialTheme(app, this)
         }
         val type = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             WindowManager.LayoutParams.TYPE_APPLICATION_OVERLAY
@@ -164,7 +177,7 @@ object AgentOverlay {
             android.graphics.PixelFormat.TRANSLUCENT,
         ).apply {
             gravity = Gravity.TOP or Gravity.CENTER_HORIZONTAL
-            y = 0
+            y = (8 * app.resources.displayMetrics.density).toInt()
         }
         try {
             wm.addView(tv, params)

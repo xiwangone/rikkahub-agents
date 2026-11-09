@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.datastore
 
+import me.rerere.workspace.ShellDnsConfig
 import me.rerere.workspace.WorkspaceShellBackend
 
 import android.content.Context
@@ -108,6 +109,8 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WEB_SERVER_PORT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_APK_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_APT_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_CHROOT_ENABLED
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SHELL_DNS_MODE
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SHELL_DNS_SERVERS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_SHELL_BACKEND
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_NPM_MIRROR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WORKSPACE_PIP_MIRROR
@@ -139,6 +142,8 @@ private const val WARM_SHORTCUT_IDS = "setting_shortcut_ids"
  * 重启后第一条命令却走 proot”。
  */
 private const val WARM_SHELL_BACKEND = "workspace_shell_backend"
+private const val WARM_SHELL_DNS_MODE = "shell_dns_mode"
+private const val WARM_SHELL_DNS_SERVERS = "shell_dns_servers"
 
 /**
  * 冷启动首帧 UI 预热快照（仅含非敏感主题与展示配置，保持 `init = true` 直到完整 DataStore 解码完成）。
@@ -180,6 +185,8 @@ internal fun loadWarmUiSettings(context: Context): Settings =
                     ?: dummy.settingShortcutIds,
             workspaceShellBackend = warmBackend,
             workspaceChrootEnabled = warmBackend == WorkspaceShellBackend.ROOT_CHROOT,
+            shellDnsMode = ShellDnsConfig.normalizeMode(prefs.getString(WARM_SHELL_DNS_MODE, null)),
+            shellDnsServers = ShellDnsConfig.parseServers(prefs.getString(WARM_SHELL_DNS_SERVERS, null)),
         )
     }.getOrElse { Settings.dummy() }
 
@@ -198,6 +205,8 @@ internal fun saveWarmUiSettings(context: Context, settings: Settings) {
             putString(WARM_SHORTCUT_IDS, settings.settingShortcutIds.joinToString("\u0001"))
             // 后端开关落盘：下次冷启动首帧就能正确分派，不必等 DataStore 解密
             putString(WARM_SHELL_BACKEND, settings.workspaceShellBackend.name)
+            putString(WARM_SHELL_DNS_MODE, ShellDnsConfig.normalizeMode(settings.shellDnsMode))
+            putString(WARM_SHELL_DNS_SERVERS, ShellDnsConfig.parseServers(settings.shellDnsServers.joinToString("\n")).joinToString("\n"))
         }
     }
 }
@@ -481,6 +490,16 @@ internal suspend fun persistSettingsTo(
             }
         preferences[WORKSPACE_SHELL_BACKEND] = resolvedShellBackend.name
         preferences[WORKSPACE_CHROOT_ENABLED] = resolvedShellBackend == WorkspaceShellBackend.ROOT_CHROOT
+        preferences[SHELL_DNS_MODE] = ShellDnsConfig.normalizeMode(settings.shellDnsMode)
+        val normalizedShellDnsServers = ShellDnsConfig.parseServers(settings.shellDnsServers.joinToString("\n"))
+        preferences.putJsonIfChanged(
+            SHELL_DNS_SERVERS,
+            previous,
+            previous?.shellDnsServers,
+            normalizedShellDnsServers,
+        ) {
+            JsonInstant.encodeToString(it)
+        }
         preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
         preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
         preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
