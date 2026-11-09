@@ -79,6 +79,9 @@ fun TunnelSettingSection(vm: SettingVM) {
     var exitNode by remember(network.tailscaleExitNode) {
         mutableStateOf(network.tailscaleExitNode)
     }
+    var advertiseRoutes by remember(network.tailscaleAdvertiseRoutes) {
+        mutableStateOf(network.tailscaleAdvertiseRoutes)
+    }
     var busy by remember { mutableStateOf(false) }
     var savedHint by remember { mutableStateOf(false) }
     // 当前正在弹窗编辑的字段（null = 未打开）。
@@ -125,6 +128,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             hostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
             acceptRoutes = acceptRoutes,
             exitNode = exitNode,
+            advertiseRoutes = advertiseRoutes,
         )
     }
 
@@ -137,6 +141,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                     tailscaleHostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
                     tailscaleAcceptRoutes = acceptRoutes,
                     tailscaleExitNode = exitNode,
+                    tailscaleAdvertiseRoutes = advertiseRoutes.trim(),
                 ),
             )
         }
@@ -162,6 +167,7 @@ fun TunnelSettingSection(vm: SettingVM) {
         hostname = network.effectiveTunnelHostname
         acceptRoutes = network.tailscaleAcceptRoutes
         exitNode = network.tailscaleExitNode
+        advertiseRoutes = network.tailscaleAdvertiseRoutes
         savedHint = false
     }
 
@@ -262,6 +268,12 @@ fun TunnelSettingSection(vm: SettingVM) {
                         title = stringResource(R.string.tunnel_auth_key_label),
                         value = if (authKey.isBlank()) "—" else "••••••••••••",
                     ) { editingField = TunnelField.AuthKey }
+                    HorizontalDivider()
+                    TunnelRow(
+                        title = stringResource(R.string.tunnel_advertise_routes_label),
+                        value = advertiseRoutes.trim()
+                            .ifBlank { stringResource(R.string.tunnel_advertise_routes_none) },
+                    ) { editingField = TunnelField.AdvertiseRoutes }
                     if (savedHint) {
                         Text(
                             text = stringResource(R.string.tunnel_saved_hint),
@@ -478,6 +490,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                             TunnelField.ControlUrl -> R.string.tunnel_control_url_label
                             TunnelField.AuthKey -> R.string.tunnel_auth_key_label
                             TunnelField.Hostname -> R.string.tunnel_hostname_label
+                            TunnelField.AdvertiseRoutes -> R.string.tunnel_advertise_routes_label
                         }
                     )
                 )
@@ -496,6 +509,13 @@ fun TunnelSettingSection(vm: SettingVM) {
                             value = hostname,
                             onValueChange = { hostname = it },
                             placeholder = { Text("yao") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TunnelField.AdvertiseRoutes -> OutlinedTextField(
+                            value = advertiseRoutes,
+                            onValueChange = { advertiseRoutes = it },
+                            placeholder = { Text("192.168.1.0/24") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -559,7 +579,7 @@ private fun exitNodeLabel(status: TunnelStatus?, fallbackIp: String, noneLabel: 
 }
 
 /** 可在隧道设置页弹窗编辑的字段。 */
-private enum class TunnelField { ControlUrl, AuthKey, Hostname }
+private enum class TunnelField { ControlUrl, AuthKey, Hostname, AdvertiseRoutes }
 
 /** 一个 tailnet 对端。 */
 private data class TunnelPeer(

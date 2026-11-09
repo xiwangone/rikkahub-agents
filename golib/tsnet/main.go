@@ -21,6 +21,7 @@ import (
 	"net/netip"
 	"os"
 	"strconv"
+	"strings"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -48,10 +49,13 @@ var (
 // peer LAN in and then correcting itself.
 // exitNode: tailnet IP of the peer to use as exit node, empty for none. Same
 // reason: applied before the first status report so the UI never shows drift.
+// advertiseRoutes: comma separated CIDRs this node advertises to the tailnet
+// (e.g. "192.168.1.0/24,10.0.0.0/24"), empty for none. Advertising only tells the
+// control panel what this node offers; peers still need the route enabled there.
 // stateDir: local state directory for tailscaled.state; caller decides the location.
 //
 // Returns the node IP inside the tailnet (for example 100.64.0.5).
-func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, stateDir string) (string, error) {
+func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, advertiseRoutes, stateDir string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if srv != nil {
@@ -76,7 +80,7 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, st
 	// Apply before Up: EditPrefs may fail while the backend is still starting, the
 	// second call after Up makes it authoritative. Doing it here (rather than from
 	// the app right after Start returns) means no window where RouteAll is on.
-	_ = applyStartPrefs(s, acceptRoutes, exitNode)
+	_ = applyStartPrefs(s, acceptRoutes, exitNode, advertiseRoutes)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -89,7 +93,7 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, st
 		_ = s.Close()
 		return "", fmt.Errorf("up: no tailscale IP assigned")
 	}
-	if err := applyStartPrefs(s, acceptRoutes, exitNode); err != nil {
+	if err := applyStartPrefs(s, acceptRoutes, exitNode, advertiseRoutes); err != nil {
 		log.Printf("apply start prefs: %v", err)
 	}
 
@@ -97,10 +101,12 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, st
 	return st.TailscaleIPs[0].String(), nil
 }
 
-// applyStartPrefs applies subnet-route acceptance and the exit node in one
-// EditPrefs call. Tailscale defaults RouteAll to true, so leaving it unset
-// silently pulls every advertised peer subnet into the tunnel.
-func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode string) error {
+// applyStartPrefs applies subnet-route acceptance, the exit node and the routes
+// this node advertises, all in one EditPrefs call. Tailscale defaults RouteAll to
+// true, so leaving it unset silently pulls every advertised peer subnet in.
+// Every field is set explicitly (including empty values) so that clearing it in
+// the app really takes effect.
+func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode, advertiseRoutes string) error {
 	lc, err := s.LocalClient()
 	if err != nil {
 		return err
@@ -108,14 +114,32 @@ func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode string) error 
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	mp := &ipn.MaskedPrefs{Prefs: ipn.Prefs{RouteAll: acceptRoutes}, RouteAllSet: true}
+
+	mp.Prefs.ExitNodeIP = netip.Addr{}
+	mp.ExitNodeIPSet = true
 	if exitNode != "" {
 		addr, perr := netip.ParseAddr(exitNode)
 		if perr != nil {
 			return fmt.Errorf("bad exit node %q: %w", exitNode, perr)
 		}
 		mp.Prefs.ExitNodeIP = addr
-		mp.ExitNodeIPSet = true
 	}
+
+	prefixes := make([]netip.Prefix, 0, 2)
+	for _, raw := range strings.Split(advertiseRoutes, ",") {
+		item := strings.TrimSpace(raw)
+		if item == "" {
+			continue
+		}
+		p, perr := netip.ParsePrefix(item)
+		if perr != nil {
+			return fmt.Errorf("bad route %q: %w", item, perr)
+		}
+		prefixes = append(prefixes, p.Masked())
+	}
+	mp.Prefs.AdvertiseRoutes = prefixes
+	mp.AdvertiseRoutesSet = true
+
 	_, err = lc.EditPrefs(ctx, mp)
 	return err
 }

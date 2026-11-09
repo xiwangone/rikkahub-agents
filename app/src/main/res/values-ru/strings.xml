@@ -4149,6 +4149,8 @@
   <string name="tunnel_auth_key_label">Ключ авторизации</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
   <string name="tunnel_hostname_label">Имя терминала</string>
+  <string name="tunnel_advertise_routes_label">Публикуемые сети</string>
+  <string name="tunnel_advertise_routes_none">Нет</string>
   <string name="tunnel_saved_hint">Сохранено</string>
   <string name="chat_topbar_tunnel_dialog_title">Туннель Tailscale / Headscale</string>
   <string name="chat_topbar_tunnel_node_info">Узел: %1$s · Управление: %2$s</string>

@@ -631,6 +631,7 @@ private fun TopBarTunnelStatusBadge(
                 hostname = hostnameDraft.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
                 acceptRoutes = network.tailscaleAcceptRoutes,
                 exitNode = network.tailscaleExitNode,
+                advertiseRoutes = network.tailscaleAdvertiseRoutes,
             )
             busy = false
         }

@@ -83,6 +83,7 @@ object TunnelAutoStart {
                     hostname = network.effectiveTunnelHostname,
                     acceptRoutes = network.tailscaleAcceptRoutes,
                     exitNode = network.tailscaleExitNode,
+                    advertiseRoutes = network.tailscaleAdvertiseRoutes,
                     keepDesiredOnFailure = true,
                 )
                 if (result.isSuccess) {

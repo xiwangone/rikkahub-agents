@@ -102,6 +102,7 @@ object TsnetBridge {
      * @param hostname 节点在 tailnet 中显示的名字
      * @param acceptRoutes 是否接受对端广播的子网路由（由 native 在启动时应用，tailscale 默认开）
      * @param exitNode 出口节点的 tailnet IP，空串表示不设
+     * @param advertiseRoutes 向安全内网发布的网段（逗号分隔 CIDR），空串表示不发布
      * @param keepDesiredOnFailure 掉线自愈重连时传 true，保留 [desiredRunning] 以便后续退避周期继续重试
      */
     suspend fun start(
@@ -111,6 +112,7 @@ object TsnetBridge {
         hostname: String,
         acceptRoutes: Boolean = false,
         exitNode: String = "",
+        advertiseRoutes: String = "",
         keepDesiredOnFailure: Boolean = false,
     ): Result<String> = withContext(Dispatchers.IO) {
         lifecycleMutex.withLock {
@@ -129,7 +131,15 @@ object TsnetBridge {
                         .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
                     // 子网路由与出口节点由 native 在启动阶段写进 prefs：tailscale 的 RouteAll
                     // 默认为开，不能等启动回来再改（那样开隧道瞬间就把对端网段接进来了）。
-                    val ip = Tsnetlib.start(controlURL, authKey, hostname, acceptRoutes, exitNode, stateDir)
+                    val ip = Tsnetlib.start(
+                        controlURL,
+                        authKey,
+                        hostname,
+                        acceptRoutes,
+                        exitNode,
+                        advertiseRoutes,
+                        stateDir,
+                    )
                     nodeIp = ip
                     isRunning = true
                     publish(TunnelState.Connected(ip))

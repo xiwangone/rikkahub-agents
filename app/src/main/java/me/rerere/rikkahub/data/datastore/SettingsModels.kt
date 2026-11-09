@@ -320,6 +320,8 @@ data class NetworkSetting(
     val tailscaleAcceptRoutes: Boolean = false,
     /** 出口节点（peer 的 tailnet IP）；空串 = 不走出口节点。重启后仍生效。 */
     val tailscaleExitNode: String = "",
+    /** 发布给安全内网的网段（逗号分隔 CIDR，如 192.168.1.0/24）；需在控制台为该终端启用路由。 */
+    val tailscaleAdvertiseRoutes: String = "",
     // ── 应用内独立 DNS（绕过系统 DNS 劫持，支持 DoH / DoT / 自定义直连 DNS）──
     /** 解析模式：system / doh / dot / custom。 */
     val dnsMode: String = DNS_MODE_SYSTEM,
