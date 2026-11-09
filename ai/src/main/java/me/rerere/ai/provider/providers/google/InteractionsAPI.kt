@@ -1,7 +1,6 @@
 package me.rerere.ai.provider.providers.google
 
 import android.util.Log
-import java.io.IOException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -50,10 +49,12 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.retryAfterMs
 import me.rerere.ai.util.stringSafe
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonArrayOrNull
@@ -91,10 +92,11 @@ internal class InteractionsAPI(
 
         // await() waits for the response headers; reading the body can still block.
         client.newCall(request).await().use { response ->
+            val bodyRaw = response.body.string()
             if (!response.isSuccessful) {
-                throw IOException("Failed to get response: ${response.code} ${response.body.string()}")
+                throw response.errorAsHttpException()
             }
-            val bodyJson = json.parseToJsonElement(response.body.string()).jsonObject
+            val bodyJson = json.parseToJsonElement(bodyRaw).jsonObject
             parseInteraction(bodyJson, fallbackModel = params.model.modelId)
         }
     }
@@ -146,7 +148,8 @@ internal class InteractionsAPI(
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
-                        exception = json.parseToJsonElement(bodyRaw).parseErrorDetail()
+                        exception = json.parseToJsonElement(bodyRaw)
+                            .parseErrorDetail(response?.code, response?.retryAfterMs())
                     } else if (t == null && response != null) {
                         exception = Exception("Unknown error: ${response.code}")
                     }
@@ -182,7 +185,7 @@ internal class InteractionsAPI(
             .url(url)
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .configureSessionHeaders(url, params.sessionId)
-            .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
+            .method("POST", json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("x-goog-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
             .configureReferHeaders(providerSetting.baseUrl)
             .build()
@@ -400,32 +403,59 @@ internal class InteractionsAPI(
             }
         }
 
-        is UIMessagePart.Image -> encodeBase64(false).getOrNull()?.let { encoded ->
-            buildJsonObject {
-                put("type", "image")
-                if (encoded.base64.startsWith("http")) {
-                    put("uri", encoded.base64)
-                } else {
-                    put("mime_type", encoded.mimeType)
-                    // data URL 会原样返回，这里只取 base64 数据部分
-                    put("data", encoded.base64.substringAfter(";base64,"))
+        is UIMessagePart.Image -> {
+            val result = encodeBase64(false)
+            if (result.isFailure) {
+                Log.w(TAG, "toInteractionsContent: dropping unencodable Image part", result.exceptionOrNull())
+            }
+            result.getOrNull()?.let { encoded ->
+                buildJsonObject {
+                    put("type", "image")
+                    if (encoded.base64.startsWith("http")) {
+                        put("uri", encoded.base64)
+                    } else {
+                        put("mime_type", encoded.mimeType)
+                        // data URL 会原样返回，这里只取 base64 数据部分
+                        put("data", encoded.base64.substringAfter(";base64,"))
+                    }
                 }
+            } ?: buildJsonObject {
+                put("type", "text")
+                put("text", "Error: Failed to encode image to base64")
             }
         }
 
-        is UIMessagePart.Video -> encodeBase64(false).getOrNull()?.let { base64Data ->
-            buildJsonObject {
-                put("type", "video")
-                put("mime_type", "video/mp4")
-                put("data", base64Data)
+        is UIMessagePart.Video -> {
+            val result = encodeBase64(false)
+            if (result.isFailure) {
+                Log.w(TAG, "toInteractionsContent: dropping unencodable Video part", result.exceptionOrNull())
+            }
+            result.getOrNull()?.let { base64Data ->
+                buildJsonObject {
+                    put("type", "video")
+                    put("mime_type", "video/mp4")
+                    put("data", base64Data)
+                }
+            } ?: buildJsonObject {
+                put("type", "text")
+                put("text", "Error: Failed to encode video to base64")
             }
         }
 
-        is UIMessagePart.Audio -> encodeBase64(false).getOrNull()?.let { base64Data ->
-            buildJsonObject {
-                put("type", "audio")
-                put("mime_type", "audio/mp3")
-                put("data", base64Data)
+        is UIMessagePart.Audio -> {
+            val result = encodeBase64(false)
+            if (result.isFailure) {
+                Log.w(TAG, "toInteractionsContent: dropping unencodable Audio part", result.exceptionOrNull())
+            }
+            result.getOrNull()?.let { base64Data ->
+                buildJsonObject {
+                    put("type", "audio")
+                    put("mime_type", "audio/mp3")
+                    put("data", base64Data)
+                }
+            } ?: buildJsonObject {
+                put("type", "text")
+                put("text", "Error: Failed to encode audio to base64")
             }
         }
 

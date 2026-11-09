@@ -13,6 +13,12 @@ private data class ManifestItem(
     val mediaType: String,
 )
 
+// A single chapter is capped so a hostile archive entry cannot fill memory, and the
+// whole book is capped as well: downstream use is a prompt-sized extract, not a full
+// dump. Truncated chapters are marked so the cut is visible instead of silent.
+private const val MAX_CHAPTER_CHARS = 1_000_000
+private const val MAX_TOTAL_CHARS = 5_000_000
+
 // EPUB chapter markup is frequently loose HTML rather than strict XHTML: it uses named HTML
 // entities (&nbsp;, &mdash;, ...) and occasional bare "&" that the 5 XML-predefined entities
 // don't cover. With FEATURE_PROCESS_DOCDECL disabled (no DTD lookup), an unresolvable entity
@@ -41,6 +47,7 @@ object EpubParser {
 
                 val result = StringBuilder()
                 for (itemId in spine) {
+                    if (result.length >= MAX_TOTAL_CHARS) break
                     val item = manifest[itemId] ?: continue
                     if (!item.mediaType.contains("html")) continue
 
@@ -51,6 +58,10 @@ object EpubParser {
                         result.append(content)
                         result.append("\n\n")
                     }
+                }
+                if (result.length > MAX_TOTAL_CHARS) {
+                    result.setLength(MAX_TOTAL_CHARS)
+                    result.append("\n[Truncated: showing first $MAX_TOTAL_CHARS characters]")
                 }
 
                 result.toString().trim().ifEmpty { "No readable content found in EPUB file" }
@@ -113,9 +124,25 @@ object EpubParser {
         return manifest to spine
     }
 
+    /** Read at most [maxChars] characters; the second result tells whether input was cut. */
+    private fun readBoundedText(inputStream: InputStream, maxChars: Int): Pair<String, Boolean> {
+        val reader = inputStream.bufferedReader(Charsets.UTF_8)
+        val out = StringBuilder(minOf(maxChars, 8192))
+        val buf = CharArray(8192)
+        var truncated = false
+        while (out.length < maxChars) {
+            val read = reader.read(buf, 0, minOf(buf.size, maxChars - out.length))
+            if (read < 0) break
+            out.append(buf, 0, read)
+            if (out.length >= maxChars && reader.read() != -1) truncated = true
+        }
+        return out.toString() to truncated
+    }
+
     private fun parseXhtml(inputStream: InputStream): String =
         try {
-            val xml = escapeUnresolvableEntities(inputStream.bufferedReader(Charsets.UTF_8).readText())
+            val (rawXml, truncated) = readBoundedText(inputStream, MAX_CHAPTER_CHARS)
+            val xml = escapeUnresolvableEntities(rawXml)
 
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = false
@@ -256,6 +283,7 @@ object EpubParser {
                 .toString()
                 .replace(Regex("\n{3,}"), "\n\n")
                 .trim()
+                .let { if (truncated) "$it\n[Truncated chapter]" else it }
         } catch (e: Exception) {
             ""
         }

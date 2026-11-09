@@ -12,6 +12,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.app.RemoteInput
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -50,12 +51,23 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     private data class PendingApproval(
         val setting: ProviderSetting.Backend,
         val tool: String,
+        val subject: String? = null,
     )
 
     private data class PendingAsk(
         val setting: ProviderSetting.Backend,
         val questions: List<AskQuestion>,
     )
+
+    /**
+     * 决策投递结果：已送达 / 请求已不在待处理（别处已处理或进程重启）/
+     * 投递失败（请求已放回待处理，调用方可提示用户重试）。
+     */
+    enum class InteractionDelivery {
+        DELIVERED,
+        NOT_PENDING,
+        FAILED,
+    }
 
     private val lock = Any()
     private val pendingApprovals = mutableMapOf<String, PendingApproval>()
@@ -86,6 +98,10 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                             api(p.setting).approve(id = requestId, allow = approved)
                         }.onFailure {
                             AppLog.w(TAG, "approve($requestId, $approved) failed", it)
+                            // 投递失败不丢决策：放回待处理并重发通知，用户可重试。
+                            synchronized(lock) { pendingApprovals[requestId] = p }
+                            syncPendingIds()
+                            postApprovalNotification(requestId, p.tool, p.subject)
                         }
                     }
                 }
@@ -111,6 +127,10 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                             )
                         }.onFailure {
                             AppLog.w(TAG, "answer($requestId) failed", it)
+                            // 投递失败不丢回答：放回待处理并重发通知，用户可重试。
+                            synchronized(lock) { pendingAsks[requestId] = p }
+                            syncPendingIds()
+                            postAskNotification(requestId, p.questions)
                         }
                     }
                 }
@@ -125,8 +145,13 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         subject: String?,
     ) {
         ensureReceiverRegistered()
-        synchronized(lock) { pendingApprovals[id] = PendingApproval(setting, tool) }
+        synchronized(lock) { pendingApprovals[id] = PendingApproval(setting, tool, subject) }
         syncPendingIds()
+        postApprovalNotification(id, tool, subject)
+    }
+
+    /** 发（或重发）审批通知：投递失败后重发即为重试入口。 */
+    private fun postApprovalNotification(id: String, tool: String, subject: String?) {
         ensureChannel()
         val approveIntent =
             Intent(ACTION_APPROVE).apply {
@@ -173,57 +198,73 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
     /**
      * 由对话内嵌卡片调用：按 requestId 回应审批（与通知栏按钮同一通道）。
      * 四档决策映射到 serve 的 session / persist 参数（本会话允许 / 持久允许）。
-     * 返回 true 表示该请求仍在等待应答且已提交。
+     * 调用方按返回值区分：已送达 / 已不在待处理 / 投递失败（请求已放回待处理）。
      */
-    fun approveById(
+    suspend fun approveById(
         requestId: String,
         approved: Boolean,
         session: Boolean = false,
         persist: Boolean = false,
         scope: String = "",
-    ): Boolean {
-        val p = synchronized(lock) { pendingApprovals.remove(requestId) } ?: return false
+    ): InteractionDelivery {
+        val p = synchronized(lock) { pendingApprovals.remove(requestId) }
+            ?: return InteractionDelivery.NOT_PENDING
         syncPendingIds()
         cancelNotification(requestId)
-        ioScope.launch {
-            runCatching {
-                api(p.setting).approve(
-                    id = requestId,
-                    allow = approved,
-                    session = session,
-                    persist = persist,
-                    scope = scope,
-                )
-            }.onFailure {
-                AppLog.w(TAG, "approve($requestId, $approved) failed", it)
-            }
+        return try {
+            api(p.setting).approve(
+                id = requestId,
+                allow = approved,
+                session = session,
+                persist = persist,
+                scope = scope,
+            )
+            InteractionDelivery.DELIVERED
+        } catch (cancelled: CancellationException) {
+            // 取消不算投递失败：放回待处理并向上传播。
+            synchronized(lock) { pendingApprovals[requestId] = p }
+            syncPendingIds()
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.w(TAG, "approve($requestId, $approved) failed", failure)
+            // 投递失败不丢决策：放回待处理，调用方提示用户重试。
+            synchronized(lock) { pendingApprovals[requestId] = p }
+            syncPendingIds()
+            InteractionDelivery.FAILED
         }
-        return true
     }
 
     /** 由对话内嵌卡片调用：回答提问（answers: questionId → 文本）。 */
-    fun answerById(requestId: String, answer: String): Boolean {
-        val p = synchronized(lock) { pendingAsks.remove(requestId) } ?: return false
+    suspend fun answerById(requestId: String, answer: String): InteractionDelivery {
+        val p = synchronized(lock) { pendingAsks.remove(requestId) }
+            ?: return InteractionDelivery.NOT_PENDING
         syncPendingIds()
         cancelNotification(requestId)
-        if (answer.isBlank()) return true
-        ioScope.launch {
-            runCatching {
-                api(p.setting).answer(
-                    id = requestId,
-                    answers =
-                        p.questions.map { q ->
-                            buildJsonObject {
-                                put("id", JsonPrimitive(q.id))
-                                put("answers", JsonPrimitive(answer))
-                            }
-                        },
-                )
-            }.onFailure {
-                AppLog.w(TAG, "answer($requestId) failed", it)
-            }
+        if (answer.isBlank()) return InteractionDelivery.DELIVERED
+        return try {
+            api(p.setting).answer(
+                id = requestId,
+                answers =
+                    p.questions.map { q ->
+                        buildJsonObject {
+                            put("id", JsonPrimitive(q.id))
+                            put("answers", JsonPrimitive(answer))
+                        }
+                    },
+            )
+            InteractionDelivery.DELIVERED
+        } catch (cancelled: CancellationException) {
+            // 取消不算投递失败：放回待处理并向上传播。
+            synchronized(lock) { pendingAsks[requestId] = p }
+            syncPendingIds()
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.w(TAG, "answer($requestId) failed", failure)
+            // 投递失败不丢回答：放回待处理，调用方提示用户重试。
+            synchronized(lock) { pendingAsks[requestId] = p }
+            syncPendingIds()
+            InteractionDelivery.FAILED
         }
-        return true
     }
 
     override fun onAskRequest(
@@ -234,6 +275,11 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         ensureReceiverRegistered()
         synchronized(lock) { pendingAsks[id] = PendingAsk(setting, questions) }
         syncPendingIds()
+        postAskNotification(id, questions)
+    }
+
+    /** 发（或重发）提问通知：投递失败后重发即为重试入口。 */
+    private fun postAskNotification(id: String, questions: List<AskQuestion>) {
         ensureChannel()
         val body =
             questions.joinToString("\n\n") { q ->

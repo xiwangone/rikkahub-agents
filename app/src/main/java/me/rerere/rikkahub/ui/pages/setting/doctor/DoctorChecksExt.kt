@@ -456,6 +456,8 @@ internal fun DoctorChecks.maintenanceChecks(): List<DoctorCheck> =
                     fix =
                         FixAction.AutoFix(
                             labelRes = R.string.doctor_maint_05,
+                            // 清缓存是破坏性操作（截图/照片/录音都在缓存里）：先弹确认框说明清什么，误触可挽回
+                            confirmRes = R.string.doctor_msg_cache_clear_confirm,
                             run = {
                                 val freed = clearDirectoryContents(context.cacheDir)
                                 AutoFixResult(ok = true, message = str(R.string.doctor_msg_cache_freed, humanBytes(freed)))

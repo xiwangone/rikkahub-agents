@@ -150,11 +150,14 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v47: 远程工作区（workspaces 表新增 type 带默认值 "LOCAL" 与可空的 ssh_config，
         // 纯加列可自动迁移；ssh_config 只存连接参数与凭证库条目名，不含凭据明文）
         AutoMigration(from = 46, to = 47),
+        // v48: ssh_hosts 新增 platform（默认 "AUTO"）与 allow_host_key_rotation
+        // （默认 0）两列，纯加列带默认值可自动迁移
+        AutoMigration(from = 47, to = 48),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    companion object { const val VERSION = 47 }
+    companion object { const val VERSION = 48 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO

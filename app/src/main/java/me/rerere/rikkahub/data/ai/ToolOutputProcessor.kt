@@ -37,7 +37,7 @@ internal class ToolOutputProcessor(
         val textParts = output.filterIsInstance<UIMessagePart.Text>()
         val totalChars = textParts.sumOf { it.text.length }
 
-        if (totalChars <= maxChars || !hasShellAccess) return output
+        if (totalChars <= maxChars) return output
 
         AppLog.i(TAG, "maybeTruncateToolOutput: truncating tool $toolCallId output ($totalChars chars, digest=${digestKeywords != null})")
 
@@ -53,7 +53,11 @@ internal class ToolOutputProcessor(
         val fileName = "$safeId.txt"
         val outputDir = File(context.filesDir, FileFolders.TOOL_OUTPUTS)
         val outputFile = File(outputDir, fileName)
-        val writeError = try {
+        // 无 shell 时全文无法落盘给模型二次读取：仍截断（不让超长输出全量进上下文），
+        // 摘要里如实说明全文不可用。
+        val writeError = if (!hasShellAccess) {
+            IOException("No shell access; full output is not saved")
+        } else try {
             if (!outputDir.exists() && !outputDir.mkdirs()) {
                 throw IOException("Could not create tool output directory")
             }
@@ -104,8 +108,13 @@ internal class ToolOutputProcessor(
             ?: return parts
         try {
             SecretMasker.refresh(vaultRepo)
-        } catch (_: Exception) {
-            // 掩码失败不阻断工具结果（安全兜底降级为原样输出）
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            // 掩码规则刷不出来时不能拿过期/空白的表继续输出：凭证明文会直接进模型上下文。
+            // 失败要可见（抛给调用方按工具失败处理），而不是静默降级为原样输出。
+            AppLog.e(TAG, "SecretMasker refresh failed; refusing to emit unmasked tool output", failure)
+            throw failure
         }
         return parts.map { part ->
             if (part is UIMessagePart.Text) {

@@ -17,7 +17,7 @@ fun createAgentTools(
 ): List<Tool> =
     createOffloadTools(io, approvalOverrides) + createConfigTools(io, approvalOverrides)
 
-// 统一审批默认值：默认一律需授权（与该 App "default OFF" 纪律一致）。
+// 统一审批默认值：默认免审批（false 表示执行该工具无需审批）。
 val AgentToolsDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_offload" to false,
     "workspace_offload_list" to false,

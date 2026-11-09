@@ -27,6 +27,9 @@ class SshConnectionPool(
 ) : Closeable {
     private val connections = ConcurrentHashMap<String, PooledConnection>()
 
+    /** 已摘出连接池、等最后一次使用释放后关闭的连接（见 [retire]）。 */
+    private val pendingClose = ConcurrentHashMap.newKeySet<PooledConnection>()
+
     // 按工作区串行化建连; 可中断地等待, 前一个建连卡住时被取消的调用方能及时返回
     private val locks = ConcurrentHashMap<String, ReentrantLock>()
 
@@ -55,7 +58,8 @@ class SshConnectionPool(
 
     fun close(id: String) {
         lockOf(id).withLock {
-            connections.remove(id)?.connection?.close()
+            val pooled = connections.remove(id) ?: return@withLock
+            retire(pooled)
         }
     }
 
@@ -69,6 +73,8 @@ class SshConnectionPool(
         }
         sweeper.shutdownNow()
         remaining.forEach { it.connection.close() }
+        pendingClose.forEach { it.connection.close() }
+        pendingClose.clear()
     }
 
     /**
@@ -94,10 +100,10 @@ class SshConnectionPool(
             try {
                 block(retried.connection)
             } finally {
-                retried.release()
+                release(retried)
             }
         } finally {
-            pooled.release()
+            release(pooled)
         }
     }
 
@@ -115,8 +121,10 @@ class SshConnectionPool(
                     existing.retain()
                     return existing
                 }
+                // 配置变化：有进行中操作时不断开旧连接，等最后一次使用释放时再关，
+                // 否则正在跑的操作会被中途断开
                 connections.remove(id)
-                existing.connection.close()
+                retire(existing)
             }
             // 被取消时放弃等待, 之后建好的连接直接关掉
             val connection = awaitInterruptibly(
@@ -144,6 +152,26 @@ class SshConnectionPool(
         pooled.connection.close()
     }
 
+    /**
+     * 退役一条连接：无人使用时立即关闭，有进行中操作时先摘出连接池、
+     * 等最后一次使用释放时再关闭（见 [release]），不中途断开进行中的操作。
+     */
+    private fun retire(pooled: PooledConnection) {
+        if (pooled.activeUsesCount() == 0) {
+            pooled.connection.close()
+        } else {
+            pendingClose.add(pooled)
+        }
+    }
+
+    /** 一次使用结束：无人使用且已退役的连接在这里关闭。 */
+    private fun release(pooled: PooledConnection) {
+        pooled.release()
+        if (pooled.activeUsesCount() == 0 && pendingClose.remove(pooled)) {
+            pooled.connection.close()
+        }
+    }
+
     private fun closeIdle() {
         val now = System.nanoTime()
         connections.forEach { (id, pooled) ->
@@ -152,6 +180,14 @@ class SshConnectionPool(
                     connections.remove(id)
                     pooled.connection.close()
                 }
+            }
+        }
+        pendingClose.removeIf { pooled ->
+            if (pooled.activeUsesCount() == 0) {
+                pooled.connection.close()
+                true
+            } else {
+                false
             }
         }
     }
@@ -172,6 +208,8 @@ class SshConnectionPool(
             lastUsedAt = System.nanoTime()
             activeUses.decrementAndGet()
         }
+
+        fun activeUsesCount(): Int = activeUses.get()
 
         fun isIdle(now: Long, timeoutMillis: Long): Boolean =
             activeUses.get() == 0 && now - lastUsedAt >= TimeUnit.MILLISECONDS.toNanos(timeoutMillis)

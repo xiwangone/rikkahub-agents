@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import me.rerere.rikkahub.data.log.AppLog
 import java.time.Instant
 import java.time.LocalDate
 import java.time.ZoneId
@@ -228,6 +229,7 @@ fun classifyGenerationOutcome(
 @Suppress("TooManyFunctions")
 object GenerationRunTracker {
 
+    private const val TAG = "GenerationRunTracker"
     private const val PREFS = "generation_runs"
     private const val KEY_STATE = "state"
 
@@ -335,6 +337,10 @@ object GenerationRunTracker {
                 }.getOrNull()
             if (!raw.isNullOrBlank()) {
                 runCatching { runState = runJson.decodeFromString<State>(raw) }
+                    .onFailure {
+                        // 损坏的持久化状态不能静默归零：记日志，统计从空状态重建。
+                        AppLog.w(TAG, "Failed to decode persisted run state; stats reset to empty", it)
+                    }
             }
             loaded = true
         }
@@ -418,6 +424,8 @@ object GenerationRunTracker {
         val payload = runJson.encodeToString(runState)
         runCatching {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().putString(KEY_STATE, payload).apply()
+        }.onFailure {
+            AppLog.w(TAG, "Failed to persist run state; stats for this run are memory-only", it)
         }
     }
 

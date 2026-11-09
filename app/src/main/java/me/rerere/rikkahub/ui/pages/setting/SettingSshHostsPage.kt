@@ -12,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
@@ -25,6 +26,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SegmentedButton
+import androidx.compose.material3.SegmentedButtonDefaults
+import androidx.compose.material3.SingleChoiceSegmentedButtonRow
+import androidx.compose.material3.Surface
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -36,6 +42,7 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -57,6 +64,8 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.SshHostRepository
@@ -65,6 +74,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -79,6 +89,10 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingSshHostsPage() {
     val sshHostRepository: SshHostRepository = koinInject()
+    val settingsStore: SettingsStore = koinInject()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
+        initialValue = settingsStore.settingsFlow.value,
+    )
     val vaultRepo: me.rerere.rikkahub.data.vault.CredentialVaultRepository = koinInject()
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
@@ -89,6 +103,8 @@ fun SettingSshHostsPage() {
     var hosts by remember { mutableStateOf<List<SshHostEntity>>(emptyList()) }
     var editing by remember { mutableStateOf<SshHostEntity?>(null) }
     var showEdit by remember { mutableStateOf(false) }
+    var deleteTarget by remember { mutableStateOf<SshHostEntity?>(null) }
+    var loadError by remember { mutableStateOf<String?>(null) }
 
     LaunchedEffect(Unit) {
         runCatching {
@@ -96,8 +112,11 @@ fun SettingSshHostsPage() {
         }.onSuccess { list ->
             AppLog.d("SshHostsPage", "加载主机列表: ${list.size} 个 ${list.map { it.name }}")
             hosts = list
+            loadError = null
         }.onFailure { e ->
             AppLog.w("SshHostsPage", "加载主机列表失败: ${e.message}")
+            loadError = e.message ?: e.javaClass.simpleName
+            toaster.show(context.getString(R.string.setting_ssh_hosts_load_failed, loadError!!))
         }
     }
 
@@ -108,8 +127,11 @@ fun SettingSshHostsPage() {
             }.onSuccess { list ->
                 AppLog.d("SshHostsPage", "刷新主机列表: ${list.size} 个")
                 hosts = list
+                loadError = null
             }.onFailure { e ->
                 AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
+                loadError = e.message ?: e.javaClass.simpleName
+                toaster.show(context.getString(R.string.setting_ssh_hosts_load_failed, loadError!!))
             }
         }
     }
@@ -144,6 +166,67 @@ fun SettingSshHostsPage() {
             contentPadding = innerPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
+            if (loadError != null) {
+                item("sshLoadError") {
+                    Surface(
+                        shape = RoundedCornerShape(16.dp),
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(12.dp),
+                            verticalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.setting_ssh_hosts_load_failed, loadError!!),
+                                style = MaterialTheme.typography.bodySmall,
+                            )
+                            OutlinedButton(
+                                onClick = {
+                                    loadError = null
+                                    reload()
+                                },
+                            ) {
+                                Text(stringResource(R.string.common_retry))
+                            }
+                        }
+                    }
+                }
+            }
+
+            item("sshDefaultPlatform") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.setting_ssh_default_platform),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SshPlatform.entries.forEachIndexed { index, platform ->
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = SshPlatform.entries.size),
+                                selected = settings.defaultSshPlatform == platform,
+                                onClick = {
+                                    scope.launch {
+                                        settingsStore.update { it.copy(defaultSshPlatform = platform) }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(sshPlatformLabelRes(platform)))
+                            }
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.setting_ssh_default_platform_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+            }
+
             item("sshHostsGroup") {
                 // ⚠ CardGroup 内部用 `remember { CardGroupScopeImpl() }` 缓存条目列表，而该列表不是 State：
                 // 列表数据（hosts）从空加载成 N 个时，LazyColumn 的 item 不保证会让 CardGroup 的 scope 重建，
@@ -191,12 +274,7 @@ fun SettingSshHostsPage() {
                                         )
                                     }
                                     IconButton(
-                                        onClick = {
-                                            scope.launch {
-                                                sshHostRepository.deleteByName(host.name)
-                                                reload()
-                                            }
-                                        },
+                                        onClick = { deleteTarget = host },
                                     ) {
                                         Icon(
                                             imageVector = HugeIcons.Delete01,
@@ -266,6 +344,27 @@ fun SettingSshHostsPage() {
             },
         )
     }
+
+    RikkaConfirmDialog(
+        show = deleteTarget != null,
+        title = stringResource(R.string.setting_ssh_host_delete_title),
+        confirmText = stringResource(R.string.common_delete),
+        dismissText = stringResource(R.string.common_cancel),
+        onConfirm = {
+            val target = deleteTarget
+            deleteTarget = null
+            if (target != null) {
+                scope.launch {
+                    sshHostRepository.deleteByName(target.name)
+                    reload()
+                    toaster.show(context.getString(R.string.setting_ssh_host_deleted, target.name))
+                }
+            }
+        },
+        onDismiss = { deleteTarget = null },
+    ) {
+        Text(stringResource(R.string.common_delete_confirm_message, deleteTarget?.name ?: ""))
+    }
 }
 
 @Composable
@@ -284,10 +383,20 @@ private fun SshHostEditDialog(
     var passphrase by remember { mutableStateOf(initial?.passphrase ?: "") }
     var vaultCredentialRef by remember { mutableStateOf(initial?.vaultCredentialRef) }
     var templateRef by remember { mutableStateOf(initial?.templateRef) }
+    var platform by remember { mutableStateOf(SshPlatform.fromPreference(initial?.platform)) }
+    var allowHostKeyRotation by remember { mutableStateOf(initial?.allowHostKeyRotation ?: false) }
     var vaultEntries by remember { mutableStateOf<List<me.rerere.rikkahub.data.db.entity.VaultCredentialEntity>>(emptyList()) }
     var showVaultPicker by remember { mutableStateOf(false) }
     var showKeyGen by remember { mutableStateOf(false) }
     var showTemplatePicker by remember { mutableStateOf(false) }
+    var validationAttempted by remember { mutableStateOf(false) }
+    val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
+    val context = LocalContext.current
+    val nameInvalid = validationAttempted && name.trim().isBlank()
+    val hostInvalid = validationAttempted && host.trim().isBlank()
+    val portValue = port.toIntOrNull()
+    val portInvalid = validationAttempted && (portValue == null || portValue !in 1..65535)
+    val userInvalid = validationAttempted && user.trim().isBlank()
     LaunchedEffect(Unit) { vaultEntries = vaultRepo.getAll() }
     val serverTemplates = vaultEntries.filter { it.grp == "server" }
     val keyCandidates = vaultEntries.filter { it.grp == "SSH" }
@@ -305,6 +414,10 @@ private fun SshHostEditDialog(
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.setting_ssh_host_name)) },
                     singleLine = true,
+                    isError = nameInvalid,
+                    supportingText = {
+                        if (nameInvalid) Text(stringResource(R.string.setting_ssh_host_name_required))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Row(
@@ -316,7 +429,11 @@ private fun SshHostEditDialog(
                         onValueChange = { host = it },
                         label = { Text(stringResource(R.string.setting_ssh_host_addr)) },
                         singleLine = true,
-                        modifier = Modifier.weight(0.68f),
+                        isError = hostInvalid,
+                        supportingText = {
+                            if (hostInvalid) Text(stringResource(R.string.setting_ssh_host_addr_required))
+                        },
+                        modifier = Modifier.weight(0.60f),
                     )
                     OutlinedTextField(
                         value = port,
@@ -324,7 +441,11 @@ private fun SshHostEditDialog(
                         label = { Text(stringResource(R.string.setting_ssh_host_port)) },
                         singleLine = true,
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-                        modifier = Modifier.weight(0.32f),
+                        isError = portInvalid,
+                        supportingText = {
+                            if (portInvalid) Text(stringResource(R.string.setting_ssh_host_port_invalid))
+                        },
+                        modifier = Modifier.weight(0.40f),
                     )
                 }
                 OutlinedTextField(
@@ -332,6 +453,10 @@ private fun SshHostEditDialog(
                     onValueChange = { user = it },
                     label = { Text(stringResource(R.string.setting_ssh_host_user)) },
                     singleLine = true,
+                    isError = userInvalid,
+                    supportingText = {
+                        if (userInvalid) Text(stringResource(R.string.setting_ssh_host_user_required))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 SecretRefField(
@@ -361,6 +486,43 @@ private fun SshHostEditDialog(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
+                Text(
+                    text = stringResource(R.string.setting_ssh_platform_label),
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                    SshPlatform.entries.forEachIndexed { index, platformOption ->
+                        SegmentedButton(
+                            shape = SegmentedButtonDefaults.itemShape(index = index, count = SshPlatform.entries.size),
+                            selected = platform == platformOption,
+                            onClick = { platform = platformOption },
+                        ) {
+                            Text(stringResource(sshPlatformLabelRes(platformOption)))
+                        }
+                    }
+                }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.setting_ssh_allow_host_key_rotation),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.setting_ssh_allow_host_key_rotation_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Switch(
+                        checked = allowHostKeyRotation,
+                        onCheckedChange = { allowHostKeyRotation = it },
+                    )
+                }
 
                 if (serverTemplates.isNotEmpty()) {
                     OutlinedButton(onClick = { showTemplatePicker = true }, modifier = Modifier.fillMaxWidth()) {
@@ -371,7 +533,14 @@ private fun SshHostEditDialog(
                             TextButton(
                                 onClick = {
                                     val json = vaultRepo.decryptValue(tpl)
-                                    if (json != null) {
+                                    if (json == null) {
+                                        toaster.show(
+                                            context.getString(
+                                                R.string.setting_ssh_template_apply_failed,
+                                                context.getString(R.string.setting_ssh_template_decrypt_failed),
+                                            ),
+                                        )
+                                    } else {
                                         runCatching {
                                             val obj = kotlinx.serialization.json.Json.parseToJsonElement(json).jsonObject
                                             host = obj["host"]?.jsonPrimitive?.contentOrNull ?: host
@@ -379,6 +548,13 @@ private fun SshHostEditDialog(
                                             user = obj["user"]?.jsonPrimitive?.contentOrNull ?: user
                                             vaultCredentialRef = obj["keyRef"]?.jsonPrimitive?.contentOrNull ?: vaultCredentialRef
                                             templateRef = tpl.name
+                                        }.onFailure { e ->
+                                            toaster.show(
+                                                context.getString(
+                                                    R.string.setting_ssh_template_apply_failed,
+                                                    e.message ?: e.javaClass.simpleName,
+                                                ),
+                                            )
                                         }
                                     }
                                     showTemplatePicker = false
@@ -474,18 +650,30 @@ private fun SshHostEditDialog(
                 onClick = {
                     val nameV = name.trim()
                     val hostV = host.trim()
-                    if (nameV.isBlank() || hostV.isBlank()) return@TextButton
+                    val portV = port.toIntOrNull()
+                    val userV = user.trim()
+                    if (nameV.isBlank() || hostV.isBlank() || portV == null || portV !in 1..65535 || userV.isBlank()) {
+                        validationAttempted = true
+                        return@TextButton
+                    }
                     onSave(
                         SshHostEntity(
                             name = nameV,
                             host = hostV,
-                            port = port.toIntOrNull() ?: 22,
-                            user = user.trim(),
+                            port = portV,
+                            user = userV,
                             password = password.ifBlank { null },
                             privateKey = privateKey.ifBlank { null },
                             passphrase = passphrase.ifBlank { null },
                             vaultCredentialRef = vaultCredentialRef,
                             templateRef = templateRef,
+                            // 编辑保存是整行 upsert：未在界面上编辑的字段必须从原实体带回，
+                            // 否则一次保存会把它们悄悄清成 null。
+                            fallbackHostsJson = initial?.fallbackHostsJson,
+                            jumpHost = initial?.jumpHost,
+                            sshOptions = initial?.sshOptions,
+                            platform = platform.preferenceName,
+                            allowHostKeyRotation = allowHostKeyRotation,
                             createdAtMs = initial?.createdAtMs ?: System.currentTimeMillis(),
                         ),
                     )
@@ -497,3 +685,11 @@ private fun SshHostEditDialog(
         },
     )
 }
+
+/** 平台枚举到界面文案的映射。 */
+private fun sshPlatformLabelRes(platform: SshPlatform): Int =
+    when (platform) {
+        SshPlatform.AUTO -> R.string.setting_ssh_platform_auto
+        SshPlatform.LINUX -> R.string.setting_ssh_platform_linux
+        SshPlatform.WINDOWS -> R.string.setting_ssh_platform_windows
+    }

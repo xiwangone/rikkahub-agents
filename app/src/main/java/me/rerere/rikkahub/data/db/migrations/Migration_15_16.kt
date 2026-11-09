@@ -19,10 +19,13 @@ val Migration_15_16 = object : Migration(15, 16) {
             // Get all distinct conversation IDs
             val convCursor = db.query("SELECT DISTINCT conversation_id FROM message_node")
             val conversationIds = mutableListOf<String>()
-            while (convCursor.moveToNext()) {
-                conversationIds.add(convCursor.getString(0))
+            try {
+                while (convCursor.moveToNext()) {
+                    conversationIds.add(convCursor.getString(0))
+                }
+            } finally {
+                convCursor.close()
             }
-            convCursor.close()
 
             var updatedConversations = 0
             var skippedConversations = 0
@@ -33,22 +36,24 @@ val Migration_15_16 = object : Migration(15, 16) {
                     "SELECT id, messages, node_index, select_index FROM message_node WHERE conversation_id = ? ORDER BY node_index ASC",
                     arrayOf(conversationId)
                 )
-
                 val rows = mutableListOf<ToolNodeMigrationRow>()
                 var hasUnparsableRow = false
-                while (nodeCursor.moveToNext()) {
-                    val id = nodeCursor.getString(0)
-                    val messagesJson = nodeCursor.getString(1)
-                    val selectIndex = nodeCursor.getInt(3)
-                    runCatching {
-                        val messages = JsonInstant.decodeFromString<List<UIMessage>>(messagesJson)
-                        rows.add(ToolNodeMigrationRow(id, messages, selectIndex))
-                    }.onFailure {
-                        hasUnparsableRow = true
-                        AppLog.w(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
+                try {
+                    while (nodeCursor.moveToNext()) {
+                        val id = nodeCursor.getString(0)
+                        val messagesJson = nodeCursor.getString(1)
+                        val selectIndex = nodeCursor.getInt(3)
+                        runCatching {
+                            val messages = JsonInstant.decodeFromString<List<UIMessage>>(messagesJson)
+                            rows.add(ToolNodeMigrationRow(id, messages, selectIndex))
+                        }.onFailure {
+                            hasUnparsableRow = true
+                            AppLog.w(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
+                        }
                     }
+                } finally {
+                    nodeCursor.close()
                 }
-                nodeCursor.close()
 
                 if (rows.isEmpty()) {
                     if (hasUnparsableRow) skippedConversations++

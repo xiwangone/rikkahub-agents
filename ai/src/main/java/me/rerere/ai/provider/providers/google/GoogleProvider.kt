@@ -1,5 +1,6 @@
 package me.rerere.ai.provider.providers.google
 
+
 import android.content.Context
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
@@ -59,9 +60,11 @@ import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.redactSecrets
+import me.rerere.ai.util.shortRequestClient
 import me.rerere.ai.util.sanitizeForGeminiSchema
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.mergeCustomHeaders
@@ -70,6 +73,7 @@ import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -83,6 +87,9 @@ import kotlin.uuid.Uuid
 import me.rerere.common.log.AppLogger
 
 private const val TAG = "GoogleProvider"
+
+/** listModels 翻页上限：单页 100 个，10 页即 1000 个模型，防服务端异常翻页死循环。 */
+private const val MAX_LIST_MODELS_PAGES = 10
 
 /**
  * Every category the generative-language API accepts on `safetySettings`.
@@ -115,7 +122,8 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
     private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
         return if (!providerSetting.vertexAI) {
-            "${providerSetting.baseUrl}/$path".toHttpUrl()
+            "${providerSetting.baseUrl}/$path".toHttpUrlOrNull()
+                ?: throw IllegalArgumentException("Invalid Google baseUrl: '${providerSetting.baseUrl}'")
         } else if (providerSetting.useServiceAccount) {
             "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}/$path".toHttpUrl()
         } else {
@@ -146,65 +154,80 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .build()
         } else {
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
-            if (providerSetting.vertexAI) {
-                request.newBuilder()
-                    .url(request.url.newBuilder().addQueryParameter("key", key).build())
-                    .build()
-            } else {
-                request.newBuilder()
-                    .addHeader("x-goog-api-key", key)
-                    .build()
-            }
+            // API key travels in a header on both paths, never in the URL query string,
+            // so it does not land in proxy logs or crash reports.
+            request.newBuilder()
+                .addHeader("x-goog-api-key", key)
+                .build()
         }
     }
 
     override suspend fun listModels(providerSetting: ProviderSetting.Google): List<Model> =
         withContext(Dispatchers.IO) {
-            val url = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
-            val request = transformRequest(
-                providerSetting = providerSetting,
-                request = Request.Builder()
-                    .url(url)
-                    .get()
-                    .build()
-            )
-            val response = client.newCall(request).await()
-            if (response.isSuccessful) {
+            // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
+            val shortClient = client.shortRequestClient()
+            val allModels = mutableListOf<Model>()
+            var pageToken: String? = null
+            // 翻页拉全：单页最多 100 个，nextPageToken 为空即最后一页；设上限防服务端异常翻页死循环。
+            repeat(MAX_LIST_MODELS_PAGES) {
+                val urlBuilder = buildUrl(providerSetting = providerSetting, path = "models?pageSize=100")
+                    .newBuilder()
+                pageToken?.let { urlBuilder.addQueryParameter("pageToken", it) }
+                val request = transformRequest(
+                    providerSetting = providerSetting,
+                    request = Request.Builder()
+                        .url(urlBuilder.build())
+                        .get()
+                        .build()
+                )
+                val response = shortClient.newCall(request).await()
                 val body = response.body.string()
+                if (!response.isSuccessful) {
+                    error("Failed to get models: ${response.code} $body")
+                }
                 AppLogger.d(TAG, "listModels: $body")
                 val bodyObject = json.parseToJsonElement(body).jsonObject
-                val models = bodyObject["models"]?.jsonArray ?: return@withContext emptyList()
+                // 成功但无 models 字段时才返回空列表（之前已拉到的页保留）。
+                val models = bodyObject["models"]?.jsonArray ?: return@withContext allModels
 
-                models.mapNotNull {
+                models.mapNotNullTo(allModels) {
                     val modelObject = it.jsonObject
 
-                    // 忽略非chat/embedding模型
+                    // 忽略非chat/embedding模型；任一必需字段缺失时跳过该条目，
+                    // 而不是让整次模型列表刷新失败
                     val supportedGenerationMethods =
-                        modelObject["supportedGenerationMethods"]!!.jsonArray
-                            .map { method -> method.jsonPrimitive.content }
+                        (modelObject["supportedGenerationMethods"] as? JsonArray)
+                            ?.mapNotNull { method -> (method as? JsonPrimitive)?.contentOrNull }
+                            ?: return@mapNotNullTo null
                     if ("generateContent" !in supportedGenerationMethods && "embedContent" !in supportedGenerationMethods) {
-                        return@mapNotNull null
+                        return@mapNotNullTo null
                     }
 
+                    val modelName =
+                        (modelObject["name"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNullTo null
+                    val displayName =
+                        (modelObject["displayName"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNullTo null
+
                     Model(
-                        modelId = modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
-                        displayName = modelObject["displayName"]!!.jsonPrimitive.content,
+                        modelId = modelName.substringAfter("/"),
+                        displayName = displayName,
                         type = if ("generateContent" in supportedGenerationMethods) ModelType.CHAT else ModelType.EMBEDDING,
                         // 与其它通道一致：用注册表推断能力（视觉输入 / 工具 / 推理）
                         inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(
-                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                            modelName.substringAfter("/"),
                         ),
                         outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(
-                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                            modelName.substringAfter("/"),
                         ),
                         abilities = ModelRegistry.MODEL_ABILITIES.getData(
-                            modelObject["name"]!!.jsonPrimitive.content.substringAfter("/"),
+                            modelName.substringAfter("/"),
                         ),
                     )
                 }
-            } else {
-                emptyList()
+                pageToken = bodyObject["nextPageToken"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+                    ?: return@withContext allModels
             }
+            allModels
         }
 
     override suspend fun generateText(
@@ -241,11 +264,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         )
 
         val response = client.newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
-        }
-
         val bodyStr = response.body.string()
+        if (!response.isSuccessful) {
+            throw response.errorAsHttpException()
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 
         val candidate = bodyJson["candidates"]?.jsonArray?.firstOrNull()?.jsonObject

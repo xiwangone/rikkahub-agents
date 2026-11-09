@@ -18,6 +18,8 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
@@ -69,8 +71,18 @@ internal object SshPresets {
         ),
     )
 
-    /** 运行时按主机名取预设集（小写匹配；无则按特征归类到平台模板）。 */
-    fun forHost(hostName: String): Map<String, String> {
+    /**
+     * 运行时按主机名取预设集（小写匹配；无则按特征归类到平台模板）。
+     *
+     * @param platform 显式平台（工具参数）；命中 LINUX/WINDOWS 时直接取对应模板，
+     * AUTO/缺省时回落到名字关键字归类。
+     */
+    fun forHost(hostName: String, platform: SshPlatform? = null): Map<String, String> {
+        when (platform) {
+            SshPlatform.WINDOWS -> return byHost.getValue("windows")
+            SshPlatform.LINUX -> return byHost.getValue("linux")
+            else -> {}
+        }
         val lower = hostName.lowercase()
         // 先精确匹配用户自定义模板（未来 Room 扩展；当前仅内置平台模板）
         byHost[lower]?.let { return it }
@@ -233,6 +245,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                     put("description", "Optional array of saved-host names tried in order when this host is unreachable (connection-level failures only). Items are resolved at call time.")
                 })
                 put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. The connection is established through it (single hop; the jump host itself is not chained further).") })
+                put("platform", buildJsonObject { put("type", "string"); put("description", "Remote platform: 'auto' (default), 'linux' or 'windows'. Stored on the host and used for command wrapping and preset selection on later calls; omit to leave it automatic.") })
                 put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line.") })
             },
             required = listOf("name", "host", "user")
@@ -250,6 +263,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val vaultCredential = p["vault_credential"]?.jsonPrimitive?.contentOrNull
         val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
         val jumpHost = p["jump_host"]?.jsonPrimitive?.contentOrNull
+        val platformParam = p["platform"]?.jsonPrimitive?.contentOrNull
         val sshOptions = p["ssh_options"]?.jsonPrimitive?.contentOrNull
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
@@ -265,6 +279,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
             fallbackHostsJson = fallbackHosts?.takeIf { it.isNotEmpty() }
                 ?.let { buildJsonArray { it.forEach { f -> add(f) } }.toString() },
             jumpHost = jumpHost,
+            platform = platformParam?.let { SshPlatform.fromPreference(it).name } ?: "AUTO",
             sshOptions = sshOptions,
             createdAtMs = System.currentTimeMillis(),
         ))
@@ -365,6 +380,8 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
                         "success" to false,
                         "host" to host,
                         "keys_removed" to 0,
+                        "app_known_hosts_removed" to 0,
+                        "vault_known_hosts_removed" to 0,
                     ),
                 )
             } catch (error: SecurityException) {
@@ -377,22 +394,35 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
                         "success" to false,
                         "host" to host,
                         "keys_removed" to 0,
+                        "app_known_hosts_removed" to 0,
+                        "vault_known_hosts_removed" to 0,
                     ),
                 )
             }
         listOf(UIMessagePart.Text(buildJsonObject {
             put("success", true)
             put("host", host)
-            put("keys_removed", removed)
+            put("keys_removed", removed.totalRemoved)
+            put("app_known_hosts_removed", removed.appKnownHostsRemoved)
+            put("vault_known_hosts_removed", removed.vaultKnownHostsRemoved)
         }.toString()))
     }
 )
 
-/** Run a command on a saved host without re-passing credentials. */
+/**
+ * Run a command on a saved host without re-passing credentials.
+ *
+ * @param settingsStore 全局默认平台来源；为 null 时全局默认一级不参与解析（工具参数、
+ * 实体平台与 banner 缓存仍生效）。调用方按已有传参方式从构造处传入。
+ */
+// 该工具要处理：批量命令/环境注入/平台解析/跳板/后台/超时/凭证解析/候选链回退，
+// 分支按「先校验后执行」排列，拆函数会让参数在闭包间来回传。
+@Suppress("LongMethod", "CyclomaticComplexMethod")
 fun sshExecSavedTool(
     context: Context,
     repo: SshHostRepository,
     vaultRepository: CredentialVaultRepository,
+    settingsStore: SettingsStore? = null,
 ): Tool = Tool(
     name = "ssh_exec_saved",
     description = """
@@ -421,6 +451,10 @@ fun sshExecSavedTool(
                     put("type", "string")
                     put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
                 })
+                put("platform", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Remote platform for this call: 'auto' (default; falls back to the saved host's stored platform, then the cached banner result, then the global default, then command-shape heuristics), 'linux' or 'windows'. Overrides the stored platform for this call only.")
+                })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 30, max 300") })
             },
             required = listOf("name")
@@ -441,9 +475,10 @@ fun sshExecSavedTool(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "preset is mutually exclusive with command/commands — pass exactly one", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
-        // preset 展开：按 saved host 名匹配预设集（精确名 → 特征归类 linux/windows 通用模板）
+        // preset 展开：按 saved host 名匹配预设集（显式平台优先 → 名字关键字归类）
+        val explicitPlatform = p["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
         var finalCommand = if (presetKey != null) {
-            val presets = SshPresets.forHost(name)
+            val presets = SshPresets.forHost(name, explicitPlatform)
             val expanded = presets[presetKey]
             if (expanded == null) {
                 return@Tool listOf(UIMessagePart.Text(
@@ -475,11 +510,6 @@ fun sshExecSavedTool(
             ))
         }
         val env = readEnvParam(p)
-        if (env.isNotEmpty() && !background) {
-            // 同 ssh_exec：默认按 Windows($env:)，Linux 远端显式传 env_style=posix
-            val envWindows = !p["env_style"]?.jsonPrimitive?.contentOrNull.equals("posix", ignoreCase = true)
-            finalCommand = joinCommandBatch(envPrelude(env, envWindows) + listOf(finalCommand))
-        }
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -488,6 +518,23 @@ fun sshExecSavedTool(
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
+        }
+        // 全局默认平台（构造处传入 settingsStore 时才参与解析）
+        val globalDefault = settingsStore?.settingsFlow?.value?.defaultSshPlatform
+        // env 前置：主 host 的平台决定默认语法（工具参数 > 实体平台 > banner 缓存 > 全局默认）；
+        // env_style=posix / windows 显式指定时优先；仍未解析出来时保持旧默认 Windows。
+        // 注意：env 前置用主 host 的平台（fallback 候选各有自己的平台，但 env 语句在循环外只拼一次）。
+        if (env.isNotEmpty() && !background) {
+            val mainExplicit = RemotePlatform.explicitOrStored(explicitPlatform, RemotePlatform.platformFromStored(h.platform))
+            val mainCached = RemotePlatformStore(context).get(h.host, h.port)
+            val mainWindows = RemotePlatform.resolveWindows(mainExplicit, mainCached, globalDefault)
+            val envStyle = p["env_style"]?.jsonPrimitive?.contentOrNull
+            val envWindows = when {
+                envStyle.equals("posix", ignoreCase = true) -> false
+                envStyle.equals("windows", ignoreCase = true) -> true
+                else -> mainWindows ?: true
+            }
+            finalCommand = joinCommandBatch(envPrelude(env, envWindows) + listOf(finalCommand))
         }
 
         // 候选链：主 host → fallbackHostsJson 里的备用 host（按序）。连接类失败才沿链
@@ -522,17 +569,12 @@ fun sshExecSavedTool(
             )
         }
 
-        // 主 host 参数（用于 background 路径的 detached 包装——命令与 host 无关，取第一候选即可）
-        // 平台判定：落盘缓存（banner 结论）优先；此处 h 尚未解析，故单独取一次 host/port
-        val cachedPlatform = repo.getByName(name)?.let { RemotePlatformStore(context).get(it.host, it.port) }
-        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand) else (withUtf8ConsoleEncoding(finalCommand, cachedPlatform) to null)
-        val effectiveCommand = detachedCmd
-
         var lastError: String? = null
         // 记录每次尝试（host → 失败类别），使「到底切到了哪条通道」可见
         val tried = mutableListOf<Pair<String, String>>()
         var result: JsonObject? = null
         var usedHost: String? = null
+        var usedBgLogPath: String? = null
         for ((idx, cand) in candidates.withIndex()) {
             val candAuth = when (val r = resolveHostAuthDetailed(cand, vaultRepository)) {
                 is HostAuthResolution.Ready -> r.auth
@@ -553,12 +595,19 @@ fun sshExecSavedTool(
                     continue
                 }
             }
+            // 命令包装按候选各自取值：主 host 的平台/缓存不能套到 fallback host 身上
+            // （旧实现在循环外用主 host 缓存一次性算好 effectiveCommand）。
+            val candExplicit = RemotePlatform.explicitOrStored(explicitPlatform, RemotePlatform.platformFromStored(cand.platform))
+            val candCached = RemotePlatformStore(context).get(cand.host, cand.port)
+            val candWindows = RemotePlatform.resolveWindows(candExplicit, candCached, globalDefault)
+            val (detachedCmd, candBgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand, windows = candWindows) else (withUtf8ConsoleEncoding(finalCommand, candWindows) to null)
+            val effectiveCommand = detachedCmd
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions)
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation)
             }
             tried.add(cand.name to classifySshPayload(payload))
             val err = payload["error"]?.jsonPrimitive?.contentOrNull
-            if (err == null) { result = payload; usedHost = cand.name; break }
+            if (err == null) { result = payload; usedHost = cand.name; usedBgLogPath = candBgLogPath; break }
             lastError = err
             // 连接类错误才继续试 fallback；认证/密钥类直接停（换 host 无意义）
             if (idx < candidates.size - 1 && isFallbackEligible(err)) {
@@ -566,6 +615,7 @@ fun sshExecSavedTool(
             }
             // 非连接类错误或已是最后候选：终止
             result = payload
+            usedBgLogPath = candBgLogPath
             break
         }
 
@@ -582,7 +632,7 @@ fun sshExecSavedTool(
                 } else {
                     result.toString()
                 }
-            if (bgLogPath != null) body + "\n[bg_log_path] $bgLogPath" else body
+            if (usedBgLogPath != null) body + "\n[bg_log_path] $usedBgLogPath" else body
         } else {
             me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
                 error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(lastError ?: "unknown failure"),
@@ -690,11 +740,14 @@ fun vaultDeployKeyTool(
         val targetUser = remoteUser ?: h.user
 
         // 2. 用 host 自身凭证连接，幂等追加公钥 + 收紧权限（连与跑见 deployAuthorizedKey）
+        // execute 本身就是 suspend：直接调用 suspend 的部署函数，不用 runBlocking 占住线程
+        // （取消可正常传导进网络调用）。
         val authPair = resolveAuthOrError(h, vaultRepository)
-        val deployResult = kotlinx.coroutines.runBlocking {
-            val auth = authPair.first
-                ?: return@runBlocking (authPair.second ?: ToolErrors.envelopeFor(error = "invalid_argument", message = "saved host has no usable credentials", hint = "Check the parameter values and retry with corrected arguments."))
-            deployAuthorizedKey(context, h, targetUser, pubKey, auth)
+        val deployAuth = authPair.first
+        val deployResult = if (deployAuth == null) {
+            authPair.second ?: ToolErrors.envelopeFor(error = "invalid_argument", message = "saved host has no usable credentials", hint = "Check the parameter values and retry with corrected arguments.")
+        } else {
+            deployAuthorizedKey(context, h, targetUser, pubKey, deployAuth)
         }
         val deployErr = deployResult["error"]?.jsonPrimitive?.contentOrNull
         if (deployErr != null) return@Tool fail(deployErr)
@@ -702,9 +755,10 @@ fun vaultDeployKeyTool(
             deployResult["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
         // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami（连与跑见 verifyVaultKeyLogin）
-        val verify = kotlinx.coroutines.runBlocking {
-            val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName)
-                ?: return@runBlocking ToolErrors.envelopeFor(error = "tool_failed", message = "credential decrypt failed")
+        val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName)
+        val verify = if (verifyAuth == null) {
+            ToolErrors.envelopeFor(error = "tool_failed", message = "credential decrypt failed")
+        } else {
             verifyVaultKeyLogin(context, h, targetUser, verifyAuth)
         }
         val verifyErr = verify["error"]?.jsonPrimitive?.contentOrNull
@@ -780,12 +834,17 @@ private suspend fun deployAuthorizedKey(
     auth: SshAuth,
 ): JsonObject {
     val store = RemotePlatformStore(context)
-    // 平台未知时（本路径拿不到 SSH banner，见 RemotePlatform 注释）先后尝试 posix / Windows 两版；
-    // 命中后回填缓存，同一主机不再试错。
-    val order = when (store.get(h.host, h.port)) {
-        true -> listOf(true)
-        false -> listOf(false)
-        null -> listOf(false, true)
+    // 实体存了显式平台时只试对应一版命令，不再两版都试；未存时沿用 banner 缓存，
+    // 缓存也没有才先后试 posix / Windows 两版，命中后回填缓存。
+    val explicitPlatform = RemotePlatform.platformFromStored(h.platform)
+    val order = when (explicitPlatform) {
+        SshPlatform.WINDOWS -> listOf(true)
+        SshPlatform.LINUX -> listOf(false)
+        else -> when (store.get(h.host, h.port)) {
+            true -> listOf(true)
+            false -> listOf(false)
+            null -> listOf(false, true)
+        }
     }
     var last = ToolErrors.envelopeFor(error = "invalid_argument", message = "deploy not attempted", hint = "Check the parameter values and retry with corrected arguments.")
     for (windows in order) {

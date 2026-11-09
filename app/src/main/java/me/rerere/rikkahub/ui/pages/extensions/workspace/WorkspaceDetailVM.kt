@@ -79,6 +79,13 @@ class WorkspaceDetailVM(
         _packageUpgradeResult.value = null
     }
 
+    /** 手动刷新资源画像的失败原因（null = 无待提示失败），详情页弹 Toast 后清零。 */
+    val statsRefreshFailure = repository.statsRefreshFailure
+
+    fun dismissStatsRefreshFailure() {
+        repository.clearStatsRefreshFailure()
+    }
+
     /** 资源面板（磁盘/包数/内核）：仓库层进程内缓存 + 后台采集（退出页面不中断，重进即有）。 */
     val stats: kotlinx.coroutines.flow.StateFlow<WorkspaceStats?> =
         repository.statsById

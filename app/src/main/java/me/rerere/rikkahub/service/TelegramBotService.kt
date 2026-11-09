@@ -399,7 +399,8 @@ class TelegramBotService : Service() {
             } finally {
                 try {
                     if (wakeLock?.isHeld == true) wakeLock.release()
-                } catch (_: Throwable) {
+                } catch (t: Throwable) {
+                    AppLog.w(TAG, "pollLoop: wakeLock release failed", t)
                 }
             }
         }

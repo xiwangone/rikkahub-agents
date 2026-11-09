@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.assistant
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -67,6 +68,7 @@ import me.rerere.rikkahub.data.datastore.DEFAULT_ASSISTANTS_IDS
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.AssistantMemory
+import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
@@ -224,6 +226,30 @@ fun AssistantPage(vm: AssistantVM = koinViewModel()) {
             ) {
                 // 非过滤态用拖动本地顺序（拖动即时反馈）；过滤态下标与全量不一致 → 不参与排序
                 val visibleAssistants = if (isFiltering) assistantsByQuery else reorderCommit.items
+                if (visibleAssistants.isEmpty()) {
+                    item {
+                        Box(
+                            modifier =
+                                Modifier
+                                    .fillParentMaxHeight(0.8f)
+                                    .fillMaxWidth(),
+                            contentAlignment = Alignment.Center,
+                        ) {
+                            if (settings.assistants.isEmpty()) {
+                                ExtensionEmptyState(
+                                    message = stringResource(R.string.assistant_page_empty),
+                                    description = stringResource(R.string.assistant_page_empty_desc),
+                                    buttonText = stringResource(R.string.assistant_page_add),
+                                    onAction = { createState.open(Assistant()) },
+                                )
+                            } else {
+                                ExtensionEmptyState(
+                                    message = stringResource(R.string.assistant_page_no_results),
+                                )
+                            }
+                        }
+                    }
+                }
                 lazyItems(visibleAssistants, key = { assistant -> assistant.id }) { assistant ->
                     ReorderableItem(
                         state = reorderableState,

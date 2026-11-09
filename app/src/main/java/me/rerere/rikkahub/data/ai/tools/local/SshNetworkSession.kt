@@ -358,12 +358,13 @@ internal class JumpTunnelProxy(
 /**
  * 重试前的重新选网：网络可能已切换（WiFi↔蜂窝），首次探测选出的 Network 可能已失效，
  * 复用旧 Network 会让重试也失败。故重试前重新跑一次可达性探测（跳板场景探测跳板主机）。
+ *
+ * suspend：探测本身是 suspend 的，用 runBlocking 包它会占住 IO 线程且取消不传导；
+ * 调用方（重试循环）已是 suspend，直接调。
  */
-internal fun probeNetworkForRetry(context: Context, jump: JumpSpec?, host: String, port: Int): Network? =
-    kotlinx.coroutines.runBlocking {
-        if (jump != null) probeReachability(context, jump.host, jump.port).winningNetwork
-        else probeReachability(context, host, port).winningNetwork
-    }
+internal suspend fun probeNetworkForRetry(context: Context, jump: JumpSpec?, host: String, port: Int): Network? =
+    if (jump != null) probeReachability(context, jump.host, jump.port).winningNetwork
+    else probeReachability(context, host, port).winningNetwork
 
 /**
  * 建立到跳板主机的会话（用于 JumpTunnelProxy）。跳板自身的认证与 keepalive

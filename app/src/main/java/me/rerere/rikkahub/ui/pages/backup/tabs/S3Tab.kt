@@ -58,6 +58,7 @@ import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -152,7 +153,8 @@ fun S3Tab(
     val backupOomMessage = stringResource(R.string.backup_page_backup_oom)
     val backupFileSummary =
         when (val state = backupItemsState) {
-            is UiState.Success -> "${stringResource(R.string.backup_page_files)}: ${state.data.size}"
+            is UiState.Success -> "${stringResource(R.string.backup_page_files)}: ${state.data.totalCount}" +
+                if (state.data.truncated) " (${stringResource(R.string.backup_page_s3_list_truncated)})" else ""
             UiState.Loading -> "${stringResource(R.string.backup_page_files)}: ..."
             UiState.Idle -> "${stringResource(R.string.backup_page_files)}: -"
             is UiState.Error -> "${stringResource(R.string.backup_page_files)}: -"
@@ -473,7 +475,7 @@ fun S3Tab(
                             contentPadding = PaddingValues(bottom = 16.dp),
                             verticalArrangement = Arrangement.spacedBy(8.dp),
                         ) {
-                            items(it) { item ->
+                            items(it.items) { item ->
                                 S3BackupItemCard(
                                     item = item,
                                     isRestoring = restoringItemId == item.displayName,
@@ -653,6 +655,7 @@ private fun S3BackupItemCard(
     onDelete: (S3BackupItem) -> Unit = {},
     onRestore: (S3BackupItem) -> Unit = {},
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     CardGroup {
         item(
             headlineContent = {
@@ -687,11 +690,14 @@ private fun S3BackupItemCard(
                     ) {
                         TextButton(
                             onClick = {
-                                onDelete(item)
+                                showDeleteConfirm = true
                             },
                             enabled = !isRestoring,
                         ) {
-                            Text(stringResource(R.string.backup_page_delete))
+                            Text(
+                                stringResource(R.string.backup_page_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                         Button(
                             onClick = {
@@ -718,6 +724,17 @@ private fun S3BackupItemCard(
             },
         )
     }
+
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfirm,
+        title = stringResource(R.string.backup_page_delete),
+        message = stringResource(R.string.backup_delete_remote_confirm, item.displayName),
+        onConfirm = {
+            showDeleteConfirm = false
+            onDelete(item)
+        },
+        onDismiss = { showDeleteConfirm = false },
+    )
 }
 
 /** 异常链里是否有内存溢出（备份包过大时平台 AES/GCM 会把整包缓冲到堆上）。 */

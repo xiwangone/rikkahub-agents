@@ -479,14 +479,13 @@ class CredentialVaultRepository(
      * 有意**不改 updatedAt**：避免污染"最后修改"语义，也避免多余触发掩码规则刷新。
      */
     suspend fun backfillMissingTypes(): Int {
-        var filled = 0
-        dao.getAll().forEach { e ->
-            if (e.type.isNotBlank()) return@forEach
-            val value = decryptValue(e) ?: return@forEach
-            dao.update(e.copy(type = CredentialType.infer(e.name, value, e.publicKey)))
-            filled++
+        val updated = dao.getAll().mapNotNull { e ->
+            if (e.type.isNotBlank()) return@mapNotNull null
+            val value = decryptValue(e) ?: return@mapNotNull null
+            e.copy(type = CredentialType.infer(e.name, value, e.publicKey))
         }
-        return filled
+        if (updated.isNotEmpty()) dao.updateAll(updated)
+        return updated.size
     }
 
     suspend fun delete(entry: VaultCredentialEntity) {

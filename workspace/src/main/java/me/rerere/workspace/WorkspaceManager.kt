@@ -55,16 +55,24 @@ class WorkspaceManager(
         },
     )
 
+    /** 单次绝对路径写入的字节上限，供绝对路径写入口复用同一口径。 */
+    internal val maxWriteBytes: Long get() = config.maxWriteBytes
+
     private val fileSystem = WorkspaceFileSystem(config)
     private val background = WorkspaceBackgroundProcesses(
         cancelHook = { token -> listOfNotNull(chrootRunner, shellRunner).any { it.cancel(token) } },
     )
     private val chrootProbeCache = java.util.concurrent.ConcurrentHashMap<String, Boolean>()
+    private val chrootProbeCachedAt = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
     /** 最近一次 ROOT_CHROOT 自动回退到 PROOT 的原因（null = 未触发回退）。 */
     @Volatile
     var lastFallbackReason: String? = null
         internal set
+
+    /** 最近一次回退发生的时间（毫秒），超过 [FALLBACK_RETRY_INTERVAL_MS] 后下次调用自动重试 chroot。 */
+    @Volatile
+    private var lastFallbackAtMillis: Long = 0L
 
     /** 自动回退回调（供 Repository/UI 记录日志与展示顶部状态条）。 */
     @Volatile
@@ -77,6 +85,13 @@ class WorkspaceManager(
             WorkspaceShellBackend.PROOT -> WorkspaceShellBackend.PROOT
             WorkspaceShellBackend.DISABLED -> WorkspaceShellBackend.DISABLED
             WorkspaceShellBackend.ROOT_CHROOT -> {
+                // 回退粘滞只保留一段时间：过期后清除原因与探测缓存，下次调用重新探测 chroot，
+                // 否则一次瞬时失败会永久粘在 proot，只能手动切后端恢复
+                if (lastFallbackReason != null &&
+                    System.currentTimeMillis() - lastFallbackAtMillis > FALLBACK_RETRY_INTERVAL_MS
+                ) {
+                    resetBackendState(root)
+                }
                 if (chrootRunner == null || chrootProbeCache[root] == false || lastFallbackReason != null) {
                     WorkspaceShellBackend.PROOT
                 } else {
@@ -87,15 +102,19 @@ class WorkspaceManager(
 
     fun recordFallback(reason: String) {
         lastFallbackReason = reason
+        lastFallbackAtMillis = System.currentTimeMillis()
         onBackendFallback(reason)
     }
 
     fun resetBackendState(root: String? = null) {
         lastFallbackReason = null
+        lastFallbackAtMillis = 0L
         if (root == null) {
             chrootProbeCache.clear()
+            chrootProbeCachedAt.clear()
         } else {
             chrootProbeCache.remove(root)
+            chrootProbeCachedAt.remove(root)
         }
     }
 
@@ -119,23 +138,33 @@ class WorkspaceManager(
             recordFallback("runner_unavailable: chroot helper scripts missing")
             return shellRunner
         }
-        val cached = chrootProbeCache[root]
-        if (cached == false) {
-            return shellRunner
+        // 探测失败的缓存同样只保留一段时间：过期后重新探测，避免一次失败永久粘住
+        if (chrootProbeCache[root] == false) {
+            val cachedAt = chrootProbeCachedAt[root] ?: 0L
+            if (System.currentTimeMillis() - cachedAt <= FALLBACK_RETRY_INTERVAL_MS) {
+                return shellRunner
+            }
+            chrootProbeCache.remove(root)
+            chrootProbeCachedAt.remove(root)
+            lastFallbackReason = null
         }
+        val cached = chrootProbeCache[root]
         if (cached == null) {
             val probeRes = probeChroot(root)
             if (probeRes != null && !probeRes.supported) {
                 chrootProbeCache[root] = false
+                chrootProbeCachedAt[root] = System.currentTimeMillis()
                 recordFallback("probe_failed(branch=${probeRes.branch}, fail=${probeRes.fail})")
                 return shellRunner
             }
             if (runner is ChrootShellRunner && probeRes == null) {
                 chrootProbeCache[root] = false
+                chrootProbeCachedAt[root] = System.currentTimeMillis()
                 recordFallback("probe_unavailable: su not accessible")
                 return shellRunner
             }
             chrootProbeCache[root] = true
+            chrootProbeCachedAt[root] = System.currentTimeMillis()
         }
         lastFallbackReason = null
         return runner
@@ -223,7 +252,9 @@ class WorkspaceManager(
     )
 
     init {
-        baseDir.mkdirs()
+        if (!baseDir.mkdirs() && !baseDir.isDirectory) {
+            error("Failed to create workspace base directory: ${baseDir.path}")
+        }
     }
 
     fun backend(root: String, shellCompatibilityMode: Boolean = false): WorkspaceBackend =
@@ -231,9 +262,11 @@ class WorkspaceManager(
 
     fun ensureWorkspace(root: String): File {
         val dir = workspaceDir(root)
-        filesDir(root).mkdirs()
-        linuxDir(root).mkdirs()
-        tempDir(root).mkdirs()
+        listOf(filesDir(root), linuxDir(root), tempDir(root)).forEach { subdir ->
+            if (!subdir.mkdirs() && !subdir.isDirectory) {
+                error("Failed to create workspace directory: ${subdir.path}")
+            }
+        }
         return dir
     }
 
@@ -263,11 +296,23 @@ class WorkspaceManager(
         return parseDistroInfo(text, fallbackToIssue = file.name == "issue")
     }
 
+    /** 最近一次删除时 chroot 卸载失败的原因（null = 未失败或未尝试卸载），供调用方区分 EBUSY 删除失败。 */
+    @Volatile
+    var lastUnmountError: String? = null
+        private set
+
     fun deleteWorkspace(root: String): Boolean = synchronized(backgroundLifecycleLock) {
         // 先杀掉该 workspace 所有后台进程, 再删目录, 避免进程仍持有已删除目录下的 fd
         killAllBackground(root)
-        // 常驻挂载先卸：bind 挂载在时 deleteRecursively 会 EBUSY
-        unmountChroot(root)
+        // 常驻挂载先卸：bind 挂载在时 deleteRecursively 会 EBUSY；卸载失败要留痕，
+        // 否则删除走 EBUSY 失败时调用方无法区分是挂载未卸还是目录本身删不掉
+        val unmountResult = unmountChroot(root)
+        lastUnmountError =
+            if (unmountResult != null && unmountResult.exitCode != 0) {
+                unmountResult.stderr.ifBlank { "chroot unmount failed with exit code ${unmountResult.exitCode}" }
+            } else {
+                null
+            }
         workspaceDir(root).deleteRecursively()
     }
 
@@ -281,6 +326,19 @@ class WorkspaceManager(
             fileSystem.list(areaDir(root, area), path)
         } else {
             fileSystem.list(areaDir(root, area), path, limit)
+        }
+
+    /** 与 [listFiles] 相同, 但额外返回是否因上限截断以及截断前的总数。 */
+    fun listFilesDetailed(
+        root: String,
+        path: String = "",
+        area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
+        limit: Int? = null,
+    ): WorkspaceListResult =
+        if (limit == null) {
+            fileSystem.listDetailed(areaDir(root, area), path)
+        } else {
+            fileSystem.listDetailed(areaDir(root, area), path, limit)
         }
 
     fun readText(
@@ -304,6 +362,12 @@ class WorkspaceManager(
         fileName: String,
         inputStream: InputStream,
     ): WorkspaceFileEntry {
+        // fileName 是单个文件名，不是路径：含 / 时会静默建成嵌套子目录，
+        // 调用方以为只导入了一个文件。需要子目录请走 destinationPath。
+        require(fileName.isNotBlank()) { "File name is required" }
+        require(!fileName.contains('/') && !fileName.contains('\\')) {
+            "File name must not contain path separators: $fileName"
+        }
         val areaRoot = areaDir(root, area)
         val targetPath = if (destinationPath.isBlank()) fileName else "$destinationPath/$fileName"
         return fileSystem.importBytes(areaRoot, targetPath, inputStream)
@@ -442,6 +506,13 @@ class WorkspaceManager(
         path: String = "",
     ): List<WorkspaceFileEntry> = fileSystem.glob(filesDir(root), pattern, path)
 
+    /** 与 [glob] 相同, 但空结果时附带提示（如建议用递归 pattern）。 */
+    fun globDetailed(
+        root: String,
+        pattern: String,
+        path: String = "",
+    ): WorkspaceGlobResult = fileSystem.globDetailed(filesDir(root), pattern, path)
+
     fun grep(
         root: String,
         query: String,
@@ -451,6 +522,16 @@ class WorkspaceManager(
         includeGlob: String? = null,
     ): List<WorkspaceSearchMatch> = fileSystem.grep(filesDir(root), query, path, regex, ignoreCase, includeGlob)
 
+    /** 与 [grep] 相同, 但额外返回是否截断以及跳过的大文件数。 */
+    fun grepDetailed(
+        root: String,
+        query: String,
+        path: String = "",
+        regex: Boolean = false,
+        ignoreCase: Boolean = true,
+        includeGlob: String? = null,
+    ): WorkspaceSearchResult = fileSystem.grepDetailed(filesDir(root), query, path, regex, ignoreCase, includeGlob)
+
     fun executeCommand(
         root: String,
         command: String,
@@ -459,7 +540,7 @@ class WorkspaceManager(
         stdin: ByteArray? = null,
         env: Map<String, String> = emptyMap(),
         shellCompatibilityMode: Boolean = false,
-    ): WorkspaceCommandResult {
+    ): WorkspaceCommandResult = synchronized(backgroundLifecycleLock) {
         require(command.isNotBlank()) { "Command is required" }
         val workingDir = resolveCommandWorkingDir(root, cwd)
 
@@ -482,10 +563,11 @@ class WorkspaceManager(
         val result = runner.execute(ctx)
         if (runner === chrootRunner && result.exitCode == -1 && result.stderr.contains("chroot backend unavailable")) {
             chrootProbeCache[root] = false
+            chrootProbeCachedAt[root] = System.currentTimeMillis()
             recordFallback("su_unavailable: ${result.stderr}")
-            return shellRunner.execute(ctx)
+            return@synchronized shellRunner.execute(ctx)
         }
-        return result
+        result
     }
 
     /**
@@ -505,22 +587,34 @@ class WorkspaceManager(
             val workingDir = resolveCommandWorkingDir(root, cwd)
             val taskToken = java.util.UUID.randomUUID().toString()
 
-            val process = runnerFor(root).start(
-                WorkspaceShellContext(
-                    root = root,
-                    command = command,
-                    cwd = cwd,
-                    filesDir = filesDir(root),
-                    linuxDir = linuxDir(root),
-                    tempDir = tempDir(root),
-                    workingDir = workingDir,
-                    timeoutMillis = 0L,
-                    bindMounts = activeBindMounts(),
-                    env = env,
-                    taskToken = taskToken,
-                    dnsServers = dnsServers(),
-                )
+            val context = WorkspaceShellContext(
+                root = root,
+                command = command,
+                cwd = cwd,
+                filesDir = filesDir(root),
+                linuxDir = linuxDir(root),
+                tempDir = tempDir(root),
+                workingDir = workingDir,
+                timeoutMillis = 0L,
+                bindMounts = activeBindMounts(),
+                env = env,
+                taskToken = taskToken,
+                dnsServers = dnsServers(),
             )
+            val runner = runnerFor(root)
+            val process = try {
+                runner.start(context)
+            } catch (e: IllegalStateException) {
+                // 与 executeCommand 同口径：chroot 后端 su 丢失时回退 proot，而不是直接抛给调用方
+                if (runner === chrootRunner) {
+                    chrootProbeCache[root] = false
+                    chrootProbeCachedAt[root] = System.currentTimeMillis()
+                    recordFallback("su_unavailable: ${e.message}")
+                    shellRunner.start(context)
+                } else {
+                    throw e
+                }
+            }
             background.start(root, process, command, cwd, taskToken)
         }
 
@@ -578,6 +672,9 @@ class WorkspaceManager(
         private const val LINUX_DIR = "linux"
         private const val TEMP_DIR = "tmp"
         const val DEFAULT_COMMAND_TIMEOUT_MS = 30_000L
+
+        /** 回退/探测失败缓存的有效期：过期后自动重新探测 chroot，而不是永久粘在 proot */
+        const val FALLBACK_RETRY_INTERVAL_MS = 5 * 60_000L
 
         /** Rootfs 内工作区文件区的挂载点 */
         const val ROOTFS_WORKSPACE_DIR = "/workspace"

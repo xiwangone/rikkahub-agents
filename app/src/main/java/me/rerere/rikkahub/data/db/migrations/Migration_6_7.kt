@@ -38,50 +38,53 @@ val Migration_6_7 = object : Migration(6, 7) {
                 db.query("SELECT id, assistant_id, title, messages, usage, create_at, update_at, truncate_index FROM ConversationEntity")
             val updates = mutableListOf<Array<Any?>>()
 
-            while (cursor.moveToNext()) {
-                val id = cursor.getString(0)
-                val assistantId = cursor.getString(1)
-                val title = cursor.getString(2)
-                val messagesJson = cursor.getString(3)
-                val usage = cursor.getString(4)
-                val createAt = cursor.getLong(5)
-                val updateAt = cursor.getLong(6)
-                val truncateIndex = cursor.getInt(7)
+            try {
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0)
+                    val assistantId = cursor.getString(1)
+                    val title = cursor.getString(2)
+                    val messagesJson = cursor.getString(3)
+                    val usage = cursor.getString(4)
+                    val createAt = cursor.getLong(5)
+                    val updateAt = cursor.getLong(6)
+                    val truncateIndex = cursor.getInt(7)
 
-                try {
-                    // 尝试解析旧格式的消息列表 List<UIMessage>
-                    val oldMessages = JsonInstant.decodeFromString<List<UIMessage>>(messagesJson)
+                    try {
+                        // 尝试解析旧格式的消息列表 List<UIMessage>
+                        val oldMessages = JsonInstant.decodeFromString<List<UIMessage>>(messagesJson)
 
-                    // 转换为新格式 List<MessageNode>
-                    val newMessages = oldMessages.map { message ->
-                        MessageNode.of(message)
-                    }
+                        // 转换为新格式 List<MessageNode>
+                        val newMessages = oldMessages.map { message ->
+                            MessageNode.of(message)
+                        }
 
-                    // 序列化新格式
-                    val newMessagesJson = JsonInstant.encodeToString(newMessages)
-                    updates.add(
-                        arrayOf(
-                            id,
-                            assistantId,
-                            title,
-                            newMessagesJson,
-                            usage,
-                            createAt,
-                            updateAt,
-                            truncateIndex
+                        // 序列化新格式
+                        val newMessagesJson = JsonInstant.encodeToString(newMessages)
+                        updates.add(
+                            arrayOf(
+                                id,
+                                assistantId,
+                                title,
+                                newMessagesJson,
+                                usage,
+                                createAt,
+                                updateAt,
+                                truncateIndex
+                            )
                         )
-                    )
-                } catch (e: SerializationException) {
-                    // Parsing failed — old format corrupt or already new format.
-                    // Preserve the row as an empty node list rather than aborting the
-                    // entire migration (which would leave the user permanently bricked).
-                    AppLog.w(TAG, "migrate: could not migrate conversation $id — keeping as empty nodes: ${e.message}")
-                    updates.add(
-                        arrayOf(id, assistantId, title, "[]", usage, createAt, updateAt, truncateIndex)
-                    )
+                    } catch (e: SerializationException) {
+                        // Parsing failed — old format corrupt or already new format.
+                        // Preserve the row as an empty node list rather than aborting the
+                        // entire migration (which would leave the user permanently bricked).
+                        AppLog.w(TAG, "migrate: could not migrate conversation $id — keeping as empty nodes: ${e.message}")
+                        updates.add(
+                            arrayOf(id, assistantId, title, "[]", usage, createAt, updateAt, truncateIndex)
+                        )
+                    }
                 }
+            } finally {
+                cursor.close()
             }
-            cursor.close()
 
             // 批量插入数据到新表
             updates.forEach { values ->

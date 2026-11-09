@@ -7,7 +7,6 @@ import android.content.pm.PackageManager
 import android.os.IBinder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -171,7 +170,11 @@ object ShizukuManager {
     // --- shizuku_exec: bind the AIDL user service and run a command ----------------------
 
     private val bindLock = Mutex()
+
+    @Volatile
     private var service: IShizukuUserService? = null
+
+    @Volatile
     private var connection: ServiceConnection? = null
 
     @Volatile
@@ -259,14 +262,12 @@ object ShizukuManager {
                 val api = if (binder != null && binder.pingBinder()) {
                     IShizukuUserService.Stub.asInterface(binder)
                 } else null
-                runCatching {
-                    runBlocking {
-                        bindLock.withLock {
-                            service = api
-                            bindWaiter = null
-                        }
-                    }
-                }
+                // binder 回调跑在 binder 线程上：直接写 volatile 字段，不经 runBlocking
+                // 等 bindLock（回调里阻塞等锁会占住 binder 线程，锁持有方又可能在等
+                // 本次回调完成 deferred，存在互相等待）。先写 service 再清 waiter，
+                // 这样 ensureBound 要么看到已连接的 service，要么重新发起绑定。
+                service = api
+                bindWaiter = null
                 if (!deferred.isCompleted) {
                     deferred.complete(
                         if (api != null) BindResult.Connected(api) else BindResult.Failure.BindingDied
@@ -276,12 +277,12 @@ object ShizukuManager {
 
             override fun onServiceDisconnected(name: ComponentName?) {
                 AppLog.w(TAG, "shizuku user service disconnected")
-                runCatching { runBlocking { resetBinding() } }
+                resetBindingNow()
             }
 
             override fun onBindingDied(name: ComponentName?) {
                 AppLog.w(TAG, "shizuku user service binding died")
-                runCatching { runBlocking { resetBinding() } }
+                resetBindingNow()
                 if (!deferred.isCompleted) deferred.complete(BindResult.Failure.BindingDied)
             }
         }
@@ -291,12 +292,17 @@ object ShizukuManager {
         } else {
             val t = result.exceptionOrNull()!!
             AppLog.e(TAG, "bindUserService threw", t)
-            runCatching { runBlocking { bindLock.withLock { bindWaiter = null } } }
+            bindWaiter = null
             if (!deferred.isCompleted) deferred.complete(BindResult.Failure.BindThrew(t))
         }
     }
 
-    private suspend fun resetBinding() = bindLock.withLock {
+    /**
+     * 不持锁的绑定清理，供 binder 回调（onServiceDisconnected/onBindingDied）调用：
+     * 回调线程绝不能阻塞等 [bindLock]，见 [onServiceConnected] 的注释。
+     * 挂起版 [resetBinding] 同样走这里，只是外面多一层锁。
+     */
+    private fun resetBindingNow() {
         val conn = connection
         val args = cachedArgs
         service = null
@@ -306,4 +312,6 @@ object ShizukuManager {
             runCatching { Shizuku.unbindUserService(args, conn, true) }
         }
     }
+
+    private suspend fun resetBinding() = bindLock.withLock { resetBindingNow() }
 }

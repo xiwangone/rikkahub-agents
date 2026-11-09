@@ -169,6 +169,7 @@ object ToolErrors {
         "skill_file_too_large" to CONTENT_TOO_LARGE,
         // -- SERVER_ERROR：实现自定义桶（无更具体的标准码） --
         "hardline_blocked" to SERVER_ERROR,
+        "preset_file_corrupted" to SERVER_ERROR,
     )
     // CATEGORY_MAP_END
 

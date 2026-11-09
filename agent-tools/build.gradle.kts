@@ -40,4 +40,6 @@ dependencies {
     implementation(project(":workspace"))
 
     api(libs.kotlinx.serialization.json)
+
+    testImplementation(libs.junit)
 }

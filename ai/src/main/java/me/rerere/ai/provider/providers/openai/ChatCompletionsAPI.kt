@@ -20,7 +20,6 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.encodeToJsonElement
-import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -49,15 +48,17 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
+import me.rerere.ai.util.retryAfterMs
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -105,17 +106,16 @@ class ChatCompletionsAPI(
         }
 
         val response = client.newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
-        }
-
         val bodyStr = response.body.string()
+        if (!response.isSuccessful) {
+            throw response.errorAsHttpException()
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 
         // 从 JsonObject 中提取必要的信息
         val id = bodyJson["id"]?.jsonPrimitive?.contentOrNull ?: ""
         val model = bodyJson["model"]?.jsonPrimitive?.contentOrNull ?: ""
-        val choice = bodyJson["choices"]?.jsonArray?.get(0)?.jsonObject ?: error("choices is null")
+        val choice = (bodyJson["choices"] as? JsonArray)?.firstOrNull() as? JsonObject ?: error("choices is null")
 
         val message = choice["message"]?.jsonObject ?: throw Exception("message is null")
         val finishReason = choice["finish_reason"]
@@ -221,14 +221,16 @@ class ChatCompletionsAPI(
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
                         AppLogger.d(TAG, "onFailure: error body $bodyElement")
-                        exception = bodyElement.parseErrorDetail(response?.code)
+                        exception = bodyElement.parseErrorDetail(response?.code, response?.retryAfterMs())
                         AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {
                     AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
                     exception = e
                 } finally {
-                    close(exception)
+                    // No throwable and no error body: still fail the flow instead of
+                    // closing it normally, otherwise the failure looks like completion.
+                    close(exception ?: Exception("Stream failed"))
                 }
             }
 
@@ -256,7 +258,7 @@ class ChatCompletionsAPI(
         providerSetting: ProviderSetting.OpenAI,
         stream: Boolean = false,
     ): JsonObject {
-        val host = providerSetting.baseUrl.toHttpUrl().host
+        val host = providerSetting.baseUrl.toHttpUrlOrNull()?.host
         val isOpenRouter = host == "openrouter.ai"
         // OpenRouter prompt caching: add per-block cache_control breakpoints for every model.
         // Anthropic/Gemini/Qwen need them explicitly; providers that cache automatically

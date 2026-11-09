@@ -31,6 +31,7 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -84,6 +85,7 @@ import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.ExportDialog
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -316,6 +318,7 @@ private fun ModeInjectionCard(
     val swipeState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
     var showExportDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val exporter = rememberExporter(injection, ModeInjectionSerializer)
 
     SwipeToDismissBox(
@@ -334,10 +337,13 @@ private fun ModeInjectionCard(
                 }
                 FilledIconButton(onClick = {
                     scope.launch {
-                        onDelete()
                         swipeState.reset()
+                        showDeleteConfirm = true
                     }
-                }) {
+                }, colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )) {
                     Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
                 }
             }
@@ -401,6 +407,20 @@ private fun ModeInjectionCard(
             onDismiss = { showExportDialog = false },
         )
     }
+
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfirm,
+        title = stringResource(R.string.prompt_page_delete),
+        message = stringResource(
+            R.string.prompt_delete_injection_confirm,
+            injection.name.ifEmpty { stringResource(R.string.prompt_page_unnamed) },
+        ),
+        onConfirm = {
+            showDeleteConfirm = false
+            onDelete()
+        },
+        onDismiss = { showDeleteConfirm = false },
+    )
 }
 
 @Composable

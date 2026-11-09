@@ -7,6 +7,8 @@ import me.rerere.rikkahub.utils.LogRedactor
 import okhttp3.Interceptor
 import okhttp3.Response
 import okio.Buffer
+import okio.ForwardingSink
+import okio.buffer
 
 /**
  * 单个请求体进入日志前允许的最大字节数。超过此值只记录摘要，不做全文读取与脱敏，
@@ -35,13 +37,23 @@ class RequestLoggingInterceptor : Interceptor {
                     "[body omitted: $declared bytes exceeds the ${MAX_LOGGED_BODY_BYTES}B logging limit]"
 
                 else -> {
+                    // contentLength 未知时不能先全量缓冲再判上限：写入过程本身就可能撑爆堆。
+                    // 用限流 sink 在超限瞬间中断，只记录摘要；未超限才做全文脱敏。
                     val buffer = Buffer()
-                    body.writeTo(buffer)
-                    val actual = buffer.size
-                    if (actual > MAX_LOGGED_BODY_BYTES) {
-                        "[body omitted: $actual bytes exceeds the ${MAX_LOGGED_BODY_BYTES}B logging limit]"
-                    } else {
+                    val sink = object : ForwardingSink(buffer) {
+                        override fun write(source: Buffer, byteCount: Long) {
+                            if (buffer.size + byteCount > MAX_LOGGED_BODY_BYTES) {
+                                throw BodyTooLargeException()
+                            }
+                            super.write(source, byteCount)
+                        }
+                    }.buffer()
+                    try {
+                        body.writeTo(sink)
+                        sink.flush()
                         LogRedactor.maskText(buffer.readUtf8())
+                    } catch (_: BodyTooLargeException) {
+                        "[body omitted: exceeds the ${MAX_LOGGED_BODY_BYTES}B logging limit]"
                     }
                 }
             }
@@ -68,7 +80,8 @@ class RequestLoggingInterceptor : Interceptor {
         }
 
         val durationMs = System.currentTimeMillis() - startTime
-        val responseHeaders = response.headers.toMap()
+        // 响应头与请求头同一口径脱敏：Authorization / api-key 类响应头不能原样进日志。
+        val responseHeaders = LogRedactor.maskHeaders(response.headers.toMap())
 
         Logging.logRequest(
             LogEntry.RequestLog(
@@ -97,3 +110,6 @@ class RequestLoggingInterceptor : Interceptor {
         }
     }
 }
+
+/** 请求体写入超限时中断缓冲的内部信号（只由限流 sink 抛出，不代表真实 IO 失败）。 */
+private class BodyTooLargeException : RuntimeException()

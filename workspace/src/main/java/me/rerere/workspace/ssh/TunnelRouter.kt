@@ -20,11 +20,18 @@ object TunnelRouter {
         resolver = fn
     }
 
+    /** 解析失败时的回调（供 app 侧记日志）；未注册时失败静默回退。 */
+    @Volatile
+    var onResolveError: ((Throwable) -> Unit)? = null
+
     /**
-     * 解析实际拨号目标。任何异常都回退到原始目标 —— 隧道出问题不能拖垮 SSH 本身。
+     * 解析实际拨号目标。任何异常都回退到原始目标 —— 隧道出问题不能拖垮 SSH 本身；
+     * 异常同时交给 [onResolveError]，避免 fail-open 静默无痕。
      */
     fun resolve(host: String, port: Int): Pair<String, Int> {
         val fn = resolver ?: return host to port
-        return runCatching { fn(host, port) }.getOrNull() ?: (host to port)
+        return runCatching { fn(host, port) }
+            .onFailure { e -> runCatching { onResolveError?.invoke(e) } }
+            .getOrNull() ?: (host to port)
     }
 }

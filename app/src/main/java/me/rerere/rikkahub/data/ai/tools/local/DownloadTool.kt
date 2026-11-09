@@ -12,6 +12,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.net.GuardedDns
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
@@ -58,6 +59,20 @@ fun downloadTool(context: Context): Tool = Tool(
                 return@Tool listOf(
                     UIMessagePart.Text(
                         ToolErrors.envelopeFor(error = "blocked_address", message = "blocked_private_address: $host").toString()
+                    )
+                )
+            }
+            // DownloadManager 在系统进程里自行解析域名，字面检查拦不住解析到内网的域名：
+            // 先在这里解析一次，任一地址命中内网/链路本地即拒绝。
+            val dnsFailure = runCatching { GuardedDns().lookup(host) }.exceptionOrNull()
+            if (dnsFailure != null) {
+                val blocked = dnsFailure.message?.startsWith("blocked_private_address") == true
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        ToolErrors.envelopeFor(
+                            error = if (blocked) "blocked_address" else "invalid_argument",
+                            message = dnsFailure.message ?: "cannot resolve host: $host",
+                        ).toString()
                     )
                 )
             }

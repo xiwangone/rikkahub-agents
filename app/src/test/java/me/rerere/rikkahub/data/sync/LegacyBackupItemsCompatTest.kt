@@ -31,6 +31,7 @@ class LegacyBackupItemsCompatTest {
                 WebDavConfig.BackupItem.CHAT_FILES,
                 WebDavConfig.BackupItem.FONTS_IMAGES,
                 WebDavConfig.BackupItem.AVATARS,
+                WebDavConfig.BackupItem.MEDIA_CREATION,
             ),
             expanded,
         )
@@ -103,6 +104,7 @@ class LegacyBackupItemsCompatTest {
                 S3Config.BackupItem.CHAT_FILES,
                 S3Config.BackupItem.FONTS_IMAGES,
                 S3Config.BackupItem.AVATARS,
+                S3Config.BackupItem.MEDIA_CREATION,
             ),
             expanded,
         )

@@ -4,7 +4,10 @@ import android.content.Context
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
+import me.rerere.rikkahub.data.log.AppLog
 import java.util.concurrent.ConcurrentHashMap
+
+private const val TAG = "ToolUsageTracker"
 
 /**
  * 本地工具调用统计。
@@ -121,6 +124,8 @@ private const val KEY_SURFACE_CHANGES = "surface_hash_changes"
                 .edit()
                 .putString(KEY, json.encodeToString(snapshot))
                 .apply()
+        }.onFailure {
+            AppLog.w(TAG, "Failed to persist tool usage stats", it)
         }
     }
 

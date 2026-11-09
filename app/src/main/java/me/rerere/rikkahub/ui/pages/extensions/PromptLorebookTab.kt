@@ -33,6 +33,7 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.InputChip
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -77,6 +78,7 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.ui.components.ui.ExportDialog
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -244,6 +246,7 @@ private fun LorebookCard(
     val swipeState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
     var showExportDialog by remember { mutableStateOf(false) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     val exporter = rememberExporter(book, LorebookSerializer)
 
     SwipeToDismissBox(
@@ -262,10 +265,13 @@ private fun LorebookCard(
                 }
                 FilledIconButton(onClick = {
                     scope.launch {
-                        onDelete()
                         swipeState.reset()
+                        showDeleteConfirm = true
                     }
-                }) {
+                }, colors = IconButtonDefaults.filledIconButtonColors(
+                    containerColor = MaterialTheme.colorScheme.errorContainer,
+                    contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                )) {
                     Icon(HugeIcons.Delete01, stringResource(R.string.prompt_page_delete))
                 }
             }
@@ -340,6 +346,21 @@ private fun LorebookCard(
             onDismiss = { showExportDialog = false },
         )
     }
+
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfirm,
+        title = stringResource(R.string.prompt_page_delete),
+        message = stringResource(
+            R.string.prompt_delete_lorebook_confirm,
+            book.name.ifEmpty { stringResource(R.string.prompt_page_unnamed_lorebook) },
+            book.entries.size,
+        ),
+        onConfirm = {
+            showDeleteConfirm = false
+            onDelete()
+        },
+        onDismiss = { showDeleteConfirm = false },
+    )
 }
 
 @Composable

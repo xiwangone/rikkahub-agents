@@ -1,6 +1,8 @@
 
 package me.rerere.rikkahub.data.ai.tools
 
+import android.content.Context
+import androidx.annotation.StringRes
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
@@ -10,6 +12,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
@@ -25,8 +28,32 @@ import me.rerere.workspace.normalizeWorkspacePath
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 
-private const val SHELL_TIMEOUT_MAX_SECONDS = 600L
-private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+/**
+ * Workspace tool limits shared by [WorkspaceTools.kt] and this file. Single source of
+ * truth: shell timeout cap and the largest file read into memory.
+ */
+internal const val SHELL_TIMEOUT_MAX_SECONDS = 600L
+internal const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+
+/**
+ * English text of the workspace tool messages, kept in sync with values/strings.xml.
+ * Used only when no [Context] is available (unit tests / headless runs); in the app
+ * the string resource is always the source of truth.
+ */
+private val WORKSPACE_TOOL_MESSAGE_FALLBACKS: Map<Int, String> = mapOf(
+    R.string.workspace_tool_preset_not_found to "Shell preset \"%1\$s\" was not found in %2\$s.",
+    R.string.workspace_tool_preset_empty to "Shell preset \"%1\$s\" is empty. Add a non-empty command for it in %2\$s.",
+    R.string.workspace_tool_preset_file_corrupted to "The shell presets file %1\$s is damaged and could not be read. Fix its JSON content instead of adding a new preset.",
+    R.string.workspace_tool_timeout_invalid to "Invalid timeout \"%1\$s\": timeout must be an integer number of seconds between 1 and %2\$s.",
+)
+
+/** Resolve a workspace tool message from string resources, with an English fallback. */
+internal fun workspaceToolMessage(@StringRes resId: Int, vararg args: Any?): String {
+    val context = runCatching { getKoin().get<Context>() }.getOrNull()
+    if (context != null) return context.getString(resId, *args)
+    val fallback = WORKSPACE_TOOL_MESSAGE_FALLBACKS[resId] ?: return "Tool error"
+    return String.format(fallback, *args)
+}
 
 /** 超长行截断 + 总输出上限，避免 diff 撑爆消息或上下文。 */
 internal fun limitDiffOutput(diff: String, maxChars: Int = MAX_DIFF_TOTAL_CHARS): String {
@@ -56,17 +83,26 @@ internal fun shellPresetsPath(layout: WorkspaceLayout): String =
 /** 匹配 `${name}` 与 `${name:-default}` 两种占位符；默认值部分不含花括号、冒号紧随变量名。 */
 private val SHELL_PRESET_PLACEHOLDER = Regex("""\$\{([A-Za-z0-9_.\-]+)(:-[^{}]*)?\}""")
 
-/** 读取预设库；文件缺失或不是合法 JSON 时返回空表，由调用方给出友好提示。 */
+/** Presets file exists but its content is not a valid JSON object. */
+internal class ShellPresetsCorruptedException(cause: Throwable?) :
+    IllegalStateException("Shell presets file is damaged", cause)
+
+/**
+ * 读取预设库；文件缺失时返回空表，由调用方给出友好提示。
+ * 文件存在但内容损坏（不是合法 JSON 对象）时抛 [ShellPresetsCorruptedException]，
+ * 调用方据此报“预设文件损坏”，不与“不存在”混在一起。
+ */
 internal suspend fun loadShellPresets(
     workspaceRepository: WorkspaceRepository,
     workspaceId: String,
     presetsPath: String,
-): JsonObject =
-    runCatching {
-        Json.parseToJsonElement(
-            workspaceRepository.readAbsoluteText(workspaceId, presetsPath),
-        ).jsonObject
-    }.getOrElse { JsonObject(emptyMap()) }
+): JsonObject {
+    val text = runCatching {
+        workspaceRepository.readAbsoluteText(workspaceId, presetsPath)
+    }.getOrElse { return JsonObject(emptyMap()) }
+    return runCatching { Json.parseToJsonElement(text).jsonObject }
+        .getOrElse { throw ShellPresetsCorruptedException(it) }
+}
 
 /**
  * 用 `preset_args` 渲染预设命令占位符；支持两种形态：
@@ -174,7 +210,7 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
             put("type", "integer")
             put(
                 "description",
-                "Command timeout in seconds. Defaults to 30, max $SHELL_TIMEOUT_MAX_SECONDS.",
+                "Command timeout in seconds. Defaults to 30. Must be an integer between 1 and $SHELL_TIMEOUT_MAX_SECONDS; larger values are clamped to $SHELL_TIMEOUT_MAX_SECONDS and the result notes the effective value, other values are rejected.",
             )
         })
         put("workspace", buildJsonObject {

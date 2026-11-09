@@ -56,6 +56,7 @@
   <string name="chat_page_queue_audio">[音频]</string>
   <string name="chat_page_queue_video">[视频]</string>
   <string name="chat_page_retrying">正在重试（第 %1$d/%2$d 次）· %3$s · 服务端原话：%4$s</string>
+  <string name="chat_page_waiting_first_chunk">仍在等待首包…</string>
   <string name="chat_server_tool_title">工具</string>
   <string name="chat_server_tool_in_progress">执行中…</string>
   <string name="chat_server_tool_completed">完成</string>
@@ -102,6 +103,9 @@
   <string name="assistant_importer_unsupported_spec">不支持的规格: %s</string>
   <string name="assistant_page_actions">操作</string>
   <string name="assistant_page_add">添加</string>
+  <string name="assistant_page_empty">还没有助手</string>
+  <string name="assistant_page_empty_desc">点右上角 + 新建第一个助手。</string>
+  <string name="assistant_page_no_results">没有符合搜索条件的助手</string>
   <string name="assistant_page_add_body">添加 Body</string>
   <string name="assistant_page_add_header">添加 Header</string>
   <string name="assistant_page_allow_conversation_system_prompt">独立对话系统提示</string>
@@ -270,6 +274,10 @@
   <string name="backup_page_item_fonts_images_desc">自定义字体和贴图</string>
   <string name="backup_page_item_tool_outputs">工具输出</string>
   <string name="backup_page_item_tool_outputs_desc">最近工具调用缓存</string>
+  <string name="backup_page_item_media_creation">媒体创作文件</string>
+  <string name="backup_page_item_media_creation_desc">媒体工具创作的图片、音频与视频（files/media_creation/）</string>
+  <string name="backup_config_unnamed">未命名</string>
+  <string name="backup_encryption_required">备份包包含明文密钥（提供商密钥/凭证库等）。请先在「备份与恢复 → 加密设置」开启加密并设置口令。</string>
   <string name="backup_page_item_legacy_files">文件（旧）</string>
   <string name="backup_page_item_legacy_files_desc">旧聚合项：技能+聊天图+字体</string>
   <string name="backup_page_item_providers">提供商与模型</string>
@@ -296,6 +304,7 @@
   <string name="backup_page_connection_failed">连接失败: %s</string>
   <string name="backup_page_connection_success">连接成功</string>
   <string name="backup_page_delete">删除</string>
+  <string name="backup_delete_remote_confirm">从云端删除备份“%1$s”？本地文件不受影响。此操作无法撤销。</string>
   <string name="backup_page_delete_failed">删除失败: %s</string>
   <string name="backup_page_delete_success">删除成功</string>
   <string name="backup_page_export_desc">导出APP数据为文件</string>
@@ -323,6 +332,8 @@
   <string name="backup_page_migration_rootfs_hint">工作区文件与 rootfs 不随迁移包迁移，如需要请在导入后重新安装工作区 rootfs。</string>
   <string name="backup_page_migration_need_encryption">请先开启备份加密并设置口令 —— 迁移包含有密钥。</string>
   <string name="backup_page_migration_import_confirm">导入迁移包会覆盖会话、设置与凭证；会先自动做一次本机备份。是否继续？</string>
+  <string name="backup_page_migration_not_package">该文件不是迁移包，请选择以迁移包方式导出的文件。</string>
+  <string name="backup_page_migration_version_mismatch">迁移包清单版本 %1$d 与本机不兼容（本机支持 %2$d–%3$d）。请用兼容版本重新导出，或升级本应用。</string>
   <string name="backup_page_local_backup_import">备份文件导入</string>
   <string name="backup_page_password">密码</string>
   <string name="backup_page_path">路径</string>
@@ -368,6 +379,7 @@
   <string name="backup_page_s3_access_key_id">访问密钥 ID</string>
   <string name="backup_page_s3_backup">S3备份</string>
   <string name="backup_page_s3_backup_files">S3备份文件</string>
+  <string name="backup_page_s3_list_truncated">仅显示最近 1000 个备份</string>
   <string name="backup_page_s3_bucket">Bucket</string>
   <string name="backup_page_s3_endpoint">端点</string>
   <string name="backup_page_s3_path_style">路径样式</string>
@@ -463,6 +475,8 @@
   <string name="chat_page_conversation_system_prompt_hint">覆盖此对话的助手系统提示</string>
   <string name="chat_page_conversation_system_prompt_save">保存</string>
   <string name="chat_page_delete">删除</string>
+  <string name="chat_message_delete_confirm">删除这条消息？此操作无法撤销。</string>
+  <string name="chat_delete_conversation_confirm">删除会话“%1$s”？此操作无法撤销。</string>
   <string name="chat_page_dismiss_error">关闭错误</string>
   <string name="chat_page_edit_nickname">编辑昵称</string>
   <string name="chat_page_edit_title">编辑标题</string>
@@ -600,6 +614,9 @@
   <string name="imggen_page_model_selection">模型选择</string>
   <string name="imggen_page_model_selection_desc">选择用于图片生成的AI模型</string>
   <string name="imggen_page_no_generated_images">暂无生成的图片</string>
+  <string name="imggen_error_no_model_selected">未选择生图模型，请先在生图设置里选择模型。</string>
+  <string name="imggen_error_provider_not_found">找不到所选模型对应的提供商，请检查提供商设置。</string>
+  <string name="imggen_error_unknown">发生未知错误</string>
   <string name="imggen_page_prompt_copied">提示词已复制到剪贴板</string>
   <string name="imggen_page_prompt_placeholder">描述您想要生成的图片...</string>
   <string name="imggen_page_save">保存</string>
@@ -623,6 +640,8 @@
   <string name="menu_page_morning_greeting">早上好\uD83D\uDC4B</string>
   <string name="menu_page_night_greeting">夜深了，注意休息\uD83D\uDC4B</string>
   <string name="mermaid_export">导出</string>
+  <string name="mermaid_expand">展开</string>
+  <string name="mermaid_collapse">收起</string>
   <string name="mermaid_export_failed">导出失败</string>
   <string name="mermaid_export_success">导出成功</string>
   <string name="model_list_favorite">收藏</string>
@@ -684,6 +703,8 @@
   <string name="prompt_page_constant_active">常驻激活</string>
   <string name="prompt_page_constant_active_desc">无需匹配关键词即触发</string>
   <string name="prompt_page_delete">删除</string>
+  <string name="prompt_delete_injection_confirm">删除注入“%1$s”？此操作无法撤销。</string>
+  <string name="prompt_delete_lorebook_confirm">删除世界书“%1$s”？其中包含 %2$d 条目。此操作无法撤销。</string>
   <string name="prompt_page_description">描述</string>
   <string name="prompt_page_disabled">已禁用</string>
   <string name="prompt_page_edit">编辑</string>
@@ -1186,6 +1207,7 @@
   <string name="setting_provider_page_add">添加</string>
   <string name="setting_provider_page_add_model">添加模型</string>
   <string name="setting_provider_page_add_models_hint">点击下方按钮添加模型</string>
+  <string name="setting_provider_page_fetch_models">拉取模型列表</string>
   <string name="setting_provider_page_add_new_model">添加新模型</string>
   <string name="setting_provider_page_add_provider">添加提供商</string>
   <string name="setting_provider_page_type_subscription">%s 订阅</string>
@@ -1338,6 +1360,7 @@
   <string name="settings_search_page_title">搜索设置</string>
   <string name="settings_search_placeholder">搜索设置…</string>
   <string name="share">分享</string>
+  <string name="share_no_app_available">没有可分享的应用</string>
   <string name="share_handler_page_title">选择一个助手处理分享</string>
   <string name="shortcut_take_picture">拍照提问</string>
   <string name="silicon_flow_description">**全球领先的 AI 能力提供商，加速 AGI 普惠人类。**</string>
@@ -1696,6 +1719,7 @@
   <string name="chat_select_model_first">请先选择模型</string>
   <string name="chat_stop_generation_before_delete">请先停止生成再删除消息</string>
   <string name="image_preview_saved">图片已保存</string>
+  <string name="image_preview_save_failed">图片保存失败，请检查存储权限或剩余空间。</string>
   <string name="attachment_open_failed">无法打开此文件</string>
   <string name="image_preview_saving">正在保存…</string>
   <string name="local_llm_accelerator_label">加速器：%1$s</string>
@@ -1754,6 +1778,7 @@
   <string name="provider_test_non_streaming">非流式</string>
   <string name="provider_test_streaming">流式</string>
   <string name="provider_test_tool_call">工具调用</string>
+  <string name="provider_test_no_chat_model">请先添加一个对话模型</string>
   <string name="provider_test_tool_called">调用：%1$s  入参：%2$s</string>
   <string name="relative_time_days_ago">%1$d 天前</string>
   <string name="relative_time_hours_ago">%1$d 小时前</string>
@@ -2159,6 +2184,7 @@
   <string name="workspace_detail_stats_disk">磁盘占用</string>
   <string name="workspace_detail_stats_packages">软件包数</string>
   <string name="workspace_detail_stats_kernel">宿主内核</string>
+  <string name="workspace_detail_stats_refresh_failed">工作区资源画像刷新失败：%1$s</string>
   <string name="workspace_detail_tags">标签</string>
   <string name="workspace_detail_tags_hint">输入标签，回车添加</string>
   <string name="workspace_detail_mirror_pip">Python 包</string>
@@ -2231,6 +2257,7 @@
   <string name="common_cancel">取消</string>
   <string name="common_save">保存</string>
   <string name="common_delete">删除</string>
+  <string name="common_retry">重试</string>
   <string name="common_rename">重命名</string>
   <string name="common_export">导出</string>
   <string name="common_preview">预览</string>
@@ -2293,6 +2320,17 @@
   <string name="workspace_ssh_probe_remote_dir_missing">远程目录尚不存在，首次写入时会自动创建</string>
   <string name="workspace_ssh_probe_failed">连接失败：%1$s</string>
   <string name="workspace_ssh_save_failed">保存失败：%1$s</string>
+  <string name="workspace_ssh_name_required">名称为必填项</string>
+  <string name="workspace_ssh_host_required">主机地址为必填项</string>
+  <string name="workspace_ssh_username_required">用户名为必填项</string>
+  <string name="workspace_ssh_port_invalid">端口须为 1–65535</string>
+  <string name="workspace_ssh_credential_required">请填写凭证</string>
+  <string name="workspace_ssh_host_key_copy">复制指纹</string>
+  <string name="workspace_ssh_probe_reason_auth_failed">认证失败</string>
+  <string name="workspace_ssh_probe_reason_refused">连接被拒绝</string>
+  <string name="workspace_ssh_probe_reason_timeout">连接超时</string>
+  <string name="workspace_ssh_probe_reason_unreachable">无法连接主机</string>
+  <string name="workspace_ssh_probe_reason_extra_verification">服务器要求额外验证</string>
   <string name="workspace_ssh_save_anyway">仍然保存</string>
   <string name="workspace_ssh_save_anyway_title">未在连通的情况下保存？</string>
   <string name="workspace_ssh_save_anyway_desc">连接测试失败。现在保存，稍后可换个网络再试。</string>
@@ -2587,6 +2625,8 @@
   <string name="backend_service_about_desc">后端是执行通道（不是聊天模型）：AI 用模型思考、通过后端执行（后端服务 任务 / SSH 主机 / 自建服务）。默认本机执行；重活可切换到远程后端。</string>
   <string name="backend_service_add">添加后端</string>
   <string name="setting_page_ssh_hosts_desc">管理 SSH 主机；AI 可按名连接</string>
+  <string name="setting_page_trusted_keys">受信主机密钥</string>
+  <string name="setting_page_trusted_keys_desc">查看与删除已信任的 SSH 主机密钥</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_page_shizuku">Shizuku</string>
   <string name="setting_page_shizuku_desc">AI 命令的 Shell-UID 提权</string>
@@ -2608,6 +2648,15 @@
   <string name="setting_shizuku_help_body">从 GitHub releases 安装 Shizuku，然后启动服务：已 root 设备从 Shizuku 应用启动；Android 11+ 用无线调试配对（开发者选项 → 无线调试 → 使用配对码配对，然后运行 Shizuku 显示的启动命令）。服务运行后，点击上方「权限」授予 Yao 访问权限。</string>
   <string name="setting_ssh_hosts_title">SSH 主机</string>
   <string name="setting_ssh_host_delete">删除</string>
+  <string name="setting_ssh_host_delete_title">删除 SSH 主机？</string>
+  <string name="setting_ssh_host_deleted">已删除主机 %1$s</string>
+  <string name="setting_ssh_hosts_load_failed">加载 SSH 主机失败：%1$s</string>
+  <string name="setting_ssh_host_name_required">名称为必填项</string>
+  <string name="setting_ssh_host_addr_required">主机地址为必填项</string>
+  <string name="setting_ssh_host_port_invalid">端口须为 1–65535</string>
+  <string name="setting_ssh_host_user_required">用户名为必填项</string>
+  <string name="setting_ssh_template_apply_failed">应用样板失败：%1$s</string>
+  <string name="setting_ssh_template_decrypt_failed">无法解密样板</string>
   <string name="setting_ssh_host_connect">连接</string>
   <string name="setting_ssh_host_add">添加主机</string>
   <string name="setting_ssh_host_hint">AI 可按名称引用已保存主机（ssh_exec_saved / vault_ssh_exec）。凭证本地存储；Vault 加密为后续增强。</string>
@@ -2623,6 +2672,19 @@
   <string name="setting_ssh_pick_vault_key">从密钥库选择私钥</string>
   <string name="setting_ssh_template_used">样板：%1$s</string>
   <string name="setting_ssh_vault_key_used">密钥库：%1$s</string>
+  <string name="setting_ssh_platform_label">平台</string>
+  <string name="setting_ssh_platform_auto">自动</string>
+  <string name="setting_ssh_platform_linux">Linux</string>
+  <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="setting_ssh_default_platform">默认远端平台</string>
+  <string name="setting_ssh_default_platform_desc">主机设为自动时使用</string>
+  <string name="setting_ssh_allow_host_key_rotation">允许主机密钥轮换</string>
+  <string name="setting_ssh_allow_host_key_rotation_desc">主机密钥变更时自动信任新密钥</string>
+  <string name="setting_trusted_keys_title">受信主机密钥</string>
+  <string name="setting_trusted_keys_app">应用 known_hosts</string>
+  <string name="setting_trusted_keys_vault">Vault known_hosts</string>
+  <string name="setting_trusted_keys_empty">暂无受信主机密钥</string>
+  <string name="setting_trusted_keys_hint">删除后，下次连接该主机时会再次要求确认指纹。</string>
   <string name="tts_label_1">S2.1-Pro (推荐)</string>
   <string name="tts_label_2">S2.1-Pro Free (免费)</string>
   <string name="tts_label_3">step-tts-mini (轻量, 便宜)</string>
@@ -3150,6 +3212,7 @@
   <string name="doctor_msg_cache_normal">正常范围内。</string>
   <string name="doctor_msg_cache_advice">建议清理 — 已超过 200 MB。</string>
   <string name="doctor_msg_cache_usage">缓存占用 %1$s。</string>
+  <string name="doctor_msg_cache_clear_confirm">这将清空应用缓存的全部内容，包括截图、照片与录音，且无法恢复。确定继续吗？</string>
   <string name="doctor_msg_browser_write_none">已启用的副作用浏览器工具数: 0。未开启任何写入工具。</string>
   <string name="doctor_msg_browser_created_readonly">目录已创建但仍不可写 — 请检查存储权限。</string>
   <string name="doctor_msg_browser_readonly">目录存在但不可写。</string>
@@ -3272,6 +3335,8 @@
   <string name="backend_service_dialog_add_title">添加后端连接</string>
   <string name="backend_service_dialog_edit_title">编辑后端连接</string>
   <string name="backend_service_name_label">名称（如 backend-ecs）</string>
+  <string name="backend_service_name_required">名称不能为空</string>
+  <string name="backend_service_endpoint_required">地址不能为空</string>
   <string name="backend_service_type_label">类型（backend/ssh/custom）</string>
   <string name="backend_service_endpoint_label">地址（backend baseUrl / SSH host:port）</string>
   <string name="backend_service_auth_ref_label">Vault 凭证引用（可选）</string>
@@ -3279,6 +3344,8 @@
   <string name="mcp_page_local_server_title">本地 MCP Server</string>
   <string name="mcp_page_local_server_desc">127.0.0.1:8788 · 供 Backend 使用</string>
   <string name="mcp_page_unnamed">未命名</string>
+  <string name="mcp_delete_config_confirm">删除 MCP 配置“%1$s”？此操作无法撤销。</string>
+  <string name="mcp_delete_server_confirm">删除 MCP 服务器“%1$s”？此操作无法撤销。</string>
   <string name="mcp_page_current_prefix">当前 · %1$s</string>
   <string name="mcp_page_port_tools">端口 %1$d · %2$d 工具</string>
   <string name="mcp_page_set_active">设为当前</string>
@@ -3402,6 +3469,14 @@
   <string name="ssh_terminal_exec_failed">执行失败: %1$s\n</string>
   <string name="ssh_terminal_input_placeholder">输入命令，回车执行</string>
   <string name="ssh_terminal_execute">执行</string>
+  <string name="ssh_terminal_retry">重试</string>
+  <string name="ssh_terminal_connection_lost">连接已断开，请重连</string>
+  <string name="ssh_terminal_command_timeout">命令超时（30s）</string>
+  <string name="ssh_terminal_status_connected">已连接</string>
+  <string name="ssh_terminal_status_connecting">连接中…</string>
+  <string name="ssh_terminal_status_failed">连接失败</string>
+  <string name="ssh_terminal_copy_output">复制输出</string>
+  <string name="ssh_terminal_clear_output">清空输出</string>
   <string name="ssh_hosts_save_failed">保存失败: %1$s</string>
   <string name="vault_page_export_format">导出格式</string>
   <string name="vault_format_vault_desc">.vault（加密，口令保护）</string>
@@ -3498,6 +3573,7 @@
   <string name="backend_approval_approved">已批准</string>
   <string name="backend_approval_denied">已拒绝</string>
   <string name="backend_approval_stale">该请求已失效（可能已在通知栏处理，或应用重启过）</string>
+  <string name="backend_approval_delivery_failed">发送失败，后端未收到本次决定，点按可重试。</string>
   <string name="backend_pending_reply">待回复</string>
   <string name="backend_ask_submitted">已回复</string>
   <string name="backend_notif_ask_body">问：%1$s%2$s\n%3$s</string>
@@ -3591,6 +3667,7 @@
   <string name="setting_provider_page_refresh_catalog_done">目录已刷新：%1$d 条</string>
   <string name="setting_provider_page_refresh_catalog_failed">刷新失败：%1$s</string>
   <string name="setting_provider_page_catalog_status">目录：%1$d 条 · %2$s 更新</string>
+  <string name="setting_provider_page_catalog_status_stale">目录较旧，建议刷新以获取最新模型</string>
   <string name="workspace_detail_export_folder">导出文件夹</string>
   <string name="workspace_detail_export_folder_done">已导出 %1$d 个文件，失败 %2$d 个</string>
   <string name="chat_page_compress_model_unavailable">没有可用于压缩的模型：请在设置中指定压缩模型，或启用一个提供商。</string>
@@ -4233,4 +4310,8 @@
   <string name="workspace_detail_backend_proot_desc">免 root，开箱可用。文件系统在用户态模拟，兼容性最好，性能略低。</string>
   <string name="workspace_detail_backend_root_chroot_desc">需 root 设备。真 root 与真挂载，性能最高，可装系统包、改文件属主；未授权时自动回退 proot。</string>
   <string name="workspace_detail_backend_disabled_desc">不启用沙箱 Shell：工作区命令会直接失败，适合只用文件工具的场景。</string>
+  <string name="workspace_tool_preset_not_found">未找到 Shell 预设“%1$s”，预设文件：%2$s。</string>
+  <string name="workspace_tool_preset_empty">Shell 预设“%1$s”为空，请在 %2$s 里为它填一条非空命令。</string>
+  <string name="workspace_tool_preset_file_corrupted">Shell 预设文件 %1$s 已损坏，无法读取。请先修复该文件的 JSON 内容，而不是新增预设。</string>
+  <string name="workspace_tool_timeout_invalid">超时值“%1$s”无效：超时必须是 1 到 %2$s 秒之间的整数。</string>
 </resources>

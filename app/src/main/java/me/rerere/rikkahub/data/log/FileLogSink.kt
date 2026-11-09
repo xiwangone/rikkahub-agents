@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.log
 
 import android.content.Context
+import android.util.Log
 import java.io.File
 import java.io.FileOutputStream
 import java.text.SimpleDateFormat
@@ -42,6 +43,7 @@ object FileLogSink {
     private const val MAX_FILE_SIZE = 2L * 1024 * 1024 // 2MB
     private const val MAX_FILES = 5
     private const val RETENTION_DAYS = 7L
+    private const val TAG = "FileLogSink"
 
     // sse 类单独小配额：1MB × 2 份、保留 1 天。原文用于「当次排查」，不需要长期留存。
     private const val SSE_MAX_FILE_SIZE = 1L * 1024 * 1024
@@ -131,7 +133,10 @@ object FileLogSink {
                 val stamp = timeFormat.format(Date())
                 fos.write("$stamp $line\n".toByteArray(Charsets.UTF_8))
             }
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            // 落盘失败不能再走 AppLog（AppLog 经 FileLogSink 落盘，会递归回来），
+            // 只记 logcat，至少让日志丢失本身可见。
+            Log.w(TAG, "appendLineSync: failed to write $kind log to ${file.name}", t)
         }
     }
 

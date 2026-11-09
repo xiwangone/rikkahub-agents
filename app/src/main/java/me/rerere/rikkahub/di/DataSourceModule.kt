@@ -68,6 +68,7 @@ import me.rerere.rikkahub.data.grok.GrokAccountRepository
 import me.rerere.rikkahub.data.grok.GrokCredentialStore
 import me.rerere.rikkahub.data.grok.GrokOAuthManager
 import me.rerere.rikkahub.data.grok.GrokProvider
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.LogicalBackup
 import me.rerere.rikkahub.data.sync.MigrationExporter
@@ -90,8 +91,12 @@ val dataSourceModule =
 
         single {
             val context: Context = get()
-            // 结构版本变化前先给库留快照：回滚到旧版本时才有原始数据可恢复
-            DatabaseVersionGuard.beforeOpen(context, AppDatabase.VERSION)
+            // 结构版本变化前先给库留快照：回滚到旧版本时才有原始数据可恢复。
+            // 快照失败不阻断启动（磁盘满时阻断等于直接让应用无法打开），但必须告警：
+            // 本次升级一旦出问题将没有快照可回滚。
+            if (DatabaseVersionGuard.beforeOpen(context, AppDatabase.VERSION) is DatabaseVersionGuard.SnapshotResult.Failed) {
+                AppLog.e("DataSourceModule", "database upgrade proceeding without a pre-upgrade snapshot; rollback to the previous version is unavailable")
+            }
             Room
                 .databaseBuilder(context, AppDatabase::class.java, "rikka_hub")
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
@@ -289,9 +294,13 @@ val dataSourceModule =
                 .dns(HostOverrideDns(settingsStore))
                 .socketFactory(TsnetSocketFactory())
                 .connectTimeout(20, TimeUnit.SECONDS)
+                // 注意：这里故意不设 callTimeout——生成请求要跑很久。listModels / 余额这类短请求
+                // 由各 provider 用 shortRequestClient() 派生 30 秒 callTimeout 的 client（共享连接池）。
                 .readTimeout(10, TimeUnit.MINUTES)
                 .writeTimeout(120, TimeUnit.SECONDS)
-                .followSslRedirects(true)
+                // 禁止 https→http 降级重定向：共享客户端上挂着带凭据的请求（S3/WebDAV），
+                // 降级会把 Authorization/Basic 凭据送到明文连接上。https→https 重定向不受影响。
+                .followSslRedirects(false)
                 .followRedirects(true)
                 .retryOnConnectionFailure(true)
                 .addInterceptor { chain ->
@@ -557,7 +566,8 @@ val dataSourceModule =
                         connectTimeout(20, TimeUnit.SECONDS)
                         readTimeout(10, TimeUnit.MINUTES)
                         writeTimeout(120, TimeUnit.SECONDS)
-                        followSslRedirects(true)
+                        // 禁止 https→http 降级重定向：与共享 OkHttp 客户端同理，凭据不得落到明文连接。
+                        followSslRedirects(false)
                         followRedirects(true)
                         retryOnConnectionFailure(true)
                     }

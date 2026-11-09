@@ -144,7 +144,12 @@ fun WebView(
 
                     settings.javaScriptEnabled = true // Enable JavaScript
                     settings.domStorageEnabled = true
-                    settings.allowContentAccess = true
+                    // 默认关闭文件与内容访问：本地静态资源走 shouldInterceptRequest 映射，
+                    // 不需要 file:// 与 content://；调用方如需放行再在 settings 里显式开启。
+                    settings.allowFileAccess = false
+                    settings.allowFileAccessFromFileURLs = false
+                    settings.allowUniversalAccessFromFileURLs = false
+                    settings.allowContentAccess = false
                     settings.apply(state.settings)
 
                     // Use the created clients
@@ -178,8 +183,13 @@ fun WebView(
                 // webView.webChromeClient = webChromeClient
                 // webView.webViewClient = webViewClient
 
-                // Update settings that might change
+                // Update settings that might change: the settings lambda is only
+                // applied in the factory above, so re-apply it here instead of
+                // syncing javaScriptEnabled alone. The lambda and interfaces are
+                // intentionally not remember keys: both are recreated on every
+                // composition, which would rebuild the state and drop the page.
                 webView.settings.javaScriptEnabled = state.javaScriptEnabled
+                webView.settings.apply(state.settings)
 
                 when (val content = state.content) {
                     is WebContent.Url -> {

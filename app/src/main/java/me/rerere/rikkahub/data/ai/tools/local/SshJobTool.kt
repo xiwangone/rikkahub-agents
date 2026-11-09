@@ -11,6 +11,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 
@@ -63,8 +64,14 @@ fun sshJobPollTool(
                 ).toString()
             ))
         }
-        val isWindows = (logPath?.startsWith("C:") == true) ||
-            listOf("pc", "win", "windows").any { h.name.lowercase().contains(it) }
+        // 实体存了显式平台时优先；未存时保留原有 logPath C: / 名字关键字逻辑
+        val entityPlatform = RemotePlatform.platformFromStored(h.platform)
+        val isWindows = when (entityPlatform) {
+            SshPlatform.WINDOWS -> true
+            SshPlatform.LINUX -> false
+            else -> (logPath?.startsWith("C:") == true) ||
+                listOf("pc", "win", "windows").any { h.name.lowercase().contains(it) }
+        }
 
         val pollCmd = if (isWindows) {
             val parts = mutableListOf<String>()
@@ -88,9 +95,9 @@ fun sshJobPollTool(
             parts.joinToString("; ")
         }
 
-        // 复用 execOneShot（短超时 20s，轮询不该长等）
+        // 复用 execOneShot（短超时 20s，轮询不该长等）；实体开了轮换开关时透传
         val payload = runCancellableSshOp(20_000L) { sessionRef ->
-            execOneShot(context, h.host, h.port, h.user, auth, pollCmd, 20_000, sessionRef, null)
+            execOneShot(context, h.host, h.port, h.user, auth, pollCmd, 20_000, sessionRef, null, allowHostKeyRotation = h.allowHostKeyRotation)
         }
         listOf(UIMessagePart.Text(payload.toString()))
     },

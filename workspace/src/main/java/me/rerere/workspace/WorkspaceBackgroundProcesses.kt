@@ -119,18 +119,19 @@ class WorkspaceBackgroundProcesses(
         entries.values
             .filter { it.root == root }
             .sortedBy { it.startedAtMillis }
-            .map { it.toStatus() }
+            .map { it.toStatus(joinDrainers = false) }
 
     /**
      * Kills and removes the entry for [id], but only if it belongs to [root]. Returns
      * false (without touching the entry) if [id] does not exist or belongs to another
-     * workspace.
+     * workspace. 先杀进程再删记录：杀的过程中抛异常时记录仍在，调用方可重试，
+     * 不会留下无句柄的孤儿进程。
      */
     fun kill(root: String, id: String): Boolean = synchronized(entries) {
         val entry = entries[id] ?: return@synchronized false
         if (entry.root != root) return@synchronized false
-        entries.remove(id)
         cancelProcess(entry.process, entry.taskToken)
+        entries.remove(id)
         true
     }
 
@@ -138,7 +139,10 @@ class WorkspaceBackgroundProcesses(
     fun killAll(root: String): Unit = synchronized(entries) {
         entries.values
             .filter { it.root == root }
-            .forEach { entry -> entries.remove(entry.id)?.process?.let { cancelProcess(it, entry.taskToken) } }
+            .forEach { entry ->
+                cancelProcess(entry.process, entry.taskToken)
+                entries.remove(entry.id)
+            }
     }
 
     private fun evictOldestExited(root: String) {
@@ -152,9 +156,9 @@ class WorkspaceBackgroundProcesses(
             .forEach { entries.remove(it.id) }
     }
 
-    private fun Entry.toStatus(): BackgroundStatus {
+    private fun Entry.toStatus(joinDrainers: Boolean = true): BackgroundStatus {
         val alive = process.isAlive
-        if (!alive) {
+        if (!alive && joinDrainers) {
             // 进程刚退出时, drain 线程可能还没来得及把管道里剩余的字节写入 TailBuffer;
             // 这里等一下(有界), 确保退出后上报的 output 是完整的, 呼应 readResult 里
             // 对 StreamCollector 的 join(1_000) 处理

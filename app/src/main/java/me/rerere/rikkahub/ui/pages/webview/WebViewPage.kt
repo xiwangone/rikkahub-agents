@@ -23,6 +23,7 @@ import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
@@ -30,6 +31,8 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.R
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -51,6 +54,12 @@ fun WebViewPage(
     contentId: String,
 ) {
     val context = LocalContext.current
+    // 缓存 HTML 在 IO 线程读盘，组合期不再主线程读文件。
+    val content by produceState(initialValue = "", contentId) {
+        value = withContext(Dispatchers.IO) {
+            WebViewContentCache.load(context.cacheDir, contentId).orEmpty()
+        }
+    }
     val state =
         if (url.isNotEmpty()) {
             rememberWebViewState(
@@ -63,10 +72,6 @@ fun WebViewPage(
                 },
             )
         } else {
-            val content =
-                remember(contentId) {
-                    WebViewContentCache.load(context.cacheDir, contentId).orEmpty()
-                }
             rememberWebViewState(
                 data = content,
                 baseUrl = WEB_VIEW_BASE_URL,

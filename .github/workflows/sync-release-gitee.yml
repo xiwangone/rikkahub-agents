@@ -49,8 +49,14 @@ jobs:
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
+          set -e
           mkdir -p dist
-          gh release download "${{ steps.meta.outputs.tag }}" --repo "$GH_REPO" --dir dist --pattern '*.apk' || true
+          gh release download "${{ steps.meta.outputs.tag }}" --repo "$GH_REPO" --dir dist --pattern '*.apk'
+          # 下载失败不再被吞掉：至少要有一个 APK，否则后面的 release 会是 0 资产
+          if ! ls dist/*.apk >/dev/null 2>&1; then
+            echo "没有下载到任何 APK，同步失败" >&2
+            exit 1
+          fi
           ls -la dist
 
       - name: 在 Gitee 建 Release 并上传 APK
@@ -58,7 +64,7 @@ jobs:
           GITEE_TOKEN: ${{ secrets.GITEE_TOKEN }}
           TAG: ${{ steps.meta.outputs.tag }}
         run: |
-          set -e
+          set -euo pipefail
           NAME="$(cat name.txt)"
           BODY="$(cat body.txt)"
           PRE="$(cat pre.txt)"
@@ -82,8 +88,9 @@ jobs:
           for f in dist/*.apk; do
             [ -f "$f" ] || continue
             echo "== 上传 $(basename "$f")"
-            curl -sS -X POST -H "Authorization: token ${GITEE_TOKEN}" \
+            RESP="$(curl -sS -X POST -H "Authorization: token ${GITEE_TOKEN}" \
               -F "file=@$f" \
-              "https://gitee.com/api/v5/repos/${MIRROR_REPO}/releases/${RID}/attach_files" | head -c 200
+              "https://gitee.com/api/v5/repos/${MIRROR_REPO}/releases/${RID}/attach_files")"
+            echo "$RESP" | head -c 200
             echo
           done

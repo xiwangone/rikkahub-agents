@@ -96,6 +96,14 @@ fun ProviderConnectionTester(
                         model = it
                     }
 
+                    if (model == null) {
+                        Text(
+                            text = stringResource(R.string.provider_test_no_chat_model),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
+
                     TestResultItem(
                         label = stringResource(R.string.provider_test_non_streaming),
                         state = nonStreamingState,
@@ -122,6 +130,7 @@ fun ProviderConnectionTester(
             },
             confirmButton = {
                 TextButton(
+                    enabled = model != null,
                     onClick = {
                         if (model == null) return@TextButton
                         val provider = providerManager.getProviderByType(internalProvider)
@@ -271,7 +280,7 @@ private fun TestResultItem(
                 text = state.error.message ?: "Error",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.extendColors.red6,
-                maxLines = 2,
+                maxLines = 5,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier
                     .weight(1f)

@@ -48,6 +48,7 @@ fun micRecorderTool(context: Context): Tool = Tool(
             .coerceIn(1_000, 300_000)
 
         val recordingsDir = File(context.cacheDir, "recordings").apply { mkdirs() }
+        pruneOldCacheScreenshots(recordingsDir)
         val outputFile = File(recordingsDir, "${UUID.randomUUID()}.m4a")
 
         val recorder = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {

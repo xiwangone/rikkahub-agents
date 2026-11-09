@@ -73,7 +73,15 @@ class LocalWorkspaceBackend(
         mode: String?,
     ): WorkspaceFileEntry {
         require(mode == null || mode.matches(OCTAL_MODE)) { "mode must be 3-4 octal digits, got: $mode" }
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        require(bytes.size <= manager.maxWriteBytes) {
+            "Content is too large to write: ${bytes.size} bytes (limit ${manager.maxWriteBytes} bytes). " +
+                "Split it into smaller writes, or write it via shell in chunks."
+        }
         val pathArg = path.shellQuote()
+        // 先写同目录临时文件、chmod 后再改名到位：目标文件从不以默认权限或半成品形态落地
+        val tmpPath = "$path.tmp-${java.util.UUID.randomUUID()}"
+        val tmpArg = tmpPath.shellQuote()
         val result = runCommand(
             action = "Write file",
             command = """
@@ -87,13 +95,14 @@ class LocalWorkspaceBackend(
                 fi
                 parent=${'$'}(dirname -- $pathArg) || exit 1
                 mkdir -p -- "${'$'}parent" || exit 1
-                cat > $pathArg || exit 1
-                ${mode?.let { "chmod $it -- $pathArg || exit 1" }.orEmpty()}
+                cat > $tmpArg || exit 1
+                ${mode?.let { "chmod $it -- $tmpArg || { rm -f -- $tmpArg; exit 1; }" }.orEmpty()}
+                mv -f -- $tmpArg $pathArg || { rm -f -- $tmpArg; exit 1; }
                 ${statEntryCommand(path)}
             """.trimIndent(),
-            stdin = text.toByteArray(Charsets.UTF_8),
+            stdin = bytes,
         )
-        return result.stdout.parseShellEntries().single()
+        return parseSingleEntry(result.stdout, "Write file")
     }
 
     override fun createAbsoluteFolder(path: String): WorkspaceFileEntry {
@@ -110,7 +119,7 @@ class LocalWorkspaceBackend(
             """.trimIndent(),
             stdin = null,
         )
-        return result.stdout.parseShellEntries().single()
+        return parseSingleEntry(result.stdout, "Create folder")
     }
 
     override fun localFile(area: WorkspaceStorageArea, path: String): File {
@@ -136,6 +145,23 @@ class LocalWorkspaceBackend(
             shellCompatibilityMode = shellCompatibilityMode,
         )
     }
+
+    /**
+     * stat 输出解析失败时，`single()` 的裸报错（"List is empty" /
+     * "Collection has more than one element"）看不出是元数据解析失败；
+     * 包一层动作名并附原始输出片段。只改报错文案，不改解析逻辑本身。
+     */
+    private fun parseSingleEntry(output: String, action: String): WorkspaceFileEntry =
+        try {
+            output.parseShellEntries().single()
+        } catch (error: Exception) {
+            val snippet = output.replace('\u0000', ' ').trim().take(200)
+            throw IllegalStateException(
+                "$action failed: could not parse file metadata from shell output " +
+                    "(${error.message}); output was: \"$snippet\"",
+                error,
+            )
+        }
 
     private fun runCommand(action: String, command: String, stdin: ByteArray?): WorkspaceCommandResult {
         val result = executeCommand(command, cwd = "", WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS, stdin)

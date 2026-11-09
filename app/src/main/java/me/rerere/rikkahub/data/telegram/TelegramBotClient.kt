@@ -359,7 +359,8 @@ class TelegramBotClient(
                 ?.jsonPrimitive?.intOrNull
             throw TelegramApiException(code, desc, retryAfter)
         }
-        return obj["result"]!!
+        return obj["result"]
+            ?: throw TelegramApiException(-1, "Telegram API returned ok:true without result for $method")
     }
 
     private suspend fun callMultipart(
@@ -390,7 +391,8 @@ class TelegramBotClient(
                 ?.jsonPrimitive?.intOrNull
             throw TelegramApiException(code, desc, retryAfter)
         }
-        return obj["result"]!!.jsonObject
+        return obj["result"] as? JsonObject
+            ?: throw TelegramApiException(-1, "Telegram API returned ok:true without result for $method")
     }
 
     private suspend fun Call.awaitString(): String = withContext(Dispatchers.IO) {

@@ -56,6 +56,7 @@
   <string name="chat_page_queue_audio">[Audio]</string>
   <string name="chat_page_queue_video">[Video]</string>
   <string name="chat_page_retrying">Retrying (%1$d/%2$d) · %3$s · Server says: %4$s</string>
+  <string name="chat_page_waiting_first_chunk">Still waiting for the first token…</string>
   <string name="chat_server_tool_title">Tool</string>
   <string name="chat_server_tool_in_progress">Running…</string>
   <string name="chat_server_tool_completed">Completed</string>
@@ -102,6 +103,9 @@
   <string name="assistant_importer_unsupported_spec">Unsupported spec: %s</string>
   <string name="assistant_page_actions">Actions</string>
   <string name="assistant_page_add">Add</string>
+  <string name="assistant_page_empty">No assistants yet</string>
+  <string name="assistant_page_empty_desc">Tap + to create your first assistant.</string>
+  <string name="assistant_page_no_results">No assistants match your search</string>
   <string name="assistant_page_add_body">Add Body</string>
   <string name="assistant_page_add_header">Add Header</string>
   <string name="assistant_page_allow_conversation_system_prompt">Per-Conversation System Prompt</string>
@@ -270,6 +274,10 @@
   <string name="backup_page_item_fonts_images_desc">Custom fonts and stickers</string>
   <string name="backup_page_item_tool_outputs">Tool outputs</string>
   <string name="backup_page_item_tool_outputs_desc">Recent tool call cache</string>
+  <string name="backup_page_item_media_creation">Media creation files</string>
+  <string name="backup_page_item_media_creation_desc">Images, audio and video created by media tools (files/media_creation/)</string>
+  <string name="backup_config_unnamed">Unnamed</string>
+  <string name="backup_encryption_required">The backup contains plaintext secrets (provider keys, vault credentials, etc.). Turn on encryption under \"Backup &amp; restore → Encryption settings\" and set a password first.</string>
   <string name="backup_page_item_legacy_files">Files (legacy)</string>
   <string name="backup_page_item_legacy_files_desc">Legacy aggregate: skills+chat+fonts</string>
   <string name="backup_page_item_providers">Providers &amp; models</string>
@@ -296,6 +304,7 @@
   <string name="backup_page_connection_failed">Connection failed: %s</string>
   <string name="backup_page_connection_success">Connection successful</string>
   <string name="backup_page_delete">Delete</string>
+  <string name="backup_delete_remote_confirm">Delete backup \"%1$s\" from the cloud? Local files are not affected. This action cannot be undone.</string>
   <string name="backup_page_delete_failed">Delete failed: %s</string>
   <string name="backup_page_delete_success">Delete successful</string>
   <string name="backup_page_export_desc">Export app data to a file</string>
@@ -323,6 +332,8 @@
   <string name="backup_page_migration_rootfs_hint">Workspace files and rootfs are not part of the migration package; reinstall the workspace rootfs after the import if needed.</string>
   <string name="backup_page_migration_need_encryption">Turn on backup encryption and set a password first — the migration package contains secrets.</string>
   <string name="backup_page_migration_import_confirm">Importing a migration package overwrites chats, settings and credentials. A local backup will be created first. Continue?</string>
+  <string name="backup_page_migration_not_package">This file is not a migration package. Choose a file exported as a migration package.</string>
+  <string name="backup_page_migration_version_mismatch">Migration package manifest version %1$d is not supported by this app (supported: %2$d–%3$d). Export a new package from a compatible version, or update the app.</string>
   <string name="backup_page_local_backup_import">Import from File</string>
   <string name="backup_page_password">Password</string>
   <string name="backup_page_path">Path</string>
@@ -368,6 +379,7 @@
   <string name="backup_page_s3_access_key_id">Access Key ID</string>
   <string name="backup_page_s3_backup">S3 Backup</string>
   <string name="backup_page_s3_backup_files">S3 Backup Files</string>
+  <string name="backup_page_s3_list_truncated">Only showing the most recent 1000 backups</string>
   <string name="backup_page_s3_bucket">Bucket</string>
   <string name="backup_page_s3_endpoint">Endpoint</string>
   <string name="backup_page_s3_path_style">Path Style</string>
@@ -465,6 +477,8 @@
   <string name="chat_page_conversation_system_prompt_hint">Override the assistant\'s system prompt for this conversation</string>
   <string name="chat_page_conversation_system_prompt_save">Save</string>
   <string name="chat_page_delete">Delete</string>
+  <string name="chat_message_delete_confirm">Delete this message? This action cannot be undone.</string>
+  <string name="chat_delete_conversation_confirm">Delete conversation \"%1$s\"? This action cannot be undone.</string>
   <string name="chat_page_dismiss_error">Dismiss error</string>
   <string name="chat_page_edit_nickname">Edit Nickname</string>
   <string name="chat_page_edit_title">Edit title</string>
@@ -604,6 +618,9 @@
   <string name="imggen_page_model_selection">Model Selection</string>
   <string name="imggen_page_model_selection_desc">Select AI model for image generation</string>
   <string name="imggen_page_no_generated_images">No generated images</string>
+  <string name="imggen_error_no_model_selected">No image generation model selected. Choose a model in Image Generation settings first.</string>
+  <string name="imggen_error_provider_not_found">The provider for the selected model was not found. Check the provider settings.</string>
+  <string name="imggen_error_unknown">Unknown error occurred</string>
   <string name="imggen_page_prompt_copied">Prompt copied to clipboard</string>
   <string name="imggen_page_prompt_placeholder">Describe the image you want to generate...</string>
   <string name="imggen_page_save">Save</string>
@@ -627,6 +644,8 @@
   <string name="menu_page_morning_greeting">Good morning\uD83D\uDC4B</string>
   <string name="menu_page_night_greeting">It\'s late, take care\uD83D\uDC4B</string>
   <string name="mermaid_export">Export</string>
+  <string name="mermaid_expand">Expand</string>
+  <string name="mermaid_collapse">Collapse</string>
   <string name="mermaid_export_failed">Export failed</string>
   <string name="mermaid_export_success">Export successful</string>
   <string name="model_list_favorite">Favorites</string>
@@ -692,6 +711,8 @@
   <string name="prompt_page_constant_active">Always Active</string>
   <string name="prompt_page_constant_active_desc">Trigger without keyword matching</string>
   <string name="prompt_page_delete">Delete</string>
+  <string name="prompt_delete_injection_confirm">Delete injection \"%1$s\"? This action cannot be undone.</string>
+  <string name="prompt_delete_lorebook_confirm">Delete lorebook \"%1$s\"? It contains %2$d entries. This action cannot be undone.</string>
   <string name="prompt_page_description">Description</string>
   <string name="prompt_page_disabled">Disabled</string>
   <string name="prompt_page_edit">Edit</string>
@@ -1230,6 +1251,7 @@
   <string name="setting_provider_page_add">Add</string>
   <string name="setting_provider_page_add_model">Add Model</string>
   <string name="setting_provider_page_add_models_hint">Click the button below to add models</string>
+  <string name="setting_provider_page_fetch_models">Fetch model list</string>
   <string name="setting_provider_page_add_new_model">Add New Model</string>
   <string name="setting_provider_page_add_provider">Add Provider</string>
   <string name="setting_provider_page_type_subscription">%s Subscription</string>
@@ -1384,6 +1406,7 @@
   <string name="settings_search_page_title">Search Settings</string>
   <string name="settings_search_placeholder">Search settings…</string>
   <string name="share">Share</string>
+  <string name="share_no_app_available">No app available to share with</string>
   <string name="share_handler_page_title">Select an Assistant</string>
   <string name="shortcut_take_picture">Take Picture &amp; Ask</string>
   <string name="silicon_flow_description">**Leading global AI capability provider, accelerating AGI to benefit humanity.**</string>
@@ -2159,6 +2182,7 @@
   <string name="chat_select_model_first">Please select a model first</string>
   <string name="image_preview_saving">Saving…</string>
   <string name="image_preview_saved">Image saved</string>
+  <string name="image_preview_save_failed">Failed to save image. Please check storage permission and available space.</string>
   <string name="attachment_open_failed">Cannot open this file</string>
   <string name="chat_drawer_statistics">Statistics</string>
   <string name="translator_error_generic">Error</string>
@@ -2167,6 +2191,7 @@
   <string name="provider_test_non_streaming">Non-streaming</string>
   <string name="provider_test_streaming">Streaming</string>
   <string name="provider_test_tool_call">Tool calling</string>
+  <string name="provider_test_no_chat_model">Add a chat model first</string>
   <string name="provider_test_tool_called">Called: %1$s  Input: %2$s</string>
   <string name="provider_test_no_tool">No tool called, response: %1$s</string>
   <string name="skill_detail_name_immutable">Changing the skill name is not allowed (the name field must be \"%1$s\")</string>
@@ -2219,6 +2244,7 @@
   <string name="workspace_detail_stats_disk">Disk usage</string>
   <string name="workspace_detail_stats_packages">Packages</string>
   <string name="workspace_detail_stats_kernel">Host kernel</string>
+  <string name="workspace_detail_stats_refresh_failed">Workspace stats refresh failed: %1$s</string>
   <string name="workspace_detail_tags">Tags</string>
   <string name="workspace_detail_tags_hint">Type a tag, press enter to add</string>
   <string name="workspace_detail_mirror_pip">Python packages</string>
@@ -2289,6 +2315,7 @@
   <string name="common_cancel">Cancel</string>
   <string name="common_save">Save</string>
   <string name="common_delete">Delete</string>
+  <string name="common_retry">Retry</string>
   <string name="common_rename">Rename</string>
   <string name="common_export">Export</string>
   <string name="common_share">Share</string>
@@ -2352,6 +2379,17 @@
   <string name="workspace_ssh_probe_remote_dir_missing">Remote directory does not exist yet; it is created on first write</string>
   <string name="workspace_ssh_probe_failed">Connection failed: %1$s</string>
   <string name="workspace_ssh_save_failed">Save failed: %1$s</string>
+  <string name="workspace_ssh_name_required">Name is required</string>
+  <string name="workspace_ssh_host_required">Host is required</string>
+  <string name="workspace_ssh_username_required">Username is required</string>
+  <string name="workspace_ssh_port_invalid">Port must be 1–65535</string>
+  <string name="workspace_ssh_credential_required">A credential is required</string>
+  <string name="workspace_ssh_host_key_copy">Copy fingerprint</string>
+  <string name="workspace_ssh_probe_reason_auth_failed">Authentication failed</string>
+  <string name="workspace_ssh_probe_reason_refused">Connection refused</string>
+  <string name="workspace_ssh_probe_reason_timeout">Connection timed out</string>
+  <string name="workspace_ssh_probe_reason_unreachable">Host unreachable</string>
+  <string name="workspace_ssh_probe_reason_extra_verification">Server requires additional verification</string>
   <string name="workspace_ssh_save_anyway">Save anyway</string>
   <string name="workspace_ssh_save_anyway_title">Save without a working connection?</string>
   <string name="workspace_ssh_save_anyway_desc">The connection test failed. Saving now lets you retry later from another network.</string>
@@ -2582,6 +2620,8 @@
   <string name="backend_service_about_desc">Backends are execution channels (not chat models): the AI thinks with a model and executes through a backend (Backend tasks / SSH hosts / self-hosted services). Default is local; switch to a remote backend for heavy work.</string>
   <string name="backend_service_add">Add backend</string>
   <string name="setting_page_ssh_hosts_desc">Manage SSH hosts; AI can connect by name</string>
+  <string name="setting_page_trusted_keys">Trusted host keys</string>
+  <string name="setting_page_trusted_keys_desc">View and remove trusted SSH host keys</string>
   <string name="setting_shizuku_title">Shizuku</string>
   <string name="setting_shizuku_section_status">Status</string>
   <string name="setting_shizuku_status_app">Shizuku app</string>
@@ -2601,6 +2641,15 @@
   <string name="setting_shizuku_help_body">Install Shizuku from its GitHub releases page, then start its service: from the Shizuku app on a rooted device, or by pairing wireless debugging on Android 11+ (Developer options → Wireless debugging → Pair device with pairing code, then run the start command Shizuku shows you). Once the service is running, tap Permission above to grant Yao access.</string>
   <string name="setting_ssh_hosts_title">SSH hosts</string>
   <string name="setting_ssh_host_delete">Delete</string>
+  <string name="setting_ssh_host_delete_title">Delete SSH host?</string>
+  <string name="setting_ssh_host_deleted">Host %1$s deleted</string>
+  <string name="setting_ssh_hosts_load_failed">Failed to load SSH hosts: %1$s</string>
+  <string name="setting_ssh_host_name_required">Name is required</string>
+  <string name="setting_ssh_host_addr_required">Host address is required</string>
+  <string name="setting_ssh_host_port_invalid">Port must be 1–65535</string>
+  <string name="setting_ssh_host_user_required">Username is required</string>
+  <string name="setting_ssh_template_apply_failed">Failed to apply template: %1$s</string>
+  <string name="setting_ssh_template_decrypt_failed">could not decrypt the template</string>
   <string name="setting_ssh_host_connect">Connect</string>
   <string name="setting_ssh_host_add">Add host</string>
   <string name="setting_ssh_host_hint">AI can reference saved hosts by name via ssh_exec_saved / vault_ssh_exec. Credentials are stored locally; Vault encryption is planned.</string>
@@ -2616,6 +2665,19 @@
   <string name="setting_ssh_pick_vault_key">Pick private key from Vault</string>
   <string name="setting_ssh_template_used">Template: %1$s</string>
   <string name="setting_ssh_vault_key_used">Vault key: %1$s</string>
+  <string name="setting_ssh_platform_label">Platform</string>
+  <string name="setting_ssh_platform_auto">Auto</string>
+  <string name="setting_ssh_platform_linux">Linux</string>
+  <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="setting_ssh_default_platform">Default remote platform</string>
+  <string name="setting_ssh_default_platform_desc">Used when a host is set to Auto</string>
+  <string name="setting_ssh_allow_host_key_rotation">Allow host key rotation</string>
+  <string name="setting_ssh_allow_host_key_rotation_desc">Automatically trust the new key when the host key changes</string>
+  <string name="setting_trusted_keys_title">Trusted host keys</string>
+  <string name="setting_trusted_keys_app">App known_hosts</string>
+  <string name="setting_trusted_keys_vault">Vault known_hosts</string>
+  <string name="setting_trusted_keys_empty">No trusted host keys yet</string>
+  <string name="setting_trusted_keys_hint">After deleting a key, the next connection to that host will ask for fingerprint confirmation again.</string>
   <string name="tts_label_1">S2.1-Pro (recommended)</string>
   <string name="tts_label_2">S2.1-Pro Free (free)</string>
   <string name="tts_label_3">step-tts-mini (lightweight, cheap)</string>
@@ -3117,6 +3179,7 @@
   <string name="doctor_msg_cache_normal">Within the normal range.</string>
   <string name="doctor_msg_cache_advice">Consider clearing it — over 200 MB.</string>
   <string name="doctor_msg_cache_usage">Cache usage: %1$s.</string>
+  <string name="doctor_msg_cache_clear_confirm">This clears everything in the app cache, including screenshots, photos and recordings. This cannot be undone. Continue?</string>
   <string name="doctor_msg_browser_write_none">Side-effecting browser tools enabled: 0. No write tools are on.</string>
   <string name="doctor_msg_browser_created_readonly">Directory was created but is still not writable — check storage permissions.</string>
   <string name="doctor_msg_browser_readonly">Directory exists but is not writable.</string>
@@ -3239,6 +3302,8 @@
   <string name="backend_service_dialog_add_title">Add backend connection</string>
   <string name="backend_service_dialog_edit_title">Edit backend connection</string>
   <string name="backend_service_name_label">Name (e.g. backend-ecs)</string>
+  <string name="backend_service_name_required">Name is required</string>
+  <string name="backend_service_endpoint_required">Endpoint is required</string>
   <string name="backend_service_type_label">Type (backend/ssh/custom)</string>
   <string name="backend_service_endpoint_label">Endpoint (backend baseUrl / SSH host:port)</string>
   <string name="backend_service_auth_ref_label">Vault credential reference (optional)</string>
@@ -3246,6 +3311,8 @@
   <string name="mcp_page_local_server_title">Local MCP Server</string>
   <string name="mcp_page_local_server_desc">127.0.0.1:8788 · for Backend use</string>
   <string name="mcp_page_unnamed">Unnamed</string>
+  <string name="mcp_delete_config_confirm">Delete MCP configuration \"%1$s\"? This action cannot be undone.</string>
+  <string name="mcp_delete_server_confirm">Delete MCP server \"%1$s\"? This action cannot be undone.</string>
   <string name="mcp_page_current_prefix">Current · %1$s</string>
   <string name="mcp_page_port_tools">Port %1$d · %2$d tools</string>
   <string name="mcp_page_set_active">Set as current</string>
@@ -3369,6 +3436,14 @@
   <string name="ssh_terminal_exec_failed">Execution failed: %1$s\n</string>
   <string name="ssh_terminal_input_placeholder">Type a command, Enter to run</string>
   <string name="ssh_terminal_execute">Execute</string>
+  <string name="ssh_terminal_retry">Retry</string>
+  <string name="ssh_terminal_connection_lost">Connection lost, please reconnect</string>
+  <string name="ssh_terminal_command_timeout">Command timed out (30s)</string>
+  <string name="ssh_terminal_status_connected">Connected</string>
+  <string name="ssh_terminal_status_connecting">Connecting…</string>
+  <string name="ssh_terminal_status_failed">Connection failed</string>
+  <string name="ssh_terminal_copy_output">Copy output</string>
+  <string name="ssh_terminal_clear_output">Clear output</string>
   <string name="ssh_hosts_save_failed">Save failed: %1$s</string>
   <string name="vault_page_export_format">Export format</string>
   <string name="vault_format_vault_desc">.vault (encrypted, passphrase-protected)</string>
@@ -3465,6 +3540,7 @@
   <string name="backend_approval_approved">Approved</string>
   <string name="backend_approval_denied">Denied</string>
   <string name="backend_approval_stale">This request is no longer pending (handled in the notification, or the app restarted)</string>
+  <string name="backend_approval_delivery_failed">Delivery failed — the backend did not receive this decision. Tap again to retry.</string>
   <string name="backend_pending_reply">Pending reply</string>
   <string name="backend_ask_submitted">Answered</string>
   <string name="backend_notif_ask_body">Q: %1$s%2$s\n%3$s</string>
@@ -3558,6 +3634,7 @@
   <string name="setting_provider_page_refresh_catalog_done">Catalog refreshed: %1$d entries</string>
   <string name="setting_provider_page_refresh_catalog_failed">Refresh failed: %1$s</string>
   <string name="setting_provider_page_catalog_status">Catalog: %1$d entries · updated %2$s</string>
+  <string name="setting_provider_page_catalog_status_stale">Catalog is stale — refresh for the latest models</string>
   <string name="workspace_detail_copy_path">Copy path</string>
   <string name="workspace_detail_path_copied">Path copied</string>
   <string name="workspace_detail_path_copy_failed">Could not copy path</string>
@@ -4233,4 +4310,8 @@
   <string name="workspace_detail_backend_proot_desc">Rootless and ready out of the box. Simulates the filesystem in user space for best compatibility with slightly lower performance.</string>
   <string name="workspace_detail_backend_root_chroot_desc">Requires a rooted device. True root and real mounts for maximum performance, system package installation, and ownership changes; automatically falls back to proot when unauthorized.</string>
   <string name="workspace_detail_backend_disabled_desc">Disables the sandbox shell: workspace commands fail immediately, suitable when only file tools are needed.</string>
+  <string name="workspace_tool_preset_not_found">Shell preset "%1$s" was not found in %2$s.</string>
+  <string name="workspace_tool_preset_empty">Shell preset "%1$s" is empty. Add a non-empty command for it in %2$s.</string>
+  <string name="workspace_tool_preset_file_corrupted">The shell presets file %1$s is damaged and could not be read. Fix its JSON content instead of adding a new preset.</string>
+  <string name="workspace_tool_timeout_invalid">Invalid timeout "%1$s": timeout must be an integer number of seconds between 1 and %2$s.</string>
 </resources>

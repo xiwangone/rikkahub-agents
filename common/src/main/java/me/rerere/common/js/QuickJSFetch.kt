@@ -10,12 +10,17 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import okhttp3.Response
 import java.io.ByteArrayOutputStream
+import java.net.Inet4Address
+import java.net.Inet6Address
+import java.net.InetAddress
+import java.net.UnknownHostException
 import java.util.concurrent.TimeUnit
 
 private val json = Json { ignoreUnknownKeys = true }
@@ -66,6 +71,12 @@ suspend fun QuickJs.injectFetch(httpClient: OkHttpClient) {
     val parentJob = currentCoroutineContext().job
     function("__httpRequest") { args ->
         val url = args[0] as? String ?: error("url is required")
+        // An IP literal host is routed straight to the socket without a DNS lookup,
+        // so a DNS-level guard never sees it. Reject it here, before the call is
+        // built, so it cannot reach any interceptor or the network.
+        if (hostIsBlockedLiteral(url.toHttpUrlOrNull()?.host)) {
+            error("blocked_private_address: $url")
+        }
         val method = (args[1] as? String ?: "GET").uppercase()
         val headersJson = args[2] as? String
         val body = args[3] as? String
@@ -127,6 +138,58 @@ suspend fun QuickJs.injectFetch(httpClient: OkHttpClient) {
     }
 
     evaluate<Unit>(FETCH_POLYFILL + "\nvoid 0;")
+}
+
+private val IPV4_LITERAL_RE = Regex("""^\d{1,3}(\.\d{1,3}){3}$""")
+
+/**
+ * True when this address must never be a script-driven HTTP target: loopback, link-local,
+ * site-local (RFC1918), any-local, multicast, CGNAT (100.64.0.0/10), or IPv6 unique-local
+ * (fc00::/7).
+ *
+ * 169.254.169.254, the cloud metadata address, falls out of the link-local check.
+ */
+private fun InetAddress.isBlockedTarget(): Boolean {
+    if (isLoopbackAddress || isAnyLocalAddress || isLinkLocalAddress ||
+        isSiteLocalAddress || isMulticastAddress
+    ) {
+        return true
+    }
+    // 100.64.0.0/10 is not covered by isSiteLocalAddress.
+    if (this is Inet4Address) {
+        val b = address
+        val first = b[0].toInt() and 0xFF
+        val second = b[1].toInt() and 0xFF
+        if (first == 100 && second in 64..127) return true
+    }
+    // fc00::/7 (unique-local) is not covered by isSiteLocalAddress, which only matches
+    // the deprecated fec0::/10 for Inet6Address.
+    if (this is Inet6Address) {
+        val first = address[0].toInt() and 0xFF
+        if (first and 0xFE == 0xFC) return true
+    }
+    return false
+}
+
+/**
+ * True when [host] is an IP literal that [isBlockedTarget] refuses. A host counts as a
+ * literal when it is an IPv4 dotted-quad or contains ':' (an OkHttp `HttpUrl.host` for
+ * IPv6 is bracket-free, and a real hostname never contains ':'). Only literals are
+ * inspected, so no DNS query happens here; a hostname returns false. A null or blank
+ * host also returns false: it is not a literal, and such a host only arises from an
+ * unparseable URL that never dials. A malformed literal is refused (fail closed) rather
+ * than throwing.
+ */
+private fun hostIsBlockedLiteral(host: String?): Boolean {
+    if (host.isNullOrBlank()) return false
+    val isLiteral = IPV4_LITERAL_RE.matches(host) || host.contains(':')
+    if (!isLiteral) return false
+    return try {
+        // No DNS lookup happens for an IP literal; getByName just parses it.
+        InetAddress.getByName(host).isBlockedTarget()
+    } catch (e: UnknownHostException) {
+        true
+    }
 }
 
 /**

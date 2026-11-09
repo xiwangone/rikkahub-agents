@@ -45,6 +45,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -68,7 +69,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.rikkahub.ui.context.showFailure
+import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
@@ -119,7 +120,14 @@ internal fun ModelList(
     // 目录状态：条目数与上次更新时间（可能随刷新变化，故用可变状态）
     var catalogStatus by remember { mutableStateOf(catalog.status()) }
     var refreshing by remember { mutableStateOf(false) }
-    val modelList by produceState(emptyList(), providerSetting) {
+    // 手动刷新触发器：拉取失败后点“重试”或空态点“拉取模型列表”时 +1，重新拉取。
+    var refreshTrigger by remember { mutableIntStateOf(0) }
+    // 拉取失败的原因（中文分类标签）：页内显示，原始报错只进日志。
+    var modelLoadError by remember { mutableStateOf<String?>(null) }
+    // 拉取 key 只取 (providerId, baseUrl)：改 key（逐字回写）、改名、拖动排序都不应重拉 /models。
+    val modelListBaseUrl = providerSetting.modelListBaseUrl()
+    val modelList by produceState(emptyList(), providerSetting.id, modelListBaseUrl, refreshTrigger) {
+        modelLoadError = null
         runCatching {
             value =
                 providerManager
@@ -134,9 +142,8 @@ internal fun ModelList(
             // we don't print a stack trace + show a toast for normal teardown.
             if (error is kotlinx.coroutines.CancellationException) throw error
             error.printStackTrace()
-            // Surface real failures (missing/invalid API key, providers like
-            // Minimax that return an HTTP 200 error envelope instead of a 4xx).
-            toaster.showFailure(context, error)
+            // 失败只在页内显示原因与重试入口，不再只弹一个 Toast 后留空列表。
+            modelLoadError = diagnoseFailure(context, error).label
         }
     }
     var expanded by rememberSaveable { mutableStateOf(true) }
@@ -249,6 +256,15 @@ internal fun ModelList(
                             textAlign = TextAlign.End,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        if (catalogStatus.isStale) {
+                            Text(
+                                text = stringResource(R.string.setting_provider_page_catalog_status_stale),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.error,
+                                textAlign = TextAlign.End,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                        }
                     }
                 }
                 item {
@@ -319,6 +335,28 @@ internal fun ModelList(
                 }
             }
 
+            // 拉取失败：页内显示原因与重试入口。
+            if (modelLoadError != null) {
+                item {
+                    Column(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        Text(
+                            text = modelLoadError ?: "",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.error,
+                            textAlign = TextAlign.Center,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        OutlinedButton(onClick = { refreshTrigger++ }) {
+                            Text(stringResource(R.string.common_retry))
+                        }
+                    }
+                }
+            }
+
             // 模型列表
             if (providerSetting.models.isEmpty()) {
                 item {
@@ -340,6 +378,12 @@ internal fun ModelList(
                             style = MaterialTheme.typography.bodyMedium,
                             color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
                         )
+                        Button(
+                            onClick = { refreshTrigger++ },
+                            modifier = Modifier.padding(top = 12.dp),
+                        ) {
+                            Text(stringResource(R.string.setting_provider_page_fetch_models))
+                        }
                     }
                 }
             } else {
@@ -681,4 +725,14 @@ private fun formatCatalogTime(ms: Long): String =
         "—"
     } else {
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(ms))
+    }
+
+/** 模型列表拉取 key 用的 baseUrl：没有 baseUrl 的类型返回空串。 */
+private fun ProviderSetting.modelListBaseUrl(): String =
+    when (this) {
+        is ProviderSetting.OpenAI -> baseUrl
+        is ProviderSetting.Google -> baseUrl
+        is ProviderSetting.Claude -> baseUrl
+        is ProviderSetting.Backend -> baseUrl
+        else -> ""
     }

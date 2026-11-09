@@ -27,6 +27,16 @@ private const val TAG = "GenerationLoop"
 internal const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 internal const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L
 
+/** 服务端 `Retry-After` 要求等待再久，最多按这个上限等，避免一次 429 挂起过久。 */
+internal const val GENERATION_STREAM_RETRY_AFTER_MAX_DELAY_MS = 300_000L
+
+/** 从失败链里取出服务端 `Retry-After` 要求等待的毫秒数（没有时为 null）。 */
+internal fun Throwable.retryAfterMs(): Long? =
+    generateSequence(this) { it.cause }
+        .take(8)
+        .filterIsInstance<HttpException>()
+        .firstNotNullOfOrNull { it.retryAfterMs }
+
 internal val USER_CANCELLATION_MARKERS = listOf(
     "canceled by user",
     "cancelled by user",
@@ -211,9 +221,14 @@ internal fun isContextLimitFailure(failure: Throwable): Boolean =
                 "maximum context window" in text
         }
 
-internal fun generationStreamRetryDelayMs(retryAttempt: Long): Long =
-    ((retryAttempt + 1) * GENERATION_STREAM_RETRY_INITIAL_DELAY_MS)
+internal fun generationStreamRetryDelayMs(retryAttempt: Long, failure: Throwable? = null): Long {
+    // 服务端明确让等多久就等多久（如 429 的 Retry-After: 60），而不是 4 秒内又撞一次 429。
+    failure?.retryAfterMs()?.let {
+        return it.coerceIn(0L, GENERATION_STREAM_RETRY_AFTER_MAX_DELAY_MS)
+    }
+    return ((retryAttempt + 1) * GENERATION_STREAM_RETRY_INITIAL_DELAY_MS)
         .coerceAtMost(GENERATION_STREAM_RETRY_MAX_DELAY_MS)
+}
 
 internal fun retryFailureReason(failure: Throwable): String =
     generateSequence(failure) { it.cause }
@@ -419,7 +434,7 @@ internal suspend fun <T> retryGenerationTransportRequest(
                 )) {
                 throw failure
             }
-            val delayMs = generationStreamRetryDelayMs(retryAttempt)
+            val delayMs = generationStreamRetryDelayMs(retryAttempt, failure)
             AppLog.w(
                 TAG,
                 "generateText: retrying after failure " +

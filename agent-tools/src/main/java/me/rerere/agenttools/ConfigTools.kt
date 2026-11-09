@@ -9,9 +9,12 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import java.util.UUID
 
 /**
  * 键值配置即工具.
@@ -28,7 +31,14 @@ import me.rerere.ai.ui.UIMessagePart
 private val configJson = Json { prettyPrint = false }
 
 private const val SETTINGS_PATH = "config/settings.json"
+private const val SETTINGS_BACKUP_PATH = "config/settings.json.bak"
 private const val AUDIT_PATH = "config/audit.jsonl"
+
+// 审计文件轮转上限: 超限时只保留最近的条目, 避免文件永久增长且每次追加都全量读写.
+// 完整修复需要宿主接口提供追加写, 仅靠读-改-写无法消除全量读写, 这里只做进程内
+// 串行化与轮转.
+private const val MAX_AUDIT_BYTES = 1024 * 1024
+private const val AUDIT_KEEP_BYTES = 512 * 1024
 
 fun createConfigTools(
     io: AgentWorkspaceIO,
@@ -44,18 +54,85 @@ fun createConfigTools(
 }
 
 private class ConfigStore(private val io: AgentWorkspaceIO) {
+    // 串行化审计追加: 避免并发 set 在读-改-写窗口互相覆盖丢条目.
+    private val auditMutex = Mutex()
+    /**
+     * 读当前配置.
+     *
+     * 文件不存在是首次使用的正常状态, 返回空对象. 文件存在但读不出来, 或内容
+     * 无法解析, 则抛异常: 调用方不得把这种情况当作空配置, 继续全量覆盖.
+     */
     suspend fun load(): JsonObject {
-        return try {
-            val raw = io.readText(SETTINGS_PATH)
-            (configJson.parseToJsonElement(raw) as? JsonObject) ?: JsonObject(emptyMap())
-        } catch (_: Exception) {
-            JsonObject(emptyMap())
+        val raw = try {
+            io.readText(SETTINGS_PATH)
+        } catch (e: Exception) {
+            if (fileExists(SETTINGS_PATH)) {
+                throw IllegalStateException("config/settings.json exists but cannot be read: ${e.message}", e)
+            }
+            return JsonObject(emptyMap())
+        }
+        return parseSettings(raw)
+    }
+
+    /**
+     * 解析配置文本. 解析失败时先尝试补齐截断末尾 (写一半的文件),
+     * 仍无法解析则抛异常, 禁止调用方用空对象覆盖已有配置.
+     */
+    private fun parseSettings(raw: String): JsonObject {
+        val parsed = runCatching { configJson.parseToJsonElement(raw) }.getOrNull()
+        if (parsed is JsonObject) return parsed
+        val salvaged = runCatching { configJson.parseToJsonElement(closeTruncated(raw)) }.getOrNull()
+        if (salvaged is JsonObject) return salvaged
+        throw IllegalStateException("config/settings.json is corrupt and cannot be parsed; refusing to overwrite it with an empty config")
+    }
+
+    /**
+     * 补齐截断 JSON 文本末尾未闭合的字符串与括号/方括号.
+     * 扫描时跳过字符串内的括号, 转义字符按字面处理. 只修复"末尾截断":
+     * 截断发生在键、数字或字面量中间时, 补齐后仍无法解析, 由调用方按损坏处理.
+     */
+    private fun closeTruncated(raw: String): String {
+        val openers = ArrayDeque<Char>()
+        var inString = false
+        var escaped = false
+        for (ch in raw) {
+            when {
+                escaped -> escaped = false
+                ch == '\\' && inString -> escaped = true
+                ch == '"' -> inString = !inString
+                !inString && (ch == '{' || ch == '[') -> openers.addLast(ch)
+                !inString && (ch == '}' || ch == ']') -> if (openers.isNotEmpty()) openers.removeLast()
+            }
+        }
+        return buildString {
+            append(raw)
+            if (inString) append('"')
+            while (openers.isNotEmpty()) append(if (openers.removeLast() == '{') '}' else ']')
         }
     }
 
+    /**
+     * 用 listFiles 判断文件是否存在: readText 在"文件不存在"与"读失败"时都抛
+     * 异常, 无法仅凭异常区分, 因此读失败后用列表核对.
+     */
+    private suspend fun fileExists(path: String): Boolean {
+        val dir = path.substringBeforeLast('/', "")
+        return runCatching { io.listFiles(dir) }.getOrNull()?.any { it.path == path } ?: false
+    }
+
     suspend fun set(key: String, valueJson: String, note: String?): JsonObject {
+        val parsed = try {
+            configJson.parseToJsonElement(valueJson)
+        } catch (e: Exception) {
+            throw IllegalArgumentException(
+                "value must be a JSON-encoded value: for a string pass \"zh\" (including the quotes), " +
+                    "for a number pass 3, for a boolean pass true, for an object pass {\"a\": 1}. " +
+                    "Failed to parse: ${e.message?.lineSequence()?.firstOrNull()}",
+                e,
+            )
+        }
         val current = load().toMutableMap()
-        current[key] = configJson.parseToJsonElement(valueJson)
+        current[key] = parsed
         save(current)
         appendAudit("set", key, valueJson, note)
         return jsonFor(key, current[key])
@@ -64,6 +141,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     suspend fun revert(key: String): JsonObject {
         val last = readAudit().asReversed().firstOrNull { it["key"]?.jsonPrimitive?.contentOrNull == key }
         val current = load().toMutableMap()
+        val existed = current.containsKey(key)
         val prior = last?.get("value")
         if (prior != null && prior !is JsonNull) {
             // 工具描述承诺"恢复最近一次旧值"：把审计里的 prior 写回，而不是只删
@@ -76,36 +154,82 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         appendAudit("revert", key, JsonNull.toString(), null)
         return buildJsonObject {
             put("key", key)
+            put("existed", existed)
             put("result", result)
         }
     }
 
+    /**
+     * 读审计日志. 文件不存在返回空列表. 文件存在但读不出来, 或任一非空行无法
+     * 解析, 则抛异常: 调用方不得把这种情况当作"无旧值"处理, 否则回滚会删键.
+     */
     suspend fun readAudit(): List<JsonObject> {
-        return try {
-            io.readText(AUDIT_PATH).lines().filter { it.isNotBlank() }.mapNotNull {
-                runCatching { configJson.parseToJsonElement(it) as? JsonObject }.getOrNull()
+        val raw = try {
+            io.readText(AUDIT_PATH)
+        } catch (e: Exception) {
+            if (fileExists(AUDIT_PATH)) {
+                throw IllegalStateException("config/audit.jsonl exists but cannot be read: ${e.message}", e)
             }
-        } catch (_: Exception) {
-            emptyList()
+            return emptyList()
+        }
+        return raw.lines().filter { it.isNotBlank() }.map { line ->
+            (runCatching { configJson.parseToJsonElement(line) }.getOrNull() as? JsonObject)
+                ?: throw IllegalStateException("config/audit.jsonl contains a corrupt entry; refusing to use it for revert")
         }
     }
 
+    /**
+     * 全量写回配置. 覆盖前先把旧文件原样备份, 写入中途失败时旧内容仍可找回.
+     */
     private suspend fun save(map: Map<String, JsonElement>) {
+        val existing = runCatching { io.readText(SETTINGS_PATH) }.getOrNull()
+        if (!existing.isNullOrBlank()) {
+            io.writeText(SETTINGS_BACKUP_PATH, existing, true)
+        }
         io.writeText(SETTINGS_PATH, configJson.encodeToString(JsonElement.serializer(), objOf(map)), true)
     }
 
     private suspend fun appendAudit(action: String, key: String, valueJson: String, note: String?) {
         val entry = buildJsonObject {
-            put("id", System.currentTimeMillis())
+            put("id", UUID.randomUUID().toString())
             put("action", action)
             put("key", key)
             put("value", runCatching { configJson.parseToJsonElement(valueJson) }.getOrElse { JsonNull })
             put("at", System.currentTimeMillis())
             if (note != null) put("note", note)
         }
-        val existing = try { io.readText(AUDIT_PATH) } catch (_: Exception) { "" }
-        val next = if (existing.isBlank()) entry.toString() + "\n" else existing.trimEnd() + "\n" + entry.toString() + "\n"
-        io.writeText(AUDIT_PATH, next, true)
+        auditMutex.withLock {
+            // 审计文件存在但读不出来时不直接覆盖: 否则一次追加会丢掉整段历史
+            val existing = try {
+                io.readText(AUDIT_PATH)
+            } catch (e: Exception) {
+                if (fileExists(AUDIT_PATH)) {
+                    throw IllegalStateException("config/audit.jsonl exists but cannot be read: ${e.message}", e)
+                }
+                ""
+            }
+            val kept = rotateAudit(existing)
+            val next = if (kept.isBlank()) entry.toString() + "\n" else kept.trimEnd() + "\n" + entry.toString() + "\n"
+            io.writeText(AUDIT_PATH, next, true)
+        }
+    }
+
+    /**
+     * 审计轮转: 未超限原样返回; 超限时按行丢弃最旧条目, 只保留最近约
+     * [AUDIT_KEEP_BYTES] 的内容, 保证每行仍是完整条目.
+     */
+    private fun rotateAudit(existing: String): String {
+        if (existing.toByteArray(Charsets.UTF_8).size <= MAX_AUDIT_BYTES) return existing
+        val lines = existing.lines().filter { it.isNotBlank() }
+        var keptBytes = 0
+        val kept = ArrayDeque<String>()
+        for (line in lines.asReversed()) {
+            val lineBytes = line.toByteArray(Charsets.UTF_8).size + 1
+            if (kept.isNotEmpty() && keptBytes + lineBytes > AUDIT_KEEP_BYTES) break
+            kept.addFirst(line)
+            keptBytes += lineBytes
+        }
+        return kept.joinToString("\n")
     }
 
     private fun objOf(map: Map<String, JsonElement>): JsonObject = buildJsonObject {
@@ -140,7 +264,7 @@ private fun createSetTool(store: ConfigStore, needsApproval: (String) -> Boolean
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("key", buildJsonObject { put("type", "string"); put("description", "Config key, e.g. 'ui.lang', 'agent.verbosity'") })
-                put("value", buildJsonObject { put("type", "string"); put("description", "JSON-encoded value to store (parsed). e.g. \"\\\"zh\\\"\" for a string, \"3\" for a number") })
+                put("value", buildJsonObject { put("type", "string"); put("description", "JSON-encoded value to store. For a string pass \"zh\" (including the quotes), for a number pass 3, for a boolean pass true, for an object pass {\"a\": 1}") })
                 put("note", buildJsonObject { put("type", "string"); put("description", "Optional human note recorded in the audit log") })
             },
             required = listOf("key", "value"),
@@ -150,6 +274,7 @@ private fun createSetTool(store: ConfigStore, needsApproval: (String) -> Boolean
     execute = {
         val params = it.jsonObject
         val key = params["key"]?.jsonPrimitive?.contentOrNull ?: error("key is required")
+        require(key.isNotBlank()) { "key must not be blank" }
         val valueJson = params["value"]?.jsonPrimitive?.contentOrNull ?: error("value is required")
         val note = params["note"]?.jsonPrimitive?.contentOrNull
         listOf(UIMessagePart.Text(store.set(key, valueJson, note).toString()))

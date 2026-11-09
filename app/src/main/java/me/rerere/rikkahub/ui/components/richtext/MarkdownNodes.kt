@@ -502,10 +502,13 @@ private fun AnnotatedString.Builder.appendMarkdownNodeWithEnv(
         node.type == MarkdownTokenTypes.BLOCK_QUOTE -> {}
 
         node.type == GFMTokenTypes.GFM_AUTOLINK -> {
-            val link = node.getTextInNode(content)
+            val rawLink = node.getTextInNode(content)
+            val (link, trailing) = splitAutolink(rawLink)
             withLink(LinkAnnotation.Url(link)) {
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(link) }
             }
+            // 切掉的尾巴以普通文本重新输出，不丢弃
+            if (trailing.isNotEmpty()) append(trailing)
         }
 
         node is LeafASTNode -> {

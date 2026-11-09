@@ -103,7 +103,8 @@ class BackendProvider(
     override suspend fun listModels(providerSetting: ProviderSetting.Backend): List<Model> {
         val models = api(providerSetting).getModels()
         if (models.isEmpty()) {
-            return listOf(defaultModel())
+            // 后端未返回可用模型时返回空，不再凭空造一个假模型：假模型选中后发请求才暴露服务端不认它。
+            return emptyList()
         }
         return models.mapIndexed { _, info ->
             Model(
@@ -230,7 +231,8 @@ class BackendProvider(
         }
 
         val api = api(providerSetting)
-        val fullInput = buildFullInput(messages) ?: return@flow
+        val fullInput = buildFullInput(messages)
+            ?: throw IllegalStateException("Backend streamText：消息中没有用户文本，无法构造提交内容")
         val endpointLock = mutexForEndpoint(providerSetting.baseUrl)
 
         endpointLock.withLock {
@@ -255,6 +257,14 @@ class BackendProvider(
                     runCatching { api.resumeSession(existingPath) }.onFailure {
                         android.util.Log.w("BackendProvider", "resume 会话失败，将新建", it)
                         runCatching { api.newSession() }
+                            .onSuccess { created ->
+                                if (!created) {
+                                    android.util.Log.w("BackendProvider", "resume 失败后新建会话失败：服务端未返回成功")
+                                }
+                            }
+                            .onFailure {
+                                android.util.Log.w("BackendProvider", "resume 失败后新建会话失败", it)
+                            }
                     }
                 }
                 if (!api.submit(fullInput)) {
@@ -287,7 +297,9 @@ class BackendProvider(
         val openaiSetting =
             ProviderSetting.OpenAI(
                 baseUrl = providerSetting.baseUrl,
-                apiKey = providerSetting.token,
+                // 自定义后端可以不设鉴权：空 token 不能原样传给 KeyRoulette（空 key 会直接抛错），
+                // 给一个占位值，服务端不校验时会被忽略，需要鉴权的服务端仍会返回 401。
+                apiKey = providerSetting.token.ifBlank { "unused" },
             )
         chatCompletionsAPI.streamText(openaiSetting, messages, params).collect { emit(it) }
     }
@@ -335,12 +347,4 @@ class BackendProvider(
                 ?: return null
         return historyPrefix.append(lastUserInput).toString()
     }
-
-    private fun defaultModel(): Model =
-        Model(
-            modelId = "default",
-            displayName = "Default (server-side)",
-            type = ModelType.CHAT,
-            abilities = listOf(ModelAbility.TOOL, ModelAbility.REASONING),
-        )
 }

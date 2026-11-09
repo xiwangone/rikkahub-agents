@@ -58,6 +58,11 @@ sealed interface FixAction {
     data class AutoFix(
         @StringRes val labelRes: Int,
         val run: suspend () -> AutoFixResult,
+        /**
+         * 破坏性修复先弹确认框：非空时点按钮先出确认对话框（文案为该资源），
+         * 用户确认后才执行 [run]；空 = 点即执行（既有行为）。
+         */
+        @StringRes val confirmRes: Int? = null,
     ) : FixAction
 
     /** Open a system Settings activity (battery, notification listener, accessibility, etc.). */

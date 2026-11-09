@@ -95,6 +95,11 @@ fun applyWorkspaceMirrors(
     mirrors: WorkspaceMirrors,
 ): Result<Unit> =
     runCatching {
+        // 镜像 URL 直接拼进配置文件：先校验 scheme/host、无空白与控制字符，
+        // 含换行等字符的输入不能跳出配置字段
+        listOf(mirrors.apk, mirrors.apt, mirrors.pip, mirrors.npm).forEach { url ->
+            if (url.isNotBlank()) requireValidMirrorUrl(url)
+        }
         val version = readAlpineBranch(linuxDir)
 
         writeOrDelete(
@@ -102,20 +107,20 @@ fun applyWorkspaceMirrors(
             mirrors.apk.takeIf { it.isNotBlank() }?.let { base ->
                 val root = base.trimEnd('/')
                 val branch = version?.let { "/$it" }.orEmpty()
-                "$root$branch/main\n$root$branch/community\n"
+                "$MIRROR_MARKER\n$root$branch/main\n$root$branch/community\n"
             },
         )
 
         writeOrDelete(
             File(linuxDir, PIP_CONF_PATH),
             mirrors.pip.takeIf { it.isNotBlank() }?.let { url ->
-                "[global]\nindex-url = ${url.trimEnd('/')}/\ntrusted-host = ${url.substringAfter("://").substringBefore('/')}\n"
+                "$MIRROR_MARKER\n[global]\nindex-url = ${url.trimEnd('/')}/\ntrusted-host = ${url.substringAfter("://").substringBefore('/')}\n"
             },
         )
 
         writeOrDelete(
             File(linuxDir, NPMRC_PATH),
-            mirrors.npm.takeIf { it.isNotBlank() }?.let { url -> "registry=${url.trimEnd('/')}/\n" },
+            mirrors.npm.takeIf { it.isNotBlank() }?.let { url -> "$MIRROR_MARKER\nregistry=${url.trimEnd('/')}/\n" },
         )
 
         // apt（Ubuntu / Debian）：源地址随发行版与架构变化，按 rootfs 的 /etc/os-release 生成 deb822
@@ -148,7 +153,19 @@ private fun readAlpineBranch(linuxDir: File): String? {
     val raw = runCatching { release.readText().trim() }.getOrNull() ?: return null
     val parts = raw.split('.')
     if (parts.size < 2) return null
+    // 主/次版本号必须是纯数字，否则不拼分支（畸形 release 文件不污染源地址）
+    if (!parts[0].all { it.isDigit() } || !parts[1].all { it.isDigit() }) return null
     return "v${parts[0]}.${parts[1]}"
+}
+
+/** 镜像 URL 校验：仅 http/https、有 host、无空白与控制字符。非法时抛错，由调用方 Result 捕获。 */
+private fun requireValidMirrorUrl(raw: String) {
+    val url = raw.trim()
+    require(url.none { it.isWhitespace() || it.code < 0x20 }) { "Invalid mirror URL: $raw" }
+    val uri = runCatching { java.net.URI(url) }.getOrNull()
+    require(uri != null && (uri.scheme == "http" || uri.scheme == "https") && !uri.host.isNullOrBlank()) {
+        "Invalid mirror URL: $raw"
+    }
 }
 
 /** rootfs 的发行版标识（取自 `/etc/os-release`）。 */
@@ -210,9 +227,41 @@ private fun debianSources(base: String, codename: String): String =
 
 private fun writeOrDelete(file: File, content: String?) {
     if (content == null) {
-        if (file.exists()) file.delete()
+        // 留空 = 回落默认：只删本功能写过的文件（带标记），不碰用户/系统自带的配置；
+        // 文件本身是软链时只删链接，不跟随写目标
+        if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
+            runCatching { java.nio.file.Files.deleteIfExists(file.toPath()) }
+            return
+        }
+        if (file.isFile) {
+            val managed = runCatching { file.readText().contains(MIRROR_MARKER) }.getOrDefault(false)
+            if (managed) file.delete()
+        }
         return
     }
+    writeFileAtomic(file, content)
+}
+
+/**
+ * 原子写配置：先写同目录临时文件再改名到位，崩溃不留半截文件；
+ * 目标是软链时先删链接再写普通文件，不跟随写到链接目标。
+ */
+internal fun writeFileAtomic(file: File, content: String) {
+    if (java.nio.file.Files.isSymbolicLink(file.toPath())) {
+        runCatching { java.nio.file.Files.deleteIfExists(file.toPath()) }
+    }
     file.parentFile?.mkdirs()
-    file.writeText(content)
+    val tmp = File(file.parentFile, ".${file.name}.tmp-${java.util.UUID.randomUUID()}")
+    try {
+        tmp.writeText(content)
+        java.nio.file.Files.move(
+            tmp.toPath(),
+            file.toPath(),
+            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+            java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+        )
+    } catch (e: Exception) {
+        runCatching { tmp.delete() }
+        throw e
+    }
 }

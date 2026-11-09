@@ -347,6 +347,19 @@ class WorkspaceRepository(
     /** key = workspace id。采集成功即持久化（跨进程），失败不落缓存。 */
     val statsById: StateFlow<Map<String, WorkspaceStats>> = _statsById.asStateFlow()
 
+    /**
+     * 最近一次手动刷新资源画像的失败原因（null = 无失败/已消费）。
+     * 采集本身是后台任务，失败只记日志用户看不到；经此状态交给详情页弹 Toast。
+     * 自动采集（[requestWorkspaceStats]）的失败不进这里，避免后台静默采集也弹提示。
+     */
+    private val _statsRefreshFailure = MutableStateFlow<String?>(null)
+    val statsRefreshFailure: StateFlow<String?> = _statsRefreshFailure.asStateFlow()
+
+    /** 详情页消费掉刷新失败提示后清零，避免重组/重进重复弹。 */
+    fun clearStatsRefreshFailure() {
+        _statsRefreshFailure.value = null
+    }
+
     /** 请求采集 [id] 的资源画像：缓存未过期（24h）跳过，否则后台采集并持久化（不阻塞、不随页面退出中断）。 */
     fun requestWorkspaceStats(id: String) {
         statsScope.launch {
@@ -368,7 +381,7 @@ class WorkspaceRepository(
         }
     }
 
-    /** 强制重采（详情页手动刷新用），无视 TTL。 */
+    /** 强制重采（详情页手动刷新用），无视 TTL。失败原因进 [statsRefreshFailure] 供 UI 提示。 */
     fun refreshWorkspaceStats(id: String) {
         statsScope.launch {
             runCatching { workspaceStats(id) }
@@ -376,7 +389,10 @@ class WorkspaceRepository(
                     _statsById.value = _statsById.value + (id to stats)
                     persistStats(id, stats)
                 }
-                .onFailure { AppLog.w("WorkspaceStats", "refresh failed for $id", it) }
+                .onFailure {
+                    AppLog.w("WorkspaceStats", "refresh failed for $id", it)
+                    _statsRefreshFailure.value = it.message ?: it::class.simpleName ?: "?"
+                }
         }
     }
 
@@ -511,8 +527,10 @@ class WorkspaceRepository(
 
     private fun postInstallSetup(root: String) {
         val linuxDir = manager.linuxDir(root)
-        runCatching { me.rerere.workspace.applyWorkspaceMirrors(linuxDir, mirrorsNow()) }
-        runCatching { me.rerere.workspace.installCaCerts(linuxDir, force = false) }
+        me.rerere.workspace.applyWorkspaceMirrors(linuxDir, mirrorsNow())
+            .onFailure { AppLog.w("Workspace", "post-install mirror setup failed for $root", it) }
+        me.rerere.workspace.installCaCerts(linuxDir, force = false)
+            .onFailure { AppLog.w("Workspace", "post-install CA setup failed for $root", it) }
     }
 
     private suspend fun executeRootfsMutation(

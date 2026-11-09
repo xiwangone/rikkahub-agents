@@ -76,6 +76,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
             outputUri = inserted
         } else {
             val cacheDir = File(context.cacheDir, "photos").apply { mkdirs() }
+            pruneOldCacheScreenshots(cacheDir)
             val tmp = File(cacheDir, displayName)
             mediaStoreUri = null
             cacheFile = tmp
@@ -121,6 +122,7 @@ fun cameraPhotoTool(context: Context, buffer: CameraResultBuffer): Tool = Tool(
         // file://, data:, http) can always read it. MediaStore content URIs and DATA-column
         // file paths are unreliable on Android 11+ scoped storage.
         val llmCacheDir = File(context.cacheDir, "photos").apply { mkdirs() }
+        pruneOldCacheScreenshots(llmCacheDir)
         val llmCacheFile = File(llmCacheDir, displayName)
         val sourceUri: Uri = mediaStoreUri ?: outputUri
         try {

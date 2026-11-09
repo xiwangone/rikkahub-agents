@@ -27,6 +27,29 @@ private const val DEFAULT_JPEG_QUALITY = 85
 /** 小于此体积的 data: 图直接透传（避免无谓的解码 + 重编码）。 */
 private const val DATA_URL_PASSTHROUGH_LIMIT_BYTES = 512 * 1024
 
+/** 远端 http(s) 图片 / 音频单次读取上限：超限即视为读取失败，不再无界吃内存。 */
+private const val MAX_HTTP_DOWNLOAD_BYTES = 32L * 1024 * 1024
+
+/**
+ * 分块读取输入流，累计超过 [maxBytes] 即抛 [java.io.IOException]。
+ * 远端内容体积不可信，[InputStream.readBytes] 会按实际大小无界分配。
+ */
+private fun InputStream.readBytesBounded(maxBytes: Long): ByteArray {
+    val out = ByteArrayOutputStream()
+    val buffer = ByteArray(8 * 1024)
+    var total = 0L
+    while (true) {
+        val read = read(buffer)
+        if (read < 0) break
+        total += read
+        if (total > maxBytes) {
+            throw java.io.IOException("HTTP 下载超过上限 $maxBytes 字节")
+        }
+        out.write(buffer, 0, read)
+    }
+    return out.toByteArray()
+}
+
 data class EncodedImage(
     val base64: String,
     val mimeType: String
@@ -187,7 +210,7 @@ fun UIMessagePart.Image.toBitmap(
                     readTimeout = 15_000
                 }
                 conn.getInputStream().use { stream ->
-                    val bytes = stream.readBytes()
+                    val bytes = stream.readBytesBounded(MAX_HTTP_DOWNLOAD_BYTES)
                     BitmapFactory.decodeByteArray(bytes, 0, bytes.size, sampleOpts(bytes, maxDimension))
                 }
             }
@@ -229,7 +252,7 @@ fun UIMessagePart.Audio.audioBytes(context: Context): ByteArray? {
                     connectTimeout = 8_000
                     readTimeout = 15_000
                 }
-                conn.getInputStream().use { it.readBytes() }
+                conn.getInputStream().use { it.readBytesBounded(MAX_HTTP_DOWNLOAD_BYTES) }
             }
             else -> null
         }

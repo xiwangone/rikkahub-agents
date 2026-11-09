@@ -36,7 +36,30 @@ class WebDavClient(
     private val httpClient: HttpClient,
 ) {
     private fun WebDavConfig.buildUrl(vararg segments: String): String {
-        val base = url.trimEnd('/')
+        // 没写协议的地址默认补 https；显式 http:// 且配了凭据时拒绝发请求：
+        // Basic 凭据是 base64 可逆编码，明文发出等于泄露密码。回环地址除外
+        // （本机服务不经过网络，不存在嗅探面）。
+        val rawBase = url.trimEnd('/')
+        val base = when {
+            rawBase.isBlank() -> rawBase
+            rawBase.startsWith("http://") || rawBase.startsWith("https://") -> rawBase
+            else -> "https://$rawBase"
+        }
+        if (base.startsWith("http://") && (username.isNotBlank() || password.isNotBlank())) {
+            val authority = base.removePrefix("http://").substringBefore('/').substringAfterLast('@')
+            val bareHost = if (authority.startsWith("[")) {
+                authority.substringBefore(']').removePrefix("[")
+            } else {
+                authority.substringBefore(':')
+            }
+            if (bareHost != "localhost" && bareHost != "127.0.0.1" && bareHost != "::1") {
+                throw WebDavException(
+                    "Refusing to send WebDAV credentials over plain http; use https:// or a loopback address",
+                    0,
+                    "",
+                )
+            }
+        }
         val pathSegments = listOfNotNull(
             path.takeIf { it.isNotBlank() }?.trim('/'),
             *segments.map { it.trim('/') }.toTypedArray()

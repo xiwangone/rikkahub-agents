@@ -42,13 +42,10 @@ fun installCaCerts(
                 .orEmpty()
         require(pems.isNotEmpty()) { "no CA certificates found in ${systemCaDir.path}" }
         val bundle = pems.joinToString("\n") { it.trim() } + "\n"
-        bundleFile.parentFile?.mkdirs()
-        bundleFile.writeText(bundle)
+        writeFileAtomic(bundleFile, bundle)
         // Alpine resolves CAs via /etc/ssl/cert.pem as well
         if (readRootfsDistro(linuxDir)?.id == "alpine") {
-            val pem = File(linuxDir, CA_CERT_PEM_PATH)
-            pem.parentFile?.mkdirs()
-            pem.writeText(bundle)
+            writeFileAtomic(File(linuxDir, CA_CERT_PEM_PATH), bundle)
         }
         pems.size
     }

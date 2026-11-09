@@ -276,6 +276,9 @@ private suspend fun readUntilDone(
         val cap = tmux(context, TmuxOps.capturePaneArgv(session, lines))
         if (cap is CaptureResult.Success) {
             val elapsed = android.os.SystemClock.elapsedRealtime() - start
+            // evaluatePoll 只看尾部连续相同的样本算稳定时长：内容一变，旧样本即无用，
+            // 直接丢弃，避免长超时下列表随轮询无界增长。
+            if (samples.isNotEmpty() && samples.last().content != cap.stdout) samples.clear()
             samples.add(PaneSample(elapsed, cap.stdout))
             when (val d = evaluatePoll(samples, SETTLE_MS, timeoutMs, waitFor)) {
                 is PollResult.Done -> return CaptureResult.Success(d.content, reasonTag(d.reason), 0)

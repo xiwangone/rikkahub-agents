@@ -96,7 +96,8 @@ internal class SshConnection private constructor(
 
     fun exec(command: String, timeoutMillis: Long, stdin: ByteArray? = null): WorkspaceCommandResult {
         val channel = openChannel { session.openChannel("exec") as ChannelExec }
-        channel.setCommand(command)
+        // Windows 远端不走 POSIX shell：命令经 pwsh 执行，见 wrapForPwsh
+        channel.setCommand(if (config.platform == "WINDOWS") wrapForPwsh(command) else command)
         // 输入流必须在 connect 之前取, 否则开头的输出会丢
         val stdoutStream = channel.inputStream
         val stderrStream = channel.extInputStream
@@ -122,10 +123,18 @@ internal class SshConnection private constructor(
             stdinWriter?.join(1_000)
             stdout.join(1_000)
             stderr.join(1_000)
+            // channel 已关闭却没收到 exit status：与超时（timedOut=true）的 -1 不同，
+            // 在 stderr 留痕以便调用方区分“命令没给退出码”和“启动失败”
+            val exitStatus = if (finished) channel.exitStatus else -1
+            val stderrText = if (finished && exitStatus < 0) {
+                stderr.text().trimEnd() + "\nSSH channel closed without an exit status"
+            } else {
+                stderr.text()
+            }
             return WorkspaceCommandResult(
-                exitCode = if (finished) channel.exitStatus else -1,
+                exitCode = exitStatus,
                 stdout = stdout.text(),
-                stderr = stderr.text(),
+                stderr = stderrText,
                 timedOut = !finished,
                 truncated = stdout.truncated || stderr.truncated,
             )
@@ -139,6 +148,16 @@ internal class SshConnection private constructor(
         } finally {
             channel.disconnect()
         }
+    }
+
+    /**
+     * Windows 远端：脚本经 pwsh -EncodedCommand 执行。脚本以 UTF-16LE Base64 编码传递，
+     * 免去远端 shell 的引号转义；执行前先把控制台编码切到 UTF-8，避免中文输出乱码。
+     */
+    private fun wrapForPwsh(command: String): String {
+        val script = "[Console]::OutputEncoding=[Text.Encoding]::UTF8; \$OutputEncoding=[Text.Encoding]::UTF8; $command"
+        val encoded = Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+        return "pwsh -NoProfile -NonInteractive -EncodedCommand $encoded"
     }
 
     // 不等 SFTP 锁: 断开 session 会关闭所有 channel, 卡住的 SFTP 操作随之失败并释放锁
@@ -168,8 +187,9 @@ internal class SshConnection private constructor(
                 try {
                     connect(channelTimeoutMillis)
                 } catch (e: JSchException) {
-                    // JSch 没有区分这两个阶段的接口, 只能按打开阶段的异常信息判断
-                    if (e.message in CHANNEL_OPEN_FAILURE_MESSAGES) throw SshChannelOpenException(e)
+                    // JSch 没有区分这两个阶段的接口, 只能按打开阶段的异常信息判断；
+                    // 用子串匹配而不用整句相等，JSch 文案微调时仍能认出
+                    if (CHANNEL_OPEN_FAILURE_MESSAGES.any { e.message?.contains(it) == true }) throw SshChannelOpenException(e)
                     this@SshConnection.close()
                     throw e
                 }
@@ -197,10 +217,10 @@ internal class SshConnection private constructor(
         private const val KEEPALIVE_INTERVAL_MS = 15_000
         private const val KEEPALIVE_COUNT_MAX = 3
         private const val EXEC_POLL_INTERVAL_MS = 20L
-        private const val SHELL_DETECT_TIMEOUT_MS = 15_000L
+        private const val SHELL_DETECT_TIMEOUT_MS = 5_000L
 
-        // Channel.sendChannelOpen 失败时的异常信息, 此时 exec 请求还没发出
-        private val CHANNEL_OPEN_FAILURE_MESSAGES = setOf("session is down", "channel is not opened.")
+        // Channel.sendChannelOpen 失败时的异常信息片段, 此时 exec 请求还没发出
+        private val CHANNEL_OPEN_FAILURE_MESSAGES = setOf("session is down", "channel is not opened")
 
         fun open(config: SshConnectionConfig, channelTimeoutMillis: Int = DEFAULT_CHANNEL_TIMEOUT_MS): SshConnection {
             val jsch = JSch()
@@ -226,6 +246,7 @@ internal class SshConnection private constructor(
             }
 
             val hostKeys = TrustedHostKeyRepository(config.hostKey)
+            val passwordUserInfo = if (config.authType == SshAuthType.PASSWORD) PasswordUserInfo(config.password!!) else null
             // 内嵌隧道：目标若被隧道接管（如 tailnet 网段），改连 App 内代理端口
             val (dialHost, dialPort) = TunnelRouter.resolve(config.host, config.port)
             val session = jsch.getSession(config.username, dialHost, dialPort).apply {
@@ -235,7 +256,7 @@ internal class SshConnection private constructor(
                     SshAuthType.PASSWORD -> {
                         setConfig("PreferredAuthentications", "password,keyboard-interactive")
                         setPassword(config.password)
-                        userInfo = PasswordUserInfo(config.password!!)
+                        passwordUserInfo?.let { userInfo = it }
                     }
 
                     SshAuthType.PRIVATE_KEY -> setConfig("PreferredAuthentications", "publickey")
@@ -247,6 +268,9 @@ internal class SshConnection private constructor(
                 session.connect(CONNECT_TIMEOUT_MS)
             } catch (e: JSchException) {
                 hostKeys.rejection?.let { throw it }
+                if (passwordUserInfo?.sawExtraVerificationPrompt == true) {
+                    throw IOException("SSH authentication failed: server requested additional verification (for example a one-time code)", e)
+                }
                 throw IOException("SSH connection to ${config.address} failed: ${e.message}", e)
             }
             val hostKey = hostKeys.presented ?: run {
@@ -262,12 +286,19 @@ internal class SshConnection private constructor(
             val connection = awaitInterruptibly({ open(config) }, onAbandoned = { it.close() })
             return connection.use {
                 val remoteDir = config.remoteDir.trim()
+                // Relative paths resolve against the login home directory; a blank
+                // directory means the home directory itself.
+                val resolvedDir = when {
+                    remoteDir.isBlank() -> connection.homeDir
+                    remoteDir.startsWith("/") -> remoteDir
+                    else -> "${connection.homeDir.trimEnd('/')}/$remoteDir"
+                }
                 SshProbeResult(
                     hostKey = connection.hostKey,
                     homeDir = connection.homeDir,
                     shell = connection.shell,
-                    remoteDirExists = remoteDir.startsWith("/") && connection.sftp { sftp ->
-                        sftp.statOrNull(remoteDir)?.isDir == true
+                    remoteDirExists = connection.sftp { sftp ->
+                        sftp.statOrNull(resolvedDir)?.isDir == true
                     },
                 )
             }
@@ -279,7 +310,9 @@ internal class SshConnection private constructor(
 internal class SshChannelOpenException(cause: Throwable) : IOException(cause.message, cause)
 
 // JSch 等服务器回应时会吞掉线程中断, 这类步骤放到这里的线程上执行, 见 awaitInterruptibly
-private val blockingSteps: ExecutorService = Executors.newCachedThreadPool { runnable ->
+// 有界线程池：JSch 阻塞步骤（建连/开 channel/等回应）各占一个线程，
+// 无界缓存池在重连风暴时会随请求数无限长线程
+private val blockingSteps: ExecutorService = Executors.newFixedThreadPool(8) { runnable ->
     Thread(runnable, "ssh-blocking-step").apply { isDaemon = true }
 }
 
@@ -335,7 +368,7 @@ internal fun ChannelSftp.statOrNull(path: String) = try {
 
 /** JSch 的 stat/ls/get/put/rm/rmdir 会把路径里的 * ? 当通配符展开, 反斜杠转义后按字面处理 */
 internal fun String.sftpQuote(): String =
-    replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?")
+    replace("\\", "\\\\").replace("*", "\\*").replace("?", "\\?").replace("[", "\\[").replace("]", "\\]")
 
 /**
  * 只认用户确认过的那一把主机公钥。校验发生在认证之前,
@@ -393,6 +426,10 @@ private class TrustedHostKeyRepository(private val trusted: SshHostKey?) : HostK
 
 /** 密码认证, 同时应答 keyboard-interactive 的密码提示 */
 private class PasswordUserInfo(private val password: String) : UserInfo, UIKeyboardInteractive {
+    @Volatile
+    var sawExtraVerificationPrompt: Boolean = false
+        private set
+
     override fun getPassphrase(): String? = null
 
     override fun getPassword(): String = password
@@ -411,5 +448,45 @@ private class PasswordUserInfo(private val password: String) : UserInfo, UIKeybo
         instruction: String?,
         prompt: Array<out String>?,
         echo: BooleanArray?,
-    ): Array<String> = Array(prompt?.size ?: 0) { password }
+    ): Array<String> {
+        val prompts = prompt ?: return emptyArray()
+        return Array(prompts.size) { index ->
+            val text = prompts[index]
+            if (isPasswordPrompt(text, echo?.getOrNull(index) == true)) {
+                password
+            } else {
+                // Non-password prompts (one-time code, token, captcha) are not
+                // answered with the password; answering them would only burn the
+                // attempt and hide the real requirement from the user.
+                sawExtraVerificationPrompt = true
+                ""
+            }
+        }
+    }
+
+    /**
+     * Only prompts that look like a password prompt get the password: echoed
+     * prompts are shown to the user (username, code), and prompts mentioning a
+     * one-time code or token are an extra verification step, not the password.
+     */
+    private fun isPasswordPrompt(prompt: String, echo: Boolean): Boolean {
+        if (echo) return false
+        val lower = prompt.lowercase()
+        if (!lower.contains("password")) return false
+        return EXTRA_VERIFICATION_WORDS.none { it in lower }
+    }
+
+    companion object {
+        private val EXTRA_VERIFICATION_WORDS = listOf(
+            "one-time",
+            "one time",
+            "otp",
+            "verification",
+            "code",
+            "token",
+            "2fa",
+            "two-factor",
+            "authenticator",
+        )
+    }
 }

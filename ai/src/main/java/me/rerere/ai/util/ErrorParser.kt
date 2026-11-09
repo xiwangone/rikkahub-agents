@@ -7,6 +7,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
+import okhttp3.Response
 
 class HttpException(
     message: String,
@@ -15,6 +16,11 @@ class HttpException(
     val providerErrorCode: String? = null,
     /** 服务端错误体里的错误类型，如 `invalid_request_error`、`ResponsibleAIPolicyViolation`。 */
     val providerErrorType: String? = null,
+    /**
+     * 服务端 `Retry-After` 要求等待的毫秒数（秒数形式；HTTP-date 形式无法可靠解析时为 null）。
+     * 重试退避优先按它等，而不是固定退避。
+     */
+    val retryAfterMs: Long? = null,
 ) : RuntimeException(message)
 
 /**
@@ -27,7 +33,7 @@ class HttpException(
  * 主要以这两个字段区分（OpenAI/Azure `content_policy_violation`、`content_filter`，
  * 阿里百炼 `data_inspection_failed`），只按文案匹配既容易漏也容易误判。
  */
-fun JsonElement.parseErrorDetail(statusCode: Int? = null): HttpException {
+fun JsonElement.parseErrorDetail(statusCode: Int? = null, retryAfterMs: Long? = null): HttpException {
     // code/type 只在最外层取一次：文案要逐层往下递归，若每层各自重取，递归到 message 标量时就丢光了
     // （顶层可能直接带，如 {"code": "DataInspectionFailed"}；也可能只嵌在 error 里，如 OpenAI/Azure）
     val providerErrorCode = stringField("error", "code") ?: stringField("code")
@@ -37,6 +43,47 @@ fun JsonElement.parseErrorDetail(statusCode: Int? = null): HttpException {
         statusCode = statusCode,
         providerErrorCode = providerErrorCode,
         providerErrorType = providerErrorType,
+        retryAfterMs = retryAfterMs,
+    )
+}
+
+/**
+ * 解析 `Retry-After` 响应头为等待毫秒数。只认秒数形式（各家限流响应最常见的写法）；
+ * HTTP-date 形式返回 null，调用方回退到固定退避。
+ */
+fun parseRetryAfterMs(value: String?): Long? {
+    val seconds = value?.trim()?.toLongOrNull() ?: return null
+    if (seconds < 0) return null
+    // 上限一天：再大的值按一天等，避免秒数 ×1000 溢出成负数。
+    return seconds.coerceAtMost(86_400L) * 1_000L
+}
+
+/** 读出本次响应的 `Retry-After`（秒数形式），没有或无法解析时为 null。 */
+fun Response.retryAfterMs(): Long? = parseRetryAfterMs(header("Retry-After"))
+
+/**
+ * 把一次非 2xx 响应转成 [HttpException]：能解析错误体时用 [parseErrorDetail] 只留精简文案
+ * 并带上状态码与 `Retry-After`；解析不出时用状态码加截断后的原始体兜底。
+ *
+ * 注意：会消费 [Response.body]，每个响应只能调一次。
+ */
+fun Response.errorAsHttpException(): HttpException {
+    val retryAfter = retryAfterMs()
+    val bodyRaw = runCatching { body.string() }.getOrNull().orEmpty()
+    val detail = runCatching {
+        Json.parseToJsonElement(bodyRaw).parseErrorDetail(code, retryAfter)
+    }.getOrNull()
+    if (detail != null) return detail
+    return HttpException(
+        message = buildString {
+            append("Failed to get response (HTTP $code)")
+            if (bodyRaw.isNotBlank()) {
+                append(": ")
+                append(bodyRaw.take(500))
+            }
+        },
+        statusCode = code,
+        retryAfterMs = retryAfter,
     )
 }
 

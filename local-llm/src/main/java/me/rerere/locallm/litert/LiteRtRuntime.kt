@@ -202,8 +202,8 @@ class LiteRtRuntime(private val context: Context) {
                         "LiteRtRuntime",
                         "armIdleTeardown: idle ${sinceLastUseMs}ms >= ${delay}ms; closing engine",
                     )
-                    try { current.conversation.close() } catch (_: Throwable) {}
-                    try { current.engine.close() } catch (_: Throwable) {}
+                    try { current.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Idle teardown: conversation close failed", t) }
+                    try { current.engine.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Idle teardown: engine close failed", t) }
                     loaded = null
                     lastTelemetry = null
                 }
@@ -505,7 +505,7 @@ class LiteRtRuntime(private val context: Context) {
             }
             // Engine kept, Conversation config changed — recreate just the Conversation.
             // The KV cache is gone, so [processed] must be cleared.
-            try { current.conversation.close() } catch (_: Throwable) {}
+            try { current.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: close failed", t) }
             current.conversation = createConversationWithFlags(
                 engine = current.engine,
                 backend = acceleratorToBackend(current.engineKey.accelerator),
@@ -524,8 +524,8 @@ class LiteRtRuntime(private val context: Context) {
         }
 
         // Engine swap path: tear down any prior Engine + Conversation.
-        try { current?.conversation?.close() } catch (_: Throwable) {}
-        try { current?.engine?.close() } catch (_: Throwable) {}
+        try { current?.conversation?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Engine swap: conversation close failed", t) }
+        try { current?.engine?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Engine swap: engine close failed", t) }
         loaded = null
 
         // Try the preferred accelerator first; fall back to CPU if it isn't already CPU.
@@ -715,7 +715,7 @@ class LiteRtRuntime(private val context: Context) {
     /** Close + rebuild the live Conversation in place, clearing its KV cache. Caller must
      *  hold [mutex] and must clear [LoadedModel.processed] itself. */
     private fun recreateConversationLocked(instance: LoadedModel) {
-        try { instance.conversation.close() } catch (_: Throwable) {}
+        try { instance.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation recreate: close failed", t) }
         instance.conversation = createConversationWithFlags(
             engine = instance.engine,
             backend = acceleratorToBackend(instance.engineKey.accelerator),
@@ -924,7 +924,7 @@ class LiteRtRuntime(private val context: Context) {
      * generating. Does NOT tear down the Engine or Conversation; the runtime stays warm.
      */
     fun stop() {
-        try { loaded?.conversation?.cancelProcess() } catch (_: Throwable) {}
+        try { loaded?.conversation?.cancelProcess() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "stop: cancelProcess failed", t) }
     }
 
     /**
@@ -934,8 +934,8 @@ class LiteRtRuntime(private val context: Context) {
         idleTeardownJob?.cancel()
         idleTeardownJob = null
         mutex.withLock {
-            try { loaded?.conversation?.close() } catch (_: Throwable) {}
-            try { loaded?.engine?.close() } catch (_: Throwable) {}
+            try { loaded?.conversation?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: conversation close failed", t) }
+            try { loaded?.engine?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: engine close failed", t) }
             loaded = null
             lastTelemetry = null
         }

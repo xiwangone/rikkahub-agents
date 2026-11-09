@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
@@ -30,11 +33,16 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -42,7 +50,6 @@ import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.workspace.ssh.SshAuthType
-import me.rerere.workspace.ssh.SshHostKey
 import org.koin.androidx.compose.koinViewModel
 import org.koin.core.parameter.parametersOf
 
@@ -57,9 +64,11 @@ fun WorkspaceSshEditorPage(id: String? = null) {
     val vm: WorkspaceSshEditorVM = koinViewModel(parameters = { parametersOf(id) })
     val state by vm.state.collectAsStateWithLifecycle()
     val draft = state.draft
+    val clipboard = LocalClipboardManager.current
     var showSaveAnyway by remember { mutableStateOf(false) }
     val nameDuplicate = draft.name.isNotBlank() && draft.name.trim() in state.knownNames
     val canSubmit = vm.canSubmit()
+    val blockers = vm.submitBlockers()
 
     LaunchedEffect(state.saved) {
         if (state.saved) {
@@ -104,9 +113,13 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 label = { Text(stringResource(R.string.workspace_page_name)) },
                 singleLine = true,
                 enabled = !state.busy,
-                isError = nameDuplicate,
+                isError = nameDuplicate || WorkspaceSshEditorVM.SubmitBlocker.NAME_BLANK in blockers,
                 supportingText = {
-                    if (nameDuplicate) Text(stringResource(R.string.workspace_page_name_duplicate))
+                    if (nameDuplicate) {
+                        Text(stringResource(R.string.workspace_page_name_duplicate))
+                    } else if (WorkspaceSshEditorVM.SubmitBlocker.NAME_BLANK in blockers) {
+                        Text(stringResource(R.string.workspace_ssh_name_required))
+                    }
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
@@ -117,6 +130,12 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 placeholder = { Text(stringResource(R.string.workspace_ssh_host_placeholder)) },
                 singleLine = true,
                 enabled = !state.busy,
+                isError = WorkspaceSshEditorVM.SubmitBlocker.HOST_BLANK in blockers,
+                supportingText = {
+                    if (WorkspaceSshEditorVM.SubmitBlocker.HOST_BLANK in blockers) {
+                        Text(stringResource(R.string.workspace_ssh_host_required))
+                    }
+                },
                 modifier = Modifier.fillMaxWidth(),
             )
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -127,6 +146,12 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                     singleLine = true,
                     enabled = !state.busy,
                     keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    isError = WorkspaceSshEditorVM.SubmitBlocker.PORT_INVALID in blockers,
+                    supportingText = {
+                        if (WorkspaceSshEditorVM.SubmitBlocker.PORT_INVALID in blockers) {
+                            Text(stringResource(R.string.workspace_ssh_port_invalid))
+                        }
+                    },
                     modifier = Modifier.weight(0.3f),
                 )
                 OutlinedTextField(
@@ -135,6 +160,12 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                     label = { Text(stringResource(R.string.workspace_ssh_username)) },
                     singleLine = true,
                     enabled = !state.busy,
+                    isError = WorkspaceSshEditorVM.SubmitBlocker.USERNAME_BLANK in blockers,
+                    supportingText = {
+                        if (WorkspaceSshEditorVM.SubmitBlocker.USERNAME_BLANK in blockers) {
+                            Text(stringResource(R.string.workspace_ssh_username_required))
+                        }
+                    },
                     modifier = Modifier.weight(0.7f),
                 )
             }
@@ -196,6 +227,13 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                     )
                 }
             }
+            if (WorkspaceSshEditorVM.SubmitBlocker.CREDENTIAL_MISSING in blockers) {
+                Text(
+                    text = stringResource(R.string.workspace_ssh_credential_required),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
             OutlinedTextField(
                 value = draft.remoteDir,
                 onValueChange = vm::setRemoteDir,
@@ -205,17 +243,37 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 supportingText = { Text(stringResource(R.string.workspace_ssh_remote_dir_desc)) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            Text(
-                text = draft.hostKey?.let { key ->
-                    stringResource(R.string.workspace_ssh_host_key_trusted, key.type, key.fingerprint)
-                } ?: stringResource(R.string.workspace_ssh_host_key_missing),
-                style = MaterialTheme.typography.bodySmall,
-                color = if (draft.hostKey == null) {
-                    MaterialTheme.colorScheme.onSurfaceVariant
-                } else {
-                    MaterialTheme.colorScheme.primary
-                },
-            )
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                SelectionContainer(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = draft.hostKey?.let { key ->
+                            stringResource(R.string.workspace_ssh_host_key_trusted, key.type, key.fingerprint)
+                        } ?: stringResource(R.string.workspace_ssh_host_key_missing),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = if (draft.hostKey == null) {
+                            MaterialTheme.colorScheme.onSurfaceVariant
+                        } else {
+                            MaterialTheme.colorScheme.primary
+                        },
+                    )
+                }
+                val trustedKey = draft.hostKey
+                if (trustedKey != null) {
+                    IconButton(
+                        onClick = {
+                            clipboard.setText(AnnotatedString("${trustedKey.type} ${trustedKey.fingerprint}"))
+                        },
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Copy01,
+                            contentDescription = stringResource(R.string.workspace_ssh_host_key_copy),
+                        )
+                    }
+                }
+            }
 
             state.probeResult?.let { result ->
                 Surface(
@@ -242,9 +300,32 @@ fun WorkspaceSshEditorPage(id: String? = null) {
             }
 
             state.probeError?.let { error ->
+                val reason = when (error.kind) {
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.AUTH ->
+                        stringResource(R.string.workspace_ssh_probe_reason_auth_failed)
+
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.REFUSED ->
+                        stringResource(R.string.workspace_ssh_probe_reason_refused)
+
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.TIMEOUT ->
+                        stringResource(R.string.workspace_ssh_probe_reason_timeout)
+
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.UNREACHABLE ->
+                        stringResource(R.string.workspace_ssh_probe_reason_unreachable)
+
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.EXTRA_VERIFICATION ->
+                        stringResource(R.string.workspace_ssh_probe_reason_extra_verification)
+
+                    WorkspaceSshEditorVM.ProbeFailure.Kind.UNKNOWN -> null
+                }
+                val display = when {
+                    reason == null -> error.detail
+                    error.detail.isBlank() -> reason
+                    else -> "$reason (${error.detail})"
+                }
                 Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                     Text(
-                        text = stringResource(R.string.workspace_ssh_probe_failed, error),
+                        text = stringResource(R.string.workspace_ssh_probe_failed, display),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
@@ -317,54 +398,3 @@ fun WorkspaceSshEditorPage(id: String? = null) {
     }
 }
 
-@Composable
-private fun HostKeyConfirmDialog(
-    address: String,
-    actual: SshHostKey,
-    expected: SshHostKey?,
-    onConfirm: () -> Unit,
-    onDismiss: () -> Unit,
-) {
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = {
-            Text(
-                stringResource(
-                    if (expected == null) R.string.workspace_ssh_host_key_unknown_title
-                    else R.string.workspace_ssh_host_key_changed_title,
-                ),
-            )
-        },
-        text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    text = stringResource(
-                        if (expected == null) R.string.workspace_ssh_host_key_unknown_desc
-                        else R.string.workspace_ssh_host_key_changed_desc,
-                        address,
-                    ),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-                if (expected != null) {
-                    Text(
-                        text = stringResource(R.string.workspace_ssh_host_key_previous, expected.type, expected.fingerprint),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
-                }
-                Text(
-                    text = stringResource(R.string.workspace_ssh_host_key_received, actual.type, actual.fingerprint),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(onClick = onConfirm) {
-                Text(stringResource(R.string.workspace_ssh_host_key_trust))
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
-        },
-    )
-}

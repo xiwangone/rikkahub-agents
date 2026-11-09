@@ -52,6 +52,12 @@ private const val MIN_SEGMENT_BYTES = 3200
 // HTTP 请求失败时的最大重试次数 (含首次). 主要用于偶发 400/网络抖动的自动恢复.
 private const val MAX_RETRY = 3
 
+// SSE 响应上限: 单段音频最长约 6MB PCM, 识别文本远小于此. 超限即停止读取并返回
+// 已有文本, 避免服务端失控响应无界增长.
+private const val MAX_SSE_BYTES = 16 * 1024 * 1024
+private const val MAX_TRANSCRIPT_CHARS = 1_000_000
+private const val MAX_DATA_LINES_PER_EVENT = 10_000
+
 /**
  * 阶跃星辰 Step ASR Controller。
  *
@@ -317,6 +323,7 @@ class StepASRController(
         val transcript = StringBuilder()
         var eventType: String? = null
         val dataLines = mutableListOf<String>()
+        var bytesRead = 0
 
         fun dispatchEvent(): Boolean {
             if (eventType == null && dataLines.isEmpty()) return false
@@ -329,6 +336,11 @@ class StepASRController(
 
         while (true) {
             val line = source.readUtf8Line() ?: break
+            bytesRead += line.length
+            if (bytesRead > MAX_SSE_BYTES || transcript.length > MAX_TRANSCRIPT_CHARS) {
+                AppLogger.w(TAG, "SSE stream exceeded limit (bytes=$bytesRead), stopping read")
+                break
+            }
             if (line.isEmpty()) {
                 if (dispatchEvent()) break
                 continue
@@ -345,7 +357,7 @@ class StepASRController(
                 }
             when (field) {
                 "event" -> eventType = value
-                "data" -> dataLines.add(value)
+                "data" -> if (dataLines.size < MAX_DATA_LINES_PER_EVENT) dataLines.add(value)
             }
         }
         dispatchEvent()

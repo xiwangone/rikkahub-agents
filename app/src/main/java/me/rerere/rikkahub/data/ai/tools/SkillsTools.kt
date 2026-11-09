@@ -216,7 +216,9 @@ fun createSkillTools(
                     return@Tool listOf(UIMessagePart.Text(content))
                 }
                 var target = skillManager?.resolveSkillFile(name, path) ?: metaDir(name)?.resolve(path)?.takeIf {
-                    it.canonicalPath.startsWith(metaDir(name)!!.canonicalPath)
+                    // 带分隔符的包含判定：缺了它，`../<skill>evil/…` 的兄弟目录可绕过。
+                    it.canonicalPath == metaDir(name)!!.canonicalPath ||
+                        it.canonicalPath.startsWith(metaDir(name)!!.canonicalPath + File.separator)
                 }
                 if (target == null || !target.exists()) {
                     // Locale fallback: markdown links inside the (localized) body point at

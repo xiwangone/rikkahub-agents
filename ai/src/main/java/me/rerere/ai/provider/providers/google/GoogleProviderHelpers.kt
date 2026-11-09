@@ -94,10 +94,16 @@ internal fun parseMessagePart(jsonObject: JsonObject, index: Int = 0): UIMessage
             }
 
             jsonObject.containsKey("functionCall") -> {
+                val functionCall = jsonObject["functionCall"] as? JsonObject
+                val toolName = (functionCall?.get("name") as? JsonPrimitive)?.contentOrNull
+                if (functionCall == null || toolName.isNullOrBlank()) {
+                    AppLogger.w("GoogleProvider", "parseMessagePart: skipping functionCall without name")
+                    return null
+                }
                 UIMessagePart.Tool(
-                    toolCallId = jsonObject["functionCall"]!!.jsonObject["id"]?.jsonPrimitive?.contentOrNull ?: Uuid.random().toString(),
-                    toolName = jsonObject["functionCall"]!!.jsonObject["name"]!!.jsonPrimitive.content,
-                    input = json.encodeToString(jsonObject["functionCall"]!!.jsonObject["args"]),
+                    toolCallId = (functionCall["id"] as? JsonPrimitive)?.contentOrNull ?: Uuid.random().toString(),
+                    toolName = toolName,
+                    input = json.encodeToString(functionCall["args"] ?: buildJsonObject {}),
                     output = emptyList(),
                     metadata = GoogleThoughtMetadata(
                         thoughtSignature = jsonObject["thoughtSignature"]?.jsonPrimitive?.contentOrNull

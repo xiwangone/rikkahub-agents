@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.db.entity
 
+import androidx.room.ColumnInfo
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import kotlinx.serialization.Serializable
@@ -32,5 +33,9 @@ data class SshHostEntity(
     val jumpHost: String? = null,
     /** 自定义 ssh 选项，每行一个 "键 值"（如 "ConnectTimeout 5"），透传 JSch setConfig */
     val sshOptions: String? = null,
+    /** 目标系统类型：AUTO（自动探测）/ LINUX / WINDOWS，空与未知按 AUTO 处理 */
+    @ColumnInfo(defaultValue = "AUTO") val platform: String = "AUTO",
+    /** 是否允许该主机密钥轮换（默认不允许；开启后密钥变化时重新信任） */
+    @ColumnInfo(defaultValue = "0") val allowHostKeyRotation: Boolean = false,
     val createdAtMs: Long,
 )

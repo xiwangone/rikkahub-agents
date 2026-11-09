@@ -16,8 +16,10 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
 import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
+import me.rerere.rikkahub.data.datastore.SshPlatform
 
 /**
  * Vault 凭证工具（App 内 AI 凭证中枢）。
@@ -136,6 +138,7 @@ fun vaultSshExecTool(
                     put("auth", buildJsonObject { put("type", "string"); put("description", "'key' or 'password'") })
                     put("credential_name", buildJsonObject { put("type", "string"); put("description", "Vault credential name holding the private key or password") })
                     put("command", buildJsonObject { put("type", "string"); put("description", "Command to run on the server") })
+                    put("platform", buildJsonObject { put("type", "string"); put("description", "Remote platform: 'auto' (default; falls back to the SSH banner result, then command-shape heuristics), 'linux' or 'windows'. Pass explicitly when the remote platform is known so output encoding picks the right form on the first call.") })
                     put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Timeout (default 30)") })
                 },
             required = listOf("host", "user", "auth", "credential_name", "command"),
@@ -158,6 +161,7 @@ private suspend fun runVaultSshExec(
     val auth = o["auth"]?.jsonPrimitive?.contentOrNull ?: return fail("auth 必填（key/password）")
     val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name 必填")
     val command = o["command"]?.jsonPrimitive?.contentOrNull ?: return fail("command 必填")
+    val platform = o["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
     val timeout = (o["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(5, 300)
 
     val resolved = CredentialResolver(repository).resolve(credName, CredentialPurpose.SSH_AUTH, caller = "ai-tool")
@@ -166,12 +170,36 @@ private suspend fun runVaultSshExec(
 
     return runCatching {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            executeVaultSshSession(context, repository, host, port, user, auth, secret, command, timeout)
+            executeVaultSshSession(context, repository, host, port, user, auth, secret, command, timeout, platform = platform)
         }
     }.getOrElse { e ->
         if (e is CancellationException) throw e
-        listOf(UIMessagePart.Text("❌ SSH 执行失败: ${e.message}"))
+        if (isVaultHostKeyChange(e.message)) {
+            // Vault 侧无 saved host 实体，不接轮换开关，只把错误翻译成结构化信封
+            // （与 SshTool 的 host_key_changed 分支同口径）。
+            listOf(
+                UIMessagePart.Text(
+                    ToolErrors.envelopeFor(
+                        error = "host_key_changed",
+                        message = "host_key_changed",
+                        hint = "Stored key for $host doesn't match what the server presented. If the user trusts this host (e.g. they just reinstalled it), call ssh_forget_host_key with host=\"$host\" then retry. Do NOT forget the key without explicit user confirmation — a changed key can also indicate an attacker.",
+                        extra = ToolErrors.extraOf("host" to host, "raw" to e.message.orEmpty()),
+                    ).toString(),
+                ),
+            )
+        } else {
+            listOf(UIMessagePart.Text("❌ SSH 执行失败: ${e.message}"))
+        }
     }
+}
+
+/** 与 SshTool.isHostKeyChange 同口径的主机密钥变化判定（Vault 侧本地复刻，跨包不可见）。 */
+private fun isVaultHostKeyChange(msg: String?): Boolean {
+    val m = msg.orEmpty()
+    return m.contains("HostKey", ignoreCase = true) ||
+        m.contains("host key", ignoreCase = true) ||
+        m.contains("identification has changed", ignoreCase = true) ||
+        m.contains("REMOTE HOST IDENTIFICATION", ignoreCase = true)
 }
 
 private suspend fun executeVaultSshSession(
@@ -184,6 +212,8 @@ private suspend fun executeVaultSshSession(
     secret: String,
     command: String,
     timeout: Int,
+    /** 显式平台；AUTO/缺省时用建连后读到的 banner 判定。 */
+    platform: SshPlatform? = null,
 ): List<UIMessagePart> {
     val jsch = JSch()
     val knownHostsFile = java.io.File(context.filesDir, "vault_known_hosts")
@@ -208,7 +238,7 @@ private suspend fun executeVaultSshSession(
     session.setConfig("ServerAliveInterval", "30")
     session.setConfig("ServerAliveCountMax", "3")
     session.connect(timeout * 1000)
-    val (outBuf, errBuf, exit) =
+    val outcome =
         try {
             if (isFirstConnect) {
                 session.hostKey?.let { hk ->
@@ -217,19 +247,43 @@ private suspend fun executeVaultSshSession(
             }
             val channel = session.openChannel("exec") as ChannelExec
             try {
-                channel.setCommand(withUtf8ConsoleEncoding(command, RemotePlatform.isWindowsServer(session.serverVersion)))
-                channel.connect()
-                val (oBuf, eBuf) = drainChannelStreams(channel, System.currentTimeMillis() + timeout * 1000L)
-                Triple(oBuf, eBuf, channel.exitStatus)
+                // 显式平台优先；未显式指定时用本次建连读到的 banner 判定
+                val explicitWindows = when (platform) {
+                    SshPlatform.WINDOWS -> true
+                    SshPlatform.LINUX -> false
+                    else -> null
+                }
+                channel.setCommand(withUtf8ConsoleEncoding(command, explicitWindows ?: RemotePlatform.isWindowsServer(session.serverVersion)))
+                channel.connect(timeout * 1000)
+                val (oBuf, eBuf, timedOut) = drainChannelStreams(channel, System.currentTimeMillis() + timeout * 1000L)
+                if (timedOut) {
+                    runCatching { channel.sendSignal("KILL") }
+                }
+                ChannelExecOutcome(oBuf, eBuf, if (timedOut) -1 else channel.exitStatus, timedOut)
             } finally {
                 runCatching { channel.disconnect() }
             }
         } finally {
             runCatching { session.disconnect() }
         }
+    val (outBuf, errBuf, exit, timedOut) = outcome
     val allSecrets = allVaultSecrets(repository)
     val stdout = SecretMasker.mask(outBuf.toString("UTF-8").trim(), allSecrets)
     val stderr = SecretMasker.mask(errBuf.toString("UTF-8").trim(), allSecrets)
+    if (timedOut) {
+        // Same command_timeout envelope as SshTool.runOnSession: a bare exit=-1 is
+        // indistinguishable from a real exit code, so the timeout must be explicit.
+        return listOf(
+            UIMessagePart.Text(
+                ToolErrors.envelopeFor(
+                    error = "command_timeout",
+                    message = "Command timed out",
+                    hint = "Command did not complete within ${timeout}s. Increase timeout_seconds and retry. Partial stdout/stderr captured before the timeout is included.",
+                    extra = ToolErrors.extraOf("partial_stdout" to stdout, "partial_stderr" to stderr),
+                ).toString(),
+            ),
+        )
+    }
     val fingerprintNote = if (isFirstConnect) "\n（首次连接，已记录该主机指纹，后续连接将校验）" else ""
     return listOf(
         UIMessagePart.Text(
@@ -251,10 +305,18 @@ private fun isFirstKnownHostConnect(knownHostsFile: java.io.File, host: String):
     }
 }
 
+/** One exec channel run: captured streams, exit code, and whether the deadline hit first. */
+private data class ChannelExecOutcome(
+    val stdout: java.io.ByteArrayOutputStream,
+    val stderr: java.io.ByteArrayOutputStream,
+    val exitCode: Int,
+    val timedOut: Boolean,
+)
+
 private fun drainChannelStreams(
     channel: ChannelExec,
     deadline: Long,
-): Pair<java.io.ByteArrayOutputStream, java.io.ByteArrayOutputStream> {
+): Triple<java.io.ByteArrayOutputStream, java.io.ByteArrayOutputStream, Boolean> {
     val outBuf = java.io.ByteArrayOutputStream()
     val errBuf = java.io.ByteArrayOutputStream()
     val input = channel.inputStream
@@ -272,7 +334,8 @@ private fun drainChannelStreams(
         if (channel.isClosed && input.available() <= 0 && errInput.available() <= 0) break
         Thread.sleep(100)
     }
-    return outBuf to errBuf
+    val timedOut = !channel.isClosed
+    return Triple(outBuf, errBuf, timedOut)
 }
 
 /** OPENSSH 私钥末尾换行标准化：缺末尾换行时补上（否则 JSch 认证失败）。 */

@@ -15,19 +15,22 @@ val Migration_13_14 = object : Migration(13, 14) {
         try {
             val cursor = db.query("SELECT id, messages FROM message_node")
             var updatedCount = 0
-            while (cursor.moveToNext()) {
-                val id = cursor.getString(0)
-                val messagesJson = cursor.getString(1)
-                val migratedJson = migrateMessagesJson(messagesJson)
-                if (migratedJson != messagesJson) {
-                    db.execSQL(
-                        "UPDATE message_node SET messages = ? WHERE id = ?",
-                        arrayOf(migratedJson, id)
-                    )
-                    updatedCount++
+            try {
+                while (cursor.moveToNext()) {
+                    val id = cursor.getString(0)
+                    val messagesJson = cursor.getString(1)
+                    val migratedJson = migrateMessagesJson(messagesJson)
+                    if (migratedJson != messagesJson) {
+                        db.execSQL(
+                            "UPDATE message_node SET messages = ? WHERE id = ?",
+                            arrayOf(migratedJson, id)
+                        )
+                        updatedCount++
+                    }
                 }
+            } finally {
+                cursor.close()
             }
-            cursor.close()
             db.setTransactionSuccessful()
             AppLog.i(TAG, "migrate: migrate from 13 to 14 success ($updatedCount nodes updated)")
         } finally {

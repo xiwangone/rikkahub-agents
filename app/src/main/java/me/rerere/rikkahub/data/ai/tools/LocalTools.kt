@@ -265,11 +265,11 @@ class LocalTools(
 
     private fun connectivityToolEntries(): List<ToolEntry> = listOf(
     ToolEntry(LocalToolOption.Ssh) { tools, _ ->
-        tools.add(sshExecTool(context))
+        tools.add(sshExecTool(context, settingsStore))
         tools.add(saveSshHostTool(sshHostRepository))
         tools.add(listSshHostsTool(sshHostRepository))
         tools.add(deleteSshHostTool(sshHostRepository))
-        tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository))
+        tools.add(sshExecSavedTool(context, sshHostRepository, vaultRepository, settingsStore))
         tools.add(sshPresetsTool())
         tools.add(sshJobPollTool(context, sshHostRepository, vaultRepository))
         tools.add(sshUploadTool(context, sshHostRepository, vaultRepository))

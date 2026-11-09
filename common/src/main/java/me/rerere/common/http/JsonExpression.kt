@@ -8,6 +8,12 @@ import kotlinx.serialization.json.JsonPrimitive
 
 // Public API
 
+// Maximum nesting depth for parsing and evaluation. The parser and evaluator are
+// both recursive, so a deeply nested expression can overflow the stack; legitimate
+// expressions are only a few levels deep, while flat chains (a+b+c+...) also grow
+// the evaluator's recursion depth, so the cap leaves room for long flat expressions.
+private const val MAX_EXPRESSION_DEPTH = 256
+
 data class ParseResult(
     val success: Boolean,
     val expr: Expr? = null,
@@ -275,51 +281,52 @@ private class Parser(
     private var last: Token = current
 
     fun parse(): Expr {
-        val expr = parseConcat()
+        val expr = parseConcat(0)
         expect(TokenType.EOF)
         return expr
     }
 
-    private fun parseConcat(): Expr {
-        var expr = parseAdditive()
+    private fun parseConcat(depth: Int): Expr {
+        checkDepth(depth)
+        var expr = parseAdditive(depth)
         while (match(TokenType.CONCAT)) {
             val op = previous()
-            val right = parseAdditive()
+            val right = parseAdditive(depth)
             expr = Binary(expr, op, right)
         }
         return expr
     }
 
-    private fun parseAdditive(): Expr {
-        var expr = parseMultiplicative()
+    private fun parseAdditive(depth: Int): Expr {
+        var expr = parseMultiplicative(depth)
         while (match(TokenType.PLUS) || match(TokenType.MINUS)) {
             val op = previous()
-            val right = parseMultiplicative()
+            val right = parseMultiplicative(depth)
             expr = Binary(expr, op, right)
         }
         return expr
     }
 
-    private fun parseMultiplicative(): Expr {
-        var expr = parseUnary()
+    private fun parseMultiplicative(depth: Int): Expr {
+        var expr = parseUnary(depth)
         while (match(TokenType.STAR) || match(TokenType.SLASH)) {
             val op = previous()
-            val right = parseUnary()
+            val right = parseUnary(depth)
             expr = Binary(expr, op, right)
         }
         return expr
     }
 
-    private fun parseUnary(): Expr {
+    private fun parseUnary(depth: Int): Expr {
         if (match(TokenType.PLUS) || match(TokenType.MINUS)) {
             val op = previous()
-            val right = parseUnary()
+            val right = parseUnary(depth + 1)
             return Unary(op, right)
         }
-        return parsePrimary()
+        return parsePrimary(depth)
     }
 
-    private fun parsePrimary(): Expr =
+    private fun parsePrimary(depth: Int): Expr =
         when (current.type) {
             TokenType.NUMBER -> {
                 val n = current
@@ -339,7 +346,7 @@ private class Parser(
 
             TokenType.LPAREN -> {
                 advance()
-                val e = parseConcat()
+                val e = parseConcat(depth + 1)
                 expect(TokenType.RPAREN)
                 e
             }
@@ -400,6 +407,12 @@ private class Parser(
     private fun previous(): Token = last
 
     private fun error(msg: String) = ParseException(msg)
+
+    private fun checkDepth(depth: Int) {
+        if (depth > MAX_EXPRESSION_DEPTH) {
+            throw ParseException("Expression is too deeply nested (max $MAX_EXPRESSION_DEPTH)")
+        }
+    }
 }
 
 // Evaluator
@@ -417,17 +430,23 @@ private sealed interface Value {
 private class Evaluator(
     private val root: JsonObject,
 ) {
-    fun eval(expr: Expr): Value =
-        when (expr) {
+    fun eval(expr: Expr): Value = eval(expr, 0)
+
+    private fun eval(expr: Expr, depth: Int): Value {
+        if (depth > MAX_EXPRESSION_DEPTH) {
+            throw ParseException("Expression is too deeply nested (max $MAX_EXPRESSION_DEPTH)")
+        }
+        return when (expr) {
             is NumberLiteral -> Value.Num(expr.value)
             is StringLiteral -> Value.Str(expr.value)
-            is Unary -> evalUnary(expr)
-            is Binary -> evalBinary(expr)
+            is Unary -> evalUnary(expr, depth)
+            is Binary -> evalBinary(expr, depth)
             is PathExpr -> fromJson(resolvePath(expr))
         }
+    }
 
-    private fun evalUnary(expr: Unary): Value {
-        val v = eval(expr.expr)
+    private fun evalUnary(expr: Unary, depth: Int): Value {
+        val v = eval(expr.expr, depth + 1)
         return when (expr.op.type) {
             TokenType.MINUS -> Value.Num(-toNumber(v))
             TokenType.PLUS -> Value.Num(+toNumber(v))
@@ -435,9 +454,9 @@ private class Evaluator(
         }
     }
 
-    private fun evalBinary(expr: Binary): Value {
-        val left = eval(expr.left)
-        val right = eval(expr.right)
+    private fun evalBinary(expr: Binary, depth: Int): Value {
+        val left = eval(expr.left, depth + 1)
+        val right = eval(expr.right, depth + 1)
         return when (expr.op.type) {
             TokenType.CONCAT -> Value.Str(toString(left) + toString(right))
             TokenType.PLUS -> Value.Num(toNumber(left) + toNumber(right))

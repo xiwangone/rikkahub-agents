@@ -230,11 +230,17 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         )
         return try {
             generativeModel.checkStatus()
+        } catch (e: kotlinx.coroutines.CancellationException) {
+            throw e
         } catch (t: Throwable) {
             AppLogger.w(TAG, "checkStatus failed", t)
             FeatureStatus.UNAVAILABLE
         } finally {
-            try { generativeModel.close() } catch (_: Throwable) {}
+            try {
+                generativeModel.close()
+            } catch (t: Throwable) {
+                AppLogger.w(TAG, "checkStatus: close failed", t)
+            }
         }
     }
 

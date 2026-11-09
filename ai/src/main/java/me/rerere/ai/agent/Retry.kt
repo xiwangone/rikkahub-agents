@@ -17,7 +17,8 @@ import kotlinx.coroutines.ensureActive
  * [nonRetryable] 里的类型即使命中 [retryOn] 也不会重放请求，用于把「响应已收到、但下游处理失败」
  * 这类不能重发模型请求的情况固定下来。
  * 等待时长按 [initialDelay] 指数递增（1s、2s、4s…）；调用方需要自定义节奏时给 [delayFor]，
- * 非空即完全接管第几次重试等多久，[initialDelay] 不再生效。
+ * 非空即完全接管第几次重试等多久，[initialDelay] 不再生效。需要按失败原因决定等待时长时
+ * （如服务端 `Retry-After`）给 [delayForFailure]，它优先于 [delayFor]。
  */
 data class RetryPolicy(
     val maxRetries: Int,
@@ -25,6 +26,7 @@ data class RetryPolicy(
     val retryOn: (Throwable) -> Boolean = { it is IOException },
     val nonRetryable: (Throwable) -> Boolean = { false },
     val delayFor: ((retry: Int) -> Duration)? = null,
+    val delayForFailure: ((retry: Int, failure: Throwable) -> Duration)? = null,
 ) {
     companion object {
         val NONE = RetryPolicy(maxRetries = 0)
@@ -71,7 +73,9 @@ suspend fun <T> withRetry(
                 throw error
             }
             retries++
-            val backoff = policy.delayFor?.invoke(retries) ?: policy.initialDelay * (1 shl (retries - 1))
+            val backoff = policy.delayForFailure?.invoke(retries, error)
+                ?: policy.delayFor?.invoke(retries)
+                ?: policy.initialDelay * (1 shl (retries - 1))
             onRetry(RetryAttempt(error, retries, policy.maxRetries, backoff))
             delay(backoff)
         }

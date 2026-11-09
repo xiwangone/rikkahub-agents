@@ -35,6 +35,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.COMPRESS_MODEL
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.COMPRESS_PROMPT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.CONTEXT_WINDOW_SIZE
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.CUSTOM_THEMES
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.DEFAULT_SSH_PLATFORM
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.DEFAULT_TTS_PLAYBACK_SPEED
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.DELETED_BUILTIN_PROVIDER_IDS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.DELETED_BUNDLED_SKILLS
@@ -503,6 +504,7 @@ internal suspend fun persistSettingsTo(
         preferences[WORKSPACE_STATS_CACHE] = settings.workspaceStatsCache
         preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
         preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
+        preferences[DEFAULT_SSH_PLATFORM] = settings.defaultSshPlatform.preferenceName
         preferences.putJsonIfChanged(
             BACKUP_REMINDER_CONFIG,
             previous,

@@ -292,7 +292,7 @@ class S3Client(
     fun getPublicUrl(key: String): String {
         val path = "/${key.trimStart('/')}"
         return if (config.pathStyle) {
-            "${config.endpoint.trimEnd('/')}/${config.bucket}$path"
+            "${config.withHttpsByDefault().endpoint.trimEnd('/')}/${config.bucket}$path"
         } else {
             val scheme = if (config.isHttps) "https://" else "http://"
             "$scheme${config.bucket}.${config.host}$path"

@@ -14,15 +14,13 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
 import org.koin.java.KoinJavaComponent.getKoin
-
-private const val SHELL_TIMEOUT_MAX_SECONDS = 600L
-private const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
@@ -144,7 +142,11 @@ private fun createReadFileTool(
             } else {
                 val from = (startLine ?: 1).coerceIn(1, maxOf(1, total))
                 val to = (endLine ?: if (startLine == null && total > defaultMaxLines) defaultMaxLines else total).coerceIn(from, maxOf(from, total))
-                val slice = lines.subList(from - 1, minOf(to, total))
+                val actualEnd = minOf(to, total)
+                // 请求的范围越界时静默夹取会让调用方误以为读到了指定行：显式标注夹取。
+                val rangeClamped = (startLine != null && startLine != from) ||
+                    (endLine != null && endLine != actualEnd)
+                val slice = lines.subList(from - 1, actualEnd)
                 val body = if (withLineNumbers) {
                     slice.mapIndexed { i, line -> "${from + i}| $line" }.joinToString("\n")
                 } else {
@@ -156,9 +158,14 @@ private fun createReadFileTool(
                             put("path", path)
                             put("text", body)
                             put("start_line", from)
-                            put("end_line", minOf(to, total))
+                            put("end_line", actualEnd)
                             put("total_lines", total)
                             put("truncated", from > 1 || to < total)
+                            if (rangeClamped) {
+                                put("range_clamped", true)
+                                startLine?.let { put("requested_start_line", it) }
+                                endLine?.let { put("requested_end_line", it) }
+                            }
                             if (startLine == null && endLine == null && to < total) {
                                 put("hint", "File has $total lines. Showing first $to lines to prevent context blowout. Pass start_line and end_line to inspect specific sections.")
                             }
@@ -459,12 +466,20 @@ private fun createShellTool(
         val presetName = params.string("preset")?.takeIf { it.isNotBlank() }
         val command =
             if (presetName != null) {
-                val presets = loadShellPresets(workspaceRepository, workspaceId, presetsPath)
+                val presets = try {
+                    loadShellPresets(workspaceRepository, workspaceId, presetsPath)
+                } catch (_: ShellPresetsCorruptedException) {
+                    return@Tool listOf(
+                        UIMessagePart.Text(
+                            ToolErrors.envelopeFor(error = "preset_file_corrupted", message = workspaceToolMessage(R.string.workspace_tool_preset_file_corrupted, presetsPath), extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath)).toString(),
+                        ),
+                    )
+                }
                 val node =
                     presets[presetName]
                         ?: return@Tool listOf(
                             UIMessagePart.Text(
-                                ToolErrors.envelopeFor(error = "preset_not_found", message = "preset_not_found", hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath, "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })).toString(),
+                                ToolErrors.envelopeFor(error = "preset_not_found", message = workspaceToolMessage(R.string.workspace_tool_preset_not_found, presetName, presetsPath), hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath, "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })).toString(),
                             ),
                         )
                 val template =
@@ -476,7 +491,7 @@ private fun createShellTool(
                 if (template.isBlank()) {
                     return@Tool listOf(
                         UIMessagePart.Text(
-                            ToolErrors.envelopeFor(error = "preset_empty", message = "preset_empty", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath)).toString(),
+                            ToolErrors.envelopeFor(error = "preset_empty", message = workspaceToolMessage(R.string.workspace_tool_preset_empty, presetName, presetsPath), extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath)).toString(),
                         ),
                     )
                 }
@@ -492,10 +507,20 @@ private fun createShellTool(
             )
         }
         val cwd = layout.relativeToWorkspace(params.string("cwd") ?: defaultCwd.orEmpty())
-        val timeoutMillis = params.string("timeout")?.toLongOrNull()
-            ?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
-            ?.times(1_000L)
-            ?: WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS
+        val timeoutRaw = params.string("timeout")
+        val timeoutSeconds = timeoutRaw?.toLongOrNull()
+        if (timeoutRaw != null && timeoutSeconds == null) {
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = workspaceToolMessage(R.string.workspace_tool_timeout_invalid, timeoutRaw, SHELL_TIMEOUT_MAX_SECONDS.toString()), extra = ToolErrors.extraOf("timeout" to timeoutRaw, "maxTimeoutSeconds" to SHELL_TIMEOUT_MAX_SECONDS)).toString(),
+                ),
+            )
+        }
+        // 超上限时夹取到上限，并在结果里注明实际生效值；未传时沿用原默认 30 秒。
+        val effectiveTimeoutSeconds = timeoutSeconds?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
+            ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
+        val timeoutMillis = effectiveTimeoutSeconds * 1_000L
+        val timeoutClamped = timeoutSeconds != null && timeoutSeconds != effectiveTimeoutSeconds
         val targetWorkspace = params.string("workspace")
 
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
@@ -525,6 +550,11 @@ private fun createShellTool(
                     put("stdout", result.stdout)
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
+                    if (timeoutClamped && timeoutSeconds != null) {
+                        put("timeoutClamped", true)
+                        put("requestedTimeoutSeconds", timeoutSeconds)
+                        put("timeoutSeconds", effectiveTimeoutSeconds)
+                    }
                     if (result.truncated) put("truncated", true)
                     if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
                 }.toString(),
@@ -632,8 +662,11 @@ private fun createRunBackgroundTool(
         val params = it.jsonObject
         val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val command = params.string("command") ?: error("command is required")
-        val cwd = (params.string("cwd") ?: defaultCwd.orEmpty())
-            .removePrefix("/workspace/").removePrefix("/workspace")
+        // 只剥离 "/workspace/" 前缀或恰好等于 "/workspace"："/workspacefoo/bar" 不是工作区根。
+        val cwd = when (val rawCwd = params.string("cwd") ?: defaultCwd.orEmpty()) {
+            "/workspace" -> ""
+            else -> rawCwd.removePrefix("/workspace/")
+        }
 
         // env: { 环境变量名: vault凭证名 } —— 同 workspace_shell：进程内解密注入，不落盘、AI 不见明文
         val (injectedEnv, envError) = resolveInjectedEnv(params)
@@ -644,7 +677,9 @@ private fun createRunBackgroundTool(
             UIMessagePart.Text(
                 buildJsonObject {
                     put("id", status.id)
-                    put("status", "running")
+                    // start() 返回的真实状态：命令秒退时这里已是 exited，不用再轮询一轮才知道。
+                    put("status", if (status.running) "running" else "exited")
+                    if (!status.running) status.exitCode?.let { put("exitCode", it) }
                 }.toString()
             )
         )
@@ -682,6 +717,11 @@ private fun createBackgroundStatusTool(
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
+                    // 查指定 id 时明确 found：未知 id 返回 found:false，不再与“没有任务”混在一起。
+                    if (taskId != null) {
+                        put("found", statuses.isNotEmpty())
+                        put("id", taskId)
+                    }
                     put("processes", buildJsonArray {
                         statuses.forEach { status -> add(status.toJson()) }
                     })
@@ -719,6 +759,8 @@ private fun createBackgroundKillTool(
             UIMessagePart.Text(
                 buildJsonObject {
                     put("id", taskId)
+                    // kill 成功当且仅当该 id 的任务存在（已移除）：killed:false 即无此任务。
+                    put("found", killed)
                     put("killed", killed)
                 }.toString()
             )

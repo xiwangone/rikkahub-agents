@@ -43,6 +43,7 @@ class MigrationExporter(
                     WebDavConfig.BackupItem.SKILLS,
                     WebDavConfig.BackupItem.AVATARS,
                     WebDavConfig.BackupItem.FONTS_IMAGES,
+                    WebDavConfig.BackupItem.MEDIA_CREATION,
                     WebDavConfig.BackupItem.WORKSPACE_DOCS,
                     WebDavConfig.BackupItem.PROVIDERS,
                     WebDavConfig.BackupItem.VAULT_CREDENTIALS,

@@ -36,6 +36,7 @@ import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
+import me.rerere.ai.util.shortRequestClient
 import me.rerere.common.http.await
 import me.rerere.ai.provider.formatBalance
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -57,6 +58,9 @@ private const val TAG = "OpenAIProvider"
 // even with a valid key, despite their published OpenAPI spec). Duplicated rather
 // than shared because both providers are otherwise self-contained and a util
 // module just for this would be overkill.
+// Snapshot date: 2026-11-09. Minimax may rename or retire models after this date;
+// if a listed model is rejected, check the official models page.
+private const val MINIMAX_FALLBACK_LIST_SNAPSHOT_DATE = "2026-11-09"
 private val MINIMAX_FALLBACK_MODELS = listOf(
     "MiniMax-M2.7",
     "MiniMax-M2.7-highspeed",
@@ -79,6 +83,8 @@ class OpenAIProvider(
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
+            // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
+            val shortClient = client.shortRequestClient()
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             // OpenRouter's /models returns text-output models only by default, which hides the
             // image-only models (FLUX, Recraft, Seedream, ...). Ask for text and image explicitly.
@@ -93,7 +99,7 @@ class OpenAIProvider(
                 .get()
                 .build()
 
-            val response = client.newCall(request).await()
+            val response = shortClient.newCall(request).await()
             val bodyStr = response.body.string()
             if (!response.isSuccessful) {
                 error("Failed to get models: ${response.code} $bodyStr")
@@ -120,6 +126,12 @@ class OpenAIProvider(
                     error("Failed to get models: $errMsg")
                 }
                 if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
+                    AppLogger.w(
+                        TAG,
+                        "listModels: using Minimax fallback model list snapshot " +
+                            "$MINIMAX_FALLBACK_LIST_SNAPSHOT_DATE; check the official " +
+                            "models page if a listed model is rejected.",
+                    )
                     return@withContext MINIMAX_FALLBACK_MODELS
                 }
                 error("Failed to get models: response has no `data` field")
@@ -148,6 +160,8 @@ class OpenAIProvider(
         }
 
     override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
+        // 短请求单独收紧超时（同 listModels）。
+        val shortClient = client.shortRequestClient()
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
             providerSetting.balanceOption.apiPath
@@ -159,7 +173,7 @@ class OpenAIProvider(
             .addHeader("Authorization", "Bearer $key")
             .get()
             .build()
-        val response = client.newCall(request).await()
+        val response = shortClient.newCall(request).await()
         if (!response.isSuccessful) {
             error("Failed to get balance: ${response.code} ${response.body.string()}")
         }

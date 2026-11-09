@@ -75,6 +75,8 @@ class ChrootShellRunner(
 
     /** 探测 root/chroot 能力（独立脚本 chroot-probe.sh，输出 summary 行）；失败或输出不完整返回 null。 */
     override fun probe(context: WorkspaceShellContext): ChrootProbeResult? = runCatching {
+        requireSafePath(probeFile)
+        requireSafePath(context.linuxDir)
         val process = ProcessBuilder(
             "su", "-c", "sh ${probeFile.absolutePath} ${context.linuxDir.absolutePath}",
         ).start()
@@ -159,6 +161,9 @@ class ChrootShellRunner(
             "pids=\$(pgrep -f '$pattern' 2>/dev/null || true); " +
                 "[ -n \"\$pids\" ] || exit 1; " +
                 "for p in \$pids; do " +
+                // 杀之前再核对一次 /proc/<pid>/cmdline：pgrep 命中后、动手前 pid 被复用的窗口里，
+                // 新进程的命令行不再含该 token 就跳过，避免误杀无关进程组
+                "grep -a -q \"chroot-exec-$token\" \"/proc/\$p/cmdline\" 2>/dev/null || continue; " +
                 "g=\$(sed 's/.*) //' \"/proc/\$p/stat\" 2>/dev/null | awk '{print \$3}'); " +
                 "kill -9 -\$p 2>/dev/null || true; " +
                 "[ -n \"\$g\" ] && [ \"\$g\" -gt 1 ] 2>/dev/null && kill -9 -\$g 2>/dev/null || true; " +
@@ -193,7 +198,24 @@ class ChrootShellRunner(
             }
             append(context.command)
         }
-        cmdFile.writeText(body)
+        // 原子写 + 仅属主可读写：先写同目录临时文件（0600），再改名到位；
+        // 崩溃时只留临时文件（仍可被清理），不留含 env/命令的半成品明文文件
+        val tmpFile = File(context.linuxDir, "$COMMAND_FILE-$token.tmp")
+        try {
+            tmpFile.writeText(body)
+            tmpFile.setReadable(true, true)
+            tmpFile.setWritable(true, true)
+            tmpFile.setExecutable(false, false)
+            java.nio.file.Files.move(
+                tmpFile.toPath(),
+                cmdFile.toPath(),
+                java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+                java.nio.file.StandardCopyOption.REPLACE_EXISTING,
+            )
+        } catch (e: Exception) {
+            runCatching { tmpFile.delete() }
+            throw e
+        }
         return cmdFile
     }
 
@@ -217,8 +239,10 @@ class ChrootShellRunner(
     }
 
     private fun requireSafePath(file: File) {
-        require(file.absolutePath.none { it == ' ' || it == '\'' || it == '"' || it == ';' || it == '$' }) {
-            "chroot path must not contain spaces/quotes/semicolons/dollars: ${file.absolutePath}"
+        // 允许字符白名单：路径里只应出现字母/数字与 ._/-:，其余（空格/引号/分号/$/反引号/
+        // 管道/换行/括号/&/重定向等）一律拒绝，避免拼进 `su -c` 字符串后被解释执行
+        require(file.absolutePath.all { it.isLetterOrDigit() || it in "._/-:" }) {
+            "chroot path must only contain letters, digits and ._/-: : ${file.absolutePath}"
         }
     }
 
@@ -242,7 +266,10 @@ data class ChrootProbeResult(
     val raw: String,
     val branch: String = if (fail == 0) "A" else "C",
 ) {
-    /** fail=0 视为该设备支持 chroot 后端。 */
+    /**
+     * 仅分支 A（chroot 可用且无失败）视为支持：分支 B 表示 chroot(2) 不可用，
+     * 即使 fail 计数为 0（探测目录建失败时 fail 不涨）也不能启用该后端。
+     */
     val supported: Boolean
-        get() = fail == 0
+        get() = fail == 0 && branch == "A"
 }

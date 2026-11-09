@@ -313,9 +313,19 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
                             color = colorScheme.primary,
                             textDecoration = TextDecoration.Underline,
                         ).merge(cssStyle ?: SpanStyle())
-                    withLink(LinkAnnotation.Url(href)) {
-                        withStyle(linkStyle) {
-                            recurseChildren(element, style.merge(linkStyle.asTextStyle()))
+                    val (cleanHref, trailing) = splitAutolink(href)
+                    if (text == href && trailing.isNotEmpty()) {
+                        // 自动链接生成的 <a>：显示文本与 href 相同，按同一规则切分显示，
+                        // 切掉的尾巴以普通文本输出，不丢弃
+                        withLink(LinkAnnotation.Url(cleanHref)) {
+                            withStyle(linkStyle) { append(cleanHref) }
+                        }
+                        append(trailing)
+                    } else {
+                        withLink(LinkAnnotation.Url(cleanHref)) {
+                            withStyle(linkStyle) {
+                                recurseChildren(element, style.merge(linkStyle.asTextStyle()))
+                            }
                         }
                     }
                 }

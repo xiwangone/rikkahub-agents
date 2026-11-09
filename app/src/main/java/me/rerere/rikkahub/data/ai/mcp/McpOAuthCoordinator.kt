@@ -101,7 +101,7 @@ internal class McpOAuthCoordinator(
 
             val tokenEndpoint = oauth.tokenEndpoint ?: return@withLock config
             val clientId = oauth.clientId ?: return@withLock config
-            runCatching {
+            try {
                 val token = oauthClient.refreshToken(
                     OAuthHttpClient.RefreshTokenRequest(
                         tokenEndpoint = tokenEndpoint,
@@ -120,8 +120,10 @@ internal class McpOAuthCoordinator(
                 )
                 persistOAuthState(config.id, updated)
                 config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
-            }.getOrElse {
-                AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (failure: Exception) {
+                AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${failure.message}")
                 config
             }
         }

@@ -7,7 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.Response
@@ -15,6 +15,9 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import java.util.concurrent.TimeUnit
+
+/** 本地累计文本 / 思考内容的上限（字符数），见 BackendSseClient 的补拉缓冲。 */
+private const val MAX_LOCAL_BUFFER_CHARS = 1_000_000
 
 /** SSE 连接状态（驱动对话顶栏状态点） */
 enum class ConnectionState {
@@ -33,6 +36,8 @@ enum class ConnectionState {
  * - 断线重连与连接状态（指数退避）
  * - [close] 主动关闭连接并停止重连，避免回合结束后后台线程泄漏与多会话串流
  */
+// 连接参数（地址/凭据/重连策略/状态与历史加载器/客户端）聚在一处，拆开反而割裂建连语义。
+@Suppress("LongParameterList")
 class BackendSseClient(
     private val baseUrl: String,
     private val username: String = "",
@@ -45,13 +50,17 @@ class BackendSseClient(
     private val statusLoader: (() -> StatusInfo?)? = null,
     private val client: OkHttpClient = OkHttpClient.Builder()
         .connectTimeout(120, TimeUnit.SECONDS)
-        .readTimeout(0, TimeUnit.MILLISECONDS)
+        // 有限读超时：服务端静默挂起时连接最终会报错走重连，而不是无限等待。
+        // 取 10 分钟，长于事件处理器的 300 秒首内容超时，不会先于它触发。
+        .readTimeout(10, TimeUnit.MINUTES)
         .writeTimeout(120, TimeUnit.SECONDS)
         .build(),
 ) {
     private val json = Json { ignoreUnknownKeys = true }
 
     // ── 断流补拉：本地已发事件累计（跨线程访问，用 lock 保护）──
+    // 只用于断流后与服务端历史做差分补发，超限后丢弃最旧内容，避免服务端
+    // 迟迟不发 turn_done 时无界增长。
     private val lock = Any()
     private val localText = StringBuilder()
     private val localReasoning = StringBuilder()
@@ -88,6 +97,19 @@ class BackendSseClient(
         currentEventSource = null
     }
 
+    /** 有上限的追加：超限时丢弃最旧内容，只保留尾部。 */
+    private fun appendCapped(builder: StringBuilder, text: String) {
+        builder.append(text)
+        if (builder.length > MAX_LOCAL_BUFFER_CHARS) {
+            builder.delete(0, builder.length - MAX_LOCAL_BUFFER_CHARS)
+        }
+    }
+
+    /** 守护线程：进程退出时不被重连 / 补拉线程拖住，且带名字便于排查。 */
+    private fun daemonThread(name: String, block: () -> Unit) {
+        Thread({ block() }, name).apply { isDaemon = true }.start()
+    }
+
     /**
      * 建立（或重建）SSE 连接。[attempt] 为重连次数（0=首次），用于指数退避。
      * 连接/事件写回同一 [destination] 热流——消费者无感。
@@ -96,7 +118,10 @@ class BackendSseClient(
         if (closed) return
         val request =
             Request.Builder()
-                .url(baseUrl.toHttpUrl()!!.resolve("/events")!!)
+                .url(
+                    baseUrl.toHttpUrlOrNull()?.resolve("/events")
+                        ?: throw IllegalArgumentException("Invalid Backend baseUrl: '$baseUrl'")
+                )
                 .header("Accept", "text/event-stream")
                 .applyAuth()
                 .build()
@@ -116,12 +141,12 @@ class BackendSseClient(
                     }
                     _connectionState.value = ConnectionState.CONNECTED
                     if (attempt > 0) {
-                        Thread {
+                        daemonThread("BackendSse-backfill") {
                             runCatching { backfill(destination) }.onFailure {
                                 android.util.Log.w("BackendSse", "断流补拉失败", it)
                             }
-                        }.start()
-                        Thread {
+                        }
+                        daemonThread("BackendSse-status-notice") {
                             runCatching {
                                 if (statusLoader?.invoke()?.pendingPrompt == true) {
                                     val notice =
@@ -135,7 +160,7 @@ class BackendSseClient(
                                     }
                                 }
                             }
-                        }.start()
+                        }
                     }
                 }
 
@@ -149,10 +174,10 @@ class BackendSseClient(
                     try {
                         val event = json.decodeFromString<SseEvent>(data)
                         when (event.kind) {
-                            "text" -> event.text?.let { synchronized(lock) { localText.append(it) } }
+                            "text" -> event.text?.let { synchronized(lock) { appendCapped(localText, it) } }
                             "reasoning" ->
                                 (event.reasoning ?: event.text)?.let {
-                                    synchronized(lock) { localReasoning.append(it) }
+                                    synchronized(lock) { appendCapped(localReasoning, it) }
                                 }
                             "turn_done" -> synchronized(lock) {
                                 localText.clear()
@@ -162,8 +187,8 @@ class BackendSseClient(
                         if (!destination.tryEmit(event)) {
                             android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=" + event.kind + "）")
                         }
-                    } catch (_: Exception) {
-                        // 解析失败则忽略
+                    } catch (e: Exception) {
+                        android.util.Log.w("BackendSse", "事件 JSON 解析失败，丢弃该事件：${data.take(200)}", e)
                     }
                 }
 
@@ -175,7 +200,21 @@ class BackendSseClient(
                     if (closed) return
                     val httpError = response != null && !response.isSuccessful
                     if (httpError) {
+                        // HTTP 错误不重连（重连会重复失败），改为向事件流发一个 error 事件传播。
+                        // 选了「发错误事件」而非「让流异常终止」：事件流是热共享流，没有
+                        // 可终止的末端状态，发错误事件是唯一的传播形态；消费方收到
+                        // error 事件后立即以异常收尾，不再静默等待。
                         _connectionState.value = ConnectionState.DISCONNECTED
+                        val status = response?.code ?: 0
+                        val errorEvent =
+                            SseEvent(
+                                kind = "error",
+                                code = status.toString(),
+                                err = "HTTP $status ${response?.message?.ifBlank { "request failed" }}",
+                            )
+                        if (!destination.tryEmit(errorEvent)) {
+                            android.util.Log.w("BackendSse", "SSE 缓冲已满，错误事件被丢弃（HTTP $status）")
+                        }
                         return
                     }
                     _connectionState.value = ConnectionState.RECONNECTING
@@ -190,8 +229,8 @@ class BackendSseClient(
             }
 
         val factory = EventSources.createFactory(client)
-        Thread {
-            if (closed) return@Thread
+        daemonThread("BackendSse-connect") {
+            if (closed) return@daemonThread
             runCatching {
                 val es = factory.newEventSource(request, listener)
                 currentEventSource = es
@@ -202,7 +241,7 @@ class BackendSseClient(
                     scheduleReconnect(destination, attempt)
                 }
             }
-        }.start()
+        }
     }
 
     /** 指数退避重连：1s→2s→4s…封顶 maxReconnectDelayMs（默认 30s） */
@@ -214,22 +253,24 @@ class BackendSseClient(
         val delayMs =
             (1000L shl attempt.coerceAtMost(30).toInt())
                 .coerceAtMost(maxReconnectDelayMs.coerceAtLeast(1000L))
-        Thread {
+        daemonThread("BackendSse-reconnect") {
             try {
                 Thread.sleep(delayMs)
             } catch (_: InterruptedException) {
-                return@Thread
+                return@daemonThread
             }
             if (!closed) {
                 startConnect(destination, attempt + 1)
             }
-        }.start()
+        }
     }
 
     private fun backfill(destination: MutableSharedFlow<SseEvent>) {
         if (closed) return
         val loader = historyLoader ?: return
-        val history = runCatching { loader() }.getOrNull() ?: return
+        val history = runCatching { loader() }
+            .onFailure { android.util.Log.w("BackendSse", "断流补拉 loader 失败", it) }
+            .getOrNull() ?: return
         val last =
             history.lastOrNull { h ->
                 h.role == "assistant" && (!h.content.isNullOrBlank() || !h.reasoning.isNullOrBlank())
@@ -273,12 +314,26 @@ class BackendSseClient(
     }
 
     private fun Request.Builder.applyAuth(): Request.Builder {
+        if (!isAuthSafeTarget()) {
+            android.util.Log.w(
+                "BackendSse",
+                "baseUrl 未使用 https 且非本机地址，不发送 Authorization，避免凭据走明文 HTTP",
+            )
+            return this
+        }
         if (token.isNotBlank()) {
             header("Authorization", "Bearer $token")
         } else if (username.isNotBlank() || password.isNotBlank()) {
             header("Authorization", okhttp3.Credentials.basic(username, password))
         }
         return this
+    }
+
+    /** https 始终可发凭据；http 只允许本机回环地址，局域网/公网 http 一律不发凭据。 */
+    private fun isAuthSafeTarget(): Boolean {
+        val url = baseUrl.toHttpUrlOrNull() ?: return false
+        if (url.isHttps) return true
+        return url.host in setOf("localhost", "127.0.0.1", "::1", "[::1]")
     }
 }
 

@@ -8,6 +8,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.ui.StreamChunk
+import me.rerere.rikkahub.data.log.AppLog
+
+private const val TAG = "GenerationStreamCoalescer"
 
 internal fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputRepetitionDetector(
     // 思考流比正文更易撞上短片段重复（路径 / 标识符 / 数字）：下限仍到 8 字符，
@@ -76,8 +79,15 @@ internal fun Flow<StreamChunk>.coalesceStreamDeltas(
         }
     } finally {
         trailingJob?.cancel()
-        // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢
-        runCatching { mutex.withLock { flushLocked() } }
+        // 终止（正常/异常/取消）都补齐窗口内未透出的分块，尾部内容不丢。
+        // 取消必须向上传播（否则上层以为流正常结束）；其他投递失败记日志，不再静默吞掉。
+        try {
+            mutex.withLock { flushLocked() }
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.w(TAG, "Final flush failed; trailing deltas may be lost", failure)
+        }
     }
 }
 

@@ -31,12 +31,14 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.utils.JsonInstant
 import kotlin.io.encoding.Base64
 
 @Composable
 fun ShareSheet(state: ShareSheetState) {
     val context = LocalContext.current
+    val toaster = LocalToaster.current
     if (state.isShow) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -74,6 +76,7 @@ fun ShareSheet(state: ShareSheetState) {
                                 context.startActivity(Intent.createChooser(intent, null))
                             } catch (e: ActivityNotFoundException) {
                                 e.printStackTrace()
+                                toaster.show(context.getString(R.string.share_no_app_available))
                             }
                         },
                     ) {

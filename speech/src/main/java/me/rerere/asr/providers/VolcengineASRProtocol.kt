@@ -72,13 +72,33 @@ internal object VolcengineASRProtocol {
         var payload = ByteArray(size).also { buffer.get(it) }
         payload = when (compression) {
             0 -> payload
-            1 -> GZIPInputStream(payload.inputStream()).use { it.readBytes() }
+            1 -> gunzipBounded(payload)
             else -> error("Unsupported ASR compression: $compression")
         }
         val text = payload.toString(Charsets.UTF_8)
         if (type == 15) return Response(null, true, "ASR error $code: $text")
         val json = if (text.isBlank()) null else Json.parseToJsonElement(text).jsonObject
         return Response(json?.get("result")?.jsonObject, flags and 2 != 0 || sequence < 0)
+    }
+
+    // ASR result payloads are short JSON texts; the cap only guards against a
+    // decompression bomb turning a small frame into unbounded memory.
+    private const val MAX_DECOMPRESSED_BYTES = 16 * 1024 * 1024
+
+    private fun gunzipBounded(data: ByteArray): ByteArray {
+        val out = ByteArrayOutputStream()
+        val buf = ByteArray(8192)
+        GZIPInputStream(data.inputStream()).use { input ->
+            while (true) {
+                val read = input.read(buf)
+                if (read < 0) break
+                out.write(buf, 0, read)
+                require(out.size() <= MAX_DECOMPRESSED_BYTES) {
+                    "ASR gzip payload exceeds $MAX_DECOMPRESSED_BYTES bytes after decompression"
+                }
+            }
+        }
+        return out.toByteArray()
     }
 
     fun voiceTurn(current: ASRVoiceTurn, result: JsonObject?): ASRVoiceTurn {

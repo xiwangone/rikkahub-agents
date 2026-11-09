@@ -28,6 +28,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
 
@@ -80,9 +81,9 @@ fun ImagePreviewDialog(
                                     type = ToastType.Success,
                                 )
                             }.onFailure {
-                                it.printStackTrace()
+                                AppLog.e("ImagePreviewDialog", "Failed to save image", it)
                                 toaster.show(
-                                    message = it.toString(),
+                                    message = context.getString(R.string.image_preview_save_failed),
                                     type = ToastType.Error,
                                 )
                             }

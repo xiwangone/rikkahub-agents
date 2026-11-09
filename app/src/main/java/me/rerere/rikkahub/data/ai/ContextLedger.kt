@@ -5,6 +5,9 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import me.rerere.rikkahub.data.log.AppLog
+
+private const val TAG = "ContextLedger"
 
 /**
  * 每轮「常驻内容」的账本：记录系统提示词各段与工具描述的**字符量**，回答
@@ -68,6 +71,8 @@ object ContextLedger {
                 .edit()
                 .putString(KEY_LAST, ledgerJson.encodeToString(snapshot))
                 .apply()
+        }.onFailure {
+            AppLog.w(TAG, "Failed to persist ledger snapshot", it)
         }
     }
 
@@ -81,6 +86,9 @@ object ContextLedger {
                 }.getOrNull()
             if (!raw.isNullOrBlank()) {
                 runCatching { lastSnapshot = ledgerJson.decodeFromString<ContextLedgerSnapshot>(raw) }
+                    .onFailure {
+                        AppLog.w(TAG, "Failed to decode persisted ledger snapshot", it)
+                    }
             }
             loadedLedger = true
         }
@@ -92,6 +100,8 @@ object ContextLedger {
         loadedLedger = true
         runCatching {
             context.getSharedPreferences(PREFS, Context.MODE_PRIVATE).edit().remove(KEY_LAST).apply()
+        }.onFailure {
+            AppLog.w(TAG, "Failed to clear persisted ledger snapshot", it)
         }
     }
 }

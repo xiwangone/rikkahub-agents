@@ -316,9 +316,11 @@ internal fun envParamRejection(
  * - POSIX：nohup（缺失则退 setsid，再退裸后台）落 /tmp/rikkahub_bg_<ts>.log，返回 logPath 供轮询
  * - Windows/pwsh：Start-Process 全脱钩 + 输出重定向日志，返回 logPath
  * 两者都让 background=true 的任务可被 ssh_job_poll 尾读进度——任何主机类型通用。
+ *
+ * @param windows 已解析的远端平台；`null` = 未知，退回命令特征判据（[looksLikeWindowsCommand]）。
  */
-internal fun wrapDetachedCommandSmart(command: String): Pair<String, String?> {
-    if (!looksLikeWindowsCommand(command)) {
+internal fun wrapDetachedCommandSmart(command: String, windows: Boolean? = null): Pair<String, String?> {
+    if (!(windows ?: looksLikeWindowsCommand(command))) {
         // POSIX：日志落 /tmp（通用可写），输出与错误都进同一日志。
         // nohup 并非到处都有（验证：OpenWrt/ash 无 nohup，命令直接失败），
         // 因此按 nohup → setsid → 裸后台 逐级降级；整组后台化，$! 即该组的 pid。

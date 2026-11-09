@@ -7,6 +7,7 @@ import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Image03
+import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.ChartRing
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Connect
@@ -200,6 +201,14 @@ object SettingCatalog {
             titleRes = R.string.setting_page_ssh_hosts,
             descRes = R.string.setting_page_ssh_hosts_desc,
             screen = Screen.SettingSshHosts,
+        ),
+        SettingEntry(
+            id = "trusted_keys",
+            group = SettingGroup.TOOLS,
+            icon = HugeIcons.Key01,
+            titleRes = R.string.setting_page_trusted_keys,
+            descRes = R.string.setting_page_trusted_keys_desc,
+            screen = Screen.SettingTrustedKeys,
         ),
         SettingEntry(
             id = "shizuku",

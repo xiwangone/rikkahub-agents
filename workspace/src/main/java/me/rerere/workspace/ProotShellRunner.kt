@@ -50,10 +50,17 @@ class ProotShellRunner(
                 .directory(context.filesDir)
                 .redirectErrorStream(false)
                 .apply {
+                    if (context.shellCompatibilityMode) {
+                        environment()["PROOT_NO_SECCOMP"] = "1"
+                    } else {
+                        environment().remove("PROOT_NO_SECCOMP")
+                    }
                     environment()["PROOT_LOADER"] = loader.absolutePath
                     environment()["PROOT_TMP_DIR"] = context.tempDir.absolutePath
                     environment()["TMPDIR"] = context.tempDir.absolutePath
-                    context.env.forEach { (k, v) -> environment()[k] = v }
+                    context.env.forEach { (k, v) ->
+                        if (isValidEnvKey(k)) environment()[k] = v.replace("\u0000", "")
+                    }
                 }.start()
 
         return process.readResult(context.timeoutMillis, context.stdin)
@@ -87,7 +94,9 @@ class ProotShellRunner(
                 environment()["PROOT_LOADER"] = loader.absolutePath
                 environment()["PROOT_TMP_DIR"] = context.tempDir.absolutePath
                 environment()["TMPDIR"] = context.tempDir.absolutePath
-                context.env.forEach { (k, v) -> environment()[k] = v }
+                context.env.forEach { (k, v) ->
+                    if (isValidEnvKey(k)) environment()[k] = v.replace("\u0000", "")
+                }
             }.start()
     }
 
@@ -215,5 +224,9 @@ class ProotShellRunner(
  */
 fun buildEnvAssignments(env: Map<String, String>): List<String> =
     env.entries
-        .filter { (key, _) -> key.isNotBlank() && !key.contains('=') && !key.contains('\u0000') }
+        .filter { (key, _) -> isValidEnvKey(key) }
         .map { (key, value) -> "$key=${value.replace("\u0000", "")}" }
+
+/** 环境变量键合法性：与 [buildEnvAssignments] 同一口径，供直接写入 ProcessBuilder 的调用方复用。 */
+internal fun isValidEnvKey(key: String): Boolean =
+    key.isNotBlank() && !key.contains('=') && !key.contains('\u0000')

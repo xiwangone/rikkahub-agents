@@ -1,9 +1,27 @@
 package me.rerere.rikkahub.data.sync
 
+import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.data.vault.CredentialImporter
 import java.io.File
+
+/** 文件里没有迁移包清单（不是迁移包，或清单损坏无法解析）。 */
+class NotMigrationPackageException :
+    IllegalStateException("Not a migration package: no readable migration manifest found")
+
+/**
+ * 清单版本与本机不兼容：[packageVersion] 为包里声明的版本，
+ * [minSupportedVersion]..[maxSupportedVersion] 为本机支持的范围。
+ */
+class MigrationManifestVersionException(
+    val packageVersion: Int,
+    val minSupportedVersion: Int,
+    val maxSupportedVersion: Int,
+) : IllegalStateException(
+    "Migration package manifest version $packageVersion is not supported " +
+        "(supported: $minSupportedVersion..$maxSupportedVersion)",
+)
 
 /** 迁移包导入结果（供 UI **如实**报告包里准备写回什么）。 */
 data class MigrationImportResult(
@@ -68,10 +86,21 @@ class MigrationImporter(
                 )
             }
         try {
+            // “文件不对”与“版本不兼容”分开报：前者没有可读清单，后者清单可读但版本超出本机支持范围。
+            val manifestRaw = readTextEntry(plainZip, "${MigrationPackage.DIR}/${MigrationPackage.MANIFEST_NAME}")
+            if (manifestRaw.isNullOrBlank()) throw NotMigrationPackageException()
+            val declaredVersion =
+                runCatching { manifestJson.decodeFromString<MigrationManifest>(manifestRaw).version }.getOrNull()
+            if (declaredVersion != null && declaredVersion !in 1..MigrationPackage.CURRENT_VERSION) {
+                throw MigrationManifestVersionException(
+                    packageVersion = declaredVersion,
+                    minSupportedVersion = 1,
+                    maxSupportedVersion = MigrationPackage.CURRENT_VERSION,
+                )
+            }
             val manifest =
-                MigrationPackage.parseManifest(
-                    readTextEntry(plainZip, "${MigrationPackage.DIR}/${MigrationPackage.MANIFEST_NAME}").orEmpty(),
-                ) ?: error("不是迁移包，或清单版本与本机不兼容。")
+                MigrationPackage.parseManifest(manifestRaw)
+                    ?: throw NotMigrationPackageException()
 
             // ① 回滚点：必须在覆盖之前完成（由调用方决定怎么做）
             createRollbackPoint()
@@ -107,5 +136,10 @@ class MigrationImporter(
         } finally {
             if (plainZip.absolutePath != file.absolutePath && plainZip.exists()) plainZip.delete()
         }
+    }
+
+    private companion object {
+        /** 只读清单版本号：未知字段忽略，与导出侧的解析口径一致。 */
+        val manifestJson = Json { ignoreUnknownKeys = true }
     }
 }

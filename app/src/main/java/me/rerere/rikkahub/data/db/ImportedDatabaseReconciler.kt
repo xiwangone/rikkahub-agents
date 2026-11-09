@@ -37,9 +37,12 @@ import me.rerere.rikkahub.data.log.AppLog
  * those migrations find them. Backups newer than the app are left untouched (Room reports the
  * downgrade).
  *
- * Best-effort: any failure here is logged and swallowed so a restore never half-breaks. The
- * worst case is the same pre-existing crash on next open, never data loss: there is no
- * destructive-migration fallback configured, so the restored rows always survive on disk.
+ * Best-effort: any failure here is logged and returned as a failed [Result] instead of
+ * thrown, so a restore never half-breaks — but the caller must treat a failed result as
+ * a failed restore, never as success. The worst case is the same pre-existing crash on
+ * next open, never data loss: there is no destructive-migration fallback configured, so
+ * the restored rows always survive on disk (and the startup probe can swap the
+ * pre-restore copy back in).
  */
 object ImportedDatabaseReconciler {
 
@@ -131,9 +134,12 @@ object ImportedDatabaseReconciler {
      * Call after a restore has written the database file, and only when the restore actually
      * included the database. Safe to call when the file is a genuine agent backup (every
      * statement is idempotent) or when the file does not exist (no-op).
+     *
+     * Returns a failed [Result] when reconciliation fails: the restored database is then
+     * not known-good and the restore must be reported as failed, not as success.
      */
-    fun reconcile(context: Context) {
-        reconcileDatabaseFile(context.getDatabasePath(DB_NAME))
+    fun reconcile(context: Context): Result<Unit> {
+        return reconcileDatabaseFile(context.getDatabasePath(DB_NAME))
     }
 
     /**
@@ -192,12 +198,12 @@ object ImportedDatabaseReconciler {
      * Testable core of [reconcile]: operate on the raw db file at [dbFile] directly, so a test
      * can exercise it against a temp file instead of the app's live `rikka_hub` database.
      */
-    internal fun reconcileDatabaseFile(dbFile: File) {
+    internal fun reconcileDatabaseFile(dbFile: File): Result<Unit> {
         if (!dbFile.exists()) {
             AppLog.i(TAG, "reconcile: no database file at ${dbFile.absolutePath}, skipping")
-            return
+            return Result.success(Unit)
         }
-        try {
+        return try {
             SQLiteDatabase.openDatabase(
                 dbFile.absolutePath,
                 null,
@@ -206,7 +212,7 @@ object ImportedDatabaseReconciler {
                 val version = db.version // PRAGMA user_version
                 if (version > EXPECTED_VERSION) {
                     AppLog.w(TAG, "reconcile: backup db version $version is newer than $EXPECTED_VERSION; leaving untouched")
-                    return
+                    return Result.success(Unit)
                 }
 
                 // A file whose shared schema already matches this app's current schema must not
@@ -248,10 +254,13 @@ object ImportedDatabaseReconciler {
                 }
                 AppLog.i(TAG, "reconcile: reconciled imported db (version=$version, alreadyCurrent=$alreadyCurrent)")
             }
+            Result.success(Unit)
         } catch (t: Throwable) {
-            // Never let reconciliation break the restore. Worst case is the pre-existing
-            // behaviour (a crash on next open); the user's rows are still on disk.
-            AppLog.w(TAG, "reconcile: failed to reconcile imported db", t)
+            // Never let reconciliation break the restore by throwing, but do not swallow
+            // the failure either: the caller must see it and report the restore as failed,
+            // otherwise the app keeps a database that still crashes on next open.
+            AppLog.e(TAG, "reconcile: failed to reconcile imported db", t)
+            Result.failure(t)
         }
     }
 

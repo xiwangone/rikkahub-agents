@@ -198,6 +198,10 @@ internal class GenerationAgentRun(
             )
         },
         delayFor = { retry -> generationStreamRetryDelayMs((retry - 1).toLong()).milliseconds },
+        // 服务端 Retry-After 优先：失败里带了就按它等，而不是固定退避。
+        delayForFailure = { retry, failure ->
+            generationStreamRetryDelayMs((retry - 1).toLong(), failure).milliseconds
+        },
     )
 
     private val request: AgentRequest
@@ -231,6 +235,7 @@ internal class GenerationAgentRun(
         while (true) {
             val requestStartedAtMs = android.os.SystemClock.elapsedRealtime()
             var skipFinalDelivery = false
+            var completedNormally = false
             try {
                 runAgent(request, this).collect { event ->
                     when (event) {
@@ -257,6 +262,7 @@ internal class GenerationAgentRun(
                         }
                     }
                 }
+                completedNormally = true
                 return
             } catch (t: Throwable) {
                 skipFinalDelivery = emitter.failure != null || t is Error ||
@@ -315,6 +321,12 @@ internal class GenerationAgentRun(
                 } catch (error: Throwable) {
                     emitter.throwIfFailed()
                     if (error is Error || isCancellationFailure(error)) throw error
+                    if (completedNormally) {
+                        // 正常结束路径下收尾投递失败 = 最后一批输出丢失：不能按成功收尾，上抛。
+                        throw error
+                    }
+                    // 失败路径下不掩盖原始异常，只记日志（原始异常仍由 catch 块上抛）。
+                    AppLog.w(TAG, "flushPendingOutput failed on the failure path", error)
                 }
             }
         }
@@ -565,7 +577,15 @@ internal class GenerationAgentRun(
     // 三条流各一套检测器 + 窗口合并，分支数由协议复杂度决定；拆开会让同一事件被多次裁定。
     @Suppress("CyclomaticComplexMethod")
     override fun interceptStream(chunks: Flow<StreamChunk>): Flow<StreamChunk> = chunks
-        .withIdleWatchdog(idleMs = assistant.streamIdleTimeoutMs)
+        .withIdleWatchdog(
+            idleMs = assistant.streamIdleTimeoutMs,
+            // 首包等超过 60 秒还没到：处理状态从通用“生成中”换成阶段提示，让用户分清
+            // 是在排队/prefill 还是卡死；首个 chunk 一到就清除。
+            onWaitingFirstChunk = {
+                processingStatus.value = context.getString(R.string.chat_page_waiting_first_chunk)
+            },
+            onFirstChunk = { clearRetryStatus(processingStatus) },
+        )
         .trackGenerationStreamProgress(
             progress = streamProgress,
             onMeaningfulOutput = { clearRetryStatus(processingStatus) },

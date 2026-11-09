@@ -7,6 +7,7 @@ import androidx.compose.runtime.setValue
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Deferred
 import kotlinx.coroutines.Job
@@ -725,7 +726,10 @@ class ChatVM(
                     withTimeoutOrNull(300_000L) {
                         conversationJob.first { it == null || !it.isActive }
                     }
-                } catch (_: Exception) {
+                } catch (e: CancellationException) {
+                    throw e
+                } catch (e: Exception) {
+                    me.rerere.rikkahub.data.log.AppLog.w("AutoTask", "等待生成结束失败", e)
                 }
             }
             // 会话空闲计时：空闲达设定秒数后触发

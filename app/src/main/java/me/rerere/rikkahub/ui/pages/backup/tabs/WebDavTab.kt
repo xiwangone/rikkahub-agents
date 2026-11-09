@@ -59,6 +59,7 @@ import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
@@ -218,7 +219,7 @@ fun WebDavTab(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 OutlinedTextField(
-                                    value = webDavConfig.displayName,
+                                    value = webDavConfig.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) },
                                     onValueChange = {},
                                     readOnly = true,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = configMenuExpanded) },
@@ -233,7 +234,7 @@ fun WebDavTab(
                                 ) {
                                     allConfigs.forEach { cfg ->
                                         DropdownMenuItem(
-                                            text = { Text(cfg.displayName) },
+                                            text = { Text(cfg.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) }) },
                                             onClick = {
                                                 configMenuExpanded = false
                                                 selectWebDavConfig(cfg.id.ifBlank { cfg.displayName })
@@ -258,7 +259,7 @@ fun WebDavTab(
                             modifier = Modifier.fillMaxWidth(),
                             value = webDavConfig.name,
                             onValueChange = { updateWebDavConfig(webDavConfig.copy(name = it.trim())) },
-                            placeholder = { Text(webDavConfig.displayName) },
+                            placeholder = { Text(webDavConfig.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) }) },
                             singleLine = true,
                         )
                     },
@@ -642,6 +643,7 @@ private fun WebDavBackupItemCard(
     onDelete: (WebDavBackupItem) -> Unit = {},
     onRestore: (WebDavBackupItem) -> Unit = {},
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     CardGroup {
         item(
             headlineContent = {
@@ -676,11 +678,14 @@ private fun WebDavBackupItemCard(
                     ) {
                         TextButton(
                             onClick = {
-                                onDelete(item)
+                                showDeleteConfirm = true
                             },
                             enabled = !isRestoring,
                         ) {
-                            Text(stringResource(R.string.backup_page_delete))
+                            Text(
+                                stringResource(R.string.backup_page_delete),
+                                color = MaterialTheme.colorScheme.error,
+                            )
                         }
                         Button(
                             onClick = {
@@ -707,4 +712,15 @@ private fun WebDavBackupItemCard(
             },
         )
     }
+
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfirm,
+        title = stringResource(R.string.backup_page_delete),
+        message = stringResource(R.string.backup_delete_remote_confirm, item.displayName),
+        onConfirm = {
+            showDeleteConfirm = false
+            onDelete(item)
+        },
+        onDismiss = { showDeleteConfirm = false },
+    )
 }

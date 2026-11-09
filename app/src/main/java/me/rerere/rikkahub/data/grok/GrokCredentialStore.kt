@@ -1,54 +1,30 @@
 package me.rerere.rikkahub.data.grok
 
 import android.content.Context
-import kotlinx.serialization.Serializable
-import kotlinx.serialization.encodeToString
-import kotlinx.serialization.json.Json
 import java.io.File
-import javax.crypto.Cipher
-import javax.crypto.SecretKey
-import javax.crypto.spec.GCMParameterSpec
-import me.rerere.rikkahub.data.crypto.KeystoreAesKey
+import kotlinx.serialization.Serializable
+import kotlinx.serialization.json.Json
+import me.rerere.rikkahub.data.crypto.EncryptedJsonStore
 
 internal class GrokCredentialStore(
     context: Context,
-    private val json: Json,
+    json: Json,
 ) {
-    private val file = File(context.noBackupFilesDir, FILE_NAME)
+    private val store = EncryptedJsonStore(
+        file = File(context.noBackupFilesDir, FILE_NAME),
+        keyAlias = KEY_ALIAS,
+        json = json,
+        serializer = GrokAccountState.serializer(),
+        defaultFactory = { GrokAccountState() },
+    )
 
-    fun read(): GrokAccountState {
-        if (!file.exists()) return GrokAccountState()
-        return runCatching {
-            val bytes = file.readBytes()
-            require(bytes.size > IV_SIZE)
-            val iv = bytes.copyOfRange(0, IV_SIZE)
-            val encrypted = bytes.copyOfRange(IV_SIZE, bytes.size)
-            val cipher = Cipher.getInstance(TRANSFORMATION)
-            cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(TAG_LENGTH, iv))
-            json.decodeFromString<GrokAccountState>(cipher.doFinal(encrypted).decodeToString())
-        }.getOrElse {
-            GrokAccountState()
-        }
-    }
+    fun read(): GrokAccountState = store.read()
 
-    fun write(state: GrokAccountState) {
-        val cipher = Cipher.getInstance(TRANSFORMATION)
-        cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
-        val encrypted = cipher.doFinal(json.encodeToString(state).encodeToByteArray())
-        val temporary = File(file.parentFile, "$FILE_NAME.tmp")
-        temporary.writeBytes(cipher.iv + encrypted)
-        temporary.copyTo(file, overwrite = true)
-        temporary.delete()
-    }
-
-    private fun getOrCreateKey(): SecretKey = KeystoreAesKey.getOrCreate(KEY_ALIAS)
+    fun write(state: GrokAccountState) = store.write(state)
 
     private companion object {
         const val FILE_NAME = "grok_accounts.enc"
         const val KEY_ALIAS = "rikkahub_grok_accounts"
-        const val TRANSFORMATION = "AES/GCM/NoPadding"
-        const val IV_SIZE = 12
-        const val TAG_LENGTH = 128
     }
 }
 

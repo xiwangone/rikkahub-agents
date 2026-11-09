@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
+import android.content.res.Resources
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
@@ -36,6 +37,8 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
+import me.rerere.rikkahub.data.sync.MigrationManifestVersionException
+import me.rerere.rikkahub.data.sync.NotMigrationPackageException
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.StickyHeader
@@ -267,7 +270,7 @@ fun ImportExportTab(
                     if (e !is BackupNeedsPasswordException) {
                         e.printStackTrace()
                         toaster.show(
-                            resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                            resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                             type = ToastType.Error,
                         )
                     }
@@ -418,7 +421,7 @@ fun ImportExportTab(
                                     }
                                     .onFailure { e ->
                                         toaster.show(
-                                            resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                            resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                                             type = ToastType.Error,
                                         )
                                     }
@@ -605,7 +608,7 @@ fun ImportExportTab(
                                     pendingPasswordError = null
                                 } else {
                                     toaster.show(
-                                        resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                        resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                                         type = ToastType.Error,
                                     )
                                 }
@@ -705,7 +708,7 @@ fun ImportExportTab(
                             pendingPasswordError = null
                             withContext(Dispatchers.IO) { if (f != null && f.exists()) f.delete() }
                             toaster.show(
-                                resources.getString(R.string.backup_page_restore_failed, e.message ?: ""),
+                                resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                                 type = ToastType.Error,
                             )
                         }
@@ -717,3 +720,20 @@ fun ImportExportTab(
         )
     }
 }
+
+/**
+ * 恢复/导入失败文案：迁移包的两类错误用字符串资源本地化
+ * （版本不兼容时报出包版本与本机支持范围），其余错误沿用原始异常信息。
+ */
+private fun restoreFailureMessage(resources: Resources, e: Throwable): String =
+    when (e) {
+        is MigrationManifestVersionException -> resources.getString(
+            R.string.backup_page_migration_version_mismatch,
+            e.packageVersion,
+            e.minSupportedVersion,
+            e.maxSupportedVersion,
+        )
+
+        is NotMigrationPackageException -> resources.getString(R.string.backup_page_migration_not_package)
+        else -> e.message ?: ""
+    }

@@ -509,7 +509,8 @@ class McpManager(
 
     private fun scheduleReconnect(config: McpServerConfig) {
         val configId = config.id
-        val currentAttempt = (reconnectAttempts[configId] ?: 0) + 1
+        // 读-改-写必须原子：并发触发（onClose/onError）否则会重复记数、漏取消旧任务。
+        val currentAttempt = reconnectAttempts.compute(configId) { _, v -> (v ?: 0) + 1 }!!
 
         if (currentAttempt > MAX_RECONNECT_ATTEMPTS) {
             AppLog.w(TAG, "Max reconnect attempts reached for ${config.commonOptions.name}")
@@ -519,45 +520,43 @@ class McpManager(
             return
         }
 
-        reconnectAttempts[configId] = currentAttempt
-
-        // 取消之前的重连任务
-        reconnectJobs[configId]?.cancel()
-
         // 计算指数退避延迟
         val delayMs = calculateBackoffDelay(currentAttempt)
         AppLog.i(TAG, "Scheduling reconnect for ${config.commonOptions.name}, attempt $currentAttempt/$MAX_RECONNECT_ATTEMPTS, delay ${delayMs}ms")
 
-        reconnectJobs[configId] = appScope.launch {
-            try {
-                setStatus(config, McpStatus.Reconnecting(currentAttempt, MAX_RECONNECT_ATTEMPTS))
-                delay(delayMs)
+        // 取消旧任务与写入新任务必须原子：分开写时并发调用可能取消掉对方刚建的任务。
+        reconnectJobs.compute(configId) { _, old ->
+            old?.cancel()
+            appScope.launch {
+                try {
+                    setStatus(config, McpStatus.Reconnecting(currentAttempt, MAX_RECONNECT_ATTEMPTS))
+                    delay(delayMs)
 
-                // 检查配置是否仍然启用
-                val currentConfig = settingsStore.settingsFlow.value.mcpServers
-                    .find { it.id == configId && it.commonOptions.enable }
+                    // 检查配置是否仍然启用
+                    val currentConfig = settingsStore.settingsFlow.value.mcpServers
+                        .find { it.id == configId && it.commonOptions.enable }
 
-                if (currentConfig == null) {
-                    AppLog.i(TAG, "Config disabled or removed, cancelling reconnect for ${config.commonOptions.name}")
-                    return@launch
+                    if (currentConfig == null) {
+                        AppLog.i(TAG, "Config disabled or removed, cancelling reconnect for ${config.commonOptions.name}")
+                        return@launch
+                    }
+
+                    AppLog.i(TAG, "Attempting reconnect for ${config.commonOptions.name}")
+                    reconnectClient(currentConfig)
+                } catch (e: CancellationException) {
+                    AppLog.i(TAG, "Reconnect cancelled for ${config.commonOptions.name}")
+                    throw e
+                } catch (e: Exception) {
+                    AppLog.e(TAG, "Reconnect failed for ${config.commonOptions.name}", e)
+                    // 继续尝试重连
+                    scheduleReconnect(config)
                 }
-
-                AppLog.i(TAG, "Attempting reconnect for ${config.commonOptions.name}")
-                reconnectClient(currentConfig)
-            } catch (e: CancellationException) {
-                AppLog.i(TAG, "Reconnect cancelled for ${config.commonOptions.name}")
-                throw e
-            } catch (e: Exception) {
-                AppLog.e(TAG, "Reconnect failed for ${config.commonOptions.name}", e)
-                // 继续尝试重连
-                scheduleReconnect(config)
             }
         }
     }
 
     private fun cancelReconnect(configId: Uuid) {
-        reconnectJobs[configId]?.cancel()
-        reconnectJobs.remove(configId)
+        reconnectJobs.remove(configId)?.cancel()
     }
 
     private fun calculateBackoffDelay(attempt: Int): Long {
@@ -668,7 +667,7 @@ class McpManager(
 
         val tokenEndpoint = oauth.tokenEndpoint ?: return config
         val clientId = oauth.clientId ?: return config
-        return runCatching {
+        return try {
             val token = oauthHttpClient.refreshToken(
                 OAuthHttpClient.RefreshTokenRequest(
                     tokenEndpoint = tokenEndpoint,
@@ -687,8 +686,10 @@ class McpManager(
             )
             persistOAuthState(config.id, updated)
             config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
-        }.getOrElse {
-            AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${it.message}")
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (failure: Exception) {
+            AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${failure.message}")
             config // 刷新失败仍用旧令牌尝试，失败会转为 NeedsAuthorization
         }
     }

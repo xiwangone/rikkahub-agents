@@ -35,6 +35,7 @@ fun <T : Number> OutlinedNumberInput(
                     val newVal =
                         when (value) {
                             is Int -> newValue.toInt() as T
+                            is Long -> newValue.toLong() as T
                             is Float -> newValue.toFloat() as T
                             is Double -> newValue.toDouble() as T
                             else -> throw IllegalArgumentException("Unsupported number type")
@@ -74,6 +75,7 @@ fun <T : Number> NumberInput(
                     val newVal =
                         when (value) {
                             is Int -> newValue.toInt() as T
+                            is Long -> newValue.toLong() as T
                             is Float -> newValue.toFloat() as T
                             is Double -> newValue.toDouble() as T
                             else -> throw IllegalArgumentException("Unsupported number type")

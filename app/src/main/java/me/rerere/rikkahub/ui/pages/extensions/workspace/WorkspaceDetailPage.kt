@@ -93,6 +93,7 @@ fun WorkspaceDetailPage(id: String) {
     val caRepairCount by vm.caRepairCount.collectAsStateWithLifecycle()
     val upgradingPackages by vm.upgradingPackages.collectAsStateWithLifecycle()
     val packageUpgradeResult by vm.packageUpgradeResult.collectAsStateWithLifecycle()
+    val statsRefreshFailure by vm.statsRefreshFailure.collectAsStateWithLifecycle()
     val sdcardEnabled by vm.sdcardEnabled.collectAsStateWithLifecycle()
     val shellBackend by vm.shellBackend.collectAsStateWithLifecycle()
     val backendFallbackReason by vm.backendFallbackReason.collectAsStateWithLifecycle()
@@ -596,6 +597,14 @@ fun WorkspaceDetailPage(id: String) {
         packageUpgradeToast?.let { (ok, msg) ->
             toaster.show(message = msg, type = if (ok) ToastType.Success else ToastType.Error)
             vm.dismissPackageUpgradeResult()
+        }
+    }
+
+    val statsRefreshFailureMessage = statsRefreshFailure?.let { stringResource(R.string.workspace_detail_stats_refresh_failed, it) }
+    LaunchedEffect(statsRefreshFailureMessage) {
+        if (statsRefreshFailureMessage != null) {
+            toaster.show(message = statsRefreshFailureMessage, type = ToastType.Error)
+            vm.dismissStatsRefreshFailure()
         }
     }
 

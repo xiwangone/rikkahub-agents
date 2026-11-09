@@ -33,6 +33,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Switch
@@ -95,7 +96,9 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.RadioButton
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
+import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -248,17 +251,14 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
             }
 
             if (mcpConfigs.isEmpty()) {
-                Column(
-                    modifier = Modifier.align(Alignment.Center),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                    horizontalAlignment = Alignment.CenterHorizontally,
-                ) {
-                    Text(text = stringResource(R.string.setting_mcp_page_no_mcp_servers_found))
-                    Text(
-                        text = stringResource(R.string.setting_mcp_page_add_one_to_get_started),
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
+                ExtensionEmptyState(
+                    message = stringResource(R.string.setting_mcp_page_no_mcp_servers_found),
+                    description = stringResource(R.string.setting_mcp_page_add_one_to_get_started),
+                    buttonText = stringResource(R.string.add),
+                    onAction = {
+                        creationState.open(McpServerConfig.StreamableHTTPServer())
+                    },
+                )
             }
         }
     }
@@ -308,6 +308,7 @@ private fun LocalMcpServerSection(
     onDelete: (LocalMcpProfile) -> Unit,
     onSetActive: (LocalMcpProfile) -> Unit,
 ) {
+    var profileToDelete by remember { mutableStateOf<LocalMcpProfile?>(null) }
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
             Row(verticalAlignment = Alignment.CenterVertically) {
@@ -331,11 +332,27 @@ private fun LocalMcpServerSection(
                         TextButton(onClick = { onSetActive(p) }) { Text(stringResource(R.string.mcp_page_set_active)) }
                     }
                     TextButton(onClick = { onEdit(p) }) { Text(stringResource(R.string.edit)) }
-                    TextButton(onClick = { onDelete(p) }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
+                    TextButton(onClick = { profileToDelete = p }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                 }
             }
             TextButton(onClick = onAdd) { Text(stringResource(R.string.mcp_page_add_config)) }
         }
+    }
+
+    profileToDelete?.let { profile ->
+        RikkaDeleteConfirmDialog(
+            show = true,
+            title = stringResource(R.string.delete),
+            message = stringResource(
+                R.string.mcp_delete_config_confirm,
+                profile.name.ifBlank { stringResource(R.string.mcp_page_unnamed) },
+            ),
+            onConfirm = {
+                profileToDelete = null
+                onDelete(profile)
+            },
+            onDismiss = { profileToDelete = null },
+        )
     }
 }
 
@@ -518,6 +535,7 @@ private fun McpServerItem(
     val dismissBoxState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
     var errorDetail by remember { mutableStateOf<McpStatus.Error?>(null) }
+    var showDeleteConfirm by remember { mutableStateOf(false) }
 
     errorDetail?.let { error ->
         val context = LocalContext.current
@@ -571,8 +589,16 @@ private fun McpServerItem(
                 }
                 FilledTonalIconButton(
                     onClick = {
-                        onDelete()
+                        scope.launch {
+                            dismissBoxState.reset()
+                            showDeleteConfirm = true
+                        }
                     },
+                    colors =
+                        IconButtonDefaults.filledTonalIconButtonColors(
+                            containerColor = MaterialTheme.colorScheme.errorContainer,
+                            contentColor = MaterialTheme.colorScheme.onErrorContainer,
+                        ),
                 ) {
                     Icon(HugeIcons.Delete01, stringResource(R.string.delete))
                 }
@@ -720,6 +746,20 @@ private fun McpServerItem(
             }
         }
     }
+
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfirm,
+        title = stringResource(R.string.delete),
+        message = stringResource(
+            R.string.mcp_delete_server_confirm,
+            item.commonOptions.name.ifBlank { stringResource(R.string.mcp_page_unnamed) },
+        ),
+        onConfirm = {
+            showDeleteConfirm = false
+            onDelete()
+        },
+        onDismiss = { showDeleteConfirm = false },
+    )
 }
 
 @Composable

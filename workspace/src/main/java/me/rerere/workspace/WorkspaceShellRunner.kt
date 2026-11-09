@@ -83,7 +83,9 @@ class HostShellRunner : WorkspaceShellRunner {
             .directory(context.workingDir)
             .redirectErrorStream(false)
             .apply {
-                context.env.forEach { (k, v) -> environment()[k] = v }
+                context.env.forEach { (k, v) ->
+                    if (isValidEnvKey(k)) environment()[k] = v.replace("\u0000", "")
+                }
             }
 
     private fun defaultShell(): String = if (File("/system/bin/sh").exists()) "/system/bin/sh" else "/bin/sh"
@@ -208,21 +210,30 @@ internal fun String.shellQuote(): String =
 /**
  * 输出 [path] 的条目信息: 类型、字节数、mtime (秒)、绝对路径, 以 \0 分隔,
  * 供 shell 侧写入/移动文件后取回文件条目, 见 [parseShellEntries]。
+ *
+ * 输出前后各有一行起止标记：命令经登录 shell（`-l`）执行时，profile/MOTD
+ * 的输出会混进同一 stdout，只有标记之间的字段才是本次 stat 的结果。
  */
 internal fun statEntryCommand(path: String): String {
     val quoted = path.shellQuote()
     return """
+        printf '%s\n' 'RIKKAHUB_STAT_BEGIN'
         if [ -d $quoted ]; then entry_type=d; else entry_type=f; fi
         entry_size=${'$'}(stat -c '%s' -- $quoted) || exit 1
         entry_mtime=${'$'}(stat -c '%Y' -- $quoted) || exit 1
         printf '%s\0%s\0%s\0%s\0' "${'$'}entry_type" "${'$'}entry_size" "${'$'}entry_mtime" $quoted
+        printf '%s\n' 'RIKKAHUB_STAT_END'
     """.trimIndent()
 }
 
-/** 解析 [statEntryCommand] 的输出 */
+/** 解析 [statEntryCommand] 的输出：只取起止标记之间的字段，忽略登录 shell 的附加输出 */
 internal fun String.parseShellEntries(): List<WorkspaceFileEntry> {
-    val fields = split('\u0000').dropLastWhile { it.isEmpty() }
-    require(fields.size % 4 == 0) { "Invalid file metadata output" }
+    val begin = indexOf(STAT_BEGIN_MARKER)
+    val end = indexOf(STAT_END_MARKER, startIndex = begin + STAT_BEGIN_MARKER.length)
+    require(begin >= 0 && end > begin) { "Invalid file metadata output: missing stat markers" }
+    val section = substring(begin + STAT_BEGIN_MARKER.length, end).trim('\n')
+    val fields = section.split('\u0000').dropLastWhile { it.isEmpty() }
+    require(fields.size % 4 == 0 && fields.isNotEmpty()) { "Invalid file metadata output" }
     return fields.chunked(4).map { (type, size, mtime, path) ->
         WorkspaceFileEntry(
             path = path,
@@ -233,3 +244,6 @@ internal fun String.parseShellEntries(): List<WorkspaceFileEntry> {
         )
     }
 }
+
+private const val STAT_BEGIN_MARKER = "RIKKAHUB_STAT_BEGIN"
+private const val STAT_END_MARKER = "RIKKAHUB_STAT_END"

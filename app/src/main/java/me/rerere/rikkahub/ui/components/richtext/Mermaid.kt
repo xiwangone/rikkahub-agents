@@ -15,7 +15,10 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -24,6 +27,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dokar.sonner.ToastType
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDownDouble
+import me.rerere.hugeicons.stroke.ArrowUpDouble
 import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.View
 import me.rerere.rikkahub.R
@@ -52,6 +57,7 @@ fun Mermaid(
     val activity = LocalActivity.current ?: context.getActivity()
     val toaster = LocalToaster.current
     val navController = LocalNavController.current
+    var expanded by remember { mutableStateOf(false) }
 
     val jsInterface =
         remember {
@@ -117,7 +123,7 @@ fun Mermaid(
             modifier =
                 Modifier
                     .clip(RoundedCornerShape(4.dp))
-                    .height(200.dp),
+                    .height(if (expanded) 560.dp else 200.dp),
         )
 
         if (activity != null) {
@@ -128,6 +134,16 @@ fun Mermaid(
                         .padding(4.dp),
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
             ) {
+                IconButton(
+                    onClick = { expanded = !expanded },
+                ) {
+                    Icon(
+                        if (expanded) HugeIcons.ArrowUpDouble else HugeIcons.ArrowDownDouble,
+                        contentDescription = stringResource(
+                            if (expanded) R.string.mermaid_collapse else R.string.mermaid_expand,
+                        ),
+                    )
+                }
                 IconButton(
                     onClick = {
                         val contentId = WebViewContentCache.store(context.cacheDir, html)

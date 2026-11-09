@@ -61,4 +61,16 @@ class WorkspaceFileSystemImportBytesTest {
 
         assertEquals(11L, entry.sizeBytes)
     }
+    @Test
+    fun `writeText writes atomically and preserves file integrity`() {
+        val root = tempFolder.newFolder("workspace-atomic")
+        val fs = WorkspaceFileSystem(WorkspaceConfig(maxWriteBytes = 100))
+        val initial = fs.writeText(root, "test.txt", "initial-content")
+        assertEquals(15L, initial.sizeBytes)
+        assertEquals("initial-content", File(root, "test.txt").readText())
+
+        val updated = fs.writeText(root, "test.txt", "updated-atomic-content", overwrite = true)
+        assertEquals(22L, updated.sizeBytes)
+        assertEquals("updated-atomic-content", File(root, "test.txt").readText())
+    }
 }

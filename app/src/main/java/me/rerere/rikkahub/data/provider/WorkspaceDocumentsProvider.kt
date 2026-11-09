@@ -9,7 +9,6 @@ import android.provider.DocumentsContract.Document
 import android.provider.DocumentsContract.Root
 import android.provider.DocumentsProvider
 import android.webkit.MimeTypeMap
-import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -38,7 +37,9 @@ class WorkspaceDocumentsProvider : DocumentsProvider() {
 
     private fun dao(): WorkspaceDAO = GlobalContext.get().get()
 
-    private fun allWorkspaces(): List<WorkspaceEntity> = runBlocking { dao().getAll() }
+    // 同步查询：DocumentsProvider 回调跑在 binder 线程上，用同步 DAO 直接读库，
+    // 不经 runBlocking 挂起等待（会占住 binder 线程等协程调度）。
+    private fun allWorkspaces(): List<WorkspaceEntity> = dao().getAllSync()
 
     private fun workspaceName(root: String): String =
         allWorkspaces().firstOrNull { it.root == root }?.name ?: root

@@ -19,6 +19,7 @@ import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.BackupPasswordCipher
 import me.rerere.rikkahub.data.sync.BackupStats
 import me.rerere.rikkahub.data.sync.toStats
+import me.rerere.rikkahub.data.sync.S3BackupFileList
 import me.rerere.rikkahub.data.sync.S3BackupItem
 import me.rerere.rikkahub.data.sync.MigrationImportResult
 import me.rerere.rikkahub.data.sync.MigrationImporter
@@ -54,7 +55,7 @@ class BackupVM(
 
     /** 云端迁移包列表（migration_ 前缀，跨机可解形态） */
     val migrationCloudItems = MutableStateFlow<UiState<List<WebDavBackupItem>>>(UiState.Idle)
-    val s3BackupItems = MutableStateFlow<UiState<List<S3BackupItem>>>(UiState.Idle)
+    val s3BackupItems = MutableStateFlow<UiState<S3BackupFileList>>(UiState.Idle)
     val localBackupItems =
         MutableStateFlow(
             // 默认勾选全部常用主区项（设置、头像、提供商、凭证库、SSH 主机）：

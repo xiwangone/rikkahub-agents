@@ -50,7 +50,7 @@ class RootfsInstallerTest {
             assertThrows(IllegalArgumentException::class.java) {
                 createInstaller().extractTar(archive, target) {}
             }
-        assertTrue(error.message!!.contains("磁盘镜像"))
+        assertTrue(error.message!!.contains("disk image"))
     }
 
     @Test

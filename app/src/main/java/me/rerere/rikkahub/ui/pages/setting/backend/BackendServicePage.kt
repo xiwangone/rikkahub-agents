@@ -222,6 +222,7 @@ private fun BackendEditDialog(
     var endpoint by remember { mutableStateOf(initial?.endpoint ?: "") }
     var authRef by remember { mutableStateOf(initial?.authRef ?: "") }
     var credentialNames by remember { mutableStateOf<List<String>>(emptyList()) }
+    var showErrors by remember { mutableStateOf(false) }
 
     // 加载凭证库名称，供下拉选择
     LaunchedEffect(Unit) {
@@ -233,9 +234,9 @@ private fun BackendEditDialog(
         title = { Text(if (initial == null) stringResource(R.string.backend_service_dialog_add_title) else stringResource(R.string.backend_service_dialog_edit_title)) },
         text = {
             Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && name.isBlank(), supportingText = { if (showErrors && name.isBlank()) Text(stringResource(R.string.backend_service_name_required)) })
                 OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.backend_service_type_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && endpoint.isBlank(), supportingText = { if (showErrors && endpoint.isBlank()) Text(stringResource(R.string.backend_service_endpoint_required)) })
                 OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text(stringResource(R.string.backend_service_auth_ref_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 // 凭证库下拉快捷选择：点击填入 authRef
                 if (credentialNames.isNotEmpty()) {
@@ -254,7 +255,10 @@ private fun BackendEditDialog(
         confirmButton = {
             TextButton(
                 onClick = {
-                    if (name.isBlank()) return@TextButton
+                    if (name.isBlank() || endpoint.isBlank()) {
+                        showErrors = true
+                        return@TextButton
+                    }
                     onSave(
                         BackendConnection(
                             id = initial?.id ?: "backend-${System.currentTimeMillis()}",

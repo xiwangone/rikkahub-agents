@@ -58,10 +58,10 @@ data class WorkspaceEntity(
         runCatching { JsonInstant.decodeFromString<SshWorkspaceSettings>(config) }.getOrNull()
     }
 
-    /** 工作区文件目录在执行环境内的绝对路径, 不需要连接即可得到, 供界面展示 */
-    fun workspaceDir(): String =
+    /** 工作区文件目录在执行环境内的绝对路径, 不需要连接即可得到, 供界面展示；SSH 配置解析失败时返回 null（调用方显示占位），不回退根目录。 */
+    fun workspaceDir(): String? =
         if (isSsh()) {
-            sshSettings()?.let { SshWorkspaceBackend.layoutOf(it.remoteDir).workspaceDir } ?: "/"
+            sshSettings()?.let { SshWorkspaceBackend.layoutOf(it.remoteDir).workspaceDir }
         } else {
             WorkspaceManager.ROOTFS_WORKSPACE_DIR
         }

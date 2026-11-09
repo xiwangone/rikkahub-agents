@@ -52,16 +52,18 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
+import me.rerere.ai.util.retryAfterMs
 import me.rerere.ai.util.stringSafe
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonObjectOrNull
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -216,11 +218,10 @@ class ResponseAPI(
 
         // await() waits for the response headers; reading the body can still block.
         client.newCall(request).await().use { response ->
-            if (!response.isSuccessful) {
-                throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
-            }
-
             val bodyStr = response.body.string()
+            if (!response.isSuccessful) {
+                throw response.errorAsHttpException()
+            }
             if (Logging.isDebugLoggingEnabled()) {
                 AppLogger.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")
             }
@@ -344,7 +345,7 @@ class ResponseAPI(
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
                         AppLogger.d(TAG, "onFailure: error body $bodyElement")
-                        val detail = bodyElement.parseErrorDetail(response?.code)
+                        val detail = bodyElement.parseErrorDetail(response?.code, response?.retryAfterMs())
                         val code = (bodyElement as? JsonObject)?.responseErrorText("code")
                         exception = if (code != null && !detail.message.orEmpty().contains(code, ignoreCase = true)) {
                             IOException("$code: ${detail.message.orEmpty()}", detail)
@@ -408,7 +409,7 @@ class ResponseAPI(
         params: TextGenerationParams,
         stream: Boolean
     ): JsonObject {
-        val host = providerSetting.baseUrl.toHttpUrl().host
+        val host = providerSetting.baseUrl.toHttpUrlOrNull()?.host
         val capabilities = resolveResponseProviderCapabilities(host)
         return buildJsonObject {
             put("model", params.model.modelId)
@@ -643,7 +644,7 @@ class ResponseAPI(
                                                     put("type", "input_image")
                                                     put("image_url", encoded.base64)
                                                 }.onFailure {
-                                                    it.printStackTrace()
+                                                    AppLogger.w(TAG, "failed to encode image to base64", it)
                                                     put("type", "input_text")
                                                     put("text", "Error: Failed to encode image to base64")
                                                 }
@@ -946,7 +947,7 @@ internal data class ResponseProviderCapabilities(
     val supportEncryptedContent: Boolean = true
 )
 
-internal fun resolveResponseProviderCapabilities(host: String): ResponseProviderCapabilities {
+internal fun resolveResponseProviderCapabilities(host: String?): ResponseProviderCapabilities {
     return when (host) {
         "ark.cn-beijing.volces.com" -> ResponseProviderCapabilities(
             supportsReasoningSummary = false,

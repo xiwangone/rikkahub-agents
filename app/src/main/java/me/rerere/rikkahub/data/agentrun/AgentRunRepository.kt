@@ -150,26 +150,12 @@ class AgentRunRepository(private val dao: AgentRunDao) {
      */
     suspend fun markAllProcessLost(ids: List<String>): Int {
         if (ids.isEmpty()) return 0
-        var flipped = 0
-        runCatching {
+        return runCatching {
             writeMutex.withLock {
-                val now = System.currentTimeMillis()
-                for (id in ids) {
-                    val existing = dao.getById(id) ?: continue
-                    if (AgentRunStatus.fromName(existing.status).isTerminal) continue
-                    dao.update(
-                        existing.copy(
-                            status = AgentRunStatus.process_lost.name,
-                            updatedAtMs = now,
-                            finishedAtMs = now,
-                            lastError = existing.lastError ?: "process killed mid-run",
-                        )
-                    )
-                    flipped++
-                }
+                dao.markProcessLost(ids, System.currentTimeMillis())
             }
         }.onFailure { logSafe { AppLog.w(TAG, "markAllProcessLost failed", it) } }
-        return flipped
+            .getOrDefault(0)
     }
 
     private fun boundMetadata(metadata: JsonObject?): String? {

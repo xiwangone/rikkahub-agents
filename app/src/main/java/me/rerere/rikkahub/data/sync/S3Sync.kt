@@ -15,6 +15,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.migration.SettingsJsonMigrator
 import me.rerere.rikkahub.data.sync.s3.S3Client
 import me.rerere.rikkahub.data.sync.s3.S3Config
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.fileSizeToString
 import java.io.File
 import java.io.BufferedInputStream
@@ -31,6 +32,9 @@ import java.util.zip.ZipOutputStream
 
 private const val TAG = "S3Sync"
 
+/** 备份列表最多展示的条数：桶内更多时只取最近 N 个，UI 提示截断。 */
+private const val MAX_LISTED_BACKUP_FILES = 1000
+
 // 7 个构造依赖 = 既有 6 个 + 新增的逻辑备份段（2026-11 外部交付）；
 // 拆成参数对象只会引入一层不必要的间接 —— 所有字段都是本类直接使用的稳定依赖。
 @Suppress("TooManyFunctions", "LongParameterList")
@@ -44,7 +48,8 @@ class S3Sync(
     private val logicalBackup: LogicalBackup,
 ) {
     private fun getS3Client(config: S3Config): S3Client {
-        return S3Client(config, httpClient)
+        // 没写协议的 endpoint 默认补 https，避免签名头与备份元数据走明文 http。
+        return S3Client(config.withHttpsByDefault(), httpClient)
     }
 
     suspend fun testS3(config: S3Config) = withContext(Dispatchers.IO) {
@@ -80,27 +85,38 @@ class S3Sync(
         }
     }
 
-    suspend fun listBackupFiles(config: S3Config): List<S3BackupItem> = withContext(Dispatchers.IO) {
+    /** 分页拉取全部备份对象，按时间倒序只返回最近 [MAX_LISTED_BACKUP_FILES] 个。 */
+    suspend fun listBackupFiles(config: S3Config): S3BackupFileList = withContext(Dispatchers.IO) {
         val client = getS3Client(config)
-        val result = client.listObjects(
-            prefix = "rikkahub_backups/",
-            maxKeys = 1000
-        ).getOrThrow()
+        val all = mutableListOf<S3BackupItem>()
+        var continuationToken: String? = null
+        do {
+            val result = client.listObjects(
+                prefix = "rikkahub_backups/",
+                maxKeys = 1000,
+                continuationToken = continuationToken,
+            ).getOrThrow()
+            result.objects
+                .filter {
+                    it.key.startsWith("rikkahub_backups/backup_") &&
+                        (it.key.endsWith(".zip") || it.key.endsWith(".enc"))
+                }
+                .mapTo(all) { obj ->
+                    S3BackupItem(
+                        key = obj.key,
+                        displayName = obj.key.substringAfterLast("/"),
+                        size = obj.size,
+                        lastModified = obj.lastModified ?: Instant.EPOCH
+                    )
+                }
+            continuationToken = result.nextContinuationToken.takeIf { result.isTruncated }
+        } while (continuationToken != null)
 
-        result.objects
-            .filter {
-                it.key.startsWith("rikkahub_backups/backup_") &&
-                    (it.key.endsWith(".zip") || it.key.endsWith(".enc"))
-            }
-            .map { obj ->
-                S3BackupItem(
-                    key = obj.key,
-                    displayName = obj.key.substringAfterLast("/"),
-                    size = obj.size,
-                    lastModified = obj.lastModified ?: Instant.EPOCH
-                )
-            }
-            .sortedByDescending { it.lastModified }
+        val sorted = all.sortedByDescending { it.lastModified }
+        if (sorted.size > MAX_LISTED_BACKUP_FILES) {
+            AppLog.w(TAG, "listBackupFiles: ${sorted.size} backups found, showing only the most recent $MAX_LISTED_BACKUP_FILES")
+        }
+        S3BackupFileList(items = sorted.take(MAX_LISTED_BACKUP_FILES), totalCount = sorted.size)
     }
 
     suspend fun restoreFromS3(config: S3Config, item: S3BackupItem) = withContext(Dispatchers.IO) {
@@ -182,10 +198,17 @@ class S3Sync(
                     plainFile.delete()
                 }
             }
-        } finally {
+            // 解密/恢复成功后才清理已下载的加密包：口令输错时保留文件供重试，
+            // 否则每次输错都要把整个备份重新下载一遍。
             if (backupFile.exists()) {
                 backupFile.delete()
+                AppLog.i(TAG, "restoreFromS3WithPassword: Cleaned up temporary backup file")
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.w(TAG, "restoreFromS3WithPassword: Keeping downloaded backup file for retry: ${backupFile.absolutePath}")
+            throw e
         }
     }
 
@@ -201,7 +224,7 @@ class S3Sync(
         // （3.0.3 发布包在 activeS3Config() 里提前展开且抹掉了 FILES，导致 settings.json 被静默丢弃。）
         val wantSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
-        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
 
         if (backupFile.exists()) {
@@ -270,7 +293,10 @@ class S3Sync(
             }
 
             // Media sessions retain their authoritative relativePath files under 06's directory.
-            addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
+            // 与其他文件目录同口径：仅勾选 MEDIA_CREATION（或旧 FILES 聚合项）时打包。
+            if (config.wants(S3Config.BackupItem.MEDIA_CREATION)) {
+                addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
+            }
 
             if (config.items.contains(S3Config.BackupItem.WORKSPACE_DOCS)) {
                 backupWorkspaceDocs(zipOut)
@@ -321,7 +347,7 @@ class S3Sync(
 
     private fun requireBackupEncryption() {
         check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
-            "备份包包含明文密钥（提供商密钥/凭证库等）。请先在「备份与恢复 → 加密设置」开启加密并设置口令。"
+            context.getString(R.string.backup_encryption_required)
         }
     }
 
@@ -414,7 +440,11 @@ class S3Sync(
                                         PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry)
 
-                                    FileFolders.MEDIA_CREATION -> PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    FileFolders.MEDIA_CREATION -> if (config.wants(S3Config.BackupItem.MEDIA_CREATION)) {
+                                        PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                    } else {
+                                        skipEntry(zipEntry)
+                                    }
 
                                     FileFolders.FONTS, FileFolders.IMAGES ->
                                         if (config.wants(S3Config.BackupItem.FONTS_IMAGES)) {
@@ -593,6 +623,15 @@ data class S3BackupItem(
     val size: Long,
     val lastModified: Instant,
 )
+
+/** S3 备份列表：[items] 为按时间倒序的最近 N 个，[totalCount] 为桶内备份总数。 */
+data class S3BackupFileList(
+    val items: List<S3BackupItem>,
+    val totalCount: Int,
+) {
+    /** 桶内备份多于展示上限时为 true，UI 据此提示“仅显示最近 N 个”。 */
+    val truncated: Boolean get() = totalCount > items.size
+}
 
 /** 未勾选的备份项或嵌套目录条目：不解包，遍历由下一次 nextEntry 推进。 */
 @Suppress("UNUSED_PARAMETER")

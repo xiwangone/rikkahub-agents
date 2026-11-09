@@ -26,6 +26,10 @@ interface VaultCredentialDao {
     @Update
     suspend fun update(entry: VaultCredentialEntity)
 
+    /** 批量写回（回填类型等逐条改完一次提交的场景用），代替逐条 update 的 N+1。 */
+    @Update
+    suspend fun updateAll(entries: List<VaultCredentialEntity>)
+
     @Delete
     suspend fun delete(entry: VaultCredentialEntity)
 

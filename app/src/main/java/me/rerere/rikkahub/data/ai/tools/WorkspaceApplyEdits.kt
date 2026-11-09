@@ -106,7 +106,7 @@ private fun applyEditsParameters(): InputSchema.Obj =
 
 /**
  * 执行：先把所有文件的替换在内存里做完（任一处不匹配即整体失败、不写盘），
- * 全部成功后再统一写盘。
+ * 全部成功后再统一写盘；写盘中途失败时把已写文件写回原文。
  */
 private suspend fun runApplyEdits(
     workspaceId: String,
@@ -123,6 +123,8 @@ private suspend fun runApplyEdits(
 
     // path -> (newText, replacements)；同一路径出现两次时，第二次基于第一次的结果继续编辑。
     val staged = LinkedHashMap<String, Pair<String, Int>>()
+    // path -> 写盘前原文；写盘中途失败时用于把已写文件写回。
+    val originals = LinkedHashMap<String, String>()
     filesJson.forEachIndexed { fileIndex, element ->
         val file = element.jsonObject
         val path = file.absolutePath("path")
@@ -136,7 +138,8 @@ private suspend fun runApplyEdits(
             )
         }
         val replaceAll = file["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-        var working = staged[path]?.first ?: workspaceRepository.readAbsoluteText(workspaceId, path)
+        var working = staged[path]?.first
+            ?: workspaceRepository.readAbsoluteText(workspaceId, path).also { originals[path] = it }
         var count = staged[path]?.second ?: 0
         edits.forEachIndexed { editIndex, editElement ->
             val item = editElement.jsonObject
@@ -168,16 +171,24 @@ private suspend fun runApplyEdits(
         staged[path] = working to count
     }
 
-    // 全部匹配成功 → 统一写盘
+    // 全部匹配成功 → 统一写盘；中途任一处写失败时把已写文件（含写失败的本文件）
+    // 写回原文，对外仍满足“任一处失败不写任何文件”。
+    val writtenPaths = mutableListOf<String>()
     val written = buildJsonArray {
         for ((path, pair) in staged) {
             val entry = runCatching {
                 workspaceRepository.writeAbsoluteText(workspaceId, path, pair.first, overwrite = true)
             }.getOrElse { e ->
+                val rollbackFailures = rollbackToOriginals(workspaceId, workspaceRepository, writtenPaths + path, originals)
+                val rollbackNote = rollbackFailures
+                    .takeIf { it.isNotEmpty() }
+                    ?.let { "; rollback failed for ${it.joinToString()}" }
+                    .orEmpty()
                 return ToolErrors.partsFor(ToolErrors.INTERNAL,
-                    "write failed for $path after all edits matched: ${e.message}",
+                    "write failed for $path after all edits matched: ${e.message}$rollbackNote",
                 )
             }
+            writtenPaths += path
             addJsonObject {
                 put("path", entry.path)
                 put("replacements", pair.second)
@@ -193,4 +204,24 @@ private suspend fun runApplyEdits(
             }.toString()
         )
     )
+}
+
+/**
+ * 把 [paths] 逐个写回 [originals] 中的原文；单个回滚失败不影响其余文件，
+ * 返回回滚失败的路径（调用方把结果拼进错误信息，避免静默留半套改动）。
+ */
+private suspend fun rollbackToOriginals(
+    workspaceId: String,
+    workspaceRepository: WorkspaceRepository,
+    paths: List<String>,
+    originals: Map<String, String>,
+): List<String> {
+    val failures = mutableListOf<String>()
+    for (path in paths) {
+        val original = originals[path] ?: continue
+        runCatching {
+            workspaceRepository.writeAbsoluteText(workspaceId, path, original, overwrite = true)
+        }.onFailure { failures += path }
+    }
+    return failures
 }

@@ -226,6 +226,7 @@ fun browserScreenshotTool(context: Context): Tool = Tool(
                     val canvas = Canvas(bitmap)
                     webView.draw(canvas)
                     val cacheDir = File(context.cacheDir, SCREENSHOT_CACHE_SUBDIR).apply { mkdirs() }
+                    pruneOldCacheScreenshots(cacheDir)
                     val out = File(cacheDir, "screenshot-${System.currentTimeMillis()}.png")
                     // Recycle unconditionally in a finally block so the bitmap is freed
                     // exactly once regardless of whether compress() succeeds or throws.

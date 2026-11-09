@@ -29,7 +29,8 @@ private const val SCREENSHOT_CACHE_DIR = "screenshots"
 private const val PICTURES_SUBDIR = "RikkaHub Agents/Screenshots"
 private const val PRUNE_OLDER_THAN_MS = 60L * 60L * 1000L  // 1 hour — cache only
 
-private fun pruneOldCacheScreenshots(dir: File) {
+/** 删除 [dir] 里超过 1 小时的缓存文件；同包的浏览器截图/相机照片/录音缓存共用此策略。 */
+internal fun pruneOldCacheScreenshots(dir: File) {
     val cutoff = System.currentTimeMillis() - PRUNE_OLDER_THAN_MS
     dir.listFiles()?.forEach { f ->
         if (f.lastModified() < cutoff) f.delete()

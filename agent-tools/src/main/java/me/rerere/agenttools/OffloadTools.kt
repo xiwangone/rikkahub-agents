@@ -54,7 +54,7 @@ private fun createWriteOffloadTool(
             properties = buildJsonObject {
                 put("name", buildJsonObject {
                     put("type", "string")
-                    put("description", "Fil name base (no spaces; letters/digits/-/_ only), e.g. 'crash_log'. Written as <name>.md")
+                    put("description", "File name base (no spaces; letters/digits/-/_ only), e.g. 'crash_log'. Written as <name>.md")
                     put("pattern", "^[A-Za-z0-9_-]+$")
                 })
                 put("text", buildJsonObject {
@@ -63,7 +63,7 @@ private fun createWriteOffloadTool(
                 })
                 put("overwrite", buildJsonObject {
                     put("type", "boolean")
-                    put("description", "Overwrite an existing file with the same name. Defaults to true.")
+                    put("description", "Overwrite an existing file with the same name. Defaults to false; pass true to replace it.")
                 })
             },
             required = listOf("name", "text"),
@@ -73,8 +73,8 @@ private fun createWriteOffloadTool(
     execute = {
         val params = it.jsonObject
         val name = sanitizeName(params["name"]?.jsonPrimitive?.contentOrNull)
-        val text = params["text"]?.jsonPrimitive?.contentOrNull ?: ""
-        val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val text = params["text"]?.jsonPrimitive?.contentOrNull ?: error("text is required")
+        val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
         val path = "$OFFLOAD_DIR$name.md"
         val bytes = text.toByteArray(Charsets.UTF_8).size
         io.writeText(path, text, overwrite)
@@ -98,18 +98,25 @@ private fun createListOffloadTool(
     description = """
         List offoaded artifacts under the workspace offload area (name, size, updatedAt).
         Use this to discover what was previously offloaded before re-reading it.
+        On a listing failure returns {"count":-1,"error":"..."} instead of an empty list,
+        so a failure is not mistaken for an empty offload area.
     """.trimIndent().replace("\n", " "),
     parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = listOf()) },
     needsApproval = { needsApproval("workspace_offload_list") },
     execute = {
+        var listError: String? = null
         val files = try {
             io.listFiles(OFFLOAD_DIR)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
+            listError = e.message ?: "Failed to list offloads"
             emptyList()
         }
+        // 列目录失败与"没有落盘文件"必须区分: 失败时返回 error 且 count 为 -1,
+        // 而不是空列表加 count=0.
         val payload = buildJsonObject {
             put("path", OFFLOAD_DIR)
-            put("count", files.size)
+            put("count", if (listError == null) files.size else -1)
+            if (listError != null) put("error", listError)
             put("files", buildJsonArray { files.forEach { add(it.toJson()) } })
         }
         listOf(UIMessagePart.Text(payload.toString()))

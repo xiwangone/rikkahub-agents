@@ -74,6 +74,8 @@ class ModelCatalogRepository(
     data class Status(
         val entryCount: Int,
         val updatedAtMs: Long,
+        /** 缓存超过 [CATALOG_STALE_AFTER_MS] 未刷新：模型页据此提示“目录较旧”。 */
+        val isStale: Boolean,
     )
 
     init {
@@ -82,7 +84,11 @@ class ModelCatalogRepository(
             .onFailure { AppLog.w(TAG, "load cached catalog failed: ${it.message}") }
     }
 
-    fun status(): Status = Status(index.size, lastUpdatedMs)
+    fun status(): Status = Status(index.size, lastUpdatedMs, isStale(lastUpdatedMs))
+
+    /** 缓存是否已过期（从未成功拉取过也算过期）。 */
+    fun isStale(updatedAtMs: Long): Boolean =
+        updatedAtMs <= 0L || System.currentTimeMillis() - updatedAtMs > CATALOG_STALE_AFTER_MS
 
     /** 拉取并覆盖本地目录。返回本次保留的条目数。 */
     suspend fun refresh(): Result<Int> = withContext(Dispatchers.IO) {
@@ -201,10 +207,17 @@ class ModelCatalogRepository(
     private fun loadFromCache() {
         if (!cacheFile.exists()) return
         val body = cacheFile.readText()
-        val data = (json.parseToJsonElement(body).jsonObject["data"] as? JsonArray) ?: return
+        val data = (json.parseToJsonElement(body).jsonObject["data"] as? JsonArray)
+            ?: run {
+                AppLog.w(TAG, "cached catalog is corrupt: no data array in ${cacheFile.name}, ignoring cache")
+                return
+            }
         index = buildEntries(data)
         lastUpdatedMs = cacheFile.lastModified()
         AppLog.i(TAG, "catalog loaded from cache: ${index.size} entries")
+        if (isStale(lastUpdatedMs)) {
+            AppLog.w(TAG, "cached catalog is stale (last updated $lastUpdatedMs), refresh recommended")
+        }
     }
 
     companion object {
@@ -213,6 +226,9 @@ class ModelCatalogRepository(
 
         /** 每个厂商保留的模型数上限。 */
         private const val MAX_PER_VENDOR = 20
+
+        /** 目录缓存过期阈值：超过 7 天未刷新即视为较旧，模型页提示刷新。 */
+        private const val CATALOG_STALE_AFTER_MS = 7L * 24L * 60L * 60L * 1000L
 
         /** 只保留主流大厂（含国内大厂），避免目录无限膨胀。 */
         private val VENDOR_ALLOWLIST = setOf(

@@ -16,7 +16,7 @@ object EmojiUtils {
 
                 val version = json["@version"]?.jsonPrimitive?.content ?: "unknown"
                 val categories =
-                    json["emojis"]!!.jsonObject.map { (categoryName, categoryObject) ->
+                    json["emojis"]?.jsonObject?.map { (categoryName, categoryObject) ->
                         val subCategories =
                             categoryObject.jsonObject.map { (subCategoryName, subCategoryObject) ->
                                 val emojis =
@@ -44,7 +44,7 @@ object EmojiUtils {
                             name = categoryName,
                             subCategories = subCategories,
                         )
-                    }
+                    } ?: emptyList()
 
                 EmojiData(version, categories)
             }

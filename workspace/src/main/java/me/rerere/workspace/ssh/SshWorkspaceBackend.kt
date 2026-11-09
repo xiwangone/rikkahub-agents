@@ -8,6 +8,7 @@ import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceConfig
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
+import me.rerere.workspace.WorkspaceListResult
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.WorkspaceTreeEntry
@@ -42,22 +43,35 @@ class SshWorkspaceBackend(
 
     override fun shell(): String = pool.use(id, config, retry = true) { it.shell }
 
-    override fun listFiles(area: WorkspaceStorageArea, path: String, limit: Int?): List<WorkspaceFileEntry> {
+    override fun listFiles(area: WorkspaceStorageArea, path: String, limit: Int?): List<WorkspaceFileEntry> =
+        listFilesDetailed(area, path, limit).entries
+
+    /**
+     * 与 [listFiles] 相同, 但额外返回是否因上限截断以及截断前的总数,
+     * 调用方据此判断目录是否还有未列出的条目。
+     */
+    fun listFilesDetailed(area: WorkspaceStorageArea, path: String, limit: Int?): WorkspaceListResult {
         val dir = resolve(area, path)
         return withSftp(area, retry = true) { sftp ->
             val attrs = sftp.requireStat(dir, path)
             require(attrs.isDir) { "Path is not a directory: $path" }
-            sftp.ls(dir.sftpQuote())
-                .filter { it.filename != "." && it.filename != ".." }
-                .map { entry ->
-                    val child = dir.joinChild(entry.filename)
-                    // 指向目录的软链按目录展示, 和本地文件浏览器的行为一致
-                    val isDirectory = entry.attrs.isDir ||
-                        entry.attrs.isLink && sftp.statOrNull(child)?.isDir == true
-                    entry.attrs.toWorkspaceEntry(relativePath(area, child), entry.filename, isDirectory)
-                }
-                .sortedWith(compareBy<WorkspaceFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
-                .take(limit ?: workspaceConfig.maxListEntries)
+            val all =
+                sftp.ls(dir.sftpQuote())
+                    .filter { it.filename != "." && it.filename != ".." }
+                    .map { entry ->
+                        val child = dir.joinChild(entry.filename)
+                        // 指向目录的软链按目录展示, 和本地文件浏览器的行为一致
+                        val isDirectory = entry.attrs.isDir ||
+                            entry.attrs.isLink && sftp.statOrNull(child)?.isDir == true
+                        entry.attrs.toWorkspaceEntry(relativePath(area, child), entry.filename, isDirectory)
+                    }
+                    .sortedWith(compareBy<WorkspaceFileEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
+            val capped = limit ?: workspaceConfig.maxListEntries
+            WorkspaceListResult(
+                entries = all.take(capped),
+                truncated = all.size > capped,
+                totalCount = all.size,
+            )
         }
     }
 
@@ -65,7 +79,11 @@ class SshWorkspaceBackend(
         val file = resolve(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = true) { sftp ->
             val size = sftp.requireFile(file, path).size
-            require(size <= workspaceConfig.maxReadBytes) { "File is too large to read: $size bytes" }
+            require(size <= workspaceConfig.maxReadBytes) {
+                "File is too large to read: $size bytes (limit ${workspaceConfig.maxReadBytes} bytes). " +
+                    "Read it in parts (start_line/end_line), or narrow it down with grep, " +
+                    "or use shell head/tail to inspect a slice."
+            }
             // 不用 get 返回的流: 它关闭时要读完未到的回应, 读取被打断后会再次卡住
             ByteArrayOutputStream().also { sftp.get(file.sftpQuote(), it) }.toString(Charsets.UTF_8.name())
         }
@@ -74,7 +92,8 @@ class SshWorkspaceBackend(
     override fun writeText(path: String, text: String, overwrite: Boolean): WorkspaceFileEntry {
         val bytes = text.toByteArray(Charsets.UTF_8)
         require(bytes.size <= workspaceConfig.maxWriteBytes) {
-            "Content is too large to write: ${bytes.size} bytes"
+            "Content is too large to write: ${bytes.size} bytes (limit ${workspaceConfig.maxWriteBytes} bytes). " +
+                "Split it into smaller writes, or write it via shell in chunks."
         }
         val file = resolve(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = false) { sftp ->
@@ -89,13 +108,32 @@ class SshWorkspaceBackend(
         fileName: String,
         inputStream: InputStream,
     ): WorkspaceFileEntry {
+        // fileName 是单个文件名，不是路径：含 / 时会静默建成嵌套子目录。
+        // 需要子目录请走 destinationPath。
+        require(fileName.isNotBlank()) { "File name is required" }
+        require(!fileName.contains('/') && !fileName.contains('\\')) {
+            "File name must not contain path separators: $fileName"
+        }
         val targetPath = if (destinationPath.isBlank()) fileName else "$destinationPath/$fileName"
         val file = resolve(area, targetPath)
         return inputStream.use { input ->
             withSftp(area, retry = false) { sftp ->
                 sftp.mkdirs(file.parentPath())
-                val target = if (sftp.statOrNull(file) == null) file else sftp.resolveConflict(file)
-                sftp.put(input, target.sftpQuote(), ChannelSftp.OVERWRITE)
+                val target = if (sftp.lstatOrNull(file) == null) file else sftp.resolveConflict(file)
+                require(sftp.lstatOrNull(target)?.isLink != true) {
+                    "Refusing to import through symbolic link: $targetPath"
+                }
+                val counting = CountingInputStream(input, workspaceConfig.maxImportBytes)
+                // 原子写入：先传同目录临时文件再 rename，避免中断留下半截文件
+                val tempTarget = target.parentPath().joinChild(".${target.fileName()}.import-tmp-${System.nanoTime()}")
+                try {
+                    sftp.put(counting, tempTarget.sftpQuote(), ChannelSftp.OVERWRITE)
+                    if (sftp.lstatOrNull(target) != null) runCatching { sftp.rm(target.sftpQuote()) }
+                    sftp.rename(tempTarget.sftpQuote(), target.sftpQuote())
+                } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
+                    runCatching { sftp.rm(tempTarget.sftpQuote()) }
+                    throw e
+                }
                 sftp.requireStat(target, targetPath).toWorkspaceEntry(relativePath(area, target), target.fileName())
             }
         }
@@ -161,23 +199,18 @@ class SshWorkspaceBackend(
         mode: String?,
     ): WorkspaceFileEntry {
         val file = normalizeAbsolute(path)
+        // mode 先校验再写：之前是写完才校验，非法 mode 报错时文件已落地。
+        require(mode == null || mode.matches(OCTAL_MODE)) { "mode must be 3-4 octal digits, got: $mode" }
+        val bytes = text.toByteArray(Charsets.UTF_8)
+        require(bytes.size <= workspaceConfig.maxWriteBytes) {
+            "Content is too large to write: ${bytes.size} bytes (limit ${workspaceConfig.maxWriteBytes} bytes). " +
+                "Split it into smaller writes, or write it via shell in chunks."
+        }
         return pool.use(id, config, retry = false) { connection ->
-            val entry = connection.sftp { sftp ->
-                sftp.writeSftpBytes(file, text.toByteArray(Charsets.UTF_8), overwrite, path)
+            connection.sftp { sftp ->
+                sftp.writeSftpBytes(file, bytes, overwrite, path, mode)
                     .toWorkspaceEntry(file, file.fileName())
             }
-            // SFTP 的 put 不带权限, 写完再 chmod; 权限串在这里再校验一次, 防止调用方漏过校验后拼进命令
-            if (mode != null) {
-                require(mode.matches(OCTAL_MODE)) { "mode must be 3-4 octal digits, got: $mode" }
-                val result = connection.exec(
-                    "chmod -- $mode ${file.shellQuote()}",
-                    WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS,
-                )
-                require(result.exitCode == 0) {
-                    "Write file failed: ${result.stderr.ifBlank { result.stdout }.trim()}"
-                }
-            }
-            entry
         }
     }
 
@@ -206,22 +239,30 @@ class SshWorkspaceBackend(
         val workingDir = normalizeAbsolute(layout.absolutePath(WorkspaceStorageArea.FILES, cwd))
         return pool.use(id, config, retry = false) { connection ->
             connection.ensureDir(workspaceDir)
-            // 远程登录 shell 不一定是 POSIX shell, 统一交给探测到的 shell 执行;
-            // 命令通过位置参数传入, eval "$2" 对命令文本只求值一次
-            val remoteCommand = listOf(
-                "env",
-                "CI=true",
-                "NO_COLOR=1",
-                "PAGER=cat",
-                connection.shell,
-                "-l",
-                "-c",
-                "cd -- \"\$1\" && eval \"\$2\"",
-                "rikkahub",
-                workingDir,
-                command,
-            ).joinToString(" ") { it.shellQuote() }
-            connection.exec(remoteCommand, timeoutMillis, stdin)
+            if (config.platform == "WINDOWS") {
+                // Windows 远端：跳过 POSIX 登录 shell 包装，直接拼 PowerShell 脚本；
+                // UTF-8 前缀与 pwsh -EncodedCommand 包装由 SshConnection.exec 统一处理。
+                val script = "\$env:CI='true'; \$env:NO_COLOR='1'; \$env:PAGER='cat'; " +
+                    "Set-Location -LiteralPath '${workingDir.replace("'", "''")}'; $command"
+                connection.exec(script, timeoutMillis, stdin)
+            } else {
+                // 远程登录 shell 不一定是 POSIX shell, 统一交给探测到的 shell 执行;
+                // 命令通过位置参数传入, eval "$2" 对命令文本只求值一次
+                val remoteCommand = listOf(
+                    "env",
+                    "CI=true",
+                    "NO_COLOR=1",
+                    "PAGER=cat",
+                    connection.shell,
+                    "-l",
+                    "-c",
+                    "cd -- \"\$1\" && eval \"\$2\"",
+                    "rikkahub",
+                    workingDir,
+                    command,
+                ).joinToString(" ") { it.shellQuote() }
+                connection.exec(remoteCommand, timeoutMillis, stdin)
+            }
         }
     }
 
@@ -262,16 +303,16 @@ class SshWorkspaceBackend(
                 }
                 val children = sftp.ls(dir.sftpQuote())
                     .filter { it.filename != "." && it.filename != ".." }
-                    .map { childEntry(dir.joinChild(it.filename), it.filename, it.attrs, depth) }
-                    .sortedWith(compareBy<WorkspaceTreeEntry> { !it.isDirectory }.thenBy { it.name.lowercase() })
-                children.forEach { child ->
+                    .map { it to childEntry(dir.joinChild(it.filename), it.filename, it.attrs, depth) }
+                    .sortedWith(compareBy<Pair<ChannelSftp.LsEntry, WorkspaceTreeEntry>> { !it.second.isDirectory }.thenBy { it.second.name.lowercase() })
+                children.forEach { (lsEntry, child) ->
                     if (entries.size >= workspaceConfig.maxListEntries) {
                         truncated = true
                         return
                     }
                     entries += child
-                    // 软链目录不展开, 避免跟着链接绕圈
-                    if (child.isDirectory) walk(start.joinChild(child.path), depth + 1)
+                    // 软链目录只展示、不展开，避免跟着链接绕圈或列出树外内容
+                    if (child.isDirectory && !lsEntry.attrs.isLink) walk(start.joinChild(child.path), depth + 1)
                     if (truncated) return
                 }
             }
@@ -336,15 +377,41 @@ class SshWorkspaceBackend(
                 $transfer -- ${src.shellQuote()} ${dst.shellQuote()} || exit 1
                 ${statEntryCommand(dst)}
             """.trimIndent(),
+            // 大目录 cp -a 在 30 秒前台超时内跑不完，超时杀掉后会留半截目标；
+            // 复制给更长的超时，移动（同文件系统内改名）仍用默认超时。
+            timeoutMillis = if (copy) RELOCATE_COPY_TIMEOUT_MS else WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS,
+            action = if (copy) "Copy" else "Move",
         )
-        return result.stdout.parseShellEntries().single().let {
+        return parseSingleEntry(result.stdout, if (copy) "Copy" else "Move").let {
             it.copy(path = relativePath(area, dst), name = dst.fileName())
         }
     }
 
-    private fun runShell(command: String): WorkspaceCommandResult {
-        val result = executeCommand(command, cwd = "", WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS, stdin = null)
-        if (result.timedOut) error("Command timed out")
+    /**
+     * stat 输出解析失败时，`single()` 的裸报错（"List is empty" /
+     * "Collection has more than one element"）看不出是元数据解析失败；
+     * 包一层动作名并附原始输出片段。只改报错文案，不改解析逻辑本身。
+     */
+    private fun parseSingleEntry(output: String, action: String): WorkspaceFileEntry =
+        try {
+            output.parseShellEntries().single()
+        } catch (error: Exception) {
+            val snippet = output.replace('\u0000', ' ').trim().take(200)
+            throw IllegalStateException(
+                "$action failed: could not parse file metadata from shell output " +
+                    "(${error.message}); output was: \"$snippet\"",
+                error,
+            )
+        }
+
+    private fun runShell(command: String, timeoutMillis: Long, action: String): WorkspaceCommandResult {
+        val result = executeCommand(command, cwd = "", timeoutMillis, stdin = null)
+        if (result.timedOut) {
+            error(
+                "$action timed out after ${timeoutMillis / 1000} seconds; " +
+                    "the target may have been left partially copied or moved",
+            )
+        }
         if (result.exitCode != 0) {
             val message = result.stderr.ifBlank { result.stdout }.trim()
             error(if (message.isBlank()) "Command failed with exit code ${result.exitCode}" else message)
@@ -356,6 +423,9 @@ class SshWorkspaceBackend(
     companion object {
         /** 权限串会拼进远程命令, 先限定成 3-4 位八进制 */
         private val OCTAL_MODE = Regex("^[0-7]{3,4}$")
+
+        /** 远程大目录复制的前台超时：30 秒默认值对大目录太短，超时后会留半截目标。 */
+        private const val RELOCATE_COPY_TIMEOUT_MS = 10 * 60 * 1000L
 
         /** 不需要连接即可得到的目录约定, 供界面展示路径使用 */
         fun layoutOf(remoteDir: String): WorkspaceLayout {
@@ -394,20 +464,49 @@ class SshWorkspaceBackend(
         bytes: ByteArray,
         overwrite: Boolean,
         displayPath: String,
+        mode: String? = null,
     ): SftpATTRS {
-        val existing = statOrNull(path)
+        // 用 lstat：目标是软链时拒绝写穿，只写链接本身指向的远端文件是越权
+        val existing = lstatOrNull(path)
         require(existing == null || overwrite) { "File already exists: $displayPath" }
         require(existing == null || !existing.isDir) { "Path is not a file: $displayPath" }
+        require(existing?.isLink != true) { "Refusing to write through symbolic link: $displayPath" }
         mkdirs(path.parentPath())
-        put(ByteArrayInputStream(bytes), path.sftpQuote(), ChannelSftp.OVERWRITE)
+        // 先写同目录临时文件、chmod 后再改名到位：目标文件从不以默认权限或半成品形态落地
+        val temp = path.parentPath().joinChild(".${path.fileName()}.tmp-${java.util.UUID.randomUUID()}")
+        try {
+            put(ByteArrayInputStream(bytes), temp.sftpQuote(), ChannelSftp.OVERWRITE)
+            if (mode != null) {
+                try {
+                    chmod(mode.toInt(8), temp.sftpQuote())
+                } catch (e: Exception) {
+                    // chmod 失败要单独说明，否则会被当成普通的写失败
+                    throw IllegalStateException(
+                        "Failed to set permissions $mode for $displayPath: ${e.message}",
+                        e,
+                    )
+                }
+            }
+            rename(temp.sftpQuote(), path.sftpQuote())
+        } catch (e: Exception) {
+            runCatching { rm(temp.sftpQuote()) }
+            throw e
+        }
         return requireStat(path, displayPath)
     }
 
     private fun ChannelSftp.resolveConflict(path: String): String {
         val parent = path.parentPath()
         val name = path.fileName()
-        val stem = name.substringBeforeLast('.', name)
-        val ext = name.substringAfterLast('.', "").let { if (it.isNotEmpty() && stem != name) ".$it" else "" }
+        // 点文件（如 .gitignore）的 stem 为空时不能用 "$stem ($n)$ext"，
+        // 否则会产出首字符是空格的名字；此时把整个文件名当 stem 用。
+        val stem = name.substringBeforeLast('.', name).ifBlank { name }
+        val ext =
+            if (stem == name) {
+                ""
+            } else {
+                name.substringAfterLast('.', "").let { if (it.isNotEmpty()) ".$it" else "" }
+            }
         var n = 1
         var candidate: String
         do {
@@ -448,6 +547,42 @@ class SshWorkspaceBackend(
 
 /** 按字面规范化绝对路径: 去掉 . 和多余的 /, 解析 .., 不跟随软链 */
 internal fun normalizeAbsolute(path: String): String = normalizeWorkspacePath(path.replace('\\', '/').trim())
+
+/** 不跟随软链的 stat：不存在返回 null，其他错误照常抛出 */
+internal fun ChannelSftp.lstatOrNull(path: String): SftpATTRS? =
+    try {
+        lstat(path.sftpQuote())
+    } catch (e: SftpException) {
+        if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) null else throw e
+    }
+
+/** 限流输入流：累计超过 [maxBytes] 即抛错，避免无上限导入撑满远端磁盘 */
+private class CountingInputStream(
+    private val input: InputStream,
+    private val maxBytes: Long,
+) : InputStream() {
+    private var total = 0L
+
+    override fun read(): Int {
+        val byte = input.read()
+        if (byte >= 0) {
+            total++
+            require(total <= maxBytes) { "File is too large to import: more than $maxBytes bytes" }
+        }
+        return byte
+    }
+
+    override fun read(buffer: ByteArray, offset: Int, length: Int): Int {
+        val read = input.read(buffer, offset, length)
+        if (read > 0) {
+            total += read
+            require(total <= maxBytes) { "File is too large to import: more than $maxBytes bytes" }
+        }
+        return read
+    }
+
+    override fun close() = input.close()
+}
 
 private fun String.joinChild(name: String): String = if (this == "/") "/$name" else "$this/$name"
 

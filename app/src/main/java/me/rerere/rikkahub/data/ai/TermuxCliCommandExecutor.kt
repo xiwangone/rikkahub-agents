@@ -5,7 +5,10 @@ import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.providers.backend.CliCommandExecutor
 import me.rerere.rikkahub.data.ai.tools.local.CaptureResult
+import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.RemotePlatformStore
 import me.rerere.rikkahub.data.ai.tools.local.execOneShot
+import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
 import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import me.rerere.rikkahub.data.ai.tools.local.runCancellableSshOp
@@ -59,9 +62,17 @@ class TermuxCliCommandExecutor(
             is HostAuthResolution.Ready -> r.auth
             is HostAuthResolution.Unusable -> return r.reason
         }
+        // 实体平台优先，banner 缓存次之（与 ssh_exec_saved 同口径；本路径无全局默认来源）；
+        // execOneShot 只收已包装好的命令，故平台在此处用于包装，轮换开关直接透传。
+        val resolvedWindows = RemotePlatform.resolveWindows(
+            RemotePlatform.platformFromStored(host.platform),
+            RemotePlatformStore(context).get(host.host, host.port),
+            null,
+        )
+        val effectiveCommand = withUtf8ConsoleEncoding(command, resolvedWindows)
         val payload =
             runCancellableSshOp(SSH_TIMEOUT_MS) { sessionRef ->
-                execOneShot(context, host.host, host.port, host.user, auth, command, SSH_TIMEOUT_MS.toInt(), sessionRef)
+                execOneShot(context, host.host, host.port, host.user, auth, effectiveCommand, SSH_TIMEOUT_MS.toInt(), sessionRef, allowHostKeyRotation = host.allowHostKeyRotation)
             }
         val stdout = payload["stdout"]?.jsonPrimitive?.contentOrNull?.trim()
         if (!stdout.isNullOrBlank()) return stdout

@@ -28,6 +28,7 @@ import me.rerere.rikkahub.data.sync.PreparedBackup
 import me.rerere.rikkahub.data.sync.toStats
 import me.rerere.rikkahub.data.sync.RestoreFileTransaction
 import me.rerere.rikkahub.data.sync.cleanupStaleBackupTemps
+import me.rerere.rikkahub.R
 import java.io.BufferedInputStream
 import java.io.BufferedOutputStream
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -61,6 +62,8 @@ class WebDavSync(
 
     suspend fun testConnection(config: WebDavConfig) = withContext(Dispatchers.IO) {
         val client = getClient(config)
+        // 备份/列表都会先建目录：测试也先建，否则“目录尚不存在”会被误报成配置错误。
+        client.ensureCollectionExists().getOrThrow()
         // Test by listing the root directory
         client.propfind(depth = 0).getOrThrow()
         AppLog.i(TAG, "testConnection: Connection successful")
@@ -262,10 +265,17 @@ class WebDavSync(
                     plainFile.delete()
                 }
             }
-        } finally {
+            // 解密/恢复成功后才清理已下载的加密包：口令输错时保留文件供重试，
+            // 否则每次输错都要把整个备份重新下载一遍。
             if (backupFile.exists()) {
                 backupFile.delete()
+                AppLog.i(TAG, "restoreWithPassword: Cleaned up temporary backup file")
             }
+        } catch (e: CancellationException) {
+            throw e
+        } catch (e: Exception) {
+            AppLog.w(TAG, "restoreWithPassword: Keeping downloaded backup file for retry: ${backupFile.absolutePath}")
+            throw e
         }
     }
 
@@ -334,7 +344,7 @@ class WebDavSync(
         // （3.0.3 发布包在 activeWebDavConfig() 里提前展开且抹掉了 FILES，导致 settings.json 被静默丢弃。）
         val wantSettings = config.includesSettingsByLegacyCompat()
         val config = config.withLegacyExpanded()
-        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss"))
+        val timestamp = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyyMMdd_HHmmss_SSS"))
         val backupFile = File(context.cacheDir, "backup_$timestamp.zip")
 
         if (backupFile.exists()) {
@@ -406,7 +416,10 @@ class WebDavSync(
             }
 
             // Media sessions retain their authoritative relativePath files under 06's directory.
-            addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
+            // 与其他文件目录同口径：仅勾选 MEDIA_CREATION（或旧 FILES 聚合项）时打包。
+            if (WebDavConfig.BackupItem.MEDIA_CREATION in config.items) {
+                addFolderRecursiveToZip(zipOut, FileFolders.MEDIA_CREATION)
+            }
 
             // 工作区文档层：files/workspaces/<root>/files/ 下排除 linux/tmp/.git/大件，递归打包
             if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
@@ -439,7 +452,7 @@ class WebDavSync(
     /** 含明文密钥的包必须整包口令加密；未开启时给出可操作的提示，而不是静默降级。 */
     private fun requireBackupEncryption() {
         check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
-            "备份包包含明文密钥（提供商密钥/凭证库等）。请先在「备份与恢复 → 加密设置」开启加密并设置口令。"
+            context.getString(R.string.backup_encryption_required)
         }
     }
 
@@ -660,7 +673,14 @@ class WebDavSync(
                         }
 
                         zipEntry.name.startsWith("${FileFolders.MEDIA_CREATION}/") -> {
-                            PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                            // 仅本次勾选 MEDIA_CREATION（或旧 FILES 聚合项）时恢复，避免“只想恢复设置却覆盖本地媒体文件”
+                            if (config.items.any {
+                                    it == WebDavConfig.BackupItem.MEDIA_CREATION ||
+                                        it == WebDavConfig.BackupItem.FILES
+                                }
+                            ) {
+                                PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                            }
                         }
 
                         // workspaces/<root>/files/... —— WORKSPACE_DOCS

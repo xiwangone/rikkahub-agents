@@ -21,6 +21,13 @@ interface WorkspaceDAO {
     @Query("SELECT * FROM workspaces")
     suspend fun getAll(): List<WorkspaceEntity>
 
+    /**
+     * 同 [getAll] 的同步版，供 DocumentsProvider 查询路径调用：
+     * ContentProvider 回调是同步 API，跑在 binder 线程上，不能挂起等待协程。
+     */
+    @Query("SELECT * FROM workspaces")
+    fun getAllSync(): List<WorkspaceEntity>
+
     @Query("UPDATE workspaces SET shell_status = :shellStatus, updated_at = :updatedAt WHERE id = :id")
     suspend fun updateShellStatus(id: String, shellStatus: String, updatedAt: Long): Int
 

@@ -32,9 +32,11 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ModelSnapshot
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.ai.util.json
+import me.rerere.common.log.AppLogger
 
 // 输出为空的工具会被当成没执行过，之后每一步都会再执行一次，所以换成占位文本
 private const val EMPTY_TOOL_OUTPUT = "(no output)"
+private const val TAG = "AgentLoop"
 
 /** 合并或下游处理失败：不是网络故障，不能重放模型请求 */
 internal class StreamChunkHandlingException(override val cause: Throwable) : RuntimeException(cause)
@@ -386,19 +388,40 @@ internal class AgentLoop(
             // 取消必须向上传播，否则停止生成会被误报为工具执行错误
             throw e
         } catch (e: Throwable) {
+            // 完整堆栈只记日志；回灌给模型的信封只留异常类名 + 首行 message，避免淹没真正的错误信息。
+            AppLogger.w(TAG, "Tool ${tool.toolName} failed", e)
             hooks.toolFailureOutput(tool, e)
-                ?: errorOutput("[${e.javaClass.name}] ${e.message}\n${e.stackTraceToString()}")
+                ?: errorOutput(toolErrorMessage(e))
         }
     }
 
+    // 最近一次参数解析失败的首行错误（供 invalidArgsOutput 附带说明）；解析成功时为 null。
+    private var lastArgsParseError: String? = null
+
     /** 解析一次，钩子与执行共用；失败返回 null，由 InvalidArgs 分支产出结构化提示 */
-    private fun parseArgs(tool: UIMessagePart.Tool): JsonElement? = runCatching {
-        json.parseToJsonElement(tool.input.ifBlank { "{}" })
-    }.getOrNull()
+    private fun parseArgs(tool: UIMessagePart.Tool): JsonElement? {
+        lastArgsParseError = null
+        return runCatching {
+            json.parseToJsonElement(tool.input.ifBlank { "{}" })
+        }.onFailure {
+            lastArgsParseError = it.message?.lineSequence()?.firstOrNull()?.trim()?.take(300)
+        }.getOrNull()
+    }
 
     private fun invalidArgsOutput(tool: UIMessagePart.Tool): List<UIMessagePart> = errorOutput(
-        "Invalid tool arguments JSON for ${tool.toolName}",
+        buildString {
+            append("Invalid tool arguments JSON for ${tool.toolName}")
+            lastArgsParseError?.let { append("; parse error: $it") }
+            val rawInput = tool.input.take(500)
+            if (rawInput.isNotBlank()) append("; input: $rawInput")
+        },
     )
+
+    /** 回灌给模型的工具失败信封：只留异常类名 + 首行 message，完整堆栈见日志。 */
+    private fun toolErrorMessage(e: Throwable): String {
+        val firstLine = e.message?.lineSequence()?.firstOrNull()?.trim()?.take(500).orEmpty()
+        return if (firstLine.isEmpty()) "[${e.javaClass.name}]" else "[${e.javaClass.name}] $firstLine"
+    }
 
     private fun placeholder(): List<UIMessagePart> = listOf(UIMessagePart.Text(EMPTY_TOOL_OUTPUT))
 

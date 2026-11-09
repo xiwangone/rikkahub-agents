@@ -132,7 +132,27 @@ fun sshUploadTool(
                         appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
-                    ToolErrors.envelopeFor(error = "tool_failed", message = "sftp put failed: ${e.message ?: "unknown"}")
+                    // Mirror the download path: a failed put leaves a partial remote file
+                    // that looks like a completed upload. Remove it; if removal itself
+                    // fails, say so in the envelope instead of silently leaving it behind.
+                    var cleanupFailed: String? = null
+                    val partialExists = runCatching { sftp.stat(remotePath) }.getOrNull() != null
+                    if (partialExists) {
+                        runCatching { sftp.rm(remotePath) }
+                            .onFailure { cleanupFailed = it.message ?: it.javaClass.simpleName }
+                    }
+                    val message = buildString {
+                        append("sftp put failed: ${e.message ?: "unknown"}")
+                        if (cleanupFailed != null) {
+                            append("; partial remote file could not be removed: $cleanupFailed")
+                        }
+                    }
+                    val extra = if (partialExists) {
+                        ToolErrors.extraOf("partial_remote_file_removed" to (cleanupFailed == null))
+                    } else {
+                        emptyMap()
+                    }
+                    ToolErrors.envelopeFor(error = "tool_failed", message = message, extra = extra)
                 } finally {
                     try { sftp.disconnect() } catch (_: Throwable) {}
                 }

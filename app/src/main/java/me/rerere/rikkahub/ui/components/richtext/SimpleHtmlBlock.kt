@@ -524,37 +524,9 @@ private fun parseColor(colorString: String): Color? =
                 }
             }
 
-            colorString.startsWith("rgb(") -> {
-                // RGB color
-                val rgb = colorString.removePrefix("rgb(").removeSuffix(")")
-                val values = rgb.split(",").map { it.trim().toIntOrNull() }
-                if (values.size == 3 && values.all { it != null && it in 0..255 }) {
-                    Color(values[0]!!, values[1]!!, values[2]!!)
-                } else {
-                    null
-                }
-            }
+            colorString.startsWith("rgb(") -> parseRgbColor(colorString.removePrefix("rgb(").removeSuffix(")"))
 
-            colorString.startsWith("rgba(") -> {
-                // RGBA color
-                val rgba = colorString.removePrefix("rgba(").removeSuffix(")")
-                val values = rgba.split(",").map { it.trim() }
-                if (values.size == 4) {
-                    val r = values[0].toIntOrNull()
-                    val g = values[1].toIntOrNull()
-                    val b = values[2].toIntOrNull()
-                    val a = values[3].toFloatOrNull()
-                    if (r != null && g != null && b != null && a != null &&
-                        r in 0..255 && g in 0..255 && b in 0..255 && a in 0f..1f
-                    ) {
-                        Color(r, g, b, (a * 255).toInt())
-                    } else {
-                        null
-                    }
-                } else {
-                    null
-                }
-            }
+            colorString.startsWith("rgba(") -> parseRgbaColor(colorString.removePrefix("rgba(").removeSuffix(")"))
 
             else -> {
                 // Named colors

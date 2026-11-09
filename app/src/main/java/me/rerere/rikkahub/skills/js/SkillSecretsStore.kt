@@ -18,9 +18,12 @@ private const val TAG = "SkillSecretsStore"
  * persist locally encrypted. The `run_js` tool reads via [get] when the LLM passes
  * `secret_key` in args.
  *
- * Encryption: AES/GCM with an Android-Keystore-backed master key. Falls back to
- * obfuscated plaintext if the keystore is unavailable (very old / rooted devices) so the
- * user-flow doesn't break — we log loudly in that case.
+ * Encryption: AES/GCM with an Android-Keystore-backed master key. If the keystore is
+ * unavailable the write is refused (no plaintext fallback): a third-party API key
+ * written in plaintext to SharedPreferences could be extracted by backup/root. The
+ * failure is recorded in the `security_degraded` flag so the Settings UI can warn the
+ * user; a later successful write clears the flag again. Entries written by older builds
+ * with the plaintext fallback marker are rejected on read for the same reason.
  *
  * Key per (skillName, secretName) so different skills can't read each other's secrets.
  * Backup is excluded (keys aren't transferable; re-entry on new device is intentional).
@@ -105,6 +108,8 @@ class SkillSecretsStore(context: Context) {
         cipher.init(Cipher.ENCRYPT_MODE, getOrCreateKey())
         val iv = cipher.iv
         val encrypted = cipher.doFinal(plain.toByteArray(StandardCharsets.UTF_8))
+        // Keystore 恢复可用：一次成功写入即清除此前的降级标记，否则瞬时故障会永久误报。
+        prefs.edit { remove(PREF_KEY_SECURITY_DEGRADED) }
         encode(encrypted) to encode(iv)
     } catch (t: Throwable) {
         // Keystore 不可用时不再把明文（Base64 只是编码不是加密）落盘：
@@ -115,14 +120,16 @@ class SkillSecretsStore(context: Context) {
         throw IllegalStateException("Skill secret storage unavailable (keystore failure); secret NOT saved", t)
     }
 
-    /** Whether the encryption keystore is unavailable and secrets are stored with
-     *  weak obfuscation. Settings UI can query this to warn the user. */
+    /** Whether a keystore failure has been observed since the last successful write. */
     fun isSecurityDegraded(): Boolean =
         prefs.getBoolean(PREF_KEY_SECURITY_DEGRADED, false)
 
     private fun decrypt(encrypted: String, iv: String): String? = try {
         if (iv == FALLBACK_IV_MARKER) {
-            String(decode(encrypted), StandardCharsets.UTF_8)
+            // 旧版明文回退条目（Base64 只是编码不是加密）：拒绝解密，调用方按"无密钥"
+            // 处理并提示用户重新输入，绝不把明文密钥再交回给技能。
+            AppLog.w(TAG, "Rejecting legacy plaintext skill secret entry; re-entry required")
+            null
         } else {
             val cipher = Cipher.getInstance(TRANSFORMATION)
             cipher.init(Cipher.DECRYPT_MODE, getOrCreateKey(), GCMParameterSpec(GCM_TAG_BITS, decode(iv)))

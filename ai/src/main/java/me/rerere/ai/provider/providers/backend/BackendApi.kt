@@ -10,7 +10,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import me.rerere.ai.util.shortRequestClient
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,7 +73,10 @@ class BackendApi(
         val body = get("/status") ?: return@withContext null
         runCatching {
             json.decodeFromString<StatusInfo>(body)
-        }.getOrNull()
+        }.getOrElse {
+            android.util.Log.w("BackendApi", "解析 /status 失败", it)
+            null
+        }
     }
 
     // ── 会话列表 ──
@@ -88,7 +92,8 @@ class BackendApi(
 
     // ── 运行时模型列表 ──
     suspend fun getModels(): List<BackendModelInfo> = withContext(Dispatchers.IO) {
-        val body = get("/models") ?: return@withContext emptyList()
+        // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
+        val body = get("/models", client.shortRequestClient()) ?: return@withContext emptyList()
         runCatching {
             json.decodeFromString<BackendModelsResponse>(body).models
         }.getOrElse {
@@ -144,14 +149,14 @@ class BackendApi(
 
     // ── 内部 HTTP 辅助 ──
 
-    private suspend fun get(path: String): String? {
+    private suspend fun get(path: String, client: OkHttpClient = this.client): String? {
         val request =
             Request.Builder()
-                .url(baseUrl.toHttpUrl()!!.resolve(path)!!)
+                .url(resolveUrl(path))
                 .get()
                 .applyAuth()
                 .build()
-        return execute(request)
+        return execute(request, client)
     }
 
     private suspend fun post(
@@ -162,14 +167,27 @@ class BackendApi(
             (body ?: buildJsonObject { }).toString().toRequestBody(jsonMediaType)
         val request =
             Request.Builder()
-                .url(baseUrl.toHttpUrl()!!.resolve(path)!!)
+                .url(resolveUrl(path))
                 .post(requestBody)
                 .applyAuth()
                 .build()
         return execute(request) != null
     }
 
+    /** baseUrl 未填或非法时给出明确报错，而不是在 toHttpUrl()!! 上崩溃。 */
+    private fun resolveUrl(path: String): okhttp3.HttpUrl {
+        return baseUrl.toHttpUrlOrNull()?.resolve(path)
+            ?: throw IllegalArgumentException("Invalid Backend baseUrl: '$baseUrl'")
+    }
+
     private fun Request.Builder.applyAuth(): Request.Builder {
+        if (!isAuthSafeTarget()) {
+            android.util.Log.w(
+                "BackendApi",
+                "baseUrl 未使用 https 且非本机地址，不发送 Authorization，避免凭据走明文 HTTP",
+            )
+            return this
+        }
         if (token.isNotBlank()) {
             header("Authorization", "Bearer $token")
         } else if (username.isNotBlank() || password.isNotBlank()) {
@@ -179,13 +197,27 @@ class BackendApi(
         return this
     }
 
-    private suspend fun execute(request: Request): String? {
+    /** https 始终可发凭据；http 只允许本机回环地址，局域网/公网 http 一律不发凭据。 */
+    private fun isAuthSafeTarget(): Boolean {
+        val url = baseUrl.toHttpUrlOrNull() ?: return false
+        if (url.isHttps) return true
+        return url.host in setOf("localhost", "127.0.0.1", "::1", "[::1]")
+    }
+
+    private suspend fun execute(request: Request, client: OkHttpClient = this.client): String? {
         return try {
             client.newCall(request).execute().use { response ->
-                if (!response.isSuccessful) return null
+                if (!response.isSuccessful) {
+                    android.util.Log.w(
+                        "BackendApi",
+                        "请求失败：${request.url} HTTP ${response.code}",
+                    )
+                    return null
+                }
                 response.body?.string()
             }
-        } catch (_: IOException) {
+        } catch (e: IOException) {
+            android.util.Log.w("BackendApi", "请求失败：${request.url}", e)
             null
         }
     }

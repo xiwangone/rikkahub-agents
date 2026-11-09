@@ -11,7 +11,7 @@ import me.rerere.ai.provider.CustomHeader
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.common.android.Logging
 import okhttp3.Headers
-import okhttp3.HttpUrl.Companion.toHttpUrl
+import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import okhttp3.ResponseBody
 import okhttp3.internal.http.RealResponseBody
@@ -40,7 +40,7 @@ fun ProviderSetting.mergeCustomHeaders(headers: List<CustomHeader> = emptyList()
 }
 
 fun Request.Builder.configureReferHeaders(url: String): Request.Builder {
-    val httpUrl = url.toHttpUrl()
+    val httpUrl = url.toHttpUrlOrNull() ?: return this
     return when (httpUrl.host) {
         "aihubmix.com" -> {
             addHeader("APP-Code", "DKHA9468")
@@ -59,7 +59,7 @@ fun Request.Builder.configureReferHeaders(url: String): Request.Builder {
 fun Request.Builder.configureSessionHeaders(url: String, sessionId: String?): Request.Builder = apply {
     if (sessionId != null) {
         header("X-Session-ID", sessionId)
-        if (url.toHttpUrl().host == "opencode.ai") {
+        if (url.toHttpUrlOrNull()?.host == "opencode.ai") {
             header("x-opencode-session", sessionId)
         }
     }
@@ -71,6 +71,18 @@ fun ResponseBody.stringSafe(): String? {
         else -> null
     }
 }
+
+/**
+ * `listModels` / 余额这类短请求的等待上限：共享 client 只有 10 分钟 `readTimeout`、
+ * 没有 `callTimeout`，短请求卡住时会让模型页转圈过久。派生 client 与原 client
+ * 共享连接池与调度器，只收紧 `callTimeout`。
+ */
+const val SHORT_REQUEST_CALL_TIMEOUT_MS = 30_000L
+
+fun okhttp3.OkHttpClient.shortRequestClient(): okhttp3.OkHttpClient =
+    newBuilder()
+        .callTimeout(SHORT_REQUEST_CALL_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
+        .build()
 
 fun JsonObject.mergeCustomBody(bodies: List<CustomBody>): JsonObject {
     if (bodies.isEmpty()) return this

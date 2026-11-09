@@ -15,6 +15,9 @@ interface SshHostDao {
     @Query("SELECT * FROM ssh_hosts WHERE name = :name LIMIT 1")
     suspend fun getByName(name: String): SshHostEntity?
 
+    @Query("SELECT * FROM ssh_hosts WHERE host = :host LIMIT 1")
+    suspend fun getByHost(host: String): SshHostEntity?
+
     @Insert(onConflict = OnConflictStrategy.REPLACE)
     suspend fun upsert(host: SshHostEntity)
 

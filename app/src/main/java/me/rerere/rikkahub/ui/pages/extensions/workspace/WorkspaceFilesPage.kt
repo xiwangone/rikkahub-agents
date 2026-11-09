@@ -81,6 +81,7 @@ import me.rerere.hugeicons.stroke.Share08
 import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -427,7 +428,8 @@ private fun WorkspaceFileCard(
                     onResolveImage()
                 } catch (error: CancellationException) {
                     throw error
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    AppLog.w("WorkspaceFiles", "缩略图解析失败: ${entry.path}", e)
                     null
                 }
         }

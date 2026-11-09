@@ -4,6 +4,7 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collectLatest
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.data.datastore.AiLogLevel
@@ -48,10 +49,8 @@ class AILoggingManager(
 
     fun addLog(log: AILogging) {
         if (logLevel.value == AiLogLevel.OFF) return
-        logs.value = logs.value + log
-        if (logs.value.size > MAX_LOGS) {
-            logs.value = logs.value.drop(1)
-        }
+        // 读-改-写必须原子：直接赋值在并发写时会丢条目、短暂超限。
+        logs.update { current -> (current + log).takeLast(MAX_LOGS) }
     }
 
     fun clearLogs() {

@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
@@ -126,7 +127,7 @@ class BackendWebBridge(
         credentialRef: String,
     ): Boolean = withContext(Dispatchers.IO) {
         try {
-            val jsch = JSch()
+            val jsch = newJSch(context)
             // Vault 凭证引用优先：按名从密钥库取私钥/密码，免明文落库、免私钥落盘
             var vaultPrivateKey: ByteArray? = null
             var vaultPassword: String? = null
@@ -188,8 +189,9 @@ class BackendWebBridge(
                 setHostKeyAlias(ecsHost)
                 (vaultPassword ?: password.takeIf { it.isNotBlank() })?.let(::setPassword)
             }
-            // 非交互：接受 host key（首次连接；生产应校验指纹）
-            session.setConfig("StrictHostKeyChecking", "no")
+            // 与 ssh_exec 一致：首次连接信任并写入共用的 known_hosts，主机密钥变更则拒绝连接。
+            // 本桥是设置页按钮触发的后台连接，无指纹确认弹窗的接入点，故不用逐次确认模式。
+            session.setConfig("StrictHostKeyChecking", "accept-new")
             session.setConfig("ServerAliveInterval", "30")
             session.setConfig("ServerAliveCountMax", "3")
             // RSA-2048 私钥走 rsa-sha2-256/512 签名（SshKeyGenerator 默认输出，
@@ -198,9 +200,9 @@ class BackendWebBridge(
 
             // 反向隧道：远端的 remoteTunnelPort → 手机的 localhost:localWebPort
             // 4 参数重载：setPortForwardingR(bind_address, bind_port, host, port)
-            // bind_address 留空 = 监听远端所有接口（后端服务在本机访问 127.0.0.1 也可）
+            // 只绑远端环回：后端服务在本机访问 127.0.0.1，不向公网暴露手机 Web 端口。
             sshSession = session
-            session.setPortForwardingR("", remoteTunnelPort, "127.0.0.1", localWebPort)
+            session.setPortForwardingR("127.0.0.1", remoteTunnelPort, "127.0.0.1", localWebPort)
             AppLog.i(TAG, "SSH reverse tunnel established: remote:$remoteTunnelPort -> local:$localWebPort")
             true
         } catch (e: CancellationException) {

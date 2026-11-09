@@ -60,6 +60,17 @@ interface AgentRunDao {
     @Query("SELECT * FROM agent_runs WHERE parent_run_id = :parentRunId ORDER BY created_at_ms ASC")
     suspend fun getChildren(parentRunId: String): List<AgentRun>
 
+    /**
+     * 把给定 id 的非终态行一次性翻为 process_lost（boot-recovery 扫尾用），返回实际翻转
+     * 行数。单条 UPDATE 代替逐 id getById+update 的 N+1；终态行不受影响。
+     */
+    @Query(
+        "UPDATE agent_runs SET status = 'process_lost', updated_at_ms = :now, finished_at_ms = :now, " +
+            "last_error = COALESCE(last_error, 'process killed mid-run') " +
+            "WHERE id IN (:ids) AND status NOT IN ('succeeded', 'failed', 'cancelled', 'process_lost')"
+    )
+    suspend fun markProcessLost(ids: List<String>, now: Long): Int
+
     @Query("SELECT COUNT(*) FROM agent_runs")
     suspend fun count(): Int
 

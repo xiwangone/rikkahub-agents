@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.rikkahub.data.datastore.SshPlatform
+
 /**
  * 远端平台判定：以 **SSH 协议里服务端的版本串（banner）** 为权威依据。
  *
@@ -28,4 +30,45 @@ internal object RemotePlatform {
         if (v.isEmpty()) return null
         return v.contains(WINDOWS_MARKER)
     }
+
+    /**
+     * 平台解析：显式参数 > banner 落盘缓存 > 全局默认设置。
+     *
+     * 每一级只有 LINUX/WINDOWS 才算命中；AUTO/缺省继续往下走。全部未命中返回 `null`，
+     * 调用方再回退到命令形状启发式（[looksLikeWindowsCommand]）。
+     */
+    fun resolveWindows(explicit: SshPlatform?, cached: Boolean?, globalDefault: SshPlatform?): Boolean? {
+        toWindowsFlag(explicit)?.let { return it }
+        cached?.let { return it }
+        toWindowsFlag(globalDefault)?.let { return it }
+        return null
+    }
+
+    /** 工具参数或全局默认里的显式平台映射为 Windows 标志；AUTO/缺省返回 null（继续往下）。 */
+    private fun toWindowsFlag(platform: SshPlatform?): Boolean? = when (platform) {
+        SshPlatform.WINDOWS -> true
+        SshPlatform.LINUX -> false
+        else -> null
+    }
+
+    /**
+     * 解析实体里存的平台名；实体存的是枚举名（如 "WINDOWS"），无法识别回退 AUTO。
+     * 兼容偏好名写法，两种拼写都能解析。
+     */
+    fun platformFromStored(value: String?): SshPlatform {
+        val raw = value?.trim().orEmpty()
+        if (raw.isEmpty()) return SshPlatform.AUTO
+        runCatching { SshPlatform.valueOf(raw.uppercase()) }.getOrNull()?.let { return it }
+        return SshPlatform.fromPreference(raw)
+    }
+
+    /**
+     * 工具参数优先于实体存量：显式 LINUX/WINDOWS 胜出；AUTO/缺省时回落到实体值；
+     * 实体同样为 AUTO 时返回 null（调用方继续走缓存/全局默认）。
+     */
+    fun explicitOrStored(explicit: SshPlatform?, stored: SshPlatform): SshPlatform? =
+        when (explicit) {
+            SshPlatform.WINDOWS, SshPlatform.LINUX -> explicit
+            else -> stored.takeIf { it == SshPlatform.WINDOWS || it == SshPlatform.LINUX }
+        }
 }

@@ -115,12 +115,13 @@ fun ChatExportSheet(
                     stringResource(id = R.string.chat_page_export_success, "Markdown")
                 OutlinedCard(
                     onClick = {
-                        exportToMarkdown(context, conversation, selectedMessages, includeReasoning)
-                        toaster.show(
-                            markdownSuccessMessage,
-                            type = ToastType.Success,
-                        )
-                        onDismissRequest()
+                        if (exportToMarkdown(context, conversation, selectedMessages, includeReasoning)) {
+                            toaster.show(
+                                markdownSuccessMessage,
+                                type = ToastType.Success,
+                            )
+                            onDismissRequest()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -140,9 +141,10 @@ fun ChatExportSheet(
                 val textSuccessMessage = stringResource(id = R.string.chat_page_export_success, "TXT")
                 OutlinedCard(
                     onClick = {
-                        exportToText(context, conversation, selectedMessages, includeReasoning)
-                        toaster.show(textSuccessMessage, type = ToastType.Success)
-                        onDismissRequest()
+                        if (exportToText(context, conversation, selectedMessages, includeReasoning)) {
+                            toaster.show(textSuccessMessage, type = ToastType.Success)
+                            onDismissRequest()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -156,9 +158,10 @@ fun ChatExportSheet(
                 val jsonSuccessMessage = stringResource(id = R.string.chat_page_export_success, "JSON")
                 OutlinedCard(
                     onClick = {
-                        exportToJson(context, conversation)
-                        toaster.show(jsonSuccessMessage, type = ToastType.Success)
-                        onDismissRequest()
+                        if (exportToJson(context, conversation)) {
+                            toaster.show(jsonSuccessMessage, type = ToastType.Success)
+                            onDismissRequest()
+                        }
                     },
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -230,13 +233,16 @@ fun ChatExportSheet(
                                         }.onFailure {
                                             it.printStackTrace()
                                             toaster.showFailure(context, it)
+                                        }.onSuccess { exported ->
+                                            if (exported) {
+                                                toaster.show(
+                                                    imageSuccessMessage,
+                                                    type = ToastType.Success,
+                                                )
+                                                onDismissRequest()
+                                            }
                                         }
                                     }
-                                    toaster.show(
-                                        imageSuccessMessage,
-                                        type = ToastType.Success,
-                                    )
-                                    onDismissRequest()
                                 },
                             ) {
                                 Text(stringResource(R.string.mermaid_export))
@@ -297,7 +303,7 @@ private fun exportToText(
     conversation: Conversation,
     messages: List<UIMessage>,
     includeReasoning: Boolean = true,
-) {
+): Boolean {
     val stamp = LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd_HH-mm-ss"))
     val filename = "chat-export-$stamp.txt"
     val text = buildString {
@@ -318,14 +324,7 @@ private fun exportToText(
             appendLine()
         }
     }
-    try {
-        val file = context.appTempFolder.resolve(filename)
-        FileOutputStream(file).use { it.write(text.toByteArray(Charsets.UTF_8)) }
-        val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
-        shareFile(context, uri, "text/plain")
-    } catch (e: IOException) { e.printStackTrace() }
-    catch (e: IllegalArgumentException) { e.printStackTrace() }
-    catch (e: ActivityNotFoundException) { e.printStackTrace() }
+    return shareTempFile(context, filename, "text/plain", text.toByteArray(Charsets.UTF_8))
 }
 
 @Suppress("LongMethod", "CyclomaticComplexMethod") // Markdown 各类型分支平铺导出，与 TXT/JSON 路径逐段对照；拆开会打散同一份排布
@@ -334,7 +333,7 @@ private fun exportToMarkdown(
     conversation: Conversation,
     messages: List<UIMessage>,
     includeReasoning: Boolean = true,
-) {
+): Boolean {
     val filename = "chat-export-${LocalDateTime.now().format(
         java.time.format.DateTimeFormatter
             .ofPattern("yyyy-MM-dd_HH-mm-ss"),
@@ -449,36 +448,7 @@ private fun exportToMarkdown(
             }
         }
 
-    try {
-        val dir = context.appTempFolder
-        val file = dir.resolve(filename)
-        if (!file.exists()) {
-            file.createNewFile()
-        } else {
-            file.delete()
-            file.createNewFile()
-        }
-        FileOutputStream(file).use {
-            it.write(sb.toString().toByteArray())
-        }
-
-        // Share the file
-        val uri =
-            FileProvider.getUriForFile(
-                context,
-                "${context.packageName}.fileprovider",
-                file,
-            )
-        shareFile(context, uri, "text/markdown")
-    } catch (e: IOException) {
-        // try 块异常面：文件读写 IOException、FileProvider.getUriForFile 抛
-        // IllegalArgumentException、shareFile 内 startActivity 抛 ActivityNotFoundException
-        e.printStackTrace()
-    } catch (e: IllegalArgumentException) {
-        e.printStackTrace()
-    } catch (e: ActivityNotFoundException) {
-        e.printStackTrace()
-    }
+    return shareTempFile(context, filename, "text/markdown", sb.toString().toByteArray())
 }
 
 @Suppress("TooGenericExceptionCaught") // Bitmap, FileProvider and Android share intents expose unchecked failures that must still show the export-failure toast.
@@ -490,7 +460,7 @@ private suspend fun exportToImage(
     messages: List<UIMessage>,
     settings: Settings,
     options: ImageExportOptions = ImageExportOptions(),
-) {
+): Boolean {
     val filename = "chat-export-${LocalDateTime.now().format(
         java.time.format.DateTimeFormatter
             .ofPattern("yyyy-MM-dd_HH-mm-ss"),
@@ -505,7 +475,7 @@ private suspend fun exportToImage(
                 Toast.LENGTH_SHORT,
             ).show()
         }
-        return
+        return false
     }
 
     val bitmap =
@@ -524,7 +494,7 @@ private suspend fun exportToImage(
             },
         )
 
-    try {
+    return try {
         val dir = context.appTempFolder
         val file = dir.resolve(filename)
         if (!file.exists()) {
@@ -550,6 +520,7 @@ private suspend fun exportToImage(
                 file,
             )
         shareFile(context, uri, "image/png")
+        true
     } catch (e: IOException) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
@@ -559,6 +530,7 @@ private suspend fun exportToImage(
                 Toast.LENGTH_SHORT,
             ).show()
         }
+        false
     } catch (e: RuntimeException) {
         e.printStackTrace()
         withContext(Dispatchers.Main) {
@@ -568,6 +540,7 @@ private suspend fun exportToImage(
                 Toast.LENGTH_SHORT,
             ).show()
         }
+        false
     } finally {
         bitmap.recycle()
     }
@@ -598,22 +571,45 @@ private fun shareFile(
 fun exportToJson(
     context: Context,
     conversation: Conversation,
-) {
+): Boolean {
     val filename = "chat-export-${LocalDateTime.now().toLocalString()}.json"
 
-    try {
+    return try {
         val jsonString = JsonInstant.encodeToString(Conversation.serializer(), conversation)
+        shareTempFile(context, filename, "application/json", jsonString.toByteArray())
+    } catch (e: IllegalArgumentException) {
+        // encodeToString 抛 SerializationException（IllegalArgumentException 子类）
+        showExportFailure(context, e)
+        false
+    }
+}
 
+private fun showExportFailure(context: Context, e: Exception) {
+    e.printStackTrace()
+    Toast.makeText(
+        context,
+        context.getString(R.string.backup_page_export_failed, e.message.orEmpty()),
+        Toast.LENGTH_SHORT,
+    ).show()
+}
+
+// 文本类导出的公共收尾：写临时文件 + FileProvider + 分享。
+// 成功返回 true；写盘或分享失败时弹失败提示并返回 false，调用方只在 true 时报成功。
+private fun shareTempFile(
+    context: Context,
+    filename: String,
+    mimeType: String,
+    bytes: ByteArray,
+): Boolean {
+    return try {
         val dir = context.appTempFolder
         val file = dir.resolve(filename)
-        if (!file.exists()) {
-            file.createNewFile()
-        } else {
+        if (file.exists()) {
             file.delete()
-            file.createNewFile()
         }
+        file.createNewFile()
         FileOutputStream(file).use {
-            it.write(jsonString.toByteArray())
+            it.write(bytes)
         }
 
         val uri =
@@ -622,15 +618,18 @@ fun exportToJson(
                 "${context.packageName}.fileprovider",
                 file,
             )
-        shareFile(context, uri, "application/json")
+        shareFile(context, uri, mimeType)
+        true
     } catch (e: IOException) {
-        // try 块异常面：文件读写 IOException、encodeToString 抛 SerializationException 与
-        // FileProvider.getUriForFile 抛 IllegalArgumentException（前者是后者子类）、
+        // 文件读写 IOException、FileProvider.getUriForFile 抛 IllegalArgumentException、
         // shareFile 内 startActivity 抛 ActivityNotFoundException
-        e.printStackTrace()
+        showExportFailure(context, e)
+        false
     } catch (e: IllegalArgumentException) {
-        e.printStackTrace()
+        showExportFailure(context, e)
+        false
     } catch (e: ActivityNotFoundException) {
-        e.printStackTrace()
+        showExportFailure(context, e)
+        false
     }
 }

@@ -61,6 +61,12 @@ internal class BackendEventProcessor(
     private var awaitingInteraction = false
 
     suspend fun FlowCollector<StreamChunk>.process() {
+        // 退出原因只有两种：等待超时（withTimeoutOrNull 返回 null）或事件流
+        // 异常 / 终止（first() 抛错）。只要没收到 turn_done，两种情况都是
+        // 失败收尾：补发 Finish("stop") 会把截断的回复伪装成正常结束。
+        // 错误传播形态：以 flow 抛异常的方式向上传播（StreamChunk 没有
+        // Error 变体，调用方直接收到异常）。
+        var streamFailure: Throwable? = null
         while (true) {
             val event =
                 withTimeoutOrNull(
@@ -70,19 +76,42 @@ internal class BackendEventProcessor(
                         else -> FIRST_CONTENT_TIMEOUT_MS
                     }
                 ) {
-                    // 事件异常兜底：流异常时返回 null → 由外层 break 优雅收尾
+                    // 流异常时记录原因并返回 null，由外层按失败收尾；
                     // 注意不能吞 CancellationException：取消必须继续向上传播（否则"停止生成"变成优雅完成）
                     runCatching { events.first() }
-                        .onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }
+                        .onFailure {
+                            if (it is kotlinx.coroutines.CancellationException) throw it
+                            streamFailure = it
+                        }
                         .getOrNull()
                 } ?: break
+
+            // 连接层显式报错（HTTP 错误等）：立即以异常收尾，不等待超时窗口耗尽。
+            if (event.kind == "error") {
+                closeOpenParts()
+                throw java.io.IOException(
+                    "Backend 事件流报错：${event.err ?: event.detail ?: event.code ?: "unknown error"}"
+                )
+            }
 
             captureSessionPath(event)
             updateInteractionState(event)
             handleEvent(event)
         }
 
-        // 流结束未补收尾，视作最后一个 turn 完成
+        closeOpenParts()
+        if (!turnDone) {
+            val failure = streamFailure
+            if (failure != null) {
+                throw java.io.IOException("Backend 事件流在 turn_done 之前结束", failure)
+            }
+            // 无流异常却退出循环，只可能是等待超时。
+            throw java.io.IOException("Backend 事件流超时：等待事件超时且未收到 turn_done")
+        }
+    }
+
+    /** 收尾已开始但未结束的文本 / 思考片段，使 UI 的片段状态保持一致。 */
+    private suspend fun FlowCollector<StreamChunk>.closeOpenParts() {
         if (textStarted) {
             emit(StreamChunk.TextEnd(id = textId()))
             textStarted = false
@@ -90,9 +119,6 @@ internal class BackendEventProcessor(
         if (reasoningStarted) {
             emit(StreamChunk.ReasoningEnd(id = reasoningId()))
             reasoningStarted = false
-        }
-        if (!turnDone) {
-            emit(StreamChunk.Finish(finishReason = "stop"))
         }
     }
 
@@ -103,6 +129,9 @@ internal class BackendEventProcessor(
                 sessionContext.sessionPaths[key] = path
                 sessionContext.onSessionPath(path)
                 runCatching { sessionContext.sessionPathStore.put(key, path) }
+                    .onFailure {
+                        android.util.Log.w("BackendEventProcessor", "会话路径持久化失败，后续 resume 可能失败", it)
+                    }
             }
         }
     }
@@ -304,6 +333,9 @@ internal class BackendEventProcessor(
                 if (a != null) {
                     interactionHandler.onApprovalRequest(providerSetting, a.id, a.tool, a.subject)
                     emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
+                } else {
+                    android.util.Log.w("BackendEventProcessor", "approval_request payload 为空，无法处理")
+                    emit(StreamChunk.Notice("服务端发起了审批请求，但内容缺失，无法处理", "warn"))
                 }
             }
 
@@ -329,6 +361,9 @@ internal class BackendEventProcessor(
                             questions = questions,
                         )
                     )
+                } else {
+                    android.util.Log.w("BackendEventProcessor", "ask_request payload 为空，无法处理")
+                    emit(StreamChunk.Notice("服务端发起了提问请求，但内容缺失，无法处理", "warn"))
                 }
             }
         }
@@ -363,7 +398,7 @@ internal class BackendEventProcessor(
 // 取值也不宜过长：serve 在任务结束后不再推送事件，窗口过长会让 UI 收尾与用量持久化明显滞后。
 private const val TURN_DONE_IDLE_TIMEOUT_MS = 15_000L
 // 非 turn_done 阶段的整体兜底超时：正常 SSE 流式下事件持续推送，此值仅用于
-// 防止异常场景（连接挂起但无任何事件）无限转圈。补充 runCatching 异常兜底。
+// 防止异常场景（连接挂起但无任何事件）无限转圈。超时后按失败收尾，不补发正常结束。
 private const val FIRST_CONTENT_TIMEOUT_MS = 300_000L
 // 服务端等待用户应答（审批/提问）时的静默上限：这类挂起是「等人」而非「已结束」，
 // 给足思考与操作时间（与 FIRST_CONTENT_TIMEOUT_MS 同量级），避免卡片被提前收尾。

@@ -17,6 +17,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.common.js.injectFetch
 import me.rerere.search.SearchService.Companion.httpClient
 import me.rerere.search.SearchService.Companion.json
+import me.rerere.search.net.withEgressGuard
 
 object CustomJsSearchService : SearchService<SearchServiceOptions.CustomJsOptions> {
     override val name: String = "Custom JS"
@@ -97,7 +98,7 @@ object CustomJsSearchService : SearchService<SearchServiceOptions.CustomJsOption
                 evaluationTimeoutMillis = 30_000
                 // The previous runtime supplied console even without a log listener.
                 evaluate<Unit>("globalThis.console = { log() {}, info() {}, warn() {}, error() {}, debug() {} }; void 0;")
-                injectFetch(httpClient)
+                injectFetch(httpClient.withEgressGuard())
                 evaluate<Unit>(userScript + "\n;void 0;")
 
                 // Await async functions too, and serialize inside the interruptible engine.

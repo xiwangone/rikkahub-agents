@@ -1,0 +1,12 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  明文流量默认禁止，只放行环回地址（本机 LLM 与本地代理，如 http://127.0.0.1:7890）。
+  局域网 http 端点不在放行范围，如需使用请走 https 或另行评估。
+-->
+<network-security-config>
+    <base-config cleartextTrafficPermitted="false" />
+    <domain-config cleartextTrafficPermitted="true">
+        <domain includeSubdomains="true">localhost</domain>
+        <domain>127.0.0.1</domain>
+    </domain-config>
+</network-security-config>

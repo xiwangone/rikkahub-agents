@@ -35,13 +35,37 @@ class WorkspaceSshEditorVM(
         val saveAfter: Boolean,
     )
 
+    /** Probe failure, with the cause classified so the page can show a readable reason. */
+    data class ProbeFailure(
+        val kind: Kind,
+        val detail: String,
+    ) {
+        enum class Kind {
+            AUTH,
+            REFUSED,
+            TIMEOUT,
+            UNREACHABLE,
+            EXTRA_VERIFICATION,
+            UNKNOWN,
+        }
+    }
+
+    /** Which required inputs are still missing or invalid; empty means the form can be submitted. */
+    enum class SubmitBlocker {
+        NAME_BLANK,
+        HOST_BLANK,
+        USERNAME_BLANK,
+        PORT_INVALID,
+        CREDENTIAL_MISSING,
+    }
+
     data class State(
         val draft: SshWorkspaceDraft = SshWorkspaceDraft(name = "", host = "", username = "", remoteDir = ""),
         val portInput: String = "22",
         val knownNames: Set<String> = emptySet(),
         val busy: Boolean = false,
         val probeResult: SshProbeResult? = null,
-        val probeError: String? = null,
+        val probeError: ProbeFailure? = null,
         val saveError: String? = null,
         val pendingHostKey: PendingHostKey? = null,
         val saved: Boolean = false,
@@ -102,23 +126,32 @@ class WorkspaceSshEditorVM(
             it.copy(
                 portInput = digits,
                 probeResult = null,
-                draft = it.draft.copy(port = digits.toIntOrNull() ?: it.draft.port, hostKey = null),
+                // Only a host change invalidates the trusted host key; changing the
+                // port keeps the same host identity, so the key is preserved.
+                draft = it.draft.copy(port = digits.toIntOrNull() ?: it.draft.port),
             )
         }
     }
 
-    /** 表单是否可提交：地址、用户、凭证齐备，端口合法 */
-    fun canSubmit(): Boolean {
+    /** Which required inputs are still missing or invalid. */
+    fun submitBlockers(): Set<SubmitBlocker> {
         val state = _state.value
         val draft = state.draft
-        val portOk = state.portInput.toIntOrNull()?.let { it in 1..65535 } == true
+        val blockers = mutableSetOf<SubmitBlocker>()
+        if (draft.name.isBlank()) blockers += SubmitBlocker.NAME_BLANK
+        if (draft.host.isBlank()) blockers += SubmitBlocker.HOST_BLANK
+        if (draft.username.isBlank()) blockers += SubmitBlocker.USERNAME_BLANK
+        if (state.portInput.toIntOrNull()?.let { it in 1..65535 } != true) blockers += SubmitBlocker.PORT_INVALID
         val credentialOk = when (draft.authType) {
             SshAuthType.PASSWORD -> draft.passwordRef.isNotBlank()
             SshAuthType.PRIVATE_KEY -> draft.privateKeyRef.isNotBlank()
         }
-        return draft.name.isNotBlank() && draft.host.isNotBlank() && draft.username.isNotBlank() &&
-            portOk && credentialOk
+        if (!credentialOk) blockers += SubmitBlocker.CREDENTIAL_MISSING
+        return blockers
     }
+
+    /** 表单是否可提交：地址、用户、凭证齐备，端口合法 */
+    fun canSubmit(): Boolean = submitBlockers().isEmpty()
 
     fun testConnection() = runProbe(saveAfter = false)
 
@@ -154,6 +187,21 @@ class WorkspaceSshEditorVM(
         _state.update { it.copy(draft = block(it.draft)) }
     }
 
+    /** Map a probe failure to a classified cause; the page shows the readable reason with the original text in parentheses. */
+    private fun probeFailureOf(e: Exception): ProbeFailure {
+        val detail = e.message ?: e.javaClass.simpleName
+        val lower = detail.lowercase()
+        val kind = when {
+            "additional verification" in lower -> ProbeFailure.Kind.EXTRA_VERIFICATION
+            "auth fail" in lower || "authentication failed" in lower || "auth failed" in lower -> ProbeFailure.Kind.AUTH
+            "connection refused" in lower -> ProbeFailure.Kind.REFUSED
+            "timed out" in lower || "timeout" in lower -> ProbeFailure.Kind.TIMEOUT
+            "unknown host" in lower || "no route to host" in lower || "network is unreachable" in lower -> ProbeFailure.Kind.UNREACHABLE
+            else -> ProbeFailure.Kind.UNKNOWN
+        }
+        return ProbeFailure(kind, detail)
+    }
+
     private fun updateDropProbe(block: (SshWorkspaceDraft) -> SshWorkspaceDraft) {
         _state.update { it.copy(draft = block(it.draft), probeResult = null, probeError = null) }
     }
@@ -184,7 +232,7 @@ class WorkspaceSshEditorVM(
                     it.copy(busy = false, pendingHostKey = PendingHostKey(e.actual, e.expected, saveAfter))
                 }
             } catch (e: Exception) {
-                _state.update { it.copy(busy = false, probeError = e.message ?: e.javaClass.simpleName) }
+                _state.update { it.copy(busy = false, probeError = probeFailureOf(e)) }
             }
         }
     }

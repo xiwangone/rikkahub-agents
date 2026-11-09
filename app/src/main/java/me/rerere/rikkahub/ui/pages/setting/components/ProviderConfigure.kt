@@ -131,6 +131,8 @@ internal fun providerTypeName(typeKey: String): String =
 fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
     if (this.providerKey == typeKey) return this
 
+    // 切换类型时清空 models：旧类型的模型 id 留在新类型下，下次生成会直接 404 模型不存在。
+    // id、名称、key、baseUrl 保留，模型需在新类型下拉取后重新添加。
     val apiKey =
         when (this) {
             is ProviderSetting.OpenAI -> this.apiKey
@@ -175,7 +177,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 customHeaders = this.customHeaders,
                 builtIn = this.builtIn,
@@ -189,7 +191,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 customHeaders = this.customHeaders,
                 builtIn = this.builtIn,
@@ -203,7 +205,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 customHeaders = this.customHeaders,
                 builtIn = this.builtIn,
@@ -217,7 +219,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
             )
@@ -228,7 +230,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
             )
@@ -239,7 +241,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
                 id = this.id,
                 enabled = this.enabled,
                 name = this.name,
-                models = this.models,
+                models = emptyList(),
                 balanceOption = this.balanceOption,
                 builtIn = this.builtIn,
                 baseUrl = convertedBaseUrl,

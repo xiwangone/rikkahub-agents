@@ -29,21 +29,32 @@ internal object DatabaseVersionGuard {
     private const val USER_VERSION_OFFSET = 60L
     private const val SQLITE_HEADER = "SQLite format 3\u0000"
 
-    /** 返回 true 表示已做了快照；false 表示无需或失败（失败只记日志，不阻断启动）。 */
-    fun beforeOpen(context: Context, codeVersion: Int): Boolean {
+    /** 升级/降级前快照的结果：无需、已落盘、失败（失败仍不阻断启动，但调用方必须告警）。 */
+    sealed interface SnapshotResult {
+        /** 磁盘版本与代码版本一致，或没有数据库文件：无需快照。 */
+        data object NotNeeded : SnapshotResult
+
+        /** 快照已落盘。 */
+        data class Taken(val dir: File) : SnapshotResult
+
+        /** 版本变了但快照没做成：升级仍会继续，但失去回滚快照兜底，调用方必须告警。 */
+        data class Failed(val reason: Throwable?) : SnapshotResult
+    }
+
+    fun beforeOpen(context: Context, codeVersion: Int): SnapshotResult {
         val dbFile = context.getDatabasePath(DB_NAME)
-        if (!dbFile.isFile) return false
-        val installed = readUserVersion(dbFile) ?: return false
-        if (installed == codeVersion) return false
+        if (!dbFile.isFile) return SnapshotResult.NotNeeded
+        val installed = readUserVersion(dbFile) ?: return SnapshotResult.NotNeeded
+        if (installed == codeVersion) return SnapshotResult.NotNeeded
         val kind = if (installed < codeVersion) "upgrade" else "downgrade"
         val dir =
             runCatching { snapshot(context, dbFile, installed, codeVersion, kind) }
                 .getOrElse {
                     Log.w(TAG, "database snapshot failed ($kind $installed -> $codeVersion)", it)
-                    null
-                } ?: return false
+                    return SnapshotResult.Failed(it)
+                } ?: return SnapshotResult.Failed(null)
         Log.w(TAG, "database $kind $installed -> $codeVersion, snapshot at ${dir.absolutePath}")
-        return true
+        return SnapshotResult.Taken(dir)
     }
 
     /** 读 SQLite 文件头的 user_version；不是 SQLite 文件或读不到时返回 null。 */

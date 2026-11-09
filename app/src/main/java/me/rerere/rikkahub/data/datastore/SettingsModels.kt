@@ -217,6 +217,8 @@ data class Settings(
     val workspaceStatsCache: String = "{}",
     val webServerLocalhostOnly: Boolean = true,
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
+    /** 默认 SSH 目标系统类型（新建主机未指定时使用；AUTO = 自动探测） */
+    val defaultSshPlatform: SshPlatform = SshPlatform.AUTO,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
     /** 备份包整包口令加密总开关（WebDAV/S3/本地全通道生效；默认关=明文兼容旧包）。 */
     val backupEncryptionEnabled: Boolean = false,
@@ -227,18 +229,33 @@ data class Settings(
 ) {
     /**
      * 当前生效的 WebDAV 配置：
-     * 优先 activeWebDavConfigId 命中；否则列表非空取首个；否则回退旧单配置 [webDavConfig]。
+     * 优先 activeWebDavConfigId 命中；id 为空时列表非空取首个，否则回退旧单配置 [webDavConfig]。
+     *
+     * id 指向已删配置时**不再**静默取列表首个——那会把备份发到另一台服务器上；
+     * 此时退回旧单配置槽（与最后一次生效配置保持同步），未配置则返回空配置，
+     * 调用方按“未配置”报错，而不是换目标备份。
      */
-    fun activeWebDavConfig(): WebDavConfig =
-        (webDavConfigs.firstOrNull { it.id == activeWebDavConfigId }
-            ?: webDavConfigs.firstOrNull()
-            ?: webDavConfig).withLegacyExpanded()
+    fun activeWebDavConfig(): WebDavConfig {
+        val id = activeWebDavConfigId
+        if (!id.isNullOrBlank()) {
+            webDavConfigs.firstOrNull { it.id == id }?.let { return it.withLegacyExpanded() }
+            return webDavConfig.withLegacyExpanded()
+        }
+        return (webDavConfigs.firstOrNull() ?: webDavConfig).withLegacyExpanded()
+    }
 
-    /** 当前生效的 S3 配置（同 [activeWebDavConfig] 逻辑）。 */
-    fun activeS3Config(): S3Config =
-        (s3Configs.firstOrNull { it.id == activeS3ConfigId }
-            ?: s3Configs.firstOrNull()
-            ?: s3Config).withLegacyExpanded()
+    /**
+     * 当前生效的 S3 配置（同 [activeWebDavConfig] 逻辑：id 悬空时退回旧单配置，
+     * 不静默换到列表首个配置）。
+     */
+    fun activeS3Config(): S3Config {
+        val id = activeS3ConfigId
+        if (!id.isNullOrBlank()) {
+            s3Configs.firstOrNull { it.id == id }?.let { return it.withLegacyExpanded() }
+            return s3Config.withLegacyExpanded()
+        }
+        return (s3Configs.firstOrNull() ?: s3Config).withLegacyExpanded()
+    }
 
     companion object {
         // 构造一个用于初始化的settings, 但它不能用于保存，防止使用初始值存储
@@ -257,6 +274,17 @@ enum class AiLogLevel(val preferenceName: String) {
 
     companion object {
         fun fromPreference(value: String?): AiLogLevel = entries.firstOrNull { it.preferenceName == value } ?: INFO
+    }
+}
+
+@Serializable
+enum class SshPlatform(val preferenceName: String) {
+    AUTO("AUTO"),
+    LINUX("LINUX"),
+    WINDOWS("WINDOWS");
+
+    companion object {
+        fun fromPreference(value: String?): SshPlatform = entries.firstOrNull { it.preferenceName == value } ?: AUTO
     }
 }
 
@@ -475,13 +503,15 @@ data class WebDavConfig(
         BackupItem.DATABASE,
         BackupItem.SETTINGS,
         BackupItem.AVATARS,
+        BackupItem.MEDIA_CREATION,
     ),
 ) {
     val displayName: String
-        get() = name.ifBlank { if (url.isBlank()) "未命名" else url.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+        // 未命名时返回空串，由调用方用字符串资源兜底显示；数据层不再写死中文。
+        get() = name.ifBlank { if (url.isBlank()) "" else url.removePrefix("https://").removePrefix("http://").substringBefore('/') }
 
     /**
-     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS）。
+     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS+MEDIA_CREATION）。
      * 旧版配置勾 FILES = 全选文件大头；细分项成熟后 UI 不再展示 FILES，
      * 但存量配置可能仍含 FILES，执行前展开避免漏带或误导。
      *
@@ -500,6 +530,7 @@ data class WebDavConfig(
                         add(BackupItem.CHAT_FILES)
                         add(BackupItem.FONTS_IMAGES)
                         add(BackupItem.AVATARS)
+                        add(BackupItem.MEDIA_CREATION)
                     }
                 }
             }.distinct()
@@ -536,6 +567,8 @@ data class WebDavConfig(
         FONTS_IMAGES,
         /** 工具输出缓存（files/tool_outputs/） */
         TOOL_OUTPUTS,
+        /** 媒体创作文件（files/media_creation/：媒体工具生成的图片/音频/视频） */
+        MEDIA_CREATION,
         /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS） */
         FILES,
 

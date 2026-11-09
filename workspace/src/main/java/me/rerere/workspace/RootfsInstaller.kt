@@ -16,8 +16,51 @@ import java.util.zip.GZIPInputStream
 /** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */
 private const val MAX_TAR_MOD_TIME_SECONDS = 253_402_300_799L
 
+/** 解包时跳过的条目汇总（名字各取前 20 条，其余只计数量）。 */
+internal data class SkippedTarEntries(
+    val unknownTypeCount: Int,
+    val unknownTypeNames: List<String>,
+    val missingHardLinkCount: Int,
+    val missingHardLinkNames: List<String>,
+) {
+    val totalCount: Int get() = unknownTypeCount + missingHardLinkCount
+}
+
+/** [RootfsInstaller.extractTar] 的返回：解出的条目数与跳过的条目汇总。 */
+internal data class ExtractTarResult(
+    val entriesExtracted: Int,
+    val skipped: SkippedTarEntries,
+) {
+    /** 安装结束时向进度流汇报的一句话汇总；无跳过时为空。 */
+    fun skippedSummary(): String? {
+        if (skipped.totalCount == 0) return null
+        val parts = mutableListOf<String>()
+        if (skipped.unknownTypeCount > 0) {
+            parts += "unknown entry type: " + formatSkippedNames(
+                skipped.unknownTypeNames,
+                skipped.unknownTypeCount,
+            )
+        }
+        if (skipped.missingHardLinkCount > 0) {
+            parts += "hard link with missing source: " + formatSkippedNames(
+                skipped.missingHardLinkNames,
+                skipped.missingHardLinkCount,
+            )
+        }
+        return "Skipped ${skipped.totalCount} entries during extraction (${parts.joinToString("; ")})"
+    }
+
+    private fun formatSkippedNames(names: List<String>, total: Int): String {
+        val shown = names.joinToString(", ")
+        return if (total > names.size) "$shown and ${total - names.size} more" else shown
+    }
+}
+
 /** 安装流程结束，但 rootfs 未提供 Terminal 所需的可用 shell。 */
-class RootfsShellNotFoundException : IllegalStateException()
+class RootfsShellNotFoundException : IllegalStateException(
+    "No usable shell was found in the installed rootfs; " +
+        "reinstall the rootfs or try a different rootfs image",
+)
 
 // tar 解包（约 14 个）与安装编排（约 10 个）共享中断检查、路径归一化、权限写入等私有 helper，
 // 抽出独立类需把一批 private 提升为 internal；当前阶段保持单类，拆分留待专项重构。
@@ -99,16 +142,34 @@ class RootfsInstaller(
         try {
             stagingDir.deleteRecursively()
             stagingDir.mkdirs()
-            extractTar(archive, stagingDir, format, onProgress)
+            val extractResult = extractTar(archive, stagingDir, format, onProgress)
+            var totalEntries = extractResult.entriesExtracted
             if (shouldOverlay) {
-                overlayDirectory(stagingDir, linuxDir, stagingDir)
+                totalEntries += overlayDirectory(stagingDir, linuxDir, stagingDir, totalEntries, onProgress)
             } else {
                 linuxDir.deleteRecursively()
                 require(stagingDir.renameTo(linuxDir)) {
                     "Failed to move rootfs into workspace"
                 }
             }
+            // 补丁阶段也发进度事件，否则 UI 会在上一步的末尾长时间卡住
+            onProgress(
+                RootfsInstallProgress(
+                    stage = RootfsInstallStage.EXTRACTING,
+                    entriesExtracted = totalEntries,
+                    currentEntry = "Applying rootfs patches",
+                ),
+            )
             patcher.patch(linuxDir)
+            extractResult.skippedSummary()?.let { summary ->
+                onProgress(
+                    RootfsInstallProgress(
+                        stage = RootfsInstallStage.EXTRACTING,
+                        entriesExtracted = totalEntries,
+                        currentEntry = summary,
+                    ),
+                )
+            }
             ensureTerminalShellIsReady(root)
             onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
         } finally {
@@ -116,10 +177,26 @@ class RootfsInstaller(
         }
     }
 
+    /** 覆盖目录并回报进度；返回实际覆盖的条目数。 */
     private fun overlayDirectory(
         sourceDir: File,
         targetDir: File,
         stagingRoot: File,
+        extractedEntries: Int,
+        onProgress: (RootfsInstallProgress) -> Unit,
+    ): Int {
+        val overlaidCount = intArrayOf(0)
+        overlayDirectory(sourceDir, targetDir, stagingRoot, extractedEntries, overlaidCount, onProgress)
+        return overlaidCount[0]
+    }
+
+    private fun overlayDirectory(
+        sourceDir: File,
+        targetDir: File,
+        stagingRoot: File,
+        extractedEntries: Int,
+        overlaidCount: IntArray,
+        onProgress: (RootfsInstallProgress) -> Unit,
     ) {
         targetDir.mkdirs()
         val children = sourceDir.listFiles().orEmpty()
@@ -131,24 +208,27 @@ class RootfsInstaller(
             val destPath = dest.toPath()
             when {
                 Files.isSymbolicLink(srcPath) -> {
-                    if (relPath in PRESERVED_CONFIG_PATHS && dest.exists()) continue
+                    if (isPreservedConfig(relPath) && dest.exists()) continue
                     if (Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) {
                         dest.deleteRecursively()
                     }
                     val linkTarget = Files.readSymbolicLink(srcPath)
                     dest.parentFile?.mkdirs()
                     Files.createSymbolicLink(destPath, linkTarget)
+                    reportOverlayProgress(relPath, extractedEntries, overlaidCount, onProgress)
                 }
 
                 child.isDirectory -> {
+                    // 已保留的配置目录（如 sources.list.d）整个跳过，不展开覆盖
+                    if (isPreservedConfig(relPath) && dest.isDirectory) continue
                     if (Files.isSymbolicLink(destPath) || (dest.exists() && !dest.isDirectory)) {
                         dest.delete()
                     }
-                    overlayDirectory(child, dest, stagingRoot)
+                    overlayDirectory(child, dest, stagingRoot, extractedEntries, overlaidCount, onProgress)
                 }
 
                 else -> {
-                    if (relPath in PRESERVED_CONFIG_PATHS && dest.isFile && dest.length() > 0L) {
+                    if (isPreservedConfig(relPath) && dest.isFile && dest.length() > 0L) {
                         continue
                     }
                     if (Files.isSymbolicLink(destPath) || dest.isDirectory) {
@@ -160,9 +240,33 @@ class RootfsInstaller(
                     dest.setWritable(child.canWrite(), true)
                     dest.setExecutable(child.canExecute(), false)
                     runCatching { dest.setLastModified(child.lastModified()) }
+                    reportOverlayProgress(relPath, extractedEntries, overlaidCount, onProgress)
                 }
             }
         }
+    }
+
+    /** 保留路径按“本身或其子路径”匹配：sources.list.d 这类目录下的碎片配置都要保留。 */
+    private fun isPreservedConfig(relPath: String): Boolean =
+        PRESERVED_CONFIG_PATHS.any { preserved ->
+            relPath == preserved || relPath.startsWith("$preserved/")
+        }
+
+    /** 覆盖阶段也发进度事件，否则 UI 会在“解压 100%”处长时间卡住，看不出是在覆盖还是卡死了。 */
+    private fun reportOverlayProgress(
+        relPath: String,
+        extractedEntries: Int,
+        overlaidCount: IntArray,
+        onProgress: (RootfsInstallProgress) -> Unit,
+    ) {
+        overlaidCount[0]++
+        onProgress(
+            RootfsInstallProgress(
+                stage = RootfsInstallStage.EXTRACTING,
+                entriesExtracted = extractedEntries + overlaidCount[0],
+                currentEntry = relPath,
+            ),
+        )
     }
 
     private fun ensureTerminalShellIsReady(root: String) {
@@ -171,25 +275,79 @@ class RootfsInstaller(
         }
     }
 
+    /**
+     * 下载 rootfs：失败重试（最多 [DOWNLOAD_MAX_ATTEMPTS] 次），重试时用 Range 从已下载的
+     * 半截文件续传；下载结束按服务端给的总字节数校验，半截包不再拖到解压才报 tar EOF。
+     * 4xx（408/429 除外）重试也不会好，直接失败；中断不重试。
+     */
     private fun download(
         url: String,
         target: File,
         onProgress: (RootfsInstallProgress) -> Unit,
     ) {
+        target.parentFile?.mkdirs()
+        var downloaded = if (target.exists()) target.length() else 0L
+        var totalBytes: Long? = null
+        var lastError: IOException? = null
+        repeat(DOWNLOAD_MAX_ATTEMPTS) { attempt ->
+            try {
+                val result = downloadOnce(url, target, downloaded, onProgress)
+                downloaded = result.bytesRead
+                totalBytes = result.totalBytes
+                if (totalBytes != null && downloaded != totalBytes) {
+                    throw IOException(
+                        "Rootfs download incomplete: received $downloaded of $totalBytes bytes",
+                    )
+                }
+                return
+            } catch (error: InterruptedException) {
+                throw error
+            } catch (error: IOException) {
+                lastError = error
+                downloaded = if (target.exists()) target.length() else 0L
+                if (attempt == DOWNLOAD_MAX_ATTEMPTS - 1) throw error
+            }
+        }
+        throw lastError ?: IOException("Rootfs download failed: $url")
+    }
+
+    private data class DownloadResult(
+        val bytesRead: Long,
+        val totalBytes: Long?,
+    )
+
+    private fun downloadOnce(
+        url: String,
+        target: File,
+        resumeFrom: Long,
+        onProgress: (RootfsInstallProgress) -> Unit,
+    ): DownloadResult {
         val connection = URL(url).openConnection() as HttpURLConnection
         connection.connectTimeout = CONNECT_TIMEOUT_MS
         connection.readTimeout = READ_TIMEOUT_MS
         connection.instanceFollowRedirects = true
+        if (resumeFrom > 0) {
+            connection.setRequestProperty("Range", "bytes=$resumeFrom-")
+        }
         try {
             val code = connection.responseCode
-            require(code in 200..299) { "Rootfs download failed: HTTP $code" }
-            val totalBytes = connection.contentLengthLong.takeIf { it > 0 }
-            target.parentFile?.mkdirs()
+            if (code !in 200..299) {
+                if (code in 400..499 && code != 408 && code != 429) {
+                    throw IllegalStateException("Rootfs download failed: HTTP $code")
+                }
+                throw IOException("Rootfs download failed: HTTP $code")
+            }
+            // 206 表示服务端接受了 Range 续传，继续往半截文件后追加；
+            // 200 表示服务端忽略了 Range，从头重下（截断已有半截文件）。
+            val resumed = code == HttpURLConnection.HTTP_PARTIAL
+            val startOffset = if (resumed) resumeFrom else 0L
+            val remaining = connection.contentLengthLong.takeIf { it > 0 }
+            val totalBytes = remaining?.let { startOffset + it }
+            var bytesRead = startOffset
+            var lastReportBytes = startOffset
             connection.inputStream.use { input ->
-                target.outputStream().use { output ->
+                java.io.FileOutputStream(target, resumed).use { output ->
                     val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead = 0L
-                    var lastReportBytes = 0L
                     while (true) {
                         checkInterrupted()
                         val read = input.read(buffer)
@@ -218,6 +376,7 @@ class RootfsInstaller(
                     }
                 }
             }
+            return DownloadResult(bytesRead = bytesRead, totalBytes = totalBytes)
         } finally {
             connection.disconnect()
         }
@@ -228,9 +387,13 @@ class RootfsInstaller(
         targetDir: File,
         format: ArchiveFormat = ArchiveFormat.fromFile(archive),
         onProgress: (RootfsInstallProgress) -> Unit,
-    ) {
+    ): ExtractTarResult {
+        var entries = 0
+        var skippedUnknownTypeCount = 0
+        val skippedUnknownTypeNames = mutableListOf<String>()
+        var skippedMissingHardLinkCount = 0
+        val skippedMissingHardLinkNames = mutableListOf<String>()
         format.wrapStream(BufferedInputStream(archive.inputStream())).use { input ->
-            var entries = 0
             var pendingName: String? = null
             var pendingLinkName: String? = null
             while (true) {
@@ -283,7 +446,12 @@ class RootfsInstaller(
                     }
 
                     TarEntryType.HARDLINK -> {
-                        createHardLink(targetDir, target, header.linkName)
+                        if (!createHardLink(targetDir, target, header.linkName)) {
+                            skippedMissingHardLinkCount++
+                            if (skippedMissingHardLinkNames.size < MAX_SKIPPED_NAMES) {
+                                skippedMissingHardLinkNames += header.name
+                            }
+                        }
                     }
 
                     TarEntryType.FILE -> {
@@ -298,16 +466,24 @@ class RootfsInstaller(
                     TarEntryType.LONG_NAME,
                     TarEntryType.LONG_LINK,
                     TarEntryType.PAX,
-                    TarEntryType.OTHER,
                     -> {
                         Unit
+                    }
+
+                    // 未知类型条目：静默跳过会让装完缺文件找不到原因，记下来最后汇总汇报
+                    TarEntryType.OTHER -> {
+                        skippedUnknownTypeCount++
+                        if (skippedUnknownTypeNames.size < MAX_SKIPPED_NAMES) {
+                            skippedUnknownTypeNames += header.name
+                        }
                     }
 
                     // GNU sparse（磁盘镜像，如 Debian cloud 的 disk.raw）不是 rootfs 结构，
                     // 其数据布局由扩展头描述，按普通条目继续解析会导致后续 header 错位
                     TarEntryType.SPARSE -> {
                         throw IllegalArgumentException(
-                            "该压缩包是磁盘镜像（disk.raw），不能作为 rootfs 安装；请改用 rootfs 包（如 Ubuntu base / Alpine minirootfs）",
+                            "This archive is a disk image (disk.raw), not a rootfs; " +
+                                "use a rootfs archive instead (for example, an Ubuntu base or Alpine minirootfs tarball)",
                         )
                     }
                 }
@@ -333,6 +509,15 @@ class RootfsInstaller(
                 )
             }
         }
+        return ExtractTarResult(
+            entriesExtracted = entries,
+            skipped = SkippedTarEntries(
+                unknownTypeCount = skippedUnknownTypeCount,
+                unknownTypeNames = skippedUnknownTypeNames,
+                missingHardLinkCount = skippedMissingHardLinkCount,
+                missingHardLinkNames = skippedMissingHardLinkNames,
+            ),
+        )
     }
 
     private fun createSymlink(
@@ -356,15 +541,16 @@ class RootfsInstaller(
         Files.createSymbolicLink(target.toPath(), linkTarget.toPath())
     }
 
+    /** 建硬链接：源缺失或名字为空时跳过该条目（返回 false，供调用方汇总），而不是中断安装。 */
     private fun createHardLink(
         root: File,
         target: File,
         linkName: String,
-    ) {
-        if (linkName.isBlank()) return
+    ): Boolean {
+        if (linkName.isBlank()) return false
         // linkName 可能是 "./" 这类归一化后为空的路径 → 跳过该链接条目而不是中断安装
-        val source = root.safeResolve(linkName) ?: return
-        if (!source.exists()) return
+        val source = root.safeResolve(linkName) ?: return false
+        if (!source.exists()) return false
         target.delete()
         runCatching {
             Files.createLink(target.toPath(), source.toPath())
@@ -380,6 +566,7 @@ class RootfsInstaller(
             target.setWritable(source.canWrite(), true)
             target.setExecutable(source.canExecute(), false)
         }.getOrThrow()
+        return true
     }
 
     private fun InputStream.readTarHeader(): TarHeader? {
@@ -612,13 +799,18 @@ class RootfsInstaller(
                 return fromFileName(path)
             }
 
-            /** 按文件名推断归档格式（本地导入用）。 */
+            /** 按文件名推断压缩包格式（本地导入用）。未知后缀直接报错，不再默认当作 tar.gz。 */
             fun fromFileName(name: String): ArchiveFormat =
                 when {
+                    name.endsWith(".tar.gz", ignoreCase = true) ||
+                        name.endsWith(".tgz", ignoreCase = true) -> TAR_GZ
+
                     name.endsWith(".tar.xz", ignoreCase = true) ||
                         name.endsWith(".txz", ignoreCase = true) -> TAR_XZ
 
-                    else -> TAR_GZ
+                    else -> throw IllegalArgumentException(
+                        "Unsupported archive format: $name (expected a .tar.gz or .tar.xz archive)",
+                    )
                 }
 
             fun fromFile(file: File): ArchiveFormat = fromUrl(file.name)
@@ -631,6 +823,8 @@ class RootfsInstaller(
         private const val PROGRESS_STEP_BYTES = 512 * 1024
         private const val CONNECT_TIMEOUT_MS = 30_000
         private const val READ_TIMEOUT_MS = 60_000
+        private const val DOWNLOAD_MAX_ATTEMPTS = 3
+        private const val MAX_SKIPPED_NAMES = 20
 
         /** 覆盖更新时保留已有用户配置的相对路径（避免抹掉镜像源、DNS 与已写入的 CA bundle）。 */
         private val PRESERVED_CONFIG_PATHS =
@@ -639,7 +833,9 @@ class RootfsInstaller(
                 "etc/hosts",
                 "etc/hostname",
                 "etc/apk/repositories",
+                "etc/apk/repositories.d",
                 "etc/apt/sources.list",
+                "etc/apt/sources.list.d",
                 "etc/pip.conf",
                 "etc/ssl/certs/ca-certificates.crt",
                 "root/.npmrc",

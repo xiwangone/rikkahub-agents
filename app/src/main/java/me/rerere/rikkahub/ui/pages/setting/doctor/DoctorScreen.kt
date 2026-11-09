@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
@@ -302,12 +303,37 @@ private fun FixButton(
     onOpenIntent: (android.content.Intent) -> Unit,
     onOpenAppRoute: (AppRouteKey) -> Unit,
 ) {
+    var showConfirm by remember { mutableStateOf(false) }
     val (labelRes, click) =
         when (fix) {
-            is FixAction.AutoFix -> fix.labelRes to { onAutoFix(fix) }
+            is FixAction.AutoFix -> fix.labelRes to {
+                // 破坏性修复先弹确认框；其余修复保持点即执行
+                if (fix.confirmRes != null) showConfirm = true else onAutoFix(fix)
+            }
             is FixAction.OpenIntent -> fix.labelRes to { onOpenIntent(fix.intent) }
             is FixAction.OpenAppRoute -> fix.labelRes to { onOpenAppRoute(fix.routeKey) }
         }
+    if (showConfirm && fix is FixAction.AutoFix && fix.confirmRes != null) {
+        AlertDialog(
+            onDismissRequest = { showConfirm = false },
+            text = { Text(stringResource(fix.confirmRes)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        showConfirm = false
+                        onAutoFix(fix)
+                    },
+                ) {
+                    Text(stringResource(R.string.common_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showConfirm = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
     OutlinedButton(
         onClick = click,
         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 4.dp),

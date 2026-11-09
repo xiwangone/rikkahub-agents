@@ -23,7 +23,7 @@ internal val json = Json {
  * case-insensitive against the key name and applies regardless of nesting depth.
  */
 private val SECRET_KEY_PATTERN: Regex =
-    Regex("(?:^|_)(password|passphrase|secret|token|apikey|api[_-]?key|privatekey|private[_-]?key|key)$",
+    Regex("(?:^|_)(password|passphrase|secret|token|apikey|api[_-]?key|privatekey|private[_-]?key|authorization|auth|credentials?|bearer|key)$",
         RegexOption.IGNORE_CASE)
 
 /**

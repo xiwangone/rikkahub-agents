@@ -16,6 +16,7 @@ data class S3Config(
         BackupItem.DATABASE,
         BackupItem.SETTINGS,
         BackupItem.AVATARS,
+        BackupItem.MEDIA_CREATION,
     ),
 ) {
     val displayName: String
@@ -28,11 +29,24 @@ data class S3Config(
             .trimEnd('/')
 
     val isHttps: Boolean
-        get() = endpoint.startsWith("https://")
+        // 没写协议的 endpoint 默认走 https：显式 http:// 才走明文（本地兼容端点），
+        // 否则签名 URL 与虚拟主机地址都会落到 http，明文传输签名头。
+        get() = !endpoint.startsWith("http://")
+
+    /**
+     * 没写协议的 endpoint 补 https://，显式 http(s):// 保持原样。
+     * 调用方在发起请求前统一用它归一化，避免无协议地址落到明文 http。
+     */
+    fun withHttpsByDefault(): S3Config =
+        if (endpoint.isBlank() || endpoint.startsWith("http://") || endpoint.startsWith("https://")) {
+            this
+        } else {
+            copy(endpoint = "https://$endpoint")
+        }
 
     fun bucketUrl(): String {
         return if (pathStyle) {
-            "${endpoint.trimEnd('/')}/$bucket"
+            "${withHttpsByDefault().endpoint.trimEnd('/')}/$bucket"
         } else {
             val scheme = if (isHttps) "https://" else "http://"
             "$scheme$bucket.$host"
@@ -40,7 +54,7 @@ data class S3Config(
     }
 
     /**
-     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS）。
+     * 展开旧聚合项 FILES 为细分项（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS+MEDIA_CREATION）。
      * 细分项成熟后 UI 不再展示 FILES，存量配置含 FILES 时执行前展开。
      *
      * **保留 FILES 本身**：它同时是"旧配置"标记。[Settings.activeS3Config] 等访问器
@@ -58,6 +72,7 @@ data class S3Config(
                         add(BackupItem.CHAT_FILES)
                         add(BackupItem.FONTS_IMAGES)
                         add(BackupItem.AVATARS)
+                        add(BackupItem.MEDIA_CREATION)
                     }
                 }
             }.distinct()
@@ -94,6 +109,8 @@ data class S3Config(
         FONTS_IMAGES,
         /** 工具输出缓存（files/tool_outputs/） */
         TOOL_OUTPUTS,
+        /** 媒体创作文件（files/media_creation/：媒体工具生成的图片/音频/视频） */
+        MEDIA_CREATION,
         /** 兼容旧配置的聚合项：等价于旧 FILES 的默认勾选集合（SKILLS+CHAT_FILES+FONTS_IMAGES+AVATARS） */
         FILES,
 

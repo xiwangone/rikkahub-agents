@@ -51,6 +51,8 @@ import me.rerere.rikkahub.data.ai.prompts.DEFAULT_TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV1Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV2Migration
 import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV3Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV4Migration
+import me.rerere.rikkahub.data.datastore.migration.PreferenceStoreV5Migration
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.PresetThemes
 import me.rerere.rikkahub.utils.JsonInstant
@@ -74,7 +76,12 @@ private val Context.settingsStore by preferencesDataStore(
         listOf(
             PreferenceStoreV1Migration(),
             PreferenceStoreV2Migration(),
-            PreferenceStoreV3Migration()
+            PreferenceStoreV3Migration(),
+            // V4 writes the auto-compaction/retry defaults; V5 drops the stale fixed
+            // 2k compaction target so the 1%-of-context default can take effect.
+            // Order matters: V4 stamps version 4, V5 only runs when version < 5.
+            PreferenceStoreV4Migration(),
+            PreferenceStoreV5Migration()
         )
     }
 )
@@ -238,6 +245,9 @@ class SettingsStore(
         // AI logging
         val AI_LOG_LEVEL = stringPreferencesKey("ai_log_level")
 
+        // 默认 SSH 目标系统类型
+        val DEFAULT_SSH_PLATFORM = stringPreferencesKey("default_ssh_platform")
+
         // 提示词注入
         val MODE_INJECTIONS = stringPreferencesKey("mode_injections")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
@@ -303,12 +313,13 @@ class SettingsStore(
                 responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
                 enableAutoRetry = preferences[ENABLE_AUTO_RETRY] != false,
                 suggestionModelId = parseUuidPrefOrNull(preferences[SUGGESTION_MODEL]),
-                imageGenerationModelId = parseUuidPrefOrNull(preferences[IMAGE_GENERATION_MODEL]) ?: Uuid.random(),
+                imageGenerationModelId = parseUuidPrefOrNull(preferences[IMAGE_GENERATION_MODEL])
+                    ?: DEFAULT_AUTO_MODEL_ID,
                 titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
                 translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
                 translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
                 suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
-                ocrModelId = parseUuidPrefOrNull(preferences[OCR_MODEL]) ?: Uuid.random(),
+                ocrModelId = parseUuidPrefOrNull(preferences[OCR_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
                 ocrLocalEnabled = preferences[OCR_LOCAL_ENABLED] ?: true,
                 ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
                 compressModelId = parseUuidPrefOrNull(preferences[COMPRESS_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
@@ -445,6 +456,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
+                defaultSshPlatform = SshPlatform.fromPreference(preferences[DEFAULT_SSH_PLATFORM]),
                 backupReminderConfig = decodePrefOrDefault(preferences[BACKUP_REMINDER_CONFIG], BackupReminderConfig()),
                 backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
                 backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",

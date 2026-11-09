@@ -31,17 +31,22 @@ else
 fi
 
 # 2. mount / proc availability
-mkdir -p /data/local/tmp/.probe_m
-if mount -t proc proc /data/local/tmp/.probe_m 2>/dev/null; then
-    umount /data/local/tmp/.probe_m && ok "mount -t proc" || bad "mount -t proc (umount failed)"
+# 探测目录带 PID 后缀、不可预测；已存在或为软链时直接记 fail，不跟随挂载到链接目标
+PROBE_M="/data/local/tmp/.probe_m.$$"
+if [ -L "$PROBE_M" ] || [ -e "$PROBE_M" ]; then
+    bad "probe mount dir already exists: $PROBE_M"
+elif ! mkdir "$PROBE_M" 2>/dev/null; then
+    bad "cannot create probe mount dir"
+elif mount -t proc proc "$PROBE_M" 2>/dev/null; then
+    umount "$PROBE_M" && ok "mount -t proc" || bad "mount -t proc (umount failed)"
 else
-    if mount --bind /data /data/local/tmp/.probe_m 2>/dev/null; then
-        umount /data/local/tmp/.probe_m && ok "mount --bind (proc busy = already mounted)" || bad "mount --bind (umount failed)"
+    if mount --bind /data "$PROBE_M" 2>/dev/null; then
+        umount "$PROBE_M" && ok "mount --bind (proc busy = already mounted)" || bad "mount --bind (umount failed)"
     else
         bad "mount capability (both proc and bind failed)"
     fi
 fi
-rmdir /data/local/tmp/.probe_m 2>/dev/null
+rmdir "$PROBE_M" 2>/dev/null
 
 # 3. kernel page size (16KB-page devices: self-compiled native binaries must match)
 ps=$(getconf PAGESIZE 2>/dev/null || echo unknown)
@@ -59,16 +64,22 @@ fi
 
 # 5. chroot(2) actually works? (check / first as in S1, then empty probe dir)
 chroot_ok=0
+PROBE_CR="/data/local/tmp/.probe_cr.$$"
 if chroot / /system/bin/true 2>/dev/null || chroot / /bin/true 2>/dev/null; then
     ok "chroot(2) syscall"
     chroot_ok=1
-elif mkdir -p /data/local/tmp/.probe_cr 2>/dev/null; then
-    err=$(chroot /data/local/tmp/.probe_cr /bin/true 2>&1)
+elif [ -L "$PROBE_CR" ] || [ -e "$PROBE_CR" ]; then
+    bad "chroot(2): probe dir already exists: $PROBE_CR"
+elif ! mkdir "$PROBE_CR" 2>/dev/null; then
+    # 探测目录都建不出来时 chroot 能力未知：必须记 fail，否则 fail=0 会让 supported 误判为 true
+    bad "chroot(2): cannot create probe dir"
+else
+    err=$(chroot "$PROBE_CR" /bin/true 2>&1)
     case "$err" in
         *Permission*|*denied*|*not\ implemented*|*ENOSYS*) bad "chroot(2): $err" ;;
         *) ok "chroot(2) syscall (binary not found inside = expected for empty dir)"; chroot_ok=1 ;;
     esac
-    rmdir /data/local/tmp/.probe_cr 2>/dev/null
+    rmdir "$PROBE_CR" 2>/dev/null
 fi
 
 # 6. devpts availability (needed for interactive terminals inside chroot)

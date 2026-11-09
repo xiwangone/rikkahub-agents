@@ -4,9 +4,12 @@ import kotlinx.serialization.KSerializer
 import kotlinx.serialization.builtins.MapSerializer
 import kotlinx.serialization.decodeFromString
 import kotlinx.serialization.json.Json
+import me.rerere.common.log.AppLogger
 import java.io.File
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+
+private const val TAG = "SingleFileCacheStore"
 
 class SingleFileCacheStore<K : Any, V : Any>(
     private val file: File,
@@ -65,11 +68,12 @@ class SingleFileCacheStore<K : Any, V : Any>(
             val text = file.readText()
             if (text.isBlank()) return emptyMap()
             return json.decodeFromString(mapEntrySerializer, text)
-        } catch (_: Exception) {
+        } catch (e: Exception) {
             return try {
                 val legacyMap = json.decodeFromString(MapSerializer(keySerializer, valueSerializer), file.readText())
                 legacyMap.mapValues { CacheEntry(value = it.value, expiresAt = null) }
-            } catch (_: Exception) {
+            } catch (legacyError: Exception) {
+                AppLogger.w(TAG, "Cache file is corrupt, returning empty map: ${file.path}", legacyError)
                 emptyMap()
             }
         }

@@ -2,6 +2,7 @@ package me.rerere.rikkahub
 
 import android.annotation.SuppressLint
 import android.content.Intent
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
 import android.view.KeyEvent
@@ -238,7 +239,7 @@ class RouteActivity : ComponentActivity() {
             ACTION_IMAGE_GEN -> Screen.ImageGen
             Intent.ACTION_SEND -> Screen.ShareHandler(
                 text = intent.getStringExtra(Intent.EXTRA_TEXT).orEmpty(),
-                streamUri = intent.getStringExtra(Intent.EXTRA_STREAM),
+                streamUri = intent.resolveSharedStreamUri(),
             )
             Intent.ACTION_PROCESS_TEXT -> Screen.ShareHandler(
                 text = intent.getCharSequenceExtra(Intent.EXTRA_PROCESS_TEXT)?.toString().orEmpty(),
@@ -248,6 +249,18 @@ class RouteActivity : ComponentActivity() {
         if (destination != null && backStack.lastOrNull() != destination) {
             backStack.add(destination)
         }
+    }
+
+    // 标准分享传的是 Uri Parcelable 而非 String；内部快捷方式链路传 String，两种都接受。
+    private fun Intent.resolveSharedStreamUri(): String? {
+        val uri =
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
+                getParcelableExtra(Intent.EXTRA_STREAM, Uri::class.java)
+            } else {
+                @Suppress("DEPRECATION")
+                getParcelableExtra<Uri>(Intent.EXTRA_STREAM)
+            }
+        return uri?.toString() ?: getStringExtra(Intent.EXTRA_STREAM)
     }
 
     override fun onNewIntent(intent: Intent) {
@@ -620,6 +633,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingSshHosts> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage()
                             }
+                            entry<Screen.SettingTrustedKeys> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingTrustedKeysPage()
+                            }
                             entry<Screen.SshTerminal> {
                                 me.rerere.rikkahub.ui.pages.setting.SshTerminalPage(it.hostName)
                             }
@@ -893,6 +909,8 @@ sealed interface Screen : NavKey {
     data object SettingPreferencesNetwork : Screen
     @Serializable
     data object SettingSshHosts : Screen
+    @Serializable
+    data object SettingTrustedKeys : Screen
     data class SshTerminal(val hostName: String) : Screen
     @Serializable
     data object BackendService : Screen

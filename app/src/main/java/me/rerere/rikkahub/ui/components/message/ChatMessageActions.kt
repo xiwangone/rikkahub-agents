@@ -58,6 +58,7 @@ import me.rerere.hugeicons.stroke.WebDesign01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.MessageNode
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.context.LocalTTSState
 import me.rerere.rikkahub.utils.copyMessageToClipboard
@@ -262,6 +263,7 @@ fun ChatMessageActionsSheet(
     onWebViewPreview: () -> Unit,
     onDismissRequest: () -> Unit,
 ) {
+    var showDeleteConfirm by remember { mutableStateOf(false) }
     ModalBottomSheet(
         onDismissRequest = onDismissRequest,
         sheetState =
@@ -464,8 +466,7 @@ fun ChatMessageActionsSheet(
             // Delete
             Card(
                 onClick = {
-                    onDismissRequest()
-                    onDelete()
+                    showDeleteConfirm = true
                 },
                 shape = MaterialTheme.shapes.medium,
                 colors =
@@ -501,5 +502,17 @@ fun ChatMessageActionsSheet(
                 }
             }
         }
+
+        RikkaDeleteConfirmDialog(
+            show = showDeleteConfirm,
+            title = stringResource(R.string.delete),
+            message = stringResource(R.string.chat_message_delete_confirm),
+            onConfirm = {
+                showDeleteConfirm = false
+                onDismissRequest()
+                onDelete()
+            },
+            onDismiss = { showDeleteConfirm = false },
+        )
     }
 }

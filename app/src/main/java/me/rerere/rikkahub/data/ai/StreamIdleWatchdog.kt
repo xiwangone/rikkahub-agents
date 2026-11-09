@@ -48,16 +48,26 @@ private const val FIRST_CHUNK_BUDGET_FACTOR = 4L
 
 private const val IDLE_POLL_INTERVAL_MS = 5_000L
 
+/** 首包等待超过这么久还没到时，通知调用方显示阶段提示（默认 60s）。 */
+const val DEFAULT_STREAM_FIRST_CHUNK_HINT_MS = 60_000L
+
 /**
  * 单 chunk 间隔超过 [idleMs] 时中断流；时钟与轮询间隔可注入（测试用虚拟时间）。
  *
  * [idleMs] <= 0 表示**关闭看门狗**：直接透传原流，不引入哨兵协程与轮询开销。
+ *
+ * [onWaitingFirstChunk] 在首包等待超过 [firstChunkWaitHintMs] 时调一次（只调一次），
+ * 让调用方把处理状态从通用的“生成中”换成“仍在等待首包…”；[onFirstChunk] 在首个
+ * chunk 到达时调一次，调用方据此清除该提示。
  */
 fun <T> Flow<T>.withIdleWatchdog(
     idleMs: Long = DEFAULT_STREAM_IDLE_MS,
     firstChunkMs: Long = DEFAULT_STREAM_FIRST_CHUNK_MS,
     clock: () -> Long = System::currentTimeMillis,
     pollMs: Long = IDLE_POLL_INTERVAL_MS,
+    firstChunkWaitHintMs: Long = DEFAULT_STREAM_FIRST_CHUNK_HINT_MS,
+    onWaitingFirstChunk: ((elapsedMs: Long) -> Unit)? = null,
+    onFirstChunk: (() -> Unit)? = null,
 ): Flow<T> {
     if (idleMs <= 0L) return this
     // 首包阶段放宽，但不超过 idleMs × 4，也不低于 idleMs（用户设得更大时尊重其设置）
@@ -67,6 +77,7 @@ fun <T> Flow<T>.withIdleWatchdog(
     return flow {
         val lastChunkAt = AtomicLong(clock())
         val seenFirstChunk = AtomicBoolean(false)
+        val firstChunkHintShown = AtomicBoolean(false)
         // 用 coroutineScope + 哨兵协程而不是 channelFlow：异常直接沿原 Flow 传播，
         // 不经过 channel 中转，流内失败/取消的实例与 cause 链原样交给调用方。
         coroutineScope {
@@ -76,6 +87,11 @@ fun <T> Flow<T>.withIdleWatchdog(
                     val awaitingFirstChunk = !seenFirstChunk.get()
                     val limit = if (awaitingFirstChunk) firstChunkLimitMs else idleMs
                     val idle = clock() - lastChunkAt.get()
+                    if (awaitingFirstChunk && idle > firstChunkWaitHintMs &&
+                        firstChunkHintShown.compareAndSet(false, true)
+                    ) {
+                        onWaitingFirstChunk?.invoke(idle)
+                    }
                     if (idle > limit) {
                         throw StreamIdleTimeoutException(idle, awaitingFirstChunk)
                     }
@@ -83,7 +99,7 @@ fun <T> Flow<T>.withIdleWatchdog(
             }
             try {
                 this@withIdleWatchdog.collect { chunk ->
-                    if (!seenFirstChunk.get()) seenFirstChunk.set(true)
+                    if (!seenFirstChunk.getAndSet(true)) onFirstChunk?.invoke()
                     lastChunkAt.set(clock())
                     emit(chunk)
                 }

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 
@@ -9,7 +11,11 @@ import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.Session
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.coroutineScope
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
@@ -130,8 +136,11 @@ internal fun runOnSession(session: Session, command: String, timeoutMs: Int, std
  * One-shot SSH exec — for hosts the user doesn't want to save (anonymous / ad-hoc / one-time).
  * For frequently-used hosts, prefer save_ssh_host + ssh_exec_saved which is shorter for the LLM
  * to call and avoids leaking credentials into chat history on every call.
+ *
+ * @param settingsStore 全局默认平台来源；为 null 时全局默认一级不参与解析（显式参数与
+ * banner 缓存仍生效）。调用方按已有传参方式从构造处传入。
  */
-fun sshExecTool(context: Context): Tool = Tool(
+fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = Tool(
     name = "ssh_exec",
     description = """
         SSH to a host and run one shell command; returns stdout/stderr/exit code. Confirm
@@ -162,6 +171,10 @@ fun sshExecTool(context: Context): Tool = Tool(
                 put("env_style", buildJsonObject {
                     put("type", "string")
                     put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
+                })
+                put("platform", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Remote platform: 'auto' (default; falls back to the cached banner result, then the global default, then command-shape heuristics), 'linux' or 'windows'. Pass explicitly when the remote platform is known so command wrapping and env syntax pick the right form on the first call.")
                 })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout including connect+exec, default 30, max 300") })
             },
@@ -203,9 +216,12 @@ fun sshExecTool(context: Context): Tool = Tool(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
-        // 平台判定：落盘缓存（banner 结论）优先，未命中再退回命令特征
+        // 平台判定：显式参数 > 落盘缓存（banner 结论）> 全局默认设置；都未命中再退回命令特征
+        val explicitPlatform = p["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
         val knownPlatform = RemotePlatformStore(context).get(host, port)
-        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command) else (withUtf8ConsoleEncoding(command, knownPlatform) to null)
+        val globalDefault = settingsStore?.settingsFlow?.value?.defaultSshPlatform
+        val resolvedWindows = RemotePlatform.resolveWindows(explicitPlatform, knownPlatform, globalDefault)
+        val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command, windows = resolvedWindows) else (withUtf8ConsoleEncoding(command, resolvedWindows) to null)
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）。
         // 两种情况此前都是静默的（background 带 env 被忽略、非法键名被 envPrelude 丢弃）→ 现执行前显式拒绝。
         val envParam = p["env"] as? kotlinx.serialization.json.JsonObject
@@ -215,7 +231,14 @@ fun sshExecTool(context: Context): Tool = Tool(
         val env = readEnvParam(p)
         // 远端平台无法从命令内容可靠推断（验证：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
-        val envWindows = !p["env_style"]?.jsonPrimitive?.contentOrNull.equals("posix", ignoreCase = true)
+        // env_style 未显式指定时用已解析的平台（显式参数/缓存/全局默认）决定默认语法，
+        // 仍未解析出来时保持旧默认 Windows。
+        val envStyle = p["env_style"]?.jsonPrimitive?.contentOrNull
+        val envWindows = when {
+            envStyle.equals("posix", ignoreCase = true) -> false
+            envStyle.equals("windows", ignoreCase = true) -> true
+            else -> resolvedWindows ?: true
+        }
         val envPrefix =
             if (!background && env.isNotEmpty()) envPrelude(env, envWindows) else emptyList()
         val effectiveCommand =
@@ -265,7 +288,7 @@ internal suspend fun runCancellableSshOp(
  * [sessionRef] so the outer [runCancellableSshOp] can also forcibly disconnect from
  * outside if interrupt isn't honoured by JNI.
  */
-@Suppress("TooGenericExceptionCaught") // The outer connection boundary converts JSch and socket failures into a tool response.
+@Suppress("TooGenericExceptionCaught", "LongParameterList") // 建连参数本就一身（地址/端口/用户/凭证/命令/超时/跳板/选项），拆开只会把同一上下文拆散。
 internal suspend fun execOneShot(
     context: Context,
     host: String,
@@ -280,6 +303,11 @@ internal suspend fun execOneShot(
     jump: JumpSpec? = null,
     /** 自定义 ssh 选项（每行 "键 值"），透传 openSshSession */
     extraOptions: String? = null,
+    /**
+     * 主机密钥轮换开关：建连遇 host key 变更时，先清掉该 host 的旧 key 再单次重试连接。
+     * 默认关——关时保持原有行为（结构化 host_key_changed 信封，不自动清 key）。
+     */
+    allowHostKeyRotation: Boolean = false,
 ): JsonObject {
     // Stage 1 (suspend): low-level reachability probe in parallel across every transport.
     // JSch's connect timeout fires at the END of the SSH handshake, so when the network is
@@ -297,37 +325,65 @@ internal suspend fun execOneShot(
         return unreachableEnvelope(if (jump != null) jump.host else host, if (jump != null) jump.port else port, outcome)
     }
 
-    // Stage 2 (blocking IO, interruptible): JSch handshake + exec.
-    return runInterruptible(Dispatchers.IO) {
-        val handshakeStart = System.currentTimeMillis()
-        val connection = try {
-            connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
-        } catch (error: Throwable) {
+    // Stage 2 (suspend): 带重试的 JSch 握手。重试探测与退避是 suspend 的，
+    // 不能包在 runInterruptible 的非 suspend 块里，故握手先在 suspend 上下文完成。
+    // 主机密钥轮换：开关开且报错是 host key 变更时，先清旧 key 再单次重连；
+    // 清 key 失败（写不回）则不再重试，直接返回原错误——重连必然同样失败。
+    val handshakeStart = System.currentTimeMillis()
+    val connection = try {
+        connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+    } catch (error: Throwable) {
+        if (!allowHostKeyRotation || !isHostKeyChange(error.message)) {
             AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", error)
-            return@runInterruptible wrapConnectError(host, error)
+            return wrapConnectError(host, error)
         }
-        val session = connection.session
-        val tunnel = connection.tunnel
-        sessionRef.set(session)
-        AppLog.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
-        // 平台判定回填：banner 结论落盘，供**后续**同主机的命令包装判定使用
-        // （当次来不及——命令在建连前就已包装好，见 RemotePlatform 注释）。
-        // ⚠ runInterruptible 的块非 suspend 上下文，故用 runBlocking 包一下：
-        //   写的是一个小 DataStore（毫秒级），且当前已在 IO 线程上。
-        runCatching {
-            kotlinx.coroutines.runBlocking {
-                RemotePlatformStore(context).put(host, port, RemotePlatform.isWindowsServer(session.serverVersion))
+        val forgotten = runCatching { forgetHostKey(context, host) }.getOrNull()
+        if (forgotten == null) {
+            AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms (forget host key failed)", error)
+            return wrapConnectError(host, error)
+        }
+        AppLog.i(TAG_SSH, "host key changed for $host, forgot ${forgotten.totalRemoved} stored key(s), retrying once")
+        try {
+            connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+        } catch (retryError: Throwable) {
+            AppLog.w(TAG_SSH, "ssh handshake retry after host key rotation failed in ${System.currentTimeMillis() - handshakeStart}ms", retryError)
+            return wrapConnectError(host, retryError)
+        }
+    }
+    val session = connection.session
+    val tunnel = connection.tunnel
+    sessionRef.set(session)
+    AppLog.i(TAG_SSH, "ssh session up via ${outcome.winningLabel ?: "default"} in ${System.currentTimeMillis() - handshakeStart}ms")
+
+    // Stage 3 (blocking IO, interruptible): 命令执行。
+    return try {
+        runInterruptible(Dispatchers.IO) {
+            // 平台判定回填：banner 结论落盘，供**后续**同主机的命令包装判定使用
+            // （当次来不及——命令在建连前就已包装好，见 RemotePlatform 注释）。
+            // ⚠ runInterruptible 的块非 suspend 上下文，故用 runBlocking 包一下：
+            //   写的是一个小 DataStore（毫秒级），且当前已在 IO 线程上。
+            runCatching {
+                kotlinx.coroutines.runBlocking {
+                    RemotePlatformStore(context).put(host, port, RemotePlatform.isWindowsServer(session.serverVersion))
+                }
+            }
+            try {
+                runOnSession(session, command, timeoutMs, stdin)
+            } catch (e: Throwable) {
+                ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
+            } finally {
+                sessionRef.set(null)
+                try { session.disconnect() } catch (_: Throwable) {}
+                tunnel?.close()
             }
         }
-        try {
-            runOnSession(session, command, timeoutMs, stdin)
-        } catch (e: Throwable) {
-            ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
-        } finally {
-            sessionRef.set(null)
-            try { session.disconnect() } catch (_: Throwable) {}
-            tunnel?.close()
-        }
+    } catch (e: Throwable) {
+        // runInterruptible 在块执行前被取消时，块内 finally 没跑：这里断开，避免会话泄漏。
+        // （块已执行时 finally 已断开，重复断开无害。）
+        sessionRef.set(null)
+        runCatching { session.disconnect() }
+        runCatching { tunnel?.close() }
+        throw e
     }
 }
 
@@ -337,7 +393,7 @@ private data class SshConnectionResources(
 )
 
 @Suppress("TooGenericExceptionCaught") // JSch and network APIs cross several unchecked/checked failure types; preserve retries without catching cancellation.
-private fun connectSshWithRetry(
+private suspend fun connectSshWithRetry(
     context: Context,
     host: String,
     port: Int,
@@ -354,8 +410,16 @@ private fun connectSshWithRetry(
         attempt++
         try {
             // 每次重试重新选网，避免继续绑定已失效的Wi-Fi/蜂窝网络。
+            // 探测是 suspend 的（包 runBlocking 会占住 IO 线程且取消不传导），故重试循环
+            // 本身要是 suspend；每轮阻塞的 JSch 握手单独包进 runInterruptible。
             val network = if (attempt == 1) initialNetwork else probeNetworkForRetry(context, jump, host, port)
-            return connectSingleSshAttempt(jsch, host, port, user, auth, timeoutMs, network, jump, extraOptions)
+            val resources = runInterruptible(Dispatchers.IO) {
+                connectSingleSshAttempt(jsch, host, port, user, auth, timeoutMs, network, jump, extraOptions)
+            }
+            if (jump != null) {
+                connectJumpTarget(resources.session, resources.tunnel, timeoutMs)
+            }
+            return resources
         } catch (error: kotlinx.coroutines.CancellationException) {
             throw error
         } catch (error: InterruptedException) {
@@ -369,12 +433,7 @@ private fun connectSshWithRetry(
                 !isAuthFailure(error.message) && !isHostKeyChange(error.message)
             if (attempt >= 2 || !retryable) throw error
             AppLog.w(TAG_SSH, "ssh handshake attempt $attempt failed, retrying: ${error.message}")
-            try {
-                Thread.sleep(800)
-            } catch (interrupted: InterruptedException) {
-                Thread.currentThread().interrupt()
-                throw interrupted
-            }
+            delay(800)
         }
     }
     throw IllegalStateException("ssh connect failed after retries")
@@ -420,7 +479,7 @@ private fun connectSingleSshAttempt(
             openSshSession(jsch, host, port, user, auth, timeoutMs, network = network, extraOptions = extraOptions)
         }
         session = connected
-        if (jump != null) connectJumpTargetWithWatchdog(connected, tunnel, timeoutMs)
+        // 跳板目标的握手在重试循环里单独做（suspend 看门狗），这里只建会话、不连接。
         keepResources = true
         return SshConnectionResources(connected, tunnel)
     } finally {
@@ -431,29 +490,39 @@ private fun connectSingleSshAttempt(
     }
 }
 
-private fun connectJumpTargetWithWatchdog(
+/**
+ * 跳板目标握手 + 看门狗：超时未完成则关闭隧道，逼停可能卡住的握手。
+ *
+ * 看门狗用协程（delay + launch）而不用裸 Thread：与重试循环同一作用域，握手结束
+ * 即取消。失败时收拾本轮建好的会话/隧道，与 connectSingleSshAttempt 的 finally
+ * 同一口径（调用方不再重复清理）；取消原样上抛。
+ */
+private suspend fun connectJumpTarget(
     session: com.jcraft.jsch.Session,
     tunnel: JumpTunnelProxy?,
     timeoutMs: Int,
 ) {
-    val handshakeDone = java.util.concurrent.atomic.AtomicBoolean(false)
-    val watchdog = Thread {
-        try {
-            Thread.sleep(JUMP_HANDSHAKE_TIMEOUT_MS.toLong())
-            if (!handshakeDone.get()) {
-                AppLog.w(TAG_SSH, "jump handshake watchdog fired after ${JUMP_HANDSHAKE_TIMEOUT_MS}ms, aborting tunnel")
-                tunnel?.close()
-            }
-        } catch (_: InterruptedException) {
-        }
-    }
-    watchdog.isDaemon = true
-    watchdog.start()
     try {
-        session.connect(timeoutMs)
-    } finally {
-        handshakeDone.set(true)
-        watchdog.interrupt()
+        coroutineScope {
+            val watchdog = launch {
+                delay(JUMP_HANDSHAKE_TIMEOUT_MS.toLong())
+                AppLog.w(TAG_SSH, "jump handshake watchdog fired after ${JUMP_HANDSHAKE_TIMEOUT_MS}ms, aborting tunnel")
+                runCatching { tunnel?.close() }
+            }
+            try {
+                runInterruptible(Dispatchers.IO) { session.connect(timeoutMs) }
+            } finally {
+                watchdog.cancel()
+            }
+        }
+    } catch (e: CancellationException) {
+        runCatching { tunnel?.close() }
+        runCatching { session.disconnect() }
+        throw e
+    } catch (e: Exception) {
+        runCatching { tunnel?.close() }
+        runCatching { session.disconnect() }
+        throw e
     }
 }
 
@@ -530,8 +599,17 @@ private fun writeKnownHostsWithoutHost(
     }
 }
 
+/** [forgetHostKey] 的清理结果：App 与 Vault 两份 known_hosts 各自清掉的条数。 */
+internal data class ForgetHostKeyResult(
+    val appKnownHostsRemoved: Int,
+    val vaultKnownHostsRemoved: Int,
+) {
+    val totalRemoved: Int get() = appKnownHostsRemoved + vaultKnownHostsRemoved
+}
+
 /**
- * Remove all stored host keys for [host] from the persistent known_hosts file. Use after the
+ * Remove all stored host keys for [host] from both known_hosts files: the app's
+ * `filesDir/known_hosts` and the Vault's `filesDir/vault_known_hosts`. Use after the
  * user confirms they reinstalled the remote — the next connect will trust the new key per
  * the accept-new policy.
  *
@@ -541,23 +619,47 @@ private fun writeKnownHostsWithoutHost(
  * known_hosts(5) format. Without this, the next newJSch() reloads from the unchanged file
  * and the "host key changed" error returns immediately — i.e. ssh_forget_host_key silently
  * no-ops.
+ *
+ * A missing Vault file counts as 0 removed, not an error (the Vault side only writes its
+ * file on first connect, so a host touched only via saved hosts has no entry there).
  */
-internal fun forgetHostKey(context: Context, host: String): Int {
-    val jsch = newJSch(context)
+internal fun forgetHostKey(context: Context, host: String): ForgetHostKeyResult {
+    val appRemoved = forgetHostKeyFromFile(newJSch(context), knownHostsFile(context), host)
+    val vaultFile = File(context.filesDir, "vault_known_hosts")
+    val vaultRemoved = if (!vaultFile.exists()) {
+        0
+    } else {
+        val vaultJsch = com.jcraft.jsch.JSch()
+        runCatching { vaultJsch.setKnownHosts(vaultFile.absolutePath) }
+        forgetHostKeyFromFile(vaultJsch, vaultFile, host)
+    }
+    return ForgetHostKeyResult(appRemoved, vaultRemoved)
+}
+
+/**
+ * Remove all stored host keys for [host] from one known_hosts file, using [jsch]'s
+ * in-memory repository (already loaded from [file]) as the source of truth and writing
+ * the remainder back with the shared serialiser. Returns the removed count; 0 removes
+ * nothing and leaves the file untouched.
+ */
+private fun forgetHostKeyFromFile(
+    jsch: com.jcraft.jsch.JSch,
+    file: File,
+    host: String,
+): Int {
     val repo = jsch.hostKeyRepository
     val currentKeys = repo.hostKey?.toList().orEmpty()
     val removed = currentKeys.count { it.host == host }
     if (removed == 0) return 0
 
-    val knownHosts = knownHostsFile(context)
-    val parent = knownHosts.parentFile ?: throw IOException("known_hosts has no parent directory")
+    val parent = file.parentFile ?: throw IOException("known_hosts has no parent directory")
     if (!parent.exists() && !parent.mkdirs()) {
         throw IOException("Could not create known_hosts directory ${parent.absolutePath}")
     }
-    val temp = File(parent, "${knownHosts.name}.tmp-${System.nanoTime()}")
+    val temp = File(parent, "${file.name}.tmp-${System.nanoTime()}")
     try {
         writeKnownHostsWithoutHost(temp, currentKeys, host)
-        replaceFilePreservingTarget(temp, knownHosts)
+        replaceFilePreservingTarget(temp, file)
     } finally {
         if (temp.exists() && !runCatching { temp.delete() }.getOrDefault(false)) {
             AppLog.w(TAG_SSH, "Could not remove temporary known_hosts file ${temp.name}")

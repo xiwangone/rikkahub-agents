@@ -61,6 +61,23 @@ class FakeAgentRunDao : AgentRunDao {
     override suspend fun getChildren(parentRunId: String): List<AgentRun> =
         rows.values.filter { it.parentRunId == parentRunId }.sortedBy { it.createdAtMs }
 
+    override suspend fun markProcessLost(ids: List<String>, now: Long): Int {
+        var flipped = 0
+        ids.forEach { id ->
+            val row = rows[id] ?: return@forEach
+            if (AgentRunStatus.fromName(row.status).isTerminal) return@forEach
+            rows[id] = row.copy(
+                status = AgentRunStatus.process_lost.name,
+                updatedAtMs = now,
+                finishedAtMs = now,
+                lastError = row.lastError ?: "process killed mid-run",
+            )
+            flipped++
+        }
+        if (flipped > 0) publish()
+        return flipped
+    }
+
     override suspend fun count(): Int = rows.size
 
     override suspend fun countByStatusSince(status: String, sinceMs: Long): Int =

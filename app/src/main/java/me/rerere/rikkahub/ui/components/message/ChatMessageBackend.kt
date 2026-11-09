@@ -13,6 +13,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier.InteractionDelivery
 import org.koin.compose.koinInject
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -20,8 +21,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Surface
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.UIMessagePart
@@ -66,6 +69,8 @@ internal fun BackendApprovalCard(
     val approveDone = stringResource(R.string.backend_approval_approved)
     val denyDone = stringResource(R.string.backend_approval_denied)
     val staleHint = stringResource(R.string.backend_approval_stale)
+    val deliveryFailedHint = stringResource(R.string.backend_approval_delivery_failed)
+    val scope = rememberCoroutineScope()
     var inFlight by remember(requestId) { mutableStateOf(false) }
     var resolved by remember(requestId) { mutableStateOf(false) }
     val handledElsewhere = everPending && requestId !in pendingIds && !resolved
@@ -94,33 +99,45 @@ internal fun BackendApprovalCard(
                         val session =
                             decision == ApprovalDecision.ChatScope || decision == ApprovalDecision.Always
                         val persist = decision == ApprovalDecision.Always
-                        val ok =
-                            notifier.approveById(
-                                requestId,
-                                approved,
-                                session = session,
-                                persist = persist,
-                            )
-                        resolved = ok
-                        if (ok) {
-                            feedback = if (approved) approveDone else denyDone
-                        } else {
-                            onToolApproval?.invoke(
-                                requestId,
-                                approved,
-                                "",
-                                when (decision) {
-                                    ApprovalDecision.Always ->
-                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.Always
-                                    ApprovalDecision.ChatScope ->
-                                        me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope
-                                    else -> me.rerere.rikkahub.service.ChatService.ApprovalScope.Once
-                                },
-                                tool,
-                            )
-                            feedback = staleHint
+                        // 先等投递结果再定状态：投递失败时请求仍在待处理，按钮保持可用可重试，
+                        // 只有确认不在待处理时才回退到通用审批回调。
+                        scope.launch {
+                            when (
+                                notifier.approveById(
+                                    requestId,
+                                    approved,
+                                    session = session,
+                                    persist = persist,
+                                )
+                            ) {
+                                InteractionDelivery.DELIVERED -> {
+                                    resolved = true
+                                    feedback = if (approved) approveDone else denyDone
+                                }
+
+                                InteractionDelivery.NOT_PENDING -> {
+                                    onToolApproval?.invoke(
+                                        requestId,
+                                        approved,
+                                        "",
+                                        when (decision) {
+                                            ApprovalDecision.Always ->
+                                                me.rerere.rikkahub.service.ChatService.ApprovalScope.Always
+                                            ApprovalDecision.ChatScope ->
+                                                me.rerere.rikkahub.service.ChatService.ApprovalScope.ChatScope
+                                            else -> me.rerere.rikkahub.service.ChatService.ApprovalScope.Once
+                                        },
+                                        tool,
+                                    )
+                                    feedback = staleHint
+                                }
+
+                                InteractionDelivery.FAILED -> {
+                                    feedback = deliveryFailedHint
+                                }
+                            }
+                            inFlight = false
                         }
-                        inFlight = false
                     }
                 },
             )
@@ -153,6 +170,8 @@ internal fun BackendAskCard(
     var feedback by remember(requestId) { mutableStateOf<String?>(null) }
     val answeredText = stringResource(R.string.backend_ask_submitted)
     val staleText = stringResource(R.string.backend_approval_stale)
+    val deliveryFailedHint = stringResource(R.string.backend_approval_delivery_failed)
+    val scope = rememberCoroutineScope()
     val handledElsewhere = everPending && requestId !in pendingIds && !submitted
 
     // 接入 → 中性模型：服务端问题的字段归一到共用提问模型，渲染交给 AskPromptCard
@@ -190,11 +209,27 @@ internal fun BackendAskCard(
                 submitMode = AskPromptSubmitMode.Immediate,
                 onAnswers = { answers ->
                     val label = answers.values.firstOrNull().orEmpty()
-                    submitted = true
-                    answeredLabel = label
-                    val ok = notifier.answerById(requestId, label)
-                    if (!ok) onToolAnswer?.invoke(requestId, label)
-                    feedback = if (ok) answeredText else staleText
+                    // 先等投递结果再定状态：投递失败时请求仍在待处理，不置已提交、用户可重试。
+                    scope.launch {
+                        when (notifier.answerById(requestId, label)) {
+                            InteractionDelivery.DELIVERED -> {
+                                submitted = true
+                                answeredLabel = label
+                                feedback = answeredText
+                            }
+
+                            InteractionDelivery.NOT_PENDING -> {
+                                submitted = true
+                                answeredLabel = label
+                                onToolAnswer?.invoke(requestId, label)
+                                feedback = staleText
+                            }
+
+                            InteractionDelivery.FAILED -> {
+                                feedback = deliveryFailedHint
+                            }
+                        }
+                    }
                 },
             )
         }

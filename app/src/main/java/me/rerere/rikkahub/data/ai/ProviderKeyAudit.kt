@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.AuditContext
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
@@ -17,6 +18,8 @@ import org.koin.java.KoinJavaComponent.getKoin
  * 便于在审计列表里区分「AI 主动取用」与「发请求时按配置取用」。
  */
 internal object ProviderKeyAudit {
+
+    private const val TAG = "ProviderKeyAudit"
 
     /**
      * 把本次请求期间命中的引用落进审计（去重、单请求有上限，见 `VaultProviderKeyRefs`）。
@@ -40,6 +43,10 @@ internal object ProviderKeyAudit {
             names.forEach { name ->
                 runCatching { repository.logAccess(name, "provider", "resolve") }
                     .onSuccess { written++ }
+                    .onFailure {
+                        // 取用审计缺口不能静默：记日志，调用方按返回值核对写入条数。
+                        AppLog.w(TAG, "Failed to audit provider key access: $name", it)
+                    }
             }
         }
         return written

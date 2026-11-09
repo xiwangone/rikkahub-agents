@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.chat
 
-import androidx.activity.ComponentActivity
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -75,6 +74,7 @@ import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.ui.components.ai.AssistantPicker
 import me.rerere.rikkahub.ui.components.ui.BackupReminderCard
 import me.rerere.rikkahub.ui.components.ui.Greeting
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.UIAvatar
 import me.rerere.rikkahub.ui.components.ui.UpdateCard
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -84,6 +84,7 @@ import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import me.rerere.rikkahub.ui.hooks.rememberIsPlayStoreVersion
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.modifier.onClick
+import me.rerere.rikkahub.utils.getComponentActivity
 import me.rerere.rikkahub.utils.navigateToChatPage
 import me.rerere.rikkahub.utils.toDp
 import org.koin.androidx.compose.koinViewModel
@@ -104,7 +105,9 @@ fun ChatDrawerContent(
     val repo = koinInject<ConversationRepository>()
     val sessionPathStore = koinInject<SessionPathStore>()
 
-    val activity = context as ComponentActivity
+    // ViewModelStoreOwner 必须取到宿主 Activity；Context 被包裹时直接强转会崩，
+    // 取不到时不渲染抽屉内容。
+    val activity = context.getComponentActivity() ?: return
     val drawerVm: ChatDrawerVM = koinViewModel(viewModelStoreOwner = activity)
 
     val conversations = drawerVm.conversations.collectAsLazyPagingItems()
@@ -156,6 +159,7 @@ fun ChatDrawerContent(
     var folderToRename by remember { mutableStateOf<Folder?>(null) }
     var folderToDelete by remember { mutableStateOf<Folder?>(null) }
     var conversationToRename by remember { mutableStateOf<Conversation?>(null) }
+    var conversationToDelete by remember { mutableStateOf<Conversation?>(null) }
 
     var showMenuPopup by remember { mutableStateOf(false) }
 
@@ -305,14 +309,7 @@ fun ChatDrawerContent(
                     conversationToRename = it
                 },
                 onDelete = {
-                    scope.launch {
-                        vm.deleteConversation(it).join()
-                        runCatching { sessionPathStore.remove(it.id.toString()) }
-                        conversations.refresh()
-                        if (it.id == current.id) {
-                            navigateToChatPage(navController)
-                        }
-                    }
+                    conversationToDelete = it
                 },
                 onPin = {
                     vm.updatePinnedStatus(it)
@@ -694,6 +691,26 @@ fun ChatDrawerContent(
                     Text(stringResource(R.string.chat_page_cancel))
                 }
             },
+        )
+    }
+
+    conversationToDelete?.let { conversation ->
+        RikkaDeleteConfirmDialog(
+            show = true,
+            title = stringResource(R.string.chat_page_delete),
+            message = stringResource(R.string.chat_delete_conversation_confirm, conversation.title),
+            onConfirm = {
+                conversationToDelete = null
+                scope.launch {
+                    vm.deleteConversation(conversation).join()
+                    runCatching { sessionPathStore.remove(conversation.id.toString()) }
+                    conversations.refresh()
+                    if (conversation.id == current.id) {
+                        navigateToChatPage(navController)
+                    }
+                }
+            },
+            onDismiss = { conversationToDelete = null },
         )
     }
 

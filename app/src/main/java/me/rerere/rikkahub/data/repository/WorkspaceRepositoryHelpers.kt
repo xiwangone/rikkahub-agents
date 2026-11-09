@@ -1,10 +1,14 @@
 package me.rerere.rikkahub.data.repository
 
+import android.content.Context
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.RemotePlatformStore
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
@@ -27,6 +31,7 @@ import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshConnectionConfig
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshWorkspaceBackend
+import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 import java.io.IOException
 import kotlin.uuid.Uuid
@@ -190,7 +195,29 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             passphrase = resolve(settings.passphraseRef),
             remoteDir = settings.remoteDir,
             hostKey = settings.hostKey,
+            platform = resolveSshPlatform(settings.host, settings.port),
         )
+    }
+
+    /**
+     * 工作区连接的远端平台决议：显式配置 > banner 缓存 > 全局默认，全部落空时为 AUTO。
+     *
+     * SshHostRepository 与 Context 不在 [WorkspaceRepository] 的构造参数里，
+     * 沿用工具侧经 Koin 取依赖的做法，取不到时按“无该项输入”回退到下一级，不抛异常；
+     * 全局默认直接读 [settingsStore]。AUTO 不是一个明确的平台选择，同样视为无显式值。
+     */
+    internal suspend fun WorkspaceRepository.resolveSshPlatform(host: String, port: Int): String {
+        val explicit = runCatching { getKoin().get<SshHostRepository>() }
+            .getOrNull()?.getByHost(host)?.let { SshPlatform.fromPreference(it.platform) }
+            ?.takeUnless { it == SshPlatform.AUTO }
+        val cached = runCatching { getKoin().get<Context>() }
+            .getOrNull()?.let { RemotePlatformStore(it).get(host, port) }
+        val globalDefault = settingsStore.settingsFlow.value.defaultSshPlatform
+        return when (RemotePlatform.resolveWindows(explicit, cached, globalDefault)) {
+            true -> "WINDOWS"
+            false -> "LINUX"
+            null -> "AUTO"
+        }
     }
 
 

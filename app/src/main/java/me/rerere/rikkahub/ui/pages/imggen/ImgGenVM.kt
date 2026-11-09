@@ -34,6 +34,7 @@ import me.rerere.rikkahub.data.repository.GenMediaRepository
 import java.io.File
 import kotlin.coroutines.cancellation.CancellationException
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.R
 
 @Serializable
 data class GeneratedImage(
@@ -238,7 +239,7 @@ class ImgGenVM(
                 } catch (e: Exception) {
                     if (e is CancellationException) return@launch
                     AppLog.e(TAG, "Failed to generate image", e)
-                    _error.value = e.message ?: "Unknown error occurred"
+                    _error.value = localizedGenerationError(e)
                 } finally {
                     _isGenerating.value = false
                 }
@@ -292,7 +293,7 @@ class ImgGenVM(
                 } catch (e: Exception) {
                     if (e is CancellationException) return@launch
                     AppLog.e(TAG, "Failed to edit image", e)
-                    _error.value = e.message ?: "Unknown error occurred"
+                    _error.value = localizedGenerationError(e)
                 } finally {
                     _isGenerating.value = false
                 }
@@ -301,6 +302,19 @@ class ImgGenVM(
 
     fun cancelGeneration() {
         cancelJob?.cancel()
+    }
+
+    /**
+     * 生图失败文案：本文件抛出的两个已知错误（未选模型 / 找不到提供商）走字符串资源本地化；
+     * 其余错误沿用原始信息，无信息时用通用兜底。
+     */
+    private fun localizedGenerationError(e: Exception): String {
+        val app = getApplication<Application>()
+        return when (e.message) {
+            "No model selected" -> app.getString(R.string.imggen_error_no_model_selected)
+            "Provider not found" -> app.getString(R.string.imggen_error_provider_not_found)
+            else -> e.message ?: app.getString(R.string.imggen_error_unknown)
+        }
     }
 
     private suspend fun collectImageGeneration(

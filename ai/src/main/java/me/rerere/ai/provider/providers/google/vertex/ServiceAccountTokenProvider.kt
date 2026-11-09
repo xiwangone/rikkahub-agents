@@ -5,6 +5,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import okhttp3.FormBody
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -72,14 +74,23 @@ class ServiceAccountTokenProvider(
         val now = Instant.now().epochSecond
         val exp = now + 3600 // 最长 1h
 
-        val headerJson = """{"alg":"RS256","typ":"JWT"}"""
-        val claimJson = """{
-          "iss":"$serviceAccountEmail",
-          "scope":"${scopes.joinToString(" ")}",
-          "aud":"https://oauth2.googleapis.com/token",
-          "iat":$now,
-          "exp":$exp
-        }""".trimIndent()
+        // header / claims 经 JSON 编码器构造，email 与 scope 含特殊字符时也能正确转义，
+        // 而不是靠字符串插值手拼 JSON。
+        val headerJson = json.encodeToString(
+            buildJsonObject {
+                put("alg", "RS256")
+                put("typ", "JWT")
+            },
+        )
+        val claimJson = json.encodeToString(
+            buildJsonObject {
+                put("iss", serviceAccountEmail)
+                put("scope", scopes.joinToString(" "))
+                put("aud", "https://oauth2.googleapis.com/token")
+                put("iat", now)
+                put("exp", exp)
+            },
+        )
 
         val headerB64 = base64UrlNoPad(headerJson.toByteArray(Charsets.UTF_8))
         val claimB64 = base64UrlNoPad(claimJson.toByteArray(Charsets.UTF_8))

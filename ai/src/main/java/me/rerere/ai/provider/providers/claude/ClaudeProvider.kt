@@ -62,12 +62,15 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.mergeCustomBody
+import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
+import me.rerere.ai.util.retryAfterMs
+import me.rerere.ai.util.shortRequestClient
 import me.rerere.ai.util.stringSafe
-import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.common.http.jsonPrimitiveOrNull
@@ -264,6 +267,9 @@ private fun ServerToolMetadata.maxIndex(): Int? = listOfNotNull(callIndex, resul
 //
 // Source: https://platform.minimax.io/docs/api-reference/models/openai/list-models
 // + the published model table on the Minimax models page.
+// Snapshot date: 2026-11-09. Minimax may rename or retire models after this date;
+// if a listed model is rejected, check the official models page.
+private const val MINIMAX_FALLBACK_LIST_SNAPSHOT_DATE = "2026-11-09"
 private val MINIMAX_FALLBACK_MODELS = listOf(
     "MiniMax-M2.7",
     "MiniMax-M2.7-highspeed",
@@ -286,7 +292,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 .get()
                 .build()
 
-            val response = client.newCall(request).execute()
+            val response = client.shortRequestClient().newCall(request).execute()
             val bodyStr = response.body.string()
             if (!response.isSuccessful) {
                 error("Failed to get models: ${response.code} $bodyStr")
@@ -313,9 +319,18 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     error("Failed to get models: $errMsg")
                 }
                 if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
+                    AppLogger.w(
+                        TAG,
+                        "listModels: using Minimax fallback model list snapshot " +
+                            "$MINIMAX_FALLBACK_LIST_SNAPSHOT_DATE; check the official " +
+                            "models page if a listed model is rejected.",
+                    )
                     return@withContext MINIMAX_FALLBACK_MODELS
                 }
-                return@withContext emptyList()
+                error(
+                    "Failed to get models: response has no `data` field and no error detail " +
+                        "(HTTP 200 with an empty model list is not a usable answer)",
+                )
             }
 
             data.mapNotNull { modelJson ->
@@ -372,11 +387,10 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         }
 
         val response = client.newCall(request).await()
-        if (!response.isSuccessful) {
-            throw Exception("Failed to get response: ${response.code} ${response.body.string()}")
-        }
-
         val bodyStr = response.body.string()
+        if (!response.isSuccessful) {
+            throw response.errorAsHttpException()
+        }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 
         // 从 JsonObject 中提取必要的信息
@@ -423,7 +437,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         if (Logging.isDebugLoggingEnabled()) {
             AppLogger.i(TAG, "streamText: ${json.encodeToString(redactSecrets(requestBody))}")
 
-            requestBody["messages"]!!.jsonArray.forEach {
+            requestBody["messages"]?.jsonArray?.forEach {
                 AppLogger.i(TAG, "streamText: ${redactSecrets(it)}")
             }
         }
@@ -470,12 +484,14 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
                         AppLogger.i(TAG, "Error response: $bodyElement")
-                        exception = bodyElement.parseErrorDetail(response?.code)
+                        exception = bodyElement.parseErrorDetail(response?.code, response?.retryAfterMs())
                     }
                 } catch (e: Throwable) {
                     AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
                 } finally {
-                    close(exception)
+                    // No throwable and no error body: still fail the flow instead of
+                    // closing it normally, otherwise the failure looks like completion.
+                    close(exception ?: Exception("Stream failed"))
                 }
             }
 

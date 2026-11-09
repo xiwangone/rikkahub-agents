@@ -40,63 +40,66 @@ val Migration_11_12 = object : Migration(11, 12) {
             var migratedCount = 0
             var nodeCount = 0
             var skippedCount = 0
+            try {
 
-            while (cursor.moveToNext()) {
-                val conversationId = cursor.getString(0)
-                try {
-                    val nodeCursor = db.query(
-                        "SELECT nodes FROM conversationentity WHERE id = ?",
-                        arrayOf(conversationId)
-                    )
+                while (cursor.moveToNext()) {
+                    val conversationId = cursor.getString(0)
                     try {
-                        if (!nodeCursor.moveToFirst()) {
-                            continue
-                        }
-                        val nodesJson = nodeCursor.getString(0)
-                        // 使用原始 JSON 解析，避免因 UIMessagePart 类型名变更导致的反序列化失败
-                        // 同时应用类型名映射（与 Migration_13_14 相同的逻辑）
-                        val nodesArray = runCatching {
-                            JsonInstant.parseToJsonElement(nodesJson) as? JsonArray
-                        }.getOrNull()
-                        if (nodesArray == null) {
-                            // 解析失败（非法 JSON / 非数组）：绝不能执行下面清空 nodes 的 UPDATE，
-                            // 否则会把该会话已提交的数据直接销毁。保持原样并跳过，交由人工/上层处理。
-                            AppLog.w(TAG, "migrate: skip conversation $conversationId — nodes not a JSON array")
-                            skippedCount++
-                            continue
-                        }
-
-                        nodesArray.forEachIndexed { index, nodeElement ->
-                            val nodeObject = nodeElement as? JsonObject ?: return@forEachIndexed
-                            val messagesElement = nodeObject["messages"] ?: JsonArray(emptyList())
-                            // 迁移消息中的 UIMessagePart 类型名（旧完整类名 -> 新 @SerialName）
-                            val migratedMessages = migrateMessagesElement(messagesElement)
-                            val messagesJson = JsonInstant.encodeToString(migratedMessages)
-                            val selectIndex = runCatching {
-                                nodeObject["selectIndex"]?.jsonPrimitive?.int ?: 0
-                            }.getOrDefault(0)
-                            val nodeId = Uuid.random().toString()
-                            db.execSQL(
-                                "INSERT INTO message_node (id, conversation_id, node_index, messages, select_index) VALUES (?, ?, ?, ?, ?)",
-                                arrayOf(nodeId, conversationId, index, messagesJson, selectIndex)
-                            )
-                            nodeCount++
-                        }
-                        db.execSQL(
-                            "UPDATE conversationentity SET nodes = '[]' WHERE id = ?",
+                        val nodeCursor = db.query(
+                            "SELECT nodes FROM conversationentity WHERE id = ?",
                             arrayOf(conversationId)
                         )
-                        migratedCount++
-                    } finally {
-                        nodeCursor.close()
+                        try {
+                            if (!nodeCursor.moveToFirst()) {
+                                continue
+                            }
+                            val nodesJson = nodeCursor.getString(0)
+                            // 使用原始 JSON 解析，避免因 UIMessagePart 类型名变更导致的反序列化失败
+                            // 同时应用类型名映射（与 Migration_13_14 相同的逻辑）
+                            val nodesArray = runCatching {
+                                JsonInstant.parseToJsonElement(nodesJson) as? JsonArray
+                            }.getOrNull()
+                            if (nodesArray == null) {
+                                // 解析失败（非法 JSON / 非数组）：绝不能执行下面清空 nodes 的 UPDATE，
+                                // 否则会把该会话已提交的数据直接销毁。保持原样并跳过，交由人工/上层处理。
+                                AppLog.w(TAG, "migrate: skip conversation $conversationId — nodes not a JSON array")
+                                skippedCount++
+                                continue
+                            }
+
+                            nodesArray.forEachIndexed { index, nodeElement ->
+                                val nodeObject = nodeElement as? JsonObject ?: return@forEachIndexed
+                                val messagesElement = nodeObject["messages"] ?: JsonArray(emptyList())
+                                // 迁移消息中的 UIMessagePart 类型名（旧完整类名 -> 新 @SerialName）
+                                val migratedMessages = migrateMessagesElement(messagesElement)
+                                val messagesJson = JsonInstant.encodeToString(migratedMessages)
+                                val selectIndex = runCatching {
+                                    nodeObject["selectIndex"]?.jsonPrimitive?.int ?: 0
+                                }.getOrDefault(0)
+                                val nodeId = Uuid.random().toString()
+                                db.execSQL(
+                                    "INSERT INTO message_node (id, conversation_id, node_index, messages, select_index) VALUES (?, ?, ?, ?, ?)",
+                                    arrayOf(nodeId, conversationId, index, messagesJson, selectIndex)
+                                )
+                                nodeCount++
+                            }
+                            db.execSQL(
+                                "UPDATE conversationentity SET nodes = '[]' WHERE id = ?",
+                                arrayOf(conversationId)
+                            )
+                            migratedCount++
+                        } finally {
+                            nodeCursor.close()
+                        }
+                    } catch (e: SQLiteBlobTooBigException) {
+                        skippedCount++
+                        AppLog.w(TAG, "migrate: skip conversation $conversationId due to large nodes blob", e)
+                        continue
                     }
-                } catch (e: SQLiteBlobTooBigException) {
-                    skippedCount++
-                    AppLog.w(TAG, "migrate: skip conversation $conversationId due to large nodes blob", e)
-                    continue
                 }
+            } finally {
+                cursor.close()
             }
-            cursor.close()
 
             db.setTransactionSuccessful()
             AppLog.i(

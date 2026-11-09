@@ -18,10 +18,13 @@ data class SshHostKey(
     /** Base64 编码的公钥 blob */
     val key: String,
 ) {
-    /** OpenSSH 风格的 SHA256 指纹 */
+    /** OpenSSH 风格的 SHA256 指纹；key 不是合法 Base64 时返回占位值而不抛异常，
+     * 避免 toString()/异常消息里调用它时掩盖原始错误 */
     val fingerprint: String
         get() {
-            val digest = MessageDigest.getInstance("SHA-256").digest(Base64.getDecoder().decode(key))
+            val digest = runCatching {
+                MessageDigest.getInstance("SHA-256").digest(Base64.getDecoder().decode(key))
+            }.getOrNull() ?: return "SHA256:invalid"
             return "SHA256:" + Base64.getEncoder().withoutPadding().encodeToString(digest)
         }
 }
@@ -43,6 +46,8 @@ data class SshConnectionConfig(
     val remoteDir: String,
     /** 为 null 时首次连接会抛出 [SshUnknownHostKeyException], 由用户确认指纹后再连 */
     val hostKey: SshHostKey? = null,
+    /** 远端系统类型："AUTO" / "LINUX" / "WINDOWS"。只存字符串，workspace 模块按此分叉，不依赖 app 侧的枚举定义 */
+    val platform: String = "AUTO",
 ) {
     val address: String
         get() = "$username@$host:$port"

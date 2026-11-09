@@ -29,6 +29,8 @@ class SshHostRepository(private val dao: SshHostDao) {
 
     suspend fun getByName(name: String): SshHostEntity? = dao.getByName(name)?.withSecretsDecrypted()
 
+    suspend fun getByHost(host: String): SshHostEntity? = dao.getByHost(host)?.withSecretsDecrypted()
+
     suspend fun upsert(host: SshHostEntity) {
         AppLog.i("SshHostRepo", "upsert: ${host.name} (${host.host}:${host.port})")
         dao.upsert(host.withSecretsEncrypted())

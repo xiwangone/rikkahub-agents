@@ -23,10 +23,16 @@ internal fun MediaGenerationInput.Image.toUrlOrDataUri(): String {
     if (REMOTE_PREFIXES.any { url.startsWith(it, ignoreCase = true) }) return url
     val file = File(url.removePrefix("file://"))
     require(file.exists()) { "Image file does not exist: $url" }
+    require(file.length() <= MAX_LOCAL_IMAGE_BYTES) {
+        "Image file is too large: ${file.length()} bytes (max $MAX_LOCAL_IMAGE_BYTES)"
+    }
     val mimeType = LOCAL_IMAGE_MIME_TYPES[file.extension.lowercase()]
         ?: throw IllegalArgumentException("Unsupported image file type: ${file.extension}")
     return "data:$mimeType;base64,${Base64.encode(file.readBytes())}"
 }
+
+// 本地参考图整文件读入内存再 base64 化, 上限避免超大文件直接占满内存.
+internal const val MAX_LOCAL_IMAGE_BYTES = 20 * 1024 * 1024
 
 private val REMOTE_PREFIXES = listOf("http://", "https://", "data:")
 

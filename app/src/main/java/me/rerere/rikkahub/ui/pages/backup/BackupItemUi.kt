@@ -218,6 +218,7 @@ fun backupItemLabelRes(item: WebDavConfig.BackupItem): Int =
         WebDavConfig.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files
         WebDavConfig.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images
         WebDavConfig.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs
+        WebDavConfig.BackupItem.MEDIA_CREATION -> R.string.backup_page_item_media_creation
         WebDavConfig.BackupItem.FILES -> R.string.backup_page_item_legacy_files
         WebDavConfig.BackupItem.PROVIDERS -> R.string.backup_page_item_providers
         WebDavConfig.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials
@@ -257,6 +258,7 @@ fun backupItemDescRes(item: WebDavConfig.BackupItem): Int? =
         WebDavConfig.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files_desc
         WebDavConfig.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
         WebDavConfig.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
+        WebDavConfig.BackupItem.MEDIA_CREATION -> R.string.backup_page_item_media_creation_desc
         WebDavConfig.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
         WebDavConfig.BackupItem.PROVIDERS -> R.string.backup_page_item_providers_desc
         WebDavConfig.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials_desc
@@ -274,6 +276,7 @@ fun backupItemDescRes(item: S3Config.BackupItem): Int? =
         S3Config.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files_desc
         S3Config.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images_desc
         S3Config.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs_desc
+        S3Config.BackupItem.MEDIA_CREATION -> R.string.backup_page_item_media_creation_desc
         S3Config.BackupItem.FILES -> R.string.backup_page_item_legacy_files_desc
         S3Config.BackupItem.PROVIDERS -> R.string.backup_page_item_providers_desc
         S3Config.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials_desc
@@ -292,6 +295,7 @@ fun backupItemLabelRes(item: S3Config.BackupItem): Int =
         S3Config.BackupItem.CHAT_FILES -> R.string.backup_page_item_chat_files
         S3Config.BackupItem.FONTS_IMAGES -> R.string.backup_page_item_fonts_images
         S3Config.BackupItem.TOOL_OUTPUTS -> R.string.backup_page_item_tool_outputs
+        S3Config.BackupItem.MEDIA_CREATION -> R.string.backup_page_item_media_creation
         S3Config.BackupItem.FILES -> R.string.backup_page_item_legacy_files
         S3Config.BackupItem.PROVIDERS -> R.string.backup_page_item_providers
         S3Config.BackupItem.VAULT_CREDENTIALS -> R.string.backup_page_item_vault_credentials

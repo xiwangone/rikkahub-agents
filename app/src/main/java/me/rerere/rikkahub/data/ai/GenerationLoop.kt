@@ -22,6 +22,8 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.ai.agent.RetryPolicy
+import me.rerere.ai.agent.withRetry
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.ai.core.Tool
@@ -34,6 +36,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.ToolApprovalState
+import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.StreamChunkHandler
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.ai.transformers.InputMessageTransformer
@@ -572,7 +575,7 @@ class GenerationLoop(
             )
 
             var messages = listOf(UIMessage.user(prompt))
-            var translatedText = ""
+            val translatedTextBuilder = StringBuilder()
             val streamChunkHandler = StreamChunkHandler(model)
 
             providerHandler.streamText(
@@ -585,7 +588,11 @@ class GenerationLoop(
                 ),
             ).collect { chunk ->
                 messages = streamChunkHandler.handle(messages, chunk)
-                translatedText = messages.lastOrNull()?.toText() ?: ""
+                // 只追加本次增量：每 chunk 都 toText() 重建全文是 O(n²) 字符串拷贝。
+                if (chunk is StreamChunk.TextDelta) {
+                    translatedTextBuilder.append(chunk.text)
+                }
+                val translatedText = translatedTextBuilder.toString()
 
                 if (translatedText.isNotBlank()) {
                     onStreamUpdate?.invoke(translatedText)
@@ -595,27 +602,32 @@ class GenerationLoop(
         } else {
             // Use Qwen MT model with special translation options
             val messages = listOf(UIMessage.user(sourceText))
-            val result = providerHandler.generateText(
-                providerSetting = provider,
-                messages = messages,
-                params = TextGenerationParams(
-                    model = model,
-                    temperature = 0.3f,
-                    topP = 0.95f,
-                    customBody = listOf(
-                        CustomBody(
-                            key = "translation_options",
-                            value = buildJsonObject {
-                                put("source_lang", JsonPrimitive("auto"))
-                                put(
-                                    "target_lang",
-                                    JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
-                                )
-                            }
+            // 非流式 generateText 不走 maxStreamRetries：这里按同一开关包一层重试，
+            // 只重试网络类失败（RetryPolicy 默认的 IOException 口径）。
+            val maxRetries = if (settings.enableAutoRetry) settings.responseStreamMaxRetries else 0
+            val result = withRetry(RetryPolicy(maxRetries = maxRetries)) {
+                providerHandler.generateText(
+                    providerSetting = provider,
+                    messages = messages,
+                    params = TextGenerationParams(
+                        model = model,
+                        temperature = 0.3f,
+                        topP = 0.95f,
+                        customBody = listOf(
+                            CustomBody(
+                                key = "translation_options",
+                                value = buildJsonObject {
+                                    put("source_lang", JsonPrimitive("auto"))
+                                    put(
+                                        "target_lang",
+                                        JsonPrimitive(targetLanguage.getDisplayLanguage(Locale.ENGLISH))
+                                    )
+                                }
+                            )
                         )
-                    )
-                ),
-            )
+                    ),
+                )
+            }
             val translatedText = result.message.toText()
 
             if (translatedText.isNotBlank()) {
