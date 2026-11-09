@@ -52,11 +52,12 @@ enter_private_ns() {
         export _CHROOT_IN_NS=1
         exec unshare -m "$HOST_SH" "$0" "$ROOTFS" "$@"
     fi
-    # 新命名空间内必须设私有传播，失败就直接退出，不静默继续挂载
-    mount --make-rprivate / 2>/dev/null || mount --make-private / 2>/dev/null || {
-        echo "ERR: cannot make mount namespace private" >&2
-        exit 1
-    }
+    # toybox 0.8.9 的 mount 不支持传播位选项：--make-rprivate / --make-private 会报 bad /etc/fstab，
+    # `-o remount,rprivate` 返回成功但 mountinfo 里的 master: 不变（静默无效）。
+    # Android 的 / 本身是 slave 挂载（mountinfo 带 master:），只单向接收传播，unshare -m 内的挂载
+    # 不会出现在宿主 /proc/self/mountinfo —— 隔离目的已成立，故不可设 private 时不中止挂载流程。
+    mount --make-rprivate / 2>/dev/null || mount --make-private / 2>/dev/null || \
+        echo "warn: mount propagation cannot be set private here, relying on slave semantics" >&2
 }
 
 do_unmount_quiet() {
