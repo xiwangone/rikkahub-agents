@@ -7,6 +7,7 @@
     <base-config cleartextTrafficPermitted="false" />
     <domain-config cleartextTrafficPermitted="true">
         <domain includeSubdomains="true">localhost</domain>
-        <domain>127.0.0.1</domain>
+        <!-- IP 没有子域名概念，显式 false；缺该属性会被 lintVitalRelease 判 error -->
+        <domain includeSubdomains="false">127.0.0.1</domain>
     </domain-config>
 </network-security-config>
