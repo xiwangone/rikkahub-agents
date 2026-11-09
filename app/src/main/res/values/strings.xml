@@ -4216,7 +4216,7 @@
   <string name="tunnel_control_url_label">Control plane URL</string>
   <string name="tunnel_auth_key_label">Auth key</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>
-  <string name="tunnel_hostname_label">Hostname</string>
+  <string name="tunnel_hostname_label">Terminal name</string>
   <string name="tunnel_advertise_routes_label">Advertised routes</string>
   <string name="tunnel_advertise_routes_none">None</string>
   <string name="tunnel_saved_hint">Saved</string>

@@ -4148,7 +4148,7 @@
   <string name="tunnel_control_url_label">URL плоскости управления</string>
   <string name="tunnel_auth_key_label">Ключ авторизации</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
-  <string name="tunnel_hostname_label">Имя хоста</string>
+  <string name="tunnel_hostname_label">Имя терминала</string>
   <string name="tunnel_advertise_routes_label">Публикуемые сети</string>
   <string name="tunnel_advertise_routes_none">Нет</string>
   <string name="tunnel_saved_hint">Сохранено</string>

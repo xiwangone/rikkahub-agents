@@ -80,7 +80,7 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, ad
 	// Apply before Up: EditPrefs may fail while the backend is still starting, the
 	// second call after Up makes it authoritative. Doing it here (rather than from
 	// the app right after Start returns) means no window where RouteAll is on.
-	_ = applyStartPrefs(s, acceptRoutes, exitNode, advertiseRoutes)
+	_ = applyStartPrefs(s, hostname, acceptRoutes, exitNode, advertiseRoutes)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -93,7 +93,7 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, ad
 		_ = s.Close()
 		return "", fmt.Errorf("up: no tailscale IP assigned")
 	}
-	if err := applyStartPrefs(s, acceptRoutes, exitNode, advertiseRoutes); err != nil {
+	if err := applyStartPrefs(s, hostname, acceptRoutes, exitNode, advertiseRoutes); err != nil {
 		log.Printf("apply start prefs: %v", err)
 	}
 
@@ -101,12 +101,14 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, ad
 	return st.TailscaleIPs[0].String(), nil
 }
 
-// applyStartPrefs applies subnet-route acceptance, the exit node and the routes
-// this node advertises, all in one EditPrefs call. Tailscale defaults RouteAll to
-// true, so leaving it unset silently pulls every advertised peer subnet in.
+// applyStartPrefs applies the hostname, subnet-route acceptance, the exit node and
+// the routes this node advertises, all in one EditPrefs call. Tailscale defaults
+// RouteAll to true, so leaving it unset silently pulls every advertised peer subnet in.
+// Hostname has to go through prefs too: tsnet.Server.Hostname is only honoured when the
+// state store is empty, so on an already-registered node changing it did nothing.
 // Every field is set explicitly (including empty values) so that clearing it in
 // the app really takes effect.
-func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode, advertiseRoutes string) error {
+func applyStartPrefs(s *tsnet.Server, hostname string, acceptRoutes bool, exitNode, advertiseRoutes string) error {
 	lc, err := s.LocalClient()
 	if err != nil {
 		return err
@@ -114,6 +116,11 @@ func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode, advertiseRout
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
 	defer cancel()
 	mp := &ipn.MaskedPrefs{Prefs: ipn.Prefs{RouteAll: acceptRoutes}, RouteAllSet: true}
+
+	if hostname != "" {
+		mp.Prefs.Hostname = hostname
+		mp.HostnameSet = true
+	}
 
 	mp.Prefs.ExitNodeIP = netip.Addr{}
 	mp.ExitNodeIPSet = true

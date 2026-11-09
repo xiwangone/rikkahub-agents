@@ -604,6 +604,8 @@ private data class TunnelStatus(
     val running: Boolean = false,
     val selfIps: List<String> = emptyList(),
     val dnsName: String = "",
+    /** 控制面侧的终端名称（控制台可改；本机只读展示）。 */
+    val hostName: String = "",
     val peers: List<TunnelPeer> = emptyList(),
     val acceptRoutes: Boolean = false,
     val exitNodeIp: String = "",
@@ -637,6 +639,7 @@ private fun parseTunnelStatus(raw: String?): TunnelStatus? {
             running = o.optBoolean("running"),
             selfIps = selfIps,
             dnsName = o.optString("dnsName"),
+            hostName = o.optString("hostName"),
             peers = peers,
             acceptRoutes = o.optBoolean("acceptRoutes"),
             exitNodeIp = o.optString("exitNodeIP"),

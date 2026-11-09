@@ -4151,7 +4151,7 @@
   <string name="tunnel_control_url_label">عنوان URL لمستوى التحكم</string>
   <string name="tunnel_auth_key_label">مفتاح المصادقة</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... أو اسم بيانات الاعتماد $$</string>
-  <string name="tunnel_hostname_label">اسم المضيف</string>
+  <string name="tunnel_hostname_label">اسم الطرفية</string>
   <string name="tunnel_advertise_routes_label">الشبكات المعلنة</string>
   <string name="tunnel_advertise_routes_none">لا شيء</string>
   <string name="tunnel_saved_hint">تم الحفظ</string>
