@@ -257,7 +257,7 @@ internal fun openSshSession(
     }
     // 先问隧道：tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号 —— userspace tsnet
     // 只把出口开在 127.0.0.1:<随机端口>。终端页（SshTerminalPage）早已这样做，这里补齐，
-    // 否则 ssh_exec / ssh_exec_saved / SFTP 连 xEdge 网段会一律 "connection closed by foreign host"
+    // 否则 ssh_exec / ssh_exec_saved / SFTP 连 tailscale 网段会一律 "connection closed by foreign host"
     // （TCP 看似建立、实际包没到对端，对端 sshd 日志里没有任何记录）。
     // TunnelRouter 在隧道未运行或目标非 tailnet 时原样返回，不影响普通公网/内网 SSH。
     val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)

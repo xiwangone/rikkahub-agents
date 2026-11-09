@@ -80,7 +80,9 @@ object TunnelAutoStart {
                     context = appContext,
                     controlURL = network.tailscaleControlUrl.trim(),
                     authKey = authKey,
-                    hostname = network.tailscaleHostname.ifBlank { "rikkahub" },
+                    hostname = network.effectiveTunnelHostname,
+                    acceptRoutes = network.tailscaleAcceptRoutes,
+                    exitNode = network.tailscaleExitNode,
                     keepDesiredOnFailure = true,
                 )
                 if (result.isSuccess) {

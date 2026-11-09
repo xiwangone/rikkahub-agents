@@ -4144,7 +4144,7 @@
   <string name="tunnel_control_url_label">컨트롤 플레인 URL</string>
   <string name="tunnel_auth_key_label">인증 키</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 또는 $$ 자격 증명 이름</string>
-  <string name="tunnel_hostname_label">노드 이름</string>
+  <string name="tunnel_hostname_label">터미널 이름</string>
   <string name="tunnel_saved_hint">저장됨</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale 터널</string>
   <string name="chat_topbar_tunnel_node_info">노드: %1$s · 제어: %2$s</string>

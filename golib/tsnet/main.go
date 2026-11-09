@@ -43,10 +43,15 @@ var (
 // authKey: preauth key (tskey-auth-...). Empty means interactive login, which is
 // not useful on a headless device.
 // hostname: node name shown in the tailnet.
+// acceptRoutes: accept subnet routes advertised by peers. Tailscale defaults this
+// to true; the app passes its own setting so the tunnel never starts by pulling a
+// peer LAN in and then correcting itself.
+// exitNode: tailnet IP of the peer to use as exit node, empty for none. Same
+// reason: applied before the first status report so the UI never shows drift.
 // stateDir: local state directory for tailscaled.state; caller decides the location.
 //
 // Returns the node IP inside the tailnet (for example 100.64.0.5).
-func Start(controlURL, authKey, hostname, stateDir string) (string, error) {
+func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, stateDir string) (string, error) {
 	mu.Lock()
 	defer mu.Unlock()
 	if srv != nil {
@@ -68,6 +73,10 @@ func Start(controlURL, authKey, hostname, stateDir string) (string, error) {
 	if err := s.Start(); err != nil {
 		return "", fmt.Errorf("start: %w", err)
 	}
+	// Apply before Up: EditPrefs may fail while the backend is still starting, the
+	// second call after Up makes it authoritative. Doing it here (rather than from
+	// the app right after Start returns) means no window where RouteAll is on.
+	_ = applyStartPrefs(s, acceptRoutes, exitNode)
 
 	ctx, cancel := context.WithTimeout(context.Background(), 90*time.Second)
 	defer cancel()
@@ -80,9 +89,35 @@ func Start(controlURL, authKey, hostname, stateDir string) (string, error) {
 		_ = s.Close()
 		return "", fmt.Errorf("up: no tailscale IP assigned")
 	}
+	if err := applyStartPrefs(s, acceptRoutes, exitNode); err != nil {
+		log.Printf("apply start prefs: %v", err)
+	}
 
 	srv = s
 	return st.TailscaleIPs[0].String(), nil
+}
+
+// applyStartPrefs applies subnet-route acceptance and the exit node in one
+// EditPrefs call. Tailscale defaults RouteAll to true, so leaving it unset
+// silently pulls every advertised peer subnet into the tunnel.
+func applyStartPrefs(s *tsnet.Server, acceptRoutes bool, exitNode string) error {
+	lc, err := s.LocalClient()
+	if err != nil {
+		return err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	mp := &ipn.MaskedPrefs{Prefs: ipn.Prefs{RouteAll: acceptRoutes}, RouteAllSet: true}
+	if exitNode != "" {
+		addr, perr := netip.ParseAddr(exitNode)
+		if perr != nil {
+			return fmt.Errorf("bad exit node %q: %w", exitNode, perr)
+		}
+		mp.Prefs.ExitNodeIP = addr
+		mp.ExitNodeIPSet = true
+	}
+	_, err = lc.EditPrefs(ctx, mp)
+	return err
 }
 
 // Stop shuts the tunnel down and releases every proxy listener.

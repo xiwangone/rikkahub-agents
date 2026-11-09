@@ -4216,7 +4216,7 @@
   <string name="tunnel_control_url_label">Control plane URL</string>
   <string name="tunnel_auth_key_label">Auth key</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>
-  <string name="tunnel_hostname_label">Node hostname</string>
+  <string name="tunnel_hostname_label">Terminal name</string>
   <string name="tunnel_saved_hint">Saved</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale Tunnel</string>
   <string name="chat_topbar_tunnel_node_info">Node: %1$s · Control: %2$s</string>

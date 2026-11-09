@@ -4144,7 +4144,7 @@
   <string name="tunnel_control_url_label">コントロールプレーン URL</string>
   <string name="tunnel_auth_key_label">認証キー</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... または $$ 認証情報名</string>
-  <string name="tunnel_hostname_label">ノード名</string>
+  <string name="tunnel_hostname_label">ターミナル名</string>
   <string name="tunnel_saved_hint">保存しました</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale トンネル</string>
   <string name="chat_topbar_tunnel_node_info">ノード: %1$s · 制御: %2$s</string>

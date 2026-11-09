@@ -310,16 +310,16 @@ data class NetworkSetting(
     val hostAddressOverrides: List<HostAddressOverride> = emptyList(),
     // ── 内嵌隧道（per-app，不接管系统 VPN / DNS）──────────────────────────
     // 连接开关只存在于运行期（见 `TunnelState`）：重开 App 不自动连，所以这里不落盘 enabled。
-    /** 隧道类型：tailscale / wireguard。 */
-    val tunnelType: String = TUNNEL_TAILSCALE,
     /** 控制面 URL（自填，不写死；如自建 Headscale 或默认 Tailscale）。 */
     val tailscaleControlUrl: String = "",
     /** 认证密钥（preauth key，tskey-auth-...）。 */
     val tailscaleAuthKey: String = "",
-    /** 节点在 tailnet 中显示的名字。 */
-    val tailscaleHostname: String = "rikkahub",
-    /** WireGuard 配置（.conf 原文，手工粘贴）。 */
-    val wireguardConfig: String = "",
+    /** 隧道上报的主机名（tailscale 设备列表里显示的"主机名"），旧默认见下方常量。 */
+    val tailscaleHostname: String = DEFAULT_TUNNEL_HOSTNAME,
+    /** 接受对端广播的子网路由（Prefs.RouteAll）。默认关，避免把对端 LAN 拉进 tailnet。 */
+    val tailscaleAcceptRoutes: Boolean = false,
+    /** 出口节点（peer 的 tailnet IP）；空串 = 不走出口节点。重启后仍生效。 */
+    val tailscaleExitNode: String = "",
     // ── 应用内独立 DNS（绕过系统 DNS 劫持，支持 DoH / DoT / 自定义直连 DNS）──
     /** 解析模式：system / doh / dot / custom。 */
     val dnsMode: String = DNS_MODE_SYSTEM,
@@ -337,9 +337,6 @@ data class NetworkSetting(
     val dnsTestDomain: String = DEFAULT_DNS_TEST_DOMAIN,
 ) {
     companion object {
-        const val TUNNEL_TAILSCALE = "tailscale"
-        const val TUNNEL_WIREGUARD = "wireguard"
-
         const val DNS_MODE_SYSTEM = "system"
         const val DNS_MODE_DOH = "doh"
         const val DNS_MODE_DOT = "dot"
@@ -350,7 +347,17 @@ data class NetworkSetting(
         const val DEFAULT_BOOTSTRAP_SERVERS = "223.5.5.5, 119.29.29.29, 1.1.1.1, 8.8.8.8"
         /** RFC 2606 保留域名：永久存在、全球可解析、有 IPv4+IPv6，不含商业/地域色彩。 */
         const val DEFAULT_DNS_TEST_DOMAIN = "example.com"
+        /** 隧道主机名默认值。 */
+        const val DEFAULT_TUNNEL_HOSTNAME = "yao"
+        /** 历史默认值：旧版本写过，读取时按未设置处理，避免升级后沿用旧名。 */
+        private const val LEGACY_TUNNEL_HOSTNAME = "rikkahub"
     }
+
+    /** 生效主机名：空白或历史默认值都按当前默认处理，其余保留用户自定义。 */
+    val effectiveTunnelHostname: String
+        get() = tailscaleHostname.trim()
+            .takeIf { it.isNotEmpty() && it != LEGACY_TUNNEL_HOSTNAME }
+            ?: DEFAULT_TUNNEL_HOSTNAME
 }
 
 /**

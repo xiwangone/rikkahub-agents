@@ -70,6 +70,7 @@ import me.rerere.hugeicons.stroke.LeftToRightListBullet
 import me.rerere.hugeicons.stroke.Menu03
 import me.rerere.hugeicons.stroke.MessageAdd01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -597,7 +598,7 @@ private fun TopBarTunnelStatusBadge(
 
         var controlUrlDraft by remember(settings) { mutableStateOf(network.tailscaleControlUrl) }
         var authKeyDraft by remember(settings) { mutableStateOf(network.tailscaleAuthKey) }
-        var hostnameDraft by remember(settings) { mutableStateOf(network.tailscaleHostname) }
+        var hostnameDraft by remember(settings) { mutableStateOf(network.effectiveTunnelHostname) }
         var busy by remember { mutableStateOf(false) }
 
         val running = tunnelState is TunnelState.Connected ||
@@ -610,7 +611,7 @@ private fun TopBarTunnelStatusBadge(
                     networkSetting = current.networkSetting.copy(
                         tailscaleControlUrl = controlUrlDraft.trim(),
                         tailscaleAuthKey = authKeyDraft.trim(),
-                        tailscaleHostname = hostnameDraft.trim().ifBlank { "rikkahub" },
+                        tailscaleHostname = hostnameDraft.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
                     ),
                 )
             }
@@ -627,7 +628,9 @@ private fun TopBarTunnelStatusBadge(
                 context = context,
                 controlURL = controlUrlDraft.trim(),
                 authKey = resolved,
-                hostname = hostnameDraft.trim().ifBlank { "rikkahub" },
+                hostname = hostnameDraft.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                acceptRoutes = network.tailscaleAcceptRoutes,
+                exitNode = network.tailscaleExitNode,
             )
             busy = false
         }

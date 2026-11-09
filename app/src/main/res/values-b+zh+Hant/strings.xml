@@ -4143,7 +4143,7 @@
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">驗證金鑰</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 憑證名稱</string>
-  <string name="tunnel_hostname_label">節點名稱</string>
+  <string name="tunnel_hostname_label">終端名稱</string>
   <string name="tunnel_saved_hint">已儲存</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale 私網隧道</string>
   <string name="chat_topbar_tunnel_node_info">節點：%1$s · 控制面：%2$s</string>

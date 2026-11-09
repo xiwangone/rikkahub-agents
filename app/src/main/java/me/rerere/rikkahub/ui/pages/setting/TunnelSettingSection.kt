@@ -36,6 +36,7 @@ import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Global
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
 import me.rerere.rikkahub.data.tunnel.TunnelState
 import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
@@ -69,8 +70,14 @@ fun TunnelSettingSection(vm: SettingVM) {
     var authKey by remember(network.tailscaleAuthKey) {
         mutableStateOf(network.tailscaleAuthKey)
     }
-    var hostname by remember(network.tailscaleHostname) {
-        mutableStateOf(network.tailscaleHostname)
+    var hostname by remember(network.effectiveTunnelHostname) {
+        mutableStateOf(network.effectiveTunnelHostname)
+    }
+    var acceptRoutes by remember(network.tailscaleAcceptRoutes) {
+        mutableStateOf(network.tailscaleAcceptRoutes)
+    }
+    var exitNode by remember(network.tailscaleExitNode) {
+        mutableStateOf(network.tailscaleExitNode)
     }
     var busy by remember { mutableStateOf(false) }
     var savedHint by remember { mutableStateOf(false) }
@@ -115,7 +122,9 @@ fun TunnelSettingSection(vm: SettingVM) {
             context = context,
             controlURL = controlUrl.trim(),
             authKey = resolved,
-            hostname = hostname.trim().ifBlank { "yao" },
+            hostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+            acceptRoutes = acceptRoutes,
+            exitNode = exitNode,
         )
     }
 
@@ -125,7 +134,9 @@ fun TunnelSettingSection(vm: SettingVM) {
                 networkSetting = current.networkSetting.copy(
                     tailscaleControlUrl = controlUrl.trim(),
                     tailscaleAuthKey = authKey.trim(),
-                    tailscaleHostname = hostname.trim().ifBlank { "yao" },
+                    tailscaleHostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                    tailscaleAcceptRoutes = acceptRoutes,
+                    tailscaleExitNode = exitNode,
                 ),
             )
         }
@@ -148,7 +159,9 @@ fun TunnelSettingSection(vm: SettingVM) {
     fun cancel() {
         controlUrl = network.tailscaleControlUrl
         authKey = network.tailscaleAuthKey
-        hostname = network.tailscaleHostname
+        hostname = network.effectiveTunnelHostname
+        acceptRoutes = network.tailscaleAcceptRoutes
+        exitNode = network.tailscaleExitNode
         savedHint = false
     }
 
@@ -242,7 +255,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                     HorizontalDivider()
                     TunnelRow(
                         title = stringResource(R.string.tunnel_hostname_label),
-                        value = hostname.ifBlank { "yao" },
+                        value = hostname.ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
                     ) { editingField = TunnelField.Hostname }
                     HorizontalDivider()
                     TunnelRow(
@@ -277,12 +290,21 @@ fun TunnelSettingSection(vm: SettingVM) {
             },
             trailingContent = {
                 Switch(
-                    checked = nodeStatus?.acceptRoutes ?: false,
-                    enabled = nodeStatus?.running == true && !busy,
+                    checked = nodeStatus?.acceptRoutes ?: acceptRoutes,
+                    enabled = !busy,
                     onCheckedChange = { on ->
-                        scope.launch {
-                            TsnetBridge.setAcceptRoutes(on).onSuccess {
-                                nodeStatus = nodeStatus?.copy(acceptRoutes = on)
+                        // 持久化到设置：下次启动隧道时按这个值回调（tailscale 默认是开）。
+                        acceptRoutes = on
+                        vm.updateSettings { current ->
+                            current.copy(
+                                networkSetting = current.networkSetting.copy(tailscaleAcceptRoutes = on),
+                            )
+                        }
+                        if (nodeStatus?.running == true) {
+                            scope.launch {
+                                TsnetBridge.setAcceptRoutes(on).onSuccess {
+                                    nodeStatus = nodeStatus?.copy(acceptRoutes = on)
+                                }
                             }
                         }
                     },
@@ -295,7 +317,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             headlineContent = {
                 TunnelRow(
                     title = stringResource(R.string.tunnel_exit_node),
-                    value = exitNodeLabel(nodeStatus, stringResource(R.string.tunnel_exit_node_none)),
+                    value = exitNodeLabel(nodeStatus, exitNode, stringResource(R.string.tunnel_exit_node_none)),
                     onClick = { showExitPicker = true },
                 )
             },
@@ -350,6 +372,11 @@ fun TunnelSettingSection(vm: SettingVM) {
                             TsnetBridge.setExitNode("").onSuccess {
                                 nodeStatus = nodeStatus?.copy(exitNodeIp = "")
                             }
+                            // 持久化：下次启动时由 native 直接应用，不需要重新选。
+                            exitNode = ""
+                            vm.updateSettings { current ->
+                                current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ""))
+                            }
                         }
                     }) { Text(stringResource(R.string.tunnel_exit_node_none)) }
                     exitPeers.forEach { peer ->
@@ -359,6 +386,10 @@ fun TunnelSettingSection(vm: SettingVM) {
                             scope.launch {
                                 TsnetBridge.setExitNode(ip).onSuccess {
                                     nodeStatus = nodeStatus?.copy(exitNodeIp = ip)
+                                }
+                                exitNode = ip
+                                vm.updateSettings { current ->
+                                    current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ip))
                                 }
                             }
                         }) {
@@ -519,8 +550,9 @@ private fun TunnelRow(title: String, value: String, onClick: () -> Unit) {
 }
 
 /** 出口节点当前值：空 = 无；否则优先显示 peer 名，退化到 IP。 */
-private fun exitNodeLabel(status: TunnelStatus?, noneLabel: String): String {
-    val raw = status?.exitNodeIp?.trim().orEmpty()
+private fun exitNodeLabel(status: TunnelStatus?, fallbackIp: String, noneLabel: String): String {
+    // 已连上时以 native 的 prefs 为准；未连上时回退到设置值（重启后仍能看到上次选的出口节点）。
+    val raw = status?.exitNodeIp?.trim().orEmpty().ifBlank { fallbackIp }.trim()
     val ip = raw.takeIf { it.isNotBlank() && it != "<nil>" && it != "invalid IP" } ?: return noneLabel
     val peer = status?.peers?.firstOrNull { p -> p.ips.any { it == ip } }
     return peer?.hostName?.takeIf { it.isNotBlank() } ?: ip
