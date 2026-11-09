@@ -131,6 +131,16 @@ private const val WARM_ASSISTANTS = "assistants"
 private const val WARM_SHORTCUT_IDS = "setting_shortcut_ids"
 
 /**
+ * 工作区 shell 后端（PROOT / ROOT_CHROOT / DISABLED）。
+ *
+ * 必须进 warm 快照：冷启动后 DataStore 解密完成前，[loadWarmUiSettings] 只能给出 dummy 值，
+ * 而 WorkspaceManager 的 backend 分派读的就是这个快照。不进快照时，重启后的头 1-2 秒
+ * `settingsFlow.value.workspaceShellBackend` 恒为 PROOT，于是“设置里明明是 chroot，
+ * 重启后第一条命令却走 proot”。
+ */
+private const val WARM_SHELL_BACKEND = "workspace_shell_backend"
+
+/**
  * 冷启动首帧 UI 预热快照（仅含非敏感主题与展示配置，保持 `init = true` 直到完整 DataStore 解码完成）。
  * 解决冷启动 1-2s 内 DataStore 在后台解密 providers 时界面先用默认主题/默认气泡渲染再闪烁切换的问题。
  */
@@ -139,6 +149,7 @@ internal fun loadWarmUiSettings(context: Context): Settings =
         val prefs = context.getSharedPreferences(UI_WARMUP_PREFS, Context.MODE_PRIVATE)
         if (!prefs.getBoolean(WARM_INITIALIZED, false)) return@runCatching Settings.dummy()
         val dummy = Settings.dummy()
+        val warmBackend = WorkspaceShellBackend.fromPreference(prefs.getString(WARM_SHELL_BACKEND, null))
         val assistants =
             prefs.getString(WARM_ASSISTANTS, null)
                 ?.let { runCatching { JsonInstant.decodeFromString<List<me.rerere.rikkahub.data.model.Assistant>>(it) }.getOrNull() }
@@ -167,6 +178,8 @@ internal fun loadWarmUiSettings(context: Context): Settings =
                     ?.split('\u0001')
                     ?.filter { it.isNotBlank() }
                     ?: dummy.settingShortcutIds,
+            workspaceShellBackend = warmBackend,
+            workspaceChrootEnabled = warmBackend == WorkspaceShellBackend.ROOT_CHROOT,
         )
     }.getOrElse { Settings.dummy() }
 
@@ -183,6 +196,8 @@ internal fun saveWarmUiSettings(context: Context, settings: Settings) {
             putString(WARM_SELECT_ASSISTANT, settings.assistantId.toString())
             putString(WARM_ASSISTANTS, JsonInstant.encodeToString(settings.assistants))
             putString(WARM_SHORTCUT_IDS, settings.settingShortcutIds.joinToString("\u0001"))
+            // 后端开关落盘：下次冷启动首帧就能正确分派，不必等 DataStore 解密
+            putString(WARM_SHELL_BACKEND, settings.workspaceShellBackend.name)
         }
     }
 }

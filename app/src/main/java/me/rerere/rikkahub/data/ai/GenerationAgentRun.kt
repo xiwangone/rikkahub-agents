@@ -69,6 +69,23 @@ private const val MIN_WRAP_UP_GRACE_MS = 30_000L
 private const val MAX_WRAP_UP_GRACE_MS = 5 * 60_000L
 
 /**
+ * 已启动工具的最小完成窗口。
+ *
+ * [beforeToolCall] 把工具超时定为 `remaining + grace`：预算耗尽时正在跑的工具会在中途被杀，
+ * 工具结果里只剩一条超时包络（界面上是 `exit ?`），模型拿不到任何输出，也就无从收尾。
+ * 预算只应决定「还能不能启动新工具」（拦截分支），不应成为已启动工具的死刑。
+ */
+private const val MIN_TOOL_COMPLETION_MS = 90_000L
+
+/**
+ * 收尾轮（预算到点后那次无工具的纯文本请求）的单次流上限。
+ *
+ * 这一段唯一的产出是一段总结，按 [MAX_STREAM_DURATION_MS] 等满既没有意义，
+ * 也会让界面在提醒之后继续转圈很久。
+ */
+private const val WRAP_UP_STREAM_CAP_MS = 90_000L
+
+/**
  * 收尾窗口 = 轮次预算的 20%，夹在 [MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS] 之间。
  * 20 分钟预算 → 4 分钟；1 分钟预算 → 30 秒（下限）。
  */
@@ -562,8 +579,11 @@ internal class GenerationAgentRun(
         ).takeWhile { chunk ->
             // 守卫在上一条已判定结束：本条起全部丢弃，并让 takeWhile 掐断连接（失控的流不能继续烧 token）
             if (streamGuardStopRequested) return@takeWhile false
-            // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感
-            if (System.currentTimeMillis() - streamStartedAtMs > MAX_STREAM_DURATION_MS) {
+            // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感。
+            // 收尾轮（预算到点后的纯文本总结）单独收紧：这一段没有任何工具，唯一产出是
+            // 一段文字，按 15min 上限等下去只会让界面一直转圈。
+            val streamCapMs = if (wrapUpTerminalStep) WRAP_UP_STREAM_CAP_MS else MAX_STREAM_DURATION_MS
+            if (System.currentTimeMillis() - streamStartedAtMs > streamCapMs) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
                 guardStopAfterCurrentChunk(GenerationOutcome.TIMEOUT)
                 return@takeWhile true
@@ -803,8 +823,8 @@ internal class GenerationAgentRun(
             )
         }
         return ToolCallOutcome.Execute(
-            // 已开始的工作可越过软提醒点，但最多额外运行一个 grace，供干净收尾。
-            timeout = (remainingMs + wrapUpGraceMs).milliseconds,
+            // 已开始的工作给足最小完成窗口后必须真正跑完（见 MIN_TOOL_COMPLETION_MS）；超预算后的收尾由 beforeStep 负责。
+            timeout = (remainingMs + wrapUpGraceMs).coerceAtLeast(MIN_TOOL_COMPLETION_MS).milliseconds,
             context = AuditContext(
                 conversationId = conversationId?.toString(),
                 modelId = model.modelId,

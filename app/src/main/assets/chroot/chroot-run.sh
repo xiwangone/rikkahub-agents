@@ -79,6 +79,20 @@ bind_extra() { # $1=app_dir $2=相对源 $3=chroot 内目标
     return 0
 }
 
+# 清理被打断的命令留下的命令文件。
+# Kotlin 侧在 finally 里删 .chroot-exec-<uuid>，但进程被外部杀掉（超时/预算掐断/用户取消）时
+# 那个 finally 不会执行，文件就留在 rootfs 根下累积。只删 1 小时前的，避免误删并发命令正在用的那个。
+purge_stale_exec_files() {
+    now=$(date +%s 2>/dev/null || echo 0)
+    [ "$now" -gt 0 ] || return 0
+    for f in "$ROOTFS"/.chroot-exec-*; do
+        [ -f "$f" ] || continue
+        mt=$(stat -c %Y "$f" 2>/dev/null || echo "$now")
+        [ $((now - mt)) -gt 3600 ] && rm -f "$f" 2>/dev/null
+    done
+    return 0
+}
+
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
     mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
@@ -190,7 +204,15 @@ case "$1" in
         trap 'do_unmount_quiet' EXIT INT TERM
         do_fixes
         do_mounts || exit 1
-        run_in_chroot /bin/sh -c "cd -- \"$WORKDIR\" 2>/dev/null || cd /root 2>/dev/null || cd /; $*"
+        purge_stale_exec_files
+        # 入口 shell 与 proot 侧对齐：有 bash 就用 bash（`{}` 展开、数组等行为一致），否则回落 sh。
+        # 参数用 "$@" 精确传递：旧实现把 $* 拼进 -c 字符串，带空格的参数会被重新切分。
+        if [ -x "$ROOTFS/bin/bash" ]; then
+            ENTRY_SH=/bin/bash
+        else
+            ENTRY_SH=/bin/sh
+        fi
+        run_in_chroot "$ENTRY_SH" -c 'cd -- "$1" 2>/dev/null || cd /root 2>/dev/null || cd /; shift; exec "$@"' chroot-run "$WORKDIR" "$@"
         rc=$?
         exit $rc
         ;;

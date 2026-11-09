@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.di
 
 import android.content.Context
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.SkillManager
@@ -21,6 +22,7 @@ import me.rerere.workspace.ProotShellRunner
 import me.rerere.workspace.RootfsInstaller
 import me.rerere.workspace.WorkspaceBindMount
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.ssh.SshConnectionPool
 import org.koin.dsl.module
 import org.koin.dsl.onClose
@@ -57,7 +59,18 @@ val repositoryModule =
         }
 
         single {
-            WorkspaceMountSwitch()
+            // 冷启动即读持久化后端：内存桥在没人显式写入前必须能反映设置项，
+            // 否则「开关显示已开、实际跑 proot」的静默回退会一直存在。
+            val settingsStore: SettingsStore = get()
+            WorkspaceMountSwitch(
+                persistedBackend = {
+                    val s = settingsStore.settingsFlow.value
+                    WorkspaceShellBackend.fromPreference(
+                        rawBackend = s.workspaceShellBackend.name,
+                        legacyChrootEnabled = s.workspaceChrootEnabled,
+                    )
+                },
+            )
         }
 
         single {
