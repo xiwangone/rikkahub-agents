@@ -170,7 +170,7 @@ private fun dispatchParameters(enabledProfiles: List<SubAgentProfile>): InputSch
                     put("type", "string")
                     put(
                         "description",
-                        "OPTIONAL workspace id or unique name (from workspace_list) to bind " +
+                        "OPTIONAL workspace unique name or id (from workspace_list) to bind " +
                             "this sub-agent's workspace_* tools to. Use it to run the " +
                             "sub-agent in an isolated workspace so its writes cannot touch " +
                             "the parent's files. Omit to use the agent profile's workspace, " +

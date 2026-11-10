@@ -215,7 +215,7 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
         })
         put("workspace", buildJsonObject {
             put("type", "string")
-            put("description", "Optional target workspace id (UUID). When set, runs the command in that workspace's rootfs instead of the current one. Use workspace_list to see available workspace ids.")
+            put("description", "Optional target workspace name (or id). When set, runs the command in that workspace's rootfs instead of the current one. Prefer the name; use workspace_list to see available workspaces.")
         })
         put("env", buildJsonObject {
             put("type", "object")

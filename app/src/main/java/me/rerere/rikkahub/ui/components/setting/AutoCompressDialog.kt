@@ -7,7 +7,12 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -20,14 +25,31 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+
+/**
+ * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
+ */
+@Composable
+private fun rememberBringIntoViewModifier(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return Modifier
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) scope.launch { requester.bringIntoView() }
+        }
+}
 
 /**
  * 自动压缩设置弹窗。
@@ -67,7 +89,10 @@ fun AutoCompressDialog(
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.padding(horizontal = 16.dp),
+                modifier = Modifier
+                    .padding(horizontal = 16.dp)
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
             ) {
                 Text(
                     text = stringResource(R.string.setting_model_page_auto_compress_desc),
@@ -117,7 +142,7 @@ fun AutoCompressDialog(
                             },
                             label = { Text(stringResource(R.string.setting_model_page_auto_compress_base)) },
                             supportingText = { Text(stringResource(R.string.setting_model_page_auto_compress_m_unit)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                             singleLine = true,
                         )
 
@@ -129,7 +154,7 @@ fun AutoCompressDialog(
                                 }
                             },
                             label = { Text(stringResource(R.string.setting_model_page_auto_compress_threshold)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                             singleLine = true,
                         )
                     }
@@ -159,7 +184,7 @@ fun AutoCompressDialog(
                             },
                             label = { Text(stringResource(R.string.setting_model_page_auto_compress_token_limit)) },
                             supportingText = { Text(stringResource(R.string.setting_model_page_auto_compress_m_unit)) },
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                             singleLine = true,
                         )
                     }

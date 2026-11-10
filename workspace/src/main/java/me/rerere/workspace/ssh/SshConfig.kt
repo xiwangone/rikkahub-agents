@@ -30,6 +30,21 @@ data class SshHostKey(
 }
 
 /**
+ * 一台 SSH 服务器的认证凭据（运行时明文，只在这条调用链里存在，不进数据库也不进日志）。
+ * 从 [SshConnectionConfig] / [SshJumpHostConfig] 的认证字段收拢而来，避免端点构造参数超限。
+ */
+data class SshCredentials(
+    val authType: SshAuthType,
+    val password: String? = null,
+    /** OpenSSH / PEM 格式的私钥文本 */
+    val privateKey: String? = null,
+    val passphrase: String? = null,
+) {
+    // 不让凭据出现在日志和异常信息里
+    override fun toString(): String = "SshCredentials(authType=$authType)"
+}
+
+/**
  * 建连用的配置。凭据是运行时的明文, 只在这条调用链里存在, 不进数据库也不进日志;
  * 持久化的是凭证库条目名, 见 app 侧的 SshWorkspaceSettings。
  */
@@ -48,13 +63,40 @@ data class SshConnectionConfig(
     val hostKey: SshHostKey? = null,
     /** 远端系统类型："AUTO" / "LINUX" / "WINDOWS"。只存字符串，workspace 模块按此分叉，不依赖 app 侧的枚举定义 */
     val platform: String = "AUTO",
+    /** 不为空时先连这台跳板机，再经它的 direct-tcpip 隧道连目标主机，相当于 OpenSSH 的 ProxyJump */
+    val jumpHost: SshJumpHostConfig? = null,
 ) {
     val address: String
         get() = "$username@$host:$port"
 
     // 不让凭据出现在日志和异常信息里
     override fun toString(): String =
-        "SshConnectionConfig(address=$address, authType=$authType, remoteDir=$remoteDir, hostKey=${hostKey?.fingerprint})"
+        "SshConnectionConfig(address=$address, authType=$authType, remoteDir=$remoteDir, " +
+            "hostKey=${hostKey?.fingerprint}, jumpHost=$jumpHost)"
+}
+
+/**
+ * 跳板机。它只负责转发 TCP，目标主机的认证和主机密钥校验照常进行；
+ * 跳板机自己的主机密钥单独确认，同样在认证之前校验。
+ * 凭据是运行时的明文，只在这条调用链里存在，不进数据库也不进日志。
+ */
+data class SshJumpHostConfig(
+    val host: String,
+    val port: Int = 22,
+    val username: String,
+    val authType: SshAuthType,
+    val password: String? = null,
+    /** OpenSSH / PEM 格式的私钥文本 */
+    val privateKey: String? = null,
+    val passphrase: String? = null,
+    /** 为 null 时连接会抛出 [SshUnknownHostKeyException] (jumpHost = true) */
+    val hostKey: SshHostKey? = null,
+) {
+    val address: String
+        get() = "$username@$host:$port"
+
+    override fun toString(): String =
+        "SshJumpHostConfig(address=$address, authType=$authType, hostKey=${hostKey?.fingerprint})"
 }
 
 /** 测试连接的结果 */
@@ -65,10 +107,15 @@ data class SshProbeResult(
     val remoteDirExists: Boolean,
 )
 
-/** 服务器的主机密钥尚未被信任, 需要用户确认 [hostKey] 的指纹 */
-class SshUnknownHostKeyException(val hostKey: SshHostKey) :
-    IOException("Unknown SSH host key ${hostKey.type} ${hostKey.fingerprint}")
+/** 服务器的主机密钥尚未被信任, 需要用户确认 [hostKey] 的指纹; [jumpHost] 表示是跳板机的密钥 */
+class SshUnknownHostKeyException(val hostKey: SshHostKey, val jumpHost: Boolean = false) :
+    IOException("Unknown SSH ${jumpHost.hostLabel} key ${hostKey.type} ${hostKey.fingerprint}")
 
-/** 服务器的主机密钥与已信任的不一致, 可能遭遇中间人攻击, 也可能是服务器重装过 */
-class SshHostKeyChangedException(val expected: SshHostKey, val actual: SshHostKey) :
-    IOException("SSH host key changed: expected ${expected.fingerprint}, got ${actual.type} ${actual.fingerprint}")
+/** 服务器的主机密钥与已信任的不一致, 可能遭遇中间人攻击, 也可能是服务器重装过; [jumpHost] 表示是跳板机的密钥 */
+class SshHostKeyChangedException(val expected: SshHostKey, val actual: SshHostKey, val jumpHost: Boolean = false) :
+    IOException(
+        "SSH ${jumpHost.hostLabel} key changed: expected ${expected.fingerprint}, got ${actual.type} ${actual.fingerprint}",
+    )
+
+private val Boolean.hostLabel: String
+    get() = if (this) "jump host" else "host"

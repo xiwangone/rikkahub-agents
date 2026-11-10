@@ -7,9 +7,14 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.input.rememberTextFieldState
+import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -28,12 +33,16 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
@@ -45,6 +54,7 @@ import me.rerere.hugeicons.stroke.Edit02
 import me.rerere.hugeicons.stroke.Key01
 import androidx.compose.ui.graphics.Shape
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.components.ui.TextArea
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.hugeicons.stroke.View
@@ -334,6 +344,20 @@ private fun vaultKeyHealthIssueRes(code: VaultKeyHealth.Code): Int =
         VaultKeyHealth.Code.KEY_MISMATCH -> R.string.vault_keyhealth_key_mismatch
     }
 
+/**
+ * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
+ */
+@Composable
+private fun rememberBringIntoViewModifier(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return Modifier
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) scope.launch { requester.bringIntoView() }
+        }
+}
+
 /** 新增/编辑对话框 */
 @Composable
 internal fun CredentialEditorDialog(
@@ -344,9 +368,15 @@ internal fun CredentialEditorDialog(
 ) {
     val repository: CredentialVaultRepository = koinInject()
     var name by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.name ?: (mode as? EditorMode.Create)?.initialName ?: "") }
-    var value by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "") }
+    // 值与公钥是多行文本（私钥几十行、公钥一行但很长），用 TextFieldState + TextArea：有界高度＋字段内滚动＋全屏编辑＋文件导入。
+    // 旧版单行 String 状态配无上限 OutlinedTextField，粘贴一段就把弹窗撑爆、键盘还遮住底部。
+    val valueState = rememberTextFieldState(
+        initialText = (mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "",
+    )
     var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
-    var publicKey by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.publicKey ?: "") }
+    val publicKeyState = rememberTextFieldState(
+        initialText = (mode as? EditorMode.Edit)?.entry?.publicKey ?: "",
+    )
     var group by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.grp ?: "Other") }
     var type by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.type ?: "") }
     // 非敏感元数据（明文，键白名单见 CredentialMeta）：编辑时回填，按类型显示对应字段
@@ -358,6 +388,13 @@ internal fun CredentialEditorDialog(
     var valueError by remember { mutableStateOf(false) }
     // 公钥不合格时记住拦截原因（存 code，文案在渲染处取，避免在点击回调里读资源）
     var publicKeyError by remember { mutableStateOf<VaultKeyHealth.Code?>(null) }
+    // 编辑后清除保存时立起的错误标记（TextFieldState 没有 onValueChange，用 snapshotFlow 跟踪文本变化）
+    LaunchedEffect(valueState) {
+        snapshotFlow { valueState.text }.drop(1).distinctUntilChanged().collect { valueError = false }
+    }
+    LaunchedEffect(publicKeyState) {
+        snapshotFlow { publicKeyState.text }.drop(1).distinctUntilChanged().collect { publicKeyError = null }
+    }
 
     val isEdit = mode is EditorMode.Edit
 
@@ -369,7 +406,8 @@ internal fun CredentialEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
             ) {
                 OutlinedTextField(
                     value = name,
@@ -394,13 +432,13 @@ internal fun CredentialEditorDialog(
                     },
                     modifier = Modifier.fillMaxWidth(),
                 )
-                OutlinedTextField(
-                    value = value,
-                    onValueChange = { value = it; valueError = false },
-                    label = { Text(if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label)) },
-                    singleLine = false,
+                TextArea(
+                    state = valueState,
+                    label = if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label),
+                    minLines = 5,
+                    maxLines = 10,
                     isError = valueError,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.then(rememberBringIntoViewModifier()),
                 )
                 // 随机初值：按类型给（未定类型两个都给；TOTP 种子 / SSH 私钥 / 云 SK 不给随机——随机值对它们没意义）。
                 // 生成后直接在输入框可见、可复制，只以密文入库；已有凭证也可重生（轮换）。
@@ -411,12 +449,12 @@ internal fun CredentialEditorDialog(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                         if (showTokenGen) {
                             OutlinedButton(
-                                onClick = { value = SecretGenerator.token(); valueError = false },
+                                onClick = { valueState.setTextAndPlaceCursorAtEnd(SecretGenerator.token()); valueError = false },
                             ) { Text(stringResource(R.string.vault_generate_token)) }
                         }
                         if (showPasswordGen) {
                             OutlinedButton(
-                                onClick = { value = SecretGenerator.password(); valueError = false },
+                                onClick = { valueState.setTextAndPlaceCursorAtEnd(SecretGenerator.password()); valueError = false },
                             ) { Text(stringResource(R.string.vault_generate_password)) }
                         }
                     }
@@ -431,13 +469,13 @@ internal fun CredentialEditorDialog(
                 // SSH 公钥：只对 ssh-key 类型显示（以前无条件渲染 → 每种类型都冒一个公钥框，容易填错）
                 if (type == CredentialType.SSH_KEY) {
                     val publicKeyErrorCode = publicKeyError
-                    OutlinedTextField(
-                        value = publicKey,
-                        onValueChange = { publicKey = it; publicKeyError = null },
-                        label = { Text(stringResource(R.string.vault_ssh_pubkey_label)) },
-                        singleLine = false,
+                    TextArea(
+                        state = publicKeyState,
+                        label = stringResource(R.string.vault_ssh_pubkey_label),
+                        minLines = 2,
+                        maxLines = 6,
                         isError = publicKeyErrorCode != null,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.then(rememberBringIntoViewModifier()),
                     )
                     if (publicKeyErrorCode != null) {
                         Text(
@@ -577,6 +615,8 @@ internal fun CredentialEditorDialog(
         confirmButton = {
             Button(
         onClick = {
+            val value = valueState.text.toString()
+            val publicKey = publicKeyState.text.toString()
             if (name.isBlank()) { nameError = true; return@Button }
             if (!isEdit && value.isBlank()) { valueError = true; return@Button }
             // 只含不可见字符的值等于空密钥：与 save/importEntries 同语义，前置拦截

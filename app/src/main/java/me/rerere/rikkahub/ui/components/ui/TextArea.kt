@@ -76,6 +76,7 @@ fun TextArea(
     maxLines: Int = 10,
     enabled: Boolean = true,
     readOnly: Boolean = false,
+    isError: Boolean = false,
     supportedFileTypes: Array<String> = arrayOf("text/*", "application/json"),
     enableFullscreen: Boolean = true,
     onImportError: ((String) -> Unit)? = null,
@@ -181,6 +182,7 @@ fun TextArea(
                     ),
                 enabled = enabled,
                 readOnly = readOnly,
+                isError = isError,
             )
         }
     }

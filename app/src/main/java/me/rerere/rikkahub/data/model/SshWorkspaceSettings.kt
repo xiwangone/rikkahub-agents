@@ -28,6 +28,10 @@ data class SshWorkspaceSettings(
     val privateKeyRef: String? = null,
     /** 私钥口令凭证条目 (`$$NAME`), 无口令时为空 */
     val passphraseRef: String? = null,
+    /** 跳板主机名（已保存 SSH 主机名），为空表示直连；旧数据没有这个字段 */
+    val jumpHost: String? = null,
+    /** 用户确认过的跳板机主机公钥，与目标主机的分开保存 */
+    val jumpHostKey: SshHostKey? = null,
 )
 
 /**
@@ -45,4 +49,8 @@ data class SshWorkspaceDraft(
     val passphraseRef: String = "",
     val remoteDir: String,
     val hostKey: SshHostKey? = null,
+    /** 跳板主机名（已保存 SSH 主机名），留空表示直连 */
+    val jumpHost: String = "",
+    /** 用户确认过的跳板机主机公钥 */
+    val jumpHostKey: SshHostKey? = null,
 )

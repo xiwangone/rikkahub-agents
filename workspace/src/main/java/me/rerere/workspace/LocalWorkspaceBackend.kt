@@ -134,6 +134,7 @@ class LocalWorkspaceBackend(
         cwd: String,
         timeoutMillis: Long,
         stdin: ByteArray?,
+        env: Map<String, String>,
     ): WorkspaceCommandResult {
         manager.ensureWorkspace(root)
         return manager.executeCommand(
@@ -142,6 +143,7 @@ class LocalWorkspaceBackend(
             cwd = cwd,
             timeoutMillis = timeoutMillis,
             stdin = stdin,
+            env = env,
             shellCompatibilityMode = shellCompatibilityMode,
         )
     }

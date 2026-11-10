@@ -13,6 +13,7 @@ import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.WorkspaceTreeEntry
 import me.rerere.workspace.WorkspaceTreeResult
+import me.rerere.workspace.buildEnvAssignments
 import me.rerere.workspace.normalizeWorkspacePath
 import me.rerere.workspace.shellQuote
 import me.rerere.workspace.statEntryCommand
@@ -244,36 +245,68 @@ class SshWorkspaceBackend(
         cwd: String,
         timeoutMillis: Long,
         stdin: ByteArray?,
+        env: Map<String, String>,
     ): WorkspaceCommandResult {
         val workingDir = normalizeAbsolute(layout.absolutePath(WorkspaceStorageArea.FILES, cwd))
         return pool.use(id, config, retry = false) { connection ->
             connection.ensureDir(workspaceDir)
             if (config.platform == "WINDOWS") {
-                // Windows 远端：跳过 POSIX 登录 shell 包装，直接拼 PowerShell 脚本；
+                // Windows 远端：跳过 POSIX shell 包装，直接拼 PowerShell 脚本；
                 // UTF-8 前缀与 pwsh -EncodedCommand 包装由 SshConnection.exec 统一处理。
+                // env 由 $env: 赋值传入（单引号内 ' 写成 ''，与 Set-Location 同口径）；
+                // 值会出现在远端命令文本里，见 POSIX 分支的注释。
+                val envAssignments = buildEnvAssignments(env).joinToString("") { assignment ->
+                    val key = assignment.substringBefore('=')
+                    val value = assignment.substringAfter('=', "")
+                    "\$env:$key='${value.replace("'", "''")}'; "
+                }
                 val script = "\$env:CI='true'; \$env:NO_COLOR='1'; \$env:PAGER='cat'; " +
+                    envAssignments +
                     "Set-Location -LiteralPath '${workingDir.replace("'", "''")}'; $command"
                 connection.exec(script, timeoutMillis, stdin)
             } else {
-                // 远程登录 shell 不一定是 POSIX shell, 统一交给探测到的 shell 执行;
-                // 命令通过位置参数传入, eval "$2" 对命令文本只求值一次
-                val remoteCommand = listOf(
-                    "env",
-                    "CI=true",
-                    "NO_COLOR=1",
-                    "PAGER=cat",
-                    connection.shell,
-                    "-l",
-                    "-c",
-                    "cd -- \"\$1\" && eval \"\$2\"",
-                    "rikkahub",
-                    workingDir,
-                    command,
+                // 非登录 shell：远程登录 shell 会 source /etc/profile、~/.profile，
+                // 里面的 echo/欢迎信息直接打到 stdout，机器解析的输出（搜索、
+                // stat 元数据）会被污染；本机 Rootfs 的 profile 由应用控制且静默，
+                // 所以本地仍用 -l，远程这里只用 -c。
+                // 命令通过位置参数传入, eval "$2" 对命令文本只求值一次。
+                // env 由外层 env 命令的参数传入（与本地 buildEnvAssignments 同口径，
+                // 键非法或含 NUL 的直接丢弃）；值会出现在远端进程的命令行里，
+                // 同台机器的其他用户 ps 可见——不要把高敏感凭据只当作普通 env 传。
+                val remoteCommand = (
+                    listOf(
+                        "env",
+                        "CI=true",
+                        "NO_COLOR=1",
+                        "PAGER=cat",
+                    ) + buildEnvAssignments(env) + listOf(
+                        connection.shell,
+                        "-c",
+                        "cd -- \"\$1\" && eval \"\$2\"",
+                        "rikkahub",
+                        workingDir,
+                        command,
+                    )
                 ).joinToString(" ") { it.shellQuote() }
                 connection.exec(remoteCommand, timeoutMillis, stdin)
             }
         }
     }
+
+    /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
+    fun openShell(columns: Int, rows: Int): SshShell =
+        pool.openShell(id, config) { connection, onClose ->
+            connection.ensureDir(workspaceDir)
+            // 外层交给探测到的 POSIX shell 解析, 再 exec 用户自己的登录 shell ($SHELL 缺失时退回探测结果)
+            val remoteCommand = listOf(
+                connection.shell,
+                "-c",
+                "cd -- \"\$1\"; exec \"\${SHELL:-\$0}\" -l",
+                connection.shell,
+                workspaceDir,
+            ).joinToString(" ") { it.shellQuote() }
+            connection.openShell(remoteCommand, columns, rows, onClose)
+        }
 
     /** 文件区操作前确保远程工作目录存在, 和本地工作区自动创建目录的行为一致 */
     private fun <T> withSftp(area: WorkspaceStorageArea, retry: Boolean, block: (ChannelSftp) -> T): T =

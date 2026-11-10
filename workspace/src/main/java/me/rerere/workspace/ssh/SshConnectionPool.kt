@@ -11,7 +11,7 @@ import kotlin.concurrent.withLock
 /**
  * 按工作区复用 SSH 连接; 配置变化或连接断开时重新连接。
  *
- * 空闲超过 [idleTimeoutMillis] 且没有进行中操作的连接会被关闭,
+ * 空闲超过 [idleTimeoutMillis] 且没有进行中操作 (包括打开着的 [SshShell]) 的连接会被关闭,
  * 下次使用时再重连, 避免连接和 keepalive 在 App 存活期间一直挂着。
  *
  * 清理任务持有连接池本身, 不再使用时必须调用 [close] 停止调度线程并关闭所有连接。
@@ -104,6 +104,35 @@ class SshConnectionPool(
             }
         } finally {
             release(pooled)
+        }
+    }
+
+    /**
+     * 在 [id] 对应的连接上打开交互式 shell, shell 关闭前一直占用这条连接。
+     * 只在 channel 没打开 (请求尚未发出) 时重连重试一次。
+     */
+    internal fun openShell(
+        id: String,
+        config: SshConnectionConfig,
+        open: (SshConnection, onClose: () -> Unit) -> SshShell,
+    ): SshShell {
+        val pooled = acquire(id, config)
+        return try {
+            open(pooled.connection, pooled::release)
+        } catch (e: Exception) {
+            pooled.release()
+            if (e.isInterruption()) throw e
+            val channelFailed = e is SshChannelOpenException
+            if (pooled.connection.isConnected && !channelFailed) throw e
+            evict(id, pooled)
+            if (!channelFailed) throw e
+            val retried = acquire(id, config)
+            try {
+                open(retried.connection, retried::release)
+            } catch (retryError: Exception) {
+                retried.release()
+                throw retryError
+            }
         }
     }
 

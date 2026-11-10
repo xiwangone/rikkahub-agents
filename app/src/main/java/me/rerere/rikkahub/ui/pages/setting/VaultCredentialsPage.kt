@@ -60,6 +60,18 @@ import me.rerere.rikkahub.ui.components.vault.vaultGroupLabel
 import me.rerere.rikkahub.ui.components.vault.vaultTypeLabel
 import org.koin.compose.koinInject
 
+/** 按排序键给凭证列表排序（"created" 最近添加、"name" 名称、默认 "updated" 最近更新）。 */
+private fun sortVaultEntries(list: List<VaultCredentialEntity>, sortOrder: String): List<VaultCredentialEntity> =
+    when (sortOrder) {
+        "created" -> list.sortedWith(
+            compareByDescending<VaultCredentialEntity> { it.createdAt }.thenBy { it.name.lowercase() },
+        )
+        "name" -> list.sortedBy { it.name.lowercase() }
+        else -> list.sortedWith(
+            compareByDescending<VaultCredentialEntity> { it.updatedAt }.thenBy { it.name.lowercase() },
+        )
+    }
+
 /**
  * 密钥列表（三级页）：分组展示 + 小眼睛显隐 + 新增/编辑/删除。
  */
@@ -175,6 +187,28 @@ fun VaultCredentialsPage() {
         } else {
             // 取 Context 须在 @Composable 作用域内：LazyColumn 的 content lambda 不是 @Composable。
             val ctx = androidx.compose.ui.platform.LocalContext.current
+            // 搜索过滤＋排序＋分组只在输入/条目变化时重算：原来在 LazyColumn content 里直接算，
+            // 每敲一字都全量过滤＋排序＋重分组并重组整个列表（卡顿主因）。content lambda 不是
+            // @Composable，不能在里面 remember，所以把派生列表提到这里。
+            val query = searchQuery.trim().lowercase()
+            val filtered = remember(entries, query, typeFilter) {
+                entries.filter {
+                    (query.isEmpty() ||
+                        it.name.lowercase().contains(query) ||
+                        it.description.lowercase().contains(query) ||
+                        it.grp.lowercase().contains(query)) &&
+                        (typeFilter.isEmpty() || it.type == typeFilter)
+                }
+            }
+            val grouped = remember(filtered) { filtered.groupBy { it.grp } }
+            val groupLabels = remember(grouped) { grouped.keys.associateWith { vaultGroupLabel(ctx, it) } }
+            val orderedGroups = remember(grouped, groupLabels) {
+                grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }
+            }
+            val sortedGroups = remember(grouped, sortOrder) {
+                grouped.mapValues { (_, list) -> sortVaultEntries(list, sortOrder) }
+            }
+            val flatList = remember(filtered, sortOrder) { sortVaultEntries(filtered, sortOrder) }
             LazyColumn(
                 modifier = Modifier.fillMaxSize().padding(padding),
                 contentPadding = androidx.compose.foundation.layout.PaddingValues(16.dp),
@@ -261,31 +295,8 @@ fun VaultCredentialsPage() {
                 }
 
                 // 按组展示：组间按组名字母序（好找） + 组内排序 + 搜索过滤
-                val query = searchQuery.trim().lowercase()
-                val filtered = entries.filter {
-                    (query.isEmpty() ||
-                        it.name.lowercase().contains(query) ||
-                        it.description.lowercase().contains(query) ||
-                        it.grp.lowercase().contains(query)) &&
-                        (typeFilter.isEmpty() || it.type == typeFilter)
-                }
-                // 排序函数：平铺时全局排，按分组时组内排
-                fun sortedByOrder(list: List<VaultCredentialEntity>): List<VaultCredentialEntity> =
-                    when (sortOrder) {
-                        "created" -> list.sortedWith(
-                            compareByDescending<VaultCredentialEntity> { it.createdAt }.thenBy { it.name.lowercase() },
-                        )
-                        "name" -> list.sortedBy { it.name.lowercase() }
-                        else -> list.sortedWith(
-                            compareByDescending<VaultCredentialEntity> { it.updatedAt }.thenBy { it.name.lowercase() },
-                        )
-                    }
+                // 过滤/排序/分组已在 LazyColumn 外用 remember 算好（见上），这里只读结果。
                 if (groupedView) {
-                    // 按分组分块：组间按本地化组名字母序（“好找”优先），组内按 sortOrder
-                    val grouped = filtered.groupBy { it.grp }
-                    val groupLabels = grouped.keys.associateWith { vaultGroupLabel(ctx, it) }
-                    val orderedGroups =
-                        grouped.keys.sortedBy { g -> groupLabels[g]?.lowercase() ?: g.lowercase() }
                     orderedGroups.forEach { group ->
                         val collapsed = group in collapsedGroups
                         item(key = "group_$group") {
@@ -315,7 +326,7 @@ fun VaultCredentialsPage() {
                             }
                         }
                         if (collapsed) return@forEach
-                        val groupList = sortedByOrder(grouped[group]!!)
+                        val groupList = sortedGroups[group]!!
                         groupList.forEachIndexed { idx, entry ->
                             item(key = entry.id) {
                                 CredentialRow(
@@ -331,7 +342,6 @@ fun VaultCredentialsPage() {
                     }
                 } else {
                     // 平铺：全库按 sortOrder 连排（默认最近更新在前），行内带组名小标
-                    val flatList = sortedByOrder(filtered)
                     flatList.forEachIndexed { idx, entry ->
                         item(key = entry.id) {
                             CredentialRow(

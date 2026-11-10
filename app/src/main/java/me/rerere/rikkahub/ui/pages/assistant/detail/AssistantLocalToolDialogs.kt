@@ -6,6 +6,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
@@ -122,7 +123,12 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissExtraColdDialog() },
             title = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.assistant_page_extra_cold_dialog_desc))
                     OutlinedTextField(
                         value = extraColdDraft,
@@ -131,7 +137,9 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp),
+                                .heightIn(min = 120.dp)
+                                .verticalScroll(rememberScrollState()),
+                        maxLines = 4,
                     )
                 }
             },
@@ -164,7 +172,12 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissCompactOutputDialog() },
             title = { Text(stringResource(R.string.assistant_page_compact_output_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.assistant_page_compact_output_dialog_desc))
                     OutlinedTextField(
                         value = compactOutputDraft,
@@ -173,7 +186,9 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp),
+                                .heightIn(min = 120.dp)
+                                .verticalScroll(rememberScrollState()),
+                        maxLines = 4,
                     )
                 }
             },
@@ -206,7 +221,12 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissDigestDialog() },
             title = { Text(stringResource(R.string.assistant_page_digest_output_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.assistant_page_digest_output_dialog_desc))
                     OutlinedTextField(
                         value = digestToolsDraft,
@@ -215,7 +235,9 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 100.dp),
+                                .heightIn(min = 100.dp)
+                                .verticalScroll(rememberScrollState()),
+                        maxLines = 4,
                     )
                     OutlinedTextField(
                         value = digestKeywordsDraft,
@@ -225,7 +247,9 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 80.dp),
+                                .heightIn(min = 80.dp)
+                                .verticalScroll(rememberScrollState()),
+                        maxLines = 4,
                     )
                     // 一键填入内置默认集（error / FAILED / Exception / ✗ / 失败 / 异常）—— 可改可存
                     TextButton(
@@ -278,7 +302,12 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissOnlyToolsDialog() },
             title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Column(
+                    modifier = Modifier
+                        .verticalScroll(rememberScrollState())
+                        .imePadding(),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
                     OutlinedTextField(
                         value = onlyToolsDraft,
@@ -287,7 +316,9 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp),
+                                .heightIn(min = 120.dp)
+                                .verticalScroll(rememberScrollState()),
+                        maxLines = 4,
                     )
                 }
             },

@@ -43,6 +43,7 @@ import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.collectWorkspaceStats
 import me.rerere.workspace.ssh.SshConnectionPool
 import me.rerere.workspace.ssh.SshProbeResult
+import me.rerere.workspace.ssh.SshShell
 import me.rerere.workspace.ssh.SshWorkspaceBackend
 import java.io.ByteArrayOutputStream
 import java.io.InputStream
@@ -460,9 +461,9 @@ class WorkspaceRepository(
             ?.id
     }
 
-    /** `id(name)` 清单，供「未知工作区」报错时给模型/用户列候选。 */
+    /** `name (id)` 清单，供「未知工作区」报错时给模型/用户列候选。 */
     suspend fun describeWorkspaces(): String =
-        getAll().joinToString(", ") { "${it.id}(${it.name})" }
+        getAll().joinToString(", ") { "${it.name} (${it.id})" }
 
     suspend fun create(name: String): WorkspaceEntity {
         val id = Uuid.random().toString()
@@ -887,17 +888,16 @@ class WorkspaceRepository(
             AppLog.i("WorkspaceSdcard", "shell: cwd=$cwd cmd=$command")
         }
         val workspace = dao.getById(executeId) ?: error("Workspace not found: $executeId")
-        // env 只有本地 Rootfs 支持: 远程主机上没有应用侧的挂载可注入
-        require(env.isEmpty() || workspace.capabilities().rootfs) {
-            "Environment variables are only supported for local workspaces"
-        }
+        // env 注入两条路：本地经 Rootfs 的 env -i 参数传入，远程经 exec 通道的
+        // 外层 env 命令参数传入（见 SshWorkspaceBackend.executeCommand）；
+        // 远程的值会出现在远端进程命令行里，调用方不要把高敏感凭据只当作普通 env 传。
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
         // ⚠ backendOf 是 suspend（可能要解析 SSH 凭证），必须在 runInterruptible 之外先取好；
         //   后端方法本身都是阻塞调用，所以 lambda 里只放非 suspend 的调用。
         val sshBackend = if (workspace.isSsh()) backendOf(workspace) else null
         return runInterruptible(Dispatchers.IO) {
             if (sshBackend != null) {
-                sshBackend.executeCommand(command, cwd, timeoutMillis, stdin)
+                sshBackend.executeCommand(command, cwd, timeoutMillis, stdin, env)
             } else {
                 manager.executeCommand(
                     workspace.root, command, cwd, timeoutMillis, stdin,
@@ -906,6 +906,16 @@ class WorkspaceRepository(
                 )
             }
         }
+    }
+
+    /**
+     * 打开 SSH 工作区的交互式 shell, 阻塞到连接和 shell 都建立好, 不能在主线程调用。
+     * suspend：建连要解析凭证库（见 backendOf）。
+     */
+    suspend fun openSshShell(workspace: WorkspaceEntity, columns: Int, rows: Int): SshShell {
+        val backend = backendOf(workspace) as? SshWorkspaceBackend
+            ?: error("Not an SSH workspace: ${workspace.id}")
+        return backend.openShell(columns, rows)
     }
 
     suspend fun readFolderTree(
@@ -941,7 +951,7 @@ class WorkspaceRepository(
         env: Map<String, String> = emptyMap(),
     ): BackgroundStatus {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
-        requireLocalRootfs(workspace, "background tasks")
+        requireBackgroundShell(workspace, "background tasks")
         return withContext(NonCancellable + Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
             manager.startBackground(workspace.root, command, cwd, env)
@@ -950,19 +960,19 @@ class WorkspaceRepository(
 
     suspend fun backgroundStatus(id: String, taskId: String): BackgroundStatus? = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext null
-        if (!workspace.capabilities().rootfs) return@withContext null
+        requireBackgroundShell(workspace, "background tasks")
         manager.backgroundStatus(workspace.root, taskId)
     }
 
     suspend fun listBackground(id: String): List<BackgroundStatus> = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext emptyList()
-        if (!workspace.capabilities().rootfs) return@withContext emptyList()
+        requireBackgroundShell(workspace, "background tasks")
         manager.listBackground(workspace.root)
     }
 
     suspend fun killBackground(id: String, taskId: String): Boolean = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext false
-        if (!workspace.capabilities().rootfs) return@withContext false
+        requireBackgroundShell(workspace, "background tasks")
         manager.killBackground(workspace.root, taskId)
     }
 

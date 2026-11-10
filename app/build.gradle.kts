@@ -248,7 +248,11 @@ dependencies {
     implementation(libs.androidx.browser)
     implementation(libs.androidx.webkit)
     implementation(libs.androidx.profileinstaller)
-    implementation(libs.termux.terminal.view)
+    implementation(libs.termux.terminal.view) {
+        // terminal-emulator 由仓库内的 :terminal 模块提供, 不再引入该 aar
+        exclude(group = "com.termux.termux-app", module = "terminal-emulator")
+    }
+    implementation(project(":terminal"))
     implementation(libs.guava.listenablefuture)
     implementation(libs.shizuku.api)
     implementation(libs.shizuku.provider)

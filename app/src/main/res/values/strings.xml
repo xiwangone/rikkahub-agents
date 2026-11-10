@@ -2385,6 +2385,10 @@
   <string name="workspace_ssh_port_invalid">Port must be 1–65535</string>
   <string name="workspace_ssh_credential_required">A credential is required</string>
   <string name="workspace_ssh_host_key_copy">Copy fingerprint</string>
+  <string name="workspace_ssh_jump_host">Jump host</string>
+  <string name="workspace_ssh_jump_host_desc">Name of a saved SSH host to connect through first (ProxyJump). Leave empty for a direct connection.</string>
+  <string name="workspace_ssh_jump_host_key_trusted">Trusted jump host key: %1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">Jump host key not confirmed yet - you verify its fingerprint on first connect</string>
   <string name="workspace_ssh_probe_reason_auth_failed">Authentication failed</string>
   <string name="workspace_ssh_probe_reason_refused">Connection refused</string>
   <string name="workspace_ssh_probe_reason_timeout">Connection timed out</string>

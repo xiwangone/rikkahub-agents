@@ -4333,4 +4333,8 @@
   <string name="workspace_tool_preset_file_corrupted">Shellプリセットファイル %1$s が破損していて読み込めません。新しいプリセットを追加するのではなく、そのJSON内容を修正してください。</string>
   <string name="workspace_tool_preset_not_found">Shellプリセット「%1$s」が %2$s に見つかりませんでした。</string>
   <string name="workspace_tool_timeout_invalid">無効なタイムアウト「%1$s」：タイムアウトは1から%2$s秒までの整数である必要があります。</string>
+  <string name="workspace_ssh_jump_host">ジャンプホスト</string>
+  <string name="workspace_ssh_jump_host_desc">最初に経由する保存済み SSH ホストの名前（ProxyJump）。空欄の場合は直接接続します。</string>
+  <string name="workspace_ssh_jump_host_key_trusted">信頼済みのジャンプホスト鍵：%1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">ジャンプホストの鍵は未確認です。初回接続時にフィンガープリントを確認してください</string>
 </resources>

@@ -12,10 +12,26 @@ data class Workspace(
 
 enum class WorkspaceType(val capabilities: WorkspaceCapabilities) {
     /** 本机 PRoot Rootfs */
-    LOCAL(WorkspaceCapabilities(rootfs = true, terminal = true, localFiles = true, fileWriteTools = true)),
+    LOCAL(
+        WorkspaceCapabilities(
+            rootfs = true,
+            terminal = true,
+            localFiles = true,
+            fileWriteTools = true,
+            backgroundShell = true,
+        )
+    ),
 
     /** 通过 SSH 连接的远程机器 */
-    SSH(WorkspaceCapabilities(rootfs = false, terminal = false, localFiles = false, fileWriteTools = false)),
+    SSH(
+        WorkspaceCapabilities(
+            rootfs = false,
+            terminal = true,
+            localFiles = false,
+            fileWriteTools = true,
+            backgroundShell = false,
+        )
+    ),
 }
 
 /** 一种工作区能用哪些功能; 调用方按能力判断, 不直接比较类型 */
@@ -33,11 +49,13 @@ data class WorkspaceCapabilities(
     /** 文件在本机; 否则每次访问都要走网络, 也没法交给系统文件选择器 */
     val localFiles: Boolean,
     /**
-     * AI 可以用写文件、编辑文件工具直接写入; 否则只能经 shell 修改文件。
-     * SFTP 覆盖写入时服务器打开文件就会清空原内容, 写到一半被取消或断线会留下残缺的文件;
-     * shell 命令连同要写的内容一起发到远程, 在那边本地写入, 写入过程不经过网络。
+     * AI 可以用写文件、编辑文件工具直接写入。远程同样支持：写路径走 SFTP 临时文件
+     * 再改名到位（见 SshWorkspaceBackend.writeSftpBytes），中断不会留下半截文件，
+     * 因此不再按“覆盖写入会清空原内容”关掉远程写工具。
      */
     val fileWriteTools: Boolean,
+    /** shell 命令可以在后台运行, 由 AI 之后读取输出或终止；远程暂不支持 */
+    val backgroundShell: Boolean,
 )
 
 enum class WorkspaceShellStatus {

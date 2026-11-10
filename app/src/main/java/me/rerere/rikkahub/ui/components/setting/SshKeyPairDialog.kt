@@ -5,8 +5,11 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
@@ -22,6 +25,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.unit.dp
@@ -33,6 +37,20 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultKeyGenerator
 import me.rerere.rikkahub.data.vault.VaultKeyType
 import org.koin.compose.koinInject
+
+/**
+ * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
+ */
+@Composable
+private fun rememberBringIntoViewModifier(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return Modifier
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) scope.launch { requester.bringIntoView() }
+        }
+}
 
 /**
  * 生成 SSH 密钥对并存入凭证库的通用对话框。
@@ -81,7 +99,8 @@ fun SshKeyPairDialog(
                 modifier = Modifier
                     .fillMaxWidth()
                     .heightIn(max = 420.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 if (savedName == null) {
@@ -91,21 +110,21 @@ fun SshKeyPairDialog(
                         onValueChange = { name = it },
                         label = { Text(stringResource(R.string.ssh_key_name_label)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                     )
                     OutlinedTextField(
                         value = group,
                         onValueChange = { group = it },
                         label = { Text(stringResource(R.string.ssh_key_group_label)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                     )
                     OutlinedTextField(
                         value = description,
                         onValueChange = { description = it },
                         label = { Text(stringResource(R.string.ssh_key_desc_label)) },
                         singleLine = true,
-                        modifier = Modifier.fillMaxWidth(),
+                        modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                     )
                     // 算法选择（三选一，FlowRow 换行防止按钮溢出屏幕）
                     Text(stringResource(R.string.ssh_key_type_label), style = MaterialTheme.typography.labelMedium)
@@ -145,7 +164,7 @@ fun SshKeyPairDialog(
                             onValueChange = { uid = it },
                             label = { Text(stringResource(identityLabel)) },
                             singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                         )
                     }
                     if (error != null) {

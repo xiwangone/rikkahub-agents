@@ -6,6 +6,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -106,7 +107,8 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                     .fillMaxSize()
                     .padding(innerPadding)
                     .padding(16.dp)
-                    .verticalScroll(rememberScrollState()),
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
             // Section 1: Status

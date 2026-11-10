@@ -2326,6 +2326,10 @@
   <string name="workspace_ssh_port_invalid">端口须为 1–65535</string>
   <string name="workspace_ssh_credential_required">请填写凭证</string>
   <string name="workspace_ssh_host_key_copy">复制指纹</string>
+  <string name="workspace_ssh_jump_host">跳板机</string>
+  <string name="workspace_ssh_jump_host_desc">先经哪台已保存 SSH 主机中转（ProxyJump），留空为直连</string>
+  <string name="workspace_ssh_jump_host_key_trusted">已信任的跳板机密钥：%1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">跳板机密钥尚未确认，首次连接时核对指纹</string>
   <string name="workspace_ssh_probe_reason_auth_failed">认证失败</string>
   <string name="workspace_ssh_probe_reason_refused">连接被拒绝</string>
   <string name="workspace_ssh_probe_reason_timeout">连接超时</string>

@@ -12,7 +12,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
@@ -22,6 +21,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
@@ -46,6 +46,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -53,6 +54,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -60,6 +62,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -81,6 +85,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.TextArea
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -562,6 +567,17 @@ private fun RegexInjectionEditDialog(
 ) {
     var newKeyword by remember { mutableStateOf("") }
 
+    // 条目内容用 TextArea（有界 + 字段内滚动 + 全屏编辑）：状态由父级持有，
+    // 本地 TextFieldState 只做编辑缓冲，变化经 snapshotFlow 回写父级。
+    val contentState = rememberTextFieldState(initialText = entry.content)
+    val latestEntry by rememberUpdatedState(entry)
+    LaunchedEffect(entry.id) {
+        snapshotFlow { contentState.text.toString() }
+            .drop(1)
+            .distinctUntilChanged()
+            .collect { latest -> onEdit(latestEntry.copy(content = latest)) }
+    }
+
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.prompt_page_edit_entry)) },
@@ -724,15 +740,12 @@ private fun RegexInjectionEditDialog(
                     }
                 }
 
-                OutlinedTextField(
-                    value = entry.content,
-                    onValueChange = { onEdit(entry.copy(content = it)) },
-                    label = { Text(stringResource(R.string.prompt_page_injection_content)) },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(150.dp),
+                TextArea(
+                    state = contentState,
+                    label = stringResource(R.string.prompt_page_injection_content),
                     minLines = 4,
+                    maxLines = 10,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         },

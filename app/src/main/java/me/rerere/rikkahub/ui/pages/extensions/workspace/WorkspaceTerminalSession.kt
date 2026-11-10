@@ -12,6 +12,7 @@ import androidx.core.net.toUri
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
+import com.termux.terminal.TerminalTransport
 import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
 import me.rerere.rikkahub.data.files.FileFolders
@@ -93,6 +94,15 @@ internal fun createWorkspaceTerminalSession(
     ).apply {
         mSessionName = root
     }
+}
+
+/** transport 版：远程 SSH 终端由 SshTerminalTransport 提供，本机仍走上面的 proot 进程版 */
+internal fun createWorkspaceTerminalSession(
+    transport: TerminalTransport,
+    root: String,
+    client: TerminalSessionClient,
+): TerminalSession = TerminalSession(transport, 2_000, client).apply {
+    mSessionName = root
 }
 
 internal fun prepareWorkspaceTerminalSession(

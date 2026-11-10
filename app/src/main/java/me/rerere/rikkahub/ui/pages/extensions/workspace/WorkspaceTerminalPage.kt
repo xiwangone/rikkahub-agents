@@ -84,9 +84,8 @@ fun WorkspaceTerminalPage(id: String) {
     )
     var pendingCloseTabId by remember(root) { mutableStateOf<Long?>(null) }
 
-    val shellCompatibilityMode = state.workspace?.shellCompatibilityMode ?: false
-    LaunchedEffect(root, shellCompatibilityMode) {
-        root?.let { sessionManager.ensureSession(it, shellCompatibilityMode) }
+    LaunchedEffect(state.workspace) {
+        state.workspace?.let { sessionManager.ensureSession(it) }
     }
 
     RikkahubTheme(colorMode = ColorMode.DARK) {
@@ -95,7 +94,7 @@ fun WorkspaceTerminalPage(id: String) {
                 root = root,
                 state = terminalState,
                 contentPadding = innerPadding,
-                onCreateTab = { root?.let { sessionManager.createTab(it, shellCompatibilityMode) } },
+                onCreateTab = { state.workspace?.let { sessionManager.createTab(it) } },
                 onSelectTab = { tabId ->
                     root?.let { sessionManager.selectTab(it, tabId) }
                 },

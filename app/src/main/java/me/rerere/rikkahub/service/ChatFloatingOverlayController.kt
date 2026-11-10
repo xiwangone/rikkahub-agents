@@ -44,6 +44,9 @@ import me.rerere.rikkahub.ui.floating.FloatingWindowState
 import me.rerere.rikkahub.ui.floating.resolveFloatingColorScheme
 import kotlin.uuid.Uuid
 
+/** 浮窗气泡边长：72dp，图标资产本身已是圆形，图案占满圆 */
+private const val BUBBLE_SIZE_DP = 72
+
 private data class FloatingChatSnapshot(
     val conversation: Conversation,
     val generating: Boolean,
@@ -288,8 +291,8 @@ internal class ChatFloatingOverlayController(
         val initial =
             WindowManager
                 .LayoutParams(
-                    dp(56),
-                    dp(56),
+                    dp(BUBBLE_SIZE_DP),
+                    dp(BUBBLE_SIZE_DP),
                     if (Build.VERSION.SDK_INT >=
                         Build.VERSION_CODES.O
                     ) {
@@ -339,8 +342,9 @@ internal class ChatFloatingOverlayController(
 
     private fun applyBubbleTheme(icon: ImageView) {
         val colorScheme = resolveFloatingColorScheme(overlayContext, uiSettings.value)
-        val pad = dp(6)
-        icon.setPadding(pad, pad, pad, pad)
+        // 图标本身已是圆形资产（R.drawable.ic_floating_bubble，图案占满圆），不再留内边距；
+        // 描边只做气泡与壁纸之间的分界线，不再承担“把方图标框成圆”的作用。
+        icon.setPadding(0, 0, 0, 0)
         icon.background =
             GradientDrawable().apply {
                 shape = GradientDrawable.OVAL
@@ -355,7 +359,7 @@ internal class ChatFloatingOverlayController(
         val frame = FrameLayout(overlayContext)
         val icon =
             ImageView(overlayContext).apply {
-                setImageResource(R.mipmap.ic_launcher)
+                setImageResource(R.drawable.ic_floating_bubble)
                 contentDescription = overlayContext.getString(R.string.floating_chat_open)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 applyBubbleTheme(this)
@@ -434,7 +438,7 @@ internal class ChatFloatingOverlayController(
                 }
             }
         panel = compose
-        frame.addView(icon, FrameLayout.LayoutParams(dp(56), dp(56), Gravity.END or Gravity.BOTTOM))
+        frame.addView(icon, FrameLayout.LayoutParams(dp(BUBBLE_SIZE_DP), dp(BUBBLE_SIZE_DP), Gravity.END or Gravity.BOTTOM))
         frame.addView(
             compose,
             FrameLayout.LayoutParams(
@@ -558,8 +562,8 @@ internal class ChatFloatingOverlayController(
             lp.flags = WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
             lp.softInputMode = WindowManager.LayoutParams.SOFT_INPUT_ADJUST_RESIZE
         } else {
-            lp.width = dp(56)
-            lp.height = dp(56)
+            lp.width = dp(BUBBLE_SIZE_DP)
+            lp.height = dp(BUBBLE_SIZE_DP)
             lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
         }
         val metrics = overlayContext.resources.displayMetrics

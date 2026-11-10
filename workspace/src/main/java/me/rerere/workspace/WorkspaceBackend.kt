@@ -70,12 +70,13 @@ interface WorkspaceBackend {
     /** 按环境内绝对路径解析宿主机上的文件, 不检查是否存在; 没有本地落点的环境返回 null */
     fun localAbsoluteFile(path: String): File?
 
-    /** 执行命令, [cwd] 为相对文件区的路径 */
+    /** 执行命令, [cwd] 为相对文件区的路径；[env] 由调用方注入, 各后端按自己的方式传入子进程 */
     fun executeCommand(
         command: String,
         cwd: String,
         timeoutMillis: Long,
         stdin: ByteArray?,
+        env: Map<String, String> = emptyMap(),
     ): WorkspaceCommandResult
 }
 

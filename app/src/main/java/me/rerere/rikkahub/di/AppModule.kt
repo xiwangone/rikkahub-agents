@@ -326,7 +326,7 @@ val appModule =
         }
 
         single {
-            WorkspaceTerminalSessionManager(get(), get())
+            WorkspaceTerminalSessionManager(get(), get(), get())
         }
 
         single {

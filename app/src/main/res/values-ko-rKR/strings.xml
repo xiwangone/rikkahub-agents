@@ -4333,4 +4333,8 @@
   <string name="workspace_tool_preset_file_corrupted">Shell 프리셋 파일 %1$s이(가) 손상되어 읽을 수 없습니다. 새 프리셋을 추가하는 대신 해당 파일의 JSON 내용을 수정하세요.</string>
   <string name="workspace_tool_preset_not_found">Shell 프리셋 "%1$s"을(를) %2$s에서 찾을 수 없습니다.</string>
   <string name="workspace_tool_timeout_invalid">잘못된 제한 시간 "%1$s": 제한 시간은 1~%2$s초 사이의 정수여야 합니다.</string>
+  <string name="workspace_ssh_jump_host">점프 호스트</string>
+  <string name="workspace_ssh_jump_host_desc">먼저 경유할 저장된 SSH 호스트 이름(ProxyJump). 비워 두면 직접 연결합니다.</string>
+  <string name="workspace_ssh_jump_host_key_trusted">신뢰하는 점프 호스트 키: %1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">점프 호스트 키가 아직 확인되지 않았습니다. 첫 연결 시 지문을 확인하세요</string>
 </resources>

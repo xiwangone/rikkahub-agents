@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -21,6 +21,7 @@ import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
@@ -48,6 +49,7 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -55,6 +57,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.graphicsLayer
@@ -64,6 +67,8 @@ import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.flow.drop
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.MessageRole
 import me.rerere.hugeicons.HugeIcons
@@ -89,6 +94,7 @@ import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Select
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.TextArea
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -437,6 +443,17 @@ private fun ModeInjectionEditSheet(
         )
     val scope = rememberCoroutineScope()
 
+    // 注入内容用 TextArea（有界 + 字段内滚动 + 全屏编辑）：状态由父级持有，
+    // 本地 TextFieldState 只做编辑缓冲，变化经 snapshotFlow 回写父级。
+    val contentState = rememberTextFieldState(initialText = injection.content)
+    val latestInjection by rememberUpdatedState(injection)
+    LaunchedEffect(injection.id) {
+        snapshotFlow { contentState.text.toString() }
+            .drop(1)
+            .distinctUntilChanged()
+            .collect { latest -> onEdit(latestInjection.copy(content = latest)) }
+    }
+
     ModalBottomSheet(
         onDismissRequest = onDismiss,
         sheetState = sheetState,
@@ -457,7 +474,8 @@ private fun ModeInjectionEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.9f)
-                    .padding(16.dp),
+                    .padding(16.dp)
+                    .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
@@ -534,15 +552,12 @@ private fun ModeInjectionEditSheet(
                     }
                 }
 
-                OutlinedTextField(
-                    value = injection.content,
-                    onValueChange = { onEdit(injection.copy(content = it)) },
-                    label = { Text(stringResource(R.string.prompt_page_injection_content)) },
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .height(200.dp),
+                TextArea(
+                    state = contentState,
+                    label = stringResource(R.string.prompt_page_injection_content),
                     minLines = 5,
+                    maxLines = 10,
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
 

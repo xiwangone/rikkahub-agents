@@ -4332,4 +4332,8 @@
   <string name="workspace_tool_preset_file_corrupted">Shell 預設檔案 %1$s 已損毀，無法讀取。請先修復該檔案的 JSON 內容，而非新增預設。</string>
   <string name="workspace_tool_preset_not_found">找不到 Shell 預設「%1$s」，預設檔案：%2$s。</string>
   <string name="workspace_tool_timeout_invalid">逾時值「%1$s」無效：逾時必須是 1 到 %2$s 秒之間的整數。</string>
+  <string name="workspace_ssh_jump_host">跳板機</string>
+  <string name="workspace_ssh_jump_host_desc">先經哪台已保存 SSH 主機中轉（ProxyJump），留空為直連</string>
+  <string name="workspace_ssh_jump_host_key_trusted">已信任的跳板機金鑰：%1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">跳板機金鑰尚未確認，首次連線時核對指紋</string>
 </resources>

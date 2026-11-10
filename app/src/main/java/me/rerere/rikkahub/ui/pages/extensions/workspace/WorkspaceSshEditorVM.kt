@@ -28,11 +28,12 @@ class WorkspaceSshEditorVM(
     private val id: String?,
     private val repository: WorkspaceRepository,
 ) : ViewModel() {
-    /** 主机密钥待确认：[expected] 为 null 表示首次连接，否则是与已信任密钥不一致 */
+    /** 主机密钥待确认：[expected] 为 null 表示首次连接，否则是与已信任密钥不一致；[jumpHost] 表示是跳板机的密钥 */
     data class PendingHostKey(
         val actual: SshHostKey,
         val expected: SshHostKey?,
         val saveAfter: Boolean,
+        val jumpHost: Boolean = false,
     )
 
     /** Probe failure, with the cause classified so the page can show a readable reason. */
@@ -90,6 +91,8 @@ class WorkspaceSshEditorVM(
                 passphraseRef = settings?.passphraseRef ?: "",
                 remoteDir = settings?.remoteDir ?: "",
                 hostKey = settings?.hostKey,
+                jumpHost = settings?.jumpHost ?: "",
+                jumpHostKey = settings?.jumpHostKey,
             )
             _state.update {
                 it.copy(
@@ -109,6 +112,8 @@ class WorkspaceSshEditorVM(
     fun setUsername(value: String) = updateDropProbe { it.copy(username = value) }
 
     fun setHost(value: String) = updateDropProbe { it.copy(host = value, hostKey = null) }
+
+    fun setJumpHost(value: String) = updateDropProbe { it.copy(jumpHost = value, jumpHostKey = null) }
 
     fun setRemoteDir(value: String) = updateDropProbe { it.copy(remoteDir = value) }
 
@@ -166,7 +171,14 @@ class WorkspaceSshEditorVM(
     fun confirmHostKey() {
         val pending = _state.value.pendingHostKey ?: return
         _state.update {
-            it.copy(pendingHostKey = null, draft = it.draft.copy(hostKey = pending.actual))
+            it.copy(
+                pendingHostKey = null,
+                draft = if (pending.jumpHost) {
+                    it.draft.copy(jumpHostKey = pending.actual)
+                } else {
+                    it.draft.copy(hostKey = pending.actual)
+                },
+            )
         }
         runProbe(saveAfter = pending.saveAfter)
     }
@@ -225,11 +237,11 @@ class WorkspaceSshEditorVM(
                 throw e
             } catch (e: SshUnknownHostKeyException) {
                 _state.update {
-                    it.copy(busy = false, pendingHostKey = PendingHostKey(e.hostKey, null, saveAfter))
+                    it.copy(busy = false, pendingHostKey = PendingHostKey(e.hostKey, null, saveAfter, e.jumpHost))
                 }
             } catch (e: SshHostKeyChangedException) {
                 _state.update {
-                    it.copy(busy = false, pendingHostKey = PendingHostKey(e.actual, e.expected, saveAfter))
+                    it.copy(busy = false, pendingHostKey = PendingHostKey(e.actual, e.expected, saveAfter, e.jumpHost))
                 }
             } catch (e: Exception) {
                 _state.update { it.copy(busy = false, probeError = probeFailureOf(e)) }

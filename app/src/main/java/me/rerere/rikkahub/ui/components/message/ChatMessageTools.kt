@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
@@ -583,15 +584,17 @@ private fun ToolDenyReasonDialog(
             Text(stringResource(R.string.chat_message_tool_deny_dialog_title))
         },
         text = {
-            OutlinedTextField(
-                value = reason,
-                onValueChange = { reason = it },
-                label = { Text(stringResource(R.string.chat_message_tool_deny_dialog_hint)) },
-                modifier = Modifier.fillMaxWidth(),
-                singleLine = false,
-                minLines = 2,
-                maxLines = 4,
-            )
+            Column(modifier = Modifier.fillMaxWidth().imePadding()) {
+                OutlinedTextField(
+                    value = reason,
+                    onValueChange = { reason = it },
+                    label = { Text(stringResource(R.string.chat_message_tool_deny_dialog_hint)) },
+                    modifier = Modifier.fillMaxWidth(),
+                    singleLine = false,
+                    minLines = 2,
+                    maxLines = 4,
+                )
+            }
         },
         confirmButton = {
             TextButton(onClick = { onConfirm(reason) }) {

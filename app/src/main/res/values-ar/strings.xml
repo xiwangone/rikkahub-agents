@@ -4340,4 +4340,8 @@
   <string name="workspace_tool_preset_file_corrupted">ملف الإعدادات المسبقة لـ Shell %1$s تالف ولا يمكن قراءته. أصلح محتوى JSON الخاص به بدلًا من إضافة إعداد مسبق جديد.</string>
   <string name="workspace_tool_preset_not_found">تعذّر العثور على الإعداد المسبق لـ Shell «%1$s» في %2$s.</string>
   <string name="workspace_tool_timeout_invalid">قيمة المهلة «%1$s» غير صالحة: يجب أن تكون المهلة عددًا صحيحًا من الثواني بين 1 و%2$s.</string>
+  <string name="workspace_ssh_jump_host">المضيف الوسيط</string>
+  <string name="workspace_ssh_jump_host_desc">اسم مضيف SSH محفوظ للاتصال عبره أولاً (ProxyJump). اتركه فارغاً للاتصال المباشر.</string>
+  <string name="workspace_ssh_jump_host_key_trusted">مفتاح المضيف الوسيط الموثوق به: %1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">لم يتم تأكيد مفتاح المضيف الوسيط بعد — تحقق من بصمته عند الاتصال الأول</string>
 </resources>

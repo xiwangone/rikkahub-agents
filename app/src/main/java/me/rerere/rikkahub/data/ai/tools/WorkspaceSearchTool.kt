@@ -74,12 +74,20 @@ internal fun createSearchCodeTool(
         val include = if (glob != null) "--include=${shq(glob)} " else ""
         val target = if (relPath.isBlank()) "." else shq(relPath)
         val grep = "grep -rnE $include${shq(pattern)} $target 2>/dev/null"
-        val cmd = "{ $grep | head -n ${max + 1}; printf '\\n---TOTAL---\\n'; $grep | wc -l; }"
+        // 起始标记 ---HITS---：远程登录 shell 的欢迎信息会打在 stdout 开头
+        // （见 SshWorkspaceBackend.executeCommand 的 -l 说明），head 的行数预算
+        // 会被它占掉；解析只认两个标记之间，任何前缀污染都不会挤掉命中行。
+        val cmd = "{ printf '\\n---HITS---\\n'; $grep | head -n ${max + 1}; printf '\\n---TOTAL---\\n'; $grep | wc -l; }"
 
         val result = workspaceRepository.executeCommand(wsId, cmd, "")
         val raw = result.stdout
+        val hitsIdx = raw.indexOf("---HITS---")
         val totalIdx = raw.indexOf("---TOTAL---")
-        val hitsPart = if (totalIdx >= 0) raw.substring(0, totalIdx) else raw
+        val hitsPart = when {
+            hitsIdx >= 0 && totalIdx > hitsIdx -> raw.substring(hitsIdx + "---HITS---".length, totalIdx)
+            totalIdx >= 0 -> raw.substring(0, totalIdx)
+            else -> raw
+        }
         val total =
             if (totalIdx >= 0) raw.substring(totalIdx + "---TOTAL---".length).trim().toIntOrNull() ?: 0 else 0
         val hitLines = hitsPart.lines().filter { it.isNotBlank() }

@@ -17,7 +17,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.AppScope
 import java.util.concurrent.atomic.AtomicLong
+import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 
 /**
  * Owns workspace terminal sessions independently from the terminal page lifecycle.
@@ -25,10 +27,14 @@ import me.rerere.rikkahub.data.log.AppLog
  * A page only attaches a [com.termux.view.TerminalView] to the selected tab. Navigating away
  * therefore keeps every shell and its screen buffer alive; a session is finished only when its
  * tab is explicitly closed (or the shell exits by itself).
+ *
+ * 会话内部仍以工作区 root 为键（root 是文件区与终端会话的稳定标识）；入口收实体，
+ * 因为创建分支要看能力位（SSH 走 SshTerminalTransport，本机走 proot 进程）。
  */
 class WorkspaceTerminalSessionManager internal constructor(
     context: Context,
     private val appScope: AppScope,
+    private val workspaceRepository: WorkspaceRepository,
 ) {
     private val appContext = context.applicationContext
     private val workspaceStates = MutableStateFlow<Map<String, WorkspaceTerminalTabsState>>(emptyMap())
@@ -40,12 +46,12 @@ class WorkspaceTerminalSessionManager internal constructor(
             .map { states -> states[root] ?: WorkspaceTerminalTabsState() }
             .distinctUntilChanged()
 
-    internal fun ensureSession(root: String, shellCompatibilityMode: Boolean) {
-        launchCreateTab(root = root, onlyIfEmpty = true, shellCompatibilityMode = shellCompatibilityMode)
+    internal fun ensureSession(workspace: WorkspaceEntity) {
+        launchCreateTab(workspace = workspace, onlyIfEmpty = true)
     }
 
-    internal fun createTab(root: String, shellCompatibilityMode: Boolean) {
-        launchCreateTab(root = root, onlyIfEmpty = false, shellCompatibilityMode = shellCompatibilityMode)
+    internal fun createTab(workspace: WorkspaceEntity) {
+        launchCreateTab(workspace = workspace, onlyIfEmpty = false)
     }
 
     internal fun selectTab(root: String, tabId: Long) {
@@ -98,13 +104,14 @@ class WorkspaceTerminalSessionManager internal constructor(
         }
     }
 
-    private fun launchCreateTab(root: String, onlyIfEmpty: Boolean, shellCompatibilityMode: Boolean) {
+    private fun launchCreateTab(workspace: WorkspaceEntity, onlyIfEmpty: Boolean) {
+        val root = workspace.root
         if (root in creationJobs) return
 
         lateinit var job: Job
         job = appScope.launch(start = CoroutineStart.LAZY) {
             try {
-                createTab(root = root, onlyIfEmpty = onlyIfEmpty, shellCompatibilityMode = shellCompatibilityMode)
+                createTab(workspace = workspace, onlyIfEmpty = onlyIfEmpty)
             } finally {
                 creationJobs.remove(root, job)
             }
@@ -113,14 +120,18 @@ class WorkspaceTerminalSessionManager internal constructor(
         job.start()
     }
 
-    private suspend fun createTab(root: String, onlyIfEmpty: Boolean, shellCompatibilityMode: Boolean) = withContext(Dispatchers.Main.immediate) {
+    private suspend fun createTab(workspace: WorkspaceEntity, onlyIfEmpty: Boolean) = withContext(Dispatchers.Main.immediate) {
+        val root = workspace.root
         val initialState = currentState(root)
         if (initialState.isCreating || (onlyIfEmpty && initialState.tabs.isNotEmpty())) {
             return@withContext
         }
         updateState(root) { it.copy(isCreating = true) }
 
-        val prepared = if (initialState.readiness == WorkspaceTerminalReadiness.Ready) {
+        // 远程工作区没有本机 rootfs 可准备，跳过；本机已就绪的也不重复准备
+        val prepared = if (!workspace.capabilities().rootfs ||
+            initialState.readiness == WorkspaceTerminalReadiness.Ready
+        ) {
             true
         } else {
             try {
@@ -158,12 +169,26 @@ class WorkspaceTerminalSessionManager internal constructor(
             onFinished = { markFinished(root = root, tabId = tabId) },
         )
         val session = runCatching {
-            createWorkspaceTerminalSession(
-                context = appContext,
-                root = root,
-                client = client,
-                shellCompatibilityMode = shellCompatibilityMode,
-            )
+            if (workspace.isSsh()) {
+                val settings = workspace.sshSettings()
+                    ?: error("SSH workspace settings missing: ${workspace.id}")
+                createWorkspaceTerminalSession(
+                    transport = SshTerminalTransport(
+                        address = "${settings.username}@${settings.host}:${settings.port}",
+                    ) { columns, rows ->
+                        workspaceRepository.openSshShell(workspace, columns, rows)
+                    },
+                    root = root,
+                    client = client,
+                )
+            } else {
+                createWorkspaceTerminalSession(
+                    context = appContext,
+                    root = root,
+                    client = client,
+                    shellCompatibilityMode = workspace.shellCompatibilityMode,
+                )
+            }
         }.onFailure { error ->
             AppLog.e(TAG, "Failed to create terminal for workspace $root", error)
         }.getOrNull()

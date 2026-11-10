@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import me.rerere.workspace.MirrorSpeedResult
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.RadioButton
@@ -12,6 +14,7 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -31,9 +34,11 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.util.fastForEach
@@ -43,6 +48,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.ui.text.style.TextOverflow
+import kotlinx.coroutines.launch
 import me.rerere.hugeicons.stroke.ArrowTurnBackward
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.workspace.WorkspaceFileEntry
@@ -52,6 +58,19 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.utils.plus
 
+/**
+ * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
+ */
+@Composable
+private fun rememberBringIntoViewModifier(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return Modifier
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) scope.launch { requester.bringIntoView() }
+        }
+}
 
 @Composable
 internal fun MirrorPickerDialog(
@@ -76,7 +95,7 @@ internal fun MirrorPickerDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
         text = {
-            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState()).imePadding()) {
                 val fastestMs = speedResults.values.mapNotNull { it.latencyMs }.minOrNull()
                 presets.forEach { preset ->
                     val result = speedResults[preset.id]
@@ -166,7 +185,12 @@ internal fun TagEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_tags)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(6.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -195,7 +219,7 @@ internal fun TagEditDialog(
                 OutlinedTextField(
                     value = input,
                     onValueChange = { input = it },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                     placeholder = { Text(stringResource(R.string.workspace_detail_tags_hint)) },
                     singleLine = true,
                     trailingIcon = {
@@ -245,12 +269,18 @@ internal fun WorkspaceRenameDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.common_rename)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
                 OutlinedTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.workspace_detail_rename_new_name)) },
                     singleLine = true,
+                    modifier = Modifier.then(rememberBringIntoViewModifier()),
                 )
                 Text(
                     text = entry.path,

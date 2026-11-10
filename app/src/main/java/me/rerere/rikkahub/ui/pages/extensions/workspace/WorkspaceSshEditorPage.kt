@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
@@ -99,6 +100,7 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 .fillMaxSize()
                 .padding(innerPadding)
                 .verticalScroll(rememberScrollState())
+                .imePadding()
                 .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
@@ -275,6 +277,49 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 }
             }
 
+            OutlinedTextField(
+                value = draft.jumpHost,
+                onValueChange = vm::setJumpHost,
+                label = { Text(stringResource(R.string.workspace_ssh_jump_host)) },
+                singleLine = true,
+                enabled = !state.busy,
+                supportingText = { Text(stringResource(R.string.workspace_ssh_jump_host_desc)) },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            if (draft.jumpHost.isNotBlank()) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    SelectionContainer(modifier = Modifier.weight(1f, fill = false)) {
+                        Text(
+                            text = draft.jumpHostKey?.let { key ->
+                                stringResource(R.string.workspace_ssh_jump_host_key_trusted, key.type, key.fingerprint)
+                            } ?: stringResource(R.string.workspace_ssh_jump_host_key_missing),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = if (draft.jumpHostKey == null) {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            } else {
+                                MaterialTheme.colorScheme.primary
+                            },
+                        )
+                    }
+                    val trustedJumpKey = draft.jumpHostKey
+                    if (trustedJumpKey != null) {
+                        IconButton(
+                            onClick = {
+                                clipboard.setText(AnnotatedString("${trustedJumpKey.type} ${trustedJumpKey.fingerprint}"))
+                            },
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Copy01,
+                                contentDescription = stringResource(R.string.workspace_ssh_host_key_copy),
+                            )
+                        }
+                    }
+                }
+            }
+
             state.probeResult?.let { result ->
                 Surface(
                     color = MaterialTheme.colorScheme.secondaryContainer,
@@ -370,7 +415,7 @@ fun WorkspaceSshEditorPage(id: String? = null) {
 
     state.pendingHostKey?.let { pending ->
         HostKeyConfirmDialog(
-            address = "${draft.username}@${draft.host}:${state.portInput}",
+            address = if (pending.jumpHost) draft.jumpHost.trim() else "${draft.username}@${draft.host}:${state.portInput}",
             actual = pending.actual,
             expected = pending.expected,
             onConfirm = vm::confirmHostKey,

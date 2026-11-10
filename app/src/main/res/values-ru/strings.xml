@@ -4337,4 +4337,8 @@
   <string name="workspace_tool_preset_file_corrupted">Файл Shell-предустановок %1$s повреждён и не может быть прочитан. Исправьте его содержимое JSON, а не добавляйте новую предустановку.</string>
   <string name="workspace_tool_preset_not_found">Shell-предустановка «%1$s» не найдена в %2$s.</string>
   <string name="workspace_tool_timeout_invalid">Неверный тайм-аут «%1$s»: тайм-аут должен быть целым числом секунд от 1 до %2$s.</string>
+  <string name="workspace_ssh_jump_host">Промежуточный хост</string>
+  <string name="workspace_ssh_jump_host_desc">Имя сохранённого SSH-хоста, через который подключаться сначала (ProxyJump). Оставьте пустым для прямого подключения.</string>
+  <string name="workspace_ssh_jump_host_key_trusted">Доверенный ключ промежуточного хоста: %1$s %2$s</string>
+  <string name="workspace_ssh_jump_host_key_missing">Ключ промежуточного хоста ещё не подтверждён — сверьте отпечаток при первом подключении</string>
 </resources>

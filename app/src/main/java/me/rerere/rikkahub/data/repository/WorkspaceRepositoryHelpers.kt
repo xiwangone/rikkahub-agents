@@ -6,8 +6,10 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatformStore
+import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
@@ -29,6 +31,7 @@ import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceType
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshConnectionConfig
+import me.rerere.workspace.ssh.SshJumpHostConfig
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshWorkspaceBackend
 import org.koin.java.KoinJavaComponent.getKoin
@@ -65,6 +68,8 @@ internal suspend fun WorkspaceRepository.saveSshImpl(id: String?, draft: SshWork
         val settings = draft.toSettings(existing?.sshSettings())
         // 保存前确认引用的凭证条目确实在库且能解密, 免得建好工作区才在首次连接时发现取不到
         verifyCredentials(settings)
+        // 跳板机名写错或凭证不可用时也在这里拦下, 否则工作区建好也连不上
+        resolveJumpHostConfig(settings)
         val now = System.currentTimeMillis()
         val config = JsonInstant.encodeToString(settings)
         val workspace = existing?.copy(
@@ -134,6 +139,8 @@ internal fun SshWorkspaceDraft.toSettings(previous: SshWorkspaceSettings?): SshW
             passwordRef = passwordRef,
             privateKeyRef = privateKeyRef,
             passphraseRef = passphraseRef,
+            jumpHost = jumpHost.trim().ifEmpty { null },
+            jumpHostKey = jumpHostKey,
         )
     }
 
@@ -196,6 +203,35 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             remoteDir = settings.remoteDir,
             hostKey = settings.hostKey,
             platform = resolveSshPlatform(settings.host, settings.port),
+            jumpHost = resolveJumpHostConfig(settings),
+        )
+    }
+
+    /**
+     * 跳板机解析：工作区设置里的跳板主机名 → 已保存主机实体 + 凭证。
+     * 单跳：跳板主机自身的 jumpHost 不再递归（与 SshHostsTool.resolveJump 同口径）。
+     * 找不到主机或凭证不可用时抛 IOException，探测与保存都能直接看到原因。
+     */
+    internal suspend fun WorkspaceRepository.resolveJumpHostConfig(settings: SshWorkspaceSettings): SshJumpHostConfig? {
+        val name = settings.jumpHost?.trim().orEmpty()
+        if (name.isEmpty()) return null
+        val repo = runCatching { getKoin().get<SshHostRepository>() }.getOrNull()
+            ?: throw IOException("Jump host '$name' cannot be resolved: saved hosts are unavailable")
+        val entity = repo.getByName(name)
+            ?: throw IOException("Jump host '$name' not found (check saved host names)")
+        val auth = when (val r = resolveHostAuthDetailed(entity, vaultRepository)) {
+            is HostAuthResolution.Ready -> r.auth
+            is HostAuthResolution.Unusable -> throw IOException("Jump host '$name' credential is unavailable: ${r.reason}")
+        }
+        return SshJumpHostConfig(
+            host = entity.host,
+            port = entity.port,
+            username = entity.user,
+            authType = if (!auth.privateKey.isNullOrBlank()) SshAuthType.PRIVATE_KEY else SshAuthType.PASSWORD,
+            password = auth.password,
+            privateKey = auth.privateKey?.ensureTrailingNewline(),
+            passphrase = auth.passphrase,
+            hostKey = settings.jumpHostKey,
         )
     }
 
@@ -313,6 +349,13 @@ internal suspend fun WorkspaceRepository.backendOf(workspace: WorkspaceEntity): 
 internal fun WorkspaceRepository.requireLocalRootfs(workspace: WorkspaceEntity, feature: String) {
         require(workspace.capabilities().rootfs) {
             "$feature is only available for local (Rootfs) workspaces: ${workspace.id}"
+        }
+    }
+
+/** 后台任务的落点是本机进程表；远程工作区没有这个落点，状态查询也不该静默返回空列表 */
+internal fun WorkspaceRepository.requireBackgroundShell(workspace: WorkspaceEntity, feature: String) {
+        require(workspace.capabilities().backgroundShell) {
+            "$feature is only available for local workspaces: ${workspace.id}"
         }
     }
 

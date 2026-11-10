@@ -7,10 +7,13 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.relocation.BringIntoViewRequester
+import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -45,6 +48,7 @@ import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
@@ -368,6 +372,20 @@ fun SettingSshHostsPage() {
     }
 }
 
+/**
+ * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
+ */
+@Composable
+private fun rememberBringIntoViewModifier(): Modifier {
+    val requester = remember { BringIntoViewRequester() }
+    val scope = rememberCoroutineScope()
+    return Modifier
+        .bringIntoViewRequester(requester)
+        .onFocusChanged { state ->
+            if (state.isFocused) scope.launch { requester.bringIntoView() }
+        }
+}
+
 @Composable
 private fun SshHostEditDialog(
     initial: SshHostEntity?,
@@ -408,7 +426,7 @@ private fun SshHostEditDialog(
         title = { Text(stringResource(if (initial == null) R.string.setting_ssh_host_add else R.string.setting_ssh_host_edit)) },
         text = {
             Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 OutlinedTextField(
@@ -420,7 +438,7 @@ private fun SshHostEditDialog(
                     supportingText = {
                         if (nameInvalid) Text(stringResource(R.string.setting_ssh_host_name_required))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                 )
                 Row(
                     modifier = Modifier.fillMaxWidth(),
@@ -435,7 +453,7 @@ private fun SshHostEditDialog(
                         supportingText = {
                             if (hostInvalid) Text(stringResource(R.string.setting_ssh_host_addr_required))
                         },
-                        modifier = Modifier.weight(0.60f),
+                        modifier = Modifier.weight(0.60f).then(rememberBringIntoViewModifier()),
                     )
                     OutlinedTextField(
                         value = port,
@@ -447,7 +465,7 @@ private fun SshHostEditDialog(
                         supportingText = {
                             if (portInvalid) Text(stringResource(R.string.setting_ssh_host_port_invalid))
                         },
-                        modifier = Modifier.weight(0.40f),
+                        modifier = Modifier.weight(0.40f).then(rememberBringIntoViewModifier()),
                     )
                 }
                 OutlinedTextField(
@@ -459,7 +477,7 @@ private fun SshHostEditDialog(
                     supportingText = {
                         if (userInvalid) Text(stringResource(R.string.setting_ssh_host_user_required))
                     },
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                 )
                 SecretRefField(
                     value = password,
@@ -468,7 +486,7 @@ private fun SshHostEditDialog(
                     nameHint = "SSH_PASSWORD",
                     typeHint = CredentialType.BASIC_AUTH,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                 )
                 SecretRefField(
                     value = privateKey,
@@ -477,7 +495,7 @@ private fun SshHostEditDialog(
                     nameHint = "SSH_KEY",
                     typeHint = CredentialType.SSH_KEY,
                     maxLines = 4,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                 )
                 SecretRefField(
                     value = passphrase,
@@ -486,7 +504,7 @@ private fun SshHostEditDialog(
                     nameHint = "SSH_PASSPHRASE",
                     typeHint = CredentialType.BASIC_AUTH,
                     singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                    modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                 )
                 Text(
                     text = stringResource(R.string.setting_ssh_platform_label),

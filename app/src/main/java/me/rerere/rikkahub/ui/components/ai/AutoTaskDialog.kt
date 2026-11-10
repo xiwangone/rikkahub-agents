@@ -230,8 +230,11 @@ fun AutoTaskDialog(
                                 onValueChange = { currentMessage = it },
                                 label = { Text(stringResource(R.string.auto_task_reply_label)) },
                                 placeholder = { Text(stringResource(R.string.auto_task_reply_placeholder)) },
-                                modifier = Modifier.fillMaxWidth(),
-                                singleLine = true,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .verticalScroll(rememberScrollState()),
+                                singleLine = false,
+                                maxLines = 4,
                             )
                         }
                     }

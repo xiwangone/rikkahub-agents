@@ -56,8 +56,9 @@ suspend fun createWorkspaceTools(
         add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd))
         add(createCreateFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createReadFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
-        // 后台任务跑在本机 Rootfs 的进程里, 远程工作区没有这个落点, 不提供
-        if (workspace.capabilities().rootfs) {
+        // 后台任务跑在本机进程里, 远程工作区没有这个落点, 不提供
+        // （backgroundShell 位与原实现同口径：本地 true、远程 false）
+        if (workspace.capabilities().backgroundShell) {
             add(createRunBackgroundTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd))
             add(createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository))
             add(createBackgroundKillTool(workspaceId, ::needsApproval, workspaceRepository))
@@ -775,8 +776,8 @@ private fun createListTool(
     name = "workspace_list",
     description = buildString {
         append("List all available workspaces with their id, name and shell status. ")
-        append("Use a workspace id as the 'workspace' parameter of workspace_shell / workspace_read_file / workspace_write_file / workspace_edit_file ")
-        append("to run commands or access files in that workspace instead of the current one.")
+        append("Use a workspace name (or id) as the 'workspace' parameter of workspace_shell / workspace_read_file / workspace_write_file / workspace_edit_file ")
+        append("to run commands or access files in that workspace instead of the current one. Prefer the name.")
     },
     parameters = {
         InputSchema.Obj(
