@@ -94,6 +94,18 @@ object TsnetBridge {
     /** 串行化 start / stop / resetForReconnect：native 侧是单例，并发进入会互相踩状态。 */
     private val lifecycleMutex = Mutex()
 
+    /** 一次建连所需的全部隧道参数（聚成对象，避免参数列表持续膨胀）。 */
+    data class TunnelStartConfig(
+        val controlURL: String,
+        val authKey: String,
+        val hostname: String,
+        val acceptRoutes: Boolean = false,
+        val exitNode: String = "",
+        val advertiseRoutes: String = "",
+        val ephemeral: Boolean = false,
+        val serve: String = "",
+    )
+
     /**
      * 启动隧道并等待拿到 tailnet IP。
      *
@@ -103,16 +115,12 @@ object TsnetBridge {
      * @param acceptRoutes 是否接受对端广播的子网路由（由 native 在启动时应用，tailscale 默认开）
      * @param exitNode 出口节点的 tailnet IP，空串表示不设
      * @param advertiseRoutes 向安全内网发布的网段（逗号分隔 CIDR），空串表示不发布
+     * @param ephemeral 临时节点：进程消失后控制面自动移除该设备（首次注册才生效）
      * @param keepDesiredOnFailure 掉线自愈重连时传 true，保留 [desiredRunning] 以便后续退避周期继续重试
      */
     suspend fun start(
         context: Context,
-        controlURL: String,
-        authKey: String,
-        hostname: String,
-        acceptRoutes: Boolean = false,
-        exitNode: String = "",
-        advertiseRoutes: String = "",
+        config: TunnelStartConfig,
         keepDesiredOnFailure: Boolean = false,
     ): Result<String> = withContext(Dispatchers.IO) {
         lifecycleMutex.withLock {
@@ -129,18 +137,23 @@ object TsnetBridge {
                     // 网络监视要靠这里注册的快照回调才能启动。失败只记日志，不影响启动。
                     runCatching { TsnetPathMonitor.start(context) }
                         .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
+                    // 临时节点标记必须在拉起 server 之前写进 native（tsnet 只在注册时读）。
+                    runCatching { Tsnetlib.setEphemeral(config.ephemeral) }
+                        .onFailure { AppLog.w(TAG, "setEphemeral(${config.ephemeral}) failed: ${it.message}", it) }
                     // 子网路由与出口节点由 native 在启动阶段写进 prefs：tailscale 的 RouteAll
                     // 默认为开，不能等启动回来再改（那样开隧道瞬间就把对端网段接进来了）。
                     val ip = Tsnetlib.start(
-                        controlURL,
-                        authKey,
-                        hostname,
-                        acceptRoutes,
-                        exitNode,
-                        advertiseRoutes,
+                        config.controlURL,
+                        config.authKey,
+                        config.hostname,
+                        config.acceptRoutes,
+                        config.exitNode,
+                        config.advertiseRoutes,
                         stateDir,
                     )
                     nodeIp = ip
+                    // Serve：把本机回环端口暴露到 tailnet（格式 tailnetPort:localPort）。
+                    applyServe(config.serve)
                     isRunning = true
                     publish(TunnelState.Connected(ip))
                     AppLog.i(TAG, "tunnel up: ip=$ip")
@@ -181,6 +194,17 @@ object TsnetBridge {
                 isConnecting = false
             }
         }
+    }
+
+    /** 解析 "tailnetPort:localPort" 并暴露到 tailnet；空/非法则静默跳过（不阻断建连）。 */
+    private fun applyServe(spec: String) {
+        val parts = spec.trim().split(":")
+        if (parts.size != 2) return
+        val tailnetPort = parts[0].trim().toIntOrNull() ?: return
+        val localPort = parts[1].trim().toIntOrNull() ?: return
+        if (tailnetPort <= 0 || localPort <= 0) return
+        runCatching { Tsnetlib.listenForward(tailnetPort.toLong(), localPort.toLong()) }
+            .onFailure { AppLog.w(TAG, "serve $tailnetPort->$localPort failed: ${it.message}", it) }
     }
 
     /**
@@ -250,6 +274,18 @@ object TsnetBridge {
     suspend fun setAcceptRoutes(on: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.setAcceptRoutes(on) }
             .onFailure { AppLog.w(TAG, "setAcceptRoutes($on) failed: ${it.message}", it) }
+    }
+
+    /** 临时节点：下次启动时生效（控制面在进程消失后自动移除该设备）。 */
+    suspend fun setEphemeral(on: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.setEphemeral(on) }
+            .onFailure { AppLog.w(TAG, "setEphemeral($on) failed: ${it.message}", it) }
+    }
+
+    /** 把本机某个回环端口暴露到 tailnet 内（tailnetPort → 127.0.0.1:localPort）。 */
+    suspend fun listenForward(tailnetPort: Int, localPort: Int): Result<Unit> = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.listenForward(tailnetPort.toLong(), localPort.toLong()) }
+            .onFailure { AppLog.w(TAG, "listenForward($tailnetPort->$localPort) failed: ${it.message}", it) }
     }
 
     /** 出口节点：传 peer 的 Tailscale IP，空串关闭；LAN 直连保持可用。 */

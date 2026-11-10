@@ -40,6 +40,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.tunnel.TunnelStartConfig
 import me.rerere.rikkahub.data.tunnel.TunnelState
 import me.rerere.rikkahub.data.tunnel.resolveTunnelAuthKey
 import me.rerere.rikkahub.data.vault.CredentialResolver
@@ -84,6 +85,9 @@ fun TunnelSettingSection(vm: SettingVM) {
     var advertiseRoutes by remember(network.tailscaleAdvertiseRoutes) {
         mutableStateOf(network.tailscaleAdvertiseRoutes)
     }
+    var serve by remember(network.tailscaleServe) {
+        mutableStateOf(network.tailscaleServe)
+    }
     var busy by remember { mutableStateOf(false) }
     var savedHint by remember { mutableStateOf(false) }
     // 当前正在弹窗编辑的字段（null = 未打开）。
@@ -127,12 +131,16 @@ fun TunnelSettingSection(vm: SettingVM) {
             }
         TsnetBridge.start(
             context = context,
-            controlURL = controlUrl.trim(),
-            authKey = resolved,
-            hostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
-            acceptRoutes = acceptRoutes,
-            exitNode = exitNode,
-            advertiseRoutes = advertiseRoutes,
+            config = TunnelStartConfig(
+                controlURL = controlUrl.trim(),
+                authKey = resolved,
+                hostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                acceptRoutes = acceptRoutes,
+                exitNode = exitNode,
+                advertiseRoutes = advertiseRoutes,
+                ephemeral = network.tailscaleEphemeral,
+                serve = serve,
+            ),
         )
     }
 
@@ -146,6 +154,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                     tailscaleAcceptRoutes = acceptRoutes,
                     tailscaleExitNode = exitNode,
                     tailscaleAdvertiseRoutes = advertiseRoutes.trim(),
+                    tailscaleServe = serve.trim(),
                 ),
             )
         }
@@ -172,6 +181,7 @@ fun TunnelSettingSection(vm: SettingVM) {
         acceptRoutes = network.tailscaleAcceptRoutes
         exitNode = network.tailscaleExitNode
         advertiseRoutes = network.tailscaleAdvertiseRoutes
+        serve = network.tailscaleServe
         savedHint = false
     }
 
@@ -324,6 +334,15 @@ fun TunnelSettingSection(vm: SettingVM) {
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.padding(vertical = 12.dp),
                 )
+                // 本机的 MagicDNS 名：其他设备用它访问本机，换 IP 也不会变
+                nodeStatus?.dnsName?.takeIf { it.isNotBlank() }?.let { dns ->
+                    Text(
+                        text = dns.trimEnd('.'),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 TunnelRow(
                     title = stringResource(R.string.tunnel_control_url_label),
                     value = controlUrl.ifBlank { "—" },
@@ -344,6 +363,11 @@ fun TunnelSettingSection(vm: SettingVM) {
                     value = advertiseRoutes.trim()
                         .ifBlank { stringResource(R.string.tunnel_advertise_routes_none) },
                 ) { editingField = TunnelField.AdvertiseRoutes }
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_serve_label),
+                    value = serve.trim().ifBlank { stringResource(R.string.tunnel_serve_none) },
+                ) { editingField = TunnelField.Serve }
                 HorizontalDivider()
                 Row(
                     modifier = Modifier
@@ -378,6 +402,36 @@ fun TunnelSettingSection(vm: SettingVM) {
                                         nodeStatus = nodeStatus?.copy(acceptRoutes = on)
                                     }
                                 }
+                            }
+                        },
+                    )
+                }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.tunnel_ephemeral),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.tunnel_ephemeral_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Switch(
+                        checked = network.tailscaleEphemeral,
+                        enabled = !busy,
+                        onCheckedChange = { on ->
+                            vm.updateSettings { current ->
+                                current.copy(
+                                    networkSetting = current.networkSetting.copy(tailscaleEphemeral = on),
+                                )
                             }
                         },
                     )
@@ -456,15 +510,38 @@ fun TunnelSettingSection(vm: SettingVM) {
                         devicePeers.forEach { peer ->
                             val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
                             val ip = peer.ips.firstOrNull().orEmpty()
-                            Text(
-                                text = if (peer.online) "● $name  $ip" else "○ $name  $ip",
-                                style = MaterialTheme.typography.bodySmall,
-                                color = if (peer.online) {
-                                    MaterialTheme.colorScheme.onSurface
-                                } else {
-                                    MaterialTheme.colorScheme.onSurfaceVariant
-                                },
-                            )
+                            // 连接质量：有直连地址就是直连，否则看走的哪个 DERP 区域。
+                            val path = when {
+                                peer.curAddr.isNotBlank() -> stringResource(R.string.tunnel_path_direct)
+                                peer.relay.isNotBlank() -> stringResource(R.string.tunnel_path_relay, peer.relay)
+                                else -> ""
+                            }
+                            Column {
+                                Text(
+                                    text = if (peer.online) "● $name  $ip" else "○ $name  $ip",
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = if (peer.online) {
+                                        MaterialTheme.colorScheme.onSurface
+                                    } else {
+                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    },
+                                )
+                                if (path.isNotBlank()) {
+                                    Text(
+                                        text = path,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                // MagicDNS 名（控制面后缀）：换 IP/重连不变
+                                if (peer.dnsName.isNotBlank()) {
+                                    Text(
+                                        text = peer.dnsName.trimEnd('.'),
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
                         }
                     }
                 }
@@ -512,6 +589,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                             TunnelField.AuthKey -> R.string.tunnel_auth_key_label
                             TunnelField.Hostname -> R.string.tunnel_hostname_label
                             TunnelField.AdvertiseRoutes -> R.string.tunnel_advertise_routes_label
+                            TunnelField.Serve -> R.string.tunnel_serve_label
                         }
                     )
                 )
@@ -537,6 +615,13 @@ fun TunnelSettingSection(vm: SettingVM) {
                             value = advertiseRoutes,
                             onValueChange = { advertiseRoutes = it },
                             placeholder = { Text("192.168.1.0/24") },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        TunnelField.Serve -> OutlinedTextField(
+                            value = serve,
+                            onValueChange = { serve = it },
+                            placeholder = { Text("8080:8080") },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -600,7 +685,7 @@ private fun exitNodeLabel(status: TunnelStatus?, fallbackIp: String, noneLabel: 
 }
 
 /** 可在隧道设置页弹窗编辑的字段。 */
-private enum class TunnelField { ControlUrl, AuthKey, Hostname, AdvertiseRoutes }
+private enum class TunnelField { ControlUrl, AuthKey, Hostname, AdvertiseRoutes, Serve }
 
 /** 一个 tailnet 对端。 */
 private data class TunnelPeer(
@@ -609,6 +694,10 @@ private data class TunnelPeer(
     val ips: List<String>,
     val online: Boolean,
     val canBeExitNode: Boolean,
+    /** 直连地址；为空表示走中继。 */
+    val curAddr: String = "",
+    /** 中继所在的 DERP 区域（如 hkg / sz）。 */
+    val relay: String = "",
 )
 
 /** tsnet 状态快照（来自 [TsnetBridge.statusJson]）。 */
@@ -640,6 +729,8 @@ private fun parseTunnelStatus(raw: String?): TunnelStatus? {
                     ips = ips,
                     online = p.optBoolean("online"),
                     canBeExitNode = p.optBoolean("exitNodeOption"),
+                    curAddr = p.optString("curAddr"),
+                    relay = p.optString("relay"),
                 )
             }
         }

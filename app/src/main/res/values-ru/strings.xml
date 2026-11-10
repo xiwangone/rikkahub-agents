@@ -4150,6 +4150,12 @@
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
   <string name="tunnel_hostname_label">Имя хоста</string>
   <string name="tunnel_settings_entry">Настройки туннеля</string>
+  <string name="tunnel_serve_label">Открыть порт</string>
+  <string name="tunnel_serve_none">Выкл.</string>
+  <string name="tunnel_ephemeral">Временный узел</string>
+  <string name="tunnel_ephemeral_desc">Контрольная панель удалит это устройство после завершения процесса. Действует только до первой регистрации.</string>
+  <string name="tunnel_path_direct">Прямое</string>
+  <string name="tunnel_path_relay">Ретранслятор %1$s</string>
   <string name="tunnel_advertise_routes_label">Публикуемые сети</string>
   <string name="tunnel_advertise_routes_none">Нет</string>
   <string name="tunnel_saved_hint">Сохранено</string>

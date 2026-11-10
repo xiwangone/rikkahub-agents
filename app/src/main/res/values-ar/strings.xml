@@ -4153,6 +4153,12 @@
   <string name="tunnel_auth_key_placeholder">tskey-auth-... أو اسم بيانات الاعتماد $$</string>
   <string name="tunnel_hostname_label">اسم المضيف</string>
   <string name="tunnel_settings_entry">إعدادات النفق</string>
+  <string name="tunnel_serve_label">منفذ مكشوف</string>
+  <string name="tunnel_serve_none">مُعطّل</string>
+  <string name="tunnel_ephemeral">عقدة مؤقتة</string>
+  <string name="tunnel_ephemeral_desc">تزيل لوحة التحكم هذا الجهاز بعد خروج العملية. يُطبَّق قبل التسجيل الأول فقط.</string>
+  <string name="tunnel_path_direct">مباشر</string>
+  <string name="tunnel_path_relay">ترحيل %1$s</string>
   <string name="tunnel_advertise_routes_label">الشبكات المعلنة</string>
   <string name="tunnel_advertise_routes_none">لا شيء</string>
   <string name="tunnel_saved_hint">تم الحفظ</string>

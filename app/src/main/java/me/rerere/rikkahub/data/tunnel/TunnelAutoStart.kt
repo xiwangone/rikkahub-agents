@@ -96,12 +96,16 @@ object TunnelAutoStart {
 
                 val result = TsnetBridge.start(
                     context = appContext,
-                    controlURL = network.tailscaleControlUrl.trim(),
-                    authKey = authKey,
-                    hostname = network.effectiveTunnelHostname,
-                    acceptRoutes = network.tailscaleAcceptRoutes,
-                    exitNode = network.tailscaleExitNode,
-                    advertiseRoutes = network.tailscaleAdvertiseRoutes,
+                    config = TunnelStartConfig(
+                        controlURL = network.tailscaleControlUrl.trim(),
+                        authKey = authKey,
+                        hostname = network.effectiveTunnelHostname,
+                        acceptRoutes = network.tailscaleAcceptRoutes,
+                        exitNode = network.tailscaleExitNode,
+                        advertiseRoutes = network.tailscaleAdvertiseRoutes,
+                        ephemeral = network.tailscaleEphemeral,
+                        serve = network.tailscaleServe,
+                    ),
                     keepDesiredOnFailure = true,
                 )
                 if (result.isSuccess) {

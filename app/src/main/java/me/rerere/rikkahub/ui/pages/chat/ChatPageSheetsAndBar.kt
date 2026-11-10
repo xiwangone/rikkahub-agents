@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.ui.draw.clip
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.tunnel.TunnelStartConfig
 import me.rerere.rikkahub.data.tunnel.TunnelState
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -626,12 +627,16 @@ private fun TopBarTunnelStatusBadge(
             }
             TsnetBridge.start(
                 context = context,
-                controlURL = controlUrlDraft.trim(),
-                authKey = resolved,
-                hostname = hostnameDraft.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
-                acceptRoutes = network.tailscaleAcceptRoutes,
-                exitNode = network.tailscaleExitNode,
-                advertiseRoutes = network.tailscaleAdvertiseRoutes,
+                config = TunnelStartConfig(
+                    controlURL = controlUrlDraft.trim(),
+                    authKey = resolved,
+                    hostname = hostnameDraft.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                    acceptRoutes = network.tailscaleAcceptRoutes,
+                    exitNode = network.tailscaleExitNode,
+                    advertiseRoutes = network.tailscaleAdvertiseRoutes,
+                    ephemeral = network.tailscaleEphemeral,
+                    serve = network.tailscaleServe,
+                ),
             )
             busy = false
         }

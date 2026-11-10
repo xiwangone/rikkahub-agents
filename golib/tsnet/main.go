@@ -35,6 +35,9 @@ var (
 	mu      sync.Mutex
 	srv     *tsnet.Server
 	proxies = map[int]net.Listener{}
+	// ephemeralNode is read when the server starts; tsnet only honours it at
+	// registration time (i.e. while no state exists yet).
+	ephemeralNode bool
 )
 
 // Start brings up a tsnet client and waits until a tailnet IP is assigned.
@@ -72,6 +75,7 @@ func Start(controlURL, authKey, hostname string, acceptRoutes bool, exitNode, ad
 		Hostname:   hostname,
 		AuthKey:    authKey,
 		ControlURL: controlURL,
+		Ephemeral:  ephemeralNode,
 		Logf:       log.Printf,
 	}
 	if err := s.Start(); err != nil {
@@ -165,6 +169,59 @@ func Stop() error {
 	err := srv.Close()
 	srv = nil
 	return err
+}
+
+// SetEphemeral marks the next Start as an ephemeral node, which the control
+// plane removes once the process goes away. Only effective while no state
+// exists yet: tsnet reads it at registration time.
+func SetEphemeral(on bool) error {
+	mu.Lock()
+	defer mu.Unlock()
+	ephemeralNode = on
+	return nil
+}
+
+// ListenForward exposes a local loopback port to the tailnet: it listens on
+// tailnetPort inside the tailnet and forwards each accepted connection to
+// 127.0.0.1:localPort. The listener is tracked with the proxy listeners so
+// Stop() tears it down.
+func ListenForward(tailnetPort, localPort int) error {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return errors.New("tsnet: not started")
+	}
+	if tailnetPort <= 0 || localPort <= 0 {
+		return errors.New("tsnet: ports must be positive")
+	}
+	ln, err := s.Listen("tcp", fmt.Sprintf(":%d", tailnetPort))
+	if err != nil {
+		return err
+	}
+	mu.Lock()
+	proxies[tailnetPort] = ln
+	mu.Unlock()
+	go func() {
+		for {
+			c, aerr := ln.Accept()
+			if aerr != nil {
+				return
+			}
+			go func(c net.Conn) {
+				defer c.Close()
+				up, derr := net.Dial("tcp", fmt.Sprintf("127.0.0.1:%d", localPort))
+				if derr != nil {
+					log.Printf("listen forward: dial %d failed: %v", localPort, derr)
+					return
+				}
+				defer up.Close()
+				go func() { _, _ = io.Copy(up, c) }()
+				_, _ = io.Copy(c, up)
+			}(c)
+		}
+	}()
+	return nil
 }
 
 // StartProxy listens on a random 127.0.0.1 port and forwards connections to
@@ -400,6 +457,10 @@ type peerStatus struct {
 	Online     bool     `json:"online"`
 	ExitNode   bool     `json:"exitNode,omitempty"`
 	ExitOption bool     `json:"exitNodeOption,omitempty"`
+	// CurAddr non-empty means a direct path was established; empty with Relay
+	// set means traffic goes through that DERP region.
+	CurAddr string `json:"curAddr,omitempty"`
+	Relay   string `json:"relay,omitempty"`
 }
 
 // StatusJSON reports the node state plus the peer list; it never fails, errors
@@ -445,6 +506,8 @@ func StatusJSON() string {
 			Online:     p.Online,
 			ExitNode:   p.ExitNode,
 			ExitOption: p.ExitNodeOption,
+			CurAddr:    p.CurAddr,
+			Relay:      p.Relay,
 		}
 		for _, ip := range p.TailscaleIPs {
 			item.IPs = append(item.IPs, ip.String())
