@@ -71,6 +71,7 @@ do_unmount_quiet() {
         "$ROOTFS/upload" \
         "$ROOTFS/mnt/shared" \
         "$ROOTFS/tmp" \
+        "$ROOTFS/dev/shm" \
         "$ROOTFS/dev/pts" \
         "$ROOTFS/dev" \
         "$ROOTFS/sys" \
@@ -114,6 +115,22 @@ purge_stale_exec_files() {
     return 0
 }
 
+# exec / shell 退出前的增量属主修复。
+# chroot 内以 root 写的文件在宿主上属主是 0:0；切回 proot 后 app uid 无法覆盖/删除它们。
+# 旧实现只在“切换后端”时跑 fixowner，App 被杀/重启/直接停用后这些文件就永久留着
+# 这些文件会一直留着，直到手工 chown 才恢复。
+# 开销控制：先 find -print -quit 探一下，没有 root 文件就立刻返回（空跑通常 <20ms）。
+fixowner_quick() {
+    [ "${CHROOT_FIXOWNER_ON_EXIT:-1}" = "1" ] || return 0
+    files_src="${CHROOT_FILES_SRC:-$ROOTFS/../files}"
+    [ -d "$files_src" ] || return 0
+    appuid=$(stat -c %u "$ROOTFS/../.." 2>/dev/null) || return 0
+    [ -n "$appuid" ] || return 0
+    [ -n "$(find "$files_src" -user 0 -print -quit 2>/dev/null)" ] || return 0
+    find "$files_src" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
+    return 0
+}
+
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
     mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
@@ -126,6 +143,12 @@ do_mounts() {
         || mount --bind /dev/pts "$ROOTFS/dev/pts" 2>/dev/null \
         || { echo "ERR: mount $ROOTFS/dev/pts failed" >&2; return 1; }
     mount -t tmpfs tmpfs "$ROOTFS/tmp" || { echo "ERR: mount $ROOTFS/tmp failed" >&2; return 1; }
+    # /dev/shm：Android 的 /dev 里没有 shm，而 python multiprocessing(POSIX 信号量)、
+    # JVM、PostgreSQL/Redis 隐形依赖它，缺失时报的是难定位的 "No such file or directory"。
+    # 独立 tmpfs（1777）顺带把共享内存和 /tmp 隔开，避免 /tmp 被大文件占满后 shm 一起炸。
+    mkdir -p -m 1777 "$ROOTFS/dev/shm" 2>/dev/null
+    mount -t tmpfs -o mode=1777,size=256m tmpfs "$ROOTFS/dev/shm" 2>/dev/null \
+        || echo "WARN: mount $ROOTFS/dev/shm failed (python multiprocessing / JVM may break)" >&2
     if [ -d "$ROOTFS/../files" ]; then
         mount --bind "$ROOTFS/../files" "$ROOTFS/workspace" || {
             echo "ERR: mount $ROOTFS/workspace failed" >&2
@@ -144,6 +167,9 @@ do_mounts() {
         bind_extra "$app_dir" databases /workspace/app-databases
         bind_extra "$app_dir" shared_prefs /workspace/app-shared-prefs
     fi
+    # proot 侧 bindMounts 必建这两个挂载点；chroot 侧源目录不存在时 bind_extra 直接 return，
+    # 于是 /workspace/app-databases 这类路径在两侧行为不一致（探针/脚本会报缺失）。补空目录对齐。
+    mkdir -p "$ROOTFS/workspace/app-databases" "$ROOTFS/workspace/app-shared-prefs" 2>/dev/null
     if [ "$BIND_FAILED" -gt 0 ]; then
         echo "WARN: $BIND_FAILED optional bind mount(s) failed (see WARN lines above)" >&2
     fi
@@ -271,6 +297,7 @@ case "$1" in
             run_in_chroot /bin/sh -l
         fi
         rc=$?
+        fixowner_quick        # 交互 shell 退出后同样收尾
         exit $rc
         ;;
     exec)
@@ -289,6 +316,7 @@ case "$1" in
         fi
         run_in_chroot "$ENTRY_SH" -c 'cd -- "$1" 2>/dev/null || cd /root 2>/dev/null || cd /; shift; exec "$@"' chroot-run "$WORKDIR" "$@"
         rc=$?
+        fixowner_quick        # 退出前把 root 写出的文件还给 app uid（可用 CHROOT_FIXOWNER_ON_EXIT=0 关掉）
         exit $rc
         ;;
     *)
