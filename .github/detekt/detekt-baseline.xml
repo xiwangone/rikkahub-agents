@@ -359,6 +359,7 @@
     <ID>TooManyFunctions:ShizukuManager.kt$ShizukuManager</ID>
     <ID>TooManyFunctions:SkillManager.kt$SkillManager</ID>
     <ID>TooManyFunctions:SshKeyGenerator.kt$SshKeyGenerator</ID>
+    <ID>TooManyFunctions:TsnetBridge.kt$TsnetBridge</ID>
     <ID>TooManyFunctions:WorkflowApprovalRenderer.kt$WorkflowApprovalRenderer</ID>
     <ID>TooManyFunctions:WorkflowJson.kt$WorkflowJson</ID>
     <ID>TooManyFunctions:WorkspaceDocumentsProvider.kt$WorkspaceDocumentsProvider : DocumentsProvider</ID>

@@ -46,6 +46,21 @@ sealed interface TunnelState {
  * 调用约定：所有方法都是 suspend + Result，失败不抛给 UI 层。
  */
 @Suppress("TooManyFunctions")
+/**
+ * 一次建连所需的全部隧道参数（聚成对象，避免参数列表持续膨胀）。
+ * 定义在文件顶层：TunnelAutoStart / 设置页 / 聊天页面板都要构造它。
+ */
+data class TunnelStartConfig(
+    val controlURL: String,
+    val authKey: String,
+    val hostname: String,
+    val acceptRoutes: Boolean = false,
+    val exitNode: String = "",
+    val advertiseRoutes: String = "",
+    val ephemeral: Boolean = false,
+    val serve: String = "",
+)
+
 object TsnetBridge {
     private const val TAG = "TsnetBridge"
 
@@ -93,18 +108,6 @@ object TsnetBridge {
 
     /** 串行化 start / stop / resetForReconnect：native 侧是单例，并发进入会互相踩状态。 */
     private val lifecycleMutex = Mutex()
-
-    /** 一次建连所需的全部隧道参数（聚成对象，避免参数列表持续膨胀）。 */
-    data class TunnelStartConfig(
-        val controlURL: String,
-        val authKey: String,
-        val hostname: String,
-        val acceptRoutes: Boolean = false,
-        val exitNode: String = "",
-        val advertiseRoutes: String = "",
-        val ephemeral: Boolean = false,
-        val serve: String = "",
-    )
 
     /**
      * 启动隧道并等待拿到 tailnet IP。
