@@ -302,13 +302,25 @@ object TsnetBridge {
     }
 
     /** 退出登录：服务端使该节点失效，随后停止隧道。 */
+    /**
+     * 退出登录：与 [stop] 同口径收尾 —— 必须清掉 desiredRunning，否则守护循环
+     * 见它仍为 true 会用 prefs 里的存量密钥 30 秒内重新 start()，用户点的登出被静默抵消。
+     */
     suspend fun logout(): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            Tsnetlib.logout()
-            isRunning = false
-            nodeIp = null
-            publish(TunnelState.Off)
-        }.onFailure { AppLog.w(TAG, "logout failed: ${it.message}", it) }
+        lifecycleMutex.withLock {
+            desiredRunning = false
+            runCatching {
+                proxyCache.clear()
+                if (isRunning) {
+                    runCatching { TsnetPathMonitor.stop() }
+                        .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
+                }
+                Tsnetlib.logout()
+                isRunning = false
+                nodeIp = null
+                publish(TunnelState.Off)
+            }.onFailure { AppLog.w(TAG, "logout failed: ${it.message}", it) }
+        }
     }
 
     suspend fun proxyTo(host: String, port: Int): Result<Int> = withContext(Dispatchers.IO) {

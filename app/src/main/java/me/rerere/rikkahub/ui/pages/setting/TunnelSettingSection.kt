@@ -562,7 +562,15 @@ fun TunnelSettingSection(vm: SettingVM) {
             confirmButton = {
                 TextButton(onClick = {
                     showLogoutConfirm = false
-                    scope.launch { TsnetBridge.logout() }
+                    scope.launch {
+                        // 先把开关落成关，否则重启后 TunnelAutoStart 按开关自动接回，等于登出没发生。
+                        vm.updateSettings { current ->
+                            current.copy(
+                                networkSetting = current.networkSetting.copy(tailscaleEnabled = false),
+                            )
+                        }
+                        TsnetBridge.logout()
+                    }
                 }) {
                     Text(
                         text = stringResource(R.string.tunnel_logout),
