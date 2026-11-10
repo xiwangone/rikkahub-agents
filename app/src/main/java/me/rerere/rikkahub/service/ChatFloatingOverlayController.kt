@@ -4,6 +4,7 @@ import android.content.ComponentCallbacks
 import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
+import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
 import android.os.Build
@@ -342,9 +343,8 @@ internal class ChatFloatingOverlayController(
         icon.setPadding(pad, pad, pad, pad)
         icon.background =
             GradientDrawable().apply {
-                shape = GradientDrawable.RECTANGLE
-                cornerRadius = dp(16).toFloat()
-                setColor(colorScheme.surfaceContainerHigh.toArgb())
+                shape = GradientDrawable.OVAL
+                setColor(Color.TRANSPARENT)
                 setStroke(dp(1).coerceAtLeast(1), colorScheme.outlineVariant.toArgb())
             }
         icon.clipToOutline = true
