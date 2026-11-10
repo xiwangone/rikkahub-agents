@@ -911,6 +911,7 @@ sealed interface Screen : NavKey {
     data object SettingSshHosts : Screen
     @Serializable
     data object SettingTrustedKeys : Screen
+    @Serializable
     data class SshTerminal(val hostName: String) : Screen
     @Serializable
     data object BackendService : Screen

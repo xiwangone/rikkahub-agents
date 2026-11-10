@@ -59,6 +59,7 @@ internal val TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS =
 
 @Serializable
 sealed interface GenerationChunk {
+    @Serializable
     data class Messages(
         val messages: List<UIMessage>
     ) : GenerationChunk
@@ -70,6 +71,7 @@ sealed interface GenerationChunk {
      * 事后扫消息只能看到最后一次 → 用量统计会少算数倍。所以请求完成即上报，由上层累加
      * （与主流客户端一致）。该事件不参与 UI 节流。
      */
+    @Serializable
     data class UsageIncurred(
         val usage: TokenUsage
     ) : GenerationChunk
