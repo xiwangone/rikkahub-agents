@@ -75,7 +75,7 @@ object PerplexitySearchService : SearchService<SearchServiceOptions.PerplexityOp
                 val body =
                     buildJsonObject {
                         put("query", JsonPrimitive(query))
-                        put("max_results", JsonPrimitive(commonOptions.resultSize))
+                        put("max_results", JsonPrimitive(commonOptions.resultSize.coerceIn(1, 50)))
                         serviceOptions.maxTokens?.let {
                             if (it > 0) {
                                 put("max_tokens", JsonPrimitive(it))
@@ -102,14 +102,14 @@ object PerplexitySearchService : SearchService<SearchServiceOptions.PerplexityOp
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val responseBody =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<PerplexityResponse>(it)
                         }
 
                     val items =
                         responseBody.results
                             .filter { !it.title.isNullOrBlank() && !it.url.isNullOrBlank() }
-                            .take(commonOptions.resultSize)
+                            .take(commonOptions.resultSize.coerceIn(1, 50))
                             .map {
                                 SearchResultItem(
                                     title = it.title!!,
@@ -125,7 +125,7 @@ object PerplexitySearchService : SearchService<SearchServiceOptions.PerplexityOp
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}: ${response.body.string()}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

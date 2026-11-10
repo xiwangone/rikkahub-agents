@@ -1,8 +1,11 @@
 package me.rerere.document
 
+import android.util.Log
 import org.xmlpull.v1.XmlPullParser
+import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.io.StringReader
 import java.util.zip.ZipFile
@@ -18,6 +21,10 @@ private data class ManifestItem(
 // dump. Truncated chapters are marked so the cut is visible instead of silent.
 private const val MAX_CHAPTER_CHARS = 1_000_000
 private const val MAX_TOTAL_CHARS = 5_000_000
+
+// OPF manifest/spine entry cap: a hostile OPF with millions of entries would otherwise
+// grow both collections without bound before any chapter is read.
+private const val MAX_OPF_ENTRIES = 10_000
 
 // EPUB chapter markup is frequently loose HTML rather than strict XHTML: it uses named HTML
 // entities (&nbsp;, &mdash;, ...) and occasional bare "&" that the 5 XML-predefined entities
@@ -66,7 +73,9 @@ object EpubParser {
 
                 result.toString().trim().ifEmpty { "No readable content found in EPUB file" }
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            "Error parsing EPUB file: ${e.message}"
+        } catch (e: XmlPullParserException) {
             "Error parsing EPUB file: ${e.message}"
         }
     }
@@ -77,6 +86,7 @@ object EpubParser {
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
+            parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false)
             parser.setInput(stream, "UTF-8")
 
             while (parser.eventType != XmlPullParser.END_DOCUMENT) {
@@ -93,6 +103,7 @@ object EpubParser {
         val factory = XmlPullParserFactory.newInstance()
         factory.isNamespaceAware = true
         val parser = factory.newPullParser()
+        parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false)
         parser.setInput(inputStream, "UTF-8")
 
         val manifest = mutableMapOf<String, ManifestItem>()
@@ -105,14 +116,14 @@ object EpubParser {
                         val id = parser.getAttributeValue(null, "id") ?: ""
                         val href = parser.getAttributeValue(null, "href") ?: ""
                         val mediaType = parser.getAttributeValue(null, "media-type") ?: ""
-                        if (id.isNotEmpty()) {
+                        if (id.isNotEmpty() && manifest.size < MAX_OPF_ENTRIES) {
                             manifest[id] = ManifestItem(id, href, mediaType)
                         }
                     }
 
                     "itemref" -> {
                         val idref = parser.getAttributeValue(null, "idref") ?: ""
-                        if (idref.isNotEmpty()) {
+                        if (idref.isNotEmpty() && spine.size < MAX_OPF_ENTRIES) {
                             spine.add(idref)
                         }
                     }
@@ -139,6 +150,7 @@ object EpubParser {
         return out.toString() to truncated
     }
 
+    @Suppress("TooGenericExceptionCaught") // 有意宽 catch：章节是松散 HTML/畸形实体，解析器抛出的异常类型不可枚举；失败只丢该章并打标记，不能丢整本书。
     private fun parseXhtml(inputStream: InputStream): String =
         try {
             val (rawXml, truncated) = readBoundedText(inputStream, MAX_CHAPTER_CHARS)
@@ -154,6 +166,7 @@ object EpubParser {
             val tagStack = ArrayDeque<String>()
             var inBody = false
             var listCounter = 0
+            var parseFailed = false
 
             while (parser.eventType != XmlPullParser.END_DOCUMENT) {
                 when (parser.eventType) {
@@ -274,7 +287,11 @@ object EpubParser {
                 }
                 try {
                     parser.next()
-                } catch (_: Exception) {
+                } catch (e: Exception) {
+                    // A malformed entity or tag partway through used to silently drop the
+                    // rest of the chapter. Record it and mark the output instead.
+                    parseFailed = true
+                    Log.w("EpubParser", "parseXhtml: parser failed partway through chapter", e)
                     break
                 }
             }
@@ -283,8 +300,15 @@ object EpubParser {
                 .toString()
                 .replace(Regex("\n{3,}"), "\n\n")
                 .trim()
-                .let { if (truncated) "$it\n[Truncated chapter]" else it }
+                .let {
+                    when {
+                        truncated -> "$it\n[Truncated chapter]"
+                        parseFailed -> "$it\n[Truncated: chapter parse failed]"
+                        else -> it
+                    }
+                }
         } catch (e: Exception) {
-            ""
+            Log.w("EpubParser", "parseXhtml: chapter could not be parsed", e)
+            "[Error parsing chapter: ${e.message}]"
         }
 }

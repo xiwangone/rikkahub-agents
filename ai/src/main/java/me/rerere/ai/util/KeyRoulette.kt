@@ -76,25 +76,34 @@ object ProviderKeyRefs {
 }
 
 private fun splitKey(key: String): List<String> {
-    if (key.trimStart().startsWith("enc:v1:")) {
-        throw IllegalStateException(
-            "Provider API key is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
-        )
-    }
-    return key
+    // 单个降级 token 不再拖垮整串多 key 列表：跳过它并记警告，其余可用 key 照常用。
+    // 全部 token 都降级时仍抛错（fail-closed）：一个可用 key 都没有，不能静默当成“没填 key”。
+    var skippedDegraded = false
+    val tokens = key
         .split(SPLIT_KEY_REGEX)
         .map { it.trim() }
         .filter { it.isNotBlank() }
-        .onEach { token ->
+        .filter { token ->
             if (token.startsWith("enc:v1:")) {
-                throw IllegalStateException(
-                    "Provider API key is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
+                skippedDegraded = true
+                AppLogger.w(
+                    TAG,
+                    "splitKey: skipping degraded API key (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
                 )
+                false
+            } else {
+                true
             }
         }
         // 引用展开（`$$名` → 真实值）：未注入解析器时原样通过
         .map { ProviderKeyRefs.expand(it) }
         .distinct()
+    if (tokens.isEmpty() && skippedDegraded) {
+        throw IllegalStateException(
+            "Provider API key is in degraded state (ciphertext could not be decrypted; original ciphertext is preserved). Please re-enter the API key in Settings.",
+        )
+    }
+    return tokens
 }
 
 private class DefaultKeyRoulette : KeyRoulette {

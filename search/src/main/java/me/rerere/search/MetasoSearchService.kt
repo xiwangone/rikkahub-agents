@@ -70,7 +70,7 @@ object MetasoSearchService : SearchService<SearchServiceOptions.MetasoOptions> {
                     buildJsonObject {
                         put("q", JsonPrimitive(query))
                         put("scope", JsonPrimitive("webpage"))
-                        put("size", JsonPrimitive(commonOptions.resultSize))
+                        put("size", JsonPrimitive(commonOptions.resultSize.coerceIn(1, 50)))
                         put("includeSummary", JsonPrimitive(false))
                     }
 
@@ -86,14 +86,14 @@ object MetasoSearchService : SearchService<SearchServiceOptions.MetasoOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val bodyRaw = response.body.string()
+                    val bodyRaw = boundedBodyOrFail(response)
                     val searchResponse =
                         runCatching {
                             json.decodeFromString<MetasoSearchResponse>(bodyRaw)
                         }.onFailure {
                             AppLogger.e(TAG, "decode error", it)
-                            AppLogger.w(TAG, "Failed to decode Metaso response: $bodyRaw")
-                            error("Failed to decode response: $bodyRaw")
+                            AppLogger.w(TAG, "Failed to decode Metaso response: ${bodyPreview(bodyRaw)}")
+                            error("Failed to decode response: ${bodyPreview(bodyRaw)}")
                         }.getOrThrow()
 
                     return@withContext Result.success(
@@ -109,7 +109,7 @@ object MetasoSearchService : SearchService<SearchServiceOptions.MetasoOptions> {
                         ),
                     )
                 } else {
-                    val errorBody = response.body.string()
+                    val errorBody = bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))
                     AppLogger.w(TAG, "Metaso search failed with code ${response.code}: $errorBody")
                     error("Search request failed with code ${response.code}: $errorBody")
                 }

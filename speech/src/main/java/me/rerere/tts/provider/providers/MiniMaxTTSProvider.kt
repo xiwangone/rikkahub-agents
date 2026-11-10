@@ -49,6 +49,7 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
             encodeDefaults = true
         }
 
+    @Suppress("TooGenericExceptionCaught") // 有意宽 catch：单个音频块跨 JSON 解码/hex 转换/SSE 多类异常，类型不可枚举；失败只跳过该块并计数，不能断掉整条流。
     override fun generateSpeech(
         context: Context,
         providerSetting: TTSProviderSetting.MiniMax,
@@ -88,6 +89,7 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                     .build()
 
             var hasEmittedAudio = false
+            var failedChunkCount = 0
 
             httpClient.sseFlow(httpRequest).collect {
                 when (it) {
@@ -120,24 +122,39 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                             )
                             hasEmittedAudio = true
                         } catch (e: Exception) {
+                            // A failed chunk is skipped, but never silently: count it so the
+                            // terminal chunk records how much audio was lost to decode errors.
+                            failedChunkCount++
                             AppLogger.e(TAG, "Failed to process audio chunk", e)
                         }
                     }
 
                     is SseEvent.Closed -> {
                         AppLogger.i(TAG, "SSE connection closed")
-                        // Emit final chunk if we haven't already
-                        if (hasEmittedAudio) {
-                            emit(
-                                AudioChunk(
-                                    data = byteArrayOf(), // Empty data for last chunk
-                                    format = AudioFormat.MP3,
-                                    sampleRate = 32000,
-                                    isLast = true,
-                                    metadata = mapOf("provider" to "minimax"),
-                                ),
-                            )
+                        // A stream with no audio at all is a failed synthesis, not an empty
+                        // success: callers would otherwise play zero bytes of audio.
+                        if (!hasEmittedAudio) {
+                            throw IllegalStateException("MiniMax TTS returned no audio chunks")
                         }
+                        if (failedChunkCount > 0) {
+                            AppLogger.e(TAG, "MiniMax TTS finished with $failedChunkCount failed audio chunks")
+                        }
+                        // Emit final chunk if we haven't already
+                        emit(
+                            AudioChunk(
+                                data = byteArrayOf(), // Empty data for last chunk
+                                format = AudioFormat.MP3,
+                                sampleRate = 32000,
+                                isLast = true,
+                                metadata =
+                                    buildMap {
+                                        put("provider", "minimax")
+                                        if (failedChunkCount > 0) {
+                                            put("failedChunks", failedChunkCount.toString())
+                                        }
+                                    },
+                            ),
+                        )
                     }
 
                     is SseEvent.Failure -> {

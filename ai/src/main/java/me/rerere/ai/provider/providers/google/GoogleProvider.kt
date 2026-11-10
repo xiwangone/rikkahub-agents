@@ -125,7 +125,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
             "${providerSetting.baseUrl}/$path".toHttpUrlOrNull()
                 ?: throw IllegalArgumentException("Invalid Google baseUrl: '${providerSetting.baseUrl}'")
         } else if (providerSetting.useServiceAccount) {
-            "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}/$path".toHttpUrl()
+            // projectId / location 是用户填的值，非法字符直接拼进 URL 会让 toHttpUrl() 抛错：
+            // 先校验，报错时明确指出是哪个字段非法，与非 Vertex 分支的口径一致。
+            "https://aiplatform.googleapis.com/v1/projects/${providerSetting.projectId}/locations/${providerSetting.location}/$path".toHttpUrlOrNull()
+                ?: throw IllegalArgumentException("Invalid Google Vertex projectId/location: '${providerSetting.projectId}' / '${providerSetting.location}'")
         } else {
             "https://aiplatform.googleapis.com/v1/$path".toHttpUrl()
         }
@@ -266,12 +269,23 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         val response = client.newCall(request).await()
         val bodyStr = response.body.string()
         if (!response.isSuccessful) {
-            throw response.errorAsHttpException()
+            throw response.errorAsHttpException(bodyStr)
         }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 
         val candidate = bodyJson["candidates"]?.jsonArray?.firstOrNull()?.jsonObject
             ?: error("No candidates in response")
+        // 安全拦截时服务端不给 content，只给 finishReason / promptFeedback.blockReason：
+        // 先报拦截原因，而不是走到 parseGoogleMessage 里抛通用的 "No content"。
+        val blockReason = (bodyJson["promptFeedback"] as? JsonObject)
+            ?.get("blockReason")?.let { it as? JsonPrimitive }?.contentOrNull
+        if (blockReason != null) {
+            error("Prompt blocked: $blockReason")
+        }
+        if (candidate["content"] as? JsonObject == null) {
+            val finishReason = candidate["finishReason"]?.jsonPrimitive?.contentOrNull
+            error("No content in candidate (finishReason=$finishReason)")
+        }
         TextGenerationResult(
             id = Uuid.random().toString(),
             model = params.model.modelId,

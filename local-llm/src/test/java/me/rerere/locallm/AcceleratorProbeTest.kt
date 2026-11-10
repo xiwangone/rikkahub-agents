@@ -35,14 +35,14 @@ class AcceleratorProbeTest {
         assertEquals("GPU", AcceleratorProbe.pickLiteRt(caps))
     }
 
-    @Test fun `LiteRT falls back to NNAPI when GPU delegate is unavailable`() {
+    @Test fun `LiteRT falls back to CPU when GPU delegate is unavailable as NNAPI has no backend mapping`() {
         val caps = AcceleratorProbe.LiteRtCapabilities(
             isQualcomm = false,
             qnnLibrarySupported = false,
             gpuDelegateSupported = false,
             nnapiSupported = true,
         )
-        assertEquals("NNAPI", AcceleratorProbe.pickLiteRt(caps))
+        assertEquals("CPU", AcceleratorProbe.pickLiteRt(caps))
     }
 
     @Test fun `LiteRT falls back to CPU when nothing else works`() {

@@ -89,7 +89,12 @@ internal class GoogleStreamDecoder(
             }
         }
         part.containsKey("functionCall") -> {
-            val functionCall = part["functionCall"]!!.jsonObject
+            // containsKey 只保证键存在，值仍可能是 null：用安全转型，取不到对象就跳过该分片。
+            val functionCall = part["functionCall"] as? JsonObject
+            if (functionCall == null) {
+                AppLogger.w(TAG, "parsePart: skipping functionCall with null value")
+                return null
+            }
             UIMessagePart.Tool(
                 toolCallId = functionCall["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:tool-${++toolSequence}",
                 toolName = functionCall["name"]?.jsonPrimitive?.contentOrNull ?: "",
@@ -101,15 +106,27 @@ internal class GoogleStreamDecoder(
             )
         }
         part.containsKey("toolCall") -> {
-            val call = part["toolCall"]!!.jsonObject
+            val call = part["toolCall"] as? JsonObject
+            if (call == null) {
+                AppLogger.w(TAG, "parsePart: skipping toolCall with null value")
+                return null
+            }
             UIMessagePart.ServerTool(call["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:server-${++toolSequence}", call["toolType"]?.jsonPrimitive?.contentOrNull ?: "", call["args"], status = ServerToolStatus.IN_PROGRESS, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, call = part, callIndex = index).toMetadata())
         }
         part.containsKey("toolResponse") -> {
-            val response = part["toolResponse"]!!.jsonObject
+            val response = part["toolResponse"] as? JsonObject
+            if (response == null) {
+                AppLogger.w(TAG, "parsePart: skipping toolResponse with null value")
+                return null
+            }
             UIMessagePart.ServerTool(response["id"]?.jsonPrimitive?.contentOrNull ?: "$responseId:server-${++toolSequence}", response["toolType"]?.jsonPrimitive?.contentOrNull ?: "", output = response["response"], status = ServerToolStatus.COMPLETED, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, result = part, resultIndex = index).toMetadata())
         }
         part.containsKey("inlineData") -> {
-            val inlineData = part["inlineData"]!!.jsonObject
+            val inlineData = part["inlineData"] as? JsonObject
+            if (inlineData == null) {
+                AppLogger.w(TAG, "parsePart: skipping inlineData with null value")
+                return null
+            }
             val mimeType = inlineData["mimeType"]?.jsonPrimitive?.contentOrNull ?: "image/png"
             require(mimeType.startsWith("image/")) { "Only image mime type is supported" }
             if (part["thought"]?.jsonPrimitive?.booleanOrNull == true) {

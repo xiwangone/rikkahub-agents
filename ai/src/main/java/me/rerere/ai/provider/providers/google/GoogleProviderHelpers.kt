@@ -38,7 +38,12 @@ internal fun googleRoleToCommonRole(role: String): MessageRole {
             "user" -> MessageRole.USER
             "system" -> MessageRole.SYSTEM
             "model" -> MessageRole.ASSISTANT
-            else -> error("Unknown role $role")
+            // 兼容服务端返回非标准 role（如空串、"assistant"）：记日志后按 ASSISTANT 处理，
+            // 避免整轮生成因一个未知 role 崩溃。
+            else -> {
+                AppLogger.w("GoogleProvider", "googleRoleToCommonRole: unknown role \"$role\", treating as assistant")
+                MessageRole.ASSISTANT
+            }
         }
     }
 
@@ -112,15 +117,28 @@ internal fun parseMessagePart(jsonObject: JsonObject, index: Int = 0): UIMessage
             }
 
             jsonObject.containsKey("toolCall") -> {
-                val call = jsonObject["toolCall"]!!.jsonObject
+                // containsKey 只保证键存在，值仍可能是 null：用安全转型，取不到对象就跳过该分片。
+                val call = jsonObject["toolCall"] as? JsonObject
+                if (call == null) {
+                    AppLogger.w("GoogleProvider", "parseMessagePart: skipping toolCall with null value")
+                    return null
+                }
                 UIMessagePart.ServerTool(call["id"]?.jsonPrimitive?.contentOrNull ?: "google-server-$index", call["toolType"]?.jsonPrimitive?.contentOrNull ?: "", call["args"], status = ServerToolStatus.IN_PROGRESS, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, call = jsonObject, callIndex = index).toMetadata())
             }
             jsonObject.containsKey("toolResponse") -> {
-                val response = jsonObject["toolResponse"]!!.jsonObject
+                val response = jsonObject["toolResponse"] as? JsonObject
+                if (response == null) {
+                    AppLogger.w("GoogleProvider", "parseMessagePart: skipping toolResponse with null value")
+                    return null
+                }
                 UIMessagePart.ServerTool(response["id"]?.jsonPrimitive?.contentOrNull ?: "google-server-$index", response["toolType"]?.jsonPrimitive?.contentOrNull ?: "", output = response["response"], status = ServerToolStatus.COMPLETED, metadata = ServerToolMetadata(protocol = ServerToolProtocol.GOOGLE_GENERATE_CONTENT, result = jsonObject, resultIndex = index).toMetadata())
             }
             jsonObject.containsKey("inlineData") -> {
-                val inlineData = jsonObject["inlineData"]!!.jsonObject
+                val inlineData = jsonObject["inlineData"] as? JsonObject
+                if (inlineData == null) {
+                    AppLogger.w("GoogleProvider", "parseMessagePart: skipping inlineData with null value")
+                    return null
+                }
                 val mime = inlineData["mimeType"]?.jsonPrimitive?.content ?: "image/png"
                 val data = inlineData["data"]?.jsonPrimitive?.content ?: ""
                 val thought = jsonObject["thought"]?.jsonPrimitive?.booleanOrNull ?: false

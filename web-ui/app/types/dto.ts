@@ -71,6 +71,10 @@ export interface MessageDto {
   finishedAt?: string | null;
   modelId?: string | null;
   usage?: TokenUsage | null;
+  /** Latest model request only; `usage` is the per-message cumulative total. */
+  lastUsage?: TokenUsage | null;
+  /** Cumulative generation time in ms, excluding tool execution waits. */
+  generationTimeMs?: number | null;
   translation?: string | null;
   /** 压缩检查点：此消息是它之前全部历史的摘要，之前的消息不再发送给模型 */
   isContextCheckpoint?: boolean;

@@ -2678,6 +2678,9 @@
   <string name="setting_trusted_keys_vault">Vault known_hosts</string>
   <string name="setting_trusted_keys_empty">No trusted host keys yet</string>
   <string name="setting_trusted_keys_hint">After deleting a key, the next connection to that host will ask for fingerprint confirmation again.</string>
+  <string name="setting_trusted_keys_delete_title">Delete trusted key?</string>
+  <string name="setting_trusted_keys_delete_message">The next connection to %1$s will ask for fingerprint confirmation again.</string>
+  <string name="setting_trusted_keys_load_failed">Couldn\'t read trusted keys: %1$s</string>
   <string name="tts_label_1">S2.1-Pro (recommended)</string>
   <string name="tts_label_2">S2.1-Pro Free (free)</string>
   <string name="tts_label_3">step-tts-mini (lightweight, cheap)</string>
@@ -4213,6 +4216,9 @@
   <string name="tunnel_status_offline">Offline (reconnecting…)</string>
   <string name="tunnel_status_failed">Failed: %1$s</string>
   <string name="tunnel_status_disconnected">Disconnected</string>
+  <string name="tunnel_apply_failed">Failed to apply: %1$s</string>
+  <string name="tunnel_logout_failed">Sign out failed: %1$s</string>
+  <string name="tunnel_status_copy_ip_hint">Tap to copy the IP address</string>
   <string name="tunnel_control_url_label">Control plane URL</string>
   <string name="tunnel_auth_key_label">Auth key</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>

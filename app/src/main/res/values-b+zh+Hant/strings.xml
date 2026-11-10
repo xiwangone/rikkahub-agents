@@ -4140,6 +4140,9 @@
   <string name="tunnel_status_offline">後端離線（自動重連中…）</string>
   <string name="tunnel_status_failed">失敗：%1$s</string>
   <string name="tunnel_status_disconnected">未連線</string>
+  <string name="tunnel_apply_failed">套用失敗：%1$s</string>
+  <string name="tunnel_logout_failed">登出失敗：%1$s</string>
+  <string name="tunnel_status_copy_ip_hint">點按複製通道 IP 位址</string>
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">驗證金鑰</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 憑證名稱</string>
@@ -4261,6 +4264,9 @@
   <string name="setting_trusted_keys_vault">Vault known_hosts</string>
   <string name="setting_trusted_keys_empty">尚無受信主機金鑰</string>
   <string name="setting_trusted_keys_hint">刪除後，下次連線該主機時會再次要求確認指紋。</string>
+  <string name="setting_trusted_keys_delete_title">刪除受信金鑰？</string>
+  <string name="setting_trusted_keys_delete_message">下次連線 %1$s 時會再次要求確認指紋。</string>
+  <string name="setting_trusted_keys_load_failed">讀取受信金鑰失敗：%1$s</string>
   <string name="assistant_page_empty">還沒有助手</string>
   <string name="assistant_page_empty_desc">點右上角 + 新增第一個助手。</string>
   <string name="assistant_page_no_results">沒有符合搜尋條件的助手</string>

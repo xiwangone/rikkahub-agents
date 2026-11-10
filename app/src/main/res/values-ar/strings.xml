@@ -4148,6 +4148,9 @@
   <string name="tunnel_status_offline">غير متصل (جارٍ إعادة الاتصال…)</string>
   <string name="tunnel_status_failed">فشل: %1$s</string>
   <string name="tunnel_status_disconnected">غير متصل</string>
+  <string name="tunnel_apply_failed">تعذّر التطبيق: %1$s</string>
+  <string name="tunnel_logout_failed">تعذّر تسجيل الخروج: %1$s</string>
+  <string name="tunnel_status_copy_ip_hint">انقر لنسخ عنوان IP الخاص بالنفق</string>
   <string name="tunnel_control_url_label">عنوان URL لمستوى التحكم</string>
   <string name="tunnel_auth_key_label">مفتاح المصادقة</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... أو اسم بيانات الاعتماد $$</string>
@@ -4269,6 +4272,9 @@
   <string name="setting_trusted_keys_vault">known_hosts للمخزن</string>
   <string name="setting_trusted_keys_empty">لا توجد مفاتيح مضيف موثوقة بعد</string>
   <string name="setting_trusted_keys_hint">بعد حذف مفتاح، سيطلب الاتصال التالي بذلك المضيف تأكيد البصمة مرة أخرى.</string>
+  <string name="setting_trusted_keys_delete_title">حذف المفتاح الموثوق؟</string>
+  <string name="setting_trusted_keys_delete_message">سيطلب الاتصال التالي بـ %1$s تأكيد البصمة مجددًا.</string>
+  <string name="setting_trusted_keys_load_failed">تعذّرت قراءة المفاتيح الموثوقة: %1$s</string>
   <string name="assistant_page_empty">لا يوجد مساعدون بعد</string>
   <string name="assistant_page_empty_desc">انقر على + لإنشاء أول مساعد.</string>
   <string name="assistant_page_no_results">لا يوجد مساعدون يطابقون بحثك</string>

@@ -66,7 +66,7 @@ object SerperSearchService : SearchService<SearchServiceOptions.SerperOptions> {
                 val body =
                     buildJsonObject {
                         put("q", query)
-                        put("num", commonOptions.resultSize)
+                        put("num", commonOptions.resultSize.coerceIn(1, 100))
                     }
                 val apiKey = keyRoulette.next(serviceOptions.apiKey, serviceOptions.id.toString())
 
@@ -81,7 +81,7 @@ object SerperSearchService : SearchService<SearchServiceOptions.SerperOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val responseBody = response.body.string()
+                    val responseBody = boundedBodyOrFail(response)
                     val searchResponse = json.decodeFromString<SerperSearchResponse>(responseBody)
 
                     val answer =
@@ -104,7 +104,7 @@ object SerperSearchService : SearchService<SearchServiceOptions.SerperOptions> {
                         ),
                     )
                 } else {
-                    error("Serper search failed with code ${response.code}: ${response.message}")
+                    error("Serper search failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

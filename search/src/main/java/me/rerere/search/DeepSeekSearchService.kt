@@ -81,7 +81,7 @@ object DeepSeekSearchService : SearchService<SearchServiceOptions.DeepSeekOption
             .header("Authorization", "Bearer $key")
             .post(payload.toString().toRequestBody(jsonType)).build()
         return httpClient.newCall(request).await().use { response ->
-            val text = response.body?.string().orEmpty()
+            val text = boundedBodyOrFail(response)
             if (!response.isSuccessful) error("DeepSeek request failed with HTTP ${response.code}")
             text.ifBlank { error("DeepSeek returned an empty response (HTTP ${response.code})") }
         }

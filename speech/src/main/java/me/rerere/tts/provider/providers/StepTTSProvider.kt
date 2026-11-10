@@ -17,6 +17,8 @@ import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
 import java.util.concurrent.TimeUnit
 import me.rerere.common.log.AppLogger
+import me.rerere.speech.http.MAX_TTS_AUDIO_BYTES
+import me.rerere.speech.http.readBoundedBytes
 
 private const val TAG = "StepTTSProvider"
 
@@ -92,9 +94,7 @@ class StepTTSProvider : TTSProvider<TTSProviderSetting.Step> {
                 )
             }
 
-            val audioBytes =
-                response.body?.bytes()
-                    ?: throw Exception("Step TTS returned empty body")
+            val audioBytes = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
 
             if (audioBytes.isEmpty()) {
                 throw TTSProviderException(

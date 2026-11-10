@@ -3,8 +3,14 @@ package me.rerere.document
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserFactory
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
-import java.util.zip.ZipInputStream
+import java.util.zip.ZipFile
+
+// Whole-document cap, matching the EPUB total cap: downstream use is a prompt-sized
+// extract, not a full dump. Text past the cap is cut and marked instead of silently
+// dropped or held in memory without bound.
+private const val MAX_TOTAL_CHARS = 5_000_000
 
 private data class ListInfo(
     val level: Int,
@@ -20,40 +26,65 @@ private data class ParagraphProperties(
 object DocxParser {
     fun parse(file: File): String {
         return try {
-            file.inputStream().use { fileInputStream ->
-                ZipInputStream(fileInputStream).use { zipStream ->
-                    var entry = zipStream.nextEntry
-                    while (entry != null) {
-                        if (entry.name == "word/document.xml") {
-                            return parseDocumentXml(zipStream)
-                        }
-                        entry = zipStream.nextEntry
-                    }
-                    "Unable to find document content in DOCX file"
-                }
+            // Look the entry up by name: a sequential scan would have to inflate every
+            // entry ahead of document.xml first, so a junk entry planted before it could
+            // burn unbounded CPU before parsing even starts.
+            ZipFile(file).use { zip ->
+                val entry = zip.getEntry("word/document.xml")
+                    ?: return "Unable to find document content in DOCX file"
+                zip.getInputStream(entry).use { parseDocumentXml(it) }
             }
-        } catch (e: Exception) {
+        } catch (e: IOException) {
             "Error parsing DOCX file: ${e.message}"
         }
     }
 
+    /** Append at most up to the document cap. Returns true when the cap was reached. */
+    private fun appendBounded(result: StringBuilder, text: String): Boolean {
+        if (result.length >= MAX_TOTAL_CHARS) return true
+        result.append(text.take(MAX_TOTAL_CHARS - result.length))
+        return result.length >= MAX_TOTAL_CHARS
+    }
+
+    @Suppress("TooGenericExceptionCaught", "SwallowedException") // 有意宽 catch：畸形 DOCX 里单个段落/表格解析失败只丢该块、不能丢整篇；解析器实现抛出的 RuntimeException 类型不可枚举，收窄会漏接。
     private fun parseDocumentXml(inputStream: InputStream): String =
         try {
             val factory = XmlPullParserFactory.newInstance()
             factory.isNamespaceAware = true
             val parser = factory.newPullParser()
+            parser.setFeature(XmlPullParser.FEATURE_PROCESS_DOCDECL, false)
             parser.setInput(inputStream, "UTF-8")
 
             val result = StringBuilder()
             var inBody = false
+            var truncated = false
 
-            while (parser.eventType != XmlPullParser.END_DOCUMENT) {
+            while (parser.eventType != XmlPullParser.END_DOCUMENT && !truncated) {
                 when (parser.eventType) {
                     XmlPullParser.START_TAG -> {
                         when (parser.name) {
                             "body" -> inBody = true
-                            "p" -> if (inBody) processParagraph(parser, result)
-                            "tbl" -> if (inBody) processTable(parser, result)
+                            // One malformed paragraph/table must not lose the whole
+                            // document: drop just that block and mark it, like EPUB
+                            // drops only the failing chapter.
+                            "p" -> if (inBody) {
+                                val before = result.length
+                                try {
+                                    processParagraph(parser, result)
+                                } catch (e: Exception) {
+                                    result.setLength(before)
+                                    result.append("[Error: skipped a paragraph that could not be parsed]\n\n")
+                                }
+                            }
+                            "tbl" -> if (inBody) {
+                                val before = result.length
+                                try {
+                                    processTable(parser, result)
+                                } catch (e: Exception) {
+                                    result.setLength(before)
+                                    result.append("[Error: skipped a table that could not be parsed]\n\n")
+                                }
+                            }
                         }
                     }
 
@@ -62,6 +93,10 @@ object DocxParser {
                     }
                 }
                 parser.next()
+                if (result.length >= MAX_TOTAL_CHARS) {
+                    result.append("\n[Truncated: showing first $MAX_TOTAL_CHARS characters]")
+                    truncated = true
+                }
             }
 
             result.toString().trim()
@@ -108,16 +143,16 @@ object DocxParser {
                 listInfo != null -> {
                     val indent = "  ".repeat(listInfo.level)
                     val marker = if (listInfo.isNumbered) "${listInfo.number}. " else "- "
-                    result.append("$indent$marker$paragraphText\n")
+                    appendBounded(result, "$indent$marker$paragraphText\n")
                 }
 
                 headingLevel > 0 -> {
                     val headingPrefix = "#".repeat(headingLevel)
-                    result.append("$headingPrefix $paragraphText\n\n")
+                    appendBounded(result, "$headingPrefix $paragraphText\n\n")
                 }
 
                 else -> {
-                    result.append("$paragraphText\n\n")
+                    appendBounded(result, "$paragraphText\n\n")
                 }
             }
         }
@@ -155,7 +190,12 @@ object DocxParser {
                                         else -> text
                                     }
 
-                                result.append(text)
+                                // A single run must not grow the paragraph buffer past the
+                                // document cap; later runs are still consumed so the parser
+                                // stays positioned at the end of the run.
+                                if (result.length < MAX_TOTAL_CHARS) {
+                                    result.append(text.take(MAX_TOTAL_CHARS - result.length))
+                                }
                             }
                         }
                     }
@@ -170,37 +210,14 @@ object DocxParser {
         }
     }
 
-    private fun extractFormatting(parser: XmlPullParser): Pair<Boolean, Boolean> {
-        val rPrStartDepth = parser.depth
-        var isBold = false
-        var isItalic = false
-
-        while (parser.next() != XmlPullParser.END_DOCUMENT) {
-            when (parser.eventType) {
-                XmlPullParser.START_TAG -> {
-                    when (parser.name) {
-                        "b" -> isBold = true
-                        "i" -> isItalic = true
-                    }
-                }
-
-                XmlPullParser.END_TAG -> {
-                    if (parser.name == "rPr" && parser.depth == rPrStartDepth) {
-                        break
-                    }
-                }
-            }
-        }
-
-        return Pair(isBold, isItalic)
-    }
-
     private fun processTable(
         parser: XmlPullParser,
         result: StringBuilder,
     ) {
         val tableStartDepth = parser.depth
         val rows = mutableListOf<List<String>>()
+        var tableChars = 0
+        var hitTableCap = false
 
         while (parser.next() != XmlPullParser.END_DOCUMENT) {
             when (parser.eventType) {
@@ -209,6 +226,13 @@ object DocxParser {
                         val cells = extractTableRow(parser)
                         if (cells.isNotEmpty()) {
                             rows.add(cells)
+                            tableChars += cells.sumOf { it.length }
+                            // Cap the buffered table itself: a hostile table must not grow
+                            // unboundedly in memory before it is rendered.
+                            if (tableChars > MAX_TOTAL_CHARS) {
+                                hitTableCap = true
+                                break
+                            }
                         }
                     }
                 }
@@ -220,31 +244,45 @@ object DocxParser {
                 }
             }
         }
+        if (hitTableCap) {
+            // Skip the rest of this table so its remaining cells are not re-read as
+            // top-level paragraphs by the caller.
+            while (parser.next() != XmlPullParser.END_DOCUMENT) {
+                if (parser.eventType == XmlPullParser.END_TAG &&
+                    parser.name == "tbl" && parser.depth == tableStartDepth
+                ) {
+                    break
+                }
+            }
+        }
 
-        // Convert to markdown table
+        // Render into a scratch buffer first, then append only up to the document cap
+        // instead of doubling the whole table in the output buffer.
+        val tableText = StringBuilder()
         if (rows.isNotEmpty()) {
             val maxCols = rows.maxOfOrNull { it.size } ?: 0
 
             // Add table rows
             for ((index, row) in rows.withIndex()) {
-                result.append("| ")
+                tableText.append("| ")
                 for (colIndex in 0 until maxCols) {
                     val cellContent = if (colIndex < row.size) row[colIndex] else ""
-                    result.append("$cellContent | ")
+                    tableText.append("$cellContent | ")
                 }
-                result.append("\n")
+                tableText.append("\n")
 
                 // Add separator after first row (header)
                 if (index == 0) {
-                    result.append("| ")
+                    tableText.append("| ")
                     repeat(maxCols) {
-                        result.append("--- | ")
+                        tableText.append("--- | ")
                     }
-                    result.append("\n")
+                    tableText.append("\n")
                 }
             }
         }
-        result.append("\n")
+        tableText.append("\n")
+        appendBounded(result, tableText.toString())
     }
 
     private fun extractTableRow(parser: XmlPullParser): List<String> {
@@ -383,4 +421,29 @@ object DocxParser {
 
         return ParagraphProperties(listInfo = listInfo, headingLevel = headingLevel)
     }
+}
+
+private fun extractFormatting(parser: XmlPullParser): Pair<Boolean, Boolean> {
+    val rPrStartDepth = parser.depth
+    var isBold = false
+    var isItalic = false
+
+    while (parser.next() != XmlPullParser.END_DOCUMENT) {
+        when (parser.eventType) {
+            XmlPullParser.START_TAG -> {
+                when (parser.name) {
+                    "b" -> isBold = true
+                    "i" -> isItalic = true
+                }
+            }
+
+            XmlPullParser.END_TAG -> {
+                if (parser.name == "rPr" && parser.depth == rPrStartDepth) {
+                    break
+                }
+            }
+        }
+    }
+
+    return Pair(isBold, isItalic)
 }

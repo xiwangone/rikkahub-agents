@@ -13,13 +13,15 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -129,7 +131,17 @@ fun SshTerminalPage(hostName: String) {
     var command by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
     val sessionRef = remember { java.util.concurrent.atomic.AtomicReference<com.jcraft.jsch.Session?>(null) }
-    val outputScrollState = rememberScrollState()
+    // 按行渲染输出：每行独立布局，新行追加时只测量新增行，不再全量重组整段文本。
+    val outputLines = remember(output) {
+        if (output.isEmpty()) {
+            emptyList()
+        } else {
+            output.split("\n").let { lines ->
+                if (lines.size > 1 && lines.last().isEmpty()) lines.dropLast(1) else lines
+            }
+        }
+    }
+    val outputListState = rememberLazyListState()
 
     DisposableEffect(hostName) {
         onDispose {
@@ -137,8 +149,15 @@ fun SshTerminalPage(hostName: String) {
         }
     }
 
+    // 只有用户已在底部时才跟随新输出；上翻看历史时不拽回到底部。
     LaunchedEffect(output.length) {
-        outputScrollState.animateScrollTo(outputScrollState.maxValue)
+        val lastIndex = outputLines.lastIndex
+        if (lastIndex < 0) return@LaunchedEffect
+        val lastVisible = outputListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
+        val atBottom = lastVisible == null || lastVisible >= lastIndex - 1
+        if (atBottom) {
+            outputListState.animateScrollToItem(lastIndex)
+        }
     }
 
     // 建连入口：首次进入时调用；用户在指纹弹窗上点信任后，带上待确认的密钥再调一次，
@@ -424,16 +443,20 @@ fun SshTerminalPage(hostName: String) {
                             .padding(14.dp),
                 ) {
                     SelectionContainer {
-                        Text(
-                            text = output,
-                            style = MaterialTheme.typography.bodySmall,
-                            fontFamily = JetbrainsMono,
-                            color = MaterialTheme.colorScheme.inverseOnSurface,
-                            modifier =
-                                Modifier
-                                    .fillMaxSize()
-                                    .verticalScroll(outputScrollState),
-                        )
+                        LazyColumn(
+                            state = outputListState,
+                            modifier = Modifier.fillMaxSize(),
+                        ) {
+                            itemsIndexed(outputLines, key = { index, _ -> index }) { _, line ->
+                                Text(
+                                    text = line,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    fontFamily = JetbrainsMono,
+                                    color = MaterialTheme.colorScheme.inverseOnSurface,
+                                    modifier = Modifier.fillMaxWidth(),
+                                )
+                            }
+                        }
                     }
                 }
             }

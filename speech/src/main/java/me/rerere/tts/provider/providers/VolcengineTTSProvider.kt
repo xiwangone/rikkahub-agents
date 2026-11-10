@@ -1,7 +1,6 @@
 package me.rerere.tts.provider.providers
 
 import android.content.Context
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.buffer
 import kotlinx.coroutines.flow.flow
@@ -108,8 +107,11 @@ class VolcengineTTSProvider : TTSProvider<TTSProviderSetting.Volcengine> {
     ): Flow<AudioChunk> = flow {
         val processor = VolcengineTTSStreamProcessor()
         httpClient.sseFlow(buildVolcengineTTSRequest(providerSetting, request.text))
-            // sseFlow uses trySend; fuse an unlimited buffer so audio bursts are not dropped.
-            .buffer(Channel.UNLIMITED)
+            // Bounded buffer: a slow player applies backpressure through the channel
+            // instead of letting burst events pile up unbounded in memory. 64 matches
+            // the callbackFlow channel behind sseFlow, so the bound is consistent
+            // end to end for one short synthesis.
+            .buffer(64)
             .transformWhile { event ->
                 val chunk = processor.process(event)
                 if (chunk != null) emit(chunk)

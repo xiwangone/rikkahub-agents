@@ -78,14 +78,18 @@ class SshWorkspaceBackend(
     override fun readText(path: String): String {
         val file = resolve(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = true) { sftp ->
-            val size = sftp.requireFile(file, path).size
+            val size = sftp.requireFile(file, path, WorkspaceStorageArea.FILES).size
             require(size <= workspaceConfig.maxReadBytes) {
                 "File is too large to read: $size bytes (limit ${workspaceConfig.maxReadBytes} bytes). " +
                     "Read it in parts (start_line/end_line), or narrow it down with grep, " +
                     "or use shell head/tail to inspect a slice."
             }
-            // 不用 get 返回的流: 它关闭时要读完未到的回应, 读取被打断后会再次卡住
-            ByteArrayOutputStream().also { sftp.get(file.sftpQuote(), it) }.toString(Charsets.UTF_8.name())
+            // 有界读取：不先信 stat 的大小，读到上限+1 字节即报错，避免 TOCTOU 下文件
+            // 变大撑满内存（本地侧 readText 同口径）；不用 get 返回的流：它关闭时要读完
+            // 未到的回应，读取被打断后会再次卡住。
+            val out = ByteArrayOutputStream()
+            sftp.get(file.sftpQuote(), BoundedOutputStream(out, workspaceConfig.maxReadBytes))
+            out.toString(Charsets.UTF_8.name())
         }
     }
 
@@ -97,7 +101,7 @@ class SshWorkspaceBackend(
         }
         val file = resolve(WorkspaceStorageArea.FILES, path)
         return withSftp(WorkspaceStorageArea.FILES, retry = false) { sftp ->
-            sftp.writeSftpBytes(file, bytes, overwrite, path)
+            sftp.writeSftpBytes(file, bytes, overwrite, path, area = WorkspaceStorageArea.FILES)
                 .toWorkspaceEntry(relativePath(WorkspaceStorageArea.FILES, file), file.fileName())
         }
     }
@@ -118,6 +122,8 @@ class SshWorkspaceBackend(
         val file = resolve(area, targetPath)
         return inputStream.use { input ->
             withSftp(area, retry = false) { sftp ->
+                // mkdirs 会跟随父目录软链，先校验父目录的实际位置。
+                sftp.requireWithinRoot(area, file.parentPath(), targetPath)
                 sftp.mkdirs(file.parentPath())
                 val target = if (sftp.lstatOrNull(file) == null) file else sftp.resolveConflict(file)
                 require(sftp.lstatOrNull(target)?.isLink != true) {
@@ -141,12 +147,12 @@ class SshWorkspaceBackend(
 
     override fun fileSize(area: WorkspaceStorageArea, path: String): Long {
         val file = resolve(area, path)
-        return withSftp(area, retry = true) { it.requireFile(file, path).size }
+        return withSftp(area, retry = true) { it.requireFile(file, path, area).size }
     }
 
     override fun exportFile(area: WorkspaceStorageArea, path: String, outputStream: OutputStream) {
         val file = resolve(area, path)
-        withSftp(area, retry = false) { sftp -> sftp.export(file, path, outputStream) }
+        withSftp(area, retry = false) { sftp -> sftp.export(file, path, outputStream, area) }
     }
 
     override fun deleteFile(area: WorkspaceStorageArea, path: String, recursive: Boolean): Boolean {
@@ -154,6 +160,9 @@ class SshWorkspaceBackend(
         val target = resolve(area, path)
         require(target != areaRoot(area)) { "Refusing to delete workspace root" }
         return withSftp(area, retry = false) { sftp ->
+            // 删的是链接本身还是目标由 lstat 决定；父目录分量里的软链会让 rm 落到根外，
+            // 先校验父目录的实际位置。
+            sftp.requireWithinRoot(area, target.parentPath(), path)
             // 用 lstat: 删除指向目录的软链时只删链接本身
             val attrs = try {
                 sftp.lstat(target.sftpQuote())
@@ -366,6 +375,13 @@ class SshWorkspaceBackend(
         require(!dst.startsWith(src.trimEnd('/') + "/")) {
             "Refusing to relocate '$source' into its own subtree: $target"
         }
+        // shell 的 rm -rf/mv/cp -a 会跟随父目录软链，只做字面规范化的 resolve() 看不到；
+        // 先用 realpath 展开源与目标父目录的实际位置，越界即拒绝。只校验父目录：
+        // 移动/复制的最终分量本身是软链时，mv/cp -a 只搬链接本身，不跟随。
+        withSftp(area, retry = true) { sftp ->
+            sftp.requireWithinRoot(area, src.parentPath(), source)
+            sftp.requireWithinRoot(area, dst.parentPath(), target)
+        }
         val transfer = if (copy) "cp -a" else "mv -f"
         val result = runShell(
             """
@@ -444,18 +460,76 @@ class SshWorkspaceBackend(
             throw e.wrap(displayPath)
         } ?: throw IllegalArgumentException("Path does not exist: $displayPath")
 
-    private fun ChannelSftp.requireFile(path: String, displayPath: String): SftpATTRS {
+    /**
+     * 校验 [path] 经软链解析后的实际位置仍在 [area] 根目录内。
+     *
+     * [resolve] 只做字面规范化，看不到父目录分量里的软链；lstat 也只看得到最终分量。
+     * 这里用 SFTP realpath 把路径（不存在时逐级上溯到存在的祖先再拼回剩余分量）展开成
+     * 实际位置，再与根目录的实际位置比对：父目录里任何一条指向根外的软链都会让展开
+     * 结果越界，从而被拒绝。根目录本身也取 realpath，避免根目录自身含软链时误判。
+     * LINUX 区根即文件系统根，无可越界之处，直接放行。
+     */
+    private fun ChannelSftp.requireWithinRoot(area: WorkspaceStorageArea, path: String, displayPath: String) {
+        val root = areaRoot(area)
+        val canonicalRoot = runCatching { realpath(root) }.getOrNull() ?: root
+        if (canonicalRoot == "/") return
+        val canonical = canonicalize(path)
+            ?: throw IOException("Cannot resolve path: $displayPath")
+        require(canonical == canonicalRoot || canonical.startsWith("$canonicalRoot/")) {
+            "Path escapes workspace root through a symbolic link: $displayPath"
+        }
+    }
+
+    /** realpath 展开路径；不存在的分量逐级上溯到存在的祖先，展开后再把剩余分量拼回。 */
+    private fun ChannelSftp.canonicalize(path: String): String? {
+        var current = path
+        val suffix = ArrayDeque<String>()
+        while (true) {
+            val resolved = try {
+                realpath(current)
+            } catch (e: SftpException) {
+                if (e.id != ChannelSftp.SSH_FX_NO_SUCH_FILE) throw e
+                null
+            }
+            if (resolved != null) {
+                var result = resolved
+                while (suffix.isNotEmpty()) result += "/" + suffix.removeFirst()
+                return normalizeAbsolute(result)
+            }
+            val parent = current.parentPath()
+            if (parent == current) return null
+            suffix.addFirst(current.fileName())
+            current = parent
+        }
+    }
+
+    private fun ChannelSftp.requireFile(
+        path: String,
+        displayPath: String,
+        area: WorkspaceStorageArea? = null,
+    ): SftpATTRS {
+        // 用 lstat：目标是软链时拒绝读穿；写侧（writeSftpBytes）同口径。
+        val linkAttrs = lstatOrNull(path)
+            ?: throw IllegalArgumentException("File does not exist: $displayPath")
+        require(!linkAttrs.isLink) { "Refusing to read through symbolic link: $displayPath" }
         val attrs = try {
             statOrNull(path)
         } catch (e: SftpException) {
             throw e.wrap(displayPath)
         } ?: throw IllegalArgumentException("File does not exist: $displayPath")
         require(attrs.isReg) { "Path is not a file: $displayPath" }
+        // 父目录分量里的软链 lstat 看不到：用 realpath 展开后比对根目录，越界即拒绝。
+        if (area != null) requireWithinRoot(area, path, displayPath)
         return attrs
     }
 
-    private fun ChannelSftp.export(path: String, displayPath: String, outputStream: OutputStream) {
-        requireFile(path, displayPath)
+    private fun ChannelSftp.export(
+        path: String,
+        displayPath: String,
+        outputStream: OutputStream,
+        area: WorkspaceStorageArea? = null,
+    ) {
+        requireFile(path, displayPath, area)
         outputStream.use { get(path.sftpQuote(), it) }
     }
 
@@ -465,12 +539,16 @@ class SshWorkspaceBackend(
         overwrite: Boolean,
         displayPath: String,
         mode: String? = null,
+        area: WorkspaceStorageArea? = null,
     ): SftpATTRS {
         // 用 lstat：目标是软链时拒绝写穿，只写链接本身指向的远端文件是越权
         val existing = lstatOrNull(path)
         require(existing == null || overwrite) { "File already exists: $displayPath" }
         require(existing == null || !existing.isDir) { "Path is not a file: $displayPath" }
         require(existing?.isLink != true) { "Refusing to write through symbolic link: $displayPath" }
+        // 父目录分量里的软链 lstat 看不到：用 realpath 展开后比对根目录，越界即拒绝。
+        // 目标不存在时取父目录展开（逐级上溯到存在的祖先）。
+        if (area != null) requireWithinRoot(area, path, displayPath)
         mkdirs(path.parentPath())
         // 先写同目录临时文件、chmod 后再改名到位：目标文件从不以默认权限或半成品形态落地
         val temp = path.parentPath().joinChild(".${path.fileName()}.tmp-${java.util.UUID.randomUUID()}")
@@ -555,6 +633,36 @@ internal fun ChannelSftp.lstatOrNull(path: String): SftpATTRS? =
     } catch (e: SftpException) {
         if (e.id == ChannelSftp.SSH_FX_NO_SUCH_FILE) null else throw e
     }
+
+/** 限流输出流：累计超过 [maxBytes] 即抛错，避免无上限读入撑满内存。 */
+private class BoundedOutputStream(
+    private val out: OutputStream,
+    private val maxBytes: Long,
+) : OutputStream() {
+    private var total = 0L
+
+    override fun write(b: Int) {
+        total++
+        require(total <= maxBytes) {
+            "File is too large to read: more than $maxBytes bytes. " +
+                "Read it in parts (start_line/end_line), or narrow it down with grep, " +
+                "or use shell head/tail to inspect a slice."
+        }
+        out.write(b)
+    }
+
+    override fun write(buffer: ByteArray, offset: Int, length: Int) {
+        total += length
+        require(total <= maxBytes) {
+            "File is too large to read: more than $maxBytes bytes. " +
+                "Read it in parts (start_line/end_line), or narrow it down with grep, " +
+                "or use shell head/tail to inspect a slice."
+        }
+        out.write(buffer, offset, length)
+    }
+
+    override fun flush() = out.flush()
+}
 
 /** 限流输入流：累计超过 [maxBytes] 即抛错，避免无上限导入撑满远端磁盘 */
 private class CountingInputStream(

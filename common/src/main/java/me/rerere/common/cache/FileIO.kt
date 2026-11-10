@@ -17,21 +17,24 @@ internal fun atomicWrite(
     content: String,
 ) {
     ensureParentDir(file)
-    val tmp = File(file.parentFile, file.name + ".tmp")
-    tmp.writeText(content)
-    if (file.exists()) {
+    // A unique temp name: two stores writing the same file must not share one temp
+    // file and interleave their contents.
+    val tmp = File(file.parentFile, "${file.name}.tmp-${java.util.UUID.randomUUID()}")
+    try {
+        tmp.writeText(content)
+        // Flush the temp file to disk before renaming, so a crash cannot leave a
+        // half-written file at the target path.
+        java.io.FileOutputStream(tmp, true).use { it.channel.force(true) }
         if (!tmp.renameTo(file)) {
-            if (file.delete()) {
-                if (!tmp.renameTo(file)) {
-                    throw IOException("Failed to replace $file with temp file")
-                }
-            } else {
-                throw IOException("Failed to delete $file for atomic write")
-            }
+            // Never delete the original first: on failure the old file stays intact.
+            throw IOException("Failed to replace $file with temp file")
         }
-    } else {
-        if (!tmp.renameTo(file)) {
-            throw IOException("Failed to move temp file to $file")
+        // Flush the parent directory so the rename itself is durable.
+        runCatching {
+            java.io.FileInputStream(file.parentFile).use { it.channel.force(true) }
         }
+    } catch (e: IOException) {
+        runCatching { tmp.delete() }
+        throw e
     }
 }

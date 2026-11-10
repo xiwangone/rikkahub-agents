@@ -227,6 +227,13 @@ data class MessageDto(
     val finishedAt: String? = null,
     val modelId: String? = null,
     val usage: TokenUsage? = null,
+    // Latest model request only; usage is the per-message cumulative total across
+    // requests, so the nerd stats line reads prompt tokens from here.
+    val lastUsage: TokenUsage? = null,
+    // Cumulative time spent generating streamed responses, excluding tool execution;
+    // the nerd stats line uses it as the tokens-per-second denominator instead of
+    // the wall-clock span, which includes tool waits.
+    val generationTimeMs: Long? = null,
     val translation: String? = null,
     val isContextCheckpoint: Boolean = false,
 )
@@ -367,6 +374,8 @@ fun UIMessage.toDto() = MessageDto(
     finishedAt = finishedAt?.toString(),
     modelId = modelId?.toString(),
     usage = usage,
+    lastUsage = lastUsage,
+    generationTimeMs = generationTimeMs,
     translation = translation,
     isContextCheckpoint = isContextCheckpoint,
 )

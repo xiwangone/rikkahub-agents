@@ -16,6 +16,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import me.rerere.common.log.AppLogger
+import me.rerere.speech.http.MAX_TTS_AUDIO_BYTES
+import me.rerere.speech.http.readBoundedBytes
 
 private const val TAG = "ElevenLabsTTSProvider"
 
@@ -69,7 +71,7 @@ class ElevenLabsTTSProvider : TTSProvider<TTSProviderSetting.ElevenLabs> {
                 )
             }
 
-            val audioData = response.body.bytes()
+            val audioData = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
 
             emit(
                 AudioChunk(

@@ -21,13 +21,18 @@ object AcceleratorProbe {
         val isQualcomm: Boolean,
         val qnnLibrarySupported: Boolean,
         val gpuDelegateSupported: Boolean,
+        // Recorded for diagnostics only: NNAPI has no backend mapping in the runtime,
+        // so it never selects an accelerator on its own (see pickLiteRt).
         val nnapiSupported: Boolean,
     )
 
+    // NNAPI has no backend mapping in the runtime (the SDK backend table only knows
+    // QNN/NPU/TPU/GPU/CPU), so claiming it would persist a label the engine never
+    // actually runs on. Fall through to CPU instead so the reported accelerator
+    // always matches the backend used.
     fun pickLiteRt(caps: LiteRtCapabilities): String = when {
         caps.isQualcomm && caps.qnnLibrarySupported -> "QNN"
         caps.gpuDelegateSupported -> "GPU"
-        caps.nnapiSupported -> "NNAPI"
         else -> "CPU"
     }
 

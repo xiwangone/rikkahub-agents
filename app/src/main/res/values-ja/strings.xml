@@ -4141,6 +4141,9 @@
   <string name="tunnel_status_offline">オフライン（再接続中…）</string>
   <string name="tunnel_status_failed">失敗: %1$s</string>
   <string name="tunnel_status_disconnected">未接続</string>
+  <string name="tunnel_apply_failed">適用に失敗しました：%1$s</string>
+  <string name="tunnel_logout_failed">サインアウトに失敗しました：%1$s</string>
+  <string name="tunnel_status_copy_ip_hint">タップしてトンネルの IP アドレスをコピー</string>
   <string name="tunnel_control_url_label">コントロールプレーン URL</string>
   <string name="tunnel_auth_key_label">認証キー</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... または $$ 認証情報名</string>
@@ -4262,6 +4265,9 @@
   <string name="setting_trusted_keys_vault">Vault の known_hosts</string>
   <string name="setting_trusted_keys_empty">信頼済みホスト鍵はまだありません</string>
   <string name="setting_trusted_keys_hint">鍵を削除すると、次回そのホストに接続する際に再度フィンガープリントの確認が求められます。</string>
+  <string name="setting_trusted_keys_delete_title">信頼済み鍵を削除しますか？</string>
+  <string name="setting_trusted_keys_delete_message">次回 %1$s に接続する際に、再度指紋の確認が求められます。</string>
+  <string name="setting_trusted_keys_load_failed">信頼済み鍵の読み取りに失敗しました：%1$s</string>
   <string name="assistant_page_empty">アシスタントがまだありません</string>
   <string name="assistant_page_empty_desc">右上の + をタップして最初のアシスタントを作成します。</string>
   <string name="assistant_page_no_results">検索条件に合うアシスタントがありません</string>

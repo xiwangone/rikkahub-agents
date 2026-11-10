@@ -113,6 +113,10 @@ object GrokSearchService : SearchService<SearchServiceOptions.GrokOptions> {
 
                 AppLogger.i(TAG, "search: $query")
 
+                // The endpoint is user-configured and may point at a self-hosted service
+                // on a private address, so no egress guard is applied here by design. The
+                // credentials are only sent to this configured endpoint, and the client
+                // refuses https->http downgrades, so a redirect cannot leak them in cleartext.
                 val request =
                     Request
                         .Builder()
@@ -125,7 +129,7 @@ object GrokSearchService : SearchService<SearchServiceOptions.GrokOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val responseBody =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<GrokResponse>(it)
                         }
 
@@ -145,7 +149,7 @@ object GrokSearchService : SearchService<SearchServiceOptions.GrokOptions> {
                             ?.annotations
                             ?.filter { it.type == "url_citation" && !it.url.isNullOrBlank() }
                             ?.distinctBy { it.url }
-                            ?.take(commonOptions.resultSize)
+                            ?.take(commonOptions.resultSize.coerceIn(1, 50))
                             ?.map { annotation ->
                                 SearchResultItem(
                                     title = annotation.url!!,
@@ -161,7 +165,7 @@ object GrokSearchService : SearchService<SearchServiceOptions.GrokOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}: ${response.body.string()}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

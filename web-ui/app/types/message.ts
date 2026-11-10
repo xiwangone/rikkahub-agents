@@ -15,6 +15,10 @@ export interface UIMessage {
   finishedAt?: string | null;
   modelId?: string | null;
   usage?: TokenUsage | null;
+  /** Latest model request only; `usage` is the per-message cumulative total. */
+  lastUsage?: TokenUsage | null;
+  /** Cumulative generation time in ms, excluding tool execution waits. */
+  generationTimeMs?: number | null;
   translation?: string | null;
   isContextCheckpoint?: boolean;
 }

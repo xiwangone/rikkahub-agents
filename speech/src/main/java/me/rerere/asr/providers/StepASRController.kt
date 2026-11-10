@@ -89,6 +89,12 @@ class StepASRController(
     private var currentBuffer = ByteArrayOutputStream()
     private var segmentStartElapsedMs = 0L
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
+    // Incremental join of completedTranscripts: publishTranscript runs after every
+    // flushed segment, so re-joining the whole history each time is quadratic in
+    // transcript length. Segments are append-only (cleared in start()), so the joined
+    // text can be maintained by appending.
+    @Volatile
+    private var completedTranscriptText: String = ""
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -107,6 +113,7 @@ class StepASRController(
             segmentStartElapsedMs = SystemClock.elapsedRealtime()
         }
         completedTranscripts.clear()
+        completedTranscriptText = ""
         flushJob = null
 
         // Step 是 HTTP 一次性接口, 没有 WebSocket 连接阶段, 直接进入 Listening
@@ -119,6 +126,7 @@ class StepASRController(
         startRecorder()
     }
 
+    @Suppress("TooGenericExceptionCaught") // 有意宽 catch：尾段 flush 跨网络/JSON/录音多类异常，类型不可枚举；失败只丢尾段并记日志，stop 必须回到 Idle。
     override fun stop() {
         recorderJob?.cancel()
         releaseRecorder()
@@ -131,10 +139,14 @@ class StepASRController(
                 flushJob?.join()
                 flushSegment()
             } catch (e: Exception) {
-                AppLogger.e(TAG, "Final flush failed", e)
+                // The tail segment was dropped along with the failure: say so in the log,
+                // since the state below no longer carries the error after stopping.
+                AppLogger.e(TAG, "Final flush failed, tail segment transcript lost", e)
                 setError(e.message ?: "Step ASR final flush failed")
             } finally {
-                _state.update { it.copy(status = ASRStatus.Idle) }
+                // Back to Idle with no stale error: a user-initiated stop must not leave
+                // an expired failure message on screen.
+                _state.update { it.copy(status = ASRStatus.Idle, errorMessage = null) }
             }
         }
     }
@@ -202,7 +214,10 @@ class StepASRController(
                             throw IllegalStateException("AudioRecord read error: $read")
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: IllegalStateException) {
+                    AppLogger.e(TAG, "Audio recording failed", e)
+                    setError(e.message ?: "Audio recording failed")
+                } catch (e: SecurityException) {
                     AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
                 } finally {
@@ -291,7 +306,11 @@ class StepASRController(
         val text = executeWithRetry(request).trim()
 
         if (text.isNotEmpty()) {
-            completedTranscripts.add(text)
+            synchronized(completedTranscripts) {
+                completedTranscripts.add(text)
+                completedTranscriptText =
+                    if (completedTranscriptText.isEmpty()) text else "$completedTranscriptText $text"
+            }
             publishTranscript()
         }
     }
@@ -446,10 +465,7 @@ class StepASRController(
     }
 
     private fun publishTranscript() {
-        val transcript =
-            completedTranscripts
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
+        val transcript = completedTranscriptText
         _state.update { it.copy(transcript = transcript, errorMessage = null) }
         scope.launch { onTranscriptChange?.invoke(transcript) }
     }

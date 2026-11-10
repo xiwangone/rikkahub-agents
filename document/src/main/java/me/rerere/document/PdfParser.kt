@@ -9,13 +9,32 @@ import java.io.File
 // no use past a few hundred pages anyway, since no LLM context window holds that much text.
 private const val MAX_PAGES = 300
 
+// Total text cap, matching the EPUB total cap: a single page can hold megabytes of text,
+// so a page cap alone does not bound memory. Text past the cap is cut and marked.
+private const val MAX_TOTAL_CHARS = 5_000_000
+
 object PdfParser {
+    @Suppress("TooGenericExceptionCaught") // 有意宽 catch：MuPDF 原生调用抛出的异常类型不可枚举（损坏/错名文件都走这里）；失败只返回错误串，不能崩。
     fun parserPdf(file: File): String {
-        val document = PDFDocument.openDocument(file.absolutePath).asPDF()
+        // Open and convert inside the guarded region: openDocument() hands back a native
+        // document that asPDF() may reject (e.g. an XPS file with a .pdf name), and the
+        // opened document must still be destroyed on that path instead of leaking.
+        val opened = try {
+            PDFDocument.openDocument(file.absolutePath)
+        } catch (e: Exception) {
+            return "Error opening PDF file: ${e.message}"
+        }
+        val document = try {
+            opened.asPDF()
+        } catch (e: Exception) {
+            runCatching { opened.destroy() }
+            return "Error opening PDF file: ${e.message}"
+        }
         try {
             val pageCount = document.countPages()
             val pagesToRead = minOf(pageCount, MAX_PAGES)
             val result = StringBuilder()
+            var truncated = false
             for (i in 0 until pagesToRead) {
                 val page = document.loadPage(i)
                 try {
@@ -23,7 +42,8 @@ object PdfParser {
                     try {
                         result.append("---")
                         result.append("Page ${i + 1}:\n")
-                        result.append(structuredText.asText())
+                        val remaining = (MAX_TOTAL_CHARS - result.length).coerceAtLeast(0)
+                        result.append(structuredText.asText().take(remaining))
                         result.appendLine()
                     } finally {
                         structuredText.destroy()
@@ -31,8 +51,14 @@ object PdfParser {
                 } finally {
                     page.destroy()
                 }
+                if (result.length >= MAX_TOTAL_CHARS) {
+                    result.setLength(MAX_TOTAL_CHARS)
+                    result.append("\n[Truncated: showing first $MAX_TOTAL_CHARS characters]")
+                    truncated = true
+                    break
+                }
             }
-            if (pagesToRead < pageCount) {
+            if (!truncated && pagesToRead < pageCount) {
                 result.append("\n[Truncated: showing $pagesToRead of $pageCount pages]")
             }
             return result.toString()

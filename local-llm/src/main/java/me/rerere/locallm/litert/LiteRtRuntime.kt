@@ -78,6 +78,10 @@ import java.util.concurrent.TimeUnit
 class LiteRtRuntime(private val context: Context) {
 
     private val mutex = Mutex()
+    // @Volatile so stop() can take a consistent snapshot without holding the mutex
+    // (it is called from the UI thread to cancel an in-flight generation and must not
+    // block behind a running inference); every write still happens under [mutex].
+    @Volatile
     private var loaded: LoadedModel? = null
 
     /**
@@ -202,8 +206,8 @@ class LiteRtRuntime(private val context: Context) {
                         "LiteRtRuntime",
                         "armIdleTeardown: idle ${sinceLastUseMs}ms >= ${delay}ms; closing engine",
                     )
-                    try { current.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Idle teardown: conversation close failed", t) }
-                    try { current.engine.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Idle teardown: engine close failed", t) }
+                    try { current.conversation.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "Idle teardown: conversation close failed", e) }
+                    try { current.engine.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "Idle teardown: engine close failed", e) }
                     loaded = null
                     lastTelemetry = null
                 }
@@ -288,11 +292,20 @@ class LiteRtRuntime(private val context: Context) {
         if (isVisionExecutorError(msg)) {
             return LiteRtVisionUnavailableException(modelPath, t)
         }
+        // A bare status code alone is not evidence of file damage: it is a generic
+        // failure code that also surfaces for engine/session misuse unrelated to file
+        // integrity, and a corrupt verdict deletes the model file irreversibly. Only
+        // signals that point at the file's own structure count here.
         val isCorrupt =
             msg.contains("Invalid magic number", ignoreCase = true) ||
             msg.contains("Failed to decompress", ignoreCase = true) ||
             msg.contains("No KV cache inputs found", ignoreCase = true) ||
-            msg.contains("FAILED_PRECONDITION", ignoreCase = true) ||
+            (msg.contains("FAILED_PRECONDITION", ignoreCase = true) &&
+                (msg.contains("Invalid magic", ignoreCase = true) ||
+                 msg.contains("decompress", ignoreCase = true) ||
+                 msg.contains("checksum", ignoreCase = true) ||
+                 msg.contains("corrupt", ignoreCase = true) ||
+                 msg.contains("truncated", ignoreCase = true))) ||
             (msg.contains("INVALID_ARGUMENT", ignoreCase = true) &&
                 (msg.contains("tokenizer", ignoreCase = true) ||
                  msg.contains("Section not found", ignoreCase = true) ||
@@ -417,6 +430,7 @@ class LiteRtRuntime(private val context: Context) {
     }
 
     @OptIn(ExperimentalApi::class) // ExperimentalFlags.* + Capabilities.hasSpeculativeDecodingSupport
+    @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：LiteRT 原生探针/加载失败可能是 Error（如 UnsatisfiedLinkError），只接 Exception 会漏接并让加载直接崩；此处失败后均有降级/清理/重抛处理。
     suspend fun ensureLoaded(
         modelPath: String,
         preferredAccel: String? = null,
@@ -437,10 +451,23 @@ class LiteRtRuntime(private val context: Context) {
     ): LoadOutcome = mutex.withLock {
         // Use in-session fallback if a prior GPU→CPU retry already succeeded this session.
         // forceCpu wins over a non-null preferredAccel.
-        val requestedAccel = if (forceCpu) "CPU"
+        val requestedAccelRaw = if (forceCpu) "CPU"
         else sessionFallbackAccelerator
             ?: preferredAccel
             ?: AcceleratorProbe.probeLiteRt(context)
+        // A stale persisted "NNAPI" label has no backend mapping (the SDK backend
+        // table only knows QNN/NPU/TPU/GPU/CPU), so it would silently run on CPU
+        // while reporting NNAPI. Normalise it to CPU here so the reported
+        // accelerator always matches the backend actually used.
+        val requestedAccel = if (requestedAccelRaw == "NNAPI") {
+            android.util.Log.w(
+                "LiteRtRuntime",
+                "ensureLoaded: cached accelerator NNAPI has no backend mapping; using CPU",
+            )
+            "CPU"
+        } else {
+            requestedAccelRaw
+        }
         // A prior run on this accelerator took the process down mid-inference. There is no
         // safe way to retry it, so stay on CPU until the SDK version changes.
         val accel = if (crashedPreviously(modelPath, requestedAccel)) {
@@ -458,7 +485,15 @@ class LiteRtRuntime(private val context: Context) {
         // Probe the file for speculative-decoding support BEFORE building the engine.
         val supportsSpeculativeDecoding = try {
             Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }
-        } catch (_: Throwable) {
+        } catch (t: Throwable) {
+            // A probe failure is not the same as "file does not support it": surface it
+            // so a damaged or unreadable file is not silently treated as unsupported.
+            android.util.Log.w(
+                "LiteRtRuntime",
+                "Speculative-decoding probe failed for ${File(modelPath).name}; " +
+                    "treating as unsupported for this load",
+                t,
+            )
             false
         }
         val effectiveSpeculativeDecoding = speculativeDecoding && supportsSpeculativeDecoding
@@ -505,12 +540,25 @@ class LiteRtRuntime(private val context: Context) {
             }
             // Engine kept, Conversation config changed — recreate just the Conversation.
             // The KV cache is gone, so [processed] must be cleared.
-            try { current.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: close failed", t) }
-            current.conversation = createConversationWithFlags(
-                engine = current.engine,
-                backend = acceleratorToBackend(current.engineKey.accelerator),
-                spec = desiredConversationSpec,
-            )
+            // If recreation fails the old Conversation is already closed: do not leave
+            // the closed object in place with a stale [processed] signature, or the
+            // next turn mistakes it for a warm Conversation and fails again on it.
+            // Tear the whole load down so the next call rebuilds cold.
+            val oldConversation = current.conversation
+            try { oldConversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: close failed", t) }
+            try {
+                current.conversation = createConversationWithFlags(
+                    engine = current.engine,
+                    backend = acceleratorToBackend(current.engineKey.accelerator),
+                    spec = desiredConversationSpec,
+                )
+            } catch (t: Throwable) {
+                current.processed.clear()
+                try { current.engine.close() } catch (closeError: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: engine close failed", closeError) }
+                loaded = null
+                lastTelemetry = null
+                throw t
+            }
             current.conversationKey = desiredConversationKey
             current.conversationSpec = desiredConversationSpec
             current.processed.clear()
@@ -532,11 +580,24 @@ class LiteRtRuntime(private val context: Context) {
         // Arm the durable marker first: engine init is one of the two places a broken GPU
         // delegate can fault, and a fault here leaves nothing for the runCatching to see.
         armCrashMarker(modelPath, accel)
-        val firstAttempt = runCatching {
-            tryLoadWithBackend(desiredEngineKey, accel, desiredConversationSpec)
+        val loadResult = try {
+            val firstAttempt = runCatching {
+                tryLoadWithBackend(desiredEngineKey, accel, desiredConversationSpec)
+            }
+            firstAttempt.getOrElse { firstError ->
+                fallbackLoadAfterFirstFailure(modelPath, accel, desiredEngineKey, desiredConversationSpec, firstError)
+            }
+        } catch (t: Throwable) {
+            // The load returned an error instead of taking the process down, so the
+            // accelerator did not crash: a standing marker would force CPU until the
+            // next SDK upgrade for what was only a transient failure. Disarm it.
+            disarmCrashMarker()
+            throw t
         }
-        val loadResult = firstAttempt.getOrElse { firstError ->
-            fallbackLoadAfterFirstFailure(modelPath, accel, desiredEngineKey, desiredConversationSpec, firstError)
+        // A successful fallback to another accelerator proves the attempted one failed
+        // by returning, not by crashing the process: disarm its marker as well.
+        if (loadResult.accelerator != accel) {
+            disarmCrashMarker()
         }
 
         // If we fell back to CPU from a non-CPU accelerator, cache that decision in-session.
@@ -610,6 +671,7 @@ class LiteRtRuntime(private val context: Context) {
      *   - the `enableSpeculativeDecoding` flag dance around construct + initialize
      */
     @OptIn(ExperimentalApi::class)
+    @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：原生 Conversation 创建失败可能是 Error，失败后必须关掉已建 Engine 再重抛，否则泄漏几 GB 原生内存。
     private suspend fun tryLoadWithBackend(
         engineKey: EngineKey,
         accel: String,
@@ -654,6 +716,13 @@ class LiteRtRuntime(private val context: Context) {
                 Engine(engineConfig).also { built ->
                     runCatching { built.initialize() }.onFailure { t ->
                         runCatching { built.close() }
+                            .onFailure { closeError ->
+                                android.util.Log.w(
+                                    "LiteRtRuntime",
+                                    "Engine initialize failed and cleanup close also failed",
+                                    closeError,
+                                )
+                            }
                         throw t
                     }
                 }
@@ -663,11 +732,26 @@ class LiteRtRuntime(private val context: Context) {
             e
         }
 
-        val conv = createConversationWithFlags(
-            engine = engine,
-            backend = backend,
-            spec = conversationSpec,
-        )
+        // Conversation creation can fail after the engine is fully initialised; the
+        // engine would otherwise leak (several GB of native memory per attempt, and
+        // ensureLoaded retries across accelerators). Close it on any failure here.
+        val conv = try {
+            createConversationWithFlags(
+                engine = engine,
+                backend = backend,
+                spec = conversationSpec,
+            )
+        } catch (t: Throwable) {
+            runCatching { engine.close() }
+                .onFailure { closeError ->
+                    android.util.Log.w(
+                        "LiteRtRuntime",
+                        "Conversation creation failed and engine cleanup close also failed",
+                        closeError,
+                    )
+                }
+            throw t
+        }
         return LoadResult(engine, conv, accel, engineKey.supportImage)
     }
 
@@ -713,14 +797,28 @@ class LiteRtRuntime(private val context: Context) {
     }
 
     /** Close + rebuild the live Conversation in place, clearing its KV cache. Caller must
-     *  hold [mutex] and must clear [LoadedModel.processed] itself. */
+     *  hold [mutex] and must clear [LoadedModel.processed] itself. On rebuild failure the
+     *  old Conversation is already closed, so the whole load is torn down (engine closed,
+     *  [loaded] cleared) instead of leaving the closed Conversation in place with a stale
+     *  [LoadedModel.processed] signature that the next turn would mistake for warm. */
+    @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：原生 Conversation/Engine 的 close/create 失败可能是 Error；重建失败必须拆掉整个加载，不能留已关闭的 Conversation。
     private fun recreateConversationLocked(instance: LoadedModel) {
         try { instance.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation recreate: close failed", t) }
-        instance.conversation = createConversationWithFlags(
-            engine = instance.engine,
-            backend = acceleratorToBackend(instance.engineKey.accelerator),
-            spec = instance.conversationSpec,
-        )
+        try {
+            instance.conversation = createConversationWithFlags(
+                engine = instance.engine,
+                backend = acceleratorToBackend(instance.engineKey.accelerator),
+                spec = instance.conversationSpec,
+            )
+        } catch (t: Throwable) {
+            instance.processed.clear()
+            try { instance.engine.close() } catch (closeError: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation recreate: engine close failed", closeError) }
+            if (loaded === instance) {
+                loaded = null
+                lastTelemetry = null
+            }
+            throw t
+        }
     }
 
     /**
@@ -801,9 +899,37 @@ class LiteRtRuntime(private val context: Context) {
             // only die once real work is submitted. Re-arm for every turn; the first token
             // below disarms.
             armCrashMarker(instance.engineKey.modelPath, instance.engineKey.accelerator)
+            // Cap forwarded images: each one is decoded to a Bitmap and then re-encoded
+            // to PNG bytes, so an uncapped list pins both representations in memory at
+            // once. Oversized frames are dropped here (the provider already caps count
+            // and pixels; this is the runtime-side backstop for direct callers).
+            val imagesToSend = images.filter { image ->
+                val pixels = image.width.toLong() * image.height.toLong()
+                if (pixels > MAX_IMAGE_PIXELS) {
+                    android.util.Log.w(
+                        "LiteRtRuntime",
+                        "streamTurns: dropping oversized image ${image.width}x${image.height} " +
+                            "(${pixels}px > $MAX_IMAGE_PIXELS px cap)",
+                    )
+                    false
+                } else {
+                    true
+                }
+            }.let { kept ->
+                if (kept.size > MAX_STREAM_IMAGES) {
+                    android.util.Log.w(
+                        "LiteRtRuntime",
+                        "streamTurns: dropping ${kept.size - MAX_STREAM_IMAGES} image(s); " +
+                            "at most $MAX_STREAM_IMAGES are forwarded per turn",
+                    )
+                    kept.take(MAX_STREAM_IMAGES)
+                } else {
+                    kept
+                }
+            }
             // Build Contents in Gallery's order: images and audio first, text last.
             val contentList = mutableListOf<Content>()
-            for (image in images) contentList.add(Content.ImageBytes(image.toPngByteArray()))
+            for (image in imagesToSend) contentList.add(Content.ImageBytes(image.toPngByteArray()))
             for (clip in audioClips) contentList.add(Content.AudioBytes(clip))
             if (inputText.trim().isNotEmpty()) contentList.add(Content.Text(inputText))
 
@@ -880,6 +1006,10 @@ class LiteRtRuntime(private val context: Context) {
                     override fun onError(throwable: Throwable) {
                         // The KV-cache state is now unknown — force the next turn cold.
                         instance.processed.clear()
+                        // The error was delivered to Kotlin, so the process did not crash:
+                        // a standing marker would wrongly force CPU until the next SDK
+                        // upgrade for a failure that returned normally.
+                        disarmCrashMarker()
                         instance.lastUseAtMs = android.os.SystemClock.elapsedRealtime()
                         generationFinished.set(true)
                         if (throwable is CancellationException) close() else close(throwable)
@@ -922,9 +1052,15 @@ class LiteRtRuntime(private val context: Context) {
     /**
      * Cancel the currently-running generation, if any. Safe to call when nothing is
      * generating. Does NOT tear down the Engine or Conversation; the runtime stays warm.
+     *
+     * Reads [loaded] via a volatile snapshot instead of holding [mutex]: stopping must
+     * not block behind the inference it is trying to cancel, and the snapshot keeps it
+     * from acting on a half-replaced Conversation.
      */
+    @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：cancelProcess 是原生调用，失败也不能让 stop() 抛出去；停止必须是尽力而为。
     fun stop() {
-        try { loaded?.conversation?.cancelProcess() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "stop: cancelProcess failed", t) }
+        val current = loaded
+        try { current?.conversation?.cancelProcess() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "stop: cancelProcess failed", t) }
     }
 
     /**
@@ -934,14 +1070,24 @@ class LiteRtRuntime(private val context: Context) {
         idleTeardownJob?.cancel()
         idleTeardownJob = null
         mutex.withLock {
-            try { loaded?.conversation?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: conversation close failed", t) }
-            try { loaded?.engine?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: engine close failed", t) }
+            try { loaded?.conversation?.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: conversation close failed", e) }
+            try { loaded?.engine?.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: engine close failed", e) }
             loaded = null
             lastTelemetry = null
         }
     }
 
     companion object {
+        /** At most this many images are forwarded to the engine per turn. Each image is
+         *  held as a decoded Bitmap and again as PNG bytes while the turn is built, so
+         *  an uncapped list can pin several large buffers at once. */
+        const val MAX_STREAM_IMAGES: Int = 4
+
+        /** Single-image pixel cap for forwarded images (1536 on the longest side, matching
+         *  the decode-side bound in `UIMessagePart.Image.toBitmap`). Larger frames are
+         *  dropped with a warning instead of being decoded and PNG-encoded in full. */
+        const val MAX_IMAGE_PIXELS: Long = 1536L * 1536L
+
         internal fun planTurns(
             processed: List<String>,
             historySignatures: List<String>,

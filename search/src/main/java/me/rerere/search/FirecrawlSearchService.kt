@@ -123,7 +123,7 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
                 val body =
                     buildJsonObject {
                         put("query", query)
-                        put("limit", commonOptions.resultSize)
+                        put("limit", commonOptions.resultSize.coerceIn(1, 100))
                         sources?.takeIf { it.isNotEmpty() }?.let { list ->
                             put(
                                 "sources",
@@ -156,10 +156,10 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
 
                 val response = httpClient.newCall(request).await()
                 if (!response.isSuccessful) {
-                    error("response failed #${response.code}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
 
-                val bodyString = response.body.string()
+                val bodyString = boundedBodyOrFail(response)
                 val payload = json.parseToJsonElement(bodyString).jsonObject
                 val data = payload["data"]?.jsonObject ?: error("empty response data")
                 val resultData = json.decodeFromJsonElement<FirecrawlSearchResultData>(data)
@@ -227,10 +227,10 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
 
                 val response = httpClient.newCall(request).await()
                 if (!response.isSuccessful) {
-                    error("response failed #${response.code}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
 
-                val bodyString = response.body.string()
+                val bodyString = boundedBodyOrFail(response)
                 val payload = json.parseToJsonElement(bodyString).jsonObject
 
                 val success = payload["success"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false

@@ -65,11 +65,21 @@ fun Response.retryAfterMs(): Long? = parseRetryAfterMs(header("Retry-After"))
  * 把一次非 2xx 响应转成 [HttpException]：能解析错误体时用 [parseErrorDetail] 只留精简文案
  * 并带上状态码与 `Retry-After`；解析不出时用状态码加截断后的原始体兜底。
  *
- * 注意：会消费 [Response.body]，每个响应只能调一次。
+ * 注意：会消费 [Response.body]，每个响应只能调一次。调用点已经读过 body 时改调
+ * [errorAsHttpException] 的 body 串重载，不要对已消费的响应再调这个版本
+ * （第二次读 body 必抛 `IllegalStateException("closed")`，错误详情会被吞成空串）。
  */
 fun Response.errorAsHttpException(): HttpException {
-    val retryAfter = retryAfterMs()
     val bodyRaw = runCatching { body.string() }.getOrNull().orEmpty()
+    return errorAsHttpException(bodyRaw)
+}
+
+/**
+ * 与 [errorAsHttpException] 同义，但用调用方已经读出的 [bodyRaw]，不再次读响应体。
+ * 供非流式 generateText 这类“先读 body 再判断成功”的调用点使用。
+ */
+fun Response.errorAsHttpException(bodyRaw: String): HttpException {
+    val retryAfter = retryAfterMs()
     val detail = runCatching {
         Json.parseToJsonElement(bodyRaw).parseErrorDetail(code, retryAfter)
     }.getOrNull()
@@ -108,8 +118,9 @@ private fun JsonElement.errorMessageText(): String =
         }
 
         is JsonPrimitive -> {
-            // 基本类型直接取内容（JsonNull 也是 JsonPrimitive 的子类）
-            this.jsonPrimitive.content
+            // JsonNull 也是 JsonPrimitive 的子类，它的 content 是字面 "null"：
+            // {"error": null} 这类响应不能产出字面 "null" 当报错文案，按无详情处理。
+            if (this is JsonNull) "Unknown error" else this.jsonPrimitive.content
         }
     }
 

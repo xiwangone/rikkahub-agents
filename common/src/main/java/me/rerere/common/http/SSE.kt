@@ -9,6 +9,8 @@ import okhttp3.Response
 import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
+import java.io.IOException
+import java.util.concurrent.atomic.AtomicLong
 
 /**
  * 代表 SSE 连接中的各种事件
@@ -55,8 +57,16 @@ sealed class SseEvent {
  * @param request HTTP 请求，用于建立 SSE 连接
  * @return Flow<SseEvent> 包含 SSE 事件的响应式流
  */
+// Bounds for a single SSE stream. A server that never ends an event, or never ends
+// the stream, must not grow memory without limit: past either cap the source is
+// cancelled and the flow fails loudly instead of silently dropping events.
+private const val MAX_SSE_EVENT_BYTES = 256 * 1024
+private const val MAX_SSE_TOTAL_BYTES = 16 * 1024 * 1024
+
 fun OkHttpClient.sseFlow(request: Request): Flow<SseEvent> =
     callbackFlow {
+        // Listener callbacks run on an OkHttp thread, so the byte count is atomic.
+        val totalBytes = AtomicLong(0L)
         // 1. 创建 EventSourceListener
         // 监听 SSE 连接的各种事件并转换为 Flow 事件
         val listener =
@@ -78,6 +88,18 @@ fun OkHttpClient.sseFlow(request: Request): Flow<SseEvent> =
                 ) {
                     // 收到服务器发送的数据事件时触发
                     // 将事件数据封装后发送到 Flow
+                    val eventBytes = data.toByteArray(Charsets.UTF_8).size.toLong()
+                    val total = totalBytes.addAndGet(eventBytes)
+                    if (eventBytes > MAX_SSE_EVENT_BYTES || total > MAX_SSE_TOTAL_BYTES) {
+                        eventSource.cancel()
+                        channel.close(
+                            IOException(
+                                "SSE stream exceeded size limit " +
+                                    "(event $eventBytes bytes, total $total bytes)"
+                            )
+                        )
+                        return
+                    }
                     trySend(SseEvent.Event(id, type, data))
                 }
 

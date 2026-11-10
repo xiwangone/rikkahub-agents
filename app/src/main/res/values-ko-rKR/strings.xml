@@ -4141,6 +4141,9 @@
   <string name="tunnel_status_offline">오프라인(재연결 중…)</string>
   <string name="tunnel_status_failed">실패: %1$s</string>
   <string name="tunnel_status_disconnected">연결 안 됨</string>
+  <string name="tunnel_apply_failed">적용하지 못했습니다: %1$s</string>
+  <string name="tunnel_logout_failed">로그아웃하지 못했습니다: %1$s</string>
+  <string name="tunnel_status_copy_ip_hint">탭하여 터널 IP 주소 복사</string>
   <string name="tunnel_control_url_label">컨트롤 플레인 URL</string>
   <string name="tunnel_auth_key_label">인증 키</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 또는 $$ 자격 증명 이름</string>
@@ -4262,6 +4265,9 @@
   <string name="setting_trusted_keys_vault">Vault known_hosts</string>
   <string name="setting_trusted_keys_empty">아직 신뢰할 수 있는 호스트 키가 없습니다</string>
   <string name="setting_trusted_keys_hint">키를 삭제하면 다음에 해당 호스트에 연결할 때 지문 확인을 다시 요청합니다.</string>
+  <string name="setting_trusted_keys_delete_title">신뢰할 수 있는 키를 삭제할까요?</string>
+  <string name="setting_trusted_keys_delete_message">다음에 %1$s에 연결할 때 지문 확인을 다시 요청합니다.</string>
+  <string name="setting_trusted_keys_load_failed">신뢰할 수 있는 키를 읽지 못했습니다: %1$s</string>
   <string name="assistant_page_empty">아직 어시스턴트가 없습니다</string>
   <string name="assistant_page_empty_desc">오른쪽 위의 +를 눌러 첫 번째 어시스턴트를 만드세요.</string>
   <string name="assistant_page_no_results">검색 조건에 맞는 어시스턴트가 없습니다</string>

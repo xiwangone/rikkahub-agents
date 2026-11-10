@@ -63,7 +63,7 @@ object BraveSearchService : SearchService<SearchServiceOptions.BraveOptions> {
                 val url =
                     "https://api.search.brave.com/res/v1/web/search" +
                         "?q=${java.net.URLEncoder.encode(query, "UTF-8")}" +
-                        "&count=${commonOptions.resultSize}"
+                        "&count=${commonOptions.resultSize.coerceIn(1, 20)}"
 
                 val request =
                     Request
@@ -75,7 +75,7 @@ object BraveSearchService : SearchService<SearchServiceOptions.BraveOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val responseBody = response.body.string()
+                    val responseBody = boundedBodyOrFail(response)
                     val searchResponse = json.decodeFromString<BraveSearchResponse>(responseBody)
 
                     val items =
@@ -94,7 +94,7 @@ object BraveSearchService : SearchService<SearchServiceOptions.BraveOptions> {
                         ),
                     )
                 } else {
-                    error("Brave search failed with code ${response.code}: ${response.message}")
+                    error("Brave search failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

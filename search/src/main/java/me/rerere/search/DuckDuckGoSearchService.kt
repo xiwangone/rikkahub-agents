@@ -164,27 +164,31 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
         val acceptLanguage = "${locale.language}-${locale.country},${locale.language}"
 
         runCatching {
-            val resp = Jsoup.connect(url)
-                .userAgent("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
+            // Fixed public endpoint, fetched through the DI client (proxy, app DNS,
+            // egress guard) instead of a direct connection: the guard also covers
+            // redirect hops. OkHttp handles gzip transparently, so no Accept-Encoding
+            // header is set here; the body is bounded like the scrape path.
+            val request = Request.Builder()
+                .url(url)
+                .header("User-Agent", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/131.0.0.0 Safari/537.36")
                 .header(
                     "Accept",
                     "text/html,application/xhtml+xml,application/xml;q=0.9,image/webp,*/*;q=0.8"
                 )
                 .header("Accept-Language", acceptLanguage)
-                .header("Accept-Encoding", "gzip, deflate, sdch")
                 .header("Accept-Charset", "utf-8")
-                .header("Connection", "keep-alive")
                 .header("Sec-Fetch-Dest", "document")
                 .header("Sec-Fetch-Mode", "navigate")
                 .header("Sec-Fetch-Site", "none")
                 .header("Sec-Fetch-User", "?1")
                 .header("Upgrade-Insecure-Requests", "1")
-                .referrer("https://duckduckgo.com/")
-                .ignoreHttpErrors(true) // otherwise jsoup throws on 403/429 and we can't read the body to classify it
-                .timeout(12_000)
-                .execute()
+                .header("Referer", "https://duckduckgo.com/")
+                .build()
+            val (statusCode, html) = httpClient.withEgressGuard().newCall(request).await().use { resp ->
+                resp.code to boundedBody(resp, SCRAPE_BODY_CAP)
+            }
 
-            classifyDdgResponse(resp.statusCode(), resp.body(), commonOptions.resultSize)
+            classifyDdgResponse(statusCode, html, commonOptions.resultSize.coerceIn(1, 50))
         }.fold(
             onSuccess = { outcome ->
                 when (outcome) {
@@ -277,6 +281,7 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
      */
     internal fun parseResults(html: String, limit: Int): List<SearchResult.SearchResultItem> {
         if (html.isBlank()) return emptyList()
+        val safeLimit = limit.coerceAtLeast(0)
         val doc = Jsoup.parse(html)
         return doc.select("div.result").mapNotNull { row ->
             val anchor = row.selectFirst("a.result__a") ?: return@mapNotNull null
@@ -284,7 +289,7 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
             val href = unwrapRedirect(anchor.attr("href")).ifBlank { return@mapNotNull null }
             val snippet = row.selectFirst(".result__snippet")?.text()?.trim().orEmpty()
             SearchResult.SearchResultItem(title = title, url = href, text = snippet)
-        }.take(limit)
+        }.take(safeLimit)
     }
 
     /** DuckDuckGo wraps outbound links as `//duckduckgo.com/l/?uddg=<encoded>`. */

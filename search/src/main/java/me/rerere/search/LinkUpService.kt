@@ -100,7 +100,7 @@ object LinkUpService : SearchService<SearchServiceOptions.LinkUpOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val responseBody =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<LinkUpSearchResponse>(it)
                         }
 
@@ -108,7 +108,7 @@ object LinkUpService : SearchService<SearchServiceOptions.LinkUpOptions> {
                         SearchResult(
                             answer = responseBody.answer,
                             items =
-                                responseBody.sources.take(commonOptions.resultSize).map {
+                                responseBody.sources.take(commonOptions.resultSize.coerceIn(1, 50)).map {
                                     SearchResultItem(
                                         title = it.name,
                                         url = it.url,
@@ -118,7 +118,7 @@ object LinkUpService : SearchService<SearchServiceOptions.LinkUpOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}: ${response.body.string()}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }
@@ -152,7 +152,7 @@ object LinkUpService : SearchService<SearchServiceOptions.LinkUpOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val responseBody =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<LinkUpFetchResponse>(it)
                         }
 
@@ -168,7 +168,7 @@ object LinkUpService : SearchService<SearchServiceOptions.LinkUpOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}: ${response.body.string()}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

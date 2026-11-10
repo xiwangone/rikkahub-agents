@@ -94,6 +94,28 @@ class SearchCircuitBreakerTest {
     }
 
     @Test
+    fun `a probe that never reports back does not strand the breaker in half-open`() {
+        val clock = FakeClock()
+        val breaker = SearchCircuitBreaker(
+            failureThreshold = 3, cooldownMillis = 60_000L,
+            halfOpenTimeoutMillis = 10_000L, now = { clock.millis },
+        )
+        repeat(3) { breaker.recordFailure() }
+
+        clock.advance(60_000L)
+        assertTrue(breaker.canAttempt()) // the probe is let through
+        assertFalse(breaker.canAttempt()) // a probe is outstanding
+
+        // The probe never calls recordSuccess/recordFailure: after the half-open
+        // timeout a fresh probe is allowed instead of stranding the breaker.
+        clock.advance(9_999L)
+        assertFalse(breaker.canAttempt())
+        clock.advance(1L)
+        assertTrue(breaker.canAttempt())
+        assertFalse(breaker.canAttempt())
+    }
+
+    @Test
     fun `remainingCooldownMillis never goes negative once cooldown has long passed`() {
         val clock = FakeClock()
         val breaker = SearchCircuitBreaker(failureThreshold = 3, cooldownMillis = 60_000L, now = { clock.millis })

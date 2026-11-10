@@ -2685,6 +2685,9 @@
   <string name="setting_trusted_keys_vault">Vault known_hosts</string>
   <string name="setting_trusted_keys_empty">暂无受信主机密钥</string>
   <string name="setting_trusted_keys_hint">删除后，下次连接该主机时会再次要求确认指纹。</string>
+  <string name="setting_trusted_keys_delete_title">删除受信密钥？</string>
+  <string name="setting_trusted_keys_delete_message">下次连接 %1$s 时会再次要求确认指纹。</string>
+  <string name="setting_trusted_keys_load_failed">读取受信密钥失败：%1$s</string>
   <string name="tts_label_1">S2.1-Pro (推荐)</string>
   <string name="tts_label_2">S2.1-Pro Free (免费)</string>
   <string name="tts_label_3">step-tts-mini (轻量, 便宜)</string>
@@ -4213,6 +4216,9 @@
   <string name="tunnel_status_offline">后端离线（自动重连中…）</string>
   <string name="tunnel_status_failed">失败：%1$s</string>
   <string name="tunnel_status_disconnected">未连接</string>
+  <string name="tunnel_apply_failed">应用失败：%1$s</string>
+  <string name="tunnel_logout_failed">退出登录失败：%1$s</string>
+  <string name="tunnel_status_copy_ip_hint">点按复制隧道 IP 地址</string>
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">认证密钥</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 凭证名</string>

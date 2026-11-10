@@ -149,7 +149,9 @@ class SshConnectionPool(
         lockOf(id).withLock {
             connections.remove(id, pooled)
         }
-        pooled.connection.close()
+        // 与 retire() 同口径：有进行中操作时不断开，等最后一次使用释放时再关
+        // （见 release），否则并发在同一连接上的操作会被连带掐断。
+        retire(pooled)
     }
 
     /**

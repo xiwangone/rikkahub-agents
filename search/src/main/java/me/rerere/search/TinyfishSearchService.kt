@@ -104,7 +104,7 @@ object TinyfishSearchService : SearchService<SearchServiceOptions.TinyfishOption
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val responseBody = response.body.string()
+                    val responseBody = boundedBodyOrFail(response)
                     val searchResponse = json.decodeFromString<TinyfishSearchResponse>(responseBody)
 
                     val items =
@@ -123,7 +123,7 @@ object TinyfishSearchService : SearchService<SearchServiceOptions.TinyfishOption
                         ),
                     )
                 } else {
-                    error("Tinyfish search failed with code ${response.code}: ${response.message}")
+                    error("Tinyfish search failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }
@@ -157,7 +157,7 @@ object TinyfishSearchService : SearchService<SearchServiceOptions.TinyfishOption
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val responseBody = response.body.string()
+                    val responseBody = boundedBodyOrFail(response)
                     val fetchResponse = json.decodeFromString<TinyfishFetchResponse>(responseBody)
 
                     return@withContext Result.success(
@@ -178,7 +178,7 @@ object TinyfishSearchService : SearchService<SearchServiceOptions.TinyfishOption
                         ),
                     )
                 } else {
-                    error("Tinyfish fetch failed with code ${response.code}: ${response.message}")
+                    error("Tinyfish fetch failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

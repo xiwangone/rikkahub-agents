@@ -20,7 +20,8 @@ data class S3Config(
     ),
 ) {
     val displayName: String
-        get() = name.ifBlank { if (endpoint.isBlank()) "未命名" else endpoint.removePrefix("https://").removePrefix("http://").substringBefore('/') }
+        // 未命名时返回空串，由调用方用字符串资源兜底显示；数据层不再写死中文。
+        get() = name.ifBlank { if (endpoint.isBlank()) "" else endpoint.removePrefix("https://").removePrefix("http://").substringBefore('/') }
 
     val host: String
         get() = endpoint

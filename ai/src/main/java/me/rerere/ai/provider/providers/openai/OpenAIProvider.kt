@@ -34,8 +34,10 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.json
+import me.rerere.ai.util.MAX_LOCAL_READ_BYTES
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
+import me.rerere.ai.util.readBytesBounded
 import me.rerere.ai.util.shortRequestClient
 import me.rerere.common.http.await
 import me.rerere.ai.provider.formatBalance
@@ -603,7 +605,11 @@ class OpenAIProvider(
     }
 
     @OptIn(ExperimentalEncodingApi::class)
-    private fun toDataUri(file: File): String = "data:${imageMediaTypeOf(file)};base64,${Base64.encode(file.readBytes())}"
+    private fun toDataUri(file: File): String {
+        // 与远端分支同口径的 32MB 上限：误选大文件时不在编码前整份读进内存。
+        val bytes = file.inputStream().use { it.readBytesBounded(MAX_LOCAL_READ_BYTES) }
+        return "data:${imageMediaTypeOf(file)};base64,${Base64.encode(bytes)}"
+    }
 
     private fun String.toImageMimeType(): String = when (lowercase()) {
         "jpg", "jpeg" -> "image/jpeg"

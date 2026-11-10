@@ -54,12 +54,33 @@ object ModelInstall {
      * HTTP-wise (200 OK) but return an HTML page, not the model binary. This transform
      * converts blob → resolve for any huggingface.co path. Non-HF URLs are returned
      * unchanged.
+     *
+     * Note the rewritten URL still names a branch (e.g. /resolve/main/), not a commit:
+     * the file can move between two download attempts. Resume against such a URL is
+     * therefore refused (see [canSafelyResume]) — only /resolve/<40-hex-commit>/
+     * URLs are treated as immutable.
      */
     fun normalizeHuggingFaceUrl(url: String): String {
         if (!url.contains("huggingface.co")) return url
         // Single regex handles all branches (main, dev, v1, etc.); the earlier literal
         // replace for /blob/main/ was redundant since the regex already covers it.
         return url.replace(Regex("/blob/([^/]+)/")) { m -> "/resolve/${m.groupValues[1]}/" }
+    }
+
+    /**
+     * Whether a leftover `.partial` may be resumed against [normalizedUrl].
+     *
+     * A HuggingFace `/resolve/<branch>/` URL names a moving target: the branch can
+     * advance between two attempts, and resuming would splice the old partial's bytes
+     * with the new revision's bytes into one file. The header magic check only looks
+     * at the first bytes (which come from the old partial), so the mix would pass
+     * validation and register as a working model. Only a full 40-hex commit hash in
+     * the resolve path pins the file, so only that form may resume. Non-HuggingFace
+     * URLs carry no pinning signal either way and keep the previous resume behaviour.
+     */
+    fun canSafelyResume(normalizedUrl: String): Boolean {
+        if (!normalizedUrl.contains("huggingface.co")) return true
+        return Regex("/resolve/[0-9a-fA-F]{40}/").containsMatchIn(normalizedUrl)
     }
 
     fun isValidDownloadUrl(url: String): Boolean {
@@ -77,8 +98,14 @@ object ModelInstall {
     }
 
     fun extractFileNameFromUrl(url: String): String {
-        val withoutQuery = url.substringBefore('?')
-        return withoutQuery.substringAfterLast('/')
+        val withoutQuery = url.substringBefore('?').substringBefore('#')
+        val raw = withoutQuery.substringAfterLast('/')
+        // Reject anything that could escape the model directory or name the directory
+        // itself: "..", ".", an empty segment, or a segment carrying a path separator.
+        // Callers treat an empty result as "no usable file name in this URL".
+        if (raw.isBlank() || raw == "." || raw == "..") return ""
+        if (raw.contains('/') || raw.contains('\\')) return ""
+        return raw
     }
 
     fun targetFile(baseDir: File, runtime: LocalRuntime, fileName: String): File {
@@ -86,26 +113,15 @@ object ModelInstall {
             LocalRuntime.LiteRT -> "litert"
             LocalRuntime.LlamaCpp -> "llamacpp"
         }
-        return File(File(baseDir, sub), fileName)
+        // Never let a hostile or empty file name resolve to the model directory
+        // itself (or its parent): fall back to a plain file name in that case.
+        val safeName = fileName.substringAfterLast('/').substringAfterLast('\\')
+            .takeIf { it.isNotBlank() && it != "." && it != ".." } ?: "model"
+        return File(File(baseDir, sub), safeName)
     }
 
     fun localModelsDir(context: Context): File =
         File(context.filesDir, LOCAL_MODELS_DIRNAME).apply { mkdirs() }
-
-    /**
-     * Returns true if the first [count] bytes of [buf] look like an HTML document.
-     * Used to abort downloads that succeeded HTTP-wise but returned an error page.
-     */
-    fun looksLikeHtml(buf: ByteArray, count: Int): Boolean {
-        val sample = String(buf, 0, count.coerceAtMost(256), Charsets.UTF_8)
-            .trimStart()
-            .lowercase()
-        return sample.startsWith("<!doctype") ||
-               sample.startsWith("<html") ||
-               sample.startsWith("<head") ||
-               sample.startsWith("<body") ||
-               sample.startsWith("<?xml")
-    }
 
     /**
      * Returns true if [firstBytes] looks like a valid file of the type implied by
@@ -171,6 +187,12 @@ object ModelInstall {
         target: File,
     ): Flow<Progress> = flow {
         target.parentFile?.mkdirs()
+        if (target.exists() && target.isDirectory) {
+            emit(Progress.Failed(IllegalStateException(
+                "Download target is a directory, not a file: ${target.absolutePath}"
+            )))
+            return@flow
+        }
         val partial = File(target.absolutePath + ".partial")
         // Resume support: if a `.partial` survives from a prior interrupted attempt, ask
         // the server for `Range: bytes=<existing-size>-`. HuggingFace's `/resolve/` URLs
@@ -181,9 +203,25 @@ object ModelInstall {
         // delete + restart from zero. Without this, leaving the Settings page mid-
         // download cancelled the coroutine and the next tap re-downloaded the entire
         // multi-GB file from scratch.
-        val resumeFrom = if (partial.exists() && partial.length() > 0) partial.length() else 0L
-
+        //
+        // The per-commit guarantee only holds for a pinned commit hash in the resolve
+        // path. A branch name (e.g. /resolve/main/) can move between attempts, and
+        // resuming against it would splice two revisions into one file that still
+        // passes the header magic check — so an unpinned URL restarts from zero
+        // instead of resuming (see canSafelyResume).
         val normalized = normalizeHuggingFaceUrl(url)
+        var resumeFrom = if (partial.exists() && partial.length() > 0) partial.length() else 0L
+        if (resumeFrom > 0 && !canSafelyResume(normalized)) {
+            Log.w(
+                TAG,
+                "Partial file exists but $normalized is not pinned to a commit hash; " +
+                    "discarding $resumeFrom partial bytes and restarting from 0 so a " +
+                    "branch update cannot splice two revisions into one file",
+            )
+            runCatching { partial.delete() }
+            resumeFrom = 0L
+        }
+
         val requestBuilder = Request.Builder().url(normalized)
         if (resumeFrom > 0) {
             requestBuilder.header("Range", "bytes=$resumeFrom-")
@@ -326,6 +364,18 @@ object ModelInstall {
                 )))
                 return@flow
             }
+            if (total == null) {
+                // No Content-Length / Content-Range total was declared, so a truncated
+                // transfer is indistinguishable from a complete one. Record that the
+                // file's integrity was NOT verified beyond the header magic check below
+                // instead of silently registering it as a good model.
+                Log.w(
+                    TAG,
+                    "Download finished without a declared total size for $normalized; " +
+                        "integrity verified by header magic bytes only, truncation past " +
+                        "the header cannot be detected for this file",
+                )
+            }
 
             // Post-download magic-byte validation: ensure the file we just wrote is
             // actually a valid model file. Catches sparse-file / partial-write
@@ -381,31 +431,41 @@ object ModelInstall {
         expectedExtension: String,
     ): Flow<Progress> = flow {
         target.parentFile?.mkdirs()
+        if (target.exists() && target.isDirectory) {
+            emit(Progress.Failed(IllegalStateException(
+                "Import target is a directory, not a file: ${target.absolutePath}"
+            )))
+            return@flow
+        }
         val partial = File(target.absolutePath + ".partial")
         emit(Progress.Started(totalBytes))
 
         var invalidMagic = false
+        var totalRead = 0L
         val ioFailure: Throwable? = try {
             input.use { source ->
                 partial.outputStream().use { sink ->
                     val buf = ByteArray(64 * 1024)
                     // InputStream.read(ByteArray) is only guaranteed to return at least one
-                    // byte, not four — a network-backed SAF provider (Google Drive and
+                    // byte, not eight — a network-backed SAF provider (Google Drive and
                     // similar) can hand back 1-3 bytes on the very first read. Accumulate
-                    // across reads into a dedicated 4-byte buffer until either 4 bytes are
-                    // in hand or the stream hits EOF, then validate once. Every byte read
-                    // during accumulation is still written to sink below, so the copy stays
-                    // byte-exact regardless of how the reads happen to chunk.
-                    val sniffBuf = ByteArray(4)
+                    // across reads into a dedicated 8-byte buffer until either 8 bytes are
+                    // in hand or the stream hits EOF, then validate once. Eight bytes are
+                    // required because the "LITERTLM" magic is 8 bytes and the "TFL3"
+                    // marker sits at bytes 4..7; a 4-byte buffer could never validate a
+                    // .litertlm file. Every byte read during accumulation is still
+                    // written to sink below, so the copy stays byte-exact regardless of
+                    // how the reads happen to chunk.
+                    val sniffBuf = ByteArray(8)
                     var sniffLen = 0
                     var sniffed = false
-                    var totalRead = 0L
                     while (true) {
                         val n = source.read(buf)
                         if (n <= 0) {
-                            // EOF before 4 bytes accumulated (including a 0-byte file, where
+                            // EOF before 8 bytes accumulated (including a 0-byte file, where
                             // sniffLen stays 0): validate whatever was collected.
-                            // isValidMagicForExtension rejects anything shorter than 4 bytes.
+                            // isValidMagicForExtension rejects anything shorter than 4 bytes,
+                            // and .litertlm additionally needs the full 8-byte magic.
                             if (!sniffed) {
                                 sniffed = true
                                 if (!isValidMagicForExtension(expectedExtension, sniffBuf.copyOf(sniffLen))) {
@@ -418,10 +478,10 @@ object ModelInstall {
                         totalRead += n
                         emit(Progress.Tick(totalRead, totalBytes))
                         if (!sniffed) {
-                            val need = (4 - sniffLen).coerceAtMost(n)
+                            val need = (8 - sniffLen).coerceAtMost(n)
                             System.arraycopy(buf, 0, sniffBuf, sniffLen, need)
                             sniffLen += need
-                            if (sniffLen >= 4) {
+                            if (sniffLen >= 8) {
                                 sniffed = true
                                 if (!isValidMagicForExtension(expectedExtension, sniffBuf)) {
                                     invalidMagic = true
@@ -455,6 +515,24 @@ object ModelInstall {
             )))
             return@flow
         }
+        // Length check against the caller-declared size: a short stream is a truncated
+        // import, not a complete file. Without a declared size there is nothing to
+        // compare against, so record that integrity was verified by header magic only.
+        if (totalBytes != null && totalRead < totalBytes) {
+            Log.w(TAG, "Import short: got $totalRead of $totalBytes bytes")
+            runCatching { partial.delete() }
+            emit(Progress.Failed(java.io.IOException(
+                "Import incomplete: received $totalRead of $totalBytes bytes."
+            )))
+            return@flow
+        }
+        if (totalBytes == null) {
+            Log.w(
+                TAG,
+                "Import finished without a declared total size; integrity verified by " +
+                    "header magic bytes only, truncation past the header cannot be detected",
+            )
+        }
 
         if (target.exists()) target.delete()
         val renamed = partial.renameTo(target)
@@ -469,4 +547,19 @@ object ModelInstall {
         Log.i(TAG, "Import complete: ${target.absolutePath}")
         emit(Progress.Done(target))
     }.flowOn(Dispatchers.IO)
+}
+
+/**
+ * Returns true if the first [count] bytes of [buf] look like an HTML document.
+ * Used to abort downloads that succeeded HTTP-wise but returned an error page.
+ */
+fun looksLikeHtml(buf: ByteArray, count: Int): Boolean {
+    val sample = String(buf, 0, count.coerceAtMost(256), Charsets.UTF_8)
+        .trimStart()
+        .lowercase()
+    return sample.startsWith("<!doctype") ||
+           sample.startsWith("<html") ||
+           sample.startsWith("<head") ||
+           sample.startsWith("<body") ||
+           sample.startsWith("<?xml")
 }

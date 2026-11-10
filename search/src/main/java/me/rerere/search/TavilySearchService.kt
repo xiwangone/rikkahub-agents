@@ -104,7 +104,7 @@ object TavilySearchService : SearchService<SearchServiceOptions.TavilyOptions> {
                 val body =
                     buildJsonObject {
                         put("query", query)
-                        put("max_results", commonOptions.resultSize)
+                        put("max_results", commonOptions.resultSize.coerceIn(1, 20))
                         put("search_depth", serviceOptions.depth.ifEmpty { "advanced" })
                         put("topic", topic)
                         if (serviceOptions.includeAnswer) {
@@ -126,7 +126,7 @@ object TavilySearchService : SearchService<SearchServiceOptions.TavilyOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val response =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<SearchResponse>(it)
                         }
 
@@ -145,7 +145,7 @@ object TavilySearchService : SearchService<SearchServiceOptions.TavilyOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }
@@ -178,7 +178,7 @@ object TavilySearchService : SearchService<SearchServiceOptions.TavilyOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val response =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<ScrapeResponse>(it)
                         }
                     return@withContext Result.success(
@@ -193,7 +193,7 @@ object TavilySearchService : SearchService<SearchServiceOptions.TavilyOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }

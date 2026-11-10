@@ -35,7 +35,6 @@ import okhttp3.Request
 import okhttp3.Response
 import okhttp3.WebSocket
 import okhttp3.WebSocketListener
-import org.json.JSONArray
 import org.json.JSONObject
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
@@ -62,6 +61,12 @@ class DashScopeASRController(
     private var onTranscriptChange: ((String) -> Unit)? = null
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
     private val partialTranscripts = ConcurrentHashMap<String, String>()
+    // Incremental join of completedTranscripts: publishTranscript runs on every delta,
+    // so re-joining the whole history each time is quadratic in transcript length.
+    // Completed segments are append-only (cleared in start()), so the joined text can
+    // be maintained by appending; only the small partial map is re-joined per publish.
+    @Volatile
+    private var completedTranscriptText: String = ""
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -76,6 +81,7 @@ class DashScopeASRController(
 
         this.onTranscriptChange = onTranscriptChange
         completedTranscripts.clear()
+        completedTranscriptText = ""
         partialTranscripts.clear()
         _state.update {
             ASRState(
@@ -322,7 +328,11 @@ class DashScopeASRController(
                 _state.update { it.copy(voiceTurn = it.voiceTurn.completed(itemId, transcript)) }
                 partialTranscripts.remove(itemId)
                 if (transcript.isNotEmpty()) {
-                    completedTranscripts.add(transcript)
+                    synchronized(completedTranscripts) {
+                        completedTranscripts.add(transcript)
+                        completedTranscriptText =
+                            if (completedTranscriptText.isEmpty()) transcript else "$completedTranscriptText $transcript"
+                    }
                 }
                 publishTranscript()
             }
@@ -353,10 +363,14 @@ class DashScopeASRController(
     }
 
     private fun publishTranscript() {
-        val transcript =
-            (completedTranscripts + partialTranscripts.values)
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
+        // Only the partial map (one entry per in-progress utterance) is re-joined;
+        // the completed history is read from the incrementally maintained cache.
+        val partialText = partialTranscripts.values.filter { it.isNotBlank() }.joinToString(" ")
+        val transcript = when {
+            completedTranscriptText.isEmpty() -> partialText
+            partialText.isEmpty() -> completedTranscriptText
+            else -> "$completedTranscriptText $partialText"
+        }
         _state.update { it.copy(transcript = transcript, errorMessage = null) }
         scope.launch {
             onTranscriptChange?.invoke(transcript)

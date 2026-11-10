@@ -1,5 +1,6 @@
 package me.rerere.agenttools
 
+import kotlinx.serialization.SerializationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
@@ -14,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import java.io.IOException
 import java.util.UUID
 
 /**
@@ -23,7 +25,7 @@ import java.util.UUID
  *
  * 存储布局 (由 [AgentWorkspaceIO] 决定, 通常落在绑定工作区内):
  *   config/settings.json   当前值
- *   config/audit.jsonl     追加式审计 (每行一个 {id, action, key, value, at})
+ *   config/audit.jsonl     追加式审计 (每行一个 {id, action, key, value, prior, at})
  *
  * 说明: 这是"会话/助手级键值配置"的通用实现. 若某键需要读写 App 全局真实偏好,
  * 由宿主在 [AgentWorkspaceIO] 适配层对接 settingsStore 即可, 工具契约不变.
@@ -65,13 +67,25 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     suspend fun load(): JsonObject {
         val raw = try {
             io.readText(SETTINGS_PATH)
-        } catch (e: Exception) {
-            if (fileExists(SETTINGS_PATH)) {
-                throw IllegalStateException("config/settings.json exists but cannot be read: ${e.message}", e)
-            }
-            return JsonObject(emptyMap())
+        } catch (e: java.io.IOException) {
+            return loadFallback(e) ?: JsonObject(emptyMap())
+        } catch (e: IllegalArgumentException) {
+            return loadFallback(e) ?: JsonObject(emptyMap())
+        } catch (e: IllegalStateException) {
+            return loadFallback(e) ?: JsonObject(emptyMap())
         }
         return parseSettings(raw)
+    }
+
+    /**
+     * 配置文件读失败时的统一处理: 文件存在却读不出来是数据损坏, 抛异常拒绝静默丢弃;
+     * 文件不存在是首次使用的正常情况, 返回 null 由调用方按"空配置"处理.
+     */
+    private suspend fun loadFallback(e: Exception): JsonObject? {
+        if (fileExists(SETTINGS_PATH)) {
+            throw IllegalStateException("config/settings.json exists but cannot be read: ${e.message}", e)
+        }
+        return null
     }
 
     /**
@@ -123,7 +137,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     suspend fun set(key: String, valueJson: String, note: String?): JsonObject {
         val parsed = try {
             configJson.parseToJsonElement(valueJson)
-        } catch (e: Exception) {
+        } catch (e: SerializationException) {
             throw IllegalArgumentException(
                 "value must be a JSON-encoded value: for a string pass \"zh\" (including the quotes), " +
                     "for a number pass 3, for a boolean pass true, for an object pass {\"a\": 1}. " +
@@ -132,26 +146,51 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             )
         }
         val current = load().toMutableMap()
+        val prior = current[key] ?: JsonNull
         current[key] = parsed
         save(current)
-        appendAudit("set", key, valueJson, note)
+        appendAudit("set", key, parsed, prior, note)
         return jsonFor(key, current[key])
     }
 
     suspend fun revert(key: String): JsonObject {
-        val last = readAudit().asReversed().firstOrNull { it["key"]?.jsonPrimitive?.contentOrNull == key }
+        val lastSet = readAudit().asReversed().firstOrNull {
+            it["key"]?.jsonPrimitive?.contentOrNull == key &&
+                it["action"]?.jsonPrimitive?.contentOrNull == "set"
+        }
         val current = load().toMutableMap()
         val existed = current.containsKey(key)
-        val prior = last?.get("value")
-        if (prior != null && prior !is JsonNull) {
-            // 工具描述承诺"恢复最近一次旧值"：把审计里的 prior 写回，而不是只删
-            current[key] = prior
-        } else {
-            current.remove(key)
+        if (lastSet == null) {
+            return buildJsonObject {
+                put("key", key)
+                put("existed", existed)
+                put("result", "无 set 历史、无可恢复")
+            }
         }
-        val result = if (prior != null && prior !is JsonNull) "restored prior value from audit log" else "no prior value; removed if present"
+        val prior = lastSet["prior"]
+        if (prior == null) {
+            // 该 set 记录早于 prior 字段：旧值未知，键保持不变，绝不靠猜删键。
+            return buildJsonObject {
+                put("key", key)
+                put("existed", existed)
+                put("result", "旧值未知（该条目早于 prior 记录）、键保持不变")
+            }
+        }
+        val before = current[key] ?: JsonNull
+        val restored: JsonElement
+        val result: String
+        if (prior is JsonNull) {
+            // 该键在最近一次 set 之前不存在：恢复即删键。
+            current.remove(key)
+            restored = JsonNull
+            result = "removed key; it did not exist before the last set"
+        } else {
+            current[key] = prior
+            restored = prior
+            result = "restored prior value from audit log"
+        }
         save(current)
-        appendAudit("revert", key, JsonNull.toString(), null)
+        appendAudit("revert", key, restored, before, null)
         return buildJsonObject {
             put("key", key)
             put("existed", existed)
@@ -160,18 +199,31 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     }
 
     /**
+     * 审计文件读失败时的统一处理: 文件存在却读不出来是数据损坏, 抛异常拒绝静默丢弃;
+     * 文件不存在是首次使用的正常情况, 返回 null 由调用方按"无审计记录"处理.
+     */
+    private suspend fun auditReadFallback(e: Exception): String? {
+        if (fileExists(AUDIT_PATH)) {
+            throw IllegalStateException("config/audit.jsonl exists but cannot be read: ${e.message}", e)
+        }
+        return null
+    }
+
+    /**
      * 读审计日志. 文件不存在返回空列表. 文件存在但读不出来, 或任一非空行无法
      * 解析, 则抛异常: 调用方不得把这种情况当作"无旧值"处理, 否则回滚会删键.
      */
     suspend fun readAudit(): List<JsonObject> {
-        val raw = try {
+        val raw: String? = try {
             io.readText(AUDIT_PATH)
-        } catch (e: Exception) {
-            if (fileExists(AUDIT_PATH)) {
-                throw IllegalStateException("config/audit.jsonl exists but cannot be read: ${e.message}", e)
-            }
-            return emptyList()
+        } catch (e: IOException) {
+            auditReadFallback(e)
+        } catch (e: IllegalArgumentException) {
+            auditReadFallback(e)
+        } catch (e: IllegalStateException) {
+            auditReadFallback(e)
         }
+        if (raw == null) return emptyList()
         return raw.lines().filter { it.isNotBlank() }.map { line ->
             (runCatching { configJson.parseToJsonElement(line) }.getOrNull() as? JsonObject)
                 ?: throw IllegalStateException("config/audit.jsonl contains a corrupt entry; refusing to use it for revert")
@@ -189,12 +241,13 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         io.writeText(SETTINGS_PATH, configJson.encodeToString(JsonElement.serializer(), objOf(map)), true)
     }
 
-    private suspend fun appendAudit(action: String, key: String, valueJson: String, note: String?) {
+    private suspend fun appendAudit(action: String, key: String, value: JsonElement, prior: JsonElement, note: String?) {
         val entry = buildJsonObject {
             put("id", UUID.randomUUID().toString())
             put("action", action)
             put("key", key)
-            put("value", runCatching { configJson.parseToJsonElement(valueJson) }.getOrElse { JsonNull })
+            put("value", value)
+            put("prior", prior)
             put("at", System.currentTimeMillis())
             if (note != null) put("note", note)
         }
@@ -202,12 +255,13 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             // 审计文件存在但读不出来时不直接覆盖: 否则一次追加会丢掉整段历史
             val existing = try {
                 io.readText(AUDIT_PATH)
-            } catch (e: Exception) {
-                if (fileExists(AUDIT_PATH)) {
-                    throw IllegalStateException("config/audit.jsonl exists but cannot be read: ${e.message}", e)
-                }
-                ""
-            }
+            } catch (e: IOException) {
+                auditReadFallback(e)
+            } catch (e: IllegalArgumentException) {
+                auditReadFallback(e)
+            } catch (e: IllegalStateException) {
+                auditReadFallback(e)
+            } ?: ""
             val kept = rotateAudit(existing)
             val next = if (kept.isBlank()) entry.toString() + "\n" else kept.trimEnd() + "\n" + entry.toString() + "\n"
             io.writeText(AUDIT_PATH, next, true)

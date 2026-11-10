@@ -220,7 +220,7 @@ class ResponseAPI(
         client.newCall(request).await().use { response ->
             val bodyStr = response.body.string()
             if (!response.isSuccessful) {
-                throw response.errorAsHttpException()
+                throw response.errorAsHttpException(bodyStr)
             }
             if (Logging.isDebugLoggingEnabled()) {
                 AppLogger.i(TAG, "generateText: ${redactSecrets(json.parseToJsonElement(bodyStr))}")

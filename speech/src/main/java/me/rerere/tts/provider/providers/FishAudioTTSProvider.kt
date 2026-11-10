@@ -16,6 +16,8 @@ import okhttp3.RequestBody.Companion.toRequestBody
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import me.rerere.common.log.AppLogger
+import me.rerere.speech.http.MAX_TTS_AUDIO_BYTES
+import me.rerere.speech.http.readBoundedBytes
 
 private const val TAG = "FishAudioTTSProvider"
 
@@ -76,7 +78,7 @@ class FishAudioTTSProvider : TTSProvider<TTSProviderSetting.FishAudio> {
                 )
             }
 
-            val audioData = response.body.bytes()
+            val audioData = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
 
             val audioFormat =
                 when (providerSetting.format.lowercase()) {

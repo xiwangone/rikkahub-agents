@@ -43,6 +43,10 @@ private fun clientReturning(bodyBytes: ByteArray, declaredContentLength: Long?):
 private fun ggufBytes(payloadSize: Int): ByteArray =
     byteArrayOf(0x47, 0x47, 0x55, 0x46) + ByteArray(payloadSize) { (it % 251).toByte() }
 
+/** A .litertlm magic header ("LITERTLM", 8 bytes) followed by [payloadSize] arbitrary bytes. */
+private fun litertlmBytes(payloadSize: Int): ByteArray =
+    "LITERTLM".toByteArray(Charsets.US_ASCII) + ByteArray(payloadSize) { (it % 251).toByte() }
+
 /** Delivers [goodBytes] on the first read, then throws to simulate a dropped connection
  *  mid-copy (SocketException / IOException territory). */
 private class FailingInputStream(private val goodBytes: ByteArray) : InputStream() {
@@ -177,28 +181,28 @@ class ModelInstallTest {
 
     @Test fun `looksLikeHtml detects DOCTYPE preamble`() {
         val html = "<!DOCTYPE html><html>".toByteArray()
-        assertTrue(ModelInstall.looksLikeHtml(html, html.size))
+        assertTrue(looksLikeHtml(html, html.size))
     }
 
     @Test fun `looksLikeHtml detects lowercase doctype`() {
         val html = "<!doctype html><html>".toByteArray()
-        assertTrue(ModelInstall.looksLikeHtml(html, html.size))
+        assertTrue(looksLikeHtml(html, html.size))
     }
 
     @Test fun `looksLikeHtml ignores leading whitespace`() {
         val html = "  \n\n<html>".toByteArray()
-        assertTrue(ModelInstall.looksLikeHtml(html, html.size))
+        assertTrue(looksLikeHtml(html, html.size))
     }
 
     @Test fun `looksLikeHtml detects xml preamble`() {
         val xml = "<?xml version=\"1.0\"?>".toByteArray()
-        assertTrue(ModelInstall.looksLikeHtml(xml, xml.size))
+        assertTrue(looksLikeHtml(xml, xml.size))
     }
 
     @Test fun `looksLikeHtml false for binary model magic bytes`() {
         // "LMFF" + arbitrary bytes — binary model header, not HTML
         val bin = byteArrayOf(0x4C, 0x4D, 0x46, 0x46, 0x00, 0x01, 0x02, 0x03)
-        assertFalse(ModelInstall.looksLikeHtml(bin, bin.size))
+        assertFalse(looksLikeHtml(bin, bin.size))
     }
 
     // isValidMagicForExtension -------------------------------------------------
@@ -254,12 +258,38 @@ class ModelInstallTest {
     @Test fun `looksLikeHtml returns false for empty count`() {
         // count=0 means no bytes were read — not HTML.
         val buf = ByteArray(64)
-        assertFalse(ModelInstall.looksLikeHtml(buf, 0))
+        assertFalse(looksLikeHtml(buf, 0))
     }
 
     @Test fun `extractFileNameFromUrl returns empty string for bare domain URL`() {
         // Edge case: URL with no file path segment after the last slash.
         assertEquals("", ModelInstall.extractFileNameFromUrl("https://example.com/"))
+    }
+
+    @Test fun `extractFileNameFromUrl rejects dotdot and dot segments`() {
+        assertEquals("", ModelInstall.extractFileNameFromUrl("https://example.com/.."))
+        assertEquals("", ModelInstall.extractFileNameFromUrl("https://example.com/."))
+    }
+
+    @Test fun `targetFile never resolves to the model directory itself`() {
+        val baseDir = tempFolder.newFolder()
+        assertEquals(
+            File(File(baseDir, "litert"), "model"),
+            ModelInstall.targetFile(baseDir, LocalRuntime.LiteRT, ".."),
+        )
+        assertEquals(
+            File(File(baseDir, "litert"), "model"),
+            ModelInstall.targetFile(baseDir, LocalRuntime.LiteRT, ""),
+        )
+    }
+
+    @Test fun `canSafelyResume only allows pinned commit URLs on HuggingFace`() {
+        val commit = "a".repeat(40)
+        assertTrue(ModelInstall.canSafelyResume(
+            "https://huggingface.co/user/repo/resolve/$commit/model.litertlm"))
+        assertFalse(ModelInstall.canSafelyResume(
+            "https://huggingface.co/user/repo/resolve/main/model.litertlm"))
+        assertTrue(ModelInstall.canSafelyResume("https://example.com/model.gguf"))
     }
 
     @Test fun `normalizeHuggingFaceUrl handles blob with main branch via regex only`() {
@@ -385,6 +415,51 @@ class ModelInstallTest {
 
         val failed = events.last() as ModelInstall.Progress.Failed
         assertTrue(failed.cause is IllegalArgumentException)
+        assertFalse(target.exists())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream accepts a litertlm file once the 8-byte magic is sniffed`() = runBlocking {
+        // The LITERTLM magic is 8 bytes; a 4-byte sniff buffer could never validate it.
+        val content = litertlmBytes(5000)
+        val target = File(tempFolder.newFolder(), "model.litertlm")
+
+        val events = ModelInstall.copyFromStream(
+            input = ByteArrayInputStream(content),
+            target = target,
+            totalBytes = content.size.toLong(),
+            expectedExtension = "litertlm",
+        ).toList()
+
+        assertTrue(events.last() is ModelInstall.Progress.Done)
+        assertArrayEquals(content, target.readBytes())
+        assertFalse(File(target.absolutePath + ".partial").exists())
+    }
+
+    @Test fun `copyFromStream accepts a litertlm file when the magic arrives one byte at a time`() = runBlocking {
+        val content = litertlmBytes(5000)
+        val target = File(tempFolder.newFolder(), "model.litertlm")
+        val source = ChunkedInputStream(content, chunkSizes = listOf(1, 1, 1, 1, 1, 1, 1, 1))
+
+        val events = ModelInstall.copyFromStream(
+            input = source, target = target, totalBytes = content.size.toLong(), expectedExtension = "litertlm",
+        ).toList()
+
+        assertTrue(events.last() is ModelInstall.Progress.Done)
+        assertArrayEquals(content, target.readBytes())
+    }
+
+    @Test fun `copyFromStream rejects a short import when totalBytes is declared`() = runBlocking {
+        val content = ggufBytes(5000)
+        val truncated = content.copyOf(3000)
+        val target = File(tempFolder.newFolder(), "model.gguf")
+
+        val events = ModelInstall.copyFromStream(
+            ByteArrayInputStream(truncated), target, totalBytes = content.size.toLong(), expectedExtension = "gguf",
+        ).toList()
+
+        val failed = events.last() as ModelInstall.Progress.Failed
+        assertTrue(failed.cause is IOException)
         assertFalse(target.exists())
         assertFalse(File(target.absolutePath + ".partial").exists())
     }

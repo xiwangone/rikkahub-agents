@@ -9,5 +9,7 @@
         <domain includeSubdomains="true">localhost</domain>
         <!-- IP 没有子域名概念，显式 false；缺该属性会被 lintVitalRelease 判 error -->
         <domain includeSubdomains="false">127.0.0.1</domain>
+        <!-- IPv6 环回：与应用层环回判定（::1）对齐，否则配 http://[::1]:port 会被平台层拦下 -->
+        <domain includeSubdomains="false">::1</domain>
     </domain-config>
 </network-security-config>

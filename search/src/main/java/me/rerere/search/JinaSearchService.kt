@@ -81,6 +81,9 @@ object JinaSearchService : SearchService<SearchServiceOptions.JinaOptions> {
                         put("q", query)
                     }
 
+                // The search/scrape endpoints are user-configured and may point at a
+                // self-hosted service on a private address, so no egress guard is applied
+                // here by design (same trade-off as SearXNG).
                 val searchUrl = serviceOptions.searchUrl.ifBlank { DEFAULT_SEARCH_URL }
 
                 val request =
@@ -96,14 +99,14 @@ object JinaSearchService : SearchService<SearchServiceOptions.JinaOptions> {
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
                     val responseData =
-                        response.body.string().let {
+                        boundedBodyOrFail(response).let {
                             json.decodeFromString<JinaSearchResponse>(it)
                         }
 
                     return@withContext Result.success(
                         SearchResult(
                             items =
-                                responseData.data.take(commonOptions.resultSize).map {
+                                responseData.data.take(commonOptions.resultSize.coerceIn(1, 50)).map {
                                     SearchResultItem(
                                         title = it.title,
                                         url = it.url,
@@ -113,7 +116,7 @@ object JinaSearchService : SearchService<SearchServiceOptions.JinaOptions> {
                         ),
                     )
                 } else {
-                    error("response failed #${response.code}")
+                    error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }
@@ -147,10 +150,10 @@ object JinaSearchService : SearchService<SearchServiceOptions.JinaOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (!response.isSuccessful) {
-                    error("response failed for url $url #${response.code}")
+                    error("response failed for url $url #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
                 val responseData =
-                    response.body.string().let {
+                    boundedBodyOrFail(response).let {
                         json.decodeFromString<JinaScrapeResponse>(it)
                     }
 

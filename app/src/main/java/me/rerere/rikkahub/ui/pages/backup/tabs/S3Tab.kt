@@ -197,7 +197,7 @@ fun S3Tab(
                                 modifier = Modifier.weight(1f),
                             ) {
                                 OutlinedTextField(
-                                    value = s3Config.displayName,
+                                    value = s3Config.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) },
                                     onValueChange = {},
                                     readOnly = true,
                                     trailingIcon = { ExposedDropdownMenuDefaults.TrailingIcon(expanded = configMenuExpanded) },
@@ -212,7 +212,7 @@ fun S3Tab(
                                 ) {
                                     allConfigs.forEach { cfg ->
                                         DropdownMenuItem(
-                                            text = { Text(cfg.displayName) },
+                                            text = { Text(cfg.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) }) },
                                             onClick = {
                                                 configMenuExpanded = false
                                                 selectS3Config(cfg.id.ifBlank { cfg.displayName })
@@ -237,7 +237,7 @@ fun S3Tab(
                             modifier = Modifier.fillMaxWidth(),
                             value = s3Config.name,
                             onValueChange = { updateS3Config(s3Config.copy(name = it.trim())) },
-                            placeholder = { Text(s3Config.displayName) },
+                            placeholder = { Text(s3Config.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) }) },
                             singleLine = true,
                         )
                     },

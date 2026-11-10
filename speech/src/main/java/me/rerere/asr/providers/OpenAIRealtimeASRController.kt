@@ -57,6 +57,12 @@ class OpenAIRealtimeASRController(
     private var onTranscriptChange: ((String) -> Unit)? = null
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
     private val partialTranscripts = ConcurrentHashMap<String, String>()
+    // Incremental join of completedTranscripts: publishTranscript runs on every delta,
+    // so re-joining the whole history each time is quadratic in transcript length.
+    // Completed segments are append-only (cleared in start()), so the joined text can
+    // be maintained by appending; only the small partial map is re-joined per publish.
+    @Volatile
+    private var completedTranscriptText: String = ""
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -71,6 +77,7 @@ class OpenAIRealtimeASRController(
 
         this.onTranscriptChange = onTranscriptChange
         completedTranscripts.clear()
+        completedTranscriptText = ""
         partialTranscripts.clear()
         _state.update {
             ASRState(
@@ -200,7 +207,12 @@ class OpenAIRealtimeASRController(
                         throw IllegalStateException("AudioRecord read error: $read")
                     }
                 }
-            } catch (e: Exception) {
+            } catch (e: IllegalStateException) {
+                if (isActive) {
+                    AppLogger.e(TAG, "Audio recording failed", e)
+                    setError(e.message ?: "Audio recording failed")
+                }
+            } catch (e: SecurityException) {
                 if (isActive) {
                     AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
@@ -243,7 +255,11 @@ class OpenAIRealtimeASRController(
                 _state.update { it.copy(voiceTurn = it.voiceTurn.completed(itemId, transcript)) }
                 partialTranscripts.remove(itemId)
                 if (transcript.isNotEmpty()) {
-                    completedTranscripts.add(transcript)
+                    synchronized(completedTranscripts) {
+                        completedTranscripts.add(transcript)
+                        completedTranscriptText =
+                            if (completedTranscriptText.isEmpty()) transcript else "$completedTranscriptText $transcript"
+                    }
                 }
                 publishTranscript()
             }
@@ -264,9 +280,14 @@ class OpenAIRealtimeASRController(
     }
 
     private fun publishTranscript() {
-        val transcript = (completedTranscripts + partialTranscripts.values)
-            .filter { it.isNotBlank() }
-            .joinToString(" ")
+        // Only the partial map (one entry per in-progress utterance) is re-joined;
+        // the completed history is read from the incrementally maintained cache.
+        val partialText = partialTranscripts.values.filter { it.isNotBlank() }.joinToString(" ")
+        val transcript = when {
+            completedTranscriptText.isEmpty() -> partialText
+            partialText.isEmpty() -> completedTranscriptText
+            else -> "$completedTranscriptText $partialText"
+        }
         _state.update { it.copy(transcript = transcript, errorMessage = null) }
         scope.launch {
             onTranscriptChange?.invoke(transcript)

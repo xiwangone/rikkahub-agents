@@ -70,7 +70,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                     buildJsonObject {
                         put("query", JsonPrimitive(query))
                         put("summary", JsonPrimitive(serviceOptions.summary))
-                        put("count", JsonPrimitive(commonOptions.resultSize))
+                        put("count", JsonPrimitive(commonOptions.resultSize.coerceIn(1, 50)))
                     }
 
                 val request =
@@ -84,14 +84,14 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
 
                 val response = httpClient.newCall(request).execute()
                 if (response.isSuccessful) {
-                    val bodyRaw = response.body.string()
+                    val bodyRaw = boundedBodyOrFail(response)
                     val bochaResponse =
                         runCatching {
                             json.decodeFromString<BochaResponse>(bodyRaw)
                         }.onFailure {
                             AppLogger.e(TAG, "decode error", it)
-                            AppLogger.w(TAG, "decode failed, raw body: $bodyRaw")
-                            error("Failed to decode response: $bodyRaw")
+                            AppLogger.w(TAG, "decode failed, raw body: ${bodyPreview(bodyRaw)}")
+                            error("Failed to decode response: ${bodyPreview(bodyRaw)}")
                         }.getOrThrow()
 
                     if (bochaResponse.code != 200) {
@@ -111,7 +111,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                         ),
                     )
                 } else {
-                    AppLogger.w(TAG, "response failed, body: ${response.body.string()}")
+                    AppLogger.w(TAG, "response failed #${response.code}, body: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                     error("response failed #${response.code}")
                 }
             }

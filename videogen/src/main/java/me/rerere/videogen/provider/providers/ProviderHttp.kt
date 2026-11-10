@@ -49,6 +49,15 @@ internal fun boundedBody(response: Response, capBytes: Int): String {
     return String(out.toByteArray(), charset)
 }
 
+// Maximum characters of a response body kept in an exception message: the raw body
+// can be up to MAX_JSON_BODY_BYTES, and callers log the exception, so the full text
+// must never be pasted into the message.
+internal const val MAX_ERROR_SNIPPET_CHARS = 1024
+
+internal fun truncateErrorSnippet(text: String): String =
+    if (text.length <= MAX_ERROR_SNIPPET_CHARS) text
+    else text.take(MAX_ERROR_SNIPPET_CHARS) + "... (truncated, ${text.length} chars total)"
+
 internal suspend fun OkHttpClient.executeJson(request: Request, provider: String): JsonObject =
     newCall(request).await().use { response ->
         val text = boundedBody(response, MAX_JSON_BODY_BYTES)
@@ -60,7 +69,9 @@ internal suspend fun OkHttpClient.executeJson(request: Request, provider: String
                 provider = provider,
                 statusCode = response.code,
                 code = error?.string("code") ?: body.string("code") ?: error?.string("type"),
-                message = error?.string("message") ?: body.string("message") ?: text,
+                message = truncateErrorSnippet(
+                    error?.string("message") ?: body.string("message") ?: text,
+                ),
             )
         }
         body

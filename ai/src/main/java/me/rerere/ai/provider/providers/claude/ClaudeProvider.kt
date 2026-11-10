@@ -389,7 +389,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         val response = client.newCall(request).await()
         val bodyStr = response.body.string()
         if (!response.isSuccessful) {
-            throw response.errorAsHttpException()
+            throw response.errorAsHttpException(bodyStr)
         }
         val bodyJson = json.parseToJsonElement(bodyStr).jsonObject
 

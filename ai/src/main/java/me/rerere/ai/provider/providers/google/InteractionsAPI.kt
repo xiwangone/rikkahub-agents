@@ -94,7 +94,7 @@ internal class InteractionsAPI(
         client.newCall(request).await().use { response ->
             val bodyRaw = response.body.string()
             if (!response.isSuccessful) {
-                throw response.errorAsHttpException()
+                throw response.errorAsHttpException(bodyRaw)
             }
             val bodyJson = json.parseToJsonElement(bodyRaw).jsonObject
             parseInteraction(bodyJson, fallbackModel = params.model.modelId)

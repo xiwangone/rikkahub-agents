@@ -1,14 +1,18 @@
 package me.rerere.workspace
 
 import java.io.File
+import java.io.IOException
 import java.io.InputStream
 import java.nio.charset.Charset
 import java.nio.charset.StandardCharsets
 import java.nio.file.FileSystems
+import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.nio.file.PathMatcher
+import java.nio.file.SimpleFileVisitor
+import java.nio.file.attribute.BasicFileAttributes
 import kotlin.io.path.name
 
 /** [WorkspaceFileSystem.listDetailed] 的返回: 条目 + 是否因上限截断 + 截断前总数。 */
@@ -186,7 +190,7 @@ class WorkspaceFileSystem(
         if (!file.exists()) return false
         return if (file.isDirectory) {
             require(recursive) { "Directory delete requires recursive = true" }
-            file.deleteRecursively()
+            deleteRecursivelyNoFollow(file)
         } else {
             file.delete()
         }
@@ -218,7 +222,7 @@ class WorkspaceFileSystem(
                 throw e
             }
             runCatching {
-                if (backupFile.isDirectory) backupFile.deleteRecursively() else backupFile.delete()
+                if (backupFile.isDirectory) deleteRecursivelyNoFollow(backupFile) else backupFile.delete()
             }
             return targetFile.toEntry(root)
         }
@@ -238,14 +242,14 @@ class WorkspaceFileSystem(
                 copyInto(sourceFile, targetFile, budget, mutableSetOf())
             } catch (error: Exception) {
                 runCatching {
-                    if (targetFile.isDirectory) targetFile.deleteRecursively() else targetFile.delete()
+                    if (targetFile.isDirectory) deleteRecursivelyNoFollow(targetFile) else targetFile.delete()
                 }
                 throw IllegalStateException(
                     "Failed to move $source to $target: $reason; copy fallback also failed: ${error.message}",
                     error,
                 )
             }
-            if (!sourceFile.deleteRecursively()) {
+            if (!deleteRecursivelyNoFollow(sourceFile)) {
                 throw IllegalStateException(
                     "Moved $source to $target by copying, but failed to delete the source: $reason",
                 )
@@ -284,7 +288,7 @@ class WorkspaceFileSystem(
         runCatching { copyInto(sourceFile, targetFile, budget, visitedDirs) }
             .onFailure { error ->
                 runCatching {
-                    if (targetFile.isDirectory) targetFile.deleteRecursively() else targetFile.delete()
+                    if (targetFile.isDirectory) deleteRecursivelyNoFollow(targetFile) else targetFile.delete()
                 }
                 backupFile?.let { backup ->
                     runCatching { backup.renameTo(targetFile) }
@@ -294,7 +298,7 @@ class WorkspaceFileSystem(
             .onSuccess {
                 backupFile?.let { backup ->
                     runCatching {
-                        if (backup.isDirectory) backup.deleteRecursively() else backup.delete()
+                        if (backup.isDirectory) deleteRecursivelyNoFollow(backup) else backup.delete()
                     }
                 }
             }
@@ -602,4 +606,35 @@ class WorkspaceFileSystem(
     private fun Path.normalizeForMatch(): Path = FileSystems.getDefault().getPath(relativeToString())
 
     private fun Path.relativeToString(): String = joinToString("/") { it.name }
+}
+
+/**
+ * 不跟随符号链接地删除一棵目录树：目录符号链接只删链接本身，不删目标内容。
+ *
+ * [File.deleteRecursively] 会穿透目录软链（内部自底向上遍历，未关跟随），工作区里
+ * 一条指向他处的目录软链会在一次普通删除中连带删掉目标内容，故这里用默认不跟随
+ * 链接的 walkFileTree 自行遍历：链接（文件或目录）按文件删，真实目录后序删除。
+ * 与 WorkspaceStats.kt 里 dirSize 同一套遍历口径。
+ */
+internal fun deleteRecursivelyNoFollow(file: File): Boolean {
+    if (Files.isSymbolicLink(file.toPath())) return file.delete()
+    if (!file.isDirectory) return file.delete()
+    return runCatching {
+        Files.walkFileTree(
+            file.toPath(),
+            object : SimpleFileVisitor<Path>() {
+                override fun visitFile(file: Path, attrs: BasicFileAttributes): FileVisitResult {
+                    Files.delete(file)
+                    return FileVisitResult.CONTINUE
+                }
+
+                override fun postVisitDirectory(dir: Path, exc: IOException?): FileVisitResult {
+                    if (exc != null) throw exc
+                    Files.delete(dir)
+                    return FileVisitResult.CONTINUE
+                }
+            },
+        )
+        true
+    }.getOrDefault(false)
 }

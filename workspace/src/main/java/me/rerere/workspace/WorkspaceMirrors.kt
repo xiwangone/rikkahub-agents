@@ -184,7 +184,11 @@ internal fun readRootfsDistro(linuxDir: File): RootfsDistro? {
             ?.trim('"')
             ?.takeIf { it.isNotBlank() }
     val id = field("ID") ?: return null
-    val codename = field("VERSION_CODENAME") ?: field("VERSION_CODENAME_LIKE") ?: return null
+    // VERSION_CODENAME_LIKE 是空格分隔的列表（该版本“像”哪些代号），不可整串当单值
+    // 拼进 apt 源；只取首个（最接近的）当回退。
+    val codename = field("VERSION_CODENAME")
+        ?: field("VERSION_CODENAME_LIKE")?.split(' ', '\t')?.firstOrNull { it.isNotBlank() }
+        ?: return null
     return RootfsDistro(id, codename)
 }
 

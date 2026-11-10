@@ -109,9 +109,12 @@ fun TunnelSettingSection(vm: SettingVM) {
         is TunnelState.Failed -> stringResource(R.string.tunnel_status_failed, s.reason)
         is TunnelState.Off -> stringResource(R.string.tunnel_status_disconnected)
     }
+    // Failed 也计入开态：失败后守护仍在按退避重试，显示成关会让用户误以为已停，
+    // 且没有 UI 路径调 stop()；计入开态后用户拨到关即可真正停掉重连。
     val switchOn = tunnelState is TunnelState.Connected ||
         tunnelState is TunnelState.Connecting ||
-        tunnelState is TunnelState.Offline
+        tunnelState is TunnelState.Offline ||
+        tunnelState is TunnelState.Failed
 
     // 节点与 peer 列表只在已连上时拉取（设置页打开时一次，连上/断开时再一次）。
     LaunchedEffect(tunnelState) {

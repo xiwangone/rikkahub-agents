@@ -88,7 +88,7 @@ object OllamaSearchService : SearchService<SearchServiceOptions.OllamaOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {
-                    val responseBody = response.body.string()
+                    val responseBody = boundedBodyOrFail(response)
                     val searchResponse = json.decodeFromString<OllamaSearchResponse>(responseBody)
 
                     return@withContext Result.success(
@@ -104,7 +104,7 @@ object OllamaSearchService : SearchService<SearchServiceOptions.OllamaOptions> {
                         ),
                     )
                 } else {
-                    error("Ollama search failed with code ${response.code}: ${response.message}")
+                    error("Ollama search failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
             }
         }
@@ -133,10 +133,10 @@ object OllamaSearchService : SearchService<SearchServiceOptions.OllamaOptions> {
 
                 val response = httpClient.newCall(request).await()
                 if (!response.isSuccessful) {
-                    error("response failed for url $url #${response.code}")
+                    error("response failed for url $url #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
                 val responseData =
-                    response.body.string().let {
+                    boundedBodyOrFail(response).let {
                         json.decodeFromString<OllamaScrapeResponse>(it)
                     }
 

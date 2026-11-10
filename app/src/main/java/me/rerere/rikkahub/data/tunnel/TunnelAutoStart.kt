@@ -114,7 +114,7 @@ object TunnelAutoStart {
                     continue
                 }
                 if (retryIndex >= retryDelaysMs.size) {
-                    AppLog.w(TAG, "tunnel gave up: ${result.exceptionOrNull()?.message}")
+                    AppLog.w(TAG, "tunnel reconnect backoff cycle exhausted, starting a new cycle")
                     retryIndex = 0
                     delay(HEALTH_POLL_MS)
                     continue

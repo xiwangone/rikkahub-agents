@@ -31,10 +31,16 @@ private const val DATA_URL_PASSTHROUGH_LIMIT_BYTES = 512 * 1024
 private const val MAX_HTTP_DOWNLOAD_BYTES = 32L * 1024 * 1024
 
 /**
+ * 本地文件 / content URI 单次读取上限，与远端分支同口径（32MB）：
+ * 本地内容由用户自选，误选大文件时同样不能在编码前整份读进内存。
+ */
+internal const val MAX_LOCAL_READ_BYTES = 32L * 1024 * 1024
+
+/**
  * 分块读取输入流，累计超过 [maxBytes] 即抛 [java.io.IOException]。
  * 远端内容体积不可信，[InputStream.readBytes] 会按实际大小无界分配。
  */
-private fun InputStream.readBytesBounded(maxBytes: Long): ByteArray {
+internal fun InputStream.readBytesBounded(maxBytes: Long): ByteArray {
     val out = ByteArrayOutputStream()
     val buffer = ByteArray(8 * 1024)
     var total = 0L
@@ -43,7 +49,7 @@ private fun InputStream.readBytesBounded(maxBytes: Long): ByteArray {
         if (read < 0) break
         total += read
         if (total > maxBytes) {
-            throw java.io.IOException("HTTP 下载超过上限 $maxBytes 字节")
+            throw java.io.IOException("读取超过上限 $maxBytes 字节")
         }
         out.write(buffer, 0, read)
     }
@@ -242,10 +248,10 @@ fun UIMessagePart.Audio.audioBytes(context: Context): ByteArray? {
             }
             url.startsWith("file://") -> {
                 val path = url.toUri().path ?: return@runCatching null
-                File(path).takeIf { it.exists() }?.readBytes()
+                File(path).takeIf { it.exists() }?.inputStream()?.use { it.readBytesBounded(MAX_LOCAL_READ_BYTES) }
             }
             url.startsWith("content://") -> {
-                context.contentResolver.openInputStream(url.toUri())?.use { it.readBytes() }
+                context.contentResolver.openInputStream(url.toUri())?.use { it.readBytesBounded(MAX_LOCAL_READ_BYTES) }
             }
             url.startsWith("http://") || url.startsWith("https://") -> {
                 val conn = java.net.URL(url).openConnection().apply {

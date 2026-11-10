@@ -84,9 +84,9 @@ object DoubaoSearchService : SearchService<SearchServiceOptions.DoubaoOptions> {
                 .build()
 
             httpClient.newCall(request).await().use { response ->
-                val responseBody = response.body.string()
+                val responseBody = boundedBodyOrFail(response)
                 if (!response.isSuccessful) {
-                    error("Doubao search failed #${response.code}: $responseBody")
+                    error("Doubao search failed #${response.code}: ${bodyPreview(responseBody)}")
                 }
                 parseResponse(serviceOptions.mode, responseBody)
             }

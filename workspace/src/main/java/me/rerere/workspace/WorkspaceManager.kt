@@ -313,7 +313,7 @@ class WorkspaceManager(
             } else {
                 null
             }
-        workspaceDir(root).deleteRecursively()
+        deleteRecursivelyNoFollow(workspaceDir(root))
     }
 
     fun listFiles(
@@ -463,13 +463,41 @@ class WorkspaceManager(
         outputStream.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
 
-    /** Rootfs 内绝对路径对应的宿主机文件，不检查是否存在 */
+    /**
+     * Rootfs 内绝对路径对应的宿主机文件，不检查是否存在。
+     *
+     * 先按挂载映射落到宿主机位置，再按该位置解析。Rootfs 内的软链可能指向
+     * /workspace 挂载点：其实际位置落在 filesDir 而非 linuxDir，仍在工作区内，
+     * 按挂载语义放行；其余越出工作区的位置仍拒绝。
+     */
     fun resolveRootfsFile(
         root: String,
         path: String,
     ): File {
         val location = resolveRootfsPath(root, path)
-        return fileSystem.resolve(location.rootDir, location.relativePath)
+        require(!location.relativePath.contains('\u0000')) { "Path contains invalid character" }
+        val rootDir = location.rootDir
+        if (!rootDir.mkdirs() && !rootDir.isDirectory) {
+            error("Failed to create workspace root directory: ${rootDir.path}")
+        }
+        val rootCanonical = rootDir.canonicalFile
+        val candidate =
+            if (location.relativePath.isBlank()) {
+                rootCanonical
+            } else {
+                File(rootCanonical, location.relativePath).canonicalFile
+            }
+        val filesCanonical = filesDir(root).canonicalFile
+        val allowedRoots = listOf(rootCanonical, filesCanonical)
+        require(
+            allowedRoots.any { allowed ->
+                candidate.path == allowed.path ||
+                    candidate.path.startsWith(allowed.path + File.separator)
+            },
+        ) {
+            "Path escapes workspace root: $path"
+        }
+        return candidate
     }
 
     private fun File.requireReadableFile(path: String) {
@@ -660,10 +688,10 @@ class WorkspaceManager(
             val root = dir.name
             if (!root.matches(ROOT_NAME_REGEX)) continue
             // PRoot temp files
-            tempDir(root).let { if (it.exists()) it.deleteRecursively() }
+            tempDir(root).let { if (it.exists()) deleteRecursivelyNoFollow(it) }
             // Rootfs /tmp and /var/tmp
-            File(linuxDir(root), "tmp").let { if (it.exists()) it.deleteRecursively() }
-            File(linuxDir(root), "var/tmp").let { if (it.exists()) it.deleteRecursively() }
+            File(linuxDir(root), "tmp").let { if (it.exists()) deleteRecursivelyNoFollow(it) }
+            File(linuxDir(root), "var/tmp").let { if (it.exists()) deleteRecursivelyNoFollow(it) }
         }
     }
 

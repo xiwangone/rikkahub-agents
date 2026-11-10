@@ -20,6 +20,10 @@ import org.json.JSONArray
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import me.rerere.common.log.AppLogger
+import me.rerere.speech.http.MAX_ERROR_BODY_BYTES
+import me.rerere.speech.http.MAX_TTS_JSON_BODY_BYTES
+import me.rerere.speech.http.readBoundedString
+import me.rerere.speech.http.truncateForError
 
 private const val TAG = "GeminiTTSProvider"
 
@@ -125,51 +129,56 @@ class GeminiTTSProvider : TTSProvider<TTSProviderSetting.Gemini> {
                     .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
                     .build()
 
-            val response = httpClient.newCall(httpRequest).execute()
+            // Read the error body (bounded) before throwing: reading closes the body and
+            // releases the connection, and the snippet keeps the failure diagnosable.
+            httpClient.newCall(httpRequest).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = runCatching { response.body.readBoundedString(MAX_ERROR_BODY_BYTES) }.getOrNull()
+                    AppLogger.e(TAG, "Gemini TTS request failed: ${response.code} ${response.message}: ${errorBody?.truncateForError()}")
+                    throw TTSProviderException(
+                        message = "Gemini TTS request failed: ${response.code} ${response.message}",
+                        statusCode = response.code,
+                    )
+                }
 
-            if (!response.isSuccessful) {
-                throw TTSProviderException(
-                    message = "Gemini TTS request failed: ${response.code} ${response.message}",
-                    statusCode = response.code,
+                // JSON body holds the whole audio as base64, so read it bounded as well.
+                val responseJson = response.body.readBoundedString(MAX_TTS_JSON_BODY_BYTES)
+                val geminiResponse = json.decodeFromString<GeminiTTSResponse>(responseJson)
+
+                if (geminiResponse.candidates.isEmpty() ||
+                    geminiResponse.candidates[0]
+                        .content.parts
+                        .isEmpty()
+                ) {
+                    throw TTSProviderException(
+                        message = "No audio data returned from Gemini TTS",
+                        statusCode = response.code,
+                    )
+                }
+
+                val audioBase64 =
+                    geminiResponse.candidates[0]
+                        .content.parts[0]
+                        .inlineData.data
+                val audioData = Base64.decode(audioBase64, Base64.DEFAULT)
+
+                emit(
+                    AudioChunk(
+                        data = audioData,
+                        format = AudioFormat.PCM,
+                        sampleRate = 24000, // Gemini TTS returns 24kHz 16-bit mono PCM
+                        isLast = true,
+                        metadata =
+                            mapOf(
+                                "provider" to "gemini",
+                                "model" to providerSetting.model,
+                                "voice" to providerSetting.voiceName,
+                                "sampleRate" to "24000",
+                                "channels" to "1",
+                                "bitDepth" to "16",
+                            ),
+                    ),
                 )
             }
-
-            val responseJson = response.body.string()
-            val geminiResponse = json.decodeFromString<GeminiTTSResponse>(responseJson)
-
-            if (geminiResponse.candidates.isEmpty() ||
-                geminiResponse.candidates[0]
-                    .content.parts
-                    .isEmpty()
-            ) {
-                throw TTSProviderException(
-                    message = "No audio data returned from Gemini TTS",
-                    statusCode = response.code,
-                )
-            }
-
-            val audioBase64 =
-                geminiResponse.candidates[0]
-                    .content.parts[0]
-                    .inlineData.data
-            val audioData = Base64.decode(audioBase64, Base64.DEFAULT)
-
-            emit(
-                AudioChunk(
-                    data = audioData,
-                    format = AudioFormat.PCM,
-                    sampleRate = 24000, // Gemini TTS returns 24kHz 16-bit mono PCM
-                    isLast = true,
-                    metadata =
-                        mapOf(
-                            "provider" to "gemini",
-                            "model" to providerSetting.model,
-                            "voice" to providerSetting.voiceName,
-                            "sampleRate" to "24000",
-                            "channels" to "1",
-                            "bitDepth" to "16",
-                        ),
-                ),
-            )
         }
 }

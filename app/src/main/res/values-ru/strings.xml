@@ -4145,6 +4145,9 @@
   <string name="tunnel_status_offline">Не в сети (переподключение…)</string>
   <string name="tunnel_status_failed">Ошибка: %1$s</string>
   <string name="tunnel_status_disconnected">Отключено</string>
+  <string name="tunnel_apply_failed">Не удалось применить: %1$s</string>
+  <string name="tunnel_logout_failed">Не удалось выйти: %1$s</string>
+  <string name="tunnel_status_copy_ip_hint">Нажмите, чтобы скопировать IP-адрес туннеля</string>
   <string name="tunnel_control_url_label">URL плоскости управления</string>
   <string name="tunnel_auth_key_label">Ключ авторизации</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
@@ -4266,6 +4269,9 @@
   <string name="setting_trusted_keys_vault">known_hosts хранилища</string>
   <string name="setting_trusted_keys_empty">Доверенных ключей хостов пока нет</string>
   <string name="setting_trusted_keys_hint">После удаления ключа при следующем подключении к этому хосту снова потребуется подтверждение отпечатка.</string>
+  <string name="setting_trusted_keys_delete_title">Удалить доверенный ключ?</string>
+  <string name="setting_trusted_keys_delete_message">При следующем подключении к %1$s снова потребуется подтверждение отпечатка.</string>
+  <string name="setting_trusted_keys_load_failed">Не удалось прочитать доверенные ключи: %1$s</string>
   <string name="assistant_page_empty">Ассистентов пока нет</string>
   <string name="assistant_page_empty_desc">Нажмите +, чтобы создать первого ассистента.</string>
   <string name="assistant_page_no_results">По вашему запросу ассистентов не найдено</string>

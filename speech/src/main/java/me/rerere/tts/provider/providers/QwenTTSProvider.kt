@@ -14,6 +14,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okhttp3.RequestBody.Companion.toRequestBody
+import org.json.JSONException
 import org.json.JSONObject
 import java.util.concurrent.TimeUnit
 import me.rerere.common.log.AppLogger
@@ -74,6 +75,8 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
 
             response.body.byteStream().bufferedReader().use { reader ->
                 var currentData = StringBuilder()
+                var hasEmittedAudio = false
+                var failedParseCount = 0
 
                 reader.lineSequence().forEach { line ->
                     when {
@@ -82,7 +85,13 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
                         }
 
                         line.isEmpty() && currentData.isNotEmpty() -> {
-                            parseSSEData(currentData.toString(), providerSetting)?.let { emit(it) }
+                            val chunk = parseSSEData(currentData.toString(), providerSetting)
+                            if (chunk == null) {
+                                failedParseCount++
+                            } else {
+                                hasEmittedAudio = true
+                                emit(chunk)
+                            }
                             currentData = StringBuilder()
                         }
                     }
@@ -90,7 +99,26 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
 
                 // 兼容最后一个 SSE event 后没有空行、直接 EOF 的响应。
                 if (currentData.isNotEmpty()) {
-                    parseSSEData(currentData.toString(), providerSetting)?.let { emit(it) }
+                    val chunk = parseSSEData(currentData.toString(), providerSetting)
+                    if (chunk == null) {
+                        failedParseCount++
+                    } else {
+                        hasEmittedAudio = true
+                        emit(chunk)
+                    }
+                }
+
+                if (failedParseCount > 0) {
+                    AppLogger.e(TAG, "Qwen TTS finished with $failedParseCount unparsable SSE events")
+                }
+                // A stream with no audio at all is a failed synthesis, not an empty
+                // success: callers would otherwise play zero bytes of audio.
+                if (!hasEmittedAudio) {
+                    throw TTSProviderException(
+                        message = "Qwen TTS returned no audio chunks" +
+                            if (failedParseCount > 0) " ($failedParseCount SSE events failed to parse)" else "",
+                        statusCode = response.code,
+                    )
                 }
             }
         }
@@ -131,7 +159,10 @@ class QwenTTSProvider : TTSProvider<TTSProviderSetting.Qwen> {
             } else {
                 null
             }
-        } catch (e: Exception) {
+        } catch (e: JSONException) {
+            AppLogger.e(TAG, "Failed to parse SSE data: $data", e)
+            null
+        } catch (e: IllegalArgumentException) {
             AppLogger.e(TAG, "Failed to parse SSE data: $data", e)
             null
         }

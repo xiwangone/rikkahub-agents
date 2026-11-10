@@ -21,6 +21,7 @@ import me.rerere.ai.util.audioBytes
 import me.rerere.ai.util.toBitmap
 import me.rerere.locallm.LocalRuntime
 import me.rerere.locallm.LocalRuntimePreferences
+import com.google.ai.edge.litertlm.LiteRtLmJniException
 import com.google.ai.edge.litertlm.tool as litertTool
 import com.google.ai.edge.litertlm.ToolProvider
 
@@ -67,7 +68,7 @@ internal fun decideImageForwarding(
  * When [LiteRtRuntime.ensureLoaded] throws [LiteRtModelCorruptException], this provider
  * self-heals: the broken file is deleted from disk, removed from [LocalRuntimePreferences],
  * and removed from [ProviderSetting.LiteRtLocal.models] via [settingsUpdater]. The caller
- * receives a user-readable [RuntimeException] explaining what happened.
+ * receives a user-readable [IllegalStateException] explaining what happened.
  *
  * @param settingsUpdater Suspend lambda that lets the provider mutate the persisted
  *   [ProviderSetting] list without coupling the `local-llm` module to `SettingsStore`
@@ -84,7 +85,7 @@ class LiteRtProvider(
     /**
      * Self-heal a permanently corrupt model: delete the file from disk, remove it from
      * [LocalRuntimePreferences], and remove it from the provider's models list in settings.
-     * After cleanup, throws a user-readable [RuntimeException] so the chat surface can
+     * After cleanup, throws a user-readable [IllegalStateException] so the chat surface can
      * display an appropriate error message.
      */
     private suspend fun handleCorruptModel(corrupt: LiteRtModelCorruptException): Nothing {
@@ -119,7 +120,7 @@ class LiteRtProvider(
             Log.e(TAG, "Failed to remove model from provider settings: $fileName", e)
         }
 
-        throw RuntimeException(
+        throw IllegalStateException(
             "The model file \"$fileName\" could not be loaded because it is corrupt or " +
             "incompatible with this runtime version. The file has been removed automatically. " +
             "Pick a different model in Settings → Providers → Local · LiteRT, or tap " +
@@ -176,6 +177,20 @@ class LiteRtProvider(
                 "($modelPath). Delete the model entry in Settings → Providers → Local · LiteRT " +
                 "and re-download it."
             )
+        }
+
+        // Re-check memory right before loading: the install-time check is stale by the
+        // time the user actually chats, and other apps may have taken the headroom
+        // since. Refuse with a clear message instead of letting the native engine OOM.
+        val modelFile = java.io.File(modelPath)
+        when (val mem = me.rerere.locallm.MemoryGuard.canLoad(context, modelFile.length())) {
+            is me.rerere.locallm.MemoryGuard.Decision.TooLarge -> throw IllegalStateException(
+                "Not enough free memory to load \"${params.model.modelId}\" " +
+                    "(needs ${mem.requiredFreeBytes / 1_000_000} MB free, " +
+                    "only ${mem.availMemBytes / 1_000_000} MB available). " +
+                    "Close other apps or pick a smaller model.",
+            )
+            is me.rerere.locallm.MemoryGuard.Decision.Ok -> Unit
         }
 
         // Pass the cached accelerator so ensureLoaded does not re-probe on every turn.
@@ -396,8 +411,10 @@ class LiteRtProvider(
             )
         } catch (corrupt: LiteRtModelCorruptException) {
             handleCorruptModel(corrupt)
-        } catch (t: Throwable) {
-            throw translateSdkError(t, effectiveMaxNumTokens)
+        } catch (vision: LiteRtVisionUnavailableException) {
+            throw translateSdkError(vision, effectiveMaxNumTokens)
+        } catch (e: IllegalStateException) {
+            throw translateSdkError(e, effectiveMaxNumTokens)
         }
         val resolvedAccel = outcome.accelerator
         // Persist whatever the runtime actually used. Without this, the in-runtime
@@ -462,6 +479,31 @@ class LiteRtProvider(
         )
         val turnImages: List<android.graphics.Bitmap> = if (imageDecision.forwardImages) {
             userImageParts.mapNotNull { it.toBitmap(context) }
+                .filter { bitmap ->
+                    val pixels = bitmap.width.toLong() * bitmap.height.toLong()
+                    if (pixels > LiteRtRuntime.MAX_IMAGE_PIXELS) {
+                        Log.w(
+                            TAG,
+                            "dropping oversized image ${bitmap.width}x${bitmap.height} " +
+                                "(${pixels}px > ${LiteRtRuntime.MAX_IMAGE_PIXELS} px cap)",
+                        )
+                        false
+                    } else {
+                        true
+                    }
+                }
+                .let { kept ->
+                    if (kept.size > LiteRtRuntime.MAX_STREAM_IMAGES) {
+                        Log.w(
+                            TAG,
+                            "dropping ${kept.size - LiteRtRuntime.MAX_STREAM_IMAGES} image(s); " +
+                                "at most ${LiteRtRuntime.MAX_STREAM_IMAGES} are forwarded per turn",
+                        )
+                        kept.take(LiteRtRuntime.MAX_STREAM_IMAGES)
+                    } else {
+                        kept
+                    }
+                }
         } else {
             // Vision unavailable / not supported by this model — drop image parts. When the
             // user actually attached images to a vision-capable model, the note below tells
@@ -542,13 +584,15 @@ class LiteRtProvider(
                         }
                     }
                 }
-            } catch (t: Throwable) {
+            } catch (e: LiteRtLmJniException) {
                 // Translate the LiteRT-LM SDK's raw native-error text into something the user
                 // and the chat error surface can act on. The most common one — "Input token
                 // ids are too long. Exceeding the maximum number of tokens allowed: N >= M"
                 // — looks scary but means "your conversation is bigger than this model can
                 // hold". Surface that with a recovery hint.
-                throw translateSdkError(t, effectiveMaxNumTokens)
+                throw translateSdkError(e, effectiveMaxNumTokens)
+            } catch (e: IllegalStateException) {
+                throw translateSdkError(e, effectiveMaxNumTokens)
             }
         }
 

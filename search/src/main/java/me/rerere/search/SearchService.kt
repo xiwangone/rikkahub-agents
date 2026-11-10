@@ -75,6 +75,9 @@ interface SearchService<T : SearchServiceOptions> {
         // （见 RikkaHubApp.onCreate）。参数必须与那个 client 保持一致，否则「搜索发生在
         // init 之前还是之后」会变成用户能感觉到的行为差异：原先 readTimeout 只有 30s
         // （DI client 为 10min），慢速搜索/抓取会随顺序偶发超时。
+        // 与 DI client 的剩余差异（兜底路径拿不到这些依赖）：无代理选择器、无主机固定映射
+        // 与应用内 DNS、无 UA 拦截器、无隧道 socket factory。followSslRedirects 已与 DI
+        // client 对齐为 false，以免 https->http 降级时凭据被明文发出。
         // 代理与 UA 头无法在本模块复刻（SettingsStore 在 app 模块），这正是 init() 存在的原因。
         @Volatile
         internal var httpClient: OkHttpClient =
@@ -85,7 +88,7 @@ interface SearchService<T : SearchServiceOptions> {
                 .writeTimeout(120, TimeUnit.SECONDS)
                 .retryOnConnectionFailure(true)
                 .followRedirects(true)
-                .followSslRedirects(true)
+                .followSslRedirects(false)
                 .build()
 
         @Volatile
@@ -120,18 +123,70 @@ internal const val SCRAPE_BODY_CAP = 256 * 1024
 internal fun boundedBody(response: Response, capBytes: Int): String {
     val charset = response.body.contentType()?.charset() ?: Charsets.UTF_8
     val ins = response.body.byteStream()
-    val out = java.io.ByteArrayOutputStream(minOf(capBytes, 8 * 1024))
-    val buf = ByteArray(8192)
-    var total = 0
-    while (total < capBytes) {
-        val want = minOf(buf.size, capBytes - total)
-        val read = ins.read(buf, 0, want)
-        if (read < 0) break
-        out.write(buf, 0, read)
-        total += read
+    try {
+        val out = java.io.ByteArrayOutputStream(minOf(capBytes, 8 * 1024))
+        val buf = ByteArray(8192)
+        var total = 0
+        while (total < capBytes) {
+            val want = minOf(buf.size, capBytes - total)
+            val read = ins.read(buf, 0, want)
+            if (read < 0) break
+            out.write(buf, 0, read)
+            total += read
+        }
+        return String(out.toByteArray(), charset)
+    } finally {
+        // Closing the stream releases the connection even when the body was longer
+        // than the cap and was not fully consumed.
+        runCatching { ins.close() }
     }
-    return String(out.toByteArray(), charset)
 }
+
+/**
+ * Cap for an API search/fetch response body. Search JSON is small; a scraped page
+ * carried inside JSON can be larger, so the cap is generous and only guards against
+ * an unbounded or hostile response filling memory.
+ */
+internal const val SEARCH_API_BODY_CAP = 2 * 1024 * 1024
+
+/**
+ * Read at most [capBytes] from [response]'s body, failing loudly when the body is
+ * longer instead of silently returning a truncated body: a truncated JSON body would
+ * parse as corrupt, and truncated page content would silently enter the model context
+ * as if it were complete. The body stream is closed on every path, so a failed read
+ * does not leak the connection either.
+ */
+internal fun boundedBodyOrFail(response: Response, capBytes: Int = SEARCH_API_BODY_CAP): String {
+    val charset = response.body.contentType()?.charset() ?: Charsets.UTF_8
+    val ins = response.body.byteStream()
+    try {
+        val out = java.io.ByteArrayOutputStream(minOf(capBytes, 8 * 1024))
+        val buf = ByteArray(8192)
+        var total = 0
+        while (total < capBytes) {
+            val want = minOf(buf.size, capBytes - total)
+            val read = ins.read(buf, 0, want)
+            if (read < 0) break
+            out.write(buf, 0, read)
+            total += read
+        }
+        if (ins.read() != -1) {
+            throw IOException("Response body exceeds $capBytes bytes")
+        }
+        return String(out.toByteArray(), charset)
+    } finally {
+        runCatching { ins.close() }
+    }
+}
+
+/**
+ * Short preview of a response body for error messages and logs: the first 1KB plus
+ * the total length. A raw body must never be embedded whole: a hostile endpoint could
+ * otherwise push megabytes of junk into the log and into the model context.
+ */
+internal fun bodyPreview(body: String, maxChars: Int = 1024): String =
+    if (body.length <= maxChars) body
+    else body.take(maxChars) + "... [truncated, ${body.length} chars total]"
 
 @Serializable
 data class SearchCommonOptions(

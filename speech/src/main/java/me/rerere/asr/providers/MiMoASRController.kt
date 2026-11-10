@@ -38,6 +38,9 @@ import java.io.ByteArrayOutputStream
 import java.io.IOException
 import java.util.Collections
 import me.rerere.common.log.AppLogger
+import me.rerere.speech.http.MAX_ASR_RESPONSE_BYTES
+import me.rerere.speech.http.readBoundedString
+import me.rerere.speech.http.truncateForError
 
 private const val TAG = "MiMoASR"
 
@@ -76,6 +79,12 @@ class MiMoASRController(
     private var currentBuffer = ByteArrayOutputStream()
     private var segmentStartElapsedMs = 0L
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
+    // Incremental join of completedTranscripts: publishTranscript runs after every
+    // flushed segment, so re-joining the whole history each time is quadratic in
+    // transcript length. Segments are append-only (cleared in start()), so the joined
+    // text can be maintained by appending.
+    @Volatile
+    private var completedTranscriptText: String = ""
 
     override fun start(onTranscriptChange: (String) -> Unit) {
         if (state.value.isRecording) return
@@ -94,6 +103,7 @@ class MiMoASRController(
             segmentStartElapsedMs = SystemClock.elapsedRealtime()
         }
         completedTranscripts.clear()
+        completedTranscriptText = ""
         flushJob = null
 
         // MiMo 是 HTTP 一次性接口, 没有 WebSocket 连接阶段, 直接进入 Listening
@@ -117,7 +127,10 @@ class MiMoASRController(
                 // 等当前正在跑的 flushJob 完成, 避免并发 flush 导致结果乱序
                 flushJob?.join()
                 flushSegment()
-            } catch (e: Exception) {
+            } catch (e: IOException) {
+                AppLogger.e(TAG, "Final flush failed", e)
+                setError(e.message ?: "MiMo ASR final flush failed")
+            } catch (e: IllegalStateException) {
                 AppLogger.e(TAG, "Final flush failed", e)
                 setError(e.message ?: "MiMo ASR final flush failed")
             } finally {
@@ -189,7 +202,10 @@ class MiMoASRController(
                             throw IllegalStateException("AudioRecord read error: $read")
                         }
                     }
-                } catch (e: Exception) {
+                } catch (e: IllegalStateException) {
+                    AppLogger.e(TAG, "Audio recording failed", e)
+                    setError(e.message ?: "Audio recording failed")
+                } catch (e: SecurityException) {
                     AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")
                 } finally {
@@ -266,13 +282,13 @@ class MiMoASRController(
         val text =
             withContext(Dispatchers.IO) {
                 httpClient.newCall(request).execute().use { resp ->
-                    val respBody = resp.body?.string().orEmpty()
+                    val respBody = resp.body.readBoundedString(MAX_ASR_RESPONSE_BYTES)
                     if (!resp.isSuccessful) {
-                        throw IOException("MiMo ASR HTTP ${resp.code}: $respBody")
+                        throw IOException("MiMo ASR HTTP ${resp.code}: ${respBody.truncateForError()}")
                     }
                     val json =
                         runCatching { JSONObject(respBody) }.getOrElse {
-                            throw IOException("MiMo ASR response is not valid JSON: $respBody")
+                            throw IOException("MiMo ASR response is not valid JSON: ${respBody.truncateForError()}")
                         }
                     json
                         .optJSONArray("choices")
@@ -285,16 +301,17 @@ class MiMoASRController(
             }
 
         if (text.isNotEmpty()) {
-            completedTranscripts.add(text)
+            synchronized(completedTranscripts) {
+                completedTranscripts.add(text)
+                completedTranscriptText =
+                    if (completedTranscriptText.isEmpty()) text else "$completedTranscriptText $text"
+            }
             publishTranscript()
         }
     }
 
     private fun publishTranscript() {
-        val transcript =
-            completedTranscripts
-                .filter { it.isNotBlank() }
-                .joinToString(" ")
+        val transcript = completedTranscriptText
         _state.update { it.copy(transcript = transcript, errorMessage = null) }
         scope.launch { onTranscriptChange?.invoke(transcript) }
     }

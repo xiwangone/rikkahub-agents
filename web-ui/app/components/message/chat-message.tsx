@@ -27,7 +27,6 @@ import type {
   MessageDto,
   MessageNodeDto,
   ProviderModel,
-  TokenUsage,
   UIMessagePart,
 } from "~/types";
 
@@ -129,25 +128,28 @@ function getDurationMs(createdAt: string, finishedAt?: string | null): number | 
   return end - start;
 }
 
-function getNerdStats(
-  usage: TokenUsage,
-  createdAt: string,
-  finishedAt: string | null | undefined,
-  t: TFunction,
-) {
+function getNerdStats(message: MessageDto, t: TFunction) {
+  const usage = message.usage;
+  if (!usage) return [];
+  // Prompt tokens come from the latest request only. usage is the per-message
+  // cumulative total (every step re-sends the full history, so a multi-step agent
+  // message counts the same history repeatedly); lastUsage is the latest request.
+  // Legacy messages without lastUsage fall back to the cumulative usage.
+  const displayUsage = message.lastUsage ?? usage;
+
   const stats: Array<{ key: string; icon: React.ReactNode; label: string }> = [];
 
   stats.push({
     key: "prompt",
     icon: <ArrowUp className="size-3" />,
     label:
-      usage.cachedTokens > 0
+      displayUsage.cachedTokens > 0
         ? t("chat_message.prompt_tokens_with_cache", {
-            promptTokens: formatNumber(usage.promptTokens),
-            cachedTokens: formatNumber(usage.cachedTokens),
+            promptTokens: formatNumber(displayUsage.promptTokens),
+            cachedTokens: formatNumber(displayUsage.cachedTokens),
           })
         : t("chat_message.prompt_tokens", {
-            promptTokens: formatNumber(usage.promptTokens),
+            promptTokens: formatNumber(displayUsage.promptTokens),
           }),
   });
 
@@ -155,14 +157,23 @@ function getNerdStats(
     key: "completion",
     icon: <ArrowDown className="size-3" />,
     label: t("chat_message.completion_tokens", {
-      completionTokens: formatNumber(usage.completionTokens),
+      completionTokens: formatNumber(displayUsage.completionTokens),
     }),
   });
 
-  const durationMs = getDurationMs(createdAt, finishedAt);
-  if (durationMs && usage.completionTokens > 0) {
+  // Speed is measured over generation time, not the wall-clock span: the latter
+  // includes tool execution waits. generationTimeMs is cumulative generation time
+  // across requests; without it, fall back to the wall-clock span. The server does
+  // not report a latest-request-only duration, so for multi-step messages this is
+  // the latest request's tokens over all generation time.
+  const generationMs =
+    message.generationTimeMs != null && message.generationTimeMs > 0
+      ? message.generationTimeMs
+      : null;
+  const durationMs = generationMs ?? getDurationMs(message.createdAt, message.finishedAt);
+  if (durationMs && displayUsage.completionTokens > 0) {
     const durationSeconds = durationMs / 1000;
-    const tps = usage.completionTokens / durationSeconds;
+    const tps = displayUsage.completionTokens / durationSeconds;
 
     stats.push({
       key: "speed",
@@ -494,7 +505,7 @@ const ChatMessageNerdLineRow = React.memo(({
     return null;
   }
 
-  const stats = getNerdStats(message.usage, message.createdAt, message.finishedAt, t);
+  const stats = getNerdStats(message, t);
   if (stats.length === 0) return null;
 
   return (

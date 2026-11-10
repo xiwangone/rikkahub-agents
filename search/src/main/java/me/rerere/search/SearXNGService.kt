@@ -22,7 +22,6 @@ import me.rerere.search.extract.WebExtractor
 import me.rerere.search.net.hostIsBlockedLiteral
 import me.rerere.search.net.withEgressGuard
 import okhttp3.Credentials
-import okhttp3.HttpUrl.Companion.toHttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.Request
 import java.net.URLEncoder
@@ -77,11 +76,16 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
 
             val query = params["query"]?.jsonPrimitive?.content ?: error("query is required")
 
-            // 构建查询URL
+            // 构建查询URL。端点是用户配置的自建服务地址，常在局域网地址上，因此这里
+            // 有意不套 egress 防护：套用会把合法自建打死。凭据只发往该配置地址，且
+            // 客户端拒绝 https->http 降级，重定向带不走凭据。
             val baseUrl = serviceOptions.url.trimEnd('/')
             val encodedQuery = URLEncoder.encode(query, "UTF-8")
-            val url = "$baseUrl/search?q=$encodedQuery&format=json"
-                .toHttpUrl()
+            val searchUrl = ("$baseUrl/search?q=$encodedQuery&format=json")
+                .toHttpUrlOrNull()
+                ?.takeIf { it.scheme == "http" || it.scheme == "https" }
+                ?: error("Invalid SearXNG URL: ${serviceOptions.url}")
+            val url = searchUrl
                 .newBuilder()
                 .apply {
                     if (serviceOptions.engines.isNotBlank()) {
@@ -109,17 +113,17 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
 
             val response = httpClient.newCall(request).await()
             if (response.isSuccessful) {
-                val bodyRaw = response.body.string()
+                val bodyRaw = boundedBodyOrFail(response)
                 val searchResponse = runCatching {
                     json.decodeFromString<SearXNGResponse>(bodyRaw)
                 }.onFailure {
-                    AppLogger.e(TAG, "Failed to decode SearXNG response: $bodyRaw", it)
+                    AppLogger.e(TAG, "Failed to decode SearXNG response: ${bodyPreview(bodyRaw)}", it)
                     error("Failed to decode SearXNG response: ${it.message}")
                 }.getOrThrow()
 
                 // 转换为标准格式，取前 N 个结果
                 val items = searchResponse.results
-                    .take(commonOptions.resultSize)
+                    .take(commonOptions.resultSize.coerceIn(1, 50))
                     .map { result ->
                         SearchResultItem(
                             title = result.title,
@@ -130,7 +134,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
 
                 return@withContext Result.success(SearchResult(items = items))
             } else {
-                val errorBody = response.body.string()
+                val errorBody = bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))
                 AppLogger.e(TAG, "SearXNG API error: ${response.code} - $errorBody")
                 error("SearXNG request failed with status ${response.code}")
             }

@@ -2,10 +2,12 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -13,6 +15,7 @@ import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -22,10 +25,13 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
+import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -34,6 +40,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
@@ -43,6 +50,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.workspace.ssh.SshHostKey
@@ -74,15 +82,23 @@ fun SettingTrustedKeysPage() {
 
     var appEntries by remember { mutableStateOf<List<TrustedKeyEntry>>(emptyList()) }
     var vaultEntries by remember { mutableStateOf<List<TrustedKeyEntry>>(emptyList()) }
+    // 两份文件的解析失败原因（null = 解析成功）；失败时展示加载失败态，
+    // 与“确实没有已信任密钥”的空态区分开。
+    var appLoadError by remember { mutableStateOf<String?>(null) }
+    var vaultLoadError by remember { mutableStateOf<String?>(null) }
     var loaded by remember { mutableStateOf(false) }
+    // 待确认删除的条目：所属文件 + 条目，null 表示没有待确认的删除。
+    var deleteTarget by remember { mutableStateOf<Pair<File, TrustedKeyEntry>?>(null) }
 
     fun reload() {
         scope.launch {
             val (app, vault) = withContext(Dispatchers.IO) {
                 loadTrustedKeys(appKnownHostsFile) to loadTrustedKeys(vaultKnownHostsFile)
             }
-            appEntries = app
-            vaultEntries = vault
+            appEntries = app.getOrDefault(emptyList())
+            vaultEntries = vault.getOrDefault(emptyList())
+            appLoadError = app.exceptionOrNull()?.message
+            vaultLoadError = vault.exceptionOrNull()?.message
             loaded = true
         }
     }
@@ -111,7 +127,22 @@ fun SettingTrustedKeysPage() {
                     CardGroup(
                         title = { Text(stringResource(R.string.setting_trusted_keys_app)) },
                     ) {
-                        if (appEntries.isEmpty() && loaded) {
+                        appLoadError?.let { error ->
+                            item(
+                                headlineContent = {
+                                    Text(
+                                        text = stringResource(R.string.setting_trusted_keys_load_failed, error),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                trailingContent = {
+                                    TextButton(onClick = { reload() }) {
+                                        Text(stringResource(R.string.common_retry))
+                                    }
+                                },
+                            )
+                        }
+                        if (appLoadError == null && appEntries.isEmpty() && loaded) {
                             item(
                                 headlineContent = { Text(stringResource(R.string.setting_trusted_keys_empty)) },
                             )
@@ -119,14 +150,7 @@ fun SettingTrustedKeysPage() {
                         appEntries.forEach { entry ->
                             trustedKeyItem(
                                 entry = entry,
-                                onDelete = {
-                                    scope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            deleteTrustedKey(appKnownHostsFile, entry)
-                                        }
-                                        reload()
-                                    }
-                                },
+                                onDelete = { deleteTarget = appKnownHostsFile to entry },
                             )
                         }
                     }
@@ -138,7 +162,22 @@ fun SettingTrustedKeysPage() {
                     CardGroup(
                         title = { Text(stringResource(R.string.setting_trusted_keys_vault)) },
                     ) {
-                        if (vaultEntries.isEmpty() && loaded) {
+                        vaultLoadError?.let { error ->
+                            item(
+                                headlineContent = {
+                                    Text(
+                                        text = stringResource(R.string.setting_trusted_keys_load_failed, error),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                trailingContent = {
+                                    TextButton(onClick = { reload() }) {
+                                        Text(stringResource(R.string.common_retry))
+                                    }
+                                },
+                            )
+                        }
+                        if (vaultLoadError == null && vaultEntries.isEmpty() && loaded) {
                             item(
                                 headlineContent = { Text(stringResource(R.string.setting_trusted_keys_empty)) },
                             )
@@ -146,14 +185,7 @@ fun SettingTrustedKeysPage() {
                         vaultEntries.forEach { entry ->
                             trustedKeyItem(
                                 entry = entry,
-                                onDelete = {
-                                    scope.launch {
-                                        withContext(Dispatchers.IO) {
-                                            deleteTrustedKey(vaultKnownHostsFile, entry)
-                                        }
-                                        reload()
-                                    }
-                                },
+                                onDelete = { deleteTarget = vaultKnownHostsFile to entry },
                             )
                         }
                     }
@@ -168,6 +200,22 @@ fun SettingTrustedKeysPage() {
                     modifier = Modifier.padding(horizontal = 4.dp),
                 )
             }
+        }
+
+        deleteTarget?.let { (file, entry) ->
+            RikkaDeleteConfirmDialog(
+                show = true,
+                title = stringResource(R.string.setting_trusted_keys_delete_title),
+                message = stringResource(R.string.setting_trusted_keys_delete_message, entry.host),
+                onConfirm = {
+                    deleteTarget = null
+                    scope.launch {
+                        withContext(Dispatchers.IO) { deleteTrustedKey(file, entry) }
+                        reload()
+                    }
+                },
+                onDismiss = { deleteTarget = null },
+            )
         }
     }
 }
@@ -187,12 +235,32 @@ private fun CardGroupScope.trustedKeyItem(
             )
         },
         supportingContent = {
-            Text(
-                text = "${entry.type} · ${entry.fingerprint}",
-                fontFamily = FontFamily.Monospace,
-                maxLines = 1,
-                overflow = TextOverflow.Ellipsis,
-            )
+            @Suppress("DEPRECATION")
+            val clipboard = LocalClipboardManager.current
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(4.dp),
+            ) {
+                // 指纹可选中、完整换行展示，不再用 maxLines=1 截断；
+                // 右侧复制按钮把“算法 指纹”拷出来与可信值核对。
+                SelectionContainer(modifier = Modifier.weight(1f, fill = false)) {
+                    Text(
+                        text = "${entry.type} · ${entry.fingerprint}",
+                        fontFamily = FontFamily.Monospace,
+                    )
+                }
+                IconButton(
+                    onClick = {
+                        clipboard.setText(AnnotatedString("${entry.type} ${entry.fingerprint}"))
+                    },
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Copy01,
+                        contentDescription = stringResource(R.string.workspace_ssh_host_key_copy),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         },
         trailingContent = {
             IconButton(onClick = onDelete) {
@@ -209,15 +277,22 @@ private fun CardGroupScope.trustedKeyItem(
 
 /**
  * 用 JSch 的 HostKeyRepository 解析一份 known_hosts 文件。
- * 文件不存在（Vault 那份首次连接前就没有）时按空列表处理。
+ * 文件不存在（Vault 那份首次连接前就没有）时按空列表处理；
+ * 文件存在但解析失败时返回失败结果，调用方展示加载失败态，
+ * 不再静默当成“没有密钥”。
  */
-private fun loadTrustedKeys(file: File): List<TrustedKeyEntry> {
-    if (!file.exists()) return emptyList()
+private fun loadTrustedKeys(file: File): Result<List<TrustedKeyEntry>> {
+    if (!file.exists()) return Result.success(emptyList())
     val jsch = JSch()
-    runCatching { jsch.setKnownHosts(file.absolutePath) }.getOrNull() ?: return emptyList()
-    return jsch.hostKeyRepository.hostKey.orEmpty().map { hostKey ->
-        TrustedKeyEntry(host = hostKey.host, type = hostKey.type, key = hostKey.key)
+    val parsed = runCatching { jsch.setKnownHosts(file.absolutePath) }
+    if (parsed.isFailure) {
+        return Result.failure(parsed.exceptionOrNull() ?: IllegalStateException("parse failed"))
     }
+    return Result.success(
+        jsch.hostKeyRepository.hostKey.orEmpty().map { hostKey ->
+            TrustedKeyEntry(host = hostKey.host, type = hostKey.type, key = hostKey.key)
+        },
+    )
 }
 
 /**

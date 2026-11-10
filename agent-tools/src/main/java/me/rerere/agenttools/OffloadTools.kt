@@ -11,6 +11,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.workspace.WorkspaceFileEntry
+import java.io.IOException
 
 /**
  * 大输出落盘机制.
@@ -59,7 +60,7 @@ private fun createWriteOffloadTool(
                 })
                 put("text", buildJsonObject {
                     put("type", "string")
-                    put("description", "Full content to persist (UTF-8). May be arbitrarily large.")
+                    put("description", "Full content to persist (UTF-8). Single write is capped at 2MB (the workspace write limit); split larger content into multiple offloads.")
                 })
                 put("overwrite", buildJsonObject {
                     put("type", "boolean")
@@ -107,7 +108,13 @@ private fun createListOffloadTool(
         var listError: String? = null
         val files = try {
             io.listFiles(OFFLOAD_DIR)
-        } catch (e: Exception) {
+        } catch (e: IOException) {
+            listError = e.message ?: "Failed to list offloads"
+            emptyList()
+        } catch (e: IllegalArgumentException) {
+            listError = e.message ?: "Failed to list offloads"
+            emptyList()
+        } catch (e: IllegalStateException) {
             listError = e.message ?: "Failed to list offloads"
             emptyList()
         }
