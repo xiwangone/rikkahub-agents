@@ -43,6 +43,9 @@ fun ImagePreviewDialog(
     val state = rememberZoomablePagerState(initialPage = initialPage) { images.size }
     val toaster = LocalToaster.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val savingText = stringResource(R.string.image_preview_saving)
+    val savedText = stringResource(R.string.image_preview_saved)
+    val saveFailedText = stringResource(R.string.image_preview_save_failed)
     Dialog(
         onDismissRequest = onDismissRequest,
         properties =
@@ -73,17 +76,17 @@ fun ImagePreviewDialog(
                     onClick = {
                         lifecycleOwner.lifecycleScope.launch {
                             runCatching {
-                                toaster.show(context.getString(R.string.image_preview_saving))
+                                toaster.show(savingText)
                                 val imgUrl = images[state.currentPage]
                                 filesManager.saveMessageImage(context, imgUrl)
                                 toaster.show(
-                                    message = context.getString(R.string.image_preview_saved),
+                                    message = savedText,
                                     type = ToastType.Success,
                                 )
                             }.onFailure {
                                 AppLog.e("ImagePreviewDialog", "Failed to save image", it)
                                 toaster.show(
-                                    message = context.getString(R.string.image_preview_save_failed),
+                                    message = saveFailedText,
                                     type = ToastType.Error,
                                 )
                             }

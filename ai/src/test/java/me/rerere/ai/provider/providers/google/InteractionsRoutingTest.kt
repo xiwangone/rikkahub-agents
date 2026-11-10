@@ -129,7 +129,9 @@ class InteractionsRoutingTest {
         val request = requests.single()
         assertEquals("aiplatform.googleapis.com", request.url.host)
         assertEquals("/v1/publishers/google/models/gemini-test:generateContent", request.url.encodedPath)
-        assertEquals("fixture-key-not-a-credential", request.url.queryParameter("key"))
+        // API key travels in the x-goog-api-key header on both paths, never in the URL
+        // query string (GoogleProvider.transformRequest): assert the header.
+        assertEquals("fixture-key-not-a-credential", request.header("x-goog-api-key"))
         val body = requestBody(request).jsonObject
         assertTrue(body.containsKey("contents"))
         assertFalse(body.containsKey("input"))

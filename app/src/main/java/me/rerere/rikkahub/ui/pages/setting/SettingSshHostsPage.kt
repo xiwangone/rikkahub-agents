@@ -46,7 +46,6 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.input.KeyboardType
@@ -90,14 +89,16 @@ import org.koin.compose.koinInject
 fun SettingSshHostsPage() {
     val sshHostRepository: SshHostRepository = koinInject()
     val settingsStore: SettingsStore = koinInject()
-    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle(
-        initialValue = settingsStore.settingsFlow.value,
-    )
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val vaultRepo: me.rerere.rikkahub.data.vault.CredentialVaultRepository = koinInject()
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
-    val context = LocalContext.current
+    // Format strings resolved configuration-aware at composition time; the
+    // dynamic argument is substituted at the call site so the message stays current.
+    val loadFailedFormat = stringResource(R.string.setting_ssh_hosts_load_failed)
+    val saveFailedFormat = stringResource(R.string.ssh_hosts_save_failed)
+    val hostDeletedFormat = stringResource(R.string.setting_ssh_host_deleted)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
 
     var hosts by remember { mutableStateOf<List<SshHostEntity>>(emptyList()) }
@@ -116,7 +117,7 @@ fun SettingSshHostsPage() {
         }.onFailure { e ->
             AppLog.w("SshHostsPage", "加载主机列表失败: ${e.message}")
             loadError = e.message ?: e.javaClass.simpleName
-            toaster.show(context.getString(R.string.setting_ssh_hosts_load_failed, loadError!!))
+            toaster.show(loadFailedFormat.format(loadError!!))
         }
     }
 
@@ -131,7 +132,7 @@ fun SettingSshHostsPage() {
             }.onFailure { e ->
                 AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
                 loadError = e.message ?: e.javaClass.simpleName
-                toaster.show(context.getString(R.string.setting_ssh_hosts_load_failed, loadError!!))
+                toaster.show(loadFailedFormat.format(loadError!!))
             }
         }
     }
@@ -338,7 +339,7 @@ fun SettingSshHostsPage() {
                             "SshHostsPage",
                             "failed to save SSH host: name=${entity.name} err=${e.message}",
                         )
-                        toaster.show(context.getString(R.string.ssh_hosts_save_failed, e.message ?: e.javaClass.simpleName))
+                        toaster.show(saveFailedFormat.format(e.message ?: e.javaClass.simpleName))
                     }
                 }
             },
@@ -357,7 +358,7 @@ fun SettingSshHostsPage() {
                 scope.launch {
                     sshHostRepository.deleteByName(target.name)
                     reload()
-                    toaster.show(context.getString(R.string.setting_ssh_host_deleted, target.name))
+                    toaster.show(hostDeletedFormat.format(target.name))
                 }
             }
         },
@@ -391,7 +392,8 @@ private fun SshHostEditDialog(
     var showTemplatePicker by remember { mutableStateOf(false) }
     var validationAttempted by remember { mutableStateOf(false) }
     val toaster = me.rerere.rikkahub.ui.context.LocalToaster.current
-    val context = LocalContext.current
+    val templateApplyFailedFormat = stringResource(R.string.setting_ssh_template_apply_failed)
+    val templateDecryptFailedText = stringResource(R.string.setting_ssh_template_decrypt_failed)
     val nameInvalid = validationAttempted && name.trim().isBlank()
     val hostInvalid = validationAttempted && host.trim().isBlank()
     val portValue = port.toIntOrNull()
@@ -535,10 +537,7 @@ private fun SshHostEditDialog(
                                     val json = vaultRepo.decryptValue(tpl)
                                     if (json == null) {
                                         toaster.show(
-                                            context.getString(
-                                                R.string.setting_ssh_template_apply_failed,
-                                                context.getString(R.string.setting_ssh_template_decrypt_failed),
-                                            ),
+                                            templateApplyFailedFormat.format(templateDecryptFailedText),
                                         )
                                     } else {
                                         runCatching {
@@ -550,8 +549,7 @@ private fun SshHostEditDialog(
                                             templateRef = tpl.name
                                         }.onFailure { e ->
                                             toaster.show(
-                                                context.getString(
-                                                    R.string.setting_ssh_template_apply_failed,
+                                                templateApplyFailedFormat.format(
                                                     e.message ?: e.javaClass.simpleName,
                                                 ),
                                             )

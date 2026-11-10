@@ -39,6 +39,7 @@ import kotlin.io.encoding.Base64
 fun ShareSheet(state: ShareSheetState) {
     val context = LocalContext.current
     val toaster = LocalToaster.current
+    val noAppAvailableText = stringResource(R.string.share_no_app_available)
     if (state.isShow) {
         ModalBottomSheet(
             onDismissRequest = {
@@ -76,7 +77,7 @@ fun ShareSheet(state: ShareSheetState) {
                                 context.startActivity(Intent.createChooser(intent, null))
                             } catch (e: ActivityNotFoundException) {
                                 e.printStackTrace()
-                                toaster.show(context.getString(R.string.share_no_app_available))
+                                toaster.show(noAppAvailableText)
                             }
                         },
                     ) {

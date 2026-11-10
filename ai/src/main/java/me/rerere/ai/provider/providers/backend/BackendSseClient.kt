@@ -76,10 +76,13 @@ class BackendSseClient(
 
     /** 单例热流：首次调用建立连接，后续调用复用同一事件流（重连也写回同一流） */
     private val sharedFlow: MutableSharedFlow<SseEvent> by lazy {
-        // extraBufferCapacity 必须远大于峰值吞吐：无 replay 的热流在订阅建立前
-        // （connect() → 消费方开始收集之间有网络往返）tryEmit 会静默丢事件。
-        // 发射端在 OkHttp 线程，不能挂起 emit，只能靠大缓冲 + 失败日志兜底。
+        // replay=1：保留最新一个事件，供订阅到达晚于发射的消费方补收——
+        // 终端错误事件（HTTP 401 等）常在 connect() 后、消费方开始收集前就已发出，
+        // replay=0 时 tryEmit 返回 true 也不会留给后到的订阅者，错误会静默丢失。
+        // extraBufferCapacity 仍远大于峰值吞吐：发射端在 OkHttp 线程，不能挂起
+        // emit，订阅者消费慢时靠大缓冲 + 失败日志兜底。
         val flow = MutableSharedFlow<SseEvent>(
+            replay = 1,
             extraBufferCapacity = 4096,
             onBufferOverflow = kotlinx.coroutines.channels.BufferOverflow.SUSPEND,
         )
