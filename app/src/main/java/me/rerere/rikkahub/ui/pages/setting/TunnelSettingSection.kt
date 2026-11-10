@@ -11,6 +11,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Switch
@@ -90,6 +91,8 @@ fun TunnelSettingSection(vm: SettingVM) {
     var showExitPicker by remember { mutableStateOf(false) }
     var showLogoutConfirm by remember { mutableStateOf(false) }
     var showDevicesDialog by remember { mutableStateOf(false) }
+    // 连接配置与路由收进弹层（二级页只留开关+状态，功能变多也不会塞不下）。
+    var showDetail by remember { mutableStateOf(false) }
     var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
 
     // 状态只有一个来源：[TsnetBridge.state]（由启动/停止与守护循环写回）。
@@ -260,86 +263,14 @@ fun TunnelSettingSection(vm: SettingVM) {
             },
         )
 
-        item(
-            headlineContent = {
-                Column(verticalArrangement = Arrangement.spacedBy(0.dp)) {
-                    TunnelRow(
-                        title = stringResource(R.string.tunnel_control_url_label),
-                        value = controlUrl.ifBlank { "—" },
-                    ) { editingField = TunnelField.ControlUrl }
-                    HorizontalDivider()
-                    TunnelRow(
-                        title = stringResource(R.string.tunnel_hostname_label),
-                        value = hostname.ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
-                    ) { editingField = TunnelField.Hostname }
-                    HorizontalDivider()
-                    TunnelRow(
-                        title = stringResource(R.string.tunnel_auth_key_label),
-                        value = if (authKey.isBlank()) "—" else "••••••••••••",
-                    ) { editingField = TunnelField.AuthKey }
-                    HorizontalDivider()
-                    TunnelRow(
-                        title = stringResource(R.string.tunnel_advertise_routes_label),
-                        value = advertiseRoutes.trim()
-                            .ifBlank { stringResource(R.string.tunnel_advertise_routes_none) },
-                    ) { editingField = TunnelField.AdvertiseRoutes }
-                    if (savedHint) {
-                        Text(
-                            text = stringResource(R.string.tunnel_saved_hint),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                            modifier = Modifier.padding(top = 8.dp),
-                        )
-                    }
-                }
-            },
-        )
-
-        // 子网路由：接受对端广播的网段（默认关，避免把对端 LAN 拉进 tailnet）
-        item(
-            headlineContent = {
-                Text(
-                    text = stringResource(R.string.tunnel_accept_routes),
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            supportingContent = {
-                Text(
-                    text = stringResource(R.string.tunnel_accept_routes_desc),
-                    style = MaterialTheme.typography.bodySmall,
-                )
-            },
-            trailingContent = {
-                Switch(
-                    checked = nodeStatus?.acceptRoutes ?: acceptRoutes,
-                    enabled = !busy,
-                    onCheckedChange = { on ->
-                        // 持久化到设置：下次启动隧道时按这个值回调（tailscale 默认是开）。
-                        acceptRoutes = on
-                        vm.updateSettings { current ->
-                            current.copy(
-                                networkSetting = current.networkSetting.copy(tailscaleAcceptRoutes = on),
-                            )
-                        }
-                        if (nodeStatus?.running == true) {
-                            scope.launch {
-                                TsnetBridge.setAcceptRoutes(on).onSuccess {
-                                    nodeStatus = nodeStatus?.copy(acceptRoutes = on)
-                                }
-                            }
-                        }
-                    },
-                )
-            },
-        )
-
-        // 出口节点
+        // 连接配置与路由收进「隧道设置」弹层：二级页只留开关 + 状态，
+        // 后续再加 Taildrop / Serve / 质量面板也不会把这一页堆满。
         item(
             headlineContent = {
                 TunnelRow(
-                    title = stringResource(R.string.tunnel_exit_node),
-                    value = exitNodeLabel(nodeStatus, exitNode, stringResource(R.string.tunnel_exit_node_none)),
-                    onClick = { showExitPicker = true },
+                    title = stringResource(R.string.tunnel_settings_entry),
+                    value = hostname.ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                    onClick = { showDetail = true },
                 )
             },
         )
@@ -378,6 +309,87 @@ fun TunnelSettingSection(vm: SettingVM) {
                 )
             },
         )
+    }
+
+    if (showDetail) {
+        ModalBottomSheet(onDismissRequest = { showDetail = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.tunnel_settings_entry),
+                    style = MaterialTheme.typography.titleMedium,
+                    modifier = Modifier.padding(vertical = 12.dp),
+                )
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_control_url_label),
+                    value = controlUrl.ifBlank { "—" },
+                ) { editingField = TunnelField.ControlUrl }
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_hostname_label),
+                    value = hostname.ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME },
+                ) { editingField = TunnelField.Hostname }
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_auth_key_label),
+                    value = if (authKey.isBlank()) "—" else "••••••••••••",
+                ) { editingField = TunnelField.AuthKey }
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_advertise_routes_label),
+                    value = advertiseRoutes.trim()
+                        .ifBlank { stringResource(R.string.tunnel_advertise_routes_none) },
+                ) { editingField = TunnelField.AdvertiseRoutes }
+                HorizontalDivider()
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(vertical = 12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text(
+                            text = stringResource(R.string.tunnel_accept_routes),
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            text = stringResource(R.string.tunnel_accept_routes_desc),
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
+                    Switch(
+                        checked = nodeStatus?.acceptRoutes ?: acceptRoutes,
+                        enabled = !busy,
+                        onCheckedChange = { on ->
+                            acceptRoutes = on
+                            vm.updateSettings { current ->
+                                current.copy(
+                                    networkSetting = current.networkSetting.copy(tailscaleAcceptRoutes = on),
+                                )
+                            }
+                            if (nodeStatus?.running == true) {
+                                scope.launch {
+                                    TsnetBridge.setAcceptRoutes(on).onSuccess {
+                                        nodeStatus = nodeStatus?.copy(acceptRoutes = on)
+                                    }
+                                }
+                            }
+                        },
+                    )
+                }
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_exit_node),
+                    value = exitNodeLabel(nodeStatus, exitNode, stringResource(R.string.tunnel_exit_node_none)),
+                    onClick = { showExitPicker = true },
+                )
+            }
+        }
     }
 
     if (showExitPicker) {
