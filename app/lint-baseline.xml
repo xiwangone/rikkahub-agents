@@ -6873,16 +6873,6 @@
             column="39"/>
     </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.afdian` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/afdian.xml"
-            line="1"
-            column="1"/>
-    </issue>
 
     <issue
         id="UnusedResources"
@@ -6950,23 +6940,7 @@
             column="10"/>
     </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.kofi` appears to be unused">
-        <location
-            file="src/main/res/drawable/kofi.webp"/>
-    </issue>
 
-    <issue
-        id="UnusedResources"
-        message="The resource `R.drawable.patreon` appears to be unused"
-        errorLine1="&lt;vector xmlns:android=&quot;http://schemas.android.com/apk/res/android&quot;"
-        errorLine2="^">
-        <location
-            file="src/main/res/drawable/patreon.xml"
-            line="1"
-            column="1"/>
-    </issue>
 
     <issue
         id="UnusedResources"
@@ -12248,12 +12222,6 @@
             column="43"/>
     </issue>
 
-    <issue
-        id="IconLocation"
-        message="Found bitmap drawable `res/drawable/kofi.webp` in densityless folder">
-        <location
-            file="src/main/res/drawable/kofi.webp"/>
-    </issue>
 
     <issue
         id="IconLocation"

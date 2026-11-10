@@ -107,7 +107,7 @@ class AgentRunBootRecovery(
                     .setContentTitle(title)
                     .setContentText(text)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                    .setSmallIcon(android.R.drawable.ic_dialog_info)
+                    .setSmallIcon(R.drawable.ic_stat_yao)
                     .setAutoCancel(true)
                 NotificationManagerCompat.from(context).notify(AGGREGATE_NOTIF_ID, builder.build())
             }.onFailure {

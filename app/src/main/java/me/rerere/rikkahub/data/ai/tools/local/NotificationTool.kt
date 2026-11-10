@@ -14,6 +14,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -82,7 +83,7 @@ fun notificationTool(
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
-            .setSmallIcon(android.R.drawable.ic_dialog_info)
+            .setSmallIcon(R.drawable.ic_stat_yao)
             .setAutoCancel(true)
         if (body != null) {
             builder.setContentText(body)

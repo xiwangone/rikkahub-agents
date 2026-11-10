@@ -26,6 +26,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
@@ -120,8 +121,16 @@ internal fun ExportedChatImage(
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
-                        // Use painterResource for the logo
-                        val painter = painterResource(id = R.mipmap.ic_launcher_foreground)
+                        // Use painterResource for the logo. The color foreground is
+                        // unreadable on a dark surface, so use the white monochrome
+                        // layer there instead.
+                        val darkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                        val painter =
+                            painterResource(
+                                id =
+                                    if (darkSurface) R.mipmap.ic_launcher_monochrome
+                                    else R.mipmap.ic_launcher_foreground,
+                            )
                         Image(
                             painter = painter,
                             contentDescription = stringResource(R.string.accessibility_app_logo),
