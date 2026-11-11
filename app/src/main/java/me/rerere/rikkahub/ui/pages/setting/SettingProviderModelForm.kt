@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
@@ -22,6 +23,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Badge
 import androidx.compose.material3.BadgedBox
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -92,6 +94,8 @@ internal fun ModelSettingsForm(
     onModelChange: (Model) -> Unit,
     isEdit: Boolean,
     parentProvider: ProviderSetting? = null,
+    // 点过提交才亮字段错误：刚打开表单必填项就是空的，没点确认就标红太吵。
+    showErrors: Boolean = false,
 ) {
     val pagerState = rememberPagerState { ModelFormTab.entries.size }
 
@@ -145,6 +149,12 @@ internal fun ModelSettingsForm(
                                 }
                             },
                             enabled = !isEdit,
+                            isError = showErrors && model.modelId.isBlank(),
+                            supportingText = {
+                                if (showErrors && model.modelId.isBlank()) {
+                                    Text("请填写模型 ID", color = MaterialTheme.colorScheme.error)
+                                }
+                            },
                         )
 
                         OutlinedTextField(
@@ -163,6 +173,12 @@ internal fun ModelSettingsForm(
                             placeholder = {
                                 if (!isEdit) {
                                     Text(stringResource(R.string.setting_provider_page_model_display_name_placeholder))
+                                }
+                            },
+                            isError = showErrors && model.displayName.isBlank(),
+                            supportingText = {
+                                if (showErrors && model.displayName.isBlank()) {
+                                    Text("请填写显示名", color = MaterialTheme.colorScheme.error)
                                 }
                             },
                         )
@@ -250,6 +266,7 @@ internal fun ModelSettingsForm(
 @Composable
 internal fun AddModelButton(
     models: List<Model>,
+    loading: Boolean = false,
     selectedModels: List<Model>,
     expanded: Boolean,
     onAddModel: (Model) -> Unit,
@@ -268,6 +285,7 @@ internal fun AddModelButton(
     ) {
         ModelPicker(
             models = models,
+            loading = loading,
             selectedModels = selectedModels,
             onModelSelected = { model ->
                 onAddModel(model.enrichCapabilities())
@@ -330,6 +348,9 @@ internal fun AddModelButton(
                     initialValue = SheetValue.Hidden,
                     enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
                 )
+            // 提交尝试过才显示字段错误：刚打开弹层两个必填项都是空的，没点确认就标红太吵；
+            // 点确认时校验不通过就亮出错误，告诉用户缺什么。
+            var submitAttempted by remember { mutableStateOf(false) }
             ModalBottomSheet(
                 onDismissRequest = {
                     dialogState.dismiss()
@@ -374,6 +395,7 @@ internal fun AddModelButton(
                             onModelChange = { dialogState.currentState = it },
                             isEdit = false,
                             parentProvider = parentProvider,
+                            showErrors = submitAttempted,
                         )
                     }
 
@@ -392,6 +414,9 @@ internal fun AddModelButton(
                             onClick = {
                                 if (modelState.modelId.isNotBlank() && modelState.displayName.isNotBlank()) {
                                     dialogState.confirm()
+                                } else {
+                                    // 校验失败不再静默：亮出字段错误，用户知道缺什么。
+                                    submitAttempted = true
                                 }
                             },
                         ) {
@@ -407,6 +432,7 @@ internal fun AddModelButton(
 @Composable
 internal fun ModelPicker(
     models: List<Model>,
+    loading: Boolean = false,
     selectedModels: List<Model>,
     onModelSelected: (Model) -> Unit,
     onModelDeselected: (Model) -> Unit,
@@ -485,14 +511,41 @@ internal fun ModelPicker(
                     }
                 }
 
-                LazyColumn(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
-                    contentPadding = PaddingValues(8.dp),
-                ) {
+                if (loading) {
+                    // 远程模型列表还在拉取：先转圈，别先给一个空列表；
+                    // 拉完确实为空时再显示空态。
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        CircularProgressIndicator()
+                    }
+                } else if (filteredModels.isEmpty()) {
+                    Box(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.setting_provider_page_no_models),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f),
+                        verticalArrangement = Arrangement.spacedBy(ListItemDefaults.SegmentedGap),
+                        contentPadding = PaddingValues(8.dp),
+                    ) {
                     itemsIndexed(filteredModels, key = { _, item -> item.id }) { index, it ->
                         Surface(
                             shape = cardGroupItemShape(index, filteredModels.size),
@@ -550,6 +603,7 @@ internal fun ModelPicker(
                                 }
                             }
                         }
+                    }
                     }
                 }
                 OutlinedTextField(

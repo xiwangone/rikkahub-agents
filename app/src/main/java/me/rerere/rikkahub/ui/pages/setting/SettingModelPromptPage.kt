@@ -4,12 +4,14 @@ import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -50,6 +52,7 @@ import me.rerere.rikkahub.ui.components.ai.ReasoningButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 
 @Composable
 internal fun PromptSettingsPage(
@@ -112,8 +115,8 @@ internal fun PromptSettingsPage(
             title = stringResource(slot.title),
             description = stringResource(slot.variables),
             value = slot.get(settings),
-            onValueChange = { value -> vm.updateSettings { latest -> slot.set(latest, value) } },
-            onReset = { vm.updateSettings { latest -> slot.set(latest, slot.default) } },
+            defaultValue = slot.default,
+            onSave = { value -> vm.updateSettings { latest -> slot.set(latest, value) } },
             onDismiss = { editing = null },
         )
     }
@@ -205,12 +208,21 @@ private fun PromptEditSheet(
     title: String,
     description: String,
     value: String,
-    onValueChange: (String) -> Unit,
-    onReset: () -> Unit,
+    defaultValue: String,
+    onSave: (String) -> Unit,
     onDismiss: () -> Unit,
 ) {
+    // 草稿态：改完点“保存”才写库；之前 onValueChange 直连持久化，每敲一字就写库，
+    // 滑走就算“保存”了。
+    var draft by remember(value) { mutableStateOf(value) }
+    var showResetDialog by remember { mutableStateOf(false) }
+    var showDiscardDialog by remember { mutableStateOf(false) }
+    val dirty = draft != value
+
     ModalBottomSheet(
-        onDismissRequest = onDismiss,
+        onDismissRequest = {
+            if (dirty) showDiscardDialog = true else onDismiss()
+        },
         sheetState =
             rememberBottomSheetState(
                 initialValue = SheetValue.Hidden,
@@ -235,20 +247,75 @@ private fun PromptEditSheet(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
             OutlinedTextField(
-                value = value,
-                onValueChange = onValueChange,
+                value = draft,
+                onValueChange = { draft = it },
                 modifier =
                     Modifier
                         .fillMaxWidth()
                         .weight(1f, fill = false),
                 maxLines = 15,
             )
-            TextButton(
-                onClick = onReset,
-                modifier = Modifier.align(Alignment.End),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text(stringResource(R.string.setting_model_page_reset_to_default))
+                TextButton(
+                    onClick = { showResetDialog = true },
+                ) {
+                    Text(stringResource(R.string.setting_model_page_reset_to_default))
+                }
+                Row(
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    TextButton(
+                        onClick = {
+                            if (dirty) showDiscardDialog = true else onDismiss()
+                        },
+                    ) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                    Button(
+                        onClick = {
+                            onSave(draft)
+                            onDismiss()
+                        },
+                        enabled = dirty,
+                    ) {
+                        Text(stringResource(R.string.save))
+                    }
+                }
             }
         }
     }
+
+    // 重置二次确认：重置是破坏性操作，之前一点就把手写的长提示词覆盖掉，找不回来。
+    // 只改草稿（点“保存”才写库），取消弹层可撤销。
+    RikkaConfirmDialog(
+        show = showResetDialog,
+        title = stringResource(R.string.setting_model_page_reset_to_default),
+        confirmText = stringResource(R.string.setting_model_page_reset_to_default),
+        dismissText = stringResource(R.string.cancel),
+        onConfirm = {
+            showResetDialog = false
+            draft = defaultValue
+        },
+        onDismiss = { showResetDialog = false },
+        text = { Text("当前提示词将被替换为默认提示词") },
+    )
+
+    // 未保存离开提示：放弃修改即离开，继续编辑则留在弹层里，保存走弹层里的“保存”按钮。
+    RikkaConfirmDialog(
+        show = showDiscardDialog,
+        title = "未保存的改动",
+        confirmText = "放弃修改",
+        dismissText = "继续编辑",
+        onConfirm = {
+            showDiscardDialog = false
+            onDismiss()
+        },
+        onDismiss = { showDiscardDialog = false },
+        text = { Text("提示词已修改但未保存，离开将丢失改动。") },
+    )
 }

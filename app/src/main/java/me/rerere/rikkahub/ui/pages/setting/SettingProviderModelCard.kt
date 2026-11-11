@@ -28,7 +28,11 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -47,6 +51,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -70,6 +75,7 @@ internal fun ModelCard(
     }
     val swipeToDismissBoxState = rememberSwipeToDismissBoxState()
     val scope = rememberCoroutineScope()
+    var showDeleteDialog by remember { mutableStateOf(false) }
 
     if (dialogState.isEditing) {
         dialogState.currentState?.let { editingModel ->
@@ -78,6 +84,9 @@ internal fun ModelCard(
                     initialValue = SheetValue.Hidden,
                     enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
                 )
+            // 提交尝试过才显示字段错误：刚打开弹层两个必填项都是空的，没点确认就标红太吵；
+            // 点确认时校验不通过就亮出错误，告诉用户缺什么。
+            var submitAttempted by remember { mutableStateOf(false) }
             ModalBottomSheet(
                 onDismissRequest = {
                     dialogState.dismiss()
@@ -127,6 +136,7 @@ internal fun ModelCard(
                             onModelChange = { dialogState.currentState = it },
                             isEdit = true,
                             parentProvider = parentProvider,
+                            showErrors = submitAttempted,
                         )
                     }
 
@@ -145,6 +155,9 @@ internal fun ModelCard(
                             onClick = {
                                 if (editingModel.displayName.isNotBlank()) {
                                     dialogState.confirm()
+                                } else {
+                                    // 校验失败不再静默：亮出字段错误，用户知道缺什么。
+                                    submitAttempted = true
                                 }
                             },
                         ) {
@@ -192,9 +205,9 @@ internal fun ModelCard(
                 FilledIconButton(
                     onClick = {
                         scope.launch {
-                            onDelete()
                             swipeToDismissBoxState.reset()
                         }
+                        showDeleteDialog = true
                     },
                 ) {
                     Icon(
@@ -287,4 +300,16 @@ internal fun ModelCard(
             }
         }
     }
+
+    // 侧滑删除二次确认：之前一点就把模型删了，无确认、无撤销。
+    RikkaDeleteConfirmDialog(
+        show = showDeleteDialog,
+        title = stringResource(R.string.confirm_delete),
+        message = "将删除模型「${model.displayName}」，此操作不可恢复",
+        onConfirm = {
+            showDeleteDialog = false
+            onDelete()
+        },
+        onDismiss = { showDeleteDialog = false },
+    )
 }

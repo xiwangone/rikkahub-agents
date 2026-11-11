@@ -2,23 +2,17 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.scaleIn
-import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
-import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.consumeWindowInsets
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
-import androidx.compose.foundation.layout.isImeVisible
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +40,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -77,6 +72,7 @@ import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.ShareSheet
 import me.rerere.rikkahub.ui.components.ui.SiliconFlowPowerByIcon
 import me.rerere.rikkahub.ui.components.ui.rememberShareSheetState
@@ -122,13 +118,10 @@ fun SettingProviderDetailPage(
 
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(setOf<Uuid>()) }
-
-    LaunchedEffect(pager.currentPage) {
-        if (selectionMode) {
-            selectionMode = false
-            selectedIds = emptySet()
-        }
-    }
+    var showDeleteSelectedDialog by remember { mutableStateOf(false) }
+    // 配置页草稿提升到页级：HorizontalPager 会销毁切走的页，草稿放配置页里，
+    // 切到“模型”页再回来就丢了；放这里切页也不丢。
+    var configDraft by remember { mutableStateOf<ProviderSetting?>(null) }
 
     val onEdit = { newProvider: ProviderSetting ->
         vm.updateSettings { current ->
@@ -139,6 +132,38 @@ fun SettingProviderDetailPage(
         vm.updateSettings { current -> current.copy(providers = current.providers - provider) }
         navController.popBackStack()
     }
+
+    var lastPageIsConfig by remember { mutableStateOf(true) }
+    val latestDraft by rememberUpdatedState(configDraft)
+    val latestProvider by rememberUpdatedState(provider)
+    LaunchedEffect(pager.currentPage) {
+        val leavingConfig = lastPageIsConfig && pager.currentPage != ProviderDetailTab.CONFIG.ordinal
+        lastPageIsConfig = pager.currentPage == ProviderDetailTab.CONFIG.ordinal
+        if (leavingConfig) {
+            // 切走前把草稿写回已保存的配置：不写回的话，改完 Key/地址、切到“模型”页
+            // 看一眼再回来，刚才的修改全丢。模型列表与自定义请求头以已保存的为准
+            // （模型页/高级页直接写库），避免保存草稿时把刚加的模型或请求头覆盖掉。
+            latestDraft?.takeIf { it != latestProvider }?.let { draft ->
+                onEdit(
+                    draft.copyProvider(
+                        name = draft.name.trim(),
+                        models = latestProvider.models,
+                        customHeaders = latestProvider.customHeaders,
+                    ),
+                )
+                configDraft = null
+                toaster.show(
+                    context.getString(R.string.setting_provider_page_save_success),
+                    type = ToastType.Success,
+                )
+            }
+        }
+        if (selectionMode) {
+            selectionMode = false
+            selectedIds = emptySet()
+        }
+    }
+
     Scaffold(
         containerColor = CustomColors.topBarColors.containerColor,
         topBar = {
@@ -172,12 +197,7 @@ fun SettingProviderDetailPage(
                         }
                         TextButton(
                             onClick = {
-                                val toDelete = provider.models.filter { it.id in selectedIds }
-                                var updated = provider
-                                toDelete.forEach { updated = updated.delModel(it) }
-                                onEdit(updated)
-                                selectedIds = emptySet()
-                                selectionMode = false
+                                showDeleteSelectedDialog = true
                             },
                         ) {
                             Text(
@@ -235,8 +255,11 @@ fun SettingProviderDetailPage(
                     ProviderDetailTab.CONFIG -> {
                         SettingProviderConfigPage(
                             provider = provider,
+                            draft = configDraft,
+                            onDraftChange = { configDraft = it },
                             onEdit = {
                                 onEdit(it)
+                                configDraft = null
                                 toaster.show(
                                     context.getString(R.string.setting_provider_page_save_success),
                                     type = ToastType.Success,
@@ -269,11 +292,30 @@ fun SettingProviderDetailPage(
             }
         }
     }
+
+    // 批量删除二次确认：之前一点就把选中的模型全删了，无确认、无撤销。
+    RikkaDeleteConfirmDialog(
+        show = showDeleteSelectedDialog,
+        title = stringResource(R.string.confirm_delete),
+        message = "将删除已选的 ${selectedIds.size} 个模型，此操作不可恢复",
+        onConfirm = {
+            showDeleteSelectedDialog = false
+            val toDelete = provider.models.filter { it.id in selectedIds }
+            var updated = provider
+            toDelete.forEach { updated = updated.delModel(it) }
+            onEdit(updated)
+            selectedIds = emptySet()
+            selectionMode = false
+        },
+        onDismiss = { showDeleteSelectedDialog = false },
+    )
 }
 
 @Composable
 private fun SettingProviderConfigPage(
     provider: ProviderSetting,
+    draft: ProviderSetting?,
+    onDraftChange: (ProviderSetting?) -> Unit,
     onEdit: (ProviderSetting) -> Unit,
     onDelete: () -> Unit,
 ) {
@@ -308,7 +350,8 @@ private fun SettingProviderConfigPage(
         }
         return
     }
-    var internalProvider by remember(provider) { mutableStateOf(provider) }
+    // 草稿由父级持有（切页不丢）；同 id 的草稿优先于已保存的配置展示。
+    val internalProvider = draft?.takeIf { it.id == provider.id } ?: provider
     var showDeleteDialog by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
 
@@ -334,7 +377,7 @@ private fun SettingProviderConfigPage(
             ProviderConfigure(
                 provider = internalProvider,
                 onEdit = {
-                    internalProvider = it
+                    onDraftChange(it)
                 },
             )
 
@@ -342,7 +385,7 @@ private fun SettingProviderConfigPage(
                 SettingProviderBalanceOption(
                     provider = internalProvider,
                     balanceOption = internalProvider.balanceOption,
-                    onEdit = { internalProvider = internalProvider.copyProvider(balanceOption = it) },
+                    onEdit = { onDraftChange(internalProvider.copyProvider(balanceOption = it)) },
                 )
                 ProviderBalanceText(providerSetting = provider, style = MaterialTheme.typography.labelSmall)
             }
@@ -357,19 +400,16 @@ private fun SettingProviderConfigPage(
             }
         }
 
-        AnimatedVisibility(
-            visible = !WindowInsets.isImeVisible,
+        // 底部操作栏常驻：之前随键盘隐藏，键盘一弹起保存/测试/删除全消失，必须先收键盘
+        // 才能保存；Box 带 imePadding，键盘弹起时工具栏顶在键盘上方，仍可见可点。
+        HorizontalFloatingToolbar(
+            expanded = expanded,
+            colors = CustomColors.floatingToolbarColors,
             modifier =
                 Modifier
                     .align(Alignment.BottomCenter)
                     .offset(y = -ScreenOffset),
-            enter = fadeIn() + scaleIn(initialScale = 0.8f),
-            exit = fadeOut() + scaleOut(targetScale = 0.8f),
-        ) {
-            HorizontalFloatingToolbar(
-                expanded = expanded,
-                colors = CustomColors.floatingToolbarColors,
-                leadingContent = {
+            leadingContent = {
                     ProviderConnectionTester(
                         internalProvider = internalProvider,
                     )
@@ -387,7 +427,7 @@ private fun SettingProviderConfigPage(
                     if (!internalProvider.isUsingDefaultBaseUrl()) {
                         IconButton(
                             onClick = {
-                                internalProvider = internalProvider.resetBaseUrlToDefault()
+                                onDraftChange(internalProvider.resetBaseUrlToDefault())
                             },
                         ) {
                             Icon(
@@ -401,7 +441,15 @@ private fun SettingProviderConfigPage(
                 Button(
                     onClick = {
                         val providerToSave: ProviderSetting = internalProvider
-                        onEdit(providerToSave.copyProvider(name = providerToSave.name.trim()))
+                        // 模型列表与自定义请求头以已保存的为准（模型页/高级页直接写库），
+                        // 避免保存草稿时把刚加的模型或请求头覆盖掉。
+                        onEdit(
+                            providerToSave.copyProvider(
+                                name = providerToSave.name.trim(),
+                                models = provider.models,
+                                customHeaders = provider.customHeaders,
+                            ),
+                        )
                     },
                 ) {
                     Row(
@@ -420,7 +468,6 @@ private fun SettingProviderConfigPage(
                         }
                     }
                 }
-            }
         }
     }
 
@@ -561,6 +608,7 @@ internal fun ProviderOverrideSettings(
 ) {
     var showProviderConfig by remember { mutableStateOf(false) }
     var editingProvider by remember { mutableStateOf<ProviderSetting?>(null) }
+    var showRemoveOverrideDialog by remember { mutableStateOf(false) }
 
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -592,7 +640,7 @@ internal fun ProviderOverrideSettings(
                             }
                             IconButton(
                                 onClick = {
-                                    onUpdateProviderOverride(null)
+                                    showRemoveOverrideDialog = true
                                 },
                             ) {
                                 Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.provider_action_remove_override))
@@ -686,4 +734,16 @@ internal fun ProviderOverrideSettings(
             }
         }
     }
+
+    // 移除覆盖二次确认：之前一点就把模型级的供应商覆盖删了，无确认、无撤销。
+    RikkaDeleteConfirmDialog(
+        show = showRemoveOverrideDialog,
+        title = stringResource(R.string.confirm_delete),
+        message = "将移除供应商覆盖，模型改用父级供应商配置，此操作不可恢复",
+        onConfirm = {
+            showRemoveOverrideDialog = false
+            onUpdateProviderOverride(null)
+        },
+        onDismiss = { showRemoveOverrideDialog = false },
+    )
 }

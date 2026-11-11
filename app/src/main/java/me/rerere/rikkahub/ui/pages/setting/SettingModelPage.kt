@@ -62,6 +62,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -349,6 +350,7 @@ private fun CapabilityTableSettingItem() {
     val clearFailed = stringResource(R.string.setting_model_page_capability_clear_failed)
     var localCount by remember { mutableStateOf(overrides.localEntryCount()) }
     var baselineCount by remember { mutableStateOf(overrides.baselineEntryCount()) }
+    var showClearDialog by remember { mutableStateOf(false) }
 
     val importLauncher =
         rememberSafeLauncherForActivityResult(ActivityResultContracts.OpenDocument()) { uri ->
@@ -412,15 +414,27 @@ private fun CapabilityTableSettingItem() {
         )
         item(
             onClick = {
-                scope.launch {
-                    val ok = withContext(Dispatchers.IO) { overrides.clearLocal() }
-                    localCount = overrides.localEntryCount()
-                    baselineCount = overrides.baselineEntryCount()
-                    toaster.show(if (ok) cleared else clearFailed)
-                }
+                showClearDialog = true
             },
             leadingContent = { CardGroupIcon(HugeIcons.Delete01, containerColor = containerColor, contentColor = contentColor) },
             headlineContent = { Text(stringResource(R.string.setting_model_page_capability_clear)) },
         )
     }
+
+    // 清空能力表二次确认：之前一点就把本地能力表全清了，无确认、无撤销。
+    RikkaDeleteConfirmDialog(
+        show = showClearDialog,
+        title = stringResource(R.string.confirm_delete),
+        message = "将清空本地能力表（共 $localCount 条），此操作不可恢复",
+        onConfirm = {
+            showClearDialog = false
+            scope.launch {
+                val ok = withContext(Dispatchers.IO) { overrides.clearLocal() }
+                localCount = overrides.localEntryCount()
+                baselineCount = overrides.baselineEntryCount()
+                toaster.show(if (ok) cleared else clearFailed)
+            }
+        },
+        onDismiss = { showClearDialog = false },
+    )
 }

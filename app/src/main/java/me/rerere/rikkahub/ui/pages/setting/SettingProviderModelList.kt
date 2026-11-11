@@ -16,6 +16,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.Button
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.HorizontalFloatingToolbar
@@ -94,9 +95,13 @@ internal fun ModelList(
     var refreshTrigger by remember { mutableIntStateOf(0) }
     // 拉取失败的原因（中文分类标签）：页内显示，原始报错只进日志。
     var modelLoadError by remember { mutableStateOf<String?>(null) }
+    // 远程模型列表是否正在拉取：初始 true；produceState 的初始值是空列表，加载态与空态
+    // 共用它的话，进页先闪一下“没有模型”，过一会儿列表才突然出现。
+    var modelListLoading by remember { mutableStateOf(true) }
     // 拉取 key 只取 (providerId, baseUrl)：改 key（逐字回写）、改名、拖动排序都不应重拉 /models。
     val modelListBaseUrl = providerSetting.modelListBaseUrl()
     val modelList by produceState(emptyList(), providerSetting.id, modelListBaseUrl, refreshTrigger) {
+        modelListLoading = true
         modelLoadError = null
         runCatching {
             value =
@@ -115,6 +120,7 @@ internal fun ModelList(
             // 失败只在页内显示原因与重试入口，不再只弹一个 Toast 后留空列表。
             modelLoadError = diagnoseFailure(context, error).label
         }
+        modelListLoading = false
     }
     var expanded by rememberSaveable { mutableStateOf(true) }
     val lazyListState = rememberLazyListState()
@@ -338,21 +344,27 @@ internal fun ModelList(
                         horizontalAlignment = Alignment.CenterHorizontally,
                         verticalArrangement = Arrangement.Center,
                     ) {
-                        Text(
-                            text = stringResource(R.string.setting_provider_page_no_models),
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        Text(
-                            text = stringResource(R.string.setting_provider_page_add_models_hint),
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
-                        )
-                        Button(
-                            onClick = { refreshTrigger++ },
-                            modifier = Modifier.padding(top = 12.dp),
-                        ) {
-                            Text(stringResource(R.string.setting_provider_page_fetch_models))
+                        if (modelListLoading) {
+                            // 远程模型列表还在拉取：先转圈，别先闪“没有模型”；
+                            // 拉完确实为空时再显示空态。
+                            CircularProgressIndicator()
+                        } else {
+                            Text(
+                                text = stringResource(R.string.setting_provider_page_no_models),
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(R.string.setting_provider_page_add_models_hint),
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.7f),
+                            )
+                            Button(
+                                onClick = { refreshTrigger++ },
+                                modifier = Modifier.padding(top = 12.dp),
+                            ) {
+                                Text(stringResource(R.string.setting_provider_page_fetch_models))
+                            }
                         }
                     }
                 }
@@ -440,6 +452,7 @@ internal fun ModelList(
         ) {
             AddModelButton(
                 models = modelList,
+                loading = modelListLoading,
                 selectedModels = providerSetting.models,
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
