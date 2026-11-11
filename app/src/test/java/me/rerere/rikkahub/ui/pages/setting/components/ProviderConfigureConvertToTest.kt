@@ -13,7 +13,7 @@ import kotlin.uuid.Uuid
 
 class ProviderConfigureConvertToTest {
     @Test
-    fun `convertTo should keep common fields and switch official endpoint to target default`() {
+    fun `convertTo should keep common fields, clear models and switch official endpoint to target default`() {
         val model = Model(
             id = Uuid.random(),
             modelId = "gpt-custom",
@@ -42,7 +42,9 @@ class ProviderConfigureConvertToTest {
         assertEquals(original.id, google.id)
         assertEquals(original.enabled, google.enabled)
         assertEquals(original.name, google.name)
-        assertEquals(original.models, google.models)
+        // convertTo clears models on type switch: model ids belong to the source
+        // provider and would 404 under the new type (see convertTo in ProviderConfigure.kt).
+        assertEquals(emptyList<Model>(), google.models)
         assertEquals(original.balanceOption, google.balanceOption)
         assertEquals(original.customHeaders, google.customHeaders)
         assertEquals(original.apiKey, google.apiKey)
