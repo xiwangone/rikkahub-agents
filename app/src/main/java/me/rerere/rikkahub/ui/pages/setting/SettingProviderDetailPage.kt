@@ -46,7 +46,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -114,7 +113,7 @@ fun SettingProviderDetailPage(
     val provider = settings.providers.find { it.id == id } ?: return
     val pager = rememberPagerState { ProviderDetailTab.entries.size }
     val toaster = LocalToaster.current
-    val context = LocalContext.current
+    val saveSuccessText = stringResource(R.string.setting_provider_page_save_success)
 
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(setOf<Uuid>()) }
@@ -153,7 +152,7 @@ fun SettingProviderDetailPage(
                 )
                 configDraft = null
                 toaster.show(
-                    context.getString(R.string.setting_provider_page_save_success),
+                    saveSuccessText,
                     type = ToastType.Success,
                 )
             }
@@ -261,7 +260,7 @@ fun SettingProviderDetailPage(
                                 onEdit(it)
                                 configDraft = null
                                 toaster.show(
-                                    context.getString(R.string.setting_provider_page_save_success),
+                                    saveSuccessText,
                                     type = ToastType.Success,
                                 )
                             },

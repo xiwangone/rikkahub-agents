@@ -27,3 +27,6 @@ fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:ai/src/main/java/me/rerere/ai/provider/
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:29
 fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/reliability/SecretRedactorTest.kt:generic-api-key:30
 1d6d988416575ca46a0a635679141e48fff04d93:app/src/test/java/me/rerere/rikkahub/data/datastore/ProviderFieldEncryptionTest.kt:generic-api-key:219
+1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:64
+1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:72
+1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:78
