@@ -91,6 +91,9 @@ internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
                 put("execution_backend", settings.executionBackend)
                 put("auto_compress_enabled", settings.autoCompressEnabled)
                 put("auto_compress_threshold", settings.autoCompressThreshold)
+                // 上下文窗口（单位 K，0 = 未填、改用模型上报值）。此前诊断面不暴露这个值，
+                // 只看这条输出会误判成“没设窗口”。
+                put("context_window_size", settings.contextWindowSize)
                 put("stream_max_retries", settings.responseStreamMaxRetries)
                 put("auto_retry_enabled", settings.enableAutoRetry)
                 put("tool_output_enabled", settings.toolOutputEnabled)

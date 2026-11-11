@@ -108,15 +108,18 @@ fun checkTokenUsageTool(
                     put("message_count", snapshot.totals.messageCount)
                     if (snapshot.softCap != null) put("soft_cap", snapshot.softCap)
                     if (snapshot.hardCap != null) put("hard_cap", snapshot.hardCap)
-                    // 真实窗口容量：只在用户配置了才下发。per_message_max 是单次请求实际发出的
-                    // prompt 体积，两者不是一回事 —— 没有窗口数据时不要拿峰值当窗口容量。
+                    // 真实窗口容量：只认用户在设置里填的值（单位 K）。没有时显式
+                    // 标 unavailable —— per_message_max 只是单次请求体积，不能当容量。
                     val configuredWindow = settings.contextWindowSize.takeIf { it > 0L }
                     if (configuredWindow != null) {
                         put("context_window", configuredWindow)
+                        put("context_window_source", "settings")
                         put(
                             "per_message_max_ratio",
                             snapshot.totals.perMessageMax.toDouble() / configuredWindow.toDouble(),
                         )
+                    } else {
+                        put("context_window_source", "unavailable")
                     }
                     put("status", snapshot.status.name)
                 }
