@@ -7,7 +7,9 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
@@ -27,16 +29,24 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalClipboardManager
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
+import androidx.compose.ui.text.SpanStyle
+import androidx.compose.ui.text.buildAnnotatedString
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import com.dokar.sonner.ToastType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Global
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.browser.BrowserActivity
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
@@ -48,6 +58,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
 
 /**
@@ -61,8 +72,13 @@ fun TunnelSettingSection(vm: SettingVM) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val network = settings.networkSetting
     val context = LocalContext.current
+    // 文案在组合期取好：点击回调里调 stringResource 不合法（非 @Composable），
+    // 而在组合期通过 LocalContext 取字符串会被 lint 的 LocalContextGetResourceValueCall 判红。
+    val copiedLabel = stringResource(R.string.copied)
+    val savedLabel = stringResource(R.string.file_editor_saved)
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
+    val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val vaultRepository: CredentialVaultRepository = koinInject()
     val credentialResolver = remember(vaultRepository) { CredentialResolver(vaultRepository) }
@@ -89,7 +105,6 @@ fun TunnelSettingSection(vm: SettingVM) {
         mutableStateOf(network.tailscaleServe)
     }
     var busy by remember { mutableStateOf(false) }
-    var savedHint by remember { mutableStateOf(false) }
     // 当前正在弹窗编辑的字段（null = 未打开）。
     var editingField by remember { mutableStateOf<TunnelField?>(null) }
     var showExitPicker by remember { mutableStateOf(false) }
@@ -122,6 +137,18 @@ fun TunnelSettingSection(vm: SettingVM) {
             parseTunnelStatus(TsnetBridge.statusJson())
         } else {
             null
+        }
+    }
+
+    // 设备弹窗打开期间每 5 秒刷新一次节点状态，圆点随连接状态实时变化；
+    // 关掉弹窗即停，不在后台空转。
+    LaunchedEffect(showDevicesDialog) {
+        if (!showDevicesDialog) return@LaunchedEffect
+        while (true) {
+            if (tunnelState is TunnelState.Connected) {
+                nodeStatus = parseTunnelStatus(TsnetBridge.statusJson())
+            }
+            delay(5000)
         }
     }
 
@@ -164,13 +191,30 @@ fun TunnelSettingSection(vm: SettingVM) {
     }
 
     fun save() {
+        val newHostname = hostname.trim().ifBlank { NetworkSetting.DEFAULT_TUNNEL_HOSTNAME }
+        val hostnameChanged = newHostname != network.effectiveTunnelHostname
         persistConfig()
-        savedHint = true
+        // 保存成功的反馈：之前 savedHint 只写不读，页面上没有任何“已保存”提示；
+        // 改成 Toast，存没存上立刻知道。
+        toaster.show(savedLabel, type = ToastType.Success)
         // 隧道已在运行时用新配置重连，避免"保存了但没生效"。
         if (TsnetBridge.isRunning || TsnetBridge.desiredRunning) {
             busy = true
             scope.launch {
-                TsnetBridge.stop()
+                if (hostnameChanged) {
+                    // 改名：仅靠 EditPrefs 推主机名，已注册节点控制面不一定采纳
+                    //（tsnet.Server.Hostname 只在首次注册时生效，见 golib 注释）；
+                    // 退出登录再重建，才能保证控制台显示新名。先确认密钥能解析，
+                    // 解析失败就不退出、只做普通重连，避免把一条能用的隧道断掉。
+                    val keyOk = resolveTunnelAuthKey(credentialResolver, authKey).isSuccess
+                    if (keyOk) {
+                        TsnetBridge.logout()
+                    } else {
+                        TsnetBridge.stop()
+                    }
+                } else {
+                    TsnetBridge.stop()
+                }
                 startTunnel()
                 busy = false
             }
@@ -185,7 +229,6 @@ fun TunnelSettingSection(vm: SettingVM) {
         exitNode = network.tailscaleExitNode
         advertiseRoutes = network.tailscaleAdvertiseRoutes
         serve = network.tailscaleServe
-        savedHint = false
     }
 
     val badgeContainerColor = when (tunnelState) {
@@ -288,14 +331,20 @@ fun TunnelSettingSection(vm: SettingVM) {
             },
         )
 
-        // 设备：在线 / 总数
+        // 设备：在线 / 总数。未连上时 nodeStatus 为 null，peers 为空，直接算会出 0/0，
+        // 看着像尾网没设备；实际是还没连上，显示“未连接”。
         item(
             headlineContent = {
                 TunnelRow(
                     title = stringResource(R.string.tunnel_devices),
                     value = run {
-                        val peers = nodeStatus?.peers.orEmpty()
-                        "${peers.count { it.online }}/${peers.size}"
+                        val status = nodeStatus
+                        if (status == null) {
+                            stringResource(R.string.tunnel_status_disconnected)
+                        } else {
+                            val peers = status.peers
+                            "${peers.count { it.online }}/${peers.size}"
+                        }
                     },
                     onClick = { showDevicesDialog = true },
                 )
@@ -326,9 +375,12 @@ fun TunnelSettingSection(vm: SettingVM) {
 
     if (showDetail) {
         ModalBottomSheet(onDismissRequest = { showDetail = false }) {
+            // 弹层内容约 10 行，小屏/大字体下底部够不着；Column 不会替内容滚，之前两个
+            // AlertDialog 修过同类问题，这里漏了，一并加上。
             Column(
                 modifier = Modifier
                     .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 24.dp),
             ) {
@@ -346,9 +398,19 @@ fun TunnelSettingSection(vm: SettingVM) {
                         modifier = Modifier.padding(bottom = 8.dp),
                     )
                 }
+                // 控制面侧的本机名（控制台显示的那个）：改名后拿它核对控制台到底变没变。
+                // 只读展示，改名不在这里做——控制面不认本机推的主机名（见 save() 的重注册）。
+                nodeStatus?.hostName?.takeIf { it.isNotBlank() }?.let { consoleName ->
+                    Text(
+                        text = stringResource(R.string.tunnel_console_hostname, consoleName),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(bottom = 8.dp),
+                    )
+                }
                 TunnelRow(
                     title = stringResource(R.string.tunnel_control_url_label),
-                    value = controlUrl.ifBlank { "—" },
+                    value = controlUrl.ifBlank { NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL },
                 ) { editingField = TunnelField.ControlUrl }
                 HorizontalDivider()
                 TunnelRow(
@@ -371,6 +433,22 @@ fun TunnelSettingSection(vm: SettingVM) {
                     title = stringResource(R.string.tunnel_serve_label),
                     value = serve.trim().ifBlank { stringResource(R.string.tunnel_serve_none) },
                 ) { editingField = TunnelField.Serve }
+                // 对外端口已开且已连上时给一条可点的访问链接（MagicDNS 名优先，IP 更稳定就用 IP），
+                // 免得用户自己拿尾网 IP 去拼。默认走 App 内置浏览器（BrowserActivity），不走系统浏览器：
+                // 内置浏览器走 App 的网络栈，尾网地址能直接打开；系统浏览器不在 tailnet 上会打不开。
+                serveUrl(serve, nodeStatus?.dnsName, nodeStatus?.selfIps.orEmpty())?.let { url ->
+                    Text(
+                        text = url,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.primary,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .clickable { context.startActivity(BrowserActivity.intent(context, url)) }
+                            .padding(vertical = 8.dp),
+                    )
+                }
                 HorizontalDivider()
                 Row(
                     modifier = Modifier
@@ -393,7 +471,13 @@ fun TunnelSettingSection(vm: SettingVM) {
                         checked = nodeStatus?.acceptRoutes ?: acceptRoutes,
                         enabled = !busy,
                         onCheckedChange = { on ->
+                            // 先乐观更新再调底层：开关立刻响应；失败时把开关、落盘值、
+                            // 节点状态三处都回滚到旧值并报错。之前只在 onSuccess 里更新
+                            // nodeStatus，失败时开关看着像“拨了又弹回去”，且落盘值已是新值、
+                            // 底层却没生效，界面与实际分叉。
+                            val old = nodeStatus?.acceptRoutes ?: acceptRoutes
                             acceptRoutes = on
+                            nodeStatus = nodeStatus?.copy(acceptRoutes = on)
                             vm.updateSettings { current ->
                                 current.copy(
                                     networkSetting = current.networkSetting.copy(tailscaleAcceptRoutes = on),
@@ -401,8 +485,18 @@ fun TunnelSettingSection(vm: SettingVM) {
                             }
                             if (nodeStatus?.running == true) {
                                 scope.launch {
-                                    TsnetBridge.setAcceptRoutes(on).onSuccess {
-                                        nodeStatus = nodeStatus?.copy(acceptRoutes = on)
+                                    TsnetBridge.setAcceptRoutes(on).onFailure { e ->
+                                        acceptRoutes = old
+                                        nodeStatus = nodeStatus?.copy(acceptRoutes = old)
+                                        vm.updateSettings { current ->
+                                            current.copy(
+                                                networkSetting = current.networkSetting.copy(tailscaleAcceptRoutes = old),
+                                            )
+                                        }
+                                        toaster.show(
+                                            e.message ?: "set accept routes failed",
+                                            type = ToastType.Error,
+                                        )
                                     }
                                 }
                             }
@@ -455,35 +549,67 @@ fun TunnelSettingSection(vm: SettingVM) {
             onDismissRequest = { showExitPicker = false },
             title = { Text(stringResource(R.string.tunnel_exit_node)) },
             text = {
-                Column {
+                Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
                     TextButton(onClick = {
                         showExitPicker = false
                         scope.launch {
-                            TsnetBridge.setExitNode("").onSuccess {
-                                nodeStatus = nodeStatus?.copy(exitNodeIp = "")
-                            }
-                            // 持久化：下次启动时由 native 直接应用，不需要重新选。
-                            exitNode = ""
-                            vm.updateSettings { current ->
-                                current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ""))
-                            }
+                            // 只在底层成功后才改本地状态与落盘值；失败时报错、不改。
+                            // 之前 exitNode 与落盘是无条件改的，底层没生效、设置里却写着已选。
+                            TsnetBridge.setExitNode("")
+                                .onSuccess {
+                                    nodeStatus = nodeStatus?.copy(exitNodeIp = "")
+                                    exitNode = ""
+                                    vm.updateSettings { current ->
+                                        current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ""))
+                                    }
+                                }
+                                .onFailure { e ->
+                                    toaster.show(
+                                        e.message ?: "set exit node failed",
+                                        type = ToastType.Error,
+                                    )
+                                }
                         }
                     }) { Text(stringResource(R.string.tunnel_exit_node_none)) }
                     exitPeers.forEach { peer ->
-                        TextButton(onClick = {
-                            showExitPicker = false
-                            val ip = peer.ips.firstOrNull().orEmpty()
-                            scope.launch {
-                                TsnetBridge.setExitNode(ip).onSuccess {
-                                    nodeStatus = nodeStatus?.copy(exitNodeIp = ip)
+                        TextButton(
+                            onClick = {
+                                showExitPicker = false
+                                val ip = peer.ips.firstOrNull().orEmpty()
+                                scope.launch {
+                                    TsnetBridge.setExitNode(ip)
+                                        .onSuccess {
+                                            nodeStatus = nodeStatus?.copy(exitNodeIp = ip)
+                                            exitNode = ip
+                                            vm.updateSettings { current ->
+                                                current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ip))
+                                            }
+                                        }
+                                        .onFailure { e ->
+                                            toaster.show(
+                                                e.message ?: "set exit node failed",
+                                                type = ToastType.Error,
+                                            )
+                                        }
                                 }
-                                exitNode = ip
-                                vm.updateSettings { current ->
-                                    current.copy(networkSetting = current.networkSetting.copy(tailscaleExitNode = ip))
+                            },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            // 名字 + IP 两行：名字重复时靠 IP 区分，离线节点名字也可能重复。
+                            Column(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalAlignment = Alignment.Start,
+                            ) {
+                                Text(peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() })
+                                val ip = peer.ips.firstOrNull().orEmpty()
+                                if (ip.isNotBlank()) {
+                                    Text(
+                                        text = ip,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
                                 }
                             }
-                        }) {
-                            Text(peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() })
                         }
                     }
                 }
@@ -502,8 +628,19 @@ fun TunnelSettingSection(vm: SettingVM) {
             onDismissRequest = { showDevicesDialog = false },
             title = { Text(stringResource(R.string.tunnel_devices)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                    if (devicePeers.isEmpty()) {
+                // 设备多时可上下滑，AlertDialog 本身不会替内容滚，行数一多底部会被裁掉。
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                ) {
+                    if (nodeStatus == null) {
+                        // 隧道没连上：peers 为空是“没连上”，不是“尾网没设备”，别显示空列表。
+                        Text(
+                            text = stringResource(R.string.tunnel_status_disconnected),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    } else if (devicePeers.isEmpty()) {
                         Text(
                             text = stringResource(R.string.tunnel_devices_empty),
                             style = MaterialTheme.typography.bodySmall,
@@ -513,21 +650,65 @@ fun TunnelSettingSection(vm: SettingVM) {
                         devicePeers.forEach { peer ->
                             val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
                             val ip = peer.ips.firstOrNull().orEmpty()
-                            // 连接质量：有直连地址就是直连，否则看走的哪个 DERP 区域。
-                            val path = when {
-                                peer.curAddr.isNotBlank() -> stringResource(R.string.tunnel_path_direct)
-                                peer.relay.isNotBlank() -> stringResource(R.string.tunnel_path_relay, peer.relay)
-                                else -> ""
+                            // 圆点颜色 = 实时路径：绿直连 / 黄中继 / 灰空闲 / 红离线。
+                            // 离线节点没有实时连接，不挂中继——relay 是控制面给的归属 DERP，
+                            // 空闲时也会填着，挂出来等于把“能上次走哪”说成“现在正走哪”。
+                            val dotColor: Color
+                            val path: String
+                            when {
+                                !peer.online -> {
+                                    dotColor = MaterialTheme.colorScheme.error
+                                    path = ""
+                                }
+                                !peer.active -> {
+                                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    path = stringResource(R.string.tunnel_path_idle)
+                                }
+                                peer.curAddr.isNotBlank() -> {
+                                    dotColor = Color(0xFF43A047)
+                                    path = stringResource(R.string.tunnel_path_direct)
+                                }
+                                peer.relay.isNotBlank() -> {
+                                    dotColor = Color(0xFFFFB300)
+                                    path = stringResource(R.string.tunnel_path_relay, peer.relay)
+                                }
+                                else -> {
+                                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                    path = ""
+                                }
                             }
-                            Column {
+                            // 点一行复制该设备的 IP（没有 IP 时复制 MagicDNS 名），
+                            // 免得对着弹窗一个字符一个字符手打；状态徽章点一下能复制本机 IP，
+                            // 设备行之前是纯文本、复制不了。
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val toCopy = ip.ifBlank { peer.dnsName.trimEnd('.') }
+                                        if (toCopy.isNotBlank()) {
+                                            clipboard.setText(AnnotatedString(toCopy))
+                                            toaster.show(
+                                                copiedLabel,
+                                                type = ToastType.Success,
+                                            )
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp),
+                            ) {
                                 Text(
-                                    text = if (peer.online) "● $name  $ip" else "○ $name  $ip",
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = if (peer.online) {
-                                        MaterialTheme.colorScheme.onSurface
-                                    } else {
-                                        MaterialTheme.colorScheme.onSurfaceVariant
+                                    text = buildAnnotatedString {
+                                        withStyle(SpanStyle(color = dotColor)) { append("● ") }
+                                        withStyle(
+                                            SpanStyle(
+                                                color = if (peer.online) {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                            ),
+                                        ) { append("$name  $ip") }
                                     },
+                                    style = MaterialTheme.typography.bodySmall,
                                 )
                                 if (path.isNotBlank()) {
                                     Text(
@@ -611,7 +792,7 @@ fun TunnelSettingSection(vm: SettingVM) {
                         TunnelField.ControlUrl -> OutlinedTextField(
                             value = controlUrl,
                             onValueChange = { controlUrl = it },
-                            placeholder = { Text("https://login.example.com") },
+                            placeholder = { Text(NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
                         )
@@ -681,6 +862,7 @@ private fun TunnelRow(title: String, value: String, onClick: () -> Unit) {
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
         )
         Text(text = "›", color = MaterialTheme.colorScheme.onSurfaceVariant)
     }
@@ -693,6 +875,22 @@ private fun exitNodeLabel(status: TunnelStatus?, fallbackIp: String, noneLabel: 
     val ip = raw.takeIf { it.isNotBlank() && it != "<nil>" && it != "invalid IP" } ?: return noneLabel
     val peer = status?.peers?.firstOrNull { p -> p.ips.any { it == ip } }
     return peer?.hostName?.takeIf { it.isNotBlank() } ?: ip
+}
+
+/**
+ * 对外端口（Serve）的访问链接：解析 "tailnetPort:localPort"，主机用 MagicDNS 名、没有就用尾网 IP。
+ * 与 [TsnetBridge.applyServe] 同口径：规格不是两段正端口时底层根本没暴露，返回 null 不显示链接，
+ * 免得给一条打不开的地址；没连上（拿不到主机地址）时也返回 null。
+ */
+private fun serveUrl(serve: String, dnsName: String?, selfIps: List<String>): String? {
+    val parts = serve.trim().split(":")
+    if (parts.size != 2) return null
+    val tailnetPort = parts[0].trim().toIntOrNull()?.takeIf { it > 0 } ?: return null
+    if (parts[1].trim().toIntOrNull()?.takeIf { it > 0 } == null) return null
+    val host = dnsName?.trimEnd('.')?.takeIf { it.isNotBlank() }
+        ?: selfIps.firstOrNull()?.takeIf { it.isNotBlank() }
+        ?: return null
+    return "http://$host:$tailnetPort"
 }
 
 /** 可在隧道设置页弹窗编辑的字段。 */
@@ -709,6 +907,8 @@ private data class TunnelPeer(
     val curAddr: String = "",
     /** 中继所在的 DERP 区域（如 hkg / sz）。 */
     val relay: String = "",
+    /** 最近 2 分钟内有流量；在线但无流量即为空闲（未建立实时路径）。缺省 true，兼容旧版 Go 库。 */
+    val active: Boolean = true,
 )
 
 /** tsnet 状态快照（来自 [TsnetBridge.statusJson]）。 */
@@ -742,6 +942,7 @@ private fun parseTunnelStatus(raw: String?): TunnelStatus? {
                     canBeExitNode = p.optBoolean("exitNodeOption"),
                     curAddr = p.optString("curAddr"),
                     relay = p.optString("relay"),
+                    active = p.optBoolean("active", true),
                 )
             }
         }

@@ -357,6 +357,12 @@ data class NetworkSetting(
         const val DEFAULT_DNS_TEST_DOMAIN = "example.com"
         /** 隧道主机名默认值。 */
         const val DEFAULT_TUNNEL_HOSTNAME = "yao"
+        /**
+         * 控制面 URL 默认值：留空时 tsnet 回落到官方控制面，与官方默认值
+         * `ipn.DefaultControlURL` 一致。只用于展示（让空值显示实际生效的地址），
+         * 不写入配置，建连时仍传空串、由底层回落。
+         */
+        const val DEFAULT_TUNNEL_CONTROL_URL = "https://controlplane.tailscale.com"
         /** 历史默认值：旧版本写过，读取时按未设置处理，避免升级后沿用旧名。 */
         private const val LEGACY_TUNNEL_HOSTNAME = "rikkahub"
     }

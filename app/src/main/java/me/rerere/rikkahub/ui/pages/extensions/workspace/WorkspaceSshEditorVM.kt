@@ -9,6 +9,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
+import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshHostKey
@@ -27,6 +28,7 @@ import me.rerere.workspace.ssh.SshUnknownHostKeyException
 class WorkspaceSshEditorVM(
     private val id: String?,
     private val repository: WorkspaceRepository,
+    private val sshHostRepository: SshHostRepository,
 ) : ViewModel() {
     /** 主机密钥待确认：[expected] 为 null 表示首次连接，否则是与已信任密钥不一致；[jumpHost] 表示是跳板机的密钥 */
     data class PendingHostKey(
@@ -61,10 +63,19 @@ class WorkspaceSshEditorVM(
         CREDENTIAL_MISSING,
     }
 
+    /** 跳板机下拉选项：只取展示用的三格，不把已保存主机的敏感值（密码/私钥）带进界面状态。 */
+    data class SavedJumpHost(
+        val name: String,
+        val user: String,
+        val host: String,
+    )
+
     data class State(
         val draft: SshWorkspaceDraft = SshWorkspaceDraft(name = "", host = "", username = "", remoteDir = ""),
         val portInput: String = "22",
         val knownNames: Set<String> = emptySet(),
+        /** 已保存的 SSH 主机（供跳板机下拉选择，按名引用；为空时只剩手动输入）。 */
+        val savedHosts: List<SavedJumpHost> = emptyList(),
         val busy: Boolean = false,
         val probeResult: SshProbeResult? = null,
         val probeError: ProbeFailure? = null,
@@ -111,6 +122,8 @@ class WorkspaceSshEditorVM(
                         .filter { entity -> entity.id != id }
                         .map { entity -> entity.name.trim() }
                         .toSet(),
+                    savedHosts = runCatching { sshHostRepository.getAll() }.getOrDefault(emptyList())
+                        .map { SavedJumpHost(name = it.name, user = it.user, host = it.host) },
                 )
             }
             // 编辑已有主机时，加载出来的密钥就是已信任的，记下来供改回时恢复。

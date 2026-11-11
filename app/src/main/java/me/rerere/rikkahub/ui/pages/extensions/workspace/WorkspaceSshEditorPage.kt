@@ -47,6 +47,7 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -277,10 +278,15 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 }
             }
 
-            OutlinedTextField(
+            // 跳板机按名引用已保存主机：下拉选已保存的，也可手动输名。
+            // 选/改名都会清掉已信任的跳板机密钥，下次探测时重新确认。
+            SelectTextField(
                 value = draft.jumpHost,
+                options = state.savedHosts,
+                onOptionSelected = { host -> vm.setJumpHost(host.name) },
                 onValueChange = vm::setJumpHost,
                 label = { Text(stringResource(R.string.workspace_ssh_jump_host)) },
+                optionToString = { "${it.name} (${it.user}@${it.host})" },
                 singleLine = true,
                 enabled = !state.busy,
                 supportingText = { Text(stringResource(R.string.workspace_ssh_jump_host_desc)) },

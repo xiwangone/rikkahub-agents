@@ -4236,6 +4236,8 @@
   <string name="tunnel_ephemeral_desc">The control plane removes this device once the process exits. Applies before the first registration.</string>
   <string name="tunnel_path_direct">Direct</string>
   <string name="tunnel_path_relay">Relay %1$s</string>
+  <string name="tunnel_path_idle">Idle</string>
+  <string name="tunnel_console_hostname">Console name: %1$s</string>
   <string name="tunnel_advertise_routes_label">Advertised routes</string>
   <string name="tunnel_advertise_routes_none">None</string>
   <string name="tunnel_saved_hint">Saved</string>

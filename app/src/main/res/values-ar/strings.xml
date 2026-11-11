@@ -4164,6 +4164,8 @@
   <string name="tunnel_ephemeral_desc">تزيل لوحة التحكم هذا الجهاز بعد خروج العملية. يُطبَّق قبل التسجيل الأول فقط.</string>
   <string name="tunnel_path_direct">مباشر</string>
   <string name="tunnel_path_relay">ترحيل %1$s</string>
+  <string name="tunnel_path_idle">خامل</string>
+  <string name="tunnel_console_hostname">اسم وحدة التحكم: %1$s</string>
   <string name="tunnel_advertise_routes_label">الشبكات المعلنة</string>
   <string name="tunnel_advertise_routes_none">لا شيء</string>
   <string name="tunnel_saved_hint">تم الحفظ</string>

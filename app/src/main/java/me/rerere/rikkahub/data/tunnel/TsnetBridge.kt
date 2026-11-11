@@ -241,9 +241,14 @@ object TsnetBridge {
                 // 先停探测，避免回调打到正在关闭的 server 上。
                 runCatching { TsnetPathMonitor.stop() }
                     .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
-                Tsnetlib.stop()
-                isRunning = false
-                nodeIp = null
+                try {
+                    Tsnetlib.stop()
+                } finally {
+                    // 停 native 是尽力而为：无论成功与否，本端状态都按"已停"算，
+                    // 否则 isRunning 残留 true，下次 start 会直接返回旧 IP 而不真建连。
+                    isRunning = false
+                    nodeIp = null
+                }
                 publish(TunnelState.Off)
                 AppLog.i(TAG, "tunnel stopped")
             }.onFailure { AppLog.w(TAG, "tunnel stop failed: ${it.message}", it) }
@@ -261,9 +266,14 @@ object TsnetBridge {
                 if (!isRunning) return@runCatching
                 runCatching { TsnetPathMonitor.stop() }
                     .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
-                Tsnetlib.stop()
-                isRunning = false
-                nodeIp = null
+                try {
+                    Tsnetlib.stop()
+                } finally {
+                    // 同 stop()：无论 native 停没停成，本端状态都按"已停"算，
+                    // 否则 isRunning 残留 true，守护重连会误判成已在跑。
+                    isRunning = false
+                    nodeIp = null
+                }
                 publish(TunnelState.Offline)
             }.onFailure { AppLog.w(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
         }
@@ -318,9 +328,14 @@ object TsnetBridge {
                     runCatching { TsnetPathMonitor.stop() }
                         .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
                 }
-                Tsnetlib.logout()
-                isRunning = false
-                nodeIp = null
+                try {
+                    Tsnetlib.logout()
+                } finally {
+                    // 同 stop()：无论 native 注销成没成，本端状态都按"已退"算，
+                    // 否则 isRunning 残留 true，下次 start 会直接返回旧 IP。
+                    isRunning = false
+                    nodeIp = null
+                }
                 publish(TunnelState.Off)
             }.onFailure { AppLog.w(TAG, "logout failed: ${it.message}", it) }
         }

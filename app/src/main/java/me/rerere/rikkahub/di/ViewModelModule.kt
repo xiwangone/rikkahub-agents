@@ -105,6 +105,7 @@ val viewModelModule =
             WorkspaceSshEditorVM(
                 id = it.getOrNull(),
                 repository = get(),
+                sshHostRepository = get(),
             )
         }
         viewModelOf(::FavoriteVM)

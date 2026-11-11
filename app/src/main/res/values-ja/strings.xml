@@ -4157,6 +4157,8 @@
   <string name="tunnel_ephemeral_desc">プロセス終了後にコントロールプレーンがこの端末を削除します。初回登録前のみ有効。</string>
   <string name="tunnel_path_direct">直接接続</string>
   <string name="tunnel_path_relay">リレー %1$s</string>
+  <string name="tunnel_path_idle">アイドル</string>
+  <string name="tunnel_console_hostname">コンソール名：%1$s</string>
   <string name="tunnel_advertise_routes_label">公開するネットワーク</string>
   <string name="tunnel_advertise_routes_none">なし</string>
   <string name="tunnel_saved_hint">保存しました</string>

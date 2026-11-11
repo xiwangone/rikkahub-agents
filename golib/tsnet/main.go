@@ -461,6 +461,10 @@ type peerStatus struct {
 	// set means traffic goes through that DERP region.
 	CurAddr string `json:"curAddr,omitempty"`
 	Relay   string `json:"relay,omitempty"`
+	// Active means the peer had traffic in the past two minutes; an online
+	// peer without it is idle (no live path established yet). No omitempty:
+	// false must be present so the app can tell idle apart from a missing field.
+	Active bool `json:"active"`
 }
 
 // StatusJSON reports the node state plus the peer list; it never fails, errors
@@ -508,6 +512,7 @@ func StatusJSON() string {
 			ExitOption: p.ExitNodeOption,
 			CurAddr:    p.CurAddr,
 			Relay:      p.Relay,
+			Active:     p.Active,
 		}
 		for _, ip := range p.TailscaleIPs {
 			item.IPs = append(item.IPs, ip.String())
