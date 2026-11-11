@@ -2546,6 +2546,8 @@
     <string name="log_page_copied">已複製</string>
     <string name="log_page_no_logs">暫無日誌，開啟上方開關後開始記錄</string>
     <string name="log_page_log_count">%1$d 條</string>
+    <string name="log_page_show_original">顯示原文</string>
+    <string name="log_page_hide_original">隱藏原文</string>
     <string name="assistant_page_local_tools_archive_desc">直接在裝置上建立和解壓 .zip 檔案。v1 不支援密碼加密。適用於 file:// 和 content:// URI。</string>
     <string name="assistant_page_local_tools_archive_title">壓縮檔案 (zip)</string>
     <string name="assistant_page_local_tools_external_storage_desc">讓檔案工具可操作 USB 裝置、SD 卡、下載資料夾和雲端儲存。每個目錄樹需要透過系統檔案選擇器一次性授權。</string>

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
@@ -56,6 +57,8 @@ import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Share03
+import me.rerere.hugeicons.stroke.View
+import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.utils.LogRedactor
@@ -139,6 +142,9 @@ internal fun AppLogContent(
     var keyword by remember { mutableStateOf("") }
     var importantOnly by remember { mutableStateOf(false) }
     var logs by remember(clearGeneration) { mutableStateOf(AppLog.getLogs()) }
+    // 已点眼睛展开原文的条目：按首现时间戳标识（重复累加不改变时间戳，刷新不漂移）。
+    // 只存页面 state，不持久化；清空日志时随 clearGeneration 丢弃重建。
+    var revealState by remember(clearGeneration) { mutableStateOf(LogRevealState()) }
 
     LaunchedEffect(clearGeneration) {
         while (true) {
@@ -254,6 +260,10 @@ internal fun AppLogContent(
                     onClick = {
                         copyToClipboard(context, formatEntry(entry))
                     },
+                    revealed = revealState.isRevealed(entry.timestamp),
+                    onToggleReveal = {
+                        revealState = revealState.toggle(entry.timestamp)
+                    },
                 )
             }
         }
@@ -266,6 +276,8 @@ private fun AppLogCard(
     shape: Shape,
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
+    revealed: Boolean,
+    onToggleReveal: () -> Unit,
 ) {
     val dateFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()) }
     val levelColor =
@@ -306,11 +318,35 @@ private fun AppLogCard(
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
             }
-            Text(
-                text = if (entry.repeat > 1) "${entry.message} (×${entry.repeat})" else entry.message,
-                style = MaterialTheme.typography.bodySmall,
-                fontFamily = JetbrainsMono,
-            )
+            // 屏内默认显示脱敏文本；点眼睛只切换本条的显隐，不影响复制/分享出口（仍走脱敏的 formatEntry）。
+            val rawText = if (entry.repeat > 1) "${entry.message} (×${entry.repeat})" else entry.message
+            // 脱敏只做一次：按（文本，显隐）缓存，滚动重组不再重复跑正则。
+            val displayText = remember(rawText, revealed) { displayLogText(rawText, revealed) }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.Top,
+            ) {
+                Text(
+                    text = displayText,
+                    style = MaterialTheme.typography.bodySmall,
+                    fontFamily = JetbrainsMono,
+                    modifier = Modifier.weight(1f),
+                )
+                IconButton(
+                    onClick = onToggleReveal,
+                    modifier = Modifier.size(28.dp),
+                ) {
+                    Icon(
+                        imageVector = if (revealed) HugeIcons.ViewOff else HugeIcons.View,
+                        contentDescription = stringResource(
+                            if (revealed) R.string.log_page_hide_original
+                            else R.string.log_page_show_original,
+                        ),
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
         }
     }
 }

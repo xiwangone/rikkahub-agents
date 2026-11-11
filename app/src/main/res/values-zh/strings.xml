@@ -2362,6 +2362,8 @@
   <string name="log_page_copied">已复制</string>
   <string name="log_page_no_logs">暂无日志，开启上方开关后开始记录</string>
   <string name="log_page_log_count">%1$d 条</string>
+  <string name="log_page_show_original">显示原文</string>
+  <string name="log_page_hide_original">隐藏原文</string>
   <string name="codex_provider_description">使用 OpenAI Codex OAuth 和 Responses API。此集成依赖 Codex 服务兼容性。</string>
   <string name="codex_sign_in">使用 OpenAI OAuth 登录</string>
   <string name="codex_enable">启用 Codex</string>

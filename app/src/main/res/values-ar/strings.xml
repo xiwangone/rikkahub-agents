@@ -2558,6 +2558,8 @@
   <string name="log_page_copied">تم النسخ</string>
   <string name="log_page_no_logs">لا توجد سجلات. فعّل المفتاح أعلاه لبدء التسجيل.</string>
   <string name="log_page_log_count">%1$d سجل</string>
+  <string name="log_page_show_original">إظهار النص الأصلي</string>
+  <string name="log_page_hide_original">إخفاء النص الأصلي</string>
   <string name="assistant_page_local_tools_archive_desc">ينشئ ملفات .zip ويستخرجها على الجهاز مباشرة. الإصدار v1 لا يدعم التشفير بكلمة مرور. يدعم عناوين file:// و content://.</string>
   <string name="assistant_page_local_tools_archive_title">الملفات المضغوطة (zip)</string>
   <string name="assistant_page_local_tools_external_storage_desc">يتيح لأدوات الملفات العمل مع أجهزة USB وبطاقة SD ومجلد التنزيلات والتخزين السحابي. يلزم منح تصريح لمرة واحدة لكل شجرة أدلة عبر منتقي ملفات النظام.</string>

@@ -3003,6 +3003,8 @@
   <string name="log_page_copied">コピーしました</string>
   <string name="log_page_no_logs">ログがありません。上のスイッチを入れると記録が始まります</string>
   <string name="log_page_log_count">%1$d 件</string>
+  <string name="log_page_show_original">原文を表示</string>
+  <string name="log_page_hide_original">原文を隠す</string>
   <string name="assistant_page_local_tools_archive_desc">端末上で .zip ファイルの作成と解凍を直接行います。v1 はパスワード暗号化に非対応。file:// と content:// URI に対応。</string>
   <string name="assistant_page_local_tools_archive_title">圧縮ファイル (zip)</string>
   <string name="assistant_page_local_tools_external_storage_desc">ファイルツールで USB 機器、SD カード、ダウンロードフォルダ、クラウドストレージを操作できるようにします。ディレクトリごとにシステムのファイル選択で一度だけ許可が必要です。</string>

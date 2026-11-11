@@ -2420,6 +2420,8 @@
   <string name="log_page_copied">Copied</string>
   <string name="log_page_no_logs">No logs yet. Turn on the switch above to start recording.</string>
   <string name="log_page_log_count">%1$d entries</string>
+  <string name="log_page_show_original">Show original</string>
+  <string name="log_page_hide_original">Hide original</string>
   <string name="codex_provider_description">Uses the OpenAI Codex OAuth and Responses API flow. This integration depends on Codex service compatibility.</string>
   <string name="codex_sign_in">Sign in with OpenAI OAuth</string>
   <string name="codex_enable">Enable Codex</string>

@@ -3000,6 +3000,8 @@
   <string name="log_page_copied">Скопировано</string>
   <string name="log_page_no_logs">Журналов нет. Включите переключатель выше, чтобы начать запись.</string>
   <string name="log_page_log_count">Записей: %1$d</string>
+  <string name="log_page_show_original">Показать оригинал</string>
+  <string name="log_page_hide_original">Скрыть оригинал</string>
   <string name="assistant_page_local_tools_archive_desc">Создаёт и распаковывает .zip прямо на устройстве. v1 не поддерживает шифрование паролем. Работает с URI file:// и content://.</string>
   <string name="assistant_page_local_tools_archive_title">Архивы (zip)</string>
   <string name="assistant_page_local_tools_external_storage_desc">Позволяет файловым инструментам работать с USB, SD-картой, загрузками и облаком. Для каждого каталога нужно однократное разрешение через системный выбор файлов.</string>
