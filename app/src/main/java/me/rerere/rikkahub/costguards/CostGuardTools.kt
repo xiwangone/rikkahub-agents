@@ -24,8 +24,9 @@ import kotlin.uuid.Uuid
  * hard token caps and a simple budget classification (UNDER_SOFT / WARN / OVER_HARD /
  * NO_BUDGET). The model is expected to self-throttle on WARN and stop on OVER_HARD.
  *
- * Budget classification uses per_message_max (single-message peak = real context-window
- * size), not total_tokens (sum which double-counts repeated context across turns).
+ * Budget classification uses per_message_max — the peak prompt tokens actually sent in one
+ * request. It is NOT the model's context-window capacity (this tracker has no window size),
+ * and it is not total_tokens (sum which double-counts repeated context across turns).
  *
  * v2 (Phase 15.5) will add the live header pill + GenerationLoop-side auto-stop
  * integration. Ship the data surface first so the LLM can react in the meantime.
@@ -52,7 +53,7 @@ fun checkTokenUsageTool(
             """
             Read the running input + output token totals (including cached tokens) for a conversation and compare them
             against the assistant's soft / hard token-budget caps. Budget classification uses per_message_max
-            (single-message peak = real context-window size), not total_tokens (sum which double-counts repeated
+            (peak prompt tokens actually sent in one request — NOT the model's context-window capacity; context_window carries the configured capacity when set), not total_tokens (sum which double-counts repeated
             context across turns). Use to self-throttle on a long-running task: WARN means slow down or wrap up;
             OVER_HARD means stop and ask the user before continuing. Returns NO_BUDGET when no caps are configured
             (the defaults). If conversation_id is omitted, reports against the assistant's current chat. Read-only.
@@ -107,6 +108,16 @@ fun checkTokenUsageTool(
                     put("message_count", snapshot.totals.messageCount)
                     if (snapshot.softCap != null) put("soft_cap", snapshot.softCap)
                     if (snapshot.hardCap != null) put("hard_cap", snapshot.hardCap)
+                    // 真实窗口容量：只在用户配置了才下发。per_message_max 是单次请求实际发出的
+                    // prompt 体积，两者不是一回事 —— 没有窗口数据时不要拿峰值当窗口容量。
+                    val configuredWindow = settings.contextWindowSize.takeIf { it > 0L }
+                    if (configuredWindow != null) {
+                        put("context_window", configuredWindow)
+                        put(
+                            "per_message_max_ratio",
+                            snapshot.totals.perMessageMax.toDouble() / configuredWindow.toDouble(),
+                        )
+                    }
                     put("status", snapshot.status.name)
                 }
             listOf(UIMessagePart.Text(payload.toString()))

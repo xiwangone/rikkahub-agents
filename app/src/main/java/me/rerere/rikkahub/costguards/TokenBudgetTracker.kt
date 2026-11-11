@@ -20,7 +20,7 @@ import me.rerere.rikkahub.data.model.Conversation
  *   - Future Compose / Telegram surfaces collect the same numbers.
  *
  * Budget classification (v1.1):
- *   classify() uses perMessageMax (single-message peak = real context-window size)
+ *   classify() uses perMessageMax (peak prompt tokens of one request; NOT the model's context-window size)
  *   instead of totalTokens (sum of all turns with context overlap → inflated).
  *   totalTokens is still tracked for informational display but is NOT used for caps.
  */
@@ -81,7 +81,7 @@ object TokenBudgetTracker {
             // usage is cumulative across model steps and remains the correct billable/session total.
             val totalThis = (usage.totalTokens.takeIf { it > 0 } ?: (usage.promptTokens + usage.completionTokens)).toLong()
             total += totalThis
-            // The context-window peak and hit rate, however, belong to the latest request only.
+            // The per-request prompt peak and hit rate, however, belong to the latest request only.
             val requestUsage = msg.lastRequestUsage()
             val contextThis = requestUsage?.let {
                 (it.totalTokens.takeIf { total -> total > 0 } ?: (it.promptTokens + it.completionTokens)).toLong()
@@ -116,7 +116,7 @@ object TokenBudgetTracker {
         // No budget configured → no-budget. Spec calls this "off"; tool surface shows
         // numbers but doesn't recommend action.
         if (softCap == null && hardCap == null) return BudgetStatus.NO_BUDGET
-        // Use perMessageMax (single-message peak = real context-window size)
+        // Use perMessageMax: the cap bounds one request's prompt size (NOT the window capacity)
         // instead of totalTokens (sum of all turns — includes repeated context).
         val actual = totals.perMessageMax
         if (hardCap != null && actual >= hardCap) return BudgetStatus.OVER_HARD
