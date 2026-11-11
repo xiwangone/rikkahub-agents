@@ -1,6 +1,5 @@
 package me.rerere.rikkahub.ui.pages.setting
 
-import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -10,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,6 +43,7 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
@@ -126,25 +124,8 @@ fun SettingSearchDetailPage(
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             item("config") {
-                Card(
-                    colors =
-                        CardDefaults.cardColors(
-                            containerColor = CustomColors.listItemColors.containerColor,
-                        ),
-                ) {
-                    Column(
-                        modifier =
-                            Modifier
-                                .animateContentSize()
-                                .fillMaxWidth()
-                                .padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text(
-                            text = stringResource(R.string.setting_page_search_config),
-                            style = MaterialTheme.typography.titleMedium,
-                        )
-
+                CardGroup(title = { Text(stringResource(R.string.setting_page_search_config)) }) {
+                    formItem {
                         SearchServiceOptionsEditor(
                             options = options,
                             onUpdateOptions = { save(it) },
@@ -262,25 +243,10 @@ private fun SearchTestSection(
     var result by remember { mutableStateOf<Result<SearchResult>?>(null) }
     val scope = rememberCoroutineScope()
 
-    Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = CustomColors.listItemColors.containerColor,
-            ),
+    CardGroup(
+        title = { Text(stringResource(R.string.setting_page_search_test)) },
     ) {
-        Column(
-            modifier =
-                Modifier
-                    .animateContentSize()
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.setting_page_search_test),
-                style = MaterialTheme.typography.titleMedium,
-            )
-
+        formItem {
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -325,34 +291,31 @@ private fun SearchTestSection(
                     }
                 }
             }
+        }
 
-            result?.let { res ->
-                res.onSuccess { searchResult ->
-                    searchResult.answer?.let { answer ->
-                        Text(
-                            text = answer,
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
-                    }
-                    searchResult.items.forEachIndexed { index, item ->
-                        Card(
-                            colors =
-                                CardDefaults.cardColors(
-                                    containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
-                                ),
-                        ) {
-                            Column(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .padding(12.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text(
-                                    text = "${index + 1}. ${item.title}",
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
+        result?.let { res ->
+            res.onSuccess { searchResult ->
+                searchResult.answer?.let { answer ->
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = answer,
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
+                        },
+                    )
+                }
+                searchResult.items.forEachIndexed { index, item ->
+                    item(
+                        headlineContent = {
+                            Text(
+                                text = "${index + 1}. ${item.title}",
+                                style = MaterialTheme.typography.titleSmall,
+                            )
+                        },
+                        supportingContent = {
+                            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                                 Text(
                                     text = item.url,
                                     style = MaterialTheme.typography.bodySmall,
@@ -364,16 +327,20 @@ private fun SearchTestSection(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                        }
-                    }
-                }
-                res.onFailure { error ->
-                    Text(
-                        text = error.message ?: stringResource(R.string.search_detail_unknown_error),
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.error,
+                        },
                     )
                 }
+            }
+            res.onFailure { error ->
+                item(
+                    headlineContent = {
+                        Text(
+                            text = error.message ?: stringResource(R.string.search_detail_unknown_error),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                )
             }
         }
     }

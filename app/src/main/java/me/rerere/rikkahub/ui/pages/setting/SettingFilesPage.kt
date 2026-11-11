@@ -26,8 +26,6 @@ import androidx.compose.foundation.lazy.staggeredgrid.rememberLazyStaggeredGridS
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
@@ -39,6 +37,7 @@ import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -424,7 +423,7 @@ private fun FileItem(
     selected: Boolean = false,
     onToggle: () -> Unit = {},
 ) {
-    Card(
+    Surface(
         modifier =
             Modifier
                 .fillMaxWidth()
@@ -435,7 +434,8 @@ private fun FileItem(
                         Modifier
                     },
                 ),
-        colors = CardDefaults.cardColors(containerColor = CustomColors.listItemColors.containerColor),
+        shape = cardGroupItemShape(0, 1),
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Column {
             Box(

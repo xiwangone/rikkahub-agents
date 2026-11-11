@@ -1,34 +1,25 @@
-
 package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.pager.HorizontalPager
-import androidx.compose.foundation.pager.rememberPagerState
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
@@ -36,23 +27,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Switch
 import android.content.Intent
 import me.rerere.rikkahub.service.LocalMcpServerService
-import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
-import me.rerere.rikkahub.ui.components.ui.PagerTabs
-import androidx.compose.material3.SheetValue
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import androidx.compose.material3.SwipeToDismissBox
-import me.rerere.rikkahub.ui.components.ui.PagerTab
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.material3.pulltorefresh.rememberPullToRefreshState
-import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.material3.rememberSwipeToDismissBoxState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -71,10 +58,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.AlertCircle
@@ -84,35 +67,22 @@ import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.MessageBlocked
 import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.ai.mcp.McpCommonOptions
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
-import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
-import me.rerere.rikkahub.data.ai.tools.LocalToolCategory
-import me.rerere.rikkahub.data.ai.tools.LocalToolOption
-import androidx.compose.material3.FilterChip
-import androidx.compose.material3.RadioButton
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
-import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
-import me.rerere.rikkahub.ui.hooks.EditState
-import me.rerere.rikkahub.ui.hooks.EditStateContent
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
-import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
-import me.rerere.rikkahub.ui.components.vault.SecretRefField
-import me.rerere.rikkahub.data.vault.CredentialType
 
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
@@ -309,34 +279,43 @@ private fun LocalMcpServerSection(
     onSetActive: (LocalMcpProfile) -> Unit,
 ) {
     var profileToDelete by remember { mutableStateOf<LocalMcpProfile?>(null) }
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.fillMaxWidth().padding(16.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Column(Modifier.weight(1f)) {
-                    Text(stringResource(R.string.mcp_page_local_server_title), style = MaterialTheme.typography.titleMedium)
-                    Text(stringResource(R.string.mcp_page_local_server_desc), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                }
-                Switch(checked = enabled, onCheckedChange = onEnable)
-            }
-            profiles.forEach { p ->
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        val displayName = p.name.ifBlank { stringResource(R.string.mcp_page_unnamed) }
-                        Text(if (p.id == activeId) stringResource(R.string.mcp_page_current_prefix, displayName) else displayName)
-                        Text(stringResource(R.string.mcp_page_port_tools, p.port, p.allowedTools.size), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+    CardGroup {
+        switchItem(
+            checked = enabled,
+            onCheckedChange = onEnable,
+            headlineContent = { Text(stringResource(R.string.mcp_page_local_server_title)) },
+            supportingContent = { Text(stringResource(R.string.mcp_page_local_server_desc)) },
+        )
+        profiles.forEach { p ->
+            val displayName = p.name.ifBlank { stringResource(R.string.mcp_page_unnamed) }
+            item(
+                headlineContent = {
+                    Text(
+                        if (p.id == activeId) {
+                            stringResource(R.string.mcp_page_current_prefix, displayName)
+                        } else {
+                            displayName
+                        },
+                    )
+                },
+                supportingContent = {
+                    Text(stringResource(R.string.mcp_page_port_tools, p.port, p.allowedTools.size))
+                },
+                trailingContent = {
+                    Row {
+                        if (p.id != activeId) {
+                            TextButton(onClick = { onSetActive(p) }) { Text(stringResource(R.string.mcp_page_set_active)) }
+                        }
+                        TextButton(onClick = { onEdit(p) }) { Text(stringResource(R.string.edit)) }
+                        TextButton(onClick = { profileToDelete = p }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
                     }
-                    if (p.id != activeId) {
-                        TextButton(onClick = { onSetActive(p) }) { Text(stringResource(R.string.mcp_page_set_active)) }
-                    }
-                    TextButton(onClick = { onEdit(p) }) { Text(stringResource(R.string.edit)) }
-                    TextButton(onClick = { profileToDelete = p }) { Text(stringResource(R.string.delete), color = MaterialTheme.colorScheme.error) }
-                }
-            }
-            TextButton(onClick = onAdd) { Text(stringResource(R.string.mcp_page_add_config)) }
+                },
+            )
         }
+        item(
+            onClick = onAdd,
+            headlineContent = { Text(stringResource(R.string.mcp_page_add_config)) },
+        )
     }
 
     profileToDelete?.let { profile ->
@@ -356,172 +335,6 @@ private fun LocalMcpServerSection(
     }
 }
 
-private val ALL_LOCAL_TOOLS: List<LocalToolOption> = LocalToolCatalog.all
-
-@Composable
-private fun LocalMcpProfileModal(
-    initial: LocalMcpProfile?,
-    onConfirm: (LocalMcpProfile) -> Unit,
-    onDismiss: () -> Unit,
-    presets: List<String>,
-    onPresetsChange: (List<String>) -> Unit,
-) {
-    var name by remember { mutableStateOf(initial?.name ?: "") }
-    var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
-    var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
-    var expandedCategories by remember { mutableStateOf(setOf<LocalToolCategory>()) }
-    var listenScope by remember { mutableStateOf(initial?.listenScope ?: "loopback") }
-    var allowedNetworks by remember { mutableStateOf(initial?.allowedNetworks ?: "") }
-    var authTokenRef by remember { mutableStateOf(initial?.authTokenRef ?: "") }
-    val context = LocalContext.current
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(if (initial == null) stringResource(R.string.mcp_page_dialog_add_title) else stringResource(R.string.mcp_page_dialog_edit_title)) },
-        text = {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState()),
-            ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                Text(stringResource(R.string.mcp_profile_listen_scope), style = MaterialTheme.typography.labelLarge)
-                listOf(
-                    "loopback" to stringResource(R.string.net_scope_loopback),
-                    "lan" to stringResource(R.string.net_scope_lan),
-                    "any" to stringResource(R.string.net_scope_any),
-                ).forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
-                        RadioButton(selected = listenScope == value, onClick = { listenScope = value })
-                        Text(label, style = MaterialTheme.typography.bodySmall)
-                    }
-                }
-                NetworkAccessField(
-                    value = allowedNetworks,
-                    onValueChange = { allowedNetworks = it },
-                    presets = presets,
-                    onPresetsChange = onPresetsChange,
-                    label = stringResource(R.string.net_allowed_networks),
-                    supportingText = stringResource(R.string.net_allowed_networks_desc),
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                SecretRefField(
-                    value = authTokenRef,
-                    onValueChange = { authTokenRef = it },
-                    label = stringResource(R.string.mcp_auth_token_ref),
-                    description = stringResource(R.string.mcp_auth_token_ref_desc),
-                    nameHint = "MCP_AUTH_TOKEN",
-                    typeHint = CredentialType.API_KEY,
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(R.string.mcp_page_tools_header), style = MaterialTheme.typography.labelLarge)
-                        Row {
-                            TextButton(onClick = { selected = ALL_LOCAL_TOOLS }) { Text(stringResource(R.string.mcp_page_select_all)) }
-                            TextButton(onClick = { selected = emptyList() }) { Text(stringResource(R.string.mcp_page_clear)) }
-                        }
-                    }
-                LocalToolCatalog.groups().forEach { (category, tools) ->
-                    val expanded = category in expandedCategories
-                    val pickedCount = tools.count { it in selected }
-                    Surface(
-                        shape = androidx.compose.foundation.shape.RoundedCornerShape(10.dp),
-                        color = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.30f),
-                        modifier = Modifier.fillMaxWidth(),
-                    ) {
-                        Column(modifier = Modifier.padding(8.dp)) {
-                            Row(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            expandedCategories =
-                                                if (expanded) expandedCategories - category else expandedCategories + category
-                                        },
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                                verticalAlignment = Alignment.CenterVertically,
-                            ) {
-                                Text(
-                                    text = categoryLabel(category) + "  ($pickedCount/${tools.size})",
-                                    style = MaterialTheme.typography.labelMedium,
-                                )
-                                Text(if (expanded) "\u25b4" else "\u25be", style = MaterialTheme.typography.labelMedium)
-                            }
-                            if (expanded) {
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.End,
-                                ) {
-                                    TextButton(onClick = { selected = (selected + tools).distinct() }) {
-                                        Text(stringResource(R.string.mcp_page_select_all))
-                                    }
-                                    TextButton(onClick = { selected = selected - tools.toSet() }) {
-                                        Text(stringResource(R.string.mcp_page_clear))
-                                    }
-                                }
-                            }
-                        }
-                    }
-                    if (!expanded) return@forEach
-                    FlowRow {
-                        tools.forEach { tool ->
-                            val checked = tool in selected
-                            FilterChip(
-                                selected = checked,
-                                onClick = { selected = if (checked) selected - tool else selected + tool },
-                                label = { Text(toolName(tool)) },
-                                modifier = Modifier.padding(4.dp),
-                            )
-                        }
-                    }
-                }
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = {
-                    val base = initial ?: LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = "")
-                    onConfirm(
-                        base.copy(
-                            name = name.ifBlank { context.getString(R.string.mcp_page_unnamed) },
-                            port = port.toIntOrNull() ?: 8788,
-                            allowedTools = selected,
-                            listenScope = listenScope,
-                            allowedNetworks = allowedNetworks,
-                            authTokenRef = authTokenRef,
-                        ),
-                    )
-                },
-            ) { Text(stringResource(R.string.save)) }
-        },
-        dismissButton = { TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) } },
-    )
-}
-
-@Composable
-private fun toolName(t: LocalToolOption): String = stringResource(LocalToolCatalog.labelRes(t))
-
-@Composable
-private fun categoryLabel(category: LocalToolCategory): String =
-    stringResource(
-        when (category) {
-            LocalToolCategory.DEVICE_INFO -> R.string.mcp_category_device_info
-            LocalToolCategory.DEVICE_CONTROL -> R.string.mcp_category_device_control
-            LocalToolCategory.MEDIA -> R.string.mcp_category_media
-            LocalToolCategory.FILES -> R.string.mcp_category_files
-            LocalToolCategory.PERSONAL -> R.string.mcp_category_personal
-            LocalToolCategory.REMOTE -> R.string.mcp_category_remote
-            LocalToolCategory.VAULT -> R.string.mcp_category_vault
-            LocalToolCategory.AUTOMATION -> R.string.mcp_category_automation
-            LocalToolCategory.WEB_AI -> R.string.mcp_category_web_ai
-        },
-    )
 
 @Composable
 private fun McpServerItem(
@@ -608,11 +421,9 @@ private fun McpServerItem(
         enableDismissFromEndToStart = true,
         modifier = modifier,
     ) {
-        Card(
-            colors =
-                CardDefaults.cardColors(
-                    containerColor = CustomColors.listItemColors.containerColor,
-                ),
+        Surface(
+            shape = cardGroupItemShape(0, 1),
+            color = CustomColors.listItemColors.containerColor,
         ) {
             Row(
                 modifier =
@@ -762,186 +573,9 @@ private fun McpServerItem(
     )
 }
 
-@Composable
-private fun McpServerConfigModal(state: EditState<McpServerConfig>) {
-    state.EditStateContent { config, updateValue ->
-        val pagerState = rememberPagerState { 2 }
-        ModalBottomSheet(
-            onDismissRequest = {
-                state.dismiss()
-            },
-            sheetState =
-                rememberBottomSheetState(
-                    initialValue = SheetValue.Hidden,
-                    enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-                ),
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .fillMaxHeight(0.9f)
-                        .padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                val mcpTabs = listOf(
-                    object : PagerTab {
-                        override val icon: ImageVector = HugeIcons.Settings03
-                        override val label: String
-                            @Composable get() = stringResource(R.string.setting_mcp_page_basic_settings)
-                    },
-                    object : PagerTab {
-                        override val icon: ImageVector = HugeIcons.Tools
-                        override val label: String
-                            @Composable get() = stringResource(R.string.setting_mcp_page_tools)
-                    },
-                )
-                PagerTabs(
-                    pagerState = pagerState,
-                    tabs = mcpTabs,
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                HorizontalPager(
-                    state = pagerState,
-                    modifier =
-                        Modifier
-                            .weight(1f)
-                            .fillMaxWidth(),
-                ) { page ->
-                    when (page) {
-                        0 -> {
-                            McpCommonOptionsConfigure(
-                                config = config,
-                                update = updateValue,
-                            )
-                        }
-
-                        1 -> {
-                            McpToolsConfigure(
-                                config = config,
-                                update = updateValue,
-                            )
-                        }
-                    }
-                }
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-                ) {
-                    TextButton(
-                        onClick = {
-                            if (config.commonOptions.name.isNotBlank() && isValidMcpName(config.commonOptions.name)) {
-                                state.confirm()
-                            }
-                        },
-                    ) {
-                        Text(stringResource(R.string.setting_mcp_page_save))
-                    }
-                }
-            }
-        }
-    }
-}
 
 internal fun isValidMcpName(name: String): Boolean =
     name.isEmpty() ||
         name.all {
             it in 'a'..'z' || it in 'A'..'Z' || it in '0'..'9' || it == '_' || it == '-'
         }
-
-private fun parseMcpServersFromJson(json: String): List<McpServerConfig> {
-    val root = Json.parseToJsonElement(json).jsonObject
-    val mcpServers = root["mcpServers"]?.jsonObject ?: return emptyList()
-    return mcpServers.entries.mapNotNull { (name, element) ->
-        val obj = element.jsonObject
-        val type = obj["type"]?.jsonPrimitive?.contentOrNull ?: "streamable_http"
-        val url = obj["url"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-        val headers =
-            obj["headers"]?.jsonObject?.entries?.map { (k, v) ->
-                k to (v.jsonPrimitive.contentOrNull ?: "")
-            } ?: emptyList()
-        val commonOptions = McpCommonOptions(name = name, headers = headers)
-        when (type) {
-            "sse" -> McpServerConfig.SseTransportServer(commonOptions = commonOptions, url = url)
-            else -> McpServerConfig.StreamableHTTPServer(commonOptions = commonOptions, url = url)
-        }
-    }
-}
-
-@Composable
-private fun McpImportModal(
-    onDismiss: () -> Unit,
-    onImport: (List<McpServerConfig>) -> Unit,
-) {
-    var jsonText by remember { mutableStateOf("") }
-    var errorMessage by remember { mutableStateOf<String?>(null) }
-    val noValidConfigMsg = stringResource(R.string.setting_mcp_page_import_no_valid_config)
-    val parseErrorMsg = stringResource(R.string.setting_mcp_page_import_parse_error)
-
-    ModalBottomSheet(
-        onDismissRequest = onDismiss,
-        sheetState =
-            rememberBottomSheetState(
-                initialValue = SheetValue.Hidden,
-                enabledValues = setOf(SheetValue.Hidden, SheetValue.Expanded),
-            ),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .fillMaxHeight(0.7f)
-                    .padding(16.dp)
-                    .imePadding(),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text(stringResource(R.string.setting_mcp_page_import_title), style = MaterialTheme.typography.titleLarge)
-            Text(
-                stringResource(R.string.setting_mcp_page_import_desc),
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            OutlinedTextField(
-                value = jsonText,
-                onValueChange = {
-                    jsonText = it
-                    errorMessage = null
-                },
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f),
-                placeholder = { Text("{ \"mcpServers\": { ... } }") },
-                isError = errorMessage != null,
-                supportingText = errorMessage?.let { msg -> { Text(msg, color = MaterialTheme.colorScheme.error) } },
-            )
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
-            ) {
-                TextButton(onClick = onDismiss) {
-                    Text(stringResource(R.string.cancel))
-                }
-                Button(
-                    onClick = {
-                        try {
-                            val configs = parseMcpServersFromJson(jsonText.trim())
-                            if (configs.isEmpty()) {
-                                errorMessage = noValidConfigMsg
-                            } else {
-                                onImport(configs)
-                            }
-                        } catch (e: IllegalArgumentException) {
-                            // parseMcpServersFromJson 仅经 kotlinx JSON 访问器失败：
-                            // parseToJsonElement 抛 SerializationException、jsonObject/jsonPrimitive 抛
-                            // IllegalArgumentException，前者是后者子类，单一 catch 即全覆盖
-                            errorMessage = parseErrorMsg.format(e.message ?: "")
-                        }
-                    },
-                ) {
-                    Text(stringResource(R.string.setting_mcp_page_import_confirm))
-                }
-            }
-        }
-    }
-}

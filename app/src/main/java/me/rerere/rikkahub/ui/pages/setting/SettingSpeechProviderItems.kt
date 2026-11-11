@@ -7,8 +7,6 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -16,6 +14,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -37,6 +36,7 @@ import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.context.LocalTTSState
@@ -59,17 +59,15 @@ internal fun TTSProviderItem(
     val isSpeaking by tts.isSpeaking.collectAsStateWithLifecycle()
     val isAvailable by tts.isAvailable.collectAsStateWithLifecycle()
 
-    Card(
+    Surface(
         modifier = modifier,
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        CustomColors.listItemColors.containerColor
-                    },
-            ),
+        shape = cardGroupItemShape(0, 1),
+        color =
+            if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                CustomColors.listItemColors.containerColor
+            },
     ) {
         Column(
             modifier = Modifier.padding(16.dp),
@@ -261,17 +259,15 @@ internal fun ASRProviderItem(
 ) {
     var showDropdownMenu by remember { mutableStateOf(false) }
 
-    Card(
+    Surface(
         modifier = modifier,
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    if (isSelected) {
-                        MaterialTheme.colorScheme.primaryContainer
-                    } else {
-                        CustomColors.listItemColors.containerColor
-                    },
-            ),
+        shape = cardGroupItemShape(0, 1),
+        color =
+            if (isSelected) {
+                MaterialTheme.colorScheme.primaryContainer
+            } else {
+                CustomColors.listItemColors.containerColor
+            },
     ) {
         Column(
             modifier = Modifier.padding(16.dp),

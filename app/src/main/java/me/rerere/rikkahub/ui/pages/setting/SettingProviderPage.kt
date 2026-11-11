@@ -27,8 +27,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -38,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.ProvideTextStyle
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -77,6 +76,7 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.decodeProviderSetting
 import me.rerere.rikkahub.ui.components.ui.rememberReorderCommitState
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -610,21 +610,19 @@ private fun ProviderItem(
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
 ) {
-    Card(
+    Surface(
         modifier =
             modifier.combinedClickable(
                 onClick = onClick,
                 onLongClick = onLongClick,
             ),
-        colors =
-            CardDefaults.cardColors(
-                containerColor =
-                    if (provider.enabled) {
-                        CustomColors.listItemColors.containerColor
-                    } else {
-                        MaterialTheme.colorScheme.errorContainer
-                    },
-            ),
+        shape = cardGroupItemShape(0, 1),
+        color =
+            if (provider.enabled) {
+                CustomColors.listItemColors.containerColor
+            } else {
+                MaterialTheme.colorScheme.errorContainer
+            },
     ) {
         Row(
             modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),

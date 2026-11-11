@@ -35,7 +35,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedCard
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
@@ -566,75 +565,58 @@ internal fun ProviderOverrideSettings(
     Column(
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        Text(
-            text = stringResource(R.string.setting_provider_page_provider_override),
-            style = MaterialTheme.typography.titleSmall,
-        )
-
-        Text(
-            text = stringResource(R.string.setting_provider_page_provider_override_desc),
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
-
-        if (providerOverride != null) {
-            OutlinedCard(
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Column(
-                    modifier =
-                        Modifier
-                            .fillMaxWidth()
-                            .padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
+        CardGroup(title = { Text(stringResource(R.string.setting_provider_page_provider_override)) }) {
+            if (providerOverride != null) {
+                item(
+                    leadingContent = {
                         AutoAIIcon(
                             providerOverride.name,
                             modifier = Modifier.size(24.dp),
                         )
-                        Text(
-                            text = stringResource(R.string.provider_override_label, providerOverride.name),
-                            style = MaterialTheme.typography.bodyMedium,
-                            modifier = Modifier.weight(1f),
-                        )
-                        IconButton(
-                            onClick = {
-                                editingProvider = providerOverride
-                                showProviderConfig = true
-                            },
-                        ) {
-                            Icon(HugeIcons.Tools, contentDescription = stringResource(R.string.provider_action_edit_override))
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.provider_override_label, providerOverride.name))
+                    },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_provider_page_provider_override_desc))
+                    },
+                    trailingContent = {
+                        Row {
+                            IconButton(
+                                onClick = {
+                                    editingProvider = providerOverride
+                                    showProviderConfig = true
+                                },
+                            ) {
+                                Icon(HugeIcons.Tools, contentDescription = stringResource(R.string.provider_action_edit_override))
+                            }
+                            IconButton(
+                                onClick = {
+                                    onUpdateProviderOverride(null)
+                                },
+                            ) {
+                                Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.provider_action_remove_override))
+                            }
                         }
-                        IconButton(
-                            onClick = {
-                                onUpdateProviderOverride(null)
-                            },
-                        ) {
-                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.provider_action_remove_override))
-                        }
-                    }
-                }
-            }
-        } else {
-            Button(
-                onClick = {
-                    editingProvider =
-                        parentProvider?.copyProvider(
-                            id = Uuid.random(),
-                            builtIn = false,
-                            models = emptyList(),
-                        )
-                    showProviderConfig = true
-                },
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                Icon(HugeIcons.Add01, contentDescription = null)
-                Spacer(modifier = Modifier.size(8.dp))
-                Text(stringResource(R.string.setting_provider_page_add_provider_override))
+                    },
+                )
+            } else {
+                item(
+                    onClick = {
+                        editingProvider =
+                            parentProvider?.copyProvider(
+                                id = Uuid.random(),
+                                builtIn = false,
+                                models = emptyList(),
+                            )
+                        showProviderConfig = true
+                    },
+                    leadingContent = { Icon(HugeIcons.Add01, contentDescription = null) },
+                    headlineContent = { Text(stringResource(R.string.setting_provider_page_add_provider_override)) },
+                    supportingContent = {
+                        Text(stringResource(R.string.setting_provider_page_provider_override_desc))
+                    },
+                )
             }
         }
 

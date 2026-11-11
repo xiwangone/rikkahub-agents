@@ -629,6 +629,18 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingPreferencesNetwork> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingPreferencesNetworkPage()
                             }
+                            entry<Screen.SettingNetworkProxy> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingNetworkProxyPage()
+                            }
+                            entry<Screen.SettingNetworkDns> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingNetworkDnsPage()
+                            }
+                            entry<Screen.SettingNetworkHostOverrides> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingNetworkHostOverridesPage()
+                            }
+                            entry<Screen.SettingNetworkTunnel> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingNetworkTunnelPage()
+                            }
 
                             entry<Screen.SettingSshHosts> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingSshHostsPage()
@@ -907,6 +919,14 @@ sealed interface Screen : NavKey {
     data object SettingShizuku : Screen
     @Serializable
     data object SettingPreferencesNetwork : Screen
+    @Serializable
+    data object SettingNetworkProxy : Screen
+    @Serializable
+    data object SettingNetworkDns : Screen
+    @Serializable
+    data object SettingNetworkHostOverrides : Screen
+    @Serializable
+    data object SettingNetworkTunnel : Screen
     @Serializable
     data object SettingSshHosts : Screen
     @Serializable

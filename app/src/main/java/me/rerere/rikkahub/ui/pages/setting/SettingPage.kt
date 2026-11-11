@@ -22,8 +22,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -77,6 +75,7 @@ import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.skills.js.SkillSecretsStore
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
@@ -239,7 +238,7 @@ private fun ProviderConfigWarningCard(navController: Navigator) {
     Surface(
         onClick = onClick,
         modifier = Modifier.fillMaxWidth(),
-        shape = MaterialTheme.shapes.extraLarge,
+        shape = cardGroupItemShape(0, 1),
         color = MaterialTheme.colorScheme.errorContainer,
         contentColor = MaterialTheme.colorScheme.onErrorContainer,
     ) {
@@ -296,13 +295,9 @@ private fun ProviderConfigWarningCard(navController: Navigator) {
 
 @Composable
 private fun SecurityDegradedWarningCard() {
-    Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.errorContainer,
-            ),
-    ) {
-        ListItem(
+    CardGroup {
+        item(
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
             headlineContent = {
                 Text(stringResource(R.string.setting_page_security_degraded_title))
             },
@@ -312,14 +307,6 @@ private fun SecurityDegradedWarningCard() {
             leadingContent = {
                 Icon(HugeIcons.Shield01, null)
             },
-            colors =
-                ListItemDefaults.colors(
-                    containerColor = Color.Transparent,
-                ),
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(8.dp),
         )
     }
 }
@@ -557,10 +544,11 @@ private fun ShortcutTile(
     onClick: () -> Unit,
 ) {
     val (containerColor, contentColor) = entry.group.iconColors()
-    Card(
+    Surface(
         modifier = modifier,
         onClick = onClick,
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerHigh),
+        shape = cardGroupItemShape(0, 1),
+        color = MaterialTheme.colorScheme.surfaceContainerHigh,
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(vertical = 10.dp, horizontal = 6.dp),

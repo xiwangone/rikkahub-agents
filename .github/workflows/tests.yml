@@ -70,7 +70,7 @@ jobs:
           # local-llm（需 Java 21，CI 为 JDK 17）、oauth（1 本地回环失败）、
           # workspace（1 需外网）暂不纳入，待各自修复后补充。
           for i in 1 2; do
-            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest --parallel --build-cache --configuration-cache 2>&1 | tee unit-test.log
+            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest --parallel --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-attempt-$i.log"
             [ "${PIPESTATUS[0]}" = "0" ] && break
             if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
             echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
@@ -81,7 +81,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: unit-test-log
-          path: unit-test.log
+          path: unit-test-attempt-*.log
           retention-days: 14
 
       - name: 上传测试报告

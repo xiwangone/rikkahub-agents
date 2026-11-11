@@ -37,7 +37,6 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.DragDropHorizontal
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_SYSTEM_TTS_ID
@@ -227,78 +226,3 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
-
-@Composable
-private fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
-    var showBottomSheet by remember { mutableStateOf(false) }
-    var currentProvider: TTSProviderSetting by remember { mutableStateOf(TTSProviderSetting.SystemTTS()) }
-
-    IconButton(
-        onClick = {
-            currentProvider = TTSProviderSetting.SystemTTS()
-            showBottomSheet = true
-        },
-    ) {
-        Icon(HugeIcons.Add01, stringResource(R.string.setting_tts_page_add_provider_content_description))
-    }
-
-    if (showBottomSheet) {
-        val bottomSheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-        ModalBottomSheet(
-            onDismissRequest = {
-                showBottomSheet = false
-            },
-            sheetState = bottomSheetState,
-            dragHandle = {
-                BottomSheetDefaults.DragHandle()
-            },
-        ) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .padding(16.dp)
-                        .fillMaxHeight(0.8f),
-                verticalArrangement = Arrangement.spacedBy(16.dp),
-            ) {
-                Text(
-                    text = stringResource(R.string.setting_tts_page_add_provider),
-                    style = MaterialTheme.typography.headlineSmall,
-                )
-
-                TTSProviderConfigure(
-                    setting = currentProvider,
-                    onValueChange = { newState ->
-                        currentProvider = newState
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    TextButton(
-                        onClick = {
-                            showBottomSheet = false
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.cancel))
-                    }
-
-                    TextButton(
-                        onClick = {
-                            onAdd(currentProvider)
-                            showBottomSheet = false
-                        },
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(stringResource(R.string.setting_tts_page_add))
-                    }
-                }
-            }
-        }
-    }
-}
-

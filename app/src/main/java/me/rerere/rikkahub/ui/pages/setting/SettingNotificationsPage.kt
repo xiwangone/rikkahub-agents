@@ -5,14 +5,12 @@ import android.content.pm.ApplicationInfo
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
@@ -22,7 +20,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
@@ -59,6 +56,7 @@ import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.service.RikkaNotificationListenerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
@@ -360,12 +358,33 @@ private fun AppWhitelistPickerDialog(
                         )
                     } else {
                         LazyColumn(modifier = Modifier.fillMaxWidth()) {
-                            items(visible, key = { it.packageName }) { row ->
-                                AppWhitelistRow(
-                                    row = row,
-                                    checked = row.packageName in selected,
-                                    onCheckedChange = { on -> onToggle(row.packageName, on) },
-                                )
+                            item {
+                                CardGroup {
+                                    visible.forEach { row ->
+                                        switchItem(
+                                            checked = row.packageName in selected,
+                                            onCheckedChange = { on -> onToggle(row.packageName, on) },
+                                            leadingContent = {
+                                                AppIcon(packageName = row.packageName)
+                                            },
+                                            headlineContent = {
+                                                Text(
+                                                    text = row.label.ifBlank { row.packageName },
+                                                    style = MaterialTheme.typography.bodyMedium,
+                                                    maxLines = 1,
+                                                )
+                                            },
+                                            supportingContent = {
+                                                Text(
+                                                    text = row.packageName,
+                                                    style = MaterialTheme.typography.bodySmall,
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                    maxLines = 1,
+                                                )
+                                            },
+                                        )
+                                    }
+                                }
                             }
                         }
                     }
@@ -381,49 +400,22 @@ private fun AppWhitelistPickerDialog(
 }
 
 @Composable
-private fun AppWhitelistRow(
-    row: InstalledAppRow,
-    checked: Boolean,
-    onCheckedChange: (Boolean) -> Unit,
-) {
+private fun AppIcon(packageName: String) {
     val ctx = LocalContext.current
     val icon =
-        remember(row.packageName) {
+        remember(packageName) {
             try {
-                ctx.packageManager.getApplicationIcon(row.packageName)
+                ctx.packageManager.getApplicationIcon(packageName)
             } catch (_: Throwable) {
                 null
             }
         }
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .padding(vertical = 6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        // Coil 3 accepts an Android Drawable as the model directly; no manual conversion.
-        AsyncImage(
-            model = icon,
-            contentDescription = null,
-            modifier = Modifier.size(36.dp),
-        )
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
-            Text(
-                text = row.label.ifBlank { row.packageName },
-                style = MaterialTheme.typography.bodyMedium,
-                maxLines = 1,
-            )
-            Text(
-                text = row.packageName,
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                maxLines = 1,
-            )
-        }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
-    }
+    // Coil 3 accepts an Android Drawable as the model directly; no manual conversion.
+    AsyncImage(
+        model = icon,
+        contentDescription = null,
+        modifier = Modifier.size(36.dp),
+    )
 }
 
 /**

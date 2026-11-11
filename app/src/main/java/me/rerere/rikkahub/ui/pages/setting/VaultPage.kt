@@ -7,23 +7,16 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -42,19 +35,14 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Shield01
-import me.rerere.hugeicons.stroke.Tick01
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
@@ -74,8 +62,6 @@ import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
-import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
-import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -83,8 +69,6 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 import java.io.BufferedReader
 import java.io.InputStreamReader
-
-private const val CLIPBOARD_LABEL = "vault-session"
 
 /**
  * 安全凭证库（二级设置页，Material 3 Expressive 分组卡片样式）。
@@ -545,228 +529,17 @@ fun VaultPage() {
                 }
 
                 item {
-                    var sessionMode by remember { mutableStateOf(false) }
-                    var allowedNamesInput by remember { mutableStateOf("") }
-                    LaunchedEffect(Unit) {
-                        sessionMode = vaultSessionManager.getSessionMode()
-                        if (vaultSessionManager.hasSession()) {
-                            sessionToken = vaultSessionManager.reissueToken()
-                        }
-                    }
-
-                    CardGroup(
-                        title = { Text(stringResource(R.string.vault_session_title)) },
-                    ) {
-                        formItem(
-                            leadingContent = { CardGroupIcon(HugeIcons.Clock02) },
-                            headlineContent = { Text(stringResource(R.string.vault_session_title)) },
-                            supportingContent = { Text(stringResource(R.string.vault_session_desc)) },
-                        ) {
-                            ConnectedChoiceButtons(
-                                options = listOf(false, true),
-                                selected = sessionMode,
-                                onSelect = { sessionMode = it },
-                                containerColor = MaterialTheme.colorScheme.surfaceContainerHighest,
-                            ) { manualMode, isSelected ->
-                                ConnectedChoiceLabel(
-                                    text =
-                                        stringResource(
-                                            if (manualMode) {
-                                                R.string.vault_session_mode_manual
-                                            } else {
-                                                R.string.vault_session_mode_ttl
-                                            },
-                                        ),
-                                    selected = isSelected,
-                                    icon = HugeIcons.Tick01,
-                                )
-                            }
-                            Text(
-                                text =
-                                    if (sessionMode) {
-                                        stringResource(R.string.vault_session_mode_manual_desc)
-                                    } else {
-                                        stringResource(R.string.vault_session_mode_ttl_desc)
-                                    },
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                            OutlinedTextField(
-                                value = allowedNamesInput,
-                                onValueChange = { allowedNamesInput = it },
-                                label = { Text(stringResource(R.string.vault_session_allowed_names)) },
-                                singleLine = true,
-                                modifier = Modifier.fillMaxWidth(),
-                            )
-                            Button(
-                                onClick = {
-                                    scope.launch {
-                                        runCatching {
-                                            if (biometricEnabled) {
-                                                val ok = VaultBiometric.authenticate(context, biometricBuffer, context.getString(R.string.vault_biometric_export_title))
-                                                if (!ok) {
-                                                    sessionResult = context.getString(R.string.vault_session_cancelled)
-                                                    return@launch
-                                                }
-                                            }
-                                            val token =
-                                                vaultSessionManager.issueToken(
-                                                    sessionMode = sessionMode,
-                                                    allowedNames =
-                                                        allowedNamesInput
-                                                            .split(',')
-                                                            .map { it.trim() }
-                                                            .filter { it.isNotEmpty() },
-                                                )
-                                            sessionToken = token
-                                            sessionResult =
-                                                if (sessionMode) {
-                                                    context.getString(R.string.vault_session_issued_manual)
-                                                } else {
-                                                    context.getString(R.string.vault_session_issued_ttl)
-                                                }
-                                            refreshSessionList()
-                                        }.onFailure { e ->
-                                            sessionResult = context.getString(R.string.vault_export_failed, e.message ?: "")
-                                        }
-                                    }
-                                },
-                                modifier = Modifier.fillMaxWidth(),
-                            ) {
-                                Icon(
-                                    imageVector = HugeIcons.LockKey,
-                                    contentDescription = null,
-                                    modifier = Modifier.size(ButtonDefaults.IconSize),
-                                )
-                                Spacer(Modifier.width(ButtonDefaults.IconSpacing))
-                                Text(stringResource(R.string.vault_session_issue))
-                            }
-                            sessionToken?.let { token ->
-                                var sessionTokenVisible by remember { mutableStateOf(false) }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    verticalAlignment = Alignment.CenterVertically,
-                                ) {
-                                    Text(
-                                        text = if (sessionTokenVisible) token else CredentialVaultRepository.mask(token),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        fontFamily = FontFamily.Monospace,
-                                        color = MaterialTheme.colorScheme.primary,
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                    IconButton(onClick = { sessionTokenVisible = !sessionTokenVisible }) {
-                                        Icon(
-                                            imageVector = if (sessionTokenVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                            contentDescription = null,
-                                        )
-                                    }
-                                }
-                                Row(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
-                                    OutlinedButton(
-                                        onClick = {
-                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
-                                            sessionResult = context.getString(R.string.vault_session_copied)
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text(stringResource(R.string.vault_session_copy))
-                                    }
-                                    OutlinedButton(
-                                        onClick = {
-                                            scope.launch {
-                                                vaultSessionManager.revoke()
-                                                sessionToken = null
-                                                sessionResult = null
-                                                refreshSessionList()
-                                            }
-                                        },
-                                        modifier = Modifier.weight(1f),
-                                    ) {
-                                        Text(stringResource(R.string.vault_session_revoke))
-                                    }
-                                }
-                            }
-                            sessionResult?.let {
-                                Text(
-                                    text = it,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
-                        }
-                    }
-                }
-
-                item {
-                    LaunchedEffect(Unit) { refreshSessionList() }
-                    CardGroup(
-                        title = { Text(stringResource(R.string.vault_session_list_title)) },
-                    ) {
-                        if (sessionListState.isEmpty()) {
-                            item(
-                                leadingContent = { CardGroupIcon(HugeIcons.Key01) },
-                                headlineContent = { Text(stringResource(R.string.vault_session_empty)) },
-                                supportingContent = { Text(stringResource(R.string.vault_session_list_desc)) },
-                            )
-                        } else {
-                            sessionListState.forEach { s ->
-                                val labelFallback = stringResource(R.string.vault_session_label_default)
-                                val remaining = s.remainingMs()
-                                item(
-                                    leadingContent = { CardGroupIcon(HugeIcons.Key01) },
-                                    headlineContent = { Text(s.label.ifBlank { labelFallback }) },
-                                    supportingContent = {
-                                        Text(
-                                            when {
-                                                remaining == Long.MAX_VALUE -> stringResource(R.string.vault_session_remaining_session)
-                                                remaining >= 24L * 60 * 60 * 1000 -> stringResource(R.string.vault_session_remaining_day, remaining / (24L * 60 * 60 * 1000))
-                                                else -> stringResource(R.string.vault_session_remaining_min, (remaining / 60000L).toInt())
-                                            },
-                                        )
-                                    },
-                                    trailingContent = {
-                                        Row {
-                                            TextButton(
-                                                onClick = {
-                                                    scope.launch {
-                                                        val token = vaultSessionManager.reissueTokenFor(s.id)
-                                                        if (token != null) {
-                                                            val clipboard = context.getSystemService(android.content.Context.CLIPBOARD_SERVICE) as android.content.ClipboardManager
-                                                            clipboard.setPrimaryClip(android.content.ClipData.newPlainText(CLIPBOARD_LABEL, token))
-                                                            sessionResult = context.getString(R.string.vault_session_token_copied)
-                                                        }
-                                                    }
-                                                },
-                                            ) {
-                                                Text(stringResource(R.string.vault_session_copy))
-                                            }
-                                            TextButton(
-                                                onClick = {
-                                                    scope.launch {
-                                                        vaultSessionManager.revokeSession(s.id)
-                                                        refreshSessionList()
-                                                        sessionResult = context.getString(R.string.vault_session_revoked)
-                                                        if (sessionToken != null && vaultSessionManager.listSessions().isEmpty()) {
-                                                            sessionToken = null
-                                                        }
-                                                    }
-                                                },
-                                            ) {
-                                                Text(
-                                                    stringResource(R.string.vault_session_revoke),
-                                                    color = MaterialTheme.colorScheme.error,
-                                                )
-                                            }
-                                        }
-                                    },
-                                )
-                            }
-                        }
-                    }
+                    VaultSessionSection(
+                        vaultSessionManager = vaultSessionManager,
+                        biometricEnabled = biometricEnabled,
+                        biometricBuffer = biometricBuffer,
+                        sessionToken = sessionToken,
+                        onSessionTokenChange = { sessionToken = it },
+                        sessionResult = sessionResult,
+                        onSessionResultChange = { sessionResult = it },
+                        sessionListState = sessionListState,
+                        onRefreshSessionList = ::refreshSessionList,
+                    )
                 }
 
                 item {

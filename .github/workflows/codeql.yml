@@ -34,15 +34,11 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Set up JDK 17
-        uses: actions/setup-java@v4
         with:
-          distribution: temurin
-          java-version: '17'
+          submodules: true
 
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v4
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
 
       - name: Initialize CodeQL
         uses: github/codeql-action/init@v3
@@ -51,9 +47,17 @@ jobs:
           queries: security-and-quality
 
       # CodeQL 需要一个可编译的构建；这里只编译 Debug、跳过测试以缩短耗时。
-      # 构建失败不阻断分析（部分代码仍可被分析）。
+      # 构建失败不阻断分析（部分代码仍可被分析），但失败必须可见：
+      # 之前是 `|| true` 静默吞掉，构建每次失败、分析库缺 :app:/:web: 也没人知道。
       - name: Build (compile only)
-        run: ./gradlew :app:assembleDebug -x test -x lint --no-daemon || true
+        run: |
+          set +e
+          ./gradlew :app:assembleDebug -x test -x lint --no-daemon
+          BUILD_EXIT=$?
+          if [ "$BUILD_EXIT" != "0" ]; then
+            echo "::warning::CodeQL 构建失败（退出码 $BUILD_EXIT），分析库不完整"
+          fi
+          exit 0
 
       - name: Perform CodeQL Analysis
         uses: github/codeql-action/analyze@v3

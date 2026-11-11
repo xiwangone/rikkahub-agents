@@ -11,10 +11,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.Icon
@@ -22,6 +21,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -51,6 +51,8 @@ import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -211,20 +213,19 @@ private fun AddProviderDialog(
             LazyColumn(
                 verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                items(SearchServiceOptions.ADDABLE_TYPES.keys.toList()) { type ->
+                val types = SearchServiceOptions.ADDABLE_TYPES.keys.toList()
+                itemsIndexed(types) { index, type ->
                     val name = SearchServiceOptions.ADDABLE_TYPES[type] ?: "Unknown"
                     val isSelected = selectedType == type
-                    Card(
+                    Surface(
                         onClick = { selectedType = type },
-                        colors =
-                            CardDefaults.cardColors(
-                                containerColor =
-                                    if (isSelected) {
-                                        MaterialTheme.colorScheme.primaryContainer
-                                    } else {
-                                        MaterialTheme.colorScheme.surfaceContainerLow
-                                    },
-                            ),
+                        shape = cardGroupItemShape(index, types.size),
+                        color =
+                            if (isSelected) {
+                                MaterialTheme.colorScheme.primaryContainer
+                            } else {
+                                MaterialTheme.colorScheme.surfaceContainerLow
+                            },
                     ) {
                         Row(
                             modifier =
@@ -287,12 +288,10 @@ private fun SearchProviderCard(
 ) {
     var showMenu by remember { mutableStateOf(false) }
 
-    Card(
+    Surface(
         modifier = modifier,
-        colors =
-            CardDefaults.cardColors(
-                containerColor = CustomColors.listItemColors.containerColor,
-            ),
+        shape = cardGroupItemShape(0, 1),
+        color = CustomColors.listItemColors.containerColor,
     ) {
         Row(
             modifier =
@@ -387,24 +386,8 @@ private fun CommonOptions(
     var commonOptions by remember(settings.searchCommonOptions) {
         mutableStateOf(settings.searchCommonOptions)
     }
-    Card(
-        colors =
-            CardDefaults.cardColors(
-                containerColor = CustomColors.listItemColors.containerColor,
-            ),
-    ) {
-        Column(
-            modifier =
-                Modifier
-                    .fillMaxWidth()
-                    .padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(16.dp),
-        ) {
-            Text(
-                text = stringResource(R.string.setting_page_search_common_options),
-                style = MaterialTheme.typography.titleMedium,
-            )
-
+    CardGroup(title = { Text(stringResource(R.string.setting_page_search_common_options)) }) {
+        formItem {
             FormItem(
                 label = {
                     Text(stringResource(R.string.setting_page_search_result_size))
