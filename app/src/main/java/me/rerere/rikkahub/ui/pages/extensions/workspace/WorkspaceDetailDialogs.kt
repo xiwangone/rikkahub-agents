@@ -91,11 +91,28 @@ internal fun MirrorPickerDialog(
             MirrorPick.PIP -> mirrors.pip
             MirrorPick.NPM -> mirrors.npm
         }
+    // 待应用的选中值：打开时等于当前值，单选/输入只改它，点「应用」才真正生效并关弹窗。
+    // 之前单选一点就直接 onSelect 应用并关弹窗，想看看测速都不行。
+    var selected by remember(pick) { mutableStateOf(current) }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.workspace_detail_mirrors)) },
         text = {
             Column(modifier = Modifier.verticalScroll(rememberScrollState()).imePadding()) {
+                // 当前值回显：之前配过自定义地址的用户打开选择器，列表里一个选中的都没有，
+                // 当前值根本不在列表里显示。
+                Text(
+                    text = if (current.isBlank()) "当前：未设置" else "当前：$current",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                OutlinedTextField(
+                    value = selected,
+                    onValueChange = { selected = it },
+                    label = { Text("自定义镜像地址") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
                 val fastestMs = speedResults.values.mapNotNull { it.latencyMs }.minOrNull()
                 presets.forEach { preset ->
                     val result = speedResults[preset.id]
@@ -104,8 +121,8 @@ internal fun MirrorPickerDialog(
                         modifier = Modifier.fillMaxWidth(),
                     ) {
                         RadioButton(
-                            selected = preset.url == current || (current.isBlank() && preset == presets.first()),
-                            onClick = { onSelect(preset.url) },
+                            selected = preset.url == selected,
+                            onClick = { selected = preset.url },
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(preset.label, style = MaterialTheme.typography.bodyMedium)
@@ -143,24 +160,34 @@ internal fun MirrorPickerDialog(
                         }
                     }
                 }
-            }
-        },
-        dismissButton = {
-            TextButton(onClick = onSpeedTest, enabled = !speedTesting) {
-                if (speedTesting) {
-                    CircularProgressIndicator(
-                        modifier = Modifier.size(16.dp),
-                        strokeWidth = 2.dp,
-                    )
-                    Spacer(modifier = Modifier.width(6.dp))
-                    Text(stringResource(R.string.workspace_detail_mirror_speed_testing))
-                } else {
-                    Text(stringResource(R.string.workspace_detail_mirror_speed_test))
+                // 测速按钮挪到正文里：之前它占着 dismissButton、取消占着 confirmButton，
+                // 左右位置与常规弹窗相反。
+                TextButton(
+                    onClick = onSpeedTest,
+                    enabled = !speedTesting,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (speedTesting) {
+                        CircularProgressIndicator(
+                            modifier = Modifier.size(16.dp),
+                            strokeWidth = 2.dp,
+                        )
+                        Spacer(modifier = Modifier.width(6.dp))
+                        Text(stringResource(R.string.workspace_detail_mirror_speed_testing))
+                    } else {
+                        Text(stringResource(R.string.workspace_detail_mirror_speed_test))
+                    }
                 }
             }
         },
-        confirmButton = {
+        dismissButton = {
             TextButton(onClick = onDismiss) { Text(stringResource(R.string.common_cancel)) }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onSelect(selected) },
+                enabled = selected.isNotBlank(),
+            ) { Text("应用") }
         },
     )
 }
@@ -334,12 +361,88 @@ internal fun WorkspaceRenameDialog(
 }
 
 @Composable
+internal fun WorkspaceCreateEntryDialog(
+    isDirectory: Boolean,
+    takenNames: Set<String>,
+    onSubmit: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var name by remember { mutableStateOf("") }
+    val trimmed = name.trim()
+    val illegal = workspaceIllegalNameChars.any { trimmed.contains(it) }
+    val conflict = trimmed in takenNames
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(
+                stringResource(
+                    if (isDirectory) {
+                        R.string.workspace_detail_tool_create_folder
+                    } else {
+                        R.string.skill_detail_page_new_file
+                    },
+                ),
+            )
+        },
+        text = {
+            Column(
+                modifier = Modifier
+                    .verticalScroll(rememberScrollState())
+                    .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                OutlinedTextField(
+                    value = name,
+                    onValueChange = { name = it },
+                    label = { Text(stringResource(R.string.workspace_detail_rename_new_name)) },
+                    singleLine = true,
+                    modifier = Modifier.then(rememberBringIntoViewModifier()),
+                )
+                when {
+                    illegal ->
+                        Text(
+                            text =
+                                stringResource(
+                                    R.string.workspace_detail_rename_invalid,
+                                    workspaceIllegalNameChars.joinToString(" "),
+                                ),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+
+                    conflict ->
+                        Text(
+                            text = stringResource(R.string.workspace_detail_rename_exists, trimmed),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                enabled = trimmed.isNotBlank() && !illegal && !conflict,
+                onClick = { onSubmit(trimmed) },
+            ) {
+                Text(stringResource(R.string.common_confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.common_cancel))
+            }
+        },
+    )
+}
+
+@Composable
 internal fun WorkspaceDirectoryPickerDialog(
     blockedPath: String?,
     startPath: String,
     onListDirectories: suspend (String) -> List<WorkspaceFileEntry>,
     onConfirm: (String) -> Unit,
     onDismiss: () -> Unit,
+    onCreateFolder: (suspend (String, String) -> Result<String>)? = null,
 ) {
     var path by remember { mutableStateOf(startPath) }
     var children by remember { mutableStateOf<List<WorkspaceFileEntry>?>(null) }
@@ -348,6 +451,13 @@ internal fun WorkspaceDirectoryPickerDialog(
         children?.filter { child ->
             blockedPath == null || (child.path != blockedPath && !child.path.startsWith("$blockedPath/"))
         }
+    // 新建文件夹并移入：名字在弹窗里现填，建好直接以新文件夹为移动目标。
+    var newFolderName by remember { mutableStateOf("") }
+    var createError by remember { mutableStateOf<String?>(null) }
+    val scope = rememberCoroutineScope()
+    val newTrimmed = newFolderName.trim()
+    val newIllegal = workspaceIllegalNameChars.any { newTrimmed.contains(it) }
+    val newConflict = options?.any { it.name == newTrimmed } == true
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
@@ -406,6 +516,57 @@ internal fun WorkspaceDirectoryPickerDialog(
                                 }
                             }
                         }
+                }
+                if (onCreateFolder != null) {
+                    OutlinedTextField(
+                        value = newFolderName,
+                        onValueChange = {
+                            newFolderName = it
+                            createError = null
+                        },
+                        label = { Text("新文件夹名") },
+                        singleLine = true,
+                        modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
+                    )
+                    when {
+                        newIllegal ->
+                            Text(
+                                text =
+                                    stringResource(
+                                        R.string.workspace_detail_rename_invalid,
+                                        workspaceIllegalNameChars.joinToString(" "),
+                                    ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+
+                        newConflict ->
+                            Text(
+                                text = stringResource(R.string.workspace_detail_rename_exists, newTrimmed),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+
+                        createError != null ->
+                            Text(
+                                text = createError ?: "",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                            )
+                    }
+                    TextButton(
+                        enabled = newTrimmed.isNotBlank() && !newIllegal && !newConflict && options != null,
+                        onClick = {
+                            scope.launch {
+                                onCreateFolder(path, newTrimmed)
+                                    .onSuccess { created -> onConfirm(created) }
+                                    .onFailure { createError = it.message ?: "创建失败" }
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        Text("新建文件夹并移入")
+                    }
                 }
             }
         },

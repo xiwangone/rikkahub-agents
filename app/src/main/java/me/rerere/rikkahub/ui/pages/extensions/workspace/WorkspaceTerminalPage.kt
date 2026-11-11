@@ -63,6 +63,7 @@ import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.ColorMode
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import org.koin.androidx.compose.koinViewModel
@@ -74,6 +75,7 @@ fun WorkspaceTerminalPage(id: String) {
     val vm: WorkspaceDetailVM = koinViewModel(parameters = { parametersOf(id) })
     val state by vm.state.collectAsStateWithLifecycle()
     val sessionManager: WorkspaceTerminalSessionManager = koinInject()
+    val navController = LocalNavController.current
     val root = state.workspace?.root
     val terminalStateFlow =
         remember(root, sessionManager) {
@@ -92,6 +94,7 @@ fun WorkspaceTerminalPage(id: String) {
         Scaffold { innerPadding ->
             WorkspaceTerminalContent(
                 root = root,
+                workspaceName = state.workspace?.name,
                 state = terminalState,
                 contentPadding = innerPadding,
                 onCreateTab = { state.workspace?.let { sessionManager.createTab(it) } },
@@ -101,6 +104,14 @@ fun WorkspaceTerminalPage(id: String) {
                 onCloseTab = { tabId ->
                     pendingCloseTabId = tabId
                 },
+                // 已退出的会话直接重开：关掉已结束的标签再建一个新会话，不用先关标签
+                // （还要再过一次确认弹窗）、再新建。
+                onRestartTab = { tabId ->
+                    root?.let { sessionManager.closeTab(it, tabId) }
+                    state.workspace?.let { sessionManager.createTab(it) }
+                },
+                // 未装 rootfs 时的安装入口在详情页：回详情页找安装入口。
+                onGoInstall = { navController.popBackStack() },
             )
         }
 
@@ -143,11 +154,14 @@ fun WorkspaceTerminalPage(id: String) {
 @OptIn(ExperimentalLayoutApi::class)
 private fun WorkspaceTerminalContent(
     root: String?,
+    workspaceName: String?,
     state: WorkspaceTerminalTabsState,
     contentPadding: PaddingValues,
     onCreateTab: () -> Unit,
     onSelectTab: (Long) -> Unit,
     onCloseTab: (Long) -> Unit,
+    onRestartTab: (Long) -> Unit,
+    onGoInstall: () -> Unit,
 ) {
     val selectedIndex =
         state.tabs
@@ -178,6 +192,18 @@ private fun WorkspaceTerminalContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BackButton()
+                // 页眉显示工作区名：同时开两个工作区的终端时，两页长得一模一样，
+                // 没名字分不清当前是哪个。
+                workspaceName?.takeIf { it.isNotBlank() }?.let { name ->
+                    Text(
+                        text = name,
+                        modifier = Modifier.widthIn(max = 120.dp),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.labelMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
                 Box(modifier = Modifier.weight(1f)) {
                     if (selectedTab != null) {
                         SecondaryScrollableTabRow(
@@ -266,7 +292,10 @@ private fun WorkspaceTerminalContent(
                 val newTabDescription = stringResource(R.string.workspace_terminal_new_tab)
                 IconButton(
                     onClick = onCreateTab,
-                    enabled = root != null && !state.isCreating,
+                    // 未装 rootfs 时新建标签是静默失败（createTab 里准备失败就直接回 NotInstalled），
+                    // 这里直接禁用，原因由下方的未安装态 + 安装入口说明。
+                    enabled = root != null && !state.isCreating &&
+                        state.readiness != WorkspaceTerminalReadiness.NotInstalled,
                     modifier =
                         Modifier
                             .size(44.dp)
@@ -283,6 +312,7 @@ private fun WorkspaceTerminalContent(
             if (selectedTab != null) {
                 WorkspaceTerminalTabContent(
                     tab = selectedTab,
+                    onRestart = { onRestartTab(selectedTab.id) },
                     modifier =
                         Modifier
                             .weight(1f)
@@ -297,22 +327,33 @@ private fun WorkspaceTerminalContent(
                             .padding(16.dp),
                     contentAlignment = Alignment.Center,
                 ) {
-                    Text(
-                        text =
-                            when {
-                                root == null || state.isCreating || state.readiness == WorkspaceTerminalReadiness.Loading -> {
-                                    stringResource(R.string.workspace_terminal_loading)
-                                }
+                    Column(
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                    ) {
+                        Text(
+                            text =
+                                when {
+                                    root == null || state.isCreating || state.readiness == WorkspaceTerminalReadiness.Loading -> {
+                                        stringResource(R.string.workspace_terminal_loading)
+                                    }
 
-                                state.readiness == WorkspaceTerminalReadiness.NotInstalled -> {
-                                    stringResource(R.string.workspace_terminal_not_installed)
-                                }
+                                    state.readiness == WorkspaceTerminalReadiness.NotInstalled -> {
+                                        stringResource(R.string.workspace_terminal_not_installed)
+                                    }
 
-                                else -> stringResource(R.string.workspace_terminal_no_tabs)
-                            },
-                        style = MaterialTheme.typography.bodyLarge,
-                        color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
-                    )
+                                    else -> stringResource(R.string.workspace_terminal_no_tabs)
+                                },
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = MaterialTheme.colorScheme.onBackground.copy(alpha = 0.7f),
+                        )
+                        // 未装 rootfs 时给明确的安装入口，不要只有一句话。
+                        if (state.readiness == WorkspaceTerminalReadiness.NotInstalled) {
+                            TextButton(onClick = onGoInstall) {
+                                Text(stringResource(R.string.workspace_detail_install_rootfs))
+                            }
+                        }
+                    }
                 }
             }
         }
@@ -322,6 +363,7 @@ private fun WorkspaceTerminalContent(
 @Composable
 private fun WorkspaceTerminalTabContent(
     tab: WorkspaceTerminalTab,
+    onRestart: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -385,21 +427,31 @@ private fun WorkspaceTerminalTabContent(
                 },
             )
             if (tab.finished) {
-                Surface(
+                Row(
                     modifier =
                         Modifier
                             .align(Alignment.BottomCenter)
                             .padding(12.dp),
-                    shape = MaterialTheme.shapes.small,
-                    color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                    contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                    tonalElevation = 2.dp,
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    Text(
-                        text = stringResource(R.string.workspace_terminal_exited),
-                        style = MaterialTheme.typography.bodySmall,
-                        modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                    )
+                    Surface(
+                        shape = MaterialTheme.shapes.small,
+                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
+                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        tonalElevation = 2.dp,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.workspace_terminal_exited),
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+                        )
+                    }
+                    // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
+                    // 再新建，点两轮才能重开。
+                    TextButton(onClick = onRestart) {
+                        Text("重新打开")
+                    }
                 }
             }
         }

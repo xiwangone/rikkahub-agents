@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import me.rerere.rikkahub.R
 
+import androidx.activity.compose.BackHandler
 import androidx.compose.ui.res.stringResource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.fillMaxSize
@@ -10,7 +11,11 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.text.input.TextFieldLineLimits
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledTonalIconButton
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButtonDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -34,10 +39,12 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowLeft01
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
@@ -58,6 +65,7 @@ fun WorkspaceFileEditorPage(
     val repository = koinInject<WorkspaceRepository>()
     val toaster = LocalToaster.current
     val context = LocalContext.current
+    val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
     val editable = area == WorkspaceStorageArea.FILES
     val fileName = path.substringAfterLast('/').ifBlank { path }
@@ -71,6 +79,43 @@ fun WorkspaceFileEditorPage(
     var loading by remember { mutableStateOf(true) }
     var loadError by remember { mutableStateOf<String?>(null) }
     var saving by remember { mutableStateOf(false) }
+    // 加载完成时的文本：与当前内容比对即得到脏状态；保存成功后同步更新，脏标记随之清除。
+    var initialText by remember { mutableStateOf("") }
+    var showUnsavedDialog by remember { mutableStateOf(false) }
+    val isDirty = editable && !loading && loadError == null && textState.text.toString() != initialText
+
+    // 有未保存改动时先弹确认（保存/放弃/取消），没改动直接返回；只读预览页没有脏状态。
+    fun requestBack() {
+        if (isDirty) {
+            showUnsavedDialog = true
+        } else {
+            navController.popBackStack()
+        }
+    }
+
+    fun save(onDone: (() -> Unit)? = null) {
+        if (saving) return
+        saving = true
+        scope.launch {
+            runCatching {
+                repository.writeText(
+                    id = id,
+                    path = path,
+                    text = textState.text.toString(),
+                    overwrite = true,
+                )
+            }.onSuccess {
+                initialText = textState.text.toString()
+                toaster.show(context.getString(R.string.file_editor_saved), type = ToastType.Success)
+                onDone?.invoke()
+            }.onFailure {
+                toaster.show(it.message ?: context.getString(R.string.file_editor_save_failed), type = ToastType.Error)
+            }
+            saving = false
+        }
+    }
+
+    BackHandler(enabled = isDirty) { showUnsavedDialog = true }
 
     LaunchedEffect(id, area, path) {
         loading = true
@@ -79,6 +124,7 @@ fun WorkspaceFileEditorPage(
             repository.readTextForPreview(id, area, path)
         }.onSuccess { content ->
             textState.setTextAndPlaceCursorAtEnd(content)
+            initialText = content
             loading = false
         }.onFailure {
             loadError = it.message ?: context.getString(R.string.file_editor_read_failed)
@@ -91,12 +137,27 @@ fun WorkspaceFileEditorPage(
             TopAppBar(
                 title = {
                     Text(
-                        text = fileName,
+                        text = if (isDirty) "$fileName *" else fileName,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
                     )
                 },
-                navigationIcon = { BackButton() },
+                // 与 BackButton 同一样式，但返回前要先过脏检查，不能直接 pop。
+                navigationIcon = {
+                    FilledTonalIconButton(
+                        onClick = ::requestBack,
+                        shapes = IconButtonDefaults.shapes(),
+                        colors =
+                            IconButtonDefaults.filledTonalIconButtonColors(
+                                containerColor = CustomColors.listItemColors.containerColor,
+                            ),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.ArrowLeft01,
+                            contentDescription = stringResource(R.string.back),
+                        )
+                    }
+                },
                 actions = {
                     if (supportsPreview && !loading && loadError == null) {
                         TextButton(onClick = { showPreview = !showPreview }) {
@@ -105,26 +166,8 @@ fun WorkspaceFileEditorPage(
                     }
                     if (editable && !loading && loadError == null) {
                         TextButton(
-                            onClick = {
-                                if (saving) return@TextButton
-                                saving = true
-                                scope.launch {
-                                    runCatching {
-                                        repository.writeText(
-                                            id = id,
-                                            path = path,
-                                            text = textState.text.toString(),
-                                            overwrite = true,
-                                        )
-                                    }.onSuccess {
-                                        toaster.show(context.getString(R.string.file_editor_saved), type = ToastType.Success)
-                                    }.onFailure {
-                                        toaster.show(it.message ?: context.getString(R.string.file_editor_save_failed), type = ToastType.Error)
-                                    }
-                                    saving = false
-                                }
-                            },
-                            enabled = !saving,
+                            onClick = { save() },
+                            enabled = isDirty && !saving,
                         ) {
                             Text(stringResource(R.string.workspace_file_editor_save))
                         }
@@ -188,6 +231,34 @@ fun WorkspaceFileEditorPage(
                 )
             }
         }
+    }
+
+    if (showUnsavedDialog) {
+        AlertDialog(
+            onDismissRequest = { showUnsavedDialog = false },
+            title = { Text("未保存的更改") },
+            text = { Text("此文件有未保存的更改，直接返回将丢失这些更改。") },
+            // 保存 / 放弃 / 取消三路：放弃直接返回丢弃改动，保存成功后再返回。
+            confirmButton = {
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    navController.popBackStack()
+                }) {
+                    Text("放弃")
+                }
+                TextButton(onClick = {
+                    showUnsavedDialog = false
+                    save { navController.popBackStack() }
+                }) {
+                    Text(stringResource(R.string.workspace_file_editor_save))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { showUnsavedDialog = false }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
     }
 }
 

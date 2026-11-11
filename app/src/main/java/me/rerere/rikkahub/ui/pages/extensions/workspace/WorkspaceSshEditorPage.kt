@@ -374,7 +374,8 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.error,
                     )
-                    OutlinedButton(onClick = { showSaveAnyway = true }) {
+                    // 测连失败后的直接保存入口：用实心主按钮，别只藏在报错文字下面当次要按钮。
+                    Button(onClick = { showSaveAnyway = true }) {
                         Text(stringResource(R.string.workspace_ssh_save_anyway))
                     }
                 }
@@ -407,7 +408,17 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                     enabled = canSubmit && !state.busy,
                     modifier = Modifier.weight(1f),
                 ) {
-                    Text(stringResource(R.string.common_save))
+                    // 测连失败后底部保存不再重测、直接保存，文案同步改成“仍然保存”，
+                    // 否则用户会以为点它还要再测一次。
+                    Text(
+                        stringResource(
+                            if (state.probeError != null) {
+                                R.string.workspace_ssh_save_anyway
+                            } else {
+                                R.string.common_save
+                            },
+                        ),
+                    )
                 }
             }
         }

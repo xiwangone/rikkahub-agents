@@ -51,7 +51,7 @@ class SshWorkspaceBackend(
      * 与 [listFiles] 相同, 但额外返回是否因上限截断以及截断前的总数,
      * 调用方据此判断目录是否还有未列出的条目。
      */
-    fun listFilesDetailed(area: WorkspaceStorageArea, path: String, limit: Int?): WorkspaceListResult {
+    override fun listFilesDetailed(area: WorkspaceStorageArea, path: String, limit: Int?): WorkspaceListResult {
         val dir = resolve(area, path)
         return withSftp(area, retry = true) { sftp ->
             val attrs = sftp.requireStat(dir, path)
@@ -90,7 +90,14 @@ class SshWorkspaceBackend(
             // 未到的回应，读取被打断后会再次卡住。
             val out = ByteArrayOutputStream()
             sftp.get(file.sftpQuote(), BoundedOutputStream(out, workspaceConfig.maxReadBytes))
-            out.toString(Charsets.UTF_8.name())
+            val bytes = out.toByteArray()
+            // 二进制按 UTF-8 解码只会得到替换字符，读出来"看着像文本"其实已损坏；
+            // 显式拒绝，让调用方改用导出/下载工具取原文件。
+            require(!bytes.hasBinaryContent()) {
+                "File looks binary: $path (${bytes.size} bytes). " +
+                    "Export or download it instead of reading it as text."
+            }
+            bytes.toString(Charsets.UTF_8)
         }
     }
 
@@ -315,6 +322,17 @@ class SshWorkspaceBackend(
             connection.sftp(block)
         }
 
+    /** 粗判二进制：含 NUL 字节，或按 UTF-8 解码后大量字符无法还原。 */
+    @Suppress("MagicNumber")
+    private fun ByteArray.hasBinaryContent(): Boolean {
+        if (isEmpty()) return false
+        val probe = if (size > 8 * 1024) copyOfRange(0, 8 * 1024) else this
+        if (probe.any { it == 0.toByte() }) return true
+        val decoded = probe.toString(Charsets.UTF_8)
+        val replacement = decoded.count { it == '\uFFFD' }
+        return replacement > 0 && replacement * 10 > decoded.length
+    }
+
     /**
      * 递归目录树, [path] 为环境内绝对路径; 返回形态与本地 Rootfs 的目录树一致
      * (path 相对起始目录、目录优先按名排序、条目数受 maxListEntries 限制)。
@@ -324,45 +342,86 @@ class SshWorkspaceBackend(
         val start = resolve(area, relative)
         return withSftp(area, retry = true) { sftp ->
             require(sftp.requireStat(start, path).isDir) { "Path is not a directory: $path" }
-            val entries = mutableListOf<WorkspaceTreeEntry>()
-            var truncated = false
-
-            fun childEntry(absolute: String, name: String, attrs: SftpATTRS, depth: Int): WorkspaceTreeEntry {
-                val isDirectory = attrs.isDir || attrs.isLink && sftp.statOrNull(absolute)?.isDir == true
-                return WorkspaceTreeEntry(
-                    path = absolute.removePrefix(start).trimStart('/'),
-                    name = name,
-                    isDirectory = isDirectory,
-                    sizeBytes = if (attrs.isReg) attrs.size else 0L,
-                    depth = depth,
-                )
-            }
-
-            fun walk(dir: String, depth: Int) {
-                if (depth > maxDepth) {
-                    truncated = true
-                    return
-                }
-                val children = sftp.ls(dir.sftpQuote())
-                    .filter { it.filename != "." && it.filename != ".." }
-                    .map { it to childEntry(dir.joinChild(it.filename), it.filename, it.attrs, depth) }
-                    .sortedWith(compareBy<Pair<ChannelSftp.LsEntry, WorkspaceTreeEntry>> { !it.second.isDirectory }.thenBy { it.second.name.lowercase() })
-                children.forEach { (lsEntry, child) ->
-                    if (entries.size >= workspaceConfig.maxListEntries) {
-                        truncated = true
-                        return
-                    }
-                    entries += child
-                    // 软链目录只展示、不展开，避免跟着链接绕圈或列出树外内容
-                    if (child.isDirectory && !lsEntry.attrs.isLink) walk(start.joinChild(child.path), depth + 1)
-                    if (truncated) return
-                }
-            }
-
-            walk(start, 1)
-            WorkspaceTreeResult(entries = entries, truncated = truncated)
+            sftp.collectTree(start, maxDepth)
         }
     }
+
+    /**
+     * 逐层（广度优先）收集目录树。深度优先会让某个深层子树吃满 maxListEntries，
+     * 把同层的其它条目（尤其顶层文件）整个挤掉。
+     */
+    private fun ChannelSftp.collectTree(start: String, maxDepth: Int): WorkspaceTreeResult {
+        val entries = mutableListOf<WorkspaceTreeEntry>()
+        var frontier = listOf(start to 1)
+        var truncated = false
+        while (frontier.isNotEmpty() && !truncated) {
+            val next = mutableListOf<Pair<String, Int>>()
+            for ((dir, depth) in frontier) {
+                if (depth > maxDepth) {
+                    truncated = true
+                    break
+                }
+                truncated = appendLevel(dir, depth, start, entries, next)
+                if (truncated) break
+            }
+            frontier = next
+        }
+        return WorkspaceTreeResult(entries = entries, truncated = truncated)
+    }
+
+    /** 列出一层并追加到 [entries]，可继续下探的目录写进 [next]；返回是否因条目上限截断。 */
+    private fun ChannelSftp.appendLevel(
+        dir: String,
+        depth: Int,
+        start: String,
+        entries: MutableList<WorkspaceTreeEntry>,
+        next: MutableList<Pair<String, Int>>,
+    ): Boolean {
+        for (child in listLevel(dir, depth, start)) {
+            if (entries.size >= workspaceConfig.maxListEntries) return true
+            entries += child.entry
+            if (child.expandable) next += start.joinChild(child.entry.path) to depth + 1
+        }
+        return false
+    }
+
+    private fun ChannelSftp.listLevel(dir: String, depth: Int, start: String): List<TreeChild> =
+        ls(dir.sftpQuote())
+            .filter { it.filename != "." && it.filename != ".." }
+            .map { lsEntry ->
+                val entry = treeEntry(start, dir.joinChild(lsEntry.filename), lsEntry.filename, lsEntry.attrs, depth)
+                TreeChild(entry, expandable = entry.isDirectory && !lsEntry.attrs.isLink)
+            }
+            .sortedWith(
+                compareBy<TreeChild> { !it.entry.isDirectory }.thenBy { it.entry.name.lowercase() },
+            )
+
+    private fun ChannelSftp.treeEntry(
+        start: String,
+        absolute: String,
+        name: String,
+        attrs: SftpATTRS,
+        depth: Int,
+    ): WorkspaceTreeEntry {
+        // 软链跟随一次 stat：显示目标的大小与类型，避免把链接本身的
+        // 长度当成文件大小，也避免指向目录的链接被当成文件。
+        val target = if (attrs.isLink) statOrNull(absolute) else null
+        val isDirectory = attrs.isDir || target?.isDir == true
+        val sizeBytes = when {
+            attrs.isReg -> attrs.size
+            target?.isReg == true -> target.size
+            else -> 0L
+        }
+        return WorkspaceTreeEntry(
+            path = absolute.removePrefix(start).trimStart('/'),
+            name = name,
+            isDirectory = isDirectory,
+            sizeBytes = sizeBytes,
+            depth = depth,
+        )
+    }
+
+    private data class TreeChild(val entry: WorkspaceTreeEntry, val expandable: Boolean)
 
     private fun areaRoot(area: WorkspaceStorageArea): String = when (area) {
         WorkspaceStorageArea.FILES -> workspaceDir

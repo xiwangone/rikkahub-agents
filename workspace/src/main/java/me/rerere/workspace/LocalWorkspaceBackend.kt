@@ -20,6 +20,11 @@ class LocalWorkspaceBackend(
         return manager.listFiles(root, path, area, limit)
     }
 
+    override fun listFilesDetailed(area: WorkspaceStorageArea, path: String, limit: Int?): WorkspaceListResult {
+        manager.ensureWorkspace(root)
+        return manager.listFilesDetailed(root, path, area, limit)
+    }
+
     override fun readText(path: String): String {
         manager.ensureWorkspace(root)
         return manager.readText(root, path)

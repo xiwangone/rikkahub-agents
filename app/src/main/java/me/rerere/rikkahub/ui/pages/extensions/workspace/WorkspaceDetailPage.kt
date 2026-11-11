@@ -104,6 +104,8 @@ fun WorkspaceDetailPage(id: String) {
     var deleteTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var renameTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var moveTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    // 新建条目对话框：null = 未打开，true = 新建文件夹，false = 新建文件。
+    var createEntry by remember { mutableStateOf<Boolean?>(null) }
     var showPasteOverwrite by remember { mutableStateOf(false) }
     var showInstallDialog by remember { mutableStateOf(false) }
     var showUpdateDialog by remember { mutableStateOf(false) }
@@ -132,6 +134,8 @@ fun WorkspaceDetailPage(id: String) {
         }
     var exportTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
     var exportFolderTarget by remember { mutableStateOf<WorkspaceFileEntry?>(null) }
+    // 重复导出到同一位置时待确认的导出（目标目录里已有同名文件夹）。
+    var pendingFolderExport by remember { mutableStateOf<PendingFolderExport?>(null) }
     var exportZipTargets by remember { mutableStateOf<List<WorkspaceFileEntry>>(emptyList()) }
     var selectedWorkspacePaths by remember { mutableStateOf<Set<String>>(emptySet()) }
     val clipboard = LocalClipboardManager.current
@@ -175,6 +179,14 @@ fun WorkspaceDetailPage(id: String) {
             val tree =
                 androidx.documentfile.provider.DocumentFile.fromTreeUri(context, uri)
                     ?: return@rememberSafeLauncherForActivityResult
+            // 目标里已有同名文件夹时不再静默处理：之前 createDirectory 返回 null 就退回
+            // 根目录混导（顶层文件进错位置、子目录整棵被跳过），只剩一句失败计数。
+            // 先弹确认，让用户选覆盖 / 合并 / 取消。
+            val existing = tree.findFile(entry.name)?.takeIf { it.isDirectory }
+            if (existing != null) {
+                pendingFolderExport = PendingFolderExport(entry, tree, existing)
+                return@rememberSafeLauncherForActivityResult
+            }
             val targetDir = tree.createDirectory(entry.name) ?: tree
             vm.exportFolder(entry, targetDir) { outcome ->
                 toaster.show(
@@ -237,6 +249,70 @@ fun WorkspaceDetailPage(id: String) {
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            },
+            // 取消是导出中唯一的退出口：点后取消 VM 任务，已导出的文件保留，
+            // 进度弹窗随 _folderExportProgress 清空而关闭。返回键仍拦截，避免误触。
+            confirmButton = {
+                TextButton(onClick = { vm.cancelFolderExport() }) {
+                    Text(stringResource(R.string.common_cancel))
+                }
+            },
+        )
+    }
+
+    // 重复导出到同一位置：目标里已有同名文件夹，三选一，不再静默合并。
+    // 文案直接写中文（没有现成的同名字符串资源）。
+    pendingFolderExport?.let { pending ->
+        AlertDialog(
+            onDismissRequest = { pendingFolderExport = null },
+            title = { Text("“${pending.entry.name}”已存在") },
+            text = {
+                Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
+                    Text(
+                        text = "目标位置已有同名文件夹，请选择如何处理：",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    // 三个选择平铺在正文里，各自一行、点即执行并关弹窗。
+                    TextButton(
+                        onClick = {
+                            // 覆盖：先删掉已存在的同名文件夹，再新建并导出。
+                            pendingFolderExport = null
+                            runCatching { pending.existing.delete() }
+                            val targetDir = pending.tree.createDirectory(pending.entry.name) ?: pending.tree
+                            vm.exportFolder(pending.entry, targetDir) { outcome ->
+                                toaster.show(
+                                    resources.getString(
+                                        R.string.workspace_detail_export_folder_done,
+                                        outcome.fileCount,
+                                        outcome.failures,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("覆盖（删除已有文件夹后导出）") }
+                    TextButton(
+                        onClick = {
+                            // 合并：复用已存在的同名文件夹往里导（VM 层 createDirectory
+                            // 返回 null 时会复用该目录，子目录不再被跳过）。
+                            pendingFolderExport = null
+                            vm.exportFolder(pending.entry, pending.existing) { outcome ->
+                                toaster.show(
+                                    resources.getString(
+                                        R.string.workspace_detail_export_folder_done,
+                                        outcome.fileCount,
+                                        outcome.failures,
+                                    ),
+                                )
+                            }
+                        },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text("合并到现有文件夹") }
+                    TextButton(
+                        onClick = { pendingFolderExport = null },
+                        modifier = Modifier.fillMaxWidth(),
+                    ) { Text(stringResource(R.string.common_cancel)) }
                 }
             },
             confirmButton = { },
@@ -353,6 +429,12 @@ fun WorkspaceDetailPage(id: String) {
                             onOpen = { entry ->
                                 when {
                                     entry.isDirectory -> {
+                                        // 进子目录即清空旧选择并提示：多选只按当前目录算，导出也只导当前目录；
+                                        // 不清的话，别的目录里还勾着的条目会被导出静默丢掉。
+                                        if (selectedWorkspacePaths.isNotEmpty()) {
+                                            selectedWorkspacePaths = emptySet()
+                                            toaster.show("已清空其他目录的选择")
+                                        }
                                         vm.open(entry)
                                     }
 
@@ -480,6 +562,8 @@ fun WorkspaceDetailPage(id: String) {
                                     exportZipLauncher.launch("workspace-selection.zip")
                                 }
                             },
+                            onCreateFile = { createEntry = false },
+                            onCreateFolder = { createEntry = true },
                             clipboard = state.clipboard,
                             onPaste = { clip ->
                                 if (state.entries.any { it.name == clip.name }) {
@@ -669,6 +753,20 @@ fun WorkspaceDetailPage(id: String) {
         )
     }
 
+    createEntry?.let { isDirectory ->
+        WorkspaceCreateEntryDialog(
+            isDirectory = isDirectory,
+            takenNames =
+                state.entries
+                    .mapTo(mutableSetOf()) { it.name },
+            onSubmit = { name ->
+                if (isDirectory) vm.createFolder(name) else vm.createFile(name)
+                createEntry = null
+            },
+            onDismiss = { createEntry = null },
+        )
+    }
+
     moveTarget?.let { entry ->
         WorkspaceDirectoryPickerDialog(
             blockedPath = if (entry.isDirectory) entry.path else null,
@@ -679,6 +777,9 @@ fun WorkspaceDetailPage(id: String) {
                 moveTarget = null
             },
             onDismiss = { moveTarget = null },
+            onCreateFolder = { parent, name ->
+                vm.createEntryAt(parent, name, isDirectory = true)
+            },
         )
     }
 
@@ -706,3 +807,10 @@ fun WorkspaceDetailPage(id: String) {
         }
     }
 }
+
+/** 重复导出到同一位置时待确认的导出：要导出的文件夹、用户选的目标树、目标里已存在的同名文件夹。 */
+private data class PendingFolderExport(
+    val entry: WorkspaceFileEntry,
+    val tree: androidx.documentfile.provider.DocumentFile,
+    val existing: androidx.documentfile.provider.DocumentFile,
+)

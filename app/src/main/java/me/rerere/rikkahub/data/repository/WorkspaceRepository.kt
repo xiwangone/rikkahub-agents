@@ -35,6 +35,7 @@ import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceEnvironmentInfo
 import me.rerere.workspace.WorkspaceFileEntry
+import me.rerere.workspace.WorkspaceListResult
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellBackend
 import me.rerere.workspace.WorkspaceShellStatus
@@ -676,6 +677,17 @@ class WorkspaceRepository(
     ): List<WorkspaceFileEntry> {
         val workspace = dao.getById(id) ?: return emptyList()
         return readFromBackend(workspace) { it.listFiles(area, path, limit) }
+    }
+
+    /** 与 [listFiles] 相同, 但额外返回是否因上限截断以及截断前的总数。 */
+    suspend fun listFilesDetailed(
+        id: String,
+        area: WorkspaceStorageArea,
+        path: String,
+        limit: Int? = null,
+    ): WorkspaceListResult {
+        val workspace = dao.getById(id) ?: return WorkspaceListResult(emptyList(), false, 0)
+        return readFromBackend(workspace) { it.listFilesDetailed(area, path, limit) }
     }
 
     suspend fun readText(

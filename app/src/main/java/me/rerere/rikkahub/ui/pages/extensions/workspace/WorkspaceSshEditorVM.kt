@@ -54,6 +54,7 @@ class WorkspaceSshEditorVM(
     /** Which required inputs are still missing or invalid; empty means the form can be submitted. */
     enum class SubmitBlocker {
         NAME_BLANK,
+        NAME_DUPLICATE,
         HOST_BLANK,
         USERNAME_BLANK,
         PORT_INVALID,
@@ -75,6 +76,14 @@ class WorkspaceSshEditorVM(
     private val _state = MutableStateFlow(State())
     val state: StateFlow<State> = _state.asStateFlow()
     val isNew: Boolean = id == null
+
+    /**
+     * 本次编辑会话里已信任过的主机密钥（主机名 -> 密钥）。
+     * 主机名改错一个字母又改回来时，凭它把密钥恢复回来，而不是重新弹框确认；
+     * 密钥始终按主机名绑定，换到没信任过的主机仍按空处理、重新确认。
+     */
+    private val trustedHostKeys = mutableMapOf<String, SshHostKey>()
+    private val trustedJumpHostKeys = mutableMapOf<String, SshHostKey>()
 
     init {
         viewModelScope.launch {
@@ -104,6 +113,9 @@ class WorkspaceSshEditorVM(
                         .toSet(),
                 )
             }
+            // 编辑已有主机时，加载出来的密钥就是已信任的，记下来供改回时恢复。
+            draft.hostKey?.let { trustedHostKeys[draft.host] = it }
+            draft.jumpHostKey?.let { trustedJumpHostKeys[draft.jumpHost] = it }
         }
     }
 
@@ -111,11 +123,18 @@ class WorkspaceSshEditorVM(
 
     fun setUsername(value: String) = updateDropProbe { it.copy(username = value) }
 
-    fun setHost(value: String) = updateDropProbe { it.copy(host = value, hostKey = null) }
+    fun setHost(value: String) = updateDropProbe {
+        // 主机名改回已信任过的值时恢复密钥；换到新主机则清空，重新确认。
+        it.copy(host = value, hostKey = trustedHostKeys[value])
+    }
 
-    fun setJumpHost(value: String) = updateDropProbe { it.copy(jumpHost = value, jumpHostKey = null) }
+    fun setJumpHost(value: String) = updateDropProbe {
+        it.copy(jumpHost = value, jumpHostKey = trustedJumpHostKeys[value])
+    }
 
-    fun setRemoteDir(value: String) = updateDropProbe { it.copy(remoteDir = value) }
+    // 远程目录不影响连接本身，改它不作废已通过的测试（之前所有字段共用丢弃探测的路径，
+    // 只改个目录也要完整重测一次）。
+    fun setRemoteDir(value: String) = updateDraft { it.copy(remoteDir = value) }
 
     fun setAuthType(value: SshAuthType) = updateDropProbe { it.copy(authType = value) }
 
@@ -144,6 +163,8 @@ class WorkspaceSshEditorVM(
         val draft = state.draft
         val blockers = mutableSetOf<SubmitBlocker>()
         if (draft.name.isBlank()) blockers += SubmitBlocker.NAME_BLANK
+        // 重名只标红字段不够：保存/测试按钮要一起禁用，否则点完才报一条后端英文原文。
+        if (draft.name.isNotBlank() && draft.name.trim() in state.knownNames) blockers += SubmitBlocker.NAME_DUPLICATE
         if (draft.host.isBlank()) blockers += SubmitBlocker.HOST_BLANK
         if (draft.username.isBlank()) blockers += SubmitBlocker.USERNAME_BLANK
         if (state.portInput.toIntOrNull()?.let { it in 1..65535 } != true) blockers += SubmitBlocker.PORT_INVALID
@@ -162,7 +183,14 @@ class WorkspaceSshEditorVM(
 
     /** 先测通再保存：远程目录留空时用登录主目录兜底，避免误把整个文件系统当工作区 */
     fun save() {
-        if (_state.value.probeResult != null) doSave() else runProbe(saveAfter = true)
+        val state = _state.value
+        // 已测通、或已测连失败时直接保存：失败后点保存再重测一遍只会再报一次错，
+        // 改了字段会清掉 probeError，下次保存重新走测连。
+        if (state.probeResult != null || state.probeError != null) {
+            doSave()
+        } else {
+            runProbe(saveAfter = true)
+        }
     }
 
     /** 测连失败也要能存：换网络环境后回来直接用，不必再连一次 */
@@ -179,6 +207,13 @@ class WorkspaceSshEditorVM(
                     it.draft.copy(hostKey = pending.actual)
                 },
             )
+        }
+        // 刚确认过的密钥记下来：之后主机名改错又改回来时不用重新确认。
+        val draft = _state.value.draft
+        if (pending.jumpHost) {
+            trustedJumpHostKeys[draft.jumpHost] = pending.actual
+        } else {
+            trustedHostKeys[draft.host] = pending.actual
         }
         runProbe(saveAfter = pending.saveAfter)
     }

@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
@@ -217,6 +218,8 @@ class WorkspaceDetailVM(
                 area = area,
                 path = "",
                 entries = emptyList(),
+                truncated = false,
+                totalCount = 0,
                 error = null,
                 // 跨存储区粘贴没有意义（files 与 rootfs 是两棵树），切区即丢弃待复制条目
                 clipboard = null,
@@ -227,7 +230,7 @@ class WorkspaceDetailVM(
 
     fun open(entry: WorkspaceFileEntry) {
         if (!entry.isDirectory) return
-        _state.update { it.copy(path = entry.path, entries = emptyList(), error = null) }
+        _state.update { it.copy(path = entry.path, entries = emptyList(), truncated = false, totalCount = 0, error = null) }
         refresh()
     }
 
@@ -238,6 +241,8 @@ class WorkspaceDetailVM(
             it.copy(
                 path = path.substringBeforeLast('/', missingDelimiterValue = ""),
                 entries = emptyList(),
+                truncated = false,
+                totalCount = 0,
                 error = null,
             )
         }
@@ -253,17 +258,26 @@ class WorkspaceDetailVM(
         viewModelScope.launch {
             _state.update { it.copy(loading = true, error = null) }
             runCatching {
-                repository.listFiles(
+                repository.listFilesDetailed(
                     id = id,
                     area = state.value.area,
                     path = state.value.path,
                 )
-            }.onSuccess { entries ->
-                _state.update { it.copy(entries = entries, loading = false) }
+            }.onSuccess { result ->
+                _state.update {
+                    it.copy(
+                        entries = result.entries,
+                        truncated = result.truncated,
+                        totalCount = result.totalCount,
+                        loading = false,
+                    )
+                }
             }.onFailure { error ->
                 _state.update {
                     it.copy(
                         entries = emptyList(),
+                        truncated = false,
+                        totalCount = 0,
                         loading = false,
                         error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_load),
                     )
@@ -272,7 +286,65 @@ class WorkspaceDetailVM(
         }
     }
 
+    /** 在当前目录新建空文件；非法名/同名在 VM 层拦截并给出本地化文案。 */
+    fun createFile(name: String) {
+        viewModelScope.launch {
+            createEntryAt(state.value.path, name, isDirectory = false)
+                .onSuccess { refresh() }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_load)) }
+                }
+        }
+    }
+
+    /** 在当前目录新建文件夹；非法名/同名在 VM 层拦截并给出本地化文案。 */
+    fun createFolder(name: String) {
+        viewModelScope.launch {
+            createEntryAt(state.value.path, name, isDirectory = true)
+                .onSuccess { refresh() }
+                .onFailure { error ->
+                    _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_load)) }
+                }
+        }
+    }
+
+    /**
+     * 在 [parentPath] 下新建文件/文件夹，成功返回新建条目的相对路径。
+     * 经绝对路径 API 落盘，FILES 与 LINUX 两个存储区都走同一条路；同名先按当前目录预检，
+     * 数据层（已存在即拒）再兜底一次。
+     */
+    suspend fun createEntryAt(
+        parentPath: String,
+        rawName: String,
+        isDirectory: Boolean,
+    ): Result<String> {
+        val name = rawName.trim()
+        validateEntryName(name)?.let { return Result.failure(IllegalArgumentException(it)) }
+        // 同名预检：建文件夹的后端是幂等的（已是目录直接返回），不拦会在此静默“成功”；
+        // 只对当前目录预检，移动选择器里跨目录的新建由对话框按所列子目录预检。
+        if (parentPath == state.value.path && state.value.entries.any { it.name == name }) {
+            return Result.failure(
+                IllegalArgumentException(
+                    context.getString(me.rerere.rikkahub.R.string.workspace_detail_rename_exists, name),
+                ),
+            )
+        }
+        val target = childPath(parentPath, name)
+        val layout = repository.layout(id)
+            ?: return Result.failure(IllegalStateException(context.getString(me.rerere.rikkahub.R.string.workspace_err_load)))
+        val absolutePath = layout.absolutePath(state.value.area, target)
+        return runCatching {
+            if (isDirectory) {
+                repository.createAbsoluteFolder(id, absolutePath)
+            } else {
+                repository.writeAbsoluteText(id, absolutePath, "", overwrite = false)
+            }
+            target
+        }
+    }
+
     fun delete(entry: WorkspaceFileEntry) {
+        if (rejectLinuxWrite("删除")) return
         viewModelScope.launch {
             runCatching {
                 repository.deleteFile(
@@ -299,6 +371,7 @@ class WorkspaceDetailVM(
         entry: WorkspaceFileEntry,
         rawName: String,
     ) {
+        if (rejectLinuxWrite("重命名")) return
         val newName = rawName.trim()
         val invalid = validateEntryName(newName)
         if (invalid != null) {
@@ -330,6 +403,7 @@ class WorkspaceDetailVM(
         entry: WorkspaceFileEntry,
         targetDir: String,
     ) {
+        if (rejectLinuxWrite("移动")) return
         val target = childPath(targetDir, entry.name)
         if (target == entry.path || (entry.isDirectory && target.startsWith("${entry.path}/"))) {
             _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_move_same_dir)) }
@@ -387,6 +461,7 @@ class WorkspaceDetailVM(
      */
     fun paste(overwrite: Boolean) {
         val clip = state.value.clipboard ?: return
+        if (rejectLinuxWrite("粘贴")) return
         if (clip.area != state.value.area) {
             _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_paste_diff_area)) }
             return
@@ -419,6 +494,17 @@ class WorkspaceDetailVM(
         runCatching {
             repository.listFiles(id = id, area = state.value.area, path = path)
         }.getOrDefault(emptyList()).filter { it.isDirectory }
+
+    /**
+     * LINUX（rootfs）区只读拦截：文件页的删除/改名/移动/粘贴统一在此拦下并给中文提示，
+     * 与编辑页的只读保持一致。返回 true 表示已拦截、调用方直接返回。
+     * rootfs 本身的权限不动，只是不让界面操作动系统文件。
+     */
+    private fun rejectLinuxWrite(action: String): Boolean {
+        if (state.value.area != WorkspaceStorageArea.LINUX) return false
+        _state.update { it.copy(error = "系统文件只读，无法$action") }
+        return true
+    }
 
     /** Windows 保留字符一并拒：工作区文件常被导出到桌面端，允许了会在对端炸。 */
     private fun validateEntryName(name: String): String? = when {
@@ -524,7 +610,7 @@ class WorkspaceDetailVM(
         destinationTree: DocumentFile,
         onResult: (FolderExportOutcome) -> Unit,
     ) {
-        viewModelScope.launch {
+        folderExportJob = viewModelScope.launch {
             val area = state.value.area
             val outcome =
                 try {
@@ -574,7 +660,11 @@ class WorkspaceDetailVM(
                                 continue
                             }
                             if (item.isDirectory) {
+                                // createDirectory 在同名目录已存在时返回 null：此时复用已存在的
+                                // 同名目录继续往里导（合并导出），而不是计一次失败、整棵子树被跳过。
+                                // 同名文件不算目录，仍计失败。
                                 val created = parent.createDirectory(item.name)
+                                    ?: parent.findFile(item.name)?.takeIf { it.isDirectory }
                                 if (created == null) {
                                     failures++
                                 } else {
@@ -616,9 +706,18 @@ class WorkspaceDetailVM(
                     }
                 } finally {
                     _folderExportProgress.value = null
+                    folderExportJob = null
                 }
             onResult(outcome)
         }
+    }
+
+    /** 正在进行的文件夹导出任务（null = 没有在导出的）；进度弹窗的「取消」按钮调这个。 */
+    private var folderExportJob: Job? = null
+
+    /** 取消正在进行的文件夹导出：循环里的 ensureActive 会抛 CancellationException 中断导出。 */
+    fun cancelFolderExport() {
+        folderExportJob?.cancel()
     }
 
     /** Export selected files and directory subtrees as a single ZIP archive. */
@@ -873,6 +972,10 @@ data class WorkspaceDetailState(
     val area: WorkspaceStorageArea = WorkspaceStorageArea.FILES,
     val path: String = "",
     val entries: List<WorkspaceFileEntry> = emptyList(),
+    /** 当前目录是否因 500 条上限被截断（由 refresh 经 listFilesDetailed 回填）。 */
+    val truncated: Boolean = false,
+    /** 当前目录截断前的条目总数（未截断时与 entries.size 一致）。 */
+    val totalCount: Int = 0,
     val loading: Boolean = false,
     val error: String? = null,
     val clipboard: WorkspaceClipboard? = null,

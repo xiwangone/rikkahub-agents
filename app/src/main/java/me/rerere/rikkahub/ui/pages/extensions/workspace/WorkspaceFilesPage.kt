@@ -37,6 +37,8 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.LoadingIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -77,6 +79,7 @@ import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.hugeicons.stroke.Folder01
 import me.rerere.hugeicons.stroke.MoreVertical
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Share08
 import me.rerere.hugeicons.stroke.Sorting01
 import me.rerere.hugeicons.stroke.Tick01
@@ -120,6 +123,8 @@ internal fun WorkspaceFilesPage(
     onSelectAll: () -> Unit,
     onClearSelection: () -> Unit = {},
     onExportSelection: () -> Unit,
+    onCreateFile: () -> Unit,
+    onCreateFolder: () -> Unit,
     clipboard: WorkspaceClipboard?,
     onPaste: (WorkspaceClipboard) -> Unit,
     onClearClipboard: () -> Unit,
@@ -135,6 +140,16 @@ internal fun WorkspaceFilesPage(
     val sortedEntries =
         remember(state.entries, sortBy, sortAscending) {
             sortWorkspaceEntries(state.entries, sortBy, sortAscending)
+        }
+    // 文件名搜索只过滤当前目录的已列条目（不跨目录、不改 500 条上限）；切目录/切区即清空。
+    var query by rememberSaveable(state.area, state.path) { mutableStateOf("") }
+    val visibleEntries =
+        remember(sortedEntries, query) {
+            if (query.isBlank()) {
+                sortedEntries
+            } else {
+                sortedEntries.filter { it.name.contains(query, ignoreCase = true) }
+            }
         }
     val showLoading = rememberDelayedVisibility(state.loading)
 
@@ -164,12 +179,56 @@ internal fun WorkspaceFilesPage(
                         canGoUp = state.path.isNotBlank(),
                         onGoUp = onGoUp,
                     )
-                    clipboard?.let { clip ->
-                        WorkspaceClipboardBar(
-                            clip = clip,
-                            targetPath = state.path,
-                            onPaste = { onPaste(clip) },
-                            onClear = onClearClipboard,
+                    // LINUX 区只读，粘贴目标不在这里：剪贴板条只在 FILES 区显示，
+                    // 切回 FILES 区剪贴板还在，可继续粘贴。
+                    if (state.area != WorkspaceStorageArea.LINUX) {
+                        clipboard?.let { clip ->
+                            WorkspaceClipboardBar(
+                                clip = clip,
+                                targetPath = state.path,
+                                onPaste = { onPaste(clip) },
+                                onClear = onClearClipboard,
+                            )
+                        }
+                    }
+                    // 新建入口常驻在路径栏下方：空目录没有可点的条目，入口放这里才能建第一个文件。
+                    Row(
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        modifier = Modifier.fillMaxWidth(),
+                    ) {
+                        OutlinedButton(
+                            onClick = onCreateFile,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.File02,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.skill_detail_page_new_file))
+                        }
+                        OutlinedButton(
+                            onClick = onCreateFolder,
+                            modifier = Modifier.weight(1f),
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Folder01,
+                                contentDescription = null,
+                                modifier = Modifier.size(ButtonDefaults.IconSize),
+                            )
+                            Spacer(Modifier.width(ButtonDefaults.IconSpacing))
+                            Text(stringResource(R.string.workspace_detail_tool_create_folder))
+                        }
+                    }
+                    if (state.entries.isNotEmpty()) {
+                        OutlinedTextField(
+                            value = query,
+                            onValueChange = { query = it },
+                            placeholder = { Text("搜索文件名") },
+                            leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
                         )
                     }
                     if (state.entries.isNotEmpty()) {
@@ -210,20 +269,22 @@ internal fun WorkspaceFilesPage(
                 item {
                     ExtensionEmptyState(
                         message = stringResource(R.string.workspace_detail_empty_directory),
+                        buttonText = stringResource(R.string.skill_detail_page_new_file),
+                        onAction = onCreateFile,
                         icon = HugeIcons.Folder01,
                     )
                 }
             }
 
             itemsIndexed(
-                sortedEntries,
+                visibleEntries,
                 key = { _, entry -> "${state.area.name}:${entry.path}" },
             ) { index, entry ->
                 WorkspaceFileCard(
                     entry = entry,
                     area = state.area,
-                    shape = cardGroupItemShape(index, sortedEntries.size),
-                    modifier = Modifier.padding(bottom = if (index == sortedEntries.lastIndex) 0.dp else 2.dp),
+                    shape = cardGroupItemShape(index, visibleEntries.size),
+                    modifier = Modifier.padding(bottom = if (index == visibleEntries.lastIndex) 0.dp else 2.dp),
                     onResolveImage = { onResolveImage(entry, state.area) },
                     onOpen = { onOpen(entry) },
                     onDelete = { onDelete(entry) },
@@ -238,6 +299,20 @@ internal fun WorkspaceFilesPage(
                     selectionMode = selecting,
                     onToggleSelection = { onToggleSelection(entry) },
                 )
+            }
+
+            // 大目录只列出前 500 条：不在底部说明，用户会以为这就是全部。
+            if (state.truncated) {
+                item {
+                    Text(
+                        text = "只显示前 ${state.entries.size} 条，共 ${state.totalCount} 条",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(vertical = 12.dp),
+                    )
+                }
             }
         }
 
@@ -563,30 +638,34 @@ private fun WorkspaceFileCard(
                                 onCopyPath()
                             },
                         )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.common_rename)) },
-                            leadingIcon = { Icon(HugeIcons.Edit02, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onRename()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workspace_detail_action_move)) },
-                            leadingIcon = { Icon(HugeIcons.Folder01, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onMove()
-                            },
-                        )
-                        DropdownMenuItem(
-                            text = { Text(stringResource(R.string.workspace_detail_action_copy)) },
-                            leadingIcon = { Icon(HugeIcons.Clipboard, contentDescription = null) },
-                            onClick = {
-                                menuExpanded = false
-                                onCopy()
-                            },
-                        )
+                        // LINUX（rootfs）区只读：写操作（重命名/移动/复制到剪贴板/删除）不在菜单里出现，
+                        // 只留导出/复制路径/分享；VM 层另有拦截兜底。
+                        if (area != WorkspaceStorageArea.LINUX) {
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.common_rename)) },
+                                leadingIcon = { Icon(HugeIcons.Edit02, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onRename()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workspace_detail_action_move)) },
+                                leadingIcon = { Icon(HugeIcons.Folder01, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onMove()
+                                },
+                            )
+                            DropdownMenuItem(
+                                text = { Text(stringResource(R.string.workspace_detail_action_copy)) },
+                                leadingIcon = { Icon(HugeIcons.Clipboard, contentDescription = null) },
+                                onClick = {
+                                    menuExpanded = false
+                                    onCopy()
+                                },
+                            )
+                        }
                         if (entry.isDirectory) {
                             DropdownMenuItem(
                                 text = { Text(stringResource(R.string.workspace_detail_export_zip)) },
@@ -635,25 +714,27 @@ private fun WorkspaceFileCard(
                                 },
                             )
                         }
-                        DropdownMenuItem(
-                            text = {
-                                Text(
-                                    stringResource(R.string.common_delete),
-                                    color = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            leadingIcon = {
-                                Icon(
-                                    imageVector = HugeIcons.Delete01,
-                                    contentDescription = null,
-                                    tint = MaterialTheme.colorScheme.error,
-                                )
-                            },
-                            onClick = {
-                                menuExpanded = false
-                                onDelete()
-                            },
-                        )
+                        if (area != WorkspaceStorageArea.LINUX) {
+                            DropdownMenuItem(
+                                text = {
+                                    Text(
+                                        stringResource(R.string.common_delete),
+                                        color = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                leadingIcon = {
+                                    Icon(
+                                        imageVector = HugeIcons.Delete01,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.error,
+                                    )
+                                },
+                                onClick = {
+                                    menuExpanded = false
+                                    onDelete()
+                                },
+                            )
+                        }
                     }
                 }
             }

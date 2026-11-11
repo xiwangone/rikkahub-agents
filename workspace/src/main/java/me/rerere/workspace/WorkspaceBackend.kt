@@ -25,6 +25,9 @@ interface WorkspaceBackend {
     /** 列出目录, [limit] 为空时用工作区配置的默认上限 */
     fun listFiles(area: WorkspaceStorageArea, path: String, limit: Int? = null): List<WorkspaceFileEntry>
 
+    /** 与 [listFiles] 相同, 但额外返回是否因上限截断以及截断前的总数 */
+    fun listFilesDetailed(area: WorkspaceStorageArea, path: String, limit: Int? = null): WorkspaceListResult
+
     /** 读取文件区内的文本, 自带大小保护 */
     fun readText(path: String): String
 
