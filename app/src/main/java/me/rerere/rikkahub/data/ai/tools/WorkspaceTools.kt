@@ -21,6 +21,7 @@ import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceManager
 import org.koin.java.KoinJavaComponent.getKoin
+import java.util.Base64
 
 val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
     "workspace_read_file" to false,
@@ -89,6 +90,7 @@ private fun createReadFileTool(
         Use ${layout.workspaceDir} for the workspace files area. NOTE: use read_file instead for files
         on the device outside the workspace Rootfs.
         Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
+        Non-text (binary) files are returned as base64 with "binary": true, "size" and "base64" fields.
         Large text files can be read in slices: pass start_line / end_line (1-based, inclusive).
         Set with_line_numbers=true to prefix each returned line with its line number.
     """.trimIndent().replace("\n", " "),
@@ -121,7 +123,22 @@ private fun createReadFileTool(
         if (path.isImagePath()) {
             workspaceRepository.readImageInRootfs(targetWorkspaceId, path)
         } else {
-            val text = workspaceRepository.readAbsoluteText(targetWorkspaceId, path)
+            val bytes = workspaceRepository.readRootfsBuffer(targetWorkspaceId, path).toByteArray()
+            // 二进制内容不按 UTF-8 文本返回：乱码会被 AI 当成文本误判，改走 base64；
+            // 本地 Rootfs 与远程 SSH 共用 readRootfsBuffer，两条路径一次覆盖
+            if (bytes.isBinaryContent()) {
+                return@Tool listOf(
+                    UIMessagePart.Text(
+                        buildJsonObject {
+                            put("path", path)
+                            put("binary", true)
+                            put("size", bytes.size)
+                            put("base64", Base64.getEncoder().encodeToString(bytes))
+                        }.toString()
+                    )
+                )
+            }
+            val text = bytes.toString(Charsets.UTF_8)
             val startLine = args["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             val endLine = args["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
             val withLineNumbers =

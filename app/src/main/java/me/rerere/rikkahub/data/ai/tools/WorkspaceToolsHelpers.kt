@@ -27,6 +27,9 @@ import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.normalizeWorkspacePath
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
+import java.nio.ByteBuffer
+import java.nio.charset.CharacterCodingException
+import java.nio.charset.CodingErrorAction
 
 /**
  * Workspace tool limits shared by [WorkspaceTools.kt] and this file. Single source of
@@ -270,6 +273,29 @@ internal suspend fun WorkspaceRepository.readRootfsBuffer(
     return ByteArrayOutputStream(size.toInt()).also { exportAbsoluteFile(workspaceId, path, it) }
 }
 
+/** 内容嗅探前 8KB 的窗口：NUL 字节只在这段里找，UTF-8 严格解码则覆盖全文。 */
+private const val BINARY_SNIFF_BYTES = 8 * 1024
+
+/**
+ * 内容嗅探判二进制（不靠扩展名）：前 8KB 出现 NUL 字节，或全文严格 UTF-8 解码失败。
+ * UTF-8 文本里不会出现 NUL；UTF-16 等编码因含 NUL 同样判二进制，由调用方走 base64 通道。
+ */
+internal fun ByteArray.isBinaryContent(): Boolean {
+    val sniffLen = minOf(size, BINARY_SNIFF_BYTES)
+    for (i in 0 until sniffLen) {
+        if (this[i] == 0.toByte()) return true
+    }
+    return try {
+        Charsets.UTF_8.newDecoder()
+            .onMalformedInput(CodingErrorAction.REPORT)
+            .onUnmappableCharacter(CodingErrorAction.REPORT)
+            .decode(ByteBuffer.wrap(this))
+        false
+    } catch (_: CharacterCodingException) {
+        true
+    }
+}
+
 internal suspend fun WorkspaceRepository.readImageInRootfs(
     workspaceId: String,
     path: String,
@@ -330,14 +356,30 @@ internal fun WorkspaceFileEntry.toJson() = buildJsonObject {
     put("updatedAt", updatedAt)
 }
 
-/** 把目录树渲染成缩进文本（带截断提示）。 */
+/** 把目录树渲染成缩进文本（带截断提示）。软链标 [L] 并带目标与目标大小，不再和空文件混淆。 */
 internal fun formatWorkspaceTree(rootPath: String, result: WorkspaceTreeResult): String = buildString {
     appendLine(rootPath)
     result.entries.forEach { entry ->
         repeat(entry.depth) { append("  ") }
-        append(if (entry.isDirectory) "[D] " else "[F] ")
-        append(entry.name)
-        if (!entry.isDirectory) append(" (${entry.sizeBytes}B)")
+        when {
+            entry.isSymlink -> {
+                append("[L] ")
+                append(entry.name)
+                append(" -> ")
+                append(entry.linkTarget ?: "?")
+                // 目录链接不印大小（目录大小无意义）；文件链接印目标大小，断链目标大小为 0
+                if (entry.isDirectory) append("/") else append(" (${entry.sizeBytes}B)")
+            }
+            entry.isDirectory -> {
+                append("[D] ")
+                append(entry.name)
+            }
+            else -> {
+                append("[F] ")
+                append(entry.name)
+                append(" (${entry.sizeBytes}B)")
+            }
+        }
         appendLine()
     }
     if (result.truncated) appendLine("(truncated: more entries omitted)")

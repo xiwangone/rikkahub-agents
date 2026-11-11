@@ -418,6 +418,10 @@ class SshWorkspaceBackend(
             isDirectory = isDirectory,
             sizeBytes = sizeBytes,
             depth = depth,
+            isSymlink = attrs.isLink,
+            // readlink 经 isUnique 做 glob 展开，路径里的 * ? [ ] 须先 sftpQuote；
+            // 老服务端不支持 readlink 时返回空，不阻塞整棵树
+            linkTarget = if (attrs.isLink) runCatching { readlink(absolute.sftpQuote()) }.getOrNull() else null,
         )
     }
 

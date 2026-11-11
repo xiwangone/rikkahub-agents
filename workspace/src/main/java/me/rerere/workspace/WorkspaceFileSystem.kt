@@ -398,8 +398,25 @@ class WorkspaceFileSystem(
                     truncated = true
                     return
                 }
-                // 软链不跟随：不展开链接目录、不把链接文件当普通文件列出
-                if (Files.isSymbolicLink(child.toPath())) continue
+                // 软链不跟随：只列出链接本身（带目标与目标大小），不展开链接目录、不把链接文件当普通文件列出
+                if (Files.isSymbolicLink(child.toPath())) {
+                    val linkTarget = runCatching { Files.readSymbolicLink(child.toPath()).toString() }.getOrNull()
+                    // 跟随链接看目标：目标是目录按目录展示、文件按目标大小展示；
+                    // 目标不存在（断链）时大小为 0
+                    val targetFile = runCatching { child.canonicalFile }.getOrNull()
+                    val targetIsDir = targetFile?.isDirectory == true
+                    val targetSize = if (!targetIsDir && targetFile?.isFile == true) targetFile.length() else 0L
+                    entries += WorkspaceTreeEntry(
+                        path = child.relativePath(start),
+                        name = child.name,
+                        isDirectory = targetIsDir,
+                        sizeBytes = targetSize,
+                        depth = depth,
+                        isSymlink = true,
+                        linkTarget = linkTarget,
+                    )
+                    continue
+                }
                 entries += WorkspaceTreeEntry(
                     path = child.relativePath(start),
                     name = child.name,

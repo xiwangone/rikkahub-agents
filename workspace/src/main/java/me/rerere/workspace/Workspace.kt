@@ -114,6 +114,9 @@ data class WorkspaceTreeEntry(
     val isDirectory: Boolean,
     val sizeBytes: Long,
     val depth: Int,
+    /** 是否符号链接；是则 [linkTarget] 为链接目标（readlink / readSymbolicLink 的原始值，可能相对） */
+    val isSymlink: Boolean = false,
+    val linkTarget: String? = null,
 )
 
 data class WorkspaceTreeResult(
