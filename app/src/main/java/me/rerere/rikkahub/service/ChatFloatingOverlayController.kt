@@ -30,11 +30,9 @@ import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.launch
-import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
-import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.ui.components.message.groupMessageParts
 import me.rerere.rikkahub.ui.floating.FloatingChatWindow
@@ -44,18 +42,6 @@ import me.rerere.rikkahub.ui.floating.FloatingWindowState
 import me.rerere.rikkahub.ui.floating.resolveFloatingColorScheme
 import kotlin.uuid.Uuid
 
-/** 浮窗气泡边长：72dp，图标资产本身已是圆形，图案占满圆 */
-private const val BUBBLE_SIZE_DP = 72
-
-private data class FloatingChatSnapshot(
-    val conversation: Conversation,
-    val generating: Boolean,
-    val processingStatus: String?,
-    val queue: MessageQueueState,
-    val replyMessage: UIMessage?,
-    val startedAt: Long?,
-    val errors: List<ChatError>,
-)
 
 /** Background-only overlay. Permission/window failures detach UI only; generation is independent. */
 internal class ChatFloatingOverlayController(
@@ -83,6 +69,13 @@ internal class ChatFloatingOverlayController(
     private var latestSnapshot: FloatingChatSnapshot? = null
     private var bubble: ImageView? = null
     private var panel: ComposeView? = null
+    private val edgeHide =
+        FloatingBubbleEdgeHideState(
+            params = { params },
+            updateLayout = { p -> runCatching { windowManager?.updateViewLayout(root, p) } },
+            dp = ::dp,
+            screenWidthPx = { overlayContext.resources.displayMetrics.widthPixels },
+        )
     private var windowLifecycleOwner: FloatingWindowLifecycleOwner? = null
     private val replyDrafts = androidx.compose.runtime.mutableStateMapOf<String, String>()
     private val uiState =
@@ -329,6 +322,7 @@ internal class ChatFloatingOverlayController(
     }
 
     private fun detachWindow() {
+        edgeHide.reset()
         val attached = root
         if (attached != null) runCatching { windowManager?.removeViewImmediate(attached) }
         root = null
@@ -569,6 +563,15 @@ internal class ChatFloatingOverlayController(
         val metrics = overlayContext.resources.displayMetrics
         lp.x = lp.x.coerceIn(0, (metrics.widthPixels - lp.width).coerceAtLeast(0))
         lp.y = lp.y.coerceIn(dp(24), (metrics.heightPixels - lp.height - dp(24)).coerceAtLeast(dp(24)))
+        if (!value && edgeHide.bubbleHidden) {
+            // 旋转等配置变化不取消贴边隐藏：按新屏幕尺寸重算隐藏位置。
+            edgeHide.hiddenEdge?.let { edge ->
+                val visiblePx = dp(EDGE_HIDE_VISIBLE_DP)
+                lp.x =
+                    if (edge == FloatingBubbleEdge.RIGHT) -(lp.width - visiblePx)
+                    else metrics.widthPixels - visiblePx
+            }
+        }
         panel?.layoutParams =
             FrameLayout.LayoutParams(dp(panelWidth()), dp(panelHeight()), Gravity.END or Gravity.BOTTOM)
         runCatching { windowManager?.updateViewLayout(frame, lp) }.onFailure {
@@ -578,18 +581,13 @@ internal class ChatFloatingOverlayController(
     }
 
     private fun panelWidth(): Int =
-        minOf(
-            380,
-            (
-                (overlayContext.resources.displayMetrics.widthPixels / density()).toInt() -
-                    24
-            ).coerceAtLeast(160),
-        )
+        minOf(380, (overlayContext.resources.displayMetrics.widthPixels / density()).toInt() - 24)
+            .coerceAtLeast(160)
 
     private fun panelHeight(): Int {
         val screenHeight = overlayContext.resources.displayMetrics.heightPixels / density()
-        val safeAvailable = (screenHeight - 80).coerceAtLeast(180f)
-        return minOf(620, safeAvailable.toInt(), (screenHeight * 0.8f).toInt()).coerceAtLeast(180)
+        return minOf(620, (screenHeight - 80).coerceAtLeast(180f).toInt(), (screenHeight * 0.8f).toInt())
+            .coerceAtLeast(180)
     }
 
     private fun density(): Float = overlayContext.resources.displayMetrics.density
@@ -602,16 +600,20 @@ internal class ChatFloatingOverlayController(
         var initialX = 0
         var initialY = 0
         var dragged = false
+        var startedHidden = false
+        var restoredDuringDrag = false
         view.setOnTouchListener { _, event ->
             val lp = params ?: return@setOnTouchListener false
             when (event.action) {
                 MotionEvent.ACTION_DOWN -> {
+                    edgeHide.cancelAnimator()
                     downX = event.rawX
                     downY = event.rawY
                     initialX = lp.x
                     initialY = lp.y
-                    dragged =
-                        false
+                    dragged = false
+                    startedHidden = edgeHide.bubbleHidden
+                    restoredDuringDrag = false
                     true
                 }
                 MotionEvent.ACTION_MOVE -> {
@@ -619,6 +621,20 @@ internal class ChatFloatingOverlayController(
                     val dy = (event.rawY - downY).toInt()
                     if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > dp(6)) dragged = true
                     if (dragged) {
+                        if (startedHidden && !restoredDuringDrag) {
+                            // 从贴边隐藏的细条开始拖动：先完整弹出，再跟随手指。
+                            edgeHide.hiddenEdge?.let { edge ->
+                                lp.x =
+                                    computeEdgeRestoreTargetX(
+                                        overlayContext.resources.displayMetrics.widthPixels,
+                                        lp.width,
+                                        edge,
+                                    )
+                                initialX = lp.x
+                            }
+                            edgeHide.clearHidden()
+                            restoredDuringDrag = true
+                        }
                         lp.x =
                             (initialX - dx).coerceIn(
                                 0,
@@ -638,11 +654,22 @@ internal class ChatFloatingOverlayController(
                     true
                 }
                 MotionEvent.ACTION_UP -> {
-                    if (!dragged) view.performClick()
+                    if (!dragged) {
+                        if (startedHidden) {
+                            // 点按细条：滑出完整气泡，不打开面板。
+                            edgeHide.restore()
+                        } else {
+                            view.performClick()
+                        }
+                    } else {
+                        // 松手：停在边缘则贴边隐藏，否则留在原地。
+                        edgeHide.maybeHide()
+                    }
                     true
                 }
                 else -> false
             }
         }
     }
+
 }
