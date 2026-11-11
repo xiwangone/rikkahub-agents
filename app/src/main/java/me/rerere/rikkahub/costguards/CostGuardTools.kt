@@ -37,6 +37,17 @@ import kotlin.uuid.Uuid
  * status.md.
  */
 
+/** 上下文窗口的取值与来源。[tokens] 为 null 时 [source] 恒为 unavailable。 */
+internal data class ContextWindowInfo(val tokens: Long?, val source: String)
+
+/** 只认用户手填的窗口（token）；0 视为未填，不拿别的数兜底。 */
+internal fun resolveContextWindowInfo(configuredTokens: Long): ContextWindowInfo =
+    if (configuredTokens > 0L) {
+        ContextWindowInfo(configuredTokens, "settings")
+    } else {
+        ContextWindowInfo(null, "unavailable")
+    }
+
 private fun errEnv(
     error: String,
     detail: String,
@@ -110,16 +121,17 @@ fun checkTokenUsageTool(
                     if (snapshot.hardCap != null) put("hard_cap", snapshot.hardCap)
                     // 真实窗口容量：只认用户在设置里填的值（单位 K）。没有时显式
                     // 标 unavailable —— per_message_max 只是单次请求体积，不能当容量。
-                    val configuredWindow = settings.contextWindowSize.takeIf { it > 0L }
-                    if (configuredWindow != null) {
-                        put("context_window", configuredWindow)
-                        put("context_window_source", "settings")
+                    val windowInfo = resolveContextWindowInfo(settings.contextWindowSize)
+                    val windowTokens = windowInfo.tokens
+                    if (windowTokens != null) {
+                        put("context_window", windowTokens)
+                        put("context_window_source", windowInfo.source)
                         put(
                             "per_message_max_ratio",
-                            snapshot.totals.perMessageMax.toDouble() / configuredWindow.toDouble(),
+                            snapshot.totals.perMessageMax.toDouble() / windowTokens.toDouble(),
                         )
                     } else {
-                        put("context_window_source", "unavailable")
+                        put("context_window_source", windowInfo.source)
                     }
                     put("status", snapshot.status.name)
                 }
