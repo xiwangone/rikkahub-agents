@@ -55,8 +55,14 @@ internal fun configureWebViewForRikka(webView: WebView) {
         allowContentAccess = false
         useWideViewPort = true
         loadWithOverviewMode = true
-        setSupportMultipleWindows(false)
-        javaScriptCanOpenWindowsAutomatically = false
+        // 多窗口打开：target="_blank" / window.open() 要能用，必须开多窗口支持并允许
+        // JS 自动开窗，否则点了没反应。真正的新窗口由前台 BrowserView 的
+        // WebChromeClient.onCreateWindow 接住：它用一个临时 WebView 拿到真实 URL 后
+        // 载入主 WebView 再销毁临时 WebView，不会真的多开一个窗口。
+        // headless 会话没设 WebChromeClient，默认 onCreateWindow 返回 false，
+        // window.open() 在那里直接被忽略，不受影响。
+        setSupportMultipleWindows(true)
+        javaScriptCanOpenWindowsAutomatically = true
         mediaPlaybackRequiresUserGesture = false
         builtInZoomControls = true
         displayZoomControls = false

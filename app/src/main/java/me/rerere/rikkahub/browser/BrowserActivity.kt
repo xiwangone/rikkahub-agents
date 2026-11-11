@@ -1,13 +1,16 @@
 package me.rerere.rikkahub.browser
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.webkit.CookieManager
+import android.webkit.ValueCallback
 import android.webkit.WebView
 import androidx.activity.ComponentActivity
 import androidx.activity.OnBackPressedCallback
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.mutableStateOf
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -41,6 +44,35 @@ class BrowserActivity : ComponentActivity() {
     private val currentTitle = mutableStateOf("")
     private val loadProgress = mutableStateOf(0)
     private var conversationId: Uuid? = null
+
+    /**
+     * 文件选择：页面 `<input type="file">` 的回传通道。WebView 的
+     * `WebChromeClient.onShowFileChooser` 只给一个 `ValueCallback<Array<Uri>>`，
+     * 必须由 Activity 用 Activity Result API 调系统选择器、把结果回传给它。
+     * 回调只存一份：新的选择请求到来时先把旧的以 null 回传（用户没选完就点了
+     * 另一个上传框），避免旧回调永远挂起；Activity 销毁时同样以 null 收尾，
+     * 不让 WebView 侧一直等一个永远不会来的结果。
+     */
+    private var fileChooserCallback: ValueCallback<Array<Uri>>? = null
+    private val filePickerLauncher =
+        registerForActivityResult(ActivityResultContracts.GetMultipleContents()) { uris ->
+            val callback = fileChooserCallback
+            fileChooserCallback = null
+            // 用户取消时系统返回空列表，按约定回传 null（不是空数组）。
+            if (uris.isEmpty()) callback?.onReceiveValue(null)
+            else callback?.onReceiveValue(uris.toTypedArray())
+        }
+
+    /**
+     * 供 BrowserView 的 WebChromeClient 调用：调起系统文件选择器。
+     * [mimeType] 取自页面的 accept 属性（如 image），空则为通配。
+     */
+    fun requestFileChooser(callback: ValueCallback<Array<Uri>>, mimeType: String): Boolean {
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = callback
+        filePickerLauncher.launch(mimeType.ifBlank { "*/*" })
+        return true
+    }
 
     override fun onCreate(savedInstanceState: Bundle?) {
         enableEdgeToEdge()
@@ -103,6 +135,9 @@ class BrowserActivity : ComponentActivity() {
                     onForwardTap = { webView?.takeIf { it.canGoForward() }?.goForward() },
                     onRefreshTap = { webView?.reload() },
                     onStopAi = { BrowserController.stopCurrentTask() },
+                    onShowFileChooser = { callback, mimeType ->
+                        requestFileChooser(callback, mimeType)
+                    },
                     onNavigate = { raw ->
                         // 搜索引擎取运行时同步值，随 Settings 里的选择变化（默认 Bing）。
                         webView?.loadUrl(normalizeBrowserQuery(raw, BrowserController.searchEngine))
@@ -115,6 +150,10 @@ class BrowserActivity : ComponentActivity() {
     }
 
     override fun onDestroy() {
+        // 文件选择器如果还开着（用户没选完就退了），把挂起的回调以 null 收尾，
+        // 不让 WebView 侧一直等一个永远不会来的结果。
+        fileChooserCallback?.onReceiveValue(null)
+        fileChooserCallback = null
         // Tear down the WebView the Activity created — not doing so leaks the entire view
         // hierarchy plus a JS engine on every Activity finish. Order matters: clear from the
         // controller first so an in-flight tool dispatch can fail-fast on browser_not_open
