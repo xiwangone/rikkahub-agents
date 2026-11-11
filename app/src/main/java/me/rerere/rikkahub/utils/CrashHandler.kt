@@ -97,7 +97,9 @@ object CrashHandler {
                 appendLine("=== Crash Snapshot ${java.text.SimpleDateFormat("yyyy-MM-dd HH:mm:ss", java.util.Locale.US).format(java.util.Date())} ===")
                 appendLine("Thread: ${thread.name}")
                 appendLine()
-                appendLine(throwable.stackTraceToString())
+                // Stack traces carry exception messages that may embed URLs, file
+                // paths or credentials: redact like the two tails below.
+                appendLine(me.rerere.rikkahub.utils.LogRedactor.maskText(throwable.stackTraceToString()))
                 appendLine()
                 appendLine("--- AppLog tail (50) ---")
                 appendLine(me.rerere.rikkahub.utils.LogRedactor.maskText(appLogTail))

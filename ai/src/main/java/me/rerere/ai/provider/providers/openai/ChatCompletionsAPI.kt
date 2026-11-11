@@ -188,7 +188,14 @@ class ChatCompletionsAPI(
                 data: String
             ) {
                 lastEventAtMs[0] = System.currentTimeMillis()
-                AppLogger.d(TAG, "onEvent: $data")
+                // SSE event payloads carry model output / tool arguments / thinking
+                // verbatim: only log the full text on debug builds; release builds
+                // get length only so no user content reaches logcat.
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLogger.d(TAG, "onEvent: $data")
+                } else {
+                    AppLogger.d(TAG, "onEvent: len=${data.length}")
+                }
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)

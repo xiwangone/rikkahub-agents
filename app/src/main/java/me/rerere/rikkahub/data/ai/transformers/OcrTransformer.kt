@@ -162,7 +162,8 @@ object OcrTransformer : InputMessageTransformer, KoinComponent {
             return "[Image: could not be read — the OCR model did not respond in time]"
         }
         val content = result.message.toText().ifBlank { "[ERROR, OCR failed]" }
-        AppLog.i(TAG, "performOcr: ok (${content.length} chars) for ${part.url}: ${content.take(200)}")
+        // OCR text is user content: log the length only, never the text itself.
+        AppLog.i(TAG, "performOcr: ok (${content.length} chars) for ${part.url}")
         val ocrResult = """
             <image_file_ocr>
                $content

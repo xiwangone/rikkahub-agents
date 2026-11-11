@@ -38,7 +38,9 @@ import me.rerere.ai.util.MAX_LOCAL_READ_BYTES
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.readBytesBounded
+import me.rerere.ai.util.redactSecrets
 import me.rerere.ai.util.shortRequestClient
+import me.rerere.common.android.Logging
 import me.rerere.common.http.await
 import me.rerere.ai.provider.formatBalance
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
@@ -330,7 +332,17 @@ class OpenAIProvider(
                 .mergeCustomBody(params.customBody)
         )
 
-        AppLogger.i(TAG, "generateImage: $requestBody")
+        // Request body carries the user prompt verbatim: only log it (redacted)
+        // on debug builds; release builds get model/count/prompt length.
+        if (Logging.isDebugLoggingEnabled()) {
+            AppLogger.i(TAG, "generateImage: ${redactSecrets(json.parseToJsonElement(requestBody))}")
+        } else {
+            AppLogger.i(
+                TAG,
+                "generateImage: model=${params.model.modelId} n=${params.numOfImages} " +
+                    "promptLen=${params.prompt.length}",
+            )
+        }
 
         val request = Request.Builder()
             .url("${providerSetting.baseUrl}/images/generations")

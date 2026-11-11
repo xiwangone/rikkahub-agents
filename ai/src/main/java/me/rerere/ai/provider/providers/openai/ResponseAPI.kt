@@ -278,7 +278,14 @@ class ResponseAPI(
                 type: String?,
                 data: String
             ) {
-                AppLogger.d(TAG, "onEvent: $id/$type $data")
+                // SSE event payloads carry model output / tool arguments / thinking
+                // verbatim: only log the full text on debug builds; release builds
+                // get id/type + length so no user content reaches logcat.
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLogger.d(TAG, "onEvent: $id/$type $data")
+                } else {
+                    AppLogger.d(TAG, "onEvent: $id/$type len=${data.length}")
+                }
                 if (data.trim() == "[DONE]") {
                     try {
                         sendChunks(decoder.accept(SseEvent(id = id, event = type, data = data)).chunks)
@@ -777,8 +784,14 @@ class ResponseAPI(
     }
 
     internal fun parseResponseOutput(jsonObject: JsonObject): TextGenerationResult {
-        AppLogger.d(TAG, "parseResponseOutput: $jsonObject")
         val outputs = jsonObject["output"]?.jsonArray ?: error("output not found")
+        // Full response JSON carries model output / tool arguments verbatim:
+        // only log it on debug builds; release builds get the output count.
+        if (Logging.isDebugLoggingEnabled()) {
+            AppLogger.d(TAG, "parseResponseOutput: $jsonObject")
+        } else {
+            AppLogger.d(TAG, "parseResponseOutput: ${outputs.size} outputs")
+        }
         val parts = arrayListOf<UIMessagePart>()
 
         outputs.forEach { outputItem ->

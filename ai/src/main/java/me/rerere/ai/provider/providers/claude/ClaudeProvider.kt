@@ -459,7 +459,14 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                AppLogger.d(TAG, "onEvent: type=$type, data=$data")
+                // SSE event payloads carry model output / tool arguments / thinking
+                // verbatim: only log the full text on debug builds; release builds
+                // get type + length so no user content reaches logcat.
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLogger.d(TAG, "onEvent: type=$type, data=$data")
+                } else {
+                    AppLogger.d(TAG, "onEvent: type=$type, len=${data.length}")
+                }
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)
@@ -888,7 +895,13 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
 
                 "redacted_thinking" -> {
                     val data = block["data"]?.jsonPrimitiveOrNull?.contentOrNull
-                    AppLogger.d(TAG, "redacted_thinking: $data")
+                    // Encrypted thinking blob: only log it on debug builds;
+                    // release builds get the length.
+                    if (Logging.isDebugLoggingEnabled()) {
+                        AppLogger.d(TAG, "redacted_thinking: $data")
+                    } else {
+                        AppLogger.d(TAG, "redacted_thinking: ${data?.length ?: 0} chars")
+                    }
                 }
 
                 "tool_use" -> {

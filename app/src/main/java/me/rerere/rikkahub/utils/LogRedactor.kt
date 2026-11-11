@@ -20,6 +20,7 @@ object LogRedactor {
             "authorization",
             "proxy-authorization",
             "x-api-key",
+            "x-goog-api-key",
             "api-key",
             "apikey",
             "x-auth-token",
@@ -48,7 +49,7 @@ object LogRedactor {
      * URL query 敏感参数名的**后缀词表**。
      *
      * 用后缀而非精确匹配：真实参数名常带前缀或驼峰写法（`tavilyApiKey`、`my_api_key`、`X-Api-Key`），
-     * 精确集合会整条漏掩 —— 曾实测 `?tavilyApiKey=…` 的明文值进了应用日志与日志文件。
+     * 精确集合会整条漏掩 —— 形如 `?tavilyApiKey=…` 的参数值会随 URL 原样进入日志。
      * 代价是轻微误掩（如 `monkey=`），脱敏场景下宁可保守。
      */
     private const val QUERY_SECRET_SUFFIXES =

@@ -17,6 +17,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.isVaultReference
@@ -181,7 +182,8 @@ class BackendWebBridge(
             JSch.setLogger(object : JSchLogger {
                 override fun isEnabled(level: Int): Boolean = level >= JSchLogger.INFO
                 override fun log(level: Int, message: String) {
-                    AppLog.d(TAG, "[jsch] $message")
+                    // JSch internals can echo host/user/key material: redact first.
+                    AppLog.d(TAG, "[jsch] ${LogRedactor.maskText(message)}")
                 }
             })
             val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(ecsHost, ecsPort)

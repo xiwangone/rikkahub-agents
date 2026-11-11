@@ -26,6 +26,7 @@ import org.json.JSONObject
 import java.io.File
 import java.util.UUID
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 
 private const val TAG = "JsSkillRunner"
 
@@ -172,7 +173,8 @@ class JsSkillRunner(private val context: Context) {
                 wv.webChromeClient = object : WebChromeClient() {
                     override fun onConsoleMessage(consoleMessage: ConsoleMessage?): Boolean {
                         consoleMessage?.let {
-                            AppLog.d(TAG, "[JS console] ${it.message()} (${it.sourceId()}:${it.lineNumber()})")
+                            // JS console text is page content: redact + truncate.
+                            AppLog.d(TAG, "[JS console] ${LogRedactor.maskText(it.message().take(500))} (${it.sourceId()}:${it.lineNumber()})")
                         }
                         return true
                     }

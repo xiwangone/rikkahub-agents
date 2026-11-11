@@ -20,6 +20,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.loadWarmUiSettings
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.ui.floating.resolveFloatingColorScheme
 import me.rerere.rikkahub.ui.hooks.readBooleanPreference
 import java.util.concurrent.atomic.AtomicInteger
@@ -92,8 +93,10 @@ object AgentOverlay {
     }
 
     private fun log(message: String) {
-        AppLog.d(TAG, message)
-        runCatching { AppLog.d(TAG, message) }
+        // Overlay log lines may carry user-visible text: redact once, then log.
+        val redacted = LogRedactor.maskText(message)
+        AppLog.d(TAG, redacted)
+        runCatching { AppLog.d(TAG, redacted) }
     }
 
     /** 回合开始：累加活跃回合数并按当前前后台立即决定是否显示。 */

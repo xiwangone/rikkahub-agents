@@ -67,7 +67,8 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
                         .addHeader("Content-Type", "application/json")
                         .build()
 
-                AppLogger.i(TAG, "search: $query")
+                // Search query is user input: log the length only, never the query.
+                AppLogger.i(TAG, "search: queryLen=${query.length}")
 
                 val response = httpClient.newCall(request).await()
                 if (response.isSuccessful) {

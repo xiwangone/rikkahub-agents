@@ -58,6 +58,7 @@ import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -317,7 +318,9 @@ private fun AppLogCard(
 private fun formatEntry(entry: AppLog.Entry): String {
     val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(entry.timestamp)
     val repeatSuffix = if (entry.repeat > 1) " (×${entry.repeat})" else ""
-    return "$time ${entry.level} ${entry.tag}: ${entry.message}$repeatSuffix"
+    // Single-entry copy leaves the app via the clipboard like export/share,
+    // so it goes through the same redaction instead of raw text.
+    return LogRedactor.maskText("$time ${entry.level} ${entry.tag}: ${entry.message}$repeatSuffix")
 }
 
 private fun copyToClipboard(

@@ -21,6 +21,7 @@ import me.rerere.workspace.RootfsPatcher
 import me.rerere.workspace.WorkspaceManager
 import java.io.File
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.ui.pages.setting.doctor.DnsProbe
 
 internal fun createWorkspaceTerminalSession(
@@ -186,35 +187,35 @@ internal class WorkspaceTerminalSessionClient(
         tag: String,
         message: String,
     ) {
-        AppLog.e(tag, message)
+        AppLog.e(tag, LogRedactor.maskText(message))
     }
 
     override fun logWarn(
         tag: String,
         message: String,
     ) {
-        AppLog.w(tag, message)
+        AppLog.w(tag, LogRedactor.maskText(message))
     }
 
     override fun logInfo(
         tag: String,
         message: String,
     ) {
-        AppLog.d(tag, message) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
+        AppLog.d(tag, LogRedactor.maskText(message)) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
     }
 
     override fun logDebug(
         tag: String,
         message: String,
     ) {
-        AppLog.d(tag, message)
+        AppLog.d(tag, LogRedactor.maskText(message))
     }
 
     override fun logVerbose(
         tag: String,
         message: String,
     ) {
-        Log.v(tag, message)
+        Log.v(tag, LogRedactor.maskText(message))
     }
 
     override fun logStackTraceWithMessage(
@@ -222,7 +223,7 @@ internal class WorkspaceTerminalSessionClient(
         message: String,
         e: Exception,
     ) {
-        AppLog.e(tag, message, e)
+        AppLog.e(tag, LogRedactor.maskText(message), e)
     }
 
     override fun logStackTrace(
@@ -354,35 +355,35 @@ internal class WorkspaceTerminalViewClient(
         tag: String,
         message: String,
     ) {
-        AppLog.e(tag, message)
+        AppLog.e(tag, LogRedactor.maskText(message))
     }
 
     override fun logWarn(
         tag: String,
         message: String,
     ) {
-        AppLog.w(tag, message)
+        AppLog.w(tag, LogRedactor.maskText(message))
     }
 
     override fun logInfo(
         tag: String,
         message: String,
     ) {
-        AppLog.d(tag, message) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
+        AppLog.d(tag, LogRedactor.maskText(message)) // 终端输出属详单（长命令每块一行），避免挤占重要日志队列
     }
 
     override fun logDebug(
         tag: String,
         message: String,
     ) {
-        AppLog.d(tag, message)
+        AppLog.d(tag, LogRedactor.maskText(message))
     }
 
     override fun logVerbose(
         tag: String,
         message: String,
     ) {
-        Log.v(tag, message)
+        Log.v(tag, LogRedactor.maskText(message))
     }
 
     override fun logStackTraceWithMessage(
@@ -390,7 +391,7 @@ internal class WorkspaceTerminalViewClient(
         message: String,
         e: Exception,
     ) {
-        AppLog.e(tag, message, e)
+        AppLog.e(tag, LogRedactor.maskText(message), e)
     }
 
     override fun logStackTrace(

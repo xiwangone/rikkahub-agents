@@ -188,7 +188,13 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 if (!response.isSuccessful) {
                     error("Failed to get models: ${response.code} $body")
                 }
-                AppLogger.d(TAG, "listModels: $body")
+                // Full model-list body is large and unneeded outside debug:
+                // release builds get the page size only.
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLogger.d(TAG, "listModels: $body")
+                } else {
+                    AppLogger.d(TAG, "listModels: ${body.length} bytes")
+                }
                 val bodyObject = json.parseToJsonElement(body).jsonObject
                 // 成功但无 models 字段时才返回空列表（之前已拉到的页保留）。
                 val models = bodyObject["models"]?.jsonArray ?: return@withContext allModels
@@ -356,7 +362,14 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 type: String?,
                 data: String
             ) {
-                AppLogger.d(TAG, "onEvent: $data")
+                // SSE event payloads carry model output / tool arguments / thinking
+                // verbatim: only log the full text on debug builds; release builds
+                // get length only so no user content reaches logcat.
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLogger.d(TAG, "onEvent: $data")
+                } else {
+                    AppLogger.d(TAG, "onEvent: len=${data.length}")
+                }
 
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))

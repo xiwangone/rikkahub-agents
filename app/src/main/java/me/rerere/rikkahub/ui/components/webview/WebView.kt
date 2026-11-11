@@ -23,6 +23,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.viewinterop.AndroidView
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.utils.LogRedactor
 
 private const val TAG = "WebView"
 
@@ -49,9 +50,10 @@ internal class MyWebChromeClient(
         if (consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.ERROR ||
             consoleMessage.messageLevel() == ConsoleMessage.MessageLevel.WARNING
         ) {
+            // JS console text is page content: redact + truncate before logging.
             AppLog.e(
                 TAG,
-                "onConsoleMessage:  ${consoleMessage.message()}  ${consoleMessage.lineNumber()}  ${consoleMessage.sourceId()}",
+                "onConsoleMessage:  ${LogRedactor.maskText(consoleMessage.message().take(500))}  ${consoleMessage.lineNumber()}  ${consoleMessage.sourceId()}",
             )
         }
         return super.onConsoleMessage(consoleMessage)

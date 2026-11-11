@@ -347,10 +347,19 @@ val dataSourceModule =
                 .apply {
                     // HEADERS-level logging prints Authorization: Bearer <api-key> to logcat.
                     // Debug-only so release builds never leak provider keys to logcat.
+                    // Sensitive headers are redacted even in debug builds: a shared
+                    // logcat still must not carry a provider key in plaintext.
                     if (BuildConfig.DEBUG) {
                         addInterceptor(
                             HttpLoggingInterceptor().apply {
                                 level = HttpLoggingInterceptor.Level.HEADERS
+                                redactHeader("Authorization")
+                                redactHeader("Proxy-Authorization")
+                                redactHeader("x-api-key")
+                                redactHeader("x-goog-api-key")
+                                redactHeader("api-key")
+                                redactHeader("Cookie")
+                                redactHeader("Set-Cookie")
                             },
                         )
                     }

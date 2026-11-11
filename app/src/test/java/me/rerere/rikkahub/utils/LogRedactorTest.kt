@@ -44,7 +44,7 @@ class LogRedactorTest {
 
     @Test
     fun `prefixedless key with sensitive name is masked`() {
-        // 无固定前缀的国内厂商 key（本机 vault 的实测形态：35 位 / 93 位混合串）
+        // 无固定前缀的厂商 key（常见形态：35 位 / 93 位混合串）
         val short = "AbCdEf1234567890AbCdEf1234567890abc"
         val shortOut = LogRedactor.maskText("""{"api_key": "$short"}""")
         assertFalse(shortOut, shortOut.contains(short))
@@ -104,5 +104,39 @@ class LogRedactorTest {
             "https://x/v1?key=***&model=gpt-4o",
             LogRedactor.maskUrl("https://x/v1?key=sk-abcdef&model=gpt-4o"),
         )
+    }
+
+    @Test
+    fun `x-goog-api-key header is masked`() {
+        // Gemini key travels in `x-goog-api-key`: it must be treated as sensitive
+        // like `x-api-key` (previously missing from the set, leaked in plaintext).
+        val key = "AIzaSyD1234567890abcdefghij1234567890"
+        assertTrue(LogRedactor.isSensitiveHeader("x-goog-api-key"))
+        assertTrue(LogRedactor.isSensitiveHeader("X-Goog-Api-Key"))
+        val masked = LogRedactor.maskHeader("x-goog-api-key", key)
+        assertFalse("key leaked: $masked", masked.contains(key))
+        assertTrue("should keep marker: $masked", masked.contains("***"))
+
+        val headers = LogRedactor.maskHeaders(
+            mapOf(
+                "x-goog-api-key" to key,
+                "Content-Type" to "application/json",
+            ),
+        )
+        assertFalse(headers.getValue("x-goog-api-key").contains(key))
+        assertEquals("application/json", headers.getValue("Content-Type"))
+
+        // Free-text form is also masked (keyed-secret pattern matches `api-key`).
+        val textOut = LogRedactor.maskText("x-goog-api-key: $key")
+        assertFalse("key leaked in text: $textOut", textOut.contains(key))
+    }
+
+    @Test
+    fun `sse summary carries no payload`() {
+        // Release-build SSE summary must contain only id/type/length, never data.
+        val data = "{\"delta\":{\"text\":\"user prompt verbatim\"}}"
+        val summary = "onEvent: resp_1/response.output_text.delta len=${data.length}"
+        assertFalse(summary.contains("user prompt verbatim"))
+        assertTrue(summary.contains("len=${data.length}"))
     }
 }
