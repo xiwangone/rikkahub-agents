@@ -276,7 +276,11 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
             },
             onManage = {
                 showDefaultWorkspaceSheet = false
-                navController.navigate(Screen.Workspaces)
+                navController.navigate(Screen.Workspaces())
+            },
+            onCreate = {
+                showDefaultWorkspaceSheet = false
+                navController.navigate(Screen.Workspaces(openCreate = true))
             },
             onDismiss = { showDefaultWorkspaceSheet = false },
         )
@@ -289,7 +293,8 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
                 providers = settings.providers,
                 existingProfiles = profiles,
                 workspaces = workspaces,
-                onManageWorkspaces = { navController.navigate(Screen.Workspaces) },
+                onManageWorkspaces = { navController.navigate(Screen.Workspaces()) },
+                onCreateWorkspace = { navController.navigate(Screen.Workspaces(openCreate = true)) },
                 onDismiss = { editState.dismiss() },
                 onConfirm = { editState.confirm() },
                 onEdit = { editState.currentState = it },
@@ -383,6 +388,7 @@ private fun SubAgentProfileEditSheet(
     existingProfiles: List<SubAgentProfile>,
     workspaces: List<WorkspaceEntity>,
     onManageWorkspaces: () -> Unit,
+    onCreateWorkspace: () -> Unit,
     onDismiss: () -> Unit,
     onConfirm: () -> Unit,
     onEdit: (SubAgentProfile) -> Unit,
@@ -583,6 +589,10 @@ private fun SubAgentProfileEditSheet(
             onManage = {
                 showWorkspaceSheet = false
                 onManageWorkspaces()
+            },
+            onCreate = {
+                showWorkspaceSheet = false
+                onCreateWorkspace()
             },
             onDismiss = { showWorkspaceSheet = false },
         )

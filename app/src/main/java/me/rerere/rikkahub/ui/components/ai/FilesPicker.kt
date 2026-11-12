@@ -342,7 +342,11 @@ internal fun FilesPicker(
                             },
                             onNavigateToManage = {
                                 onDismiss()
-                                navController.navigate(Screen.Workspaces)
+                                navController.navigate(Screen.Workspaces())
+                            },
+                            onNavigateToCreateWorkspace = {
+                                onDismiss()
+                                navController.navigate(Screen.Workspaces(openCreate = true))
                             },
                         )
 
@@ -547,6 +551,7 @@ private fun WorkspacePickerListItem(
     onNavigateToDetail: (String) -> Unit,
     onNavigateToTerminal: (String) -> Unit,
     onNavigateToManage: () -> Unit,
+    onNavigateToCreateWorkspace: () -> Unit,
 ) {
     var showSheet by remember { mutableStateOf(false) }
     val boundWorkspace =
@@ -616,6 +621,10 @@ private fun WorkspacePickerListItem(
             onManage = {
                 showSheet = false
                 onNavigateToManage()
+            },
+            onCreate = {
+                showSheet = false
+                onNavigateToCreateWorkspace()
             },
             onDismiss = { showSheet = false },
         )

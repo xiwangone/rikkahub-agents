@@ -51,6 +51,7 @@ import me.rerere.hugeicons.stroke.Translate
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides
+import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.ui.components.ai.ModelField
 import me.rerere.rikkahub.ui.components.ai.ModelListSheet
@@ -210,6 +211,7 @@ private fun ModelSettingsPage(
                     state = chatModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
+                    onClear = { vm.updateSettings { current -> current.copy(chatModelId = DEFAULT_AUTO_MODEL_ID) } },
                 )
             }
         }
@@ -224,6 +226,7 @@ private fun ModelSettingsPage(
                     state = fastModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
+                    onClear = { vm.updateSettings { current -> current.copy(fastModelId = DEFAULT_AUTO_MODEL_ID) } },
                 )
                 modelItem(
                     icon = HugeIcons.Heading,
@@ -265,6 +268,7 @@ private fun ModelSettingsPage(
                     state = translateModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
+                    onClear = { vm.updateSettings { current -> current.copy(translateModeId = DEFAULT_AUTO_MODEL_ID) } },
                 )
                 modelItem(
                     icon = HugeIcons.ScanImage,
@@ -273,6 +277,7 @@ private fun ModelSettingsPage(
                     state = ocrModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
+                    onClear = { vm.updateSettings { current -> current.copy(ocrModelId = DEFAULT_AUTO_MODEL_ID) } },
                 )
                 modelItem(
                     icon = HugeIcons.Package01,
@@ -281,6 +286,7 @@ private fun ModelSettingsPage(
                     state = compressModel,
                     iconContainerColor = containerColor,
                     iconContentColor = contentColor,
+                    onClear = { vm.updateSettings { current -> current.copy(compressModelId = DEFAULT_AUTO_MODEL_ID) } },
                 )
             }
         }
@@ -333,6 +339,7 @@ private fun CardGroupScope.modelItem(
         onClick = { state.open() },
         placeholder = stringResource(placeholder),
         onClear = onClear,
+        stale = state.isStale,
     )
 }
 

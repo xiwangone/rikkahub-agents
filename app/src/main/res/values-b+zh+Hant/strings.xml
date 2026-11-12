@@ -516,6 +516,7 @@
   <string name="model_list_no_providers">沒有可用AI提供商，請在設置添加</string>
   <string name="model_list_search_placeholder">輸入模型名稱搜尋</string>
   <string name="model_list_select_model">選擇模型</string>
+  <string name="model_list_model_unavailable">原模型已刪除／無法使用</string>
   <string name="more_options">更多選項</string>
   <string name="no_text_content_to_copy">暫無可複製的文字內容</string>
   <string name="notification_channel_chat_completed">聊天完成</string>
@@ -839,6 +840,13 @@
   <string name="setting_files_page_delete_file_title">刪除檔案</string>
   <string name="setting_files_page_deleted_toast">已刪除</string>
   <string name="setting_files_page_folder_upload">上傳</string>
+  <string name="setting_files_page_type_image">圖片</string>
+  <string name="setting_files_page_type_video">影片</string>
+  <string name="setting_files_page_type_audio">音訊</string>
+  <string name="setting_files_page_type_document">文件</string>
+  <string name="setting_files_page_type_archive">壓縮檔</string>
+  <string name="setting_files_page_type_text">文字</string>
+  <string name="setting_files_page_type_other">檔案</string>
   <string name="setting_files_page_no_files">無檔案</string>
   <string name="setting_files_page_title">檔案管理</string>
   <string name="setting_mcp_page_add_header">添加請求頭</string>
@@ -1093,6 +1101,8 @@
   <string name="setting_provider_page_scan_error">錯誤: %s</string>
   <string name="setting_provider_page_scan_qr_code">掃描二維碼</string>
   <string name="setting_provider_page_search_providers">搜尋提供者</string>
+  <string name="setting_provider_page_empty">還沒有供應商</string>
+  <string name="setting_provider_page_empty_search">沒有相符的供應商</string>
   <string name="setting_provider_page_recommend">推薦提供者</string>
   <string name="setting_provider_page_select_all">全選 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">從相簿選擇</string>
@@ -1931,6 +1941,8 @@
   <string name="workspace_detail_tool_background_kill">停止背景任務</string>
   <string name="workspace_detail_install_rootfs_desc">將下載 tar.gz 並解壓縮到 %s 的 linux 目錄。</string>
   <string name="workspace_detail_download_url">tar.gz 下載網址</string>
+  <string name="workspace_detail_rootfs_url_invalid">請輸入有效的 http(s) 連結，且以 .tar.gz/.tar.xz 結尾</string>
+  <string name="workspace_detail_rootfs_resolving">正在解析最新版本…</string>
   <string name="workspace_detail_area_files">檔案</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">空目錄</string>
@@ -2845,6 +2857,7 @@
     <string name="setting_web_bridge_switch">Web 橋總開關</string>
     <string name="setting_web_bridge_switch_desc">開啟 Web 橋</string>
     <string name="setting_web_bridge_switch_desc_detail">開啟：同步全域性配置並啟用 後端服務，遠端可經隧道呼叫手機 API；關閉：全部禁用</string>
+  <string name="setting_web_bridge_partial_enabled">部分開啟（%1$d/%2$d 個後端已開啟）</string>
     <string name="web_bridge_connection">連線狀態</string>
     <string name="web_bridge_connect">啟動 Web 橋</string>
     <string name="web_bridge_disconnect">停止</string>
@@ -3538,6 +3551,7 @@
   <string name="workspace_detail_delete_saved_url">刪除</string>
   <string name="workspace_detail_import_local_rootfs">從本機檔案匯入</string>
   <string name="workspace_detail_import_local_rootfs_desc">選擇裝置上已有的 rootfs 壓縮檔（tar.gz / tar.xz）。當下載來源無法連線時很有用。</string>
+  <string name="workspace_detail_rootfs_import_failed">匯入失敗：%1$s</string>
   <string name="workspace_detail_preset_rootfs_urls">預設</string>
   <string name="workspace_detail_save_rootfs_url">儲存目前網址</string>
   <string name="workspace_detail_saved_rootfs_urls">已儲存的網址</string>
@@ -4271,6 +4285,7 @@
   <string name="setting_ssh_platform_auto">自動</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">平台未判定</string>
   <string name="setting_ssh_default_platform">預設遠端平台</string>
   <string name="setting_ssh_default_platform_desc">主機設為自動時使用</string>
   <string name="setting_ssh_allow_host_key_rotation">允許主機金鑰輪換</string>

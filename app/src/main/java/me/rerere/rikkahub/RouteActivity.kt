@@ -717,8 +717,8 @@ class RouteActivity : ComponentActivity() {
                                 SkillsPage()
                             }
 
-                            entry<Screen.Workspaces> {
-                                WorkspacePage()
+                            entry<Screen.Workspaces> { key ->
+                                WorkspacePage(openCreate = key.openCreate)
                             }
 
                             entry<Screen.WorkspaceDetail> { key ->
@@ -983,7 +983,7 @@ sealed interface Screen : NavKey {
     data object Skills : Screen
 
     @Serializable
-    data object Workspaces : Screen
+    data class Workspaces(val openCreate: Boolean = false) : Screen
 
     @Serializable
     data class WorkspaceDetail(val id: String) : Screen

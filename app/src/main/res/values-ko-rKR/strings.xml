@@ -526,6 +526,7 @@
   <string name="model_list_no_providers">사용 가능한 AI 제공업체가 없습니다. 설정에서 추가하세요</string>
   <string name="model_list_search_placeholder">모델 이름을 입력하여 검색</string>
   <string name="model_list_select_model">모델 선택</string>
+  <string name="model_list_model_unavailable">이전에 선택한 모델을 사용할 수 없습니다</string>
   <string name="more_options">추가 옵션</string>
   <string name="no_text_content_to_copy">복사할 텍스트 콘텐츠가 없습니다</string>
   <string name="notification_channel_chat_completed">채팅 완료</string>
@@ -839,6 +840,13 @@
   <string name="setting_files_page_delete_file_title">파일 삭제</string>
   <string name="setting_files_page_deleted_toast">삭제됨</string>
   <string name="setting_files_page_folder_upload">업로드</string>
+  <string name="setting_files_page_type_image">이미지</string>
+  <string name="setting_files_page_type_video">동영상</string>
+  <string name="setting_files_page_type_audio">오디오</string>
+  <string name="setting_files_page_type_document">문서</string>
+  <string name="setting_files_page_type_archive">압축 파일</string>
+  <string name="setting_files_page_type_text">텍스트</string>
+  <string name="setting_files_page_type_other">파일</string>
   <string name="setting_files_page_no_files">파일 없음</string>
   <string name="setting_files_page_title">파일 관리</string>
   <string name="setting_mcp_page_add_header">헤더 추가</string>
@@ -1091,6 +1099,8 @@
   <string name="setting_provider_page_scan_error">오류: %s</string>
   <string name="setting_provider_page_scan_qr_code">QR 코드 스캔</string>
   <string name="setting_provider_page_search_providers">공급자 검색</string>
+  <string name="setting_provider_page_empty">아직 공급자가 없습니다</string>
+  <string name="setting_provider_page_empty_search">일치하는 공급자가 없습니다</string>
   <string name="setting_provider_page_recommend">추천 공급자</string>
   <string name="setting_provider_page_select_all">전체 선택 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">갤러리에서 선택</string>
@@ -1912,6 +1922,8 @@
   <string name="workspace_detail_tool_background_kill">백그라운드 작업 중지</string>
   <string name="workspace_detail_install_rootfs_desc">%s의 linux 디렉터리에 tar.gz를 다운로드하여 압축을 풉니다.</string>
   <string name="workspace_detail_download_url">tar.gz 다운로드 URL</string>
+  <string name="workspace_detail_rootfs_url_invalid">http(s)로 시작하고 .tar.gz/.tar.xz로 끝나는 유효한 URL을 입력하세요</string>
+  <string name="workspace_detail_rootfs_resolving">최신 버전을 확인하는 중…</string>
   <string name="workspace_detail_area_files">파일</string>
   <string name="workspace_detail_area_rootfs">루트 파일 시스템</string>
   <string name="workspace_detail_empty_directory">빈 디렉토리</string>
@@ -3276,6 +3288,7 @@
   <string name="setting_web_bridge_switch">웹 브리지 마스터 스위치</string>
   <string name="setting_web_bridge_switch_desc">웹 브리지 사용</string>
   <string name="setting_web_bridge_switch_desc_detail">켜짐: 전역 구성을 동기화하고 백엔드 서비스를 활성화해 원격에서 터널로 휴대폰 API를 호출할 수 있습니다. 꺼짐: 모두 비활성화.</string>
+  <string name="setting_web_bridge_partial_enabled">부분적으로 사용 중(%2$d개 중 %1$d개 백엔드 사용 중)</string>
   <string name="setting_web_bridge_title">웹 브리지</string>
   <string name="web_bridge_connection">연결 상태</string>
   <string name="web_bridge_connect">웹 브리지 시작</string>
@@ -3546,6 +3559,7 @@
   <string name="workspace_detail_delete_saved_url">삭제</string>
   <string name="workspace_detail_import_local_rootfs">로컬 파일에서 가져오기</string>
   <string name="workspace_detail_import_local_rootfs_desc">기기에 있는 rootfs 압축 파일(tar.gz / tar.xz)을 선택하세요. 다운로드 출처에 연결할 수 없을 때 유용합니다.</string>
+  <string name="workspace_detail_rootfs_import_failed">가져오기에 실패했습니다: %1$s</string>
   <string name="workspace_detail_preset_rootfs_urls">프리셋</string>
   <string name="workspace_detail_save_rootfs_url">현재 URL 저장</string>
   <string name="workspace_detail_saved_rootfs_urls">저장된 URL</string>
@@ -4272,6 +4286,7 @@
   <string name="setting_ssh_platform_auto">자동</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">플랫폼을 확인하지 못했습니다</string>
   <string name="setting_ssh_default_platform">기본 원격 플랫폼</string>
   <string name="setting_ssh_default_platform_desc">호스트가 자동으로 설정된 경우에 사용</string>
   <string name="setting_ssh_allow_host_key_rotation">호스트 키 교체 허용</string>

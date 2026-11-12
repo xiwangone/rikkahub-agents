@@ -69,6 +69,45 @@ internal fun webBridgePortValid(text: String): Boolean {
 }
 
 /**
+ * 只把全局 Web 桥字段同步进各后端供应商自己的副本，不动各自的开关。
+ * 字段编辑后也要同步：以前只在拨动开关时同步，改完主机/端口直接重启 App，
+ * 后端用的可能是旧地址。注意 Backend 没有 webBridgeCredentialRef 字段，
+ * 凭证引用只存在全局设置里，连接按钮直接读全局值，不走后端副本。
+ */
+internal fun syncWebBridgeFields(settings: Settings): Settings {
+    val newProviders =
+        settings.providers.map { p ->
+            if (p is ProviderSetting.Backend) {
+                p.copy(
+                    webBridgeEcsHost = settings.webBridgeEcsHost,
+                    webBridgeEcsUser = settings.webBridgeEcsUser,
+                    webBridgeEcsPort = settings.webBridgeEcsPort,
+                    webBridgeRemotePort = settings.webBridgeRemotePort,
+                    webBridgeLocalPort = settings.webBridgeLocalPort,
+                    webBridgePrivateKeyPath = settings.webBridgePrivateKeyPath,
+                    webBridgePassword = settings.webBridgePassword,
+                )
+            } else {
+                p
+            }
+        }
+    return settings.copy(providers = newProviders)
+}
+
+internal fun syncToBackendProviders(
+    settings: Settings,
+    enabled: Boolean,
+): Settings {
+    val withFields = syncWebBridgeFields(settings)
+    return withFields.copy(
+        providers =
+            withFields.providers.map { p ->
+                if (p is ProviderSetting.Backend) p.copy(webBridgeEnabled = enabled) else p
+            },
+    )
+}
+
+/**
  * Web 桥三级页（反向隧道到 ECS，Material 3 Expressive 分组卡片样式）。
  */
 @OptIn(ExperimentalMaterial3Api::class)
@@ -104,30 +143,6 @@ fun SettingWebBridgePage() {
         mutableStateOf(settings.webBridgeCredentialRef)
     }
 
-    fun syncToBackendProviders(
-        settings: Settings,
-        enabled: Boolean,
-    ): Settings {
-        val newProviders =
-            settings.providers.map { p ->
-                if (p is ProviderSetting.Backend) {
-                    p.copy(
-                        webBridgeEnabled = enabled,
-                        webBridgeEcsHost = settings.webBridgeEcsHost,
-                        webBridgeEcsUser = settings.webBridgeEcsUser,
-                        webBridgeEcsPort = settings.webBridgeEcsPort,
-                        webBridgeRemotePort = settings.webBridgeRemotePort,
-                        webBridgeLocalPort = settings.webBridgeLocalPort,
-                        webBridgePrivateKeyPath = settings.webBridgePrivateKeyPath,
-                        webBridgePassword = settings.webBridgePassword,
-                    )
-                } else {
-                    p
-                }
-            }
-        return settings.copy(providers = newProviders)
-    }
-
     Scaffold(
         topBar = {
             LargeFlexibleTopAppBar(
@@ -150,8 +165,13 @@ fun SettingWebBridgePage() {
                     modifier = Modifier.fillMaxWidth(),
                     title = { Text(stringResource(R.string.setting_web_bridge_switch)) },
                 ) {
+                    // 多后端时开关以前是“取或”：一个开就显示开，关一次全关了。
+                    // 部分开启时在副标题里写明 N/M，不再让人以为全开了。
+                    val backends = settings.providers.filterIsInstance<ProviderSetting.Backend>()
+                    val enabledBackends = backends.count { it.webBridgeEnabled }
+                    val bridgePartial = enabledBackends in 1 until backends.size
                     switchItem(
-                        checked = settings.providers.any { it is ProviderSetting.Backend && it.webBridgeEnabled },
+                        checked = enabledBackends > 0,
                         onCheckedChange = { enabled ->
                             scope.launch {
                                 settingsStore.update { s -> syncToBackendProviders(s, enabled) }
@@ -159,7 +179,19 @@ fun SettingWebBridgePage() {
                         },
                         leadingContent = { CardGroupIcon(HugeIcons.Connect) },
                         headlineContent = { Text(stringResource(R.string.setting_web_bridge_switch_desc)) },
-                        supportingContent = { Text(stringResource(R.string.setting_web_bridge_switch_desc_detail)) },
+                        supportingContent = {
+                            Text(
+                                if (bridgePartial) {
+                                    stringResource(
+                                        R.string.setting_web_bridge_partial_enabled,
+                                        enabledBackends,
+                                        backends.size,
+                                    )
+                                } else {
+                                    stringResource(R.string.setting_web_bridge_switch_desc_detail)
+                                },
+                            )
+                        },
                     )
                 }
             }
@@ -178,7 +210,7 @@ fun SettingWebBridgePage() {
                             value = webBridgeEcsHost,
                             onValueChange = {
                                 webBridgeEcsHost = it
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsHost = it.trim()) } }
+                                scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeEcsHost = it.trim())) } }
                             },
                             label = { Text(stringResource(R.string.setting_web_bridge_ecs_host)) },
                             modifier = Modifier.fillMaxWidth(),
@@ -192,7 +224,7 @@ fun SettingWebBridgePage() {
                                 value = webBridgeEcsUser,
                                 onValueChange = {
                                     webBridgeEcsUser = it
-                                    scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsUser = it.trim()) } }
+                                    scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeEcsUser = it.trim())) } }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_ecs_user)) },
                                 modifier = Modifier.weight(0.65f),
@@ -205,7 +237,7 @@ fun SettingWebBridgePage() {
                                     webBridgeSshPort = filtered
                                     // 超出 1–65535 的不再静默存入（旧逻辑只拦解析失败，99999/0 会直接写库）。
                                     filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
-                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsPort = port) } }
+                                        scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeEcsPort = port)) } }
                                     }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_ssh_port)) },
@@ -230,7 +262,7 @@ fun SettingWebBridgePage() {
                                     val filtered = it.filter { ch -> ch.isDigit() }
                                     webBridgeRemotePort = filtered
                                     filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
-                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeRemotePort = port) } }
+                                        scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeRemotePort = port)) } }
                                     }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_remote_port)) },
@@ -252,7 +284,7 @@ fun SettingWebBridgePage() {
                                     val filtered = it.filter { ch -> ch.isDigit() }
                                     webBridgeLocalPort = filtered
                                     filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
-                                        scope.launch { settingsStore.update { s -> s.copy(webBridgeLocalPort = port) } }
+                                        scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeLocalPort = port)) } }
                                     }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_local_port)) },
@@ -280,7 +312,7 @@ fun SettingWebBridgePage() {
                             value = webBridgePrivateKeyPath,
                             onValueChange = {
                                 webBridgePrivateKeyPath = it
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = it.trim()) } }
+                                scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgePrivateKeyPath = it.trim())) } }
                             },
                             label = stringResource(R.string.setting_web_bridge_private_key),
                             description = stringResource(R.string.setting_web_bridge_private_key_desc),
@@ -292,7 +324,7 @@ fun SettingWebBridgePage() {
                             value = webBridgePassword,
                             onValueChange = {
                                 webBridgePassword = it
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgePassword = it.trim()) } }
+                                scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgePassword = it.trim())) } }
                             },
                             label = stringResource(R.string.setting_web_bridge_password),
                             description = stringResource(R.string.setting_web_bridge_password_desc),
@@ -304,7 +336,7 @@ fun SettingWebBridgePage() {
                             value = webBridgeCredentialRef,
                             onValueChange = {
                                 webBridgeCredentialRef = it
-                                scope.launch { settingsStore.update { s -> s.copy(webBridgeCredentialRef = it.trim()) } }
+                                scope.launch { settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgeCredentialRef = it.trim())) } }
                             },
                             label = stringResource(R.string.web_bridge_credential_ref_label),
                             description = stringResource(R.string.web_bridge_credential_ref_desc),
@@ -363,7 +395,7 @@ fun SettingWebBridgePage() {
                                         val (key, path, toVault) = generated
                                         val ref = if (toVault) "$VAULT_REF_PREFIX$WEB_BRIDGE_KEY_NAME" else path
                                         webBridgePrivateKeyPath = ref
-                                        settingsStore.update { s -> s.copy(webBridgePrivateKeyPath = ref) }
+                                        settingsStore.update { s -> syncWebBridgeFields(s.copy(webBridgePrivateKeyPath = ref)) }
                                         keyInfo =
                                             if (toVault) {
                                                 context.getString(

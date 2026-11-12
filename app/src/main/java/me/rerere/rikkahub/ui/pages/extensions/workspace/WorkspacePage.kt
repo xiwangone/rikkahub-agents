@@ -58,12 +58,16 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 
 @Composable
-fun WorkspacePage(vm: WorkspaceVM = koinViewModel()) {
+fun WorkspacePage(
+    vm: WorkspaceVM = koinViewModel(),
+    openCreate: Boolean = false,
+) {
     val navController = LocalNavController.current
     val workspaces by vm.workspaces.collectAsStateWithLifecycle()
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var showAddDialog by rememberSaveable { mutableStateOf(false) }
-    var showTypePicker by rememberSaveable { mutableStateOf(false) }
+    // 从工作区选择器点「新建」进来时直接弹出类型选择，不用再找右下角的 + 号。
+    var showTypePicker by rememberSaveable { mutableStateOf(openCreate) }
     var editTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
     var deleteTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
 

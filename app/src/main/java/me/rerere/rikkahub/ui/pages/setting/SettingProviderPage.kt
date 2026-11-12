@@ -99,6 +99,24 @@ import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
 import kotlin.uuid.Uuid
 
+/**
+ * 供应商搜索匹配：名字、类型 key/本地化类型名、模型 ID/显示名都算。
+ * 以前只含名字，搜 "openai" 类型或某个模型名搜不到对应供应商。
+ */
+internal fun ProviderSetting.matchesProviderQuery(
+    query: String,
+    typeName: String = "",
+): Boolean {
+    val q = query.trim()
+    if (q.isBlank()) return true
+    if (name.contains(q, ignoreCase = true)) return true
+    if (providerKey.contains(q, ignoreCase = true)) return true
+    if (typeName.contains(q, ignoreCase = true)) return true
+    return models.any {
+        it.modelId.contains(q, ignoreCase = true) || it.displayName.contains(q, ignoreCase = true)
+    }
+}
+
 @Composable
 fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
@@ -121,10 +139,13 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
             reorderCommit.onMove(from.key, to.key)
         }
 
+    // 类型名是本地化的（providerTypeName 是 @Composable），先在组合层算好再过滤，
+    // 不能在 remember 的计算块里调 @Composable。
+    val providerTypeNames = settings.providers.associate { it.id to providerTypeName(it.providerKey) }
     val providersByQuery =
-        remember(settings.providers, searchQuery) {
+        remember(settings.providers, searchQuery, providerTypeNames) {
             settings.providers.filter { provider ->
-                provider.name.contains(searchQuery, ignoreCase = true)
+                provider.matchesProviderQuery(searchQuery, providerTypeNames[provider.id].orEmpty())
             }
         }
     // 非过滤态用拖动本地顺序（拖动即时反馈）；过滤态下标与全量不一致 → 不参与排序
@@ -208,63 +229,88 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                 shape = CircleShape,
             )
 
-            LazyColumn(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .weight(1f)
-                        .imePadding(),
-                contentPadding =
-                    PaddingValues(horizontal = 16.dp, vertical = 8.dp) +
-                        PaddingValues(bottom = innerPadding.calculateBottomPadding()),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                state = lazyListState,
-            ) {
-                items(filteredProviders, key = { it.id }) { provider ->
-                    ReorderableItem(
-                        state = reorderableState,
-                        key = provider.id,
-                    ) { isDragging ->
-                        ProviderItem(
-                            modifier =
-                                Modifier
-                                    .scale(if (isDragging) 0.95f else 1f)
-                                    .fillMaxWidth(),
-                            provider = provider,
-                            dragHandle = {
-                                val haptic = LocalHapticFeedback.current
-                                IconButton(
-                                    onClick = {},
+            // 搜不到/一个没有时以前整页空白：给空态文案，新建/导入入口本来就在顶栏。
+            if (filteredProviders.isEmpty()) {
+                Box(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .weight(1f),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (searchQuery.isBlank()) {
+                                    R.string.setting_provider_page_empty
+                                } else {
+                                    R.string.setting_provider_page_empty_search
+                                },
+                                ),
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.padding(16.dp),
+                        )
+                    }
+                } else {
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .weight(1f)
+                                .imePadding(),
+                        contentPadding =
+                            PaddingValues(horizontal = 16.dp, vertical = 8.dp) +
+                                PaddingValues(bottom = innerPadding.calculateBottomPadding()),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                        state = lazyListState,
+                    ) {
+                        items(filteredProviders, key = { it.id }) { provider ->
+                            ReorderableItem(
+                                state = reorderableState,
+                                key = provider.id,
+                            ) { isDragging ->
+                                ProviderItem(
                                     modifier =
                                         Modifier
-                                            .longPressDraggableHandle(
-                                                onDragStarted = {
-                                                    haptic.performHapticFeedback(
-                                                        HapticFeedbackType.GestureThresholdActivate,
-                                                    )
-                                                    reorderCommit.onDragStart()
-                                                },
-                                                onDragStopped = {
-                                                    haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
-                                                    reorderCommit.onDragStop()
-                                                },
-                                            ),
-                                ) {
-                                    Icon(
-                                        imageVector = HugeIcons.DragDropHorizontal,
-                                        contentDescription = null,
-                                    )
-                                }
-                            },
-                            onClick = {
-                                navController.navigate(
-                                    Screen.SettingProviderDetail(providerId = provider.id.toString()),
+                                            .scale(if (isDragging) 0.95f else 1f)
+                                            .fillMaxWidth(),
+                                    provider = provider,
+                                    dragHandle = {
+                                        val haptic = LocalHapticFeedback.current
+                                        IconButton(
+                                            onClick = {},
+                                            modifier =
+                                                Modifier
+                                                    .longPressDraggableHandle(
+                                                        onDragStarted = {
+                                                            haptic.performHapticFeedback(
+                                                                HapticFeedbackType.GestureThresholdActivate,
+                                                            )
+                                                            reorderCommit.onDragStart()
+                                                        },
+                                                        onDragStopped = {
+                                                            haptic.performHapticFeedback(HapticFeedbackType.GestureEnd)
+                                                            reorderCommit.onDragStop()
+                                                        },
+                                                    ),
+                                        ) {
+                                            Icon(
+                                                imageVector = HugeIcons.DragDropHorizontal,
+                                                contentDescription = null,
+                                            )
+                                        }
+                                    },
+                                    onClick = {
+                                        navController.navigate(
+                                            Screen.SettingProviderDetail(providerId = provider.id.toString()),
+                                        )
+                                    },
+                                    onLongClick = {
+                                        providerToDelete = provider
+                                    },
                                 )
-                            },
-                            onLongClick = {
-                                providerToDelete = provider
-                            },
-                        )
+                        }
                     }
                 }
             }

@@ -3,7 +3,12 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.Archive02
+import me.rerere.hugeicons.stroke.File01
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.MusicNote03
+import me.rerere.hugeicons.stroke.Text
+import me.rerere.hugeicons.stroke.Video01
 import me.rerere.hugeicons.stroke.Clean
 import me.rerere.hugeicons.stroke.Delete01
 import androidx.compose.foundation.layout.Arrangement
@@ -12,6 +17,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.aspectRatio
 import androidx.compose.foundation.layout.calculateEndPadding
 import androidx.compose.foundation.layout.calculateStartPadding
@@ -68,9 +74,63 @@ import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
+import me.rerere.rikkahub.utils.toLocalDateTime
+import java.time.Instant
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.concurrent.TimeUnit
+
+/** 文件按 MIME 大类分：非图片文件以前全显示同一个图片图标，扫一眼分不清类型。 */
+internal enum class FileTypeCategory {
+    IMAGE,
+    VIDEO,
+    AUDIO,
+    DOCUMENT,
+    ARCHIVE,
+    TEXT,
+    OTHER,
+}
+
+internal fun fileTypeCategory(mimeType: String): FileTypeCategory {
+    val lower = mimeType.trim().lowercase()
+    val major = lower.substringBefore("/")
+    val subtype = lower.substringAfter("/", "")
+    return when {
+        major == "image" -> FileTypeCategory.IMAGE
+        major == "video" -> FileTypeCategory.VIDEO
+        major == "audio" -> FileTypeCategory.AUDIO
+        major == "text" -> FileTypeCategory.TEXT
+        subtype == "pdf" ||
+            subtype == "msword" ||
+            subtype == "rtf" ||
+            subtype == "epub+zip" ||
+            subtype.startsWith("vnd.openxmlformats-officedocument") ||
+            subtype.startsWith("vnd.oasis.opendocument") -> FileTypeCategory.DOCUMENT
+        subtype in
+            setOf(
+                "zip",
+                "x-tar",
+                "gzip",
+                "x-gzip",
+                "x-7z-compressed",
+                "x-rar-compressed",
+                "x-xz",
+            ) -> FileTypeCategory.ARCHIVE
+        else -> FileTypeCategory.OTHER
+    }
+}
+
+@Composable
+private fun fileTypeCategoryLabel(mimeType: String): Int =
+    when (fileTypeCategory(mimeType)) {
+        FileTypeCategory.IMAGE -> R.string.setting_files_page_type_image
+        FileTypeCategory.VIDEO -> R.string.setting_files_page_type_video
+        FileTypeCategory.AUDIO -> R.string.setting_files_page_type_audio
+        FileTypeCategory.DOCUMENT -> R.string.setting_files_page_type_document
+        FileTypeCategory.ARCHIVE -> R.string.setting_files_page_type_archive
+        FileTypeCategory.TEXT -> R.string.setting_files_page_type_text
+        FileTypeCategory.OTHER -> R.string.setting_files_page_type_other
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -547,7 +607,9 @@ private fun FileItem(
             Box(
                 modifier = Modifier.fillMaxWidth(),
             ) {
-                if (file.mimeType.startsWith("image/")) {
+                // 图片显示真缩略图；其余按 MIME 大类换图标，以前全是同一个 Image02。
+                val category = fileTypeCategory(file.mimeType)
+                if (category == FileTypeCategory.IMAGE) {
                     AsyncImage(
                         model = fileOnDisk,
                         contentDescription = file.displayName,
@@ -566,9 +628,18 @@ private fun FileItem(
                         contentAlignment = Alignment.Center,
                     ) {
                         Icon(
-                            imageVector = HugeIcons.Image02,
+                            imageVector =
+                                when (category) {
+                                    FileTypeCategory.VIDEO -> HugeIcons.Video01
+                                    FileTypeCategory.AUDIO -> HugeIcons.MusicNote03
+                                    FileTypeCategory.DOCUMENT -> HugeIcons.File02
+                                    FileTypeCategory.ARCHIVE -> HugeIcons.Archive02
+                                    FileTypeCategory.TEXT -> HugeIcons.Text
+                                    else -> HugeIcons.File01
+                                },
                             contentDescription = null,
                             tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.size(48.dp),
                         )
                     }
                 }
@@ -612,15 +683,28 @@ private fun FileItem(
                     maxLines = 2,
                     overflow = TextOverflow.Ellipsis,
                 )
+                // MIME 不再显示 `image/png` 这种技术串，改成人类可读的类型名 + 子类型。
                 Text(
-                    text = file.mimeType,
+                    text =
+                        stringResource(fileTypeCategoryLabel(file.mimeType)) +
+                            " · " + file.mimeType.substringAfter("/").uppercase(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
                 Text(
                     text = file.sizeBytes.fileSizeToString(),
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                // 时间：文件自身的修改时间（入库时取自文件 mtime，新上传的即上传时间）。
+                Text(
+                    text = Instant.ofEpochMilli(file.createdAt).toLocalDateTime(),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

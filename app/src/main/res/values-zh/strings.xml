@@ -648,6 +648,7 @@
   <string name="model_list_no_providers">没有可用AI提供商, 请在设置添加</string>
   <string name="model_list_search_placeholder">输入模型名称搜索</string>
   <string name="model_list_select_model">选择模型</string>
+  <string name="model_list_model_unavailable">原模型已删除/不可用</string>
   <string name="chat_input_toggle_toolbar">折叠功能栏</string>
     <string name="more_options">更多选项</string>
   <string name="no_text_content_to_copy">暂无可复制的文本内容</string>
@@ -1021,6 +1022,13 @@
   <string name="setting_files_page_delete_file_title">删除文件</string>
   <string name="setting_files_page_deleted_toast">已删除</string>
   <string name="setting_files_page_folder_upload">上传</string>
+  <string name="setting_files_page_type_image">图片</string>
+  <string name="setting_files_page_type_video">视频</string>
+  <string name="setting_files_page_type_audio">音频</string>
+  <string name="setting_files_page_type_document">文档</string>
+  <string name="setting_files_page_type_archive">压缩包</string>
+  <string name="setting_files_page_type_text">文本</string>
+  <string name="setting_files_page_type_other">文件</string>
   <string name="setting_files_page_folder_avatars">头像</string>
   <string name="setting_files_page_no_files">无文件</string>
   <string name="setting_files_page_title">文件管理</string>
@@ -1289,6 +1297,8 @@
   <string name="setting_provider_page_scan_error">错误: %s</string>
   <string name="setting_provider_page_scan_qr_code">扫描二维码</string>
   <string name="setting_provider_page_search_providers">搜索提供商</string>
+  <string name="setting_provider_page_empty">还没有供应商</string>
+  <string name="setting_provider_page_empty_search">没有匹配的供应商</string>
   <string name="setting_provider_page_recommend">推荐提供商</string>
   <string name="setting_provider_page_select_all">全选（%1$d）</string>
   <string name="setting_provider_page_select_from_gallery">从相册选择</string>
@@ -2221,6 +2231,8 @@
   <string name="workspace_detail_tool_background_kill">停止后台任务</string>
   <string name="workspace_detail_install_rootfs_desc">将下载 tar.gz 并解压到 %s 的 Linux 目录。</string>
   <string name="workspace_detail_download_url">tar.gz 下载链接</string>
+  <string name="workspace_detail_rootfs_url_invalid">请输入有效的 http(s) 链接，且以 .tar.gz/.tar.xz 结尾</string>
+  <string name="workspace_detail_rootfs_resolving">正在解析最新版本…</string>
   <string name="workspace_detail_area_files">文件</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">空目录</string>
@@ -2694,6 +2706,7 @@
   <string name="setting_ssh_platform_auto">自动</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">平台未判定</string>
   <string name="setting_ssh_default_platform">默认远端平台</string>
   <string name="setting_ssh_default_platform_desc">主机设为自动时使用</string>
   <string name="setting_ssh_allow_host_key_rotation">允许主机密钥轮换</string>
@@ -2972,6 +2985,7 @@
   <string name="setting_web_bridge_switch">Web 桥总开关</string>
   <string name="setting_web_bridge_switch_desc">开启 Web 桥</string>
   <string name="setting_web_bridge_switch_desc_detail">开启：同步全局配置并启用 后端服务，远端可经隧道调用手机 API；关闭：全部禁用</string>
+  <string name="setting_web_bridge_partial_enabled">部分开启（%1$d/%2$d 个后端已开启）</string>
   <string name="setting_web_bridge_title">Web 桥</string>
   <string name="web_bridge_connection">连接状态</string>
   <string name="web_bridge_connect">启动 Web 桥</string>
@@ -3644,6 +3658,7 @@
   <string name="workspace_detail_chroot_probe_failed">chroot 能力探测未通过，已阻止开启。</string>
   <string name="workspace_detail_import_local_rootfs">从本地文件导入</string>
   <string name="workspace_detail_import_local_rootfs_desc">选择设备上已有的 rootfs 归档（tar.gz / tar.xz）。适用于下载源不可达的情况。</string>
+  <string name="workspace_detail_rootfs_import_failed">导入失败：%1$s</string>
   <string name="workspace_detail_saved_rootfs_urls">已保存的链接</string>
   <string name="workspace_detail_save_rootfs_url">保存当前链接</string>
   <string name="workspace_detail_delete_saved_url">删除</string>

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.extensions.workspace
 
+import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import androidx.activity.result.contract.ActivityResultContracts
@@ -57,6 +58,22 @@ import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.workspace.WorkspaceShellStatus
 import java.io.File
 
+/** 归档文件名是否合法：以 .tar.gz/.tar.xz/.txz 结尾。 */
+internal fun isRootfsArchiveName(name: String): Boolean {
+    val lower = name.trim().lowercase()
+    return lower.endsWith(".tar.gz") || lower.endsWith(".tar.xz") || lower.endsWith(".txz")
+}
+
+/**
+ * rootfs 归档链接是否合法：http(s) 且以 .tar.gz/.tar.xz/.txz 结尾。
+ * 只判非空时手滑多打个字符也能点安装，要等几分钟下载失败才知道错了。
+ */
+internal fun isValidRootfsUrl(url: String): Boolean {
+    val trimmed = url.trim()
+    if (!trimmed.startsWith("http://") && !trimmed.startsWith("https://")) return false
+    return isRootfsArchiveName(trimmed)
+}
+
 @Composable
 internal fun InstallRootfsDialog(
     workspace: WorkspaceEntity,
@@ -73,7 +90,18 @@ internal fun InstallRootfsDialog(
     var url by rememberSaveable(workspace.id, isUpdate) { mutableStateOf(initialUrl) }
     var resolvingLxc by remember { mutableStateOf(false) }
     val context = LocalContext.current
+    val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
+    val importFailedFormat = stringResource(R.string.workspace_detail_rootfs_import_failed)
+    var savedUrls by remember { mutableStateOf(loadSavedRootfsUrls(context)) }
+
+    fun saveUrl(candidate: String) {
+        val trimmed = candidate.trim()
+        if (trimmed.isBlank()) return
+        val updated = (listOf(trimmed) + savedUrls).distinct().take(MAX_SAVED_ROOTFS_URLS)
+        savedUrls = updated
+        saveRootfsUrls(context, updated)
+    }
 
     LaunchedEffect(isUpdate, distro?.name) {
         if (url.contains("/images/debian/trixie/")) {
@@ -90,6 +118,11 @@ internal fun InstallRootfsDialog(
             if (uri == null) return@rememberSafeLauncherForActivityResult
             scope.launch {
                 val name = uri.lastPathSegment?.substringAfterLast('/') ?: "rootfs.tar.gz"
+                // 先校验后缀：格式不对的归档以前会照常复制、到安装那步才失败，弹窗里毫无反应。
+                if (!isRootfsArchiveName(name)) {
+                    toaster.show(importFailedFormat.format(name))
+                    return@launch
+                }
                 val suffix =
                     if (name.endsWith(".tar.xz", true) || name.endsWith(".txz", true)) ".tar.xz" else ".tar.gz"
                 val target = File(context.cacheDir, "rootfs-import-${System.currentTimeMillis()}$suffix")
@@ -101,11 +134,12 @@ internal fun InstallRootfsDialog(
                     }
                 }.onSuccess {
                     onConfirmFile(target.absolutePath)
+                }.onFailure { e ->
+                    // 本地导入失败以前没有任何分支：选了损坏的归档，弹窗毫无反应。
+                    toaster.show(importFailedFormat.format(e.message ?: e.javaClass.simpleName))
                 }
             }
         }
-
-    var savedUrls by remember { mutableStateOf(loadSavedRootfsUrls(context)) }
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -155,6 +189,14 @@ internal fun InstallRootfsDialog(
                     modifier = Modifier.fillMaxWidth(),
                     label = { Text(stringResource(R.string.workspace_detail_download_url)) },
                     maxLines = 4,
+                    isError = url.isNotBlank() && !isValidRootfsUrl(url),
+                    supportingText = {
+                        when {
+                            resolvingLxc -> Text(stringResource(R.string.workspace_detail_rootfs_resolving))
+                            url.isNotBlank() && !isValidRootfsUrl(url) ->
+                                Text(stringResource(R.string.workspace_detail_rootfs_url_invalid))
+                        }
+                    },
                 )
                 Text(
                     text = stringResource(R.string.workspace_detail_preset_rootfs_urls),
@@ -235,15 +277,7 @@ internal fun InstallRootfsDialog(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedButton(
-                        onClick = {
-                            val candidate = url.trim()
-                            if (candidate.isNotBlank()) {
-                                val updated =
-                                    (listOf(candidate) + savedUrls).distinct().take(MAX_SAVED_ROOTFS_URLS)
-                                savedUrls = updated
-                                saveRootfsUrls(context, updated)
-                            }
-                        },
+                        onClick = { saveUrl(url) },
                         modifier = Modifier.weight(1f),
                     ) {
                         Icon(
@@ -291,13 +325,16 @@ internal fun InstallRootfsDialog(
                             resolvingLxc = true
                             val resolved = resolveLxcDebianRootfs() ?: trimmed
                             resolvingLxc = false
+                            // 安装成功即记入已保存链接：以前装完就丢，下次还要重打。
+                            saveUrl(resolved)
                             onConfirm(resolved)
                         }
                     } else {
+                        saveUrl(trimmed)
                         onConfirm(trimmed)
                     }
                 },
-                enabled = url.isNotBlank() && !resolvingLxc,
+                enabled = isValidRootfsUrl(url) && !resolvingLxc,
             ) {
                 Text(stringResource(if (isUpdate) R.string.common_update else R.string.common_install))
             }

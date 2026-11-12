@@ -23,6 +23,7 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
+import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -128,6 +129,10 @@ fun SshTerminalPage(hostName: String) {
     // 远端是否 Windows：建连成功后由显式平台（主机设置 > 全局默认）或服务端 banner 算出；
     // null 表示尚未判定，命令发送时回退到命令特征判据。
     var isWindowsRemote by remember { mutableStateOf<Boolean?>(null) }
+    // 平台未判定时用户在页内手动选一次：快捷命令栏与命令编码都按手动值走。
+    // 只有未判定时才显示切换；一旦 banner/显式设置判定出来，就以判定为准。
+    var platformOverride by remember { mutableStateOf<Boolean?>(null) }
+    val isWindowsEffective = platformOverride ?: isWindowsRemote
     var pendingHostKey by remember { mutableStateOf<PendingTerminalHostKey?>(null) }
     var command by remember { mutableStateOf("") }
     var output by remember { mutableStateOf("") }
@@ -300,8 +305,9 @@ fun SshTerminalPage(hostName: String) {
                 try {
                     val execChannel = session.openChannel("exec") as com.jcraft.jsch.ChannelExec
                     ch = execChannel
-                    // Windows 远端补 UTF-8 输出前缀修中文乱码；平台未知时由命令特征判据兜底。
-                    execChannel.setCommand(withUtf8ConsoleEncoding(trimmed, isWindowsRemote))
+                    // Windows 远端补 UTF-8 输出前缀修中文乱码；平台未知时由命令特征判据兜底，
+                    // 用户在页内手动选过平台时按手动值走。
+                    execChannel.setCommand(withUtf8ConsoleEncoding(trimmed, isWindowsEffective))
                     execChannel.connect(10000)
                     val buf = ByteArray(4096)
                     val outBuf = java.io.ByteArrayOutputStream()
@@ -488,8 +494,34 @@ fun SshTerminalPage(hostName: String) {
             }
 
             if (connected) {
+                // 平台未判定时默认给 Linux 命令，连 Windows 主机点了也没用，
+                // 页内又没地方改：给一个小的 Linux/Windows 切换。
+                if (isWindowsRemote == null) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            text = stringResource(R.string.ssh_terminal_platform_unknown),
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            modifier = Modifier.weight(1f),
+                        )
+                        FilterChip(
+                            selected = platformOverride == false,
+                            onClick = { platformOverride = false },
+                            label = { Text(stringResource(R.string.setting_ssh_platform_linux)) },
+                        )
+                        FilterChip(
+                            selected = platformOverride == true,
+                            onClick = { platformOverride = true },
+                            label = { Text(stringResource(R.string.setting_ssh_platform_windows)) },
+                        )
+                    }
+                }
                 val quickCommands =
-                    if (isWindowsRemote == true) SSH_QUICK_COMMANDS_WINDOWS else SSH_QUICK_COMMANDS_POSIX
+                    if (isWindowsEffective == true) SSH_QUICK_COMMANDS_WINDOWS else SSH_QUICK_COMMANDS_POSIX
                 Row(
                     modifier =
                         Modifier

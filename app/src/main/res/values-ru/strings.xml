@@ -521,6 +521,7 @@
   <string name="model_list_no_providers">Нет доступных поставщиков ИИ, добавьте их в настройках</string>
   <string name="model_list_search_placeholder">Введите название модели для поиска</string>
   <string name="model_list_select_model">Выбрать модель</string>
+  <string name="model_list_model_unavailable">Ранее выбранная модель недоступна</string>
   <string name="more_options">Дополнительные параметры</string>
   <string name="no_text_content_to_copy">Нет доступного текста для копирования</string>
   <string name="notification_channel_chat_completed">Чат завершён</string>
@@ -834,6 +835,13 @@
   <string name="setting_files_page_delete_file_title">Удалить файл</string>
   <string name="setting_files_page_deleted_toast">Удалено</string>
   <string name="setting_files_page_folder_upload">Загрузить</string>
+  <string name="setting_files_page_type_image">Изображение</string>
+  <string name="setting_files_page_type_video">Видео</string>
+  <string name="setting_files_page_type_audio">Аудио</string>
+  <string name="setting_files_page_type_document">Документ</string>
+  <string name="setting_files_page_type_archive">Архив</string>
+  <string name="setting_files_page_type_text">Текст</string>
+  <string name="setting_files_page_type_other">Файл</string>
   <string name="setting_files_page_no_files">Нет файлов</string>
   <string name="setting_files_page_title">Управление файлами</string>
   <string name="setting_mcp_page_add_header">Добавить заголовок</string>
@@ -1086,6 +1094,8 @@
   <string name="setting_provider_page_scan_error">Ошибка: %s</string>
   <string name="setting_provider_page_scan_qr_code">Сканировать QR-код</string>
   <string name="setting_provider_page_search_providers">Поиск поставщиков</string>
+  <string name="setting_provider_page_empty">Пока нет поставщиков</string>
+  <string name="setting_provider_page_empty_search">Нет подходящих поставщиков</string>
   <string name="setting_provider_page_recommend">Рекомендуемые поставщики</string>
   <string name="setting_provider_page_select_all">Выбрать все (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">Выбрать из галереи</string>
@@ -1910,6 +1920,8 @@
   <string name="workspace_detail_tool_background_kill">Остановить фоновую задачу</string>
   <string name="workspace_detail_install_rootfs_desc">Загрузит tar.gz и распакует в каталог Linux %s.</string>
   <string name="workspace_detail_download_url">URL для скачивания tar.gz</string>
+  <string name="workspace_detail_rootfs_url_invalid">Введите допустимый URL http(s), оканчивающийся на .tar.gz или .tar.xz</string>
+  <string name="workspace_detail_rootfs_resolving">Определение последней версии…</string>
   <string name="workspace_detail_area_files">Файлы</string>
   <string name="workspace_detail_area_rootfs">Корневая ФС</string>
   <string name="workspace_detail_empty_directory">Пустая директория</string>
@@ -3273,6 +3285,7 @@
   <string name="setting_web_bridge_switch">Главный переключатель веб-моста</string>
   <string name="setting_web_bridge_switch_desc">Включить веб-мост</string>
   <string name="setting_web_bridge_switch_desc_detail">Вкл.: синхронизирует глобальные настройки и включает серверную службу — удалённо можно вызывать API телефона через туннель. Выкл.: всё отключено.</string>
+  <string name="setting_web_bridge_partial_enabled">Частично включено (включено серверов: %1$d из %2$d)</string>
   <string name="setting_web_bridge_title">Веб-мост</string>
   <string name="web_bridge_connection">Состояние подключения</string>
   <string name="web_bridge_connect">Запустить веб-мост</string>
@@ -3550,6 +3563,7 @@
   <string name="workspace_detail_delete_saved_url">Удалить</string>
   <string name="workspace_detail_import_local_rootfs">Импорт из локального файла</string>
   <string name="workspace_detail_import_local_rootfs_desc">Выберите архив rootfs (tar.gz / tar.xz) на устройстве. Полезно, когда источник загрузки недоступен.</string>
+  <string name="workspace_detail_rootfs_import_failed">Не удалось импортировать: %1$s</string>
   <string name="workspace_detail_preset_rootfs_urls">Предустановки</string>
   <string name="workspace_detail_save_rootfs_url">Сохранить текущий URL</string>
   <string name="workspace_detail_saved_rootfs_urls">Сохранённые URL</string>
@@ -4276,6 +4290,7 @@
   <string name="setting_ssh_platform_auto">Авто</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">Платформа не определена</string>
   <string name="setting_ssh_default_platform">Платформа удалённого хоста по умолчанию</string>
   <string name="setting_ssh_default_platform_desc">Используется, когда для хоста выбрано «Авто»</string>
   <string name="setting_ssh_allow_host_key_rotation">Разрешить смену ключа хоста</string>

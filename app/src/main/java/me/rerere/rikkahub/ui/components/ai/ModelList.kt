@@ -83,6 +83,7 @@ import me.rerere.hugeicons.stroke.Text
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -124,6 +125,16 @@ class ModelListState internal constructor(
 
     val currentModel: Model?
         get() = modelId?.let { providers.findModelById(it) }
+
+    /**
+     * 已选模型在当前供应商列表里找不到了（模型被删）：与“从没选过”区分显示，
+     * 否则设置页只显示“选择模型”，用户不知道之前选的已经失效。
+     * 注意 `findModelById` 不分供应商启用状态，禁用供应商的模型仍找得到，
+     * 只有真正被删的模型才会走到这里。`DEFAULT_AUTO_MODEL_ID` 是“自动/未选”
+     * 哨兵（五个非空槽位清掉后就回到它），不是被删的模型，不算失效。
+     */
+    val isStale: Boolean
+        get() = modelId != null && modelId != DEFAULT_AUTO_MODEL_ID && currentModel == null
 
     val filteredProviders: List<ProviderSetting>
         get() =
@@ -285,6 +296,7 @@ internal fun ModelSelectorButton(
 
 // 显示当前模型的胶囊按钮，样式和 Select 保持一致，点击后由调用方打开模型列表
 // 给了 onClear 时，选了模型后右侧显示清除按钮；placeholder 是没选模型时显示的文字
+// stale=true 表示已选模型找不到了（被删）：显示“原模型已删除/不可用”并同样给清除按钮
 @Composable
 internal fun ModelField(
     model: Model?,
@@ -292,6 +304,7 @@ internal fun ModelField(
     modifier: Modifier = Modifier,
     placeholder: String = stringResource(R.string.model_list_select_model),
     onClear: (() -> Unit)? = null,
+    stale: Boolean = false,
 ) {
     Surface(
         onClick = onClick,
@@ -312,13 +325,19 @@ internal fun ModelField(
                 )
             }
             Text(
-                text = model?.displayName ?: placeholder,
+                text =
+                    when {
+                        model != null -> model.displayName
+                        stale -> stringResource(R.string.model_list_model_unavailable)
+                        else -> placeholder
+                    },
+                color = if (stale) MaterialTheme.colorScheme.error else Color.Unspecified,
                 style = MaterialTheme.typography.bodyMedium,
                 maxLines = 1,
                 overflow = TextOverflow.Ellipsis,
                 modifier = Modifier.weight(1f),
             )
-            if (onClear != null && model != null) {
+            if (onClear != null && (model != null || stale)) {
                 Icon(
                     imageVector = HugeIcons.Cancel01,
                     contentDescription = stringResource(R.string.accessibility_clear_model_selection),

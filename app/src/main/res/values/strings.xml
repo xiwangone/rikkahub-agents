@@ -652,6 +652,7 @@
   <string name="model_list_no_providers">No available AI providers, please add in settings</string>
   <string name="model_list_search_placeholder">Enter model name to search</string>
   <string name="model_list_select_model">Select Model</string>
+  <string name="model_list_model_unavailable">Previously selected model is unavailable</string>
   <string name="chat_input_toggle_toolbar">Toggle toolbar</string>
     <string name="more_options">More options</string>
   <string name="no_text_content_to_copy">No text content available to copy</string>
@@ -1030,6 +1031,13 @@
   <string name="setting_files_page_delete_file_title">Delete File</string>
   <string name="setting_files_page_deleted_toast">Deleted</string>
   <string name="setting_files_page_folder_upload">Upload</string>
+  <string name="setting_files_page_type_image">Image</string>
+  <string name="setting_files_page_type_video">Video</string>
+  <string name="setting_files_page_type_audio">Audio</string>
+  <string name="setting_files_page_type_document">Document</string>
+  <string name="setting_files_page_type_archive">Archive</string>
+  <string name="setting_files_page_type_text">Text</string>
+  <string name="setting_files_page_type_other">File</string>
   <string name="setting_files_page_folder_avatars">Avatars</string>
   <string name="setting_files_page_no_files">No Files</string>
   <string name="setting_files_page_title">File Management</string>
@@ -1333,6 +1341,8 @@
   <string name="setting_provider_page_scan_error">Error: %s</string>
   <string name="setting_provider_page_scan_qr_code">Scan QR Code</string>
   <string name="setting_provider_page_search_providers">Search providers</string>
+  <string name="setting_provider_page_empty">No providers yet</string>
+  <string name="setting_provider_page_empty_search">No matching providers</string>
   <string name="setting_provider_page_recommend">Recommended providers</string>
   <string name="setting_provider_page_select_all">Select All (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">Select from Gallery</string>
@@ -2281,6 +2291,8 @@
   <string name="workspace_detail_tool_background_kill">Stop Background Task</string>
   <string name="workspace_detail_install_rootfs_desc">Will download tar.gz and extract to the linux directory of %s.</string>
   <string name="workspace_detail_download_url">tar.gz download URL</string>
+  <string name="workspace_detail_rootfs_url_invalid">Enter a valid http(s) URL ending in .tar.gz or .tar.xz</string>
+  <string name="workspace_detail_rootfs_resolving">Resolving the latest version…</string>
   <string name="workspace_detail_area_files">Files</string>
   <string name="workspace_detail_area_rootfs">Rootfs</string>
   <string name="workspace_detail_empty_directory">Empty directory</string>
@@ -2687,6 +2699,7 @@
   <string name="setting_ssh_platform_auto">Auto</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">Platform not detected</string>
   <string name="setting_ssh_default_platform">Default remote platform</string>
   <string name="setting_ssh_default_platform_desc">Used when a host is set to Auto</string>
   <string name="setting_ssh_allow_host_key_rotation">Allow host key rotation</string>
@@ -2997,6 +3010,7 @@
   <string name="setting_web_bridge_switch">Web bridge master switch</string>
   <string name="setting_web_bridge_switch_desc">Enable Web bridge</string>
   <string name="setting_web_bridge_switch_desc_detail">On: sync global config and enable Backend so remote callers reach phone APIs through the tunnel. Off: disable all.</string>
+  <string name="setting_web_bridge_partial_enabled">Partially enabled (%1$d of %2$d backends enabled)</string>
   <string name="vault_session_mode_ttl">30 minutes</string>
   <string name="vault_session_mode_manual_desc">Token never expires; invalidated only by manual revoke</string>
   <string name="vault_session_mode_ttl_desc">The token expires after 30 minutes and must be issued again with fingerprint verification</string>
@@ -3611,6 +3625,7 @@
   <string name="workspace_detail_chroot_probe_failed">Chroot capability probe failed, so enabling was blocked.</string>
   <string name="workspace_detail_import_local_rootfs">Import from local file</string>
   <string name="workspace_detail_import_local_rootfs_desc">Pick a rootfs archive (tar.gz / tar.xz) already on this device. Useful when the download source is unreachable.</string>
+  <string name="workspace_detail_rootfs_import_failed">Import failed: %1$s</string>
   <string name="workspace_detail_saved_rootfs_urls">Saved URLs</string>
   <string name="workspace_detail_save_rootfs_url">Save current URL</string>
   <string name="workspace_detail_delete_saved_url">Delete</string>

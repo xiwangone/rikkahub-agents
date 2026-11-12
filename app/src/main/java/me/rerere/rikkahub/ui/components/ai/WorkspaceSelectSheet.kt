@@ -21,13 +21,17 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Codesandbox
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -41,6 +45,7 @@ internal fun WorkspaceSelectSheet(
     onSelect: (String?) -> Unit,
     onManage: () -> Unit,
     onDismiss: () -> Unit,
+    onCreate: (() -> Unit)? = null,
 ) {
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -81,6 +86,9 @@ internal fun WorkspaceSelectSheet(
                     WorkspaceSelectRow(
                         title = workspace.name,
                         status = workspace.statusLabel(),
+                        // 行图标按类型区分，与工作区列表页同口径：SSH 用服务器、本地用文件。
+                        // 以前全行都是同一个 Codesandbox，同名工作区分不清本地还是 SSH。
+                        icon = if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02,
                         selected = workspace.id == assistant.workspaceId?.toString(),
                         onClick = { onSelect(workspace.id) },
                     )
@@ -88,6 +96,31 @@ internal fun WorkspaceSelectSheet(
             }
 
             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
+
+            // 新建工作区：直达创建（管理页打开即弹出类型选择），不用先退出、
+            // 去管理页新建、再回来重选。
+            if (onCreate != null) {
+                ListItem(
+                    leadingContent = {
+                        Icon(HugeIcons.Add01, contentDescription = null)
+                    },
+                    headlineContent = {
+                        Text(stringResource(R.string.workspace_page_create))
+                    },
+                    trailingContent = {
+                        Icon(
+                            imageVector = HugeIcons.ArrowRight01,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    },
+                    colors = ListItemDefaults.colors(containerColor = Color.Transparent),
+                    modifier =
+                        Modifier
+                            .clip(MaterialTheme.shapes.large)
+                            .clickable { onCreate() },
+                )
+            }
 
             // 管理工作区
             ListItem(
@@ -120,10 +153,11 @@ private fun WorkspaceSelectRow(
     selected: Boolean,
     onClick: () -> Unit,
     status: String? = null,
+    icon: ImageVector = HugeIcons.Codesandbox,
 ) {
     ListItem(
         leadingContent = {
-            Icon(HugeIcons.Codesandbox, contentDescription = null)
+            Icon(icon, contentDescription = null)
         },
         headlineContent = {
             Text(

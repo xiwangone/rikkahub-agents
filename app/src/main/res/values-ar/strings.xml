@@ -643,6 +643,7 @@
   <string name="model_list_no_providers">لا يوجد مزوّدو ذكاء اصطناعي متاحون، من فضلك أضف في الإعدادات</string>
   <string name="model_list_search_placeholder">أدخل اسم النموذج للبحث</string>
   <string name="model_list_select_model">اختيار نموذج</string>
+  <string name="model_list_model_unavailable">النموذج المحدد سابقًا غير متاح</string>
   <string name="more_options">المزيد من الخيارات</string>
   <string name="no_text_content_to_copy">لا يوجد محتوى نصي متاح للنسخ</string>
   <string name="notification_channel_chat_completed">اكتملت الدردشة</string>
@@ -894,6 +895,13 @@
   <string name="setting_files_page_delete_file_title">حذف ملف</string>
   <string name="setting_files_page_deleted_toast">تم الحذف</string>
   <string name="setting_files_page_folder_upload">رفع</string>
+  <string name="setting_files_page_type_image">صورة</string>
+  <string name="setting_files_page_type_video">فيديو</string>
+  <string name="setting_files_page_type_audio">صوت</string>
+  <string name="setting_files_page_type_document">مستند</string>
+  <string name="setting_files_page_type_archive">أرشيف</string>
+  <string name="setting_files_page_type_text">نص</string>
+  <string name="setting_files_page_type_other">ملف</string>
   <string name="setting_files_page_no_files">لا توجد ملفات</string>
   <string name="setting_files_page_title">إدارة الملفات</string>
   <string name="setting_mcp_page_add_header">إضافة ترويسة</string>
@@ -1127,6 +1135,8 @@
   <string name="setting_provider_page_scan_error">خطأ: %s</string>
   <string name="setting_provider_page_scan_qr_code">مسح رمز QR</string>
   <string name="setting_provider_page_search_providers">البحث في المزوّدين</string>
+  <string name="setting_provider_page_empty">لا يوجد موفّرون بعد</string>
+  <string name="setting_provider_page_empty_search">لا يوجد موفّرون مطابقون</string>
   <string name="setting_provider_page_select_all">تحديد الكل (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">الاختيار من المعرض</string>
   <string name="setting_provider_page_service_account_email">البريد الإلكتروني لحساب الخدمة</string>
@@ -2831,6 +2841,7 @@
   <string name="setting_web_bridge_switch">المفتاح الرئيسي لجسر الويب</string>
   <string name="setting_web_bridge_switch_desc">تفعيل جسر الويب</string>
   <string name="setting_web_bridge_switch_desc_detail">تشغيل: يزامن الإعدادات العامة ويفعّل خدمة الواجهة الخلفية ليستدعي البعيد واجهة الهاتف عبر النفق. إيقاف: تعطيل الكل.</string>
+  <string name="setting_web_bridge_partial_enabled">مُمكَّن جزئيًا (%1$d من %2$d من الخوادم الخلفية مُمكَّنة)</string>
   <string name="setting_web_bridge_title">جسر الويب</string>
   <string name="web_bridge_connection">حالة الاتصال</string>
   <string name="web_bridge_connect">تشغيل جسر الويب</string>
@@ -3296,6 +3307,8 @@
   <string name="workspace_detail_tool_background_kill">إيقاف المهمة الخلفية</string>
   <string name="workspace_detail_install_rootfs_desc">سيُنزَّل ملف tar.gz ويُستخرج إلى دليل Linux في %s.</string>
   <string name="workspace_detail_download_url">رابط تنزيل tar.gz</string>
+  <string name="workspace_detail_rootfs_url_invalid">أدخل رابط http(s) صالحًا ينتهي بـ .tar.gz أو .tar.xz</string>
+  <string name="workspace_detail_rootfs_resolving">جارٍ تحديد أحدث إصدار…</string>
   <string name="workspace_detail_area_files">الملفات</string>
   <string name="workspace_detail_area_rootfs">‏Rootfs</string>
   <string name="workspace_detail_empty_directory">دليل فارغ</string>
@@ -3553,6 +3566,7 @@
   <string name="workspace_detail_delete_saved_url">حذف</string>
   <string name="workspace_detail_import_local_rootfs">استيراد من ملف محلي</string>
   <string name="workspace_detail_import_local_rootfs_desc">اختر أرشيف rootfs (tar.gz / tar.xz) الموجود على الجهاز. مفيد عندما يتعذّر الوصول إلى مصدر التنزيل.</string>
+  <string name="workspace_detail_rootfs_import_failed">فشل الاستيراد: %1$s</string>
   <string name="workspace_detail_preset_rootfs_urls">الإعدادات المسبقة</string>
   <string name="workspace_detail_save_rootfs_url">حفظ عنوان URL الحالي</string>
   <string name="workspace_detail_saved_rootfs_urls">عناوين URL المحفوظة</string>
@@ -4279,6 +4293,7 @@
   <string name="setting_ssh_platform_auto">تلقائي</string>
   <string name="setting_ssh_platform_linux">Linux</string>
   <string name="setting_ssh_platform_windows">Windows</string>
+  <string name="ssh_terminal_platform_unknown">تعذّر تحديد المنصة</string>
   <string name="setting_ssh_default_platform">المنصة البعيدة الافتراضية</string>
   <string name="setting_ssh_default_platform_desc">يُستخدم عندما يكون المضيف مضبوطًا على تلقائي</string>
   <string name="setting_ssh_allow_host_key_rotation">السماح بتدوير مفتاح المضيف</string>
