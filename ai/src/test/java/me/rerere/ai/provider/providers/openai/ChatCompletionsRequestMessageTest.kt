@@ -42,8 +42,9 @@ class ChatCompletionsRequestMessageTest {
     private fun invokeBuildMessages(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
-        includeOpenRouterReasoningDetails: Boolean = false,
+        reasoningReplayFormat: ReasoningReplayFormat = ReasoningReplayFormat.REASONING_CONTENT,
         supportInputModalities: List<Modality> = listOf(Modality.TEXT, Modality.IMAGE),
+        fillEmptyReasoningForDeepSeek: Boolean = false,
     ): JsonArray {
         // 按方法名查找而不是按精确参数签名：buildMessages 的参数随功能演进会增删（如新增
         // fillEmptyReasoningForDeepSeek），写死签名会让测试在无关改动上大面积失败。
@@ -55,9 +56,9 @@ class ChatCompletionsRequestMessageTest {
             messages,
             includeHistoryReasoning,
             false,
-            includeOpenRouterReasoningDetails,
+            reasoningReplayFormat,
             supportInputModalities,
-            false
+            fillEmptyReasoningForDeepSeek
         ) as JsonArray
     }
 
@@ -603,7 +604,7 @@ class ChatCompletionsRequestMessageTest {
 
         val assistant = invokeBuildMessages(
             messages,
-            includeOpenRouterReasoningDetails = true,
+            reasoningReplayFormat = ReasoningReplayFormat.OPENROUTER_DETAILS,
         )[1].jsonObject
 
         assertEquals(reasoningDetails, assistant["reasoning_details"])
@@ -653,7 +654,7 @@ class ChatCompletionsRequestMessageTest {
         })
         val assistant = invokeBuildMessages(
             messages = listOf(UIMessage.user("Question"), executed),
-            includeOpenRouterReasoningDetails = true,
+            reasoningReplayFormat = ReasoningReplayFormat.OPENROUTER_DETAILS,
         )[1].jsonObject
 
         assertEquals(reasoningDetails, assistant["reasoning_details"])
@@ -684,6 +685,130 @@ class ChatCompletionsRequestMessageTest {
 
         assertFalse(assistant.containsKey("reasoning_details"))
         assertEquals("thinking", assistant["reasoning_content"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `Mistral should replay reasoning as thinking chunk instead of reasoning_content`() {
+        val messages = listOf(
+            UIMessage.user("Question"),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Reasoning(reasoning = "thinking"),
+                    UIMessagePart.Text("Answer"),
+                ),
+            ),
+            UIMessage.user("Follow up"),
+        )
+
+        val assistant = invokeBuildMessages(
+            messages,
+            reasoningReplayFormat = ReasoningReplayFormat.MISTRAL_THINKING_CHUNK,
+        )[1].jsonObject
+
+        assertFalse(assistant.containsKey("reasoning_content"))
+        val content = assistant["content"]!!.jsonArray
+        assertEquals(2, content.size)
+        val thinking = content[0].jsonObject
+        assertEquals("thinking", thinking["type"]?.jsonPrimitive?.content)
+        val thinkingText = thinking["thinking"]!!.jsonArray.single().jsonObject
+        assertEquals("text", thinkingText["type"]?.jsonPrimitive?.content)
+        assertEquals("thinking", thinkingText["text"]?.jsonPrimitive?.content)
+        assertEquals("text", content[1].jsonObject["type"]?.jsonPrimitive?.content)
+        assertEquals("Answer", content[1].jsonObject["text"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `Mistral tool continuation should replay reasoning as thinking chunk`() {
+        val messages = listOf(
+            UIMessage.user("Question"),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Reasoning(reasoning = "need search"),
+                    createExecutedTool("call_1", "search", "{}", "result"),
+                ),
+            ),
+        )
+
+        val result = invokeBuildMessages(
+            messages,
+            reasoningReplayFormat = ReasoningReplayFormat.MISTRAL_THINKING_CHUNK,
+        )
+
+        val assistant = result[1].jsonObject
+        assertFalse(assistant.containsKey("reasoning_content"))
+        assertTrue(assistant.containsKey("tool_calls"))
+        val content = assistant["content"]!!.jsonArray
+        assertEquals(1, content.size)
+        assertEquals("thinking", content[0].jsonObject["type"]?.jsonPrimitive?.content)
+        assertEquals("tool", result[2].jsonObject["role"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `Mistral without reasoning should keep plain string content`() {
+        val messages = listOf(
+            UIMessage.user("Question"),
+            UIMessage.assistant("Answer"),
+        )
+
+        val assistant = invokeBuildMessages(
+            messages,
+            reasoningReplayFormat = ReasoningReplayFormat.MISTRAL_THINKING_CHUNK,
+        )[1].jsonObject
+
+        assertEquals("Answer", assistant["content"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `DeepSeek tool continuation without reasoning should carry empty reasoning_content`() {
+        // DeepSeek thinking 模式硬性要求：带 tool_calls 的 assistant 消息必须带
+        // reasoning_content（无思考时为空串），缺失直接 400。
+        val messages = listOf(
+            UIMessage.user("Question"),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Text("Let me search"),
+                    createExecutedTool("call_1", "search", "{}", "result"),
+                ),
+            ),
+        )
+
+        val assistant = invokeBuildMessages(
+            messages,
+            fillEmptyReasoningForDeepSeek = true,
+        )[1].jsonObject
+
+        assertTrue(assistant.containsKey("tool_calls"))
+        assertEquals("", assistant["reasoning_content"]?.jsonPrimitive?.content)
+        assertEquals("Let me search", assistant["content"]?.jsonPrimitive?.content)
+    }
+
+    @Test
+    fun `Mistral must never receive reasoning_content even when DeepSeek fill is on`() {
+        // 合并守卫：fillEmptyReasoningForDeepSeek 按 modelId 判定，与 host 判定正交；
+        // MISTRAL_THINKING_CHUNK 下绝不能漏出 reasoning_content，否则 Mistral 直接 422。
+        val messages = listOf(
+            UIMessage.user("Question"),
+            UIMessage(
+                role = MessageRole.ASSISTANT,
+                parts = listOf(
+                    UIMessagePart.Text("Let me search"),
+                    createExecutedTool("call_1", "search", "{}", "result"),
+                ),
+            ),
+        )
+
+        val assistant = invokeBuildMessages(
+            messages,
+            reasoningReplayFormat = ReasoningReplayFormat.MISTRAL_THINKING_CHUNK,
+            fillEmptyReasoningForDeepSeek = true,
+        )[1].jsonObject
+
+        assertTrue(assistant.containsKey("tool_calls"))
+        assertFalse(assistant.containsKey("reasoning_content"))
+        assertEquals("Let me search", assistant["content"]?.jsonPrimitive?.content)
     }
 
     // ==================== Helper Functions ====================

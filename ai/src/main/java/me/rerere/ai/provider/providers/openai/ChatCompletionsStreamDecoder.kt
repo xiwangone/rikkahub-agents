@@ -196,7 +196,8 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
     private fun parseMessage(payload: JsonObject, includeContent: Boolean = true): UIMessage {
         val role = MessageRole.fromValueOrNull(payload["role"]?.jsonPrimitiveOrNull?.contentOrNull)
             ?: MessageRole.ASSISTANT
-        val content = payload["content"]?.jsonPrimitiveOrNull?.contentOrNull ?: ""
+        val parsedContent = parseChatCompletionsContent(payload["content"])
+        val content = parsedContent.text
         val reasoning = resolveReasoning(payload)
         val reasoningMetadata = accumulateReasoningDetails(payload["reasoning_details"]?.jsonArrayOrNull)
         val images = payload["images"] as? JsonArray ?: JsonArray(emptyList())
@@ -247,11 +248,7 @@ internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
         }
         return reasoningContent?.takeIf { it.isNotEmpty() }
             ?: reasoningAlias?.takeIf { it.isNotEmpty() }
-            ?: payload["content"]?.takeIf { it is JsonArray }?.let { array ->
-                array.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
-                    ?.get("thinking")?.jsonArrayOrNull?.getOrNull(0)?.jsonObjectOrNull
-                    ?.get("text")?.jsonPrimitiveOrNull?.contentOrNull
-            }
+            ?: parseChatCompletionsContent(payload["content"]).reasoning
     }
 
     private fun accumulateReasoningDetails(details: JsonArray?): JsonObject? {

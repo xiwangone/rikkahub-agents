@@ -299,7 +299,11 @@ class ChatCompletionsAPI(
             messages = messages,
             includeHistoryReasoning = providerSetting.includeHistoryReasoning,
             openRouterCache = openRouterCache,
-            includeOpenRouterReasoningDetails = isOpenRouter,
+            reasoningReplayFormat = when (host) {
+                "openrouter.ai" -> ReasoningReplayFormat.OPENROUTER_DETAILS
+                "api.mistral.ai" -> ReasoningReplayFormat.MISTRAL_THINKING_CHUNK
+                else -> ReasoningReplayFormat.REASONING_CONTENT
+            },
             supportInputModalities = params.model.inputModalities,
             fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
         ).let {
@@ -621,7 +625,7 @@ class ChatCompletionsAPI(
         messages: List<UIMessage>,
         includeHistoryReasoning: Boolean = true,
         openRouterCache: Boolean = false,
-        includeOpenRouterReasoningDetails: Boolean = false,
+        reasoningReplayFormat: ReasoningReplayFormat = ReasoningReplayFormat.REASONING_CONTENT,
         // 默认与 Model.kt / 模型目录的保守口径保持一致（只 TEXT）：未知能力时不臆测支持图片。
         // 实际调用点都会显式传入 `params.model.inputModalities`，这里只是未被依赖的兜底值。
         supportInputModalities: List<Modality> = listOf(Modality.TEXT),
@@ -634,7 +638,7 @@ class ChatCompletionsAPI(
                 addAssistantMessages(
                     message = message,
                     includeReasoning = includeHistoryReasoning,
-                    includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                    reasoningReplayFormat = reasoningReplayFormat,
                     supportInputModalities = supportInputModalities,
                     fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
                 )
@@ -651,7 +655,7 @@ class ChatCompletionsAPI(
     private fun JsonArrayBuilder.addAssistantMessages(
         message: UIMessage,
         includeReasoning: Boolean,
-        includeOpenRouterReasoningDetails: Boolean,
+        reasoningReplayFormat: ReasoningReplayFormat,
         supportInputModalities: List<Modality>,
         fillEmptyReasoningForDeepSeek: Boolean = false,
     ) {
@@ -676,7 +680,7 @@ class ChatCompletionsAPI(
                         tools = group.tools,
                         reasoningPart = reasoningPart,
                         supportInputModalities = supportInputModalities,
-                        includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                        reasoningReplayFormat = reasoningReplayFormat,
                         fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
@@ -696,7 +700,7 @@ class ChatCompletionsAPI(
                 tools = emptyList(),
                 reasoningPart = reasoningPart,
                 supportInputModalities = supportInputModalities,
-                includeOpenRouterReasoningDetails = includeOpenRouterReasoningDetails,
+                reasoningReplayFormat = reasoningReplayFormat,
                 fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
             )?.let { assistantMessage ->
                 add(assistantMessage)
@@ -776,7 +780,7 @@ class ChatCompletionsAPI(
         tools: List<UIMessagePart.Tool>,
         reasoningPart: UIMessagePart.Reasoning?,
         supportInputModalities: List<Modality>,
-        includeOpenRouterReasoningDetails: Boolean,
+        reasoningReplayFormat: ReasoningReplayFormat,
         fillEmptyReasoningForDeepSeek: Boolean = false,
     ): JsonObject? {
         val hasUsableContent = contentParts.any { part ->
@@ -786,7 +790,7 @@ class ChatCompletionsAPI(
                 else -> false
             }
         }
-        val reasoningDetails = if (includeOpenRouterReasoningDetails) {
+        val reasoningDetails = if (reasoningReplayFormat == ReasoningReplayFormat.OPENROUTER_DETAILS) {
             reasoningPart?.metadataAs<OpenRouterReasoningMetadata>()?.reasoningDetails
         } else {
             null
@@ -799,14 +803,28 @@ class ChatCompletionsAPI(
         return buildJsonObject {
             put("role", "assistant")
 
+            // Mistral 不接受 reasoning_content 字段，思考内容要作为 content 里的 thinking 块回传
+            // https://docs.mistral.ai/capabilities/reasoning
+            val mistralThinking = if (hasReasoning &&
+                reasoningReplayFormat == ReasoningReplayFormat.MISTRAL_THINKING_CHUNK) {
+                reasoningPart?.reasoning.orEmpty()
+            } else {
+                null
+            }
+
             // reasoning_content
-            if (hasReasoning) {
+            if (hasReasoning && mistralThinking == null) {
                 if (!reasoningDetails.isNullOrEmpty()) {
                     put("reasoning_details", reasoningDetails)
                 } else {
                     put("reasoning_content", reasoningPart?.reasoning.orEmpty())
                 }
-            } else if (fillEmptyReasoningForDeepSeek && tools.isNotEmpty()) {
+            } else if (reasoningReplayFormat != ReasoningReplayFormat.MISTRAL_THINKING_CHUNK &&
+                fillEmptyReasoningForDeepSeek && tools.isNotEmpty()) {
+                // 格式守卫：DeepSeek 空串规则绝不能在 MISTRAL_THINKING_CHUNK 下生效——
+                // Mistral 拒绝 reasoning_content 字段本身（422），与有无思考无关。
+                // 两个开关正交：fillEmptyReasoningForDeepSeek 按 modelId 判定，
+                // reasoningReplayFormat 按 host 判定，只按其中一个守不住。
                 // DeepSeek thinking 模式硬性要求：带 tool_calls 的 assistant 消息在后续
                 // 请求中必须携带 reasoning_content，缺失直接 400。模型约 1/6 的工具轮
                 // 本就不返回 reasoning（无思考卡），此时必须补空串占位；该字段对
@@ -815,34 +833,39 @@ class ChatCompletionsAPI(
             }
 
             // content
-            put("content", buildContentJson(contentParts, supportInputModalities))
+            put("content", buildContentJson(contentParts, supportInputModalities, mistralThinking))
 
             // tool_calls
             if (tools.isNotEmpty()) {
-                put("tool_calls", buildJsonArray {
-                    tools.forEach { tool ->
-                        add(buildJsonObject {
-                            put("id", tool.toolCallId)
-                            put("type", "function")
-                            put("function", buildJsonObject {
-                                put("name", tool.toolName)
-                                // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
-                                put("arguments", tool.inputAsJson().toString())
+                put("tool_calls", buildToolCallsJson(tools))
+            }
+        }
+    }
+
+    // tool_calls 序列化：抽出以降低 buildAssistantMessageJson 的圈复杂度。
+    private fun buildToolCallsJson(tools: List<UIMessagePart.Tool>): JsonArray {
+        return buildJsonArray {
+            tools.forEach { tool ->
+                add(buildJsonObject {
+                    put("id", tool.toolCallId)
+                    put("type", "function")
+                    put("function", buildJsonObject {
+                        put("name", tool.toolName)
+                        // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
+                        put("arguments", tool.inputAsJson().toString())
+                    })
+                    // Google OpenAI 兼容端点：首轮 functionCall 上的 thought_signature
+                    // 必须在同一个 tool_call 上原样回传（缺一个就整轮 400）。
+                    // 只在解析时确实拿到签名时才写该字段，其它供应商的请求体不受影响。
+                    tool.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature
+                        ?.takeIf { it.isNotBlank() }
+                        ?.let { signature ->
+                            put("extra_content", buildJsonObject {
+                                put("google", buildJsonObject {
+                                    put("thought_signature", signature)
+                                })
                             })
-                            // Google OpenAI 兼容端点：首轮 functionCall 上的 thought_signature
-                            // 必须在同一个 tool_call 上原样回传（缺一个就整轮 400）。
-                            // 只在解析时确实拿到签名时才写该字段，其它供应商的请求体不受影响。
-                            tool.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature
-                                ?.takeIf { it.isNotBlank() }
-                                ?.let { signature ->
-                                    put("extra_content", buildJsonObject {
-                                        put("google", buildJsonObject {
-                                            put("thought_signature", signature)
-                                        })
-                                    })
-                                }
-                        })
-                    }
+                        }
                 })
             }
         }
@@ -852,14 +875,26 @@ class ChatCompletionsAPI(
     private fun buildContentJson(
         contentParts: List<UIMessagePart>,
         supportInputModalities: List<Modality>,
+        mistralThinking: String? = null,
     ): JsonElement {
-        if (contentParts.isEmpty()) {
+        if (mistralThinking == null && contentParts.isEmpty()) {
             return JsonPrimitive("")
         }
-        if (contentParts.size == 1 && contentParts[0] is UIMessagePart.Text) {
+        if (mistralThinking == null && contentParts.size == 1 && contentParts[0] is UIMessagePart.Text) {
             return JsonPrimitive((contentParts[0] as UIMessagePart.Text).text)
         }
         return buildJsonArray {
+            if (mistralThinking != null) {
+                add(buildJsonObject {
+                    put("type", "thinking")
+                    putJsonArray("thinking") {
+                        add(buildJsonObject {
+                            put("type", "text")
+                            put("text", mistralThinking)
+                        })
+                    }
+                })
+            }
             contentParts.forEach { part ->
                 when (part) {
                     is UIMessagePart.Text -> {
@@ -985,4 +1020,16 @@ class ChatCompletionsAPI(
         }.joinToString("\n"))
     }
 
+}
+
+/** 历史 assistant 消息里的思考内容按什么格式回传给接口 */
+internal enum class ReasoningReplayFormat {
+    /** 通用的 reasoning_content 字段 */
+    REASONING_CONTENT,
+
+    /** OpenRouter 的 reasoning_details（没有时退回 reasoning_content） */
+    OPENROUTER_DETAILS,
+
+    /** Mistral 的 content thinking 块 */
+    MISTRAL_THINKING_CHUNK,
 }

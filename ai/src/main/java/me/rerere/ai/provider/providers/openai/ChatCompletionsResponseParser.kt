@@ -58,24 +58,12 @@ internal fun parseMessage(jsonObject: JsonObject): UIMessage {
 }
 
 private fun extractTextContent(contentElement: kotlinx.serialization.json.JsonElement?): String =
-    contentElement?.jsonPrimitiveOrNull?.contentOrNull
-        ?: (contentElement as? JsonArray)?.mapNotNull { block ->
-            val obj = block.jsonObjectOrNull ?: return@mapNotNull null
-            if (obj["type"]?.jsonPrimitiveOrNull?.contentOrNull == "text") {
-                obj["text"]?.jsonPrimitiveOrNull?.contentOrNull
-            } else {
-                null
-            }
-        }?.joinToString("") ?: ""
+    parseChatCompletionsContent(contentElement).text
 
 private fun extractReasoningText(jsonObject: JsonObject): String? =
     jsonObject["reasoning_content"]?.jsonPrimitiveOrNull?.contentOrNull
         ?: jsonObject["reasoning"]?.jsonPrimitiveOrNull?.contentOrNull
-        ?: (jsonObject["content"] as? JsonArray)
-            ?.getOrNull(0)?.jsonObjectOrNull
-            ?.get("thinking")?.jsonArrayOrNull
-            ?.getOrNull(0)?.jsonObjectOrNull
-            ?.get("text")?.jsonPrimitiveOrNull?.contentOrNull
+        ?: parseChatCompletionsContent(jsonObject["content"]).reasoning
 
 private fun parseToolCallParts(toolCalls: JsonArray): List<UIMessagePart.Tool> =
     toolCalls.mapNotNull { tc ->
