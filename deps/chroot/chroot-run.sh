@@ -61,10 +61,16 @@ enter_private_ns() {
 }
 
 do_unmount_quiet() {
-    umount -R "$ROOTFS" 2>/dev/null || true
+    # 按层级分批并行卸载：子挂载点必须先于父挂载点摘，同级可以并行。
+    # 串行 13 次 umount 每次都是 fork+exec，分批并行可显著缩短退出耗时。
+    # 注：toybox 的 umount 不支持 -R（会报 Unknown option），此行从未生效，已删。
     for m in \
         "$ROOTFS/workspace/app-databases" \
-        "$ROOTFS/workspace/app-shared-prefs" \
+        "$ROOTFS/workspace/app-shared-prefs"; do
+        ( umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true ) &
+    done
+    wait
+    for m in \
         "$ROOTFS/workspace" \
         "$ROOTFS/skills" \
         "$ROOTFS/tool_outputs" \
@@ -72,12 +78,17 @@ do_unmount_quiet() {
         "$ROOTFS/mnt/shared" \
         "$ROOTFS/tmp" \
         "$ROOTFS/dev/shm" \
-        "$ROOTFS/dev/pts" \
+        "$ROOTFS/dev/pts"; do
+        ( umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true ) &
+    done
+    wait
+    for m in \
         "$ROOTFS/dev" \
         "$ROOTFS/sys" \
         "$ROOTFS/proc"; do
-        umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true
+        ( umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true ) &
     done
+    wait
     rm -rf "$ROOTFS"/.chroot-mounted "$ROOTFS"/.chroot-fixed "$ROOTFS"/.chroot-lock 2>/dev/null || true
 }
 
@@ -133,6 +144,14 @@ fixowner_quick() {
 
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
+    # 幂等自愈：上一会话被 SIGKILL 时 trap 不执行，残留挂载会被新会话的 unshare 复制进来，
+    # 随后 mount -t proc 会因 EBUSY 退出，该工作区将无法再用，只能手工清理挂载后恢复。
+    # 开挂前先看本 rootfs 名下是否已有挂载，有就先摘干净。
+    if [ -r /proc/self/mountinfo ]; then
+        case "$(cat /proc/self/mountinfo 2>/dev/null)" in
+            *"$ROOTFS"*) do_unmount_quiet ;;
+        esac
+    fi
     mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
     mount -t sysfs sysfs "$ROOTFS/sys" 2>/dev/null \
         || mount -t sysfs sys "$ROOTFS/sys" \
