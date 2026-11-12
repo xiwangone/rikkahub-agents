@@ -32,7 +32,8 @@ internal object RemotePlatform {
     }
 
     /**
-     * 平台解析：显式参数 > banner 落盘缓存 > 全局默认设置。
+     * 平台解析：显式参数 > 落盘缓存（探针结论优先于 banner 结论，见 [probePreferredWindows]）>
+     * 全局默认设置。
      *
      * 每一级只有 LINUX/WINDOWS 才算命中；AUTO/缺省继续往下走。全部未命中返回 `null`，
      * 调用方再回退到命令形状启发式（[looksLikeWindowsCommand]）。

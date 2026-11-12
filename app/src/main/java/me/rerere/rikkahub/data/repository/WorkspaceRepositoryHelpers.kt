@@ -9,6 +9,8 @@ import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatformStore
+import me.rerere.rikkahub.data.ai.tools.local.SshHostProbeStore
+import me.rerere.rikkahub.data.ai.tools.local.probePreferredWindows
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -31,6 +33,7 @@ import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceType
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshConnectionConfig
+import me.rerere.workspace.ssh.SshHostProbe
 import me.rerere.workspace.ssh.SshJumpHostConfig
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshWorkspaceBackend
@@ -48,7 +51,23 @@ import me.rerere.rikkahub.data.log.AppLog
 internal suspend fun WorkspaceRepository.probeSshImpl(id: String?, draft: SshWorkspaceDraft): SshProbeResult {
         val previous = id?.let { dao.getById(it)?.sshSettings() }
         val config = withContext(Dispatchers.IO) { toConnectionConfig(draft.toSettings(previous), audit = false) }
-        return runInterruptible(Dispatchers.IO) { sshPool.probe(config) }
+        val result = runInterruptible(Dispatchers.IO) { sshPool.probe(config) }
+        // 测试连接每次重跑探针（手动刷新入口）：探针结果写回探针缓存（app SSH 与
+        // 工作区共用同一份），平台结论同时写回平台缓存（探针优先于 banner）。
+        // 探针失败只记 null，不影响本次测试连接结果；写缓存失败同样不影响。
+        val hostProbe = result.hostProbe
+        if (hostProbe != null) {
+            val context = runCatching { getKoin().get<Context>() }.getOrNull()
+            if (context != null) {
+                try {
+                    SshHostProbeStore(context).put(config.host, config.port, hostProbe)
+                    RemotePlatformStore(context).put(config.host, config.port, hostProbe.isWindows)
+                } catch (_: Throwable) {
+                    // 写缓存失败不影响本次测试连接结果
+                }
+            }
+        }
+        return result
     }
 
     /**
@@ -135,6 +154,7 @@ internal fun SshWorkspaceDraft.toSettings(previous: SshWorkspaceSettings?): SshW
             username = username.trim(),
             authType = authType,
             remoteDir = remoteDir,
+            platform = platform,
             hostKey = hostKey,
             passwordRef = passwordRef,
             privateKeyRef = privateKeyRef,
@@ -202,7 +222,7 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             passphrase = resolve(settings.passphraseRef),
             remoteDir = settings.remoteDir,
             hostKey = settings.hostKey,
-            platform = resolveSshPlatform(settings.host, settings.port),
+            platform = resolveSshPlatform(settings.host, settings.port, settings.platform),
             jumpHost = resolveJumpHostConfig(settings),
         )
     }
@@ -236,18 +256,24 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
     }
 
     /**
-     * 工作区连接的远端平台决议：显式配置 > banner 缓存 > 全局默认，全部落空时为 AUTO。
+     * 工作区连接的远端平台决议：工作区显式 > 已保存主机显式 > 探针缓存（优先于 banner 缓存，
+     * 真实执行更可靠）> 全局默认，全部落空时为 AUTO。
      *
      * SshHostRepository 与 Context 不在 [WorkspaceRepository] 的构造参数里，
      * 沿用工具侧经 Koin 取依赖的做法，取不到时按“无该项输入”回退到下一级，不抛异常；
      * 全局默认直接读 [settingsStore]。AUTO 不是一个明确的平台选择，同样视为无显式值。
      */
-    internal suspend fun WorkspaceRepository.resolveSshPlatform(host: String, port: Int): String {
-        val explicit = runCatching { getKoin().get<SshHostRepository>() }
+    internal suspend fun WorkspaceRepository.resolveSshPlatform(
+        host: String,
+        port: Int,
+        workspacePlatform: SshPlatform? = null,
+    ): String {
+        val savedHostExplicit = runCatching { getKoin().get<SshHostRepository>() }
             .getOrNull()?.getByHost(host)?.let { SshPlatform.fromPreference(it.platform) }
             ?.takeUnless { it == SshPlatform.AUTO }
+        val explicit = workspacePlatform?.takeUnless { it == SshPlatform.AUTO } ?: savedHostExplicit
         val cached = runCatching { getKoin().get<Context>() }
-            .getOrNull()?.let { RemotePlatformStore(it).get(host, port) }
+            .getOrNull()?.let { probePreferredWindows(it, host, port) }
         val globalDefault = settingsStore.settingsFlow.value.defaultSshPlatform
         return when (RemotePlatform.resolveWindows(explicit, cached, globalDefault)) {
             true -> "WINDOWS"
@@ -312,6 +338,7 @@ internal suspend fun WorkspaceRepository.readEnvironmentInfoImpl(id: String): Wo
         val info = WorkspaceEnvironmentInfo(
             shellPath = shellPath,
             distroName = shellPath?.let { readDistroInfo(id)?.prettyName },
+            hostSummary = shellPath?.let { readHostProbeSummary(id) },
         )
         remoteEnvironments[id] = RemoteEnvironment(
             configKey = workspace.sshConfig,
@@ -319,6 +346,38 @@ internal suspend fun WorkspaceRepository.readEnvironmentInfoImpl(id: String): Wo
             failedAt = System.currentTimeMillis(),
         )
         return info
+    }
+
+    /**
+     * 主机探针摘要（供提示词）：缓存命中直接用；未命中时在本次连接上跑一次探针
+     * （与 app SSH 共用 [SshHostProbe]），写回探针缓存与平台缓存。
+     * 探针失败只返回 null，不阻塞环境信息读取；下次重读时（缓存未命中）会再试。
+     */
+    private suspend fun WorkspaceRepository.readHostProbeSummary(id: String): String? {
+        val workspace = dao.getById(id) ?: return null
+        val settings = workspace.sshSettings() ?: return null
+        val context = runCatching { getKoin().get<Context>() }.getOrNull() ?: return null
+        val store = SshHostProbeStore(context)
+        store.get(settings.host, settings.port)?.let { return it.summary() }
+        val platform = resolveSshPlatform(settings.host, settings.port)
+        val probe = try {
+            readFromBackend(workspace) { backend ->
+                SshHostProbe.runProbe(
+                    exec = { script, timeout -> backend.executeCommand(script, "", timeout, null, emptyMap()) },
+                    platform = platform,
+                    execWrapsWindows = platform == "WINDOWS",
+                )
+            }
+        } catch (_: Throwable) {
+            null
+        } ?: return null
+        try {
+            store.put(settings.host, settings.port, probe)
+            RemotePlatformStore(context).put(settings.host, settings.port, probe.isWindows)
+        } catch (_: Throwable) {
+            // 写缓存失败不影响本次摘要
+        }
+        return probe.summary()
     }
 
 

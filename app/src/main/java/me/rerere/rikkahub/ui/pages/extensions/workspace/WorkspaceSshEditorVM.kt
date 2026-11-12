@@ -8,6 +8,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -110,6 +111,7 @@ class WorkspaceSshEditorVM(
                 privateKeyRef = settings?.privateKeyRef ?: "",
                 passphraseRef = settings?.passphraseRef ?: "",
                 remoteDir = settings?.remoteDir ?: "",
+                platform = settings?.platform ?: SshPlatform.AUTO,
                 hostKey = settings?.hostKey,
                 jumpHost = settings?.jumpHost ?: "",
                 jumpHostKey = settings?.jumpHostKey,
@@ -262,7 +264,11 @@ class WorkspaceSshEditorVM(
         return ProbeFailure(kind, detail)
     }
 
-    private fun updateDropProbe(block: (SshWorkspaceDraft) -> SshWorkspaceDraft) {
+    /**
+     * 更新草稿并作废已有的探测结果：改动影响连接或命令行为的字段时用它。
+     * 例如平台影响命令包装（shell 探测走 exec，Windows 时经 pwsh），改了要重测。
+     */
+    fun updateDropProbe(block: (SshWorkspaceDraft) -> SshWorkspaceDraft) {
         _state.update { it.copy(draft = block(it.draft), probeResult = null, probeError = null) }
     }
 

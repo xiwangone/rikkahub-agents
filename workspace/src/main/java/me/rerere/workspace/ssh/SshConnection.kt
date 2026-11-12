@@ -381,6 +381,14 @@ internal class SshConnection private constructor(
                     remoteDirExists = connection.sftp { sftp ->
                         sftp.statOrNull(resolvedDir)?.isDir == true
                     },
+                    // 首次连接主机探针：与 app SSH 共用 SshHostProbe（同一份命令/解析/摘要）；
+                    // exec 在 config.platform == "WINDOWS" 时自动包 pwsh，故 execWrapsWindows
+                    // 直接取该条件。探针失败只记 null，不影响本次测试连接。
+                    hostProbe = SshHostProbe.runProbe(
+                        exec = { script, timeout -> connection.exec(script, timeout) },
+                        platform = config.platform,
+                        execWrapsWindows = config.platform == "WINDOWS",
+                    ),
                 )
             }
         }

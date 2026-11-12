@@ -126,6 +126,30 @@ class SshCommandWrappingTest {
     }
 
     @Test
+    fun `detached wrapper with explicit windows routes a plain command to the pwsh branch`() {
+        // "dir" 本身不像 PowerShell：不传平台会走 POSIX 分支；显式 Windows 必须走 pwsh。
+        val (wrapped, logPath) = wrapDetachedCommandSmart("dir", windows = true)
+        assertTrue(wrapped, wrapped.startsWith("powershell -NoProfile -NonInteractive -EncodedCommand "))
+        assertTrue(logPath!!.startsWith("C:\\Users\\Public\\rikkahub_bg_"))
+    }
+
+    @Test
+    fun `detached wrapper with explicit linux routes a PowerShell-looking command to the POSIX branch`() {
+        // "Get-Date" 看着像 PowerShell：不传平台会走 Windows 分支；显式 Linux 必须走 POSIX。
+        val (wrapped, logPath) = wrapDetachedCommandSmart("Get-Date", windows = false)
+        assertTrue(wrapped, wrapped.contains("command -v nohup >/dev/null 2>&1 && nohup sh -c "))
+        assertTrue(logPath!!.startsWith("/tmp/rikkahub_bg_"))
+    }
+
+    @Test
+    fun `detached wrapper with null platform falls back to the command-shape heuristic`() {
+        val (winWrapped, _) = wrapDetachedCommandSmart("Get-Date", windows = null)
+        assertTrue(winWrapped, winWrapped.startsWith("powershell -NoProfile -NonInteractive -EncodedCommand "))
+        val (posixWrapped, _) = wrapDetachedCommandSmart("sleep 30", windows = null)
+        assertTrue(posixWrapped, posixWrapped.contains("command -v nohup >/dev/null 2>&1 && nohup sh -c "))
+    }
+
+    @Test
     fun `remote platform is derived from the ssh server banner`() {
         assertTrue(RemotePlatform.isWindowsServer("SSH-2.0-OpenSSH_for_Windows_9.5") == true)
         assertTrue(RemotePlatform.isWindowsServer("SSH-2.0-OpenSSH_9.6p1 Ubuntu-3ubuntu13") == false)

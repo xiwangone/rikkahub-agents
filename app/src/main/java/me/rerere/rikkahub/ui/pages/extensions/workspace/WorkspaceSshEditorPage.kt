@@ -45,6 +45,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.SelectTextField
@@ -246,6 +247,23 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 supportingText = { Text(stringResource(R.string.workspace_ssh_remote_dir_desc)) },
                 modifier = Modifier.fillMaxWidth(),
             )
+            Text(
+                text = stringResource(R.string.setting_ssh_platform_label),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                SshPlatform.entries.forEachIndexed { index, platformOption ->
+                    SegmentedButton(
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = SshPlatform.entries.size),
+                        selected = draft.platform == platformOption,
+                        enabled = !state.busy,
+                        onClick = { vm.updateDropProbe { it.copy(platform = platformOption) } },
+                    ) {
+                        Text(stringResource(workspaceSshPlatformLabelRes(platformOption)))
+                    }
+                }
+            }
             Row(
                 verticalAlignment = Alignment.CenterVertically,
                 horizontalArrangement = Arrangement.spacedBy(4.dp),
@@ -460,3 +478,10 @@ fun WorkspaceSshEditorPage(id: String? = null) {
     }
 }
 
+/** 平台枚举到界面文案的映射（与 SSH 主机编辑器同款）。 */
+private fun workspaceSshPlatformLabelRes(platform: SshPlatform): Int =
+    when (platform) {
+        SshPlatform.AUTO -> R.string.setting_ssh_platform_auto
+        SshPlatform.LINUX -> R.string.setting_ssh_platform_linux
+        SshPlatform.WINDOWS -> R.string.setting_ssh_platform_windows
+    }

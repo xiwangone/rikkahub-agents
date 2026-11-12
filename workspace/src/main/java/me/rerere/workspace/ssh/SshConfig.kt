@@ -105,6 +105,8 @@ data class SshProbeResult(
     val homeDir: String,
     val shell: String,
     val remoteDirExists: Boolean,
+    /** 首次连接主机探针结果（平台/系统/架构/CPU/内存/磁盘/工具），测试连接每次重跑刷新。 */
+    val hostProbe: SshHostProbeResult? = null,
 )
 
 /** 服务器的主机密钥尚未被信任, 需要用户确认 [hostKey] 的指纹; [jumpHost] 表示是跳板机的密钥 */

@@ -39,6 +39,8 @@ enum class WorkspaceType(val capabilities: WorkspaceCapabilities) {
 data class WorkspaceEnvironmentInfo(
     val shellPath: String?,
     val distroName: String?,
+    /** 首次连接主机探针摘要（远程工作区才有），例如 "Host: Linux x86_64, Ubuntu 22.04, 4 CPU, 8GB RAM"。 */
+    val hostSummary: String? = null,
 )
 
 data class WorkspaceCapabilities(

@@ -28,6 +28,8 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.workspace.WorkspaceCommandResult
+import me.rerere.workspace.ssh.SshHostProbe
 import java.io.ByteArrayInputStream
 import java.io.File
 import java.io.FileOutputStream
@@ -216,9 +218,10 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
         }
-        // 平台判定：显式参数 > 落盘缓存（banner 结论）> 全局默认设置；都未命中再退回命令特征
+        // 平台判定：显式参数 > 落盘缓存（探针结论优先于 banner 结论）> 全局默认设置；
+        // 都未命中再退回命令特征
         val explicitPlatform = p["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
-        val knownPlatform = RemotePlatformStore(context).get(host, port)
+        val knownPlatform = probePreferredWindows(context, host, port)
         val globalDefault = settingsStore?.settingsFlow?.value?.defaultSshPlatform
         val resolvedWindows = RemotePlatform.resolveWindows(explicitPlatform, knownPlatform, globalDefault)
         val (detachedCmd, bgLogPath) = if (background) wrapDetachedCommandSmart(command, windows = resolvedWindows) else (withUtf8ConsoleEncoding(command, resolvedWindows) to null)
@@ -244,7 +247,7 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         val effectiveCommand =
             if (envPrefix.isEmpty()) detachedCmd else joinCommandBatch(envPrefix + listOf(detachedCmd))
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-            execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
+            execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, platformWindows = resolvedWindows)
         }
         val finalPayload = if (bgLogPath != null) {
             payload.toString() + "\n[bg_log_path] $bgLogPath"
@@ -308,6 +311,11 @@ internal suspend fun execOneShot(
      * 默认关——关时保持原有行为（结构化 host_key_changed 信封，不自动清 key）。
      */
     allowHostKeyRotation: Boolean = false,
+    /**
+     * 调用方已决议的平台（true=Windows、false=POSIX、null=未决议）：供首次连接探针
+     * 选脚本用；null 时探针走 AUTO（POSIX 先、拿不到信号再试 Windows）。
+     */
+    platformWindows: Boolean? = null,
 ): JsonObject {
     // Stage 1 (suspend): low-level reachability probe in parallel across every transport.
     // JSch's connect timeout fires at the END of the SSH handshake, so when the network is
@@ -368,7 +376,11 @@ internal suspend fun execOneShot(
                 }
             }
             try {
-                runOnSession(session, command, timeoutMs, stdin)
+                val result = runOnSession(session, command, timeoutMs, stdin)
+                // 首次连接主机探针：缓存未命中时才跑，跑完落盘供后续命令/工作区复用；
+                // 放在用户命令之后，不延迟本次命令；失败不影响本次返回。
+                runCatching { maybeProbeHost(context, host, port, platformWindows, session) }
+                result
             } catch (e: Throwable) {
                 ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
             } finally {
@@ -384,6 +396,48 @@ internal suspend fun execOneShot(
         runCatching { session.disconnect() }
         runCatching { tunnel?.close() }
         throw e
+    }
+}
+
+/**
+ * 首次连接主机探针（app SSH 侧触发点，与远程工作区后端共用 [SshHostProbe]）。
+ * 缓存命中直接返回；未命中时在当前会话上跑一次探针，写回探针缓存与平台缓存
+ * （探针结论优先于 banner，见 [probePreferredWindows]）。
+ * runOnSession 不按平台自动包 pwsh，故 execWrapsWindows=false，Windows 探针走
+ * [SshHostProbe.windowsProbeCommand] 的预编码形式。调用方用 runCatching 包住，
+ * 探针的任何失败都不影响本次连接与本次返回。
+ */
+private fun maybeProbeHost(
+    context: Context,
+    host: String,
+    port: Int,
+    platformWindows: Boolean?,
+    session: Session,
+) {
+    val store = SshHostProbeStore(context)
+    val cached = kotlinx.coroutines.runBlocking { store.get(host, port) }
+    if (cached != null) return
+    val platform = when (platformWindows) {
+        true -> "WINDOWS"
+        false -> "LINUX"
+        null -> "AUTO"
+    }
+    val result = SshHostProbe.runProbe(
+        exec = { script, timeout ->
+            val obj = runOnSession(session, script, timeout.toInt())
+            WorkspaceCommandResult(
+                exitCode = obj["exit_code"]?.jsonPrimitive?.intOrNull ?: -1,
+                stdout = obj["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+                stderr = obj["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty(),
+            )
+        },
+        platform = platform,
+        execWrapsWindows = false,
+    ) ?: return
+    AppLog.i(TAG_SSH, "host probe for $host:$port: ${result.summary()}")
+    kotlinx.coroutines.runBlocking {
+        store.put(host, port, result)
+        RemotePlatformStore(context).put(host, port, result.isWindows)
     }
 }
 

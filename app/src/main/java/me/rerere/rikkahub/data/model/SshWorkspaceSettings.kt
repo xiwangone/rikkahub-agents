@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.model
 
 import kotlinx.serialization.Serializable
+import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.workspace.ssh.SshAuthType
 import me.rerere.workspace.ssh.SshHostKey
 
@@ -20,6 +21,8 @@ data class SshWorkspaceSettings(
     val authType: SshAuthType = SshAuthType.PASSWORD,
     /** 远程工作目录, 绝对路径 */
     val remoteDir: String,
+    /** 远端系统类型（工作区级显式选择，AUTO 时按已保存主机 > banner 缓存 > 全局默认决议）；旧数据没有这个字段，缺省为 AUTO */
+    val platform: SshPlatform = SshPlatform.AUTO,
     /** 用户确认过的主机公钥 */
     val hostKey: SshHostKey? = null,
     /** 密码凭证条目 (`$$NAME`) */
@@ -48,6 +51,8 @@ data class SshWorkspaceDraft(
     val privateKeyRef: String = "",
     val passphraseRef: String = "",
     val remoteDir: String,
+    /** 远端系统类型（工作区级显式选择，默认 AUTO） */
+    val platform: SshPlatform = SshPlatform.AUTO,
     val hostKey: SshHostKey? = null,
     /** 跳板主机名（已保存 SSH 主机名），留空表示直连 */
     val jumpHost: String = "",

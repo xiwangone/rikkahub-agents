@@ -60,6 +60,7 @@ class WorkspaceReminderTransformer(
             distroName = environment?.distroName,
             shellPath = environment?.shellPath,
             layout = layout,
+            hostSummary = environment?.hostSummary,
         ) ?: return messages
         // shell 就绪时附带工作区指令文件 (AGENTS.md)
         val instructions =
@@ -161,10 +162,11 @@ internal fun buildWorkspaceReminder(
     distroName: String? = null,
     shellPath: String? = null,
     layout: WorkspaceLayout? = null,
+    hostSummary: String? = null,
 ): String? = when {
     workspace != null && workspace.shellStatus == WorkspaceShellStatus.READY.name ->
         if (workspace.isSsh()) {
-            buildRemoteWorkspacePrompt(workspace, cwd, distroName, shellPath, layout)
+            buildRemoteWorkspacePrompt(workspace, cwd, distroName, shellPath, layout, hostSummary)
         } else {
             buildWorkspacePrompt(workspace, cwd, distroName, shellPath)
         }
@@ -217,6 +219,7 @@ private fun buildRemoteWorkspacePrompt(
     distroName: String?,
     shellPath: String?,
     layout: WorkspaceLayout?,
+    hostSummary: String? = null,
 ): String = buildString {
     val settings = workspace.sshSettings()
     val filesDir = layout?.workspaceDir ?: settings?.remoteDir ?: "the workspace directory"
@@ -230,6 +233,7 @@ private fun buildRemoteWorkspacePrompt(
         appendLine("- The remote machine is not reachable right now, so the workspace tools below will fail. If the user asks you to work in this workspace, tell them it is unreachable instead of retrying.")
     } else {
         distroName?.takeIf { it.isNotBlank() }?.let { appendLine("- The remote operating system is $it.") }
+        hostSummary?.takeIf { it.isNotBlank() }?.let { appendLine("- Host probe: $it.") }
         appendLine("- Commands run with `$shellPath`; use POSIX-compatible syntax when it is `/bin/sh` and do not assume bash-only features.")
     }
     appendLine("- Available tools:")
