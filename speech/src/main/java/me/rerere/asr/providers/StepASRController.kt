@@ -329,7 +329,12 @@ class StepASRController(
                 }
             } catch (e: IOException) {
                 lastError = e
-                AppLogger.w(TAG, "flushSegment attempt $attempt/$MAX_RETRY failed: ${e.message}")
+                // 首条与末条各记 1 条，中间 attempt 不记：首条留痕，末条汇总次数。
+                if (attempt == 1) {
+                    AppLogger.w(TAG, "flushSegment attempt 1/$MAX_RETRY failed: ${e.message}; retrying")
+                } else if (attempt == MAX_RETRY) {
+                    AppLogger.w(TAG, "flushSegment failed after $MAX_RETRY attempts: ${e.message}")
+                }
                 if (attempt < MAX_RETRY) {
                     kotlinx.coroutines.delay(300L * attempt) // 指数退避: 300ms, 600ms
                 }

@@ -1,6 +1,8 @@
 package me.rerere.ai.provider.providers.google
 
+import me.rerere.common.android.Logging
 import me.rerere.common.log.AppLogger
+import me.rerere.common.log.SamplingGate
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -51,6 +53,7 @@ import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logSafeMessage
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
@@ -119,6 +122,9 @@ internal class InteractionsAPI(
             }
         }
 
+        // 采样门：每个事件流一个，首条必记、其后每 100 条记 1 条。
+        val eventSampling = SamplingGate(100)
+
         val listener = object : EventSourceListener() {
             // SSE 事件里的异常要原样交给 close(e) 传播给流消费方（包括 Error）。
             // 统一收窄会改变失败传播语义，故保留宽捕获。
@@ -129,7 +135,10 @@ internal class InteractionsAPI(
                 type: String?,
                 data: String
             ) {
-                AppLogger.d(TAG, "onEvent: $id/$type")
+                // 每事件 1 条摘要行：debug 全记，release 采样（首条 + 每 100 条 1 条）。
+                if (Logging.isDebugLoggingEnabled() || eventSampling.shouldLog()) {
+                    AppLogger.d(TAG, "onEvent: $id/$type")
+                }
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)
@@ -144,6 +153,7 @@ internal class InteractionsAPI(
             @Suppress("TooGenericExceptionCaught")
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
+                var bodyParseError: Throwable? = null
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
@@ -154,9 +164,21 @@ internal class InteractionsAPI(
                         exception = Exception("Unknown error: ${response.code}")
                     }
                 } catch (e: Throwable) {
-                    // 保留原始 cause：后续 close(exception) 决定流失败原因时要用到
-                    AppLogger.e(TAG, "onFailure: failed to parse error response", e)
+                    // 保留原始 cause：后续 close(exception) 决定流失败原因时要用到。
+                    // 解析异常只在汇总行里留一句，不单独记一条。
+                    bodyParseError = e
                 } finally {
+                    // 本站此前失败时不记行（只在解析失败时记 1 条 e）：补 1 条汇总，
+                    // 与其余 provider 一致——一次流失败留 1 条可查的记录。汇总行必须
+                    // 在 close() 之前落盘：close 会唤醒收集端，写在它之后汇总行可能
+                    // 晚于流终止到达。
+                    AppLogger.w(
+                        TAG,
+                        "onFailure: HTTP ${response?.code ?: "?"}: " +
+                            "${exception?.logSafeMessage() ?: "Stream failed"}" +
+                            if (bodyParseError != null) " (error body unparseable: ${bodyParseError.logSafeMessage()})" else "",
+                        exception ?: bodyParseError,
+                    )
                     close(exception ?: Exception("Stream failed"))
                 }
             }

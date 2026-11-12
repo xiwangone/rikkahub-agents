@@ -375,12 +375,17 @@ class TtsController(
                 if (!e.isRetryableSynthesisError() || attempt >= MAX_SYNTHESIS_ATTEMPTS) throw e
 
                 val retryDelayMs = SYNTHESIS_RETRY_BASE_DELAY_MS * (1L shl (attempt - 1))
-                AppLogger.w(
-                    TAG,
-                    "Synthesis attempt $attempt/$MAX_SYNTHESIS_ATTEMPTS failed for chunk ${chunk.index}; " +
-                        "retrying in ${retryDelayMs}ms",
-                    e
-                )
+                // 只记首条：中间 attempt 不记；末次失败由调用方记 1 条 e
+                //（"Synthesis error"），这里不再重复记。不可重试错误沿用原有
+                // 行为（不记，直接抛给调用方）。
+                if (attempt == 1) {
+                    AppLogger.w(
+                        TAG,
+                        "Synthesis attempt $attempt/$MAX_SYNTHESIS_ATTEMPTS failed for chunk ${chunk.index}; " +
+                            "retrying in ${retryDelayMs}ms",
+                        e
+                    )
+                }
                 delay(retryDelayMs)
                 attempt++
             }

@@ -197,7 +197,12 @@ internal fun ChatService.sendMessageNowImpl(
                         // 协程取消：新消息打断/会话切换，不算失败
                         AppLog.i(TAG, "msg-cancel conv=$conversationId") // 已在上方 previousJob 取消处记录，此处仅兜底
                     } else {
-                        AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message}", e)
+                        // 与下方的 msg-requeue 合并为 1 条：willRequeue 按实际控制流算
+                        //（headless 时 rethrow 在先，不会真的 requeue；isHeadless 只查
+                        // 内存集合，无 I/O）。
+                        val willRequeue = requeueOnFailure != null &&
+                            !me.rerere.rikkahub.data.ai.tools.HeadlessConversations.isHeadless(conversationId)
+                        AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message} requeue=$willRequeue", e)
                     }
                     // 修复：headless 会话（子代理/cron/工作流/外部自动化）的调用方靠「协程
                     // 正常结束」判定成功——异常被吞 → SubAgentEngine.executeRun 的
@@ -217,10 +222,7 @@ internal fun ChatService.sendMessageNowImpl(
                     if (e !is kotlinx.coroutines.CancellationException && requeueOnFailure != null) {
                         messageQueues.getOrPut(conversationId) { MessageQueue() }
                             .requeueFront(requeueOnFailure)
-                        AppLog.w(
-                            TAG,
-                            "msg-requeue conv=$conversationId reason=${e.message}",
-                        )
+                        // 重派动作本身不另记行：已在上方的 msg-fail 行里以 requeue= 标出。
                     }
                     addError(e, conversationId, title = str(R.string.error_title_send_message))
                 } finally {

@@ -54,6 +54,7 @@ import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logSafeMessage
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
@@ -76,6 +77,7 @@ import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import kotlin.time.Clock
 import me.rerere.common.log.AppLogger
+import me.rerere.common.log.SamplingGate
 
 private const val TAG = "ResponseAPI"
 private val USER_CANCELLATION_MARKERS = listOf(
@@ -271,6 +273,9 @@ class ResponseAPI(
             }
         }
 
+        // 采样门：每个事件流一个，首条必记、其后每 100 条记 1 条。
+        val eventSampling = SamplingGate(100)
+
         val listener = object : EventSourceListener() {
             override fun onEvent(
                 eventSource: EventSource,
@@ -281,9 +286,11 @@ class ResponseAPI(
                 // SSE event payloads carry model output / tool arguments / thinking
                 // verbatim: only log the full text on debug builds; release builds
                 // get id/type + length so no user content reaches logcat.
+                // Release 下每事件 1 条摘要行仍太多（一次长回答几百上千条）：采样
+                // 只记首条与每 100 条 1 条，debug 全量记。
                 if (Logging.isDebugLoggingEnabled()) {
                     AppLogger.d(TAG, "onEvent: $id/$type $data")
-                } else {
+                } else if (eventSampling.shouldLog()) {
                     AppLogger.d(TAG, "onEvent: $id/$type len=${data.length}")
                 }
                 if (data.trim() == "[DONE]") {
@@ -344,14 +351,16 @@ class ResponseAPI(
                 var exception: Throwable = t ?: IOException(
                     "Response stream failed${response?.code?.let { " (HTTP $it)" }.orEmpty()}"
                 )
-
-                AppLogger.w(TAG, "onFailure: ${t?.javaClass?.name} ${t?.message} / $response", t)
+                var bodyParseError: Throwable? = null
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        AppLogger.d(TAG, "onFailure: error body $bodyElement")
+                        // 错误体只在 debug 下记全文：release 下它可能含全量错误体。
+                        if (Logging.isDebugLoggingEnabled()) {
+                            AppLogger.d(TAG, "onFailure: error body $bodyElement")
+                        }
                         val detail = bodyElement.parseErrorDetail(response?.code, response?.retryAfterMs())
                         val code = (bodyElement as? JsonObject)?.responseErrorText("code")
                         exception = if (code != null && !detail.message.orEmpty().contains(code, ignoreCase = true)) {
@@ -359,10 +368,10 @@ class ResponseAPI(
                         } else {
                             detail
                         }
-                        AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {
-                    AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
+                    // 解析失败时不记 body 原文：只在汇总行里留一句。
+                    bodyParseError = e
                 }
                 if (receivedMeaningfulOutput.get()) {
                     exception = ResponseStreamFailureException(
@@ -371,6 +380,15 @@ class ResponseAPI(
                         cause = exception,
                     )
                 }
+                // 一次流失败只留 1 条：HTTP 状态 + 最终异常摘要（放在
+                // receivedMeaningfulOutput 包装之后，摘要与 close 的原因一致）。
+                AppLogger.w(
+                    TAG,
+                    "onFailure: HTTP ${response?.code ?: "?"}: " +
+                        "${exception.logSafeMessage() ?: "Stream failed"}" +
+                        if (bodyParseError != null) " (error body unparseable: ${bodyParseError.logSafeMessage()})" else "",
+                    exception,
+                )
                 close(exception)
             }
 

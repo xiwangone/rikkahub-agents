@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.sync.webdav
 
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import io.ktor.client.HttpClient
@@ -561,6 +562,12 @@ class WebDavSync(
     ) = withContext(Dispatchers.IO) {
         AppLog.i(TAG, "restoreFromBackupFile: Starting restore from ${backupFile.absolutePath}")
 
+        // 恢复条目计数：逐条 i 行收敛为结束时的一条汇总行（"Processing entry"
+        // 每条 1 行、跳过条目每条 1 行是恢复 N 个文件 = O(N) 条的主因）。
+        // 数据库/设置类条目经 extractFile 静默处理，不单独计数，故
+        // processed - skipped 为其余静默处理条目数。
+        val counts = RestoreEntryCounts()
+
         // Do not replace a live database in this process. Database members are validated in a
         // private staging directory and installed by Application before Room starts next launch.
         var databaseStage: File? = null
@@ -575,7 +582,7 @@ class WebDavSync(
             var entry: ZipEntry?
             while (zipIn.nextEntry.also { entry = it } != null) {
                 entry?.let { zipEntry ->
-                    AppLog.i(TAG, "restoreFromBackupFile: Processing entry ${zipEntry.name}")
+                    counts.processed++
 
                     when {
                         zipEntry.name == "settings.json" -> {
@@ -617,7 +624,7 @@ class WebDavSync(
                                         it == WebDavConfig.BackupItem.FILES
                                 }
                             ) {
-                                if (zipEntry.name.removePrefix("${FileFolders.AVATARS}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                if (zipEntry.name.removePrefix("${FileFolders.AVATARS}/").contains('/')) skipEntry(zipEntry, counts) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                             }
                         }
 
@@ -628,7 +635,7 @@ class WebDavSync(
                                         it == WebDavConfig.BackupItem.FILES
                                 }
                             ) {
-                                if (zipEntry.name.removePrefix("${FileFolders.UPLOAD}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                if (zipEntry.name.removePrefix("${FileFolders.UPLOAD}/").contains('/')) skipEntry(zipEntry, counts) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                             }
                         }
 
@@ -650,7 +657,7 @@ class WebDavSync(
                                         it == WebDavConfig.BackupItem.FILES
                                 }
                             ) {
-                                if (zipEntry.name.removePrefix("${FileFolders.FONTS}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                if (zipEntry.name.removePrefix("${FileFolders.FONTS}/").contains('/')) skipEntry(zipEntry, counts) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                             }
                         }
 
@@ -661,7 +668,7 @@ class WebDavSync(
                                         it == WebDavConfig.BackupItem.FILES
                                 }
                             ) {
-                                if (zipEntry.name.removePrefix("${FileFolders.IMAGES}/").contains('/')) skipEntry(zipEntry) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
+                                if (zipEntry.name.removePrefix("${FileFolders.IMAGES}/").contains('/')) skipEntry(zipEntry, counts) else PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                             }
                         }
 
@@ -698,12 +705,12 @@ class WebDavSync(
                                 logicalEntries[normalizedName] =
                                     zipIn.readBytes().toString(Charsets.UTF_8)
                             } else {
-                                skipEntry(zipEntry)
+                                skipEntry(zipEntry, counts)
                             }
                         }
 
                         else -> {
-                            AppLog.i(TAG, "restoreFromBackupFile: Skipping entry ${zipEntry.name}")
+                            counts.skipped++
                         }
                     }
 
@@ -725,7 +732,11 @@ class WebDavSync(
             PendingLogicalApply.stage(context, logicalEntries)
         }
 
-        AppLog.i(TAG, "restoreFromBackupFile: Restore completed successfully")
+        AppLog.i(
+            TAG,
+            "restoreFromBackupFile: Restore completed successfully " +
+                "(processed ${counts.processed} entries, skipped ${counts.skipped})",
+        )
     }
 
     private fun addFileToZip(zipOut: ZipOutputStream, file: File, entryName: String) {
@@ -734,7 +745,10 @@ class WebDavSync(
             zipOut.putNextEntry(zipEntry)
             fis.copyTo(zipOut, bufferSize = 64 * 1024)
             zipOut.closeEntry()
-            AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
+            // 每文件 1 条 d：一次备份 N 个文件 = O(N) 条，release 下只在 debug 开时记。
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "addFileToZip: Added $entryName (${file.length()} bytes) to zip")
+            }
         }
     }
 
@@ -880,4 +894,19 @@ data class WebDavBackupItem(
 
 /** 未勾选的备份项或嵌套目录条目：不解包，遍历由下一次 nextEntry 推进。 */
 @Suppress("UNUSED_PARAMETER")
-private fun skipEntry(entry: ZipEntry) = Unit
+/**
+ * 恢复时跳过一个条目：只计数，不记行（原先是空操作；跳过原因由调用方的分支条件决定）。
+ * 计数汇总在 restoreFromBackupFile 结束时的一条 i 行里。
+ */
+private fun skipEntry(entry: ZipEntry, counts: RestoreEntryCounts) {
+    counts.skipped++
+}
+
+/**
+ * 恢复循环的条目计数：逐条日志收敛为结束时的一条汇总行。
+ * 与 S3Sync.kt 里的同名类形状一致（两文件恢复流程互为镜像，见各自 restoreFromBackupFile）。
+ */
+private class RestoreEntryCounts {
+    var processed = 0
+    var skipped = 0
+}

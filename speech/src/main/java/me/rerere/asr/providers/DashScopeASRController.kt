@@ -39,6 +39,7 @@ import org.json.JSONObject
 import java.util.Collections
 import java.util.concurrent.ConcurrentHashMap
 import me.rerere.common.log.AppLogger
+import me.rerere.common.log.ThrottleGate
 
 private const val TAG = "DashScopeASR"
 private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
@@ -58,6 +59,10 @@ class DashScopeASRController(
     private var recorderJob: Job? = null
     private var finishTimeoutJob: Job? = null
     private var audioRecord: AudioRecord? = null
+
+    // 丢帧节流：WebSocket 队满时音频循环每帧 1 条 w 会刷屏，5 秒窗口内只记
+    // 首条，其余计数后在下一条汇总行里带上（见 ThrottleGate）。
+    private val frameDropThrottle = ThrottleGate(5_000L)
     private var onTranscriptChange: ((String) -> Unit)? = null
     private val completedTranscripts = Collections.synchronizedList(mutableListOf<String>())
     private val partialTranscripts = ConcurrentHashMap<String, String>()
@@ -270,7 +275,14 @@ class DashScopeASRController(
                                         .put("audio", encoded)
                                 socket.send(event.toString())
                             } else {
-                                AppLogger.w(TAG, "WebSocket queue full, dropping audio frame")
+                                if (frameDropThrottle.shouldLog()) {
+                                    val suppressed = frameDropThrottle.takeSuppressedCount()
+                                    AppLogger.w(
+                                        TAG,
+                                        "WebSocket queue full, dropping audio frame" +
+                                            if (suppressed > 0) " (+$suppressed suppressed in the last 5s)" else "",
+                                    )
+                                }
                             }
                         } else if (read < 0) {
                             throw IllegalStateException("AudioRecord read error: $read")

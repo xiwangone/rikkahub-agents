@@ -3,6 +3,7 @@ package me.rerere.ai.util
 import kotlinx.serialization.json.Json
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
@@ -54,5 +55,22 @@ class ErrorParserTest {
         assertEquals("stream aborted", detail.message)
         assertNull(detail.statusCode)
         assertNull(detail.providerErrorCode)
+    }
+
+    @Test
+    fun `logSafeMessage 去掉 JsonDecodingException 的 JSON input 尾巴`() {
+        val err = runCatching { Json.parseToJsonElement("{\"boom-test-raw\":") }.exceptionOrNull()!!
+        // 原始 message 自带 JSON input 尾巴，确实含原文（这正是要去掉的东西）。
+        assertTrue(err.message!!.contains("boom-test-raw"))
+        val safe = err.logSafeMessage()!!
+        assertTrue(safe.startsWith("Cannot read Json element because of unexpected end of the input"))
+        assertTrue(!safe.contains("boom-test-raw"))
+        assertTrue(!safe.contains("JSON input:"))
+    }
+
+    @Test
+    fun `logSafeMessage 没有尾巴的消息原样返回`() {
+        assertEquals("Stream failed", Exception("Stream failed").logSafeMessage())
+        assertNull(Exception().logSafeMessage())
     }
 }

@@ -4,7 +4,6 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.takeWhile
-import kotlinx.coroutines.delay
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -236,6 +235,9 @@ internal class GenerationAgentRun(
             val requestStartedAtMs = android.os.SystemClock.elapsedRealtime()
             var skipFinalDelivery = false
             var completedNormally = false
+            // 本轮重试计数：每轮 while 迭代开始时重置；失败汇总在 catch 块末尾只记 1 条。
+            var retryCount = 0
+            var lastRetryCause: Throwable? = null
             try {
                 runAgent(request, this).collect { event ->
                     when (event) {
@@ -247,12 +249,9 @@ internal class GenerationAgentRun(
                                 maxRetries = maxStreamRetries,
                                 failure = event.attempt.cause,
                             )
-                            AppLog.w(
-                                TAG,
-                                "streamText: retrying after failure " +
-                                    "(${event.attempt.retry}/$maxStreamRetries) in ${event.attempt.delay.inWholeMilliseconds}ms",
-                                event.attempt.cause,
-                            )
+                            // 每 attempt 不再记 1 条 w：只计数，失败汇总在 catch 块末尾记 1 条。
+                            retryCount++
+                            lastRetryCause = event.attempt.cause
                             onRetryDiagnosed?.invoke(diagnoseFailure(context, event.attempt.cause))
                         }
 
@@ -311,6 +310,17 @@ internal class GenerationAgentRun(
                     }
                     messages = messages.dropLast(1) + lastMsg.copy(parts = newParts)
                     emitter.emit(GenerationChunk.Messages(messages))
+                }
+                // 本轮重试汇总：只在真重试过时记 1 条（含次数 + 最后错误），
+                // 替代原来每 attempt 1 条 w；未重试过的单次失败不另记（调用方
+                // ChatServiceSendOps 的 msg-fail 行已留痕）。
+                if (retryCount > 0) {
+                    AppLog.w(
+                        TAG,
+                        "streamText: failed after $retryCount ${if (retryCount == 1) "retry" else "retries"} " +
+                            "(last error: ${lastRetryCause?.message ?: t.message})",
+                        t,
+                    )
                 }
                 throw t
             } finally {

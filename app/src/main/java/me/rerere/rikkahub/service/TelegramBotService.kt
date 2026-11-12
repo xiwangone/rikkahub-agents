@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.service
 
+import me.rerere.common.log.ThrottleGate
 import me.rerere.rikkahub.data.log.AppLog
 import android.app.Service
 import android.content.Context
@@ -255,18 +256,33 @@ class TelegramBotService : Service() {
         // enough that legitimate inbound updates get skipped.
         var lastTokenSeen: String? = null
         while (true) {
+            var prefsFailure: Throwable? = null
             val cfg =
                 try {
                     prefs.current()
                 } catch (e: Throwable) {
-                    AppLog.e(TAG, "pollLoop: prefs.current() failed", e)
+                    prefsFailure = e
                     null
                 }
             if (cfg == null || !cfg.isUsable) {
-                AppLog.w(
-                    TAG,
-                    "pollLoop: cfg unusable (token_set=${cfg?.token?.isNotBlank()} enabled=${cfg?.enabled}); stopping",
-                )
+                if (prefsFailure != null) {
+                    // 配置损坏：失败本身已由本条 e 留痕，不再另记 cfg unusable w
+                    //（否则每次重启都多 1 条）；节流后每小时只记首条。
+                    if (prefsFailureThrottle.shouldLog()) {
+                        val suppressed = prefsFailureThrottle.takeSuppressedCount()
+                        AppLog.e(
+                            TAG,
+                            "pollLoop: prefs.current() failed" +
+                                if (suppressed > 0) " (+$suppressed suppressed in the last hour)" else "",
+                            prefsFailure,
+                        )
+                    }
+                } else {
+                    AppLog.w(
+                        TAG,
+                        "pollLoop: cfg unusable (token_set=${cfg?.token?.isNotBlank()} enabled=${cfg?.enabled}); stopping",
+                    )
+                }
                 stopSelf()
                 return
             }
@@ -596,6 +612,11 @@ class TelegramBotService : Service() {
 
     companion object {
         const val TAG = "TelegramBotService"
+
+        // prefs 读取失败是配置损坏：服务 stopSelf 后系统会重启，重启后又失败，
+        // 每轮 1 条 e 会永久刷屏。门放 companion 级（实例随重启重建，门不丢），
+        // 1 小时窗口内只记首条，其余计数后在下一条汇总行里带上。
+        private val prefsFailureThrottle = ThrottleGate(3_600_000L)
 
         // Telegram's HARD per-message limit is 4096. We chunk at 3500 (was 4000) because
         // chunks are markdown-rendered to HTML downstream and the rendered HTML can be

@@ -50,6 +50,7 @@ import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
 import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
+import me.rerere.ai.util.logSafeMessage
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
@@ -68,6 +69,7 @@ import okhttp3.sse.EventSource
 import okhttp3.sse.EventSourceListener
 import okhttp3.sse.EventSources
 import me.rerere.common.log.AppLogger
+import me.rerere.common.log.SamplingGate
 
 private const val TAG = "ChatCompletionsAPI"
 
@@ -180,6 +182,9 @@ class ChatCompletionsAPI(
             }
         }
 
+        // 采样门：每个事件流一个，首条必记、其后每 100 条记 1 条。
+        val eventSampling = SamplingGate(100)
+
         val listener = object : EventSourceListener() {
             override fun onEvent(
                 eventSource: EventSource,
@@ -191,9 +196,11 @@ class ChatCompletionsAPI(
                 // SSE event payloads carry model output / tool arguments / thinking
                 // verbatim: only log the full text on debug builds; release builds
                 // get length only so no user content reaches logcat.
+                // Release 下每事件 1 条摘要行仍太多（一次长回答几百上千条）：采样
+                // 只记首条与每 100 条 1 条，debug 全量记。
                 if (Logging.isDebugLoggingEnabled()) {
                     AppLogger.d(TAG, "onEvent: $data")
-                } else {
+                } else if (eventSampling.shouldLog()) {
                     AppLogger.d(TAG, "onEvent: len=${data.length}")
                 }
                 try {
@@ -213,28 +220,39 @@ class ChatCompletionsAPI(
 
             override fun onFailure(eventSource: EventSource, t: Throwable?, response: Response?) {
                 var exception = t
+                var bodyParseFailed = false
 
                 terminalReached[0] = true
                 val sinceLastEventMs =
                     lastEventAtMs[0].takeIf { it > 0L }?.let { System.currentTimeMillis() - it } ?: -1L
-                AppLogger.w(
-                    TAG,
-                    "onFailure: ${t?.javaClass?.name} ${t?.message} localCanceled=${localCanceled[0]} sinceLastEventMs=$sinceLastEventMs / $response",
-                    t,
-                )
 
                 val bodyRaw = response?.body?.stringSafe()
                 try {
                     if (!bodyRaw.isNullOrBlank()) {
                         val bodyElement = Json.parseToJsonElement(bodyRaw)
-                        AppLogger.d(TAG, "onFailure: error body $bodyElement")
+                        // 错误体只在 debug 下记全文：release 下它可能含全量错误体。
+                        if (Logging.isDebugLoggingEnabled()) {
+                            AppLogger.d(TAG, "onFailure: error body $bodyElement")
+                        }
                         exception = bodyElement.parseErrorDetail(response?.code, response?.retryAfterMs())
-                        AppLogger.i(TAG, "onFailure: $exception")
                     }
                 } catch (e: Throwable) {
-                    AppLogger.w(TAG, "onFailure: failed to parse from $bodyRaw", e)
+                    // 解析失败时不记 body 原文：只在汇总行里留一句；exception 沿用
+                    // 原有语义（解析异常本身成为流失败原因）。
+                    bodyParseFailed = true
                     exception = e
                 } finally {
+                    // 一次流失败只留 1 条：HTTP 状态 + 最终异常摘要（保留 localCanceled
+                    // 与 sinceLastEventMs 两个诊断字段）。汇总行必须在 close() 之前
+                    // 落盘：close 会唤醒收集端，写在它之后汇总行可能晚于流终止到达。
+                    AppLogger.w(
+                        TAG,
+                        "onFailure: HTTP ${response?.code ?: "?"}: " +
+                            "${exception?.logSafeMessage() ?: "Stream failed"} " +
+                            "localCanceled=${localCanceled[0]} sinceLastEventMs=$sinceLastEventMs" +
+                            if (bodyParseFailed) " (error body unparseable)" else "",
+                        exception,
+                    )
                     // No throwable and no error body: still fail the flow instead of
                     // closing it normally, otherwise the failure looks like completion.
                     close(exception ?: Exception("Stream failed"))

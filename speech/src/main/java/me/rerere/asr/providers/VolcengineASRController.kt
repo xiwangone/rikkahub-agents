@@ -39,6 +39,7 @@ import okio.ByteString
 import okio.ByteString.Companion.toByteString
 import kotlin.uuid.Uuid
 import me.rerere.common.log.AppLogger
+import me.rerere.common.log.ThrottleGate
 
 private const val TAG = "VolcengineASR"
 private const val MAX_WEBSOCKET_QUEUE_BYTES = 100_000L
@@ -56,6 +57,10 @@ class VolcengineASRController(
     private var webSocket: WebSocket? = null
     private var recorderJob: Job? = null
     private var audioRecord: AudioRecord? = null
+
+    // 丢帧节流：WebSocket 队满时音频循环每帧 1 条 w 会刷屏，5 秒窗口内只记
+    // 首条，其余计数后在下一条汇总行里带上（见 ThrottleGate）。
+    private val frameDropThrottle = ThrottleGate(5_000L)
     private var onTranscriptChange: ((String) -> Unit)? = null
     private var finishJob: Job? = null
 
@@ -234,7 +239,14 @@ class VolcengineASRController(
                             val frame = VolcengineASRProtocol.audioFrame(buffer.copyOfRange(0, read))
                             socket.send(frame.toByteString())
                         } else {
-                            AppLogger.w(TAG, "WebSocket queue full, dropping audio frame")
+                            if (frameDropThrottle.shouldLog()) {
+                                val suppressed = frameDropThrottle.takeSuppressedCount()
+                                AppLogger.w(
+                                    TAG,
+                                    "WebSocket queue full, dropping audio frame" +
+                                        if (suppressed > 0) " (+$suppressed suppressed in the last 5s)" else "",
+                                )
+                            }
                         }
                     } else if (read < 0) {
                         throw IllegalStateException("AudioRecord read error: $read")

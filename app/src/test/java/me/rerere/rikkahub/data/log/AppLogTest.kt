@@ -95,4 +95,55 @@ class AppLogTest {
 
         assertTrue(AppLog.getLogs().isEmpty())
     }
+
+    // ---- 批 4 重-P1-5：去重 key 归一化（剥掉重试计数）----
+
+    @Test
+    fun `retry messages with different attempt fractions merge within the window`() {
+        // 同一错误的不同 attempt（(1/5) 与 (2/5)）在 3 秒窗内合并为一条，
+        // repeat 累加。两次 append 相隔微秒级，跨时间桶边界的概率可忽略。
+        AppLog.w("AppLogTest", "marker-retry-frac (1/5) failed")
+        AppLog.w("AppLogTest", "marker-retry-frac (2/5) failed")
+
+        val entries = AppLog.getLogs().filter { it.message.contains("marker-retry-frac") }
+        assertEquals(1, entries.size)
+        assertEquals(2, entries.single().repeat)
+    }
+
+    @Test
+    fun `attempt and try counters are normalized for dedup`() {
+        AppLog.w("AppLogTest", "marker-retry-attempt attempt 1 failed")
+        AppLog.w("AppLogTest", "marker-retry-attempt attempt 2 failed")
+        AppLog.w("AppLogTest", "marker-retry-try try 1 failed")
+        AppLog.w("AppLogTest", "marker-retry-try try 2 failed")
+
+        val attemptEntries = AppLog.getLogs().filter { it.message.contains("marker-retry-attempt") }
+        assertEquals(1, attemptEntries.size)
+        assertEquals(2, attemptEntries.single().repeat)
+
+        val tryEntries = AppLog.getLogs().filter { it.message.contains("marker-retry-try") }
+        assertEquals(1, tryEntries.size)
+        assertEquals(2, tryEntries.single().repeat)
+    }
+
+    @Test
+    fun `different errors do not merge`() {
+        AppLog.w("AppLogTest", "marker-diff alpha failed")
+        AppLog.w("AppLogTest", "marker-diff beta failed")
+
+        val entries = AppLog.getLogs().filter { it.message.contains("marker-diff") }
+        assertEquals(2, entries.size)
+        assertTrue(entries.all { it.repeat == 1 })
+    }
+
+    @Test
+    fun `merged entry keeps the first original message`() {
+        // 归一化只作用于去重 key：buffer 里存的仍是首次出现的原始消息。
+        AppLog.w("AppLogTest", "marker-retry-keep (1/5) failed")
+        AppLog.w("AppLogTest", "marker-retry-keep (2/5) failed")
+
+        val entries = AppLog.getLogs().filter { it.message.contains("marker-retry-keep") }
+        assertEquals(1, entries.size)
+        assertTrue(entries.single().message.contains("(1/5)"))
+    }
 }

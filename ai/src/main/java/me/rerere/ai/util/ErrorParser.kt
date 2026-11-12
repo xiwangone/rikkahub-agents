@@ -51,6 +51,12 @@ fun JsonElement.parseErrorDetail(statusCode: Int? = null, retryAfterMs: Long? = 
 }
 
 /**
+ * 日志摘要里用的异常文案：`JsonDecodingException` 的 message 自带 "\nJSON input: <原文>" 尾巴，
+ * 会把原始错误体贴进日志行；去掉它，只留失败原因本身。没有该尾巴的消息原样返回。
+ */
+fun Throwable.logSafeMessage(): String? = message?.substringBefore("\nJSON input:")
+
+/**
  * 解析 `Retry-After` 响应头为等待毫秒数。只认秒数形式（各家限流响应最常见的写法）；
  * HTTP-date 形式返回 null，调用方回退到固定退避。
  */

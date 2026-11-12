@@ -27,6 +27,7 @@ import java.time.Instant
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import java.time.format.DateTimeParseException
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "WebDavClient"
@@ -78,7 +79,9 @@ class WebDavClient(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "PUT: $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "PUT: $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Put
@@ -99,7 +102,9 @@ class WebDavClient(
                 throw WebDavException("Failed to put: ${response.status}", response.status.value, errorBody)
             }
 
-            AppLog.d(TAG, "put success: $path")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "put success: $path")
+            }
             Unit
         }
     }
@@ -111,7 +116,9 @@ class WebDavClient(
     ): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "PUT (stream file): $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "PUT (stream file): $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Put
@@ -133,7 +140,9 @@ class WebDavClient(
                 throw WebDavException("Failed to put file: ${response.status}", response.status.value, errorBody)
             }
 
-            AppLog.d(TAG, "put(file) success: $path (${file.length()} bytes)")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "put(file) success: $path (${file.length()} bytes)")
+            }
             Unit
         }
     }
@@ -141,7 +150,9 @@ class WebDavClient(
     suspend fun get(path: String): Result<ByteArray> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "GET: $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "GET: $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Get
@@ -165,7 +176,9 @@ class WebDavClient(
     suspend fun getStream(path: String): Result<InputStream> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "GET (stream): $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "GET (stream): $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Get
@@ -188,7 +201,9 @@ class WebDavClient(
     suspend fun downloadToFile(path: String, targetFile: File): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "GET (download to file): $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "GET (download to file): $url")
+            }
 
             httpClient.prepareRequest(url) {
                 method = HttpMethod.Get
@@ -213,7 +228,9 @@ class WebDavClient(
                         }
                     }
                 }
-                AppLog.d(TAG, "downloadToFile success: downloaded ${targetFile.length()} bytes")
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLog.d(TAG, "downloadToFile success: downloaded ${targetFile.length()} bytes")
+                }
             }
             Unit
         }
@@ -222,7 +239,9 @@ class WebDavClient(
     suspend fun delete(path: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "DELETE: $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "DELETE: $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Delete
@@ -238,7 +257,9 @@ class WebDavClient(
                 throw WebDavException("Failed to delete: ${response.status}", response.status.value, errorBody)
             }
 
-            AppLog.d(TAG, "delete success: $path")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "delete success: $path")
+            }
             Unit
         }
     }
@@ -246,7 +267,9 @@ class WebDavClient(
     suspend fun head(path: String): Result<WebDavResourceInfo> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "HEAD: $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "HEAD: $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod.Head
@@ -274,7 +297,9 @@ class WebDavClient(
     suspend fun mkcol(path: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "MKCOL: $url")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "MKCOL: $url")
+            }
 
             val response: HttpResponse = httpClient.request(url) {
                 method = HttpMethod("MKCOL")
@@ -291,7 +316,9 @@ class WebDavClient(
                 throw WebDavException("Failed to create collection: ${response.status}", response.status.value, errorBody)
             }
 
-            AppLog.d(TAG, "mkcol success: $path")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "mkcol success: $path")
+            }
             Unit
         }
     }
@@ -302,7 +329,9 @@ class WebDavClient(
     ): Result<List<WebDavResourceInfo>> = withContext(Dispatchers.IO) {
         runCatching {
             val url = config.buildUrl(path)
-            AppLog.d(TAG, "PROPFIND: $url, depth: $depth")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "PROPFIND: $url, depth: $depth")
+            }
 
             val propfindBody = """<?xml version="1.0" encoding="UTF-8"?>
                 |<D:propfind xmlns:D="DAV:">
@@ -347,12 +376,16 @@ class WebDavClient(
     suspend fun ensureCollectionExists(path: String = ""): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             val targetUrl = config.buildUrl(path)
-            AppLog.d(TAG, "Ensuring collection exists: $targetUrl")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "Ensuring collection exists: $targetUrl")
+            }
 
             // Try propfind first to check if it exists
             val propfindResult = propfind(path, depth = 0)
             if (propfindResult.isSuccess) {
-                AppLog.d(TAG, "Collection already exists: $targetUrl")
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLog.d(TAG, "Collection already exists: $targetUrl")
+                }
                 return@runCatching
             }
 

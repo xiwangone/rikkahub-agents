@@ -380,8 +380,17 @@ class MediaCreationService(
                 repository.updateRecord(recordId) { it.copy(status = task.status.toCreationStatus(it.status)) }
             }.onFailure { error ->
                 failures++
-                AppLog.w(TAG, "Query $taskId failed ($failures)", error)
-                if (!error.isRetryable() || failures >= MAX_QUERY_FAILURES) throw error
+                // 首条与末条各记 1 条，中间失败不记：首条留痕，末条汇总次数。
+                // 末条与首条重合（第 1 次即不可重试）时只记首条。
+                if (failures == 1) {
+                    AppLog.w(TAG, "Query $taskId failed (1)", error)
+                }
+                if (!error.isRetryable() || failures >= MAX_QUERY_FAILURES) {
+                    if (failures > 1) {
+                        AppLog.w(TAG, "Query $taskId failed after $failures attempts: ${error.message}", error)
+                    }
+                    throw error
+                }
             }
             check(Instant.now() < deadline) { context.getString(R.string.media_creation_error_timeout) }
             delay(pollDelay(failures))
@@ -482,7 +491,11 @@ class MediaCreationService(
             } catch (e: Exception) {
                 currentCoroutineContext().ensureActive()
                 if (attempt >= attempts) throw e
-                AppLog.w(TAG, "Download failed ($attempt/$attempts)", e)
+                // 只记首条：中间 attempt 不记；末次失败不另记（外层 run() 记 1 条
+                // e "Generation ... failed"，是本次生成的末次记录）。
+                if (attempt == 1) {
+                    AppLog.w(TAG, "Download failed (1/$attempts)", e)
+                }
                 delay(POLL_INTERVAL)
             }
         }

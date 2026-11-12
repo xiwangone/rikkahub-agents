@@ -44,6 +44,15 @@ object AppLog {
      */
     private const val DEDUP_WINDOW_MS = 3000L
 
+    /**
+     * 去重归一化用的正则（预编译：append 是热路径，每次调用不重新编译）。
+     * 剥掉重试计数，使同一错误的不同 attempt 在去重窗内合并为一条。
+     */
+    private val dedupRetryFractionPattern = Regex("\\(\\d+/\\d+\\)")
+    private val dedupAttemptPattern = Regex("attempt \\d+", RegexOption.IGNORE_CASE)
+    private val dedupTryPattern = Regex("try \\d+", RegexOption.IGNORE_CASE)
+    private val dedupNumberedParenPattern = Regex("\\(\\d+\\)")
+
     /** 单条消息最大长度，防止超长消息撑爆内存 */
     private const val MAX_MESSAGE_LENGTH = 2000
 
@@ -307,8 +316,10 @@ object AppLog {
         val buffer = if (important) importantBuffer else verboseBuffer
         val cap = if (important) MAX_IMPORTANT_LOGS else MAX_VERBOSE_LOGS
         val now = System.currentTimeMillis()
-        // 时间桶参与 key：同一窗口内合并计数，跨窗口生成新条目（时间线不丢）
-        val key = "$level|$safeTag|${now / DEDUP_WINDOW_MS}|$safeMessage"
+        // 时间桶参与 key：同一窗口内合并计数，跨窗口生成新条目（时间线不丢）。
+        // key 里的消息先归一化（剥掉重试计数）：同一错误的不同 attempt 在窗内
+        // 合并为一条；buffer 里存的仍是原始消息，展示与导出不受影响。
+        val key = "$level|$safeTag|${now / DEDUP_WINDOW_MS}|${normalizeDedupMessage(safeMessage)}"
         val isNewEntry =
             synchronized(lock) {
                 val existing = buffer[key]
@@ -345,6 +356,22 @@ object AppLog {
         }
         // 文件持久化（与内存开关一致；时间戳由 FileLogSink 统一加）
         FileLogSink.append(FileLogSink.KIND_APP, "$level $safeTag: $safeMessage")
+    }
+
+    /**
+     * 去重 key 用的消息归一化：剥掉重试计数，使同一错误的不同 attempt 在
+     * [DEDUP_WINDOW_MS] 内合并为一条（repeat 照常累加）。
+     *
+     * 只作用于 key：buffer 里存的仍是原始消息，展示与导出不受影响。
+     * 注意 `try \d+` 也会匹配 `retry 2` 里的 `try 2`（→ `retry N`），
+     * 归一化结果一致，无副作用。
+     */
+    private fun normalizeDedupMessage(message: String): String {
+        var normalized = dedupRetryFractionPattern.replace(message, "(n/m)")
+        normalized = dedupAttemptPattern.replace(normalized, "attempt N")
+        normalized = dedupTryPattern.replace(normalized, "try N")
+        normalized = dedupNumberedParenPattern.replace(normalized, "(#)")
+        return normalized
     }
 
     private fun formatLine(entry: Entry): String {

@@ -21,6 +21,7 @@ import java.io.InputStream
 import java.io.StringReader
 import java.security.MessageDigest
 import java.time.Instant
+import me.rerere.common.android.Logging
 import me.rerere.rikkahub.data.log.AppLog
 import kotlin.time.Duration
 
@@ -59,7 +60,9 @@ class S3Client(
                 throw S3Exception("Failed to put object: ${response.status}", errorBody)
             }
 
-            AppLog.d(TAG, "putObject success: $key")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "putObject success: $key")
+            }
             Unit
         }
     }
@@ -96,7 +99,9 @@ class S3Client(
                 throw S3Exception("Failed to put object: ${response.status}", errorBody)
             }
 
-            AppLog.d(TAG, "putObject(file) success: $key (${file.length()} bytes)")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "putObject(file) success: $key (${file.length()} bytes)")
+            }
             Unit
         }
     }
@@ -163,7 +168,9 @@ class S3Client(
                 path = path,
             )
 
-            AppLog.d(TAG, "GET (download to file): $key")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "GET (download to file): $key")
+            }
 
             httpClient.prepareRequest(signed.url) {
                 method = HttpMethod.Get
@@ -182,7 +189,9 @@ class S3Client(
                         input.copyTo(output)
                     }
                 }
-                AppLog.d(TAG, "downloadObjectToFile success: downloaded ${targetFile.length()} bytes")
+                if (Logging.isDebugLoggingEnabled()) {
+                    AppLog.d(TAG, "downloadObjectToFile success: downloaded ${targetFile.length()} bytes")
+                }
             }
             Unit
         }
@@ -210,7 +219,9 @@ class S3Client(
                 throw S3Exception("Failed to delete object: ${response.status}", errorBody)
             }
 
-            AppLog.d(TAG, "deleteObject success: $key")
+            if (Logging.isDebugLoggingEnabled()) {
+                AppLog.d(TAG, "deleteObject success: $key")
+            }
             Unit
         }
     }

@@ -183,6 +183,10 @@ class FilesManager(
         if (!dir.exists()) {
             dir.mkdirs()
         }
+        // 附件汇总：每附件 1 条 i（压缩后/原样各 1 条）收敛为循环后 1 条。
+        var compressedCount = 0
+        var keptCount = 0
+        var totalBytes = 0L
         uris.forEach { uri ->
             runCatching {
                 val sourceName = getFileNameFromUri(uri) ?: uri.lastPathSegment ?: "file"
@@ -202,11 +206,7 @@ class FilesManager(
                         }
                         val result = ImageCompressor.compressToFile(context, uri, jpgFile)
                         if (result != null) {
-                            AppLog.i(
-                                TAG,
-                                "attachment: $sourceName compressed -> " +
-                                    "${result.width}x${result.height}, ${result.bytes / 1024}KB",
-                            )
+                            compressedCount++
                             jpgFile
                         } else {
                             jpgFile.delete()
@@ -235,8 +235,9 @@ class FilesManager(
                         }
                     }
                     guessedMime = sourceMime ?: guessMimeType(file, sourceName)
-                    AppLog.i(TAG, "attachment: $sourceName kept as-is (${file.length() / 1024}KB, $guessedMime)")
+                    keptCount++
                 }
+                totalBytes += file.length()
                 trackManagedFile(
                     folder = FileFolders.UPLOAD,
                     file = file,
@@ -252,6 +253,11 @@ class FilesManager(
                 )
             }
         }
+        AppLog.i(
+            TAG,
+            "createChatFilesByContents: saved ${newUris.size}/${uris.size} files " +
+                "($compressedCount compressed, $keptCount kept as-is, ${totalBytes / 1024}KB)",
+        )
         return newUris
     }
 

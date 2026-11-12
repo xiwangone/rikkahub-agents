@@ -87,6 +87,8 @@ internal suspend fun downloadInboundPhotos(
 
     val images = mutableListOf<UIMessagePart.Image>()
     val paths = mutableListOf<String>()
+    // 下载汇总：每张照片 1 条 i 收敛为循环后 1 条；单张失败的 w 行保留。
+    var totalBytes = 0L
     for (fileId in fileIds) {
         try {
             val info = client.getFile(fileId)
@@ -101,11 +103,12 @@ internal suspend fun downloadInboundPhotos(
             client.downloadFile(filePath, dest)
             images.add(UIMessagePart.Image(url = "file://${dest.absolutePath}"))
             paths.add(dest.absolutePath)
-            AppLog.i(TAG, "downloadInboundPhotos: saved ${dest.name} (${dest.length()} bytes)")
+            totalBytes += dest.length()
         } catch (e: Throwable) {
             AppLog.w(TAG, "downloadInboundPhotos: failed for $fileId", e)
         }
     }
+    AppLog.i(TAG, "downloadInboundPhotos: saved ${images.size}/${fileIds.size} photos (${totalBytes} bytes)")
     return images to paths
 }
 
@@ -130,6 +133,9 @@ internal suspend fun downloadInboundAttachments(
     pruneInbox(inboxDir)
 
     val out = mutableListOf<DownloadedAttachment>()
+    // 下载汇总：每附件 1 条 i 收敛为循环后 1 条；单附件失败/超限的 w 行与
+    // SKIPPED 备注保留（失败原因仍逐条可见）。
+    var totalBytes = 0L
     for (att in attachments) {
         // Skip over-sized attachments without downloading.
         if (att.sizeBytes != null && att.sizeBytes > INBOUND_ATTACHMENT_SIZE_CAP_BYTES) {
@@ -156,7 +162,7 @@ internal suspend fun downloadInboundAttachments(
             val dest = uniqueFile(inboxDir, safeName)
             client.downloadFile(filePath, dest)
             out.add(DownloadedAttachment(att, savedPath = dest.absolutePath, skipReason = null))
-            AppLog.i(TAG, "downloadInboundAttachments: saved ${dest.name} (${dest.length()} bytes)")
+            totalBytes += dest.length()
         } catch (c: kotlinx.coroutines.CancellationException) {
             // Cancellation is not a download failure — rethrow so structured concurrency
             // unwinds cleanly instead of emitting a misleading "download failed" note and
@@ -175,6 +181,8 @@ internal suspend fun downloadInboundAttachments(
             )
         }
     }
+    val saved = out.count { it.savedPath != null }
+    AppLog.i(TAG, "downloadInboundAttachments: saved $saved/${attachments.size} attachments (${totalBytes} bytes)")
     return out
 }
 
