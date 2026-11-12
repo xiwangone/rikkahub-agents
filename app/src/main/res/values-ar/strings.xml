@@ -963,6 +963,8 @@
   <string name="setting_model_page_suggestion_model_desc">النموذج المُستخدم لتوليد اقتراحات المحادثة، يُنصح باستخدام نماذج سريعة وغير مكلفة</string>
   <string name="setting_model_page_suggestion_prompt_vars">المتغيرات: محتوى المحادثة: {content}، اللغة: {locale}</string>
   <string name="setting_model_page_title">إعدادات النموذج</string>
+  <string name="setting_model_clear_local_confirm">سيتم مسح جدول الإمكانات المحلي (عدد الإدخالات: %1$d)، ولا يمكن التراجع عن ذلك</string>
+  <string name="setting_provider_model_list_refresh">تحديث قائمة الطرازات</string>
   <string name="setting_model_page_title_model">نموذج تلخيص العنوان</string>
   <string name="setting_model_page_title_model_desc">النموذج المُستخدم لتلخيص عناوين المحادثات، يُنصح باستخدام نماذج سريعة وغير مكلفة</string>
   <string name="setting_model_page_translate_model">نموذج الترجمة</string>

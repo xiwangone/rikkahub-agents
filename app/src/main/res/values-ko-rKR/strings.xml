@@ -905,6 +905,8 @@
   <string name="setting_model_page_suggestion_model_desc">대화 제안을 생성하는 모델. 설정되지 않으면 빠른 모델을 사용합니다</string>
   <string name="setting_model_page_suggestion_prompt_vars">변수: 대화 내용: {content}, 언어: {locale}</string>
   <string name="setting_model_page_title">모델 설정</string>
+  <string name="setting_model_clear_local_confirm">로컬 기능 테이블을 비웁니다(총 %1$d개). 이 작업은 되돌릴 수 없습니다</string>
+  <string name="setting_provider_model_list_refresh">모델 목록 새로고침</string>
   <string name="setting_model_page_title_model">제목 요약 모델</string>
   <string name="setting_model_page_title_model_desc">대화 제목을 요약하는 모델. 설정되지 않으면 빠른 모델을 사용합니다</string>
   <string name="setting_model_page_translate_model">번역 모델</string>

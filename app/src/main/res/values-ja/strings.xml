@@ -905,6 +905,8 @@
   <string name="setting_model_page_suggestion_model_desc">会話の提案を生成するモデル。設定されていない場合は高速モデルを使用します</string>
   <string name="setting_model_page_suggestion_prompt_vars">変数: 会話内容: {content}, 言語: {locale}</string>
   <string name="setting_model_page_title">モデル設定</string>
+  <string name="setting_model_clear_local_confirm">ローカル機能テーブルを消去します（全 %1$d 件）。この操作は取り消せません</string>
+  <string name="setting_provider_model_list_refresh">モデル一覧を更新</string>
   <string name="setting_model_page_title_model">タイトル要約モデル</string>
   <string name="setting_model_page_title_model_desc">会話タイトルを要約するモデル。設定されていない場合は高速モデルを使用します</string>
   <string name="setting_model_page_translate_model">翻訳モデル</string>

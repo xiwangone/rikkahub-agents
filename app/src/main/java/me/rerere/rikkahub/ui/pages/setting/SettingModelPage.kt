@@ -432,7 +432,7 @@ private fun CapabilityTableSettingItem() {
     RikkaDeleteConfirmDialog(
         show = showClearDialog,
         title = stringResource(R.string.confirm_delete),
-        message = "将清空本地能力表（共 $localCount 条），此操作不可恢复",
+        message = stringResource(R.string.setting_model_clear_local_confirm, localCount),
         onConfirm = {
             showClearDialog = false
             scope.launch {

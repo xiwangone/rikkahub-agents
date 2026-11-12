@@ -1100,6 +1100,8 @@
   <string name="setting_model_page_suggestion_model_desc">Model used to generate conversation suggestions. If not set, uses the fast model</string>
   <string name="setting_model_page_suggestion_prompt_vars">Variables: Conversation content: {content}, Language: {locale}</string>
   <string name="setting_model_page_title">Model Settings</string>
+  <string name="setting_model_clear_local_confirm">This clears the local capability table (%1$d entries) and cannot be undone</string>
+  <string name="setting_provider_model_list_refresh">Refresh model list</string>
   <string name="setting_model_page_title_model">Title Summary Model</string>
   <string name="setting_model_page_title_model_desc">Model used to summarize conversation titles. If not set, uses the fast model</string>
   <string name="setting_model_page_translate_model">Translation Model</string>

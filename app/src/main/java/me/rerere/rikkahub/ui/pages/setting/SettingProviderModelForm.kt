@@ -499,7 +499,7 @@ internal fun ModelPicker(
                         onClick = onRefresh,
                         enabled = !loading,
                     ) {
-                        Icon(HugeIcons.Refresh01, contentDescription = "Refresh")
+                        Icon(HugeIcons.Refresh01, contentDescription = stringResource(R.string.setting_provider_model_list_refresh))
                     }
 
                     val unselectedCount =
