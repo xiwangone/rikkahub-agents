@@ -1,6 +1,6 @@
 package me.rerere.rikkahub.data.ai.mcp
 
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
@@ -67,7 +67,7 @@ internal class McpOAuthDiscoveryClient(
                     null
                 }
                 if (metadata != null && metadata.authorizationServers.isNotEmpty()) {
-                    Log.i(TAG, "Protected resource metadata: $url -> ${metadata.authorizationServers}")
+                    AppLog.i(TAG, "Protected resource metadata: $url -> ${metadata.authorizationServers}")
                     return@withContext metadata
                 }
             }
@@ -86,7 +86,7 @@ internal class McpOAuthDiscoveryClient(
                     null
                 }
                 if (metadata?.authorizationEndpoint != null && metadata.tokenEndpoint != null) {
-                    Log.i(TAG, "Authorization server metadata: $url")
+                    AppLog.i(TAG, "Authorization server metadata: $url")
                     return@withContext metadata
                 }
             }

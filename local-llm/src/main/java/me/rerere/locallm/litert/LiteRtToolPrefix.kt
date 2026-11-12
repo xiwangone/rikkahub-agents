@@ -1,6 +1,6 @@
 package me.rerere.locallm.litert
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -201,7 +201,7 @@ ${sb}$droppedNote
             // Log parse failures so model quality issues are diagnosable in logcat.
             // Silent drops are fine UX (the model produces text output instead), but the log
             // distinguishes "model didn't call a tool" from "model emitted malformed JSON".
-            Log.w(TAG, "Failed to parse tool_call block — raw=[$raw]: ${t.message}")
+            AppLogger.w(TAG, "Failed to parse tool_call block — raw=[$raw]: ${t.message}")
         }.getOrNull()
 
     /**

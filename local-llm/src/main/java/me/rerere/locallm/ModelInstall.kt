@@ -1,7 +1,7 @@
 package me.rerere.locallm
 
 import android.content.Context
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
@@ -212,7 +212,7 @@ object ModelInstall {
         val normalized = normalizeHuggingFaceUrl(url)
         var resumeFrom = if (partial.exists() && partial.length() > 0) partial.length() else 0L
         if (resumeFrom > 0 && !canSafelyResume(normalized)) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "Partial file exists but $normalized is not pinned to a commit hash; " +
                     "discarding $resumeFrom partial bytes and restarting from 0 so a " +
@@ -232,7 +232,7 @@ object ModelInstall {
             // 416 Range Not Satisfiable — partial bigger than server file (corruption or
             // server-side replacement). Restart fresh.
             if (response.code == 416 && resumeFrom > 0) {
-                Log.w(TAG, "Server returned 416 (Range Not Satisfiable) — partial=$resumeFrom; restarting from 0")
+                AppLogger.w(TAG, "Server returned 416 (Range Not Satisfiable) — partial=$resumeFrom; restarting from 0")
                 runCatching { partial.delete() }
                 // Fall through to a clean retry by emitting Failed + letting the caller retry.
                 emit(Progress.Failed(IllegalStateException(
@@ -241,7 +241,7 @@ object ModelInstall {
                 return@flow
             }
             if (!response.isSuccessful) {
-                Log.w(TAG, "Download failed: HTTP ${response.code} for $normalized")
+                AppLogger.w(TAG, "Download failed: HTTP ${response.code} for $normalized")
                 emit(Progress.Failed(IllegalStateException("HTTP ${response.code}")))
                 return@flow
             }
@@ -250,7 +250,7 @@ object ModelInstall {
             // Cloudflare error pages, etc. would otherwise land silently as an HTML file.
             val contentType = response.header("Content-Type").orEmpty()
             if (contentType.startsWith("text/html") || contentType.startsWith("application/xhtml")) {
-                Log.w(TAG, "Download rejected: HTML content-type '$contentType' for $normalized")
+                AppLogger.w(TAG, "Download rejected: HTML content-type '$contentType' for $normalized")
                 emit(Progress.Failed(IllegalStateException(
                     "Server returned an HTML page, not a model file. " +
                     "Use a /resolve/ URL — for HuggingFace, /blob/ paths auto-rewrite to /resolve/."
@@ -280,7 +280,7 @@ object ModelInstall {
             } else if (resumeFrom > 0) {
                 // We sent Range but server returned 200 — clear the partial so we don't
                 // double-write its old contents.
-                Log.w(TAG, "Server returned 200 (Range not honoured); restarting partial from 0")
+                AppLogger.w(TAG, "Server returned 200 (Range not honoured); restarting partial from 0")
                 runCatching { partial.delete() }
             }
 
@@ -332,7 +332,7 @@ object ModelInstall {
                 e
             }
             if (ioFailure != null) {
-                Log.w(TAG, "Download read interrupted: ${ioFailure::class.simpleName}: ${ioFailure.message}")
+                AppLogger.w(TAG, "Download read interrupted: ${ioFailure::class.simpleName}: ${ioFailure.message}")
                 emit(Progress.Failed(java.io.IOException(
                     "Download interrupted (${ioFailure::class.simpleName}: ${ioFailure.message}). " +
                     "Tap Install again to resume from where it stopped.",
@@ -343,7 +343,7 @@ object ModelInstall {
 
             if (bailed) {
                 runCatching { partial.delete() }
-                Log.w(TAG, "Download aborted: HTML magic bytes detected in response body for $normalized")
+                AppLogger.w(TAG, "Download aborted: HTML magic bytes detected in response body for $normalized")
                 emit(Progress.Failed(IllegalStateException(
                     "Server returned an HTML page (magic-byte check failed). Check the URL."
                 )))
@@ -357,7 +357,7 @@ object ModelInstall {
             // read silently passed the magic-byte check below whenever the truncation
             // landed after the first few bytes, and got registered as a working model.
             if (total != null && totalRead < total) {
-                Log.w(TAG, "Download short: got $totalRead of $total bytes for $normalized")
+                AppLogger.w(TAG, "Download short: got $totalRead of $total bytes for $normalized")
                 emit(Progress.Failed(java.io.IOException(
                     "Download incomplete: received $totalRead of $total bytes. " +
                     "Tap Install again to resume from where it stopped."
@@ -369,7 +369,7 @@ object ModelInstall {
                 // transfer is indistinguishable from a complete one. Record that the
                 // file's integrity was NOT verified beyond the header magic check below
                 // instead of silently registering it as a good model.
-                Log.w(
+                AppLogger.w(
                     TAG,
                     "Download finished without a declared total size for $normalized; " +
                         "integrity verified by header magic bytes only, truncation past " +
@@ -385,7 +385,7 @@ object ModelInstall {
             val bytesRead = partial.inputStream().use { it.read(firstBytes) }
             if (bytesRead > 0 && !isValidMagicForExtension(ext, firstBytes.copyOf(bytesRead))) {
                 val hexDump = firstBytes.take(8).joinToString(" ") { "%02x".format(it.toInt() and 0xff) }
-                Log.w(TAG, "Magic-byte check failed for .$ext — first bytes: $hexDump ($normalized)")
+                AppLogger.w(TAG, "Magic-byte check failed for .$ext — first bytes: $hexDump ($normalized)")
                 runCatching { partial.delete() }
                 emit(Progress.Failed(IllegalStateException(
                     "Downloaded file does not have the expected magic bytes for .$ext " +
@@ -399,7 +399,7 @@ object ModelInstall {
             val renamed = partial.renameTo(target)
             if (!renamed) {
                 // renameTo() returns false silently on cross-partition moves or permission errors.
-                Log.e(TAG, "Rename failed: ${partial.absolutePath} -> ${target.absolutePath}")
+                AppLogger.e(TAG, "Rename failed: ${partial.absolutePath} -> ${target.absolutePath}")
                 runCatching { partial.delete() }
                 emit(Progress.Failed(IllegalStateException(
                     "Failed to move downloaded file to its final location: ${target.absolutePath}. " +
@@ -407,7 +407,7 @@ object ModelInstall {
                 )))
                 return@flow
             }
-            Log.i(TAG, "Download complete: ${target.absolutePath}")
+            AppLogger.i(TAG, "Download complete: ${target.absolutePath}")
             emit(Progress.Done(target))
         }
     }.flowOn(Dispatchers.IO)
@@ -498,7 +498,7 @@ object ModelInstall {
         }
 
         if (invalidMagic) {
-            Log.w(TAG, "Import rejected: first bytes are not a valid .$expectedExtension file")
+            AppLogger.w(TAG, "Import rejected: first bytes are not a valid .$expectedExtension file")
             runCatching { partial.delete() }
             emit(Progress.Failed(IllegalArgumentException(
                 "Selected file does not look like a valid .$expectedExtension model " +
@@ -507,7 +507,7 @@ object ModelInstall {
             return@flow
         }
         if (ioFailure != null) {
-            Log.w(TAG, "Import read interrupted: ${ioFailure::class.simpleName}: ${ioFailure.message}")
+            AppLogger.w(TAG, "Import read interrupted: ${ioFailure::class.simpleName}: ${ioFailure.message}")
             runCatching { partial.delete() }
             emit(Progress.Failed(java.io.IOException(
                 "Import interrupted (${ioFailure::class.simpleName}: ${ioFailure.message}).",
@@ -519,7 +519,7 @@ object ModelInstall {
         // import, not a complete file. Without a declared size there is nothing to
         // compare against, so record that integrity was verified by header magic only.
         if (totalBytes != null && totalRead < totalBytes) {
-            Log.w(TAG, "Import short: got $totalRead of $totalBytes bytes")
+            AppLogger.w(TAG, "Import short: got $totalRead of $totalBytes bytes")
             runCatching { partial.delete() }
             emit(Progress.Failed(java.io.IOException(
                 "Import incomplete: received $totalRead of $totalBytes bytes."
@@ -527,7 +527,7 @@ object ModelInstall {
             return@flow
         }
         if (totalBytes == null) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "Import finished without a declared total size; integrity verified by " +
                     "header magic bytes only, truncation past the header cannot be detected",
@@ -537,14 +537,14 @@ object ModelInstall {
         if (target.exists()) target.delete()
         val renamed = partial.renameTo(target)
         if (!renamed) {
-            Log.e(TAG, "Rename failed: ${partial.absolutePath} -> ${target.absolutePath}")
+            AppLogger.e(TAG, "Rename failed: ${partial.absolutePath} -> ${target.absolutePath}")
             runCatching { partial.delete() }
             emit(Progress.Failed(IllegalStateException(
                 "Failed to move the imported file to its final location: ${target.absolutePath}."
             )))
             return@flow
         }
-        Log.i(TAG, "Import complete: ${target.absolutePath}")
+        AppLogger.i(TAG, "Import complete: ${target.absolutePath}")
         emit(Progress.Done(target))
     }.flowOn(Dispatchers.IO)
 }

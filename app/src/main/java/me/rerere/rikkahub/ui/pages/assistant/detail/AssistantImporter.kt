@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 import android.content.Context
 import android.net.Uri
 import android.util.Base64
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.layout.Arrangement
@@ -41,6 +42,8 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.utils.ImageUtils
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import org.koin.compose.koinInject
+
+private const val TAG = "AssistantImporter"
 
 @Composable
 fun AssistantImporter(
@@ -81,7 +84,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
                                 filesManager = filesManager,
                             )
                         }.onFailure { exception ->
-                            exception.printStackTrace()
+                            AppLog.e(TAG, "SillyTavernImporter: import character card failed", exception)
                             toaster.show(
                                 exception.message ?: context.getString(R.string.assistant_importer_import_failed),
                             )
@@ -110,7 +113,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
                                 filesManager = filesManager,
                             )
                         }.onFailure { exception ->
-                            exception.printStackTrace()
+                            AppLog.e(TAG, "SillyTavernImporter: import character card failed", exception)
                             toaster.show(
                                 exception.message ?: context.getString(R.string.assistant_importer_import_failed),
                             )
@@ -328,7 +331,7 @@ private suspend fun importAssistantFromUri(
         val assistant = parseAssistantFromJson(context = context, json = json, background = backgroundStr)
         onImport(assistant)
     } catch (exception: Exception) {
-        exception.printStackTrace()
+        AppLog.e(TAG, "importAssistantFromUri: parse assistant json failed", exception)
         toaster.show(
             message = exception.message ?: context.getString(R.string.assistant_importer_import_failed),
             type = ToastType.Error,

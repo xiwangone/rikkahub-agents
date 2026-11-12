@@ -9,9 +9,12 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.core.ReasoningLevel
 import me.rerere.rikkahub.data.ai.tools.LenientLocalToolListSerializer
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.utils.SimpleCache
 import java.util.concurrent.TimeUnit
 import kotlin.uuid.Uuid
+
+private const val TAG = "Assistant"
 
 @Serializable
 data class Assistant(
@@ -156,7 +159,7 @@ private val regexCache = SimpleCache.builder<String, Result<Regex>>()
 
 private fun compileRegexCached(pattern: String): Regex? {
     regexCache.getIfPresent(pattern)?.let { return it.getOrNull() }
-    val result = runCatching { Regex(pattern) }.onFailure { it.printStackTrace() }
+    val result = runCatching { Regex(pattern) }.onFailure { AppLog.e(TAG, "compileRegexCached: invalid regex pattern", it) }
     regexCache.put(pattern, result)
     return result.getOrNull()
 }

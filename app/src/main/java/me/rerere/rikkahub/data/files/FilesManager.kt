@@ -245,7 +245,6 @@ class FilesManager(
                 )
                 newUris.add(file.toUri())
             }.onFailure {
-                it.printStackTrace()
                 AppLog.e(TAG, "createChatFilesByContents: Failed to save file from $uri", it)
                 Logging.log(
                     TAG,

@@ -17,6 +17,7 @@ import me.rerere.ai.ui.AskQuestion
 import me.rerere.ai.ui.ServerToolStatus
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.util.json
+import me.rerere.common.log.AppLogger
 
 /**
  * Backend SSE 事件循环的会话上下文。
@@ -130,7 +131,7 @@ internal class BackendEventProcessor(
                 sessionContext.onSessionPath(path)
                 runCatching { sessionContext.sessionPathStore.put(key, path) }
                     .onFailure {
-                        android.util.Log.w("BackendEventProcessor", "会话路径持久化失败，后续 resume 可能失败", it)
+                        AppLogger.e("BackendEventProcessor", "会话路径持久化失败，后续 resume 可能失败", it)
                     }
             }
         }
@@ -334,7 +335,7 @@ internal class BackendEventProcessor(
                     interactionHandler.onApprovalRequest(providerSetting, a.id, a.tool, a.subject)
                     emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
                 } else {
-                    android.util.Log.w("BackendEventProcessor", "approval_request payload 为空，无法处理")
+                    AppLogger.w("BackendEventProcessor", "approval_request payload 为空，无法处理")
                     emit(StreamChunk.Notice("服务端发起了审批请求，但内容缺失，无法处理", "warn"))
                 }
             }
@@ -362,7 +363,7 @@ internal class BackendEventProcessor(
                         )
                     )
                 } else {
-                    android.util.Log.w("BackendEventProcessor", "ask_request payload 为空，无法处理")
+                    AppLogger.w("BackendEventProcessor", "ask_request payload 为空，无法处理")
                     emit(StreamChunk.Notice("服务端发起了提问请求，但内容缺失，无法处理", "warn"))
                 }
             }

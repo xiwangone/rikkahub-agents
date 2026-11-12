@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.util.shortRequestClient
+import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -63,7 +64,7 @@ class BackendApi(
         runCatching {
             json.decodeFromString<List<HistoryMessage>>(body)
         }.getOrElse {
-            android.util.Log.w("BackendApi", "解析 /history 失败", it)
+            AppLogger.e("BackendApi", "解析 /history 失败", it)
             emptyList()
         }
     }
@@ -74,7 +75,7 @@ class BackendApi(
         runCatching {
             json.decodeFromString<StatusInfo>(body)
         }.getOrElse {
-            android.util.Log.w("BackendApi", "解析 /status 失败", it)
+            AppLogger.e("BackendApi", "解析 /status 失败", it)
             null
         }
     }
@@ -85,7 +86,7 @@ class BackendApi(
         runCatching {
             json.decodeFromString<List<SessionInfo>>(body)
         }.getOrElse {
-            android.util.Log.w("BackendApi", "解析 /sessions 失败", it)
+            AppLogger.e("BackendApi", "解析 /sessions 失败", it)
             emptyList()
         }
     }
@@ -98,7 +99,7 @@ class BackendApi(
             json.decodeFromString<BackendModelsResponse>(body).models
         }.getOrElse {
             // 解析失败会表现为「模型列表为空 → 回退单模型」，记录原因便于排查
-            android.util.Log.w("BackendApi", "解析 /models 失败", it)
+            AppLogger.e("BackendApi", "解析 /models 失败", it)
             emptyList()
         }
     }
@@ -182,7 +183,7 @@ class BackendApi(
 
     private fun Request.Builder.applyAuth(): Request.Builder {
         if (!isAuthSafeTarget()) {
-            android.util.Log.w(
+            AppLogger.w(
                 "BackendApi",
                 "baseUrl 未使用 https 且非本机地址，不发送 Authorization，避免凭据走明文 HTTP",
             )
@@ -208,7 +209,7 @@ class BackendApi(
         return try {
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) {
-                    android.util.Log.w(
+                    AppLogger.w(
                         "BackendApi",
                         "请求失败：${request.url} HTTP ${response.code}",
                     )
@@ -217,7 +218,7 @@ class BackendApi(
                 response.body?.string()
             }
         } catch (e: IOException) {
-            android.util.Log.w("BackendApi", "请求失败：${request.url}", e)
+            AppLogger.e("BackendApi", "请求失败：${request.url}", e)
             null
         }
     }

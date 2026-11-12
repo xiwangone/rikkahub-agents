@@ -14,8 +14,11 @@ import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.TextUnit
+import me.rerere.rikkahub.data.log.AppLog
 import ru.noties.jlatexmath.JLatexMathDrawable
 import ru.noties.jlatexmath.JLatexMathSplitter
+
+private const val TAG = "LatexText"
 
 fun assumeLatexSize(
     latex: String,
@@ -57,7 +60,7 @@ fun LatexText(
                     )
                 }
             }.onFailure {
-                it.printStackTrace()
+                AppLog.e(TAG, "LatexText: build latex drawable failed", it)
             }.getOrNull()
         }
 
@@ -99,7 +102,7 @@ fun getLatexDrawable(
             .align(JLatexMathDrawable.ALIGN_LEFT)
             .build()
     }.onFailure {
-        it.printStackTrace()
+        AppLog.e(TAG, "getLatexDrawable: build latex drawable failed", it)
     }.getOrNull()
 
 /**
@@ -116,7 +119,7 @@ fun splitLatex(
     runCatching {
         JLatexMathSplitter.split(processLatex(latex), maxWidthPx, fontSize, color)
     }.onFailure {
-        it.printStackTrace()
+        AppLog.e(TAG, "splitLatex: split latex failed", it)
     }.getOrElse { emptyList() }
 
 @Composable

@@ -12,6 +12,7 @@ import android.webkit.WebViewClient
 import android.widget.LinearLayout
 import java.io.File
 import me.rerere.rikkahub.data.files.FileFolders
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Pass 3: hosts a WebView offscreen, in the application process, for headless AI-driven
@@ -187,7 +188,7 @@ class HeadlessBrowserSession(private val context: Context) {
                 // Teardown is best-effort — a throw here (e.g. WebView already destroyed on a
                 // racing path) must not corrupt the pool's bookkeeping. Log so a genuine leak
                 // is visible rather than silently swallowed.
-                android.util.Log.w("HeadlessBrowserSession", "stop: WebView teardown threw", it)
+                AppLog.w("HeadlessBrowserSession", "stop: WebView teardown threw", it)
             }
         }
         // WebView methods must run on the thread that created the view. start() builds the

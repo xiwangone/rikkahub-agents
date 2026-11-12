@@ -2,7 +2,7 @@ package me.rerere.rikkahub.ui.pages.mediacreation
 
 import android.app.Application
 import android.net.Uri
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import androidx.compose.foundation.text.input.TextFieldState
 import androidx.compose.foundation.text.input.clearText
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
@@ -269,7 +269,7 @@ class MediaCreationVM(
                             MediaCreationAssetType.VIDEO -> MediaCreationFiles.importVideo(context, uri, dir)
                         }
                     }.onFailure {
-                        Log.e(TAG, "Failed to import $uri", it)
+                        AppLog.e(TAG, "Failed to import $uri", it)
                     }.getOrNull()
                 }
             }
@@ -350,7 +350,7 @@ class MediaCreationVM(
                 if (!target.isFile) source.copyTo(target)
                 repository.relativePath(target)
             }.onFailure {
-                Log.e(TAG, "Failed to copy $path into the draft", it)
+                AppLog.e(TAG, "Failed to copy $path into the draft", it)
                 target.delete()
             }.getOrNull()
         }
@@ -479,7 +479,7 @@ class MediaCreationVM(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to submit", e)
+                AppLog.e(TAG, "Failed to submit", e)
                 _events.send(
                     MediaCreationEvent.Error(e.message ?: context.getString(R.string.media_creation_page_submit_failed))
                 )
@@ -587,7 +587,7 @@ class MediaCreationVM(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                Log.e(TAG, "Failed to delete selected media nodes", e)
+                AppLog.e(TAG, "Failed to delete selected media nodes", e)
                 _events.send(
                     MediaCreationEvent.Error(
                         e.message ?: context.getString(R.string.media_creation_page_delete_failed)

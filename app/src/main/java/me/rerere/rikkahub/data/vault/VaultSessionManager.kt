@@ -15,6 +15,7 @@ import java.security.MessageDigest
 import java.security.SecureRandom
 import javax.crypto.Mac
 import javax.crypto.spec.SecretKeySpec
+import me.rerere.rikkahub.data.log.AppLog
 
 private val Context.vaultSessionStore by preferencesDataStore(name = "vault_session")
 
@@ -274,7 +275,7 @@ class VaultSessionManager(private val context: Context) {
         val raw = context.vaultSessionStore.data.first()[Keys.SESSIONS] ?: return emptyList()
         val all =
             runCatching { json.decodeFromString<List<VaultSessionRecord>>(raw) }
-                .onFailure { android.util.Log.w("VaultSession", "解析会话记录失败（将视为无会话）", it) }
+                .onFailure { AppLog.w("VaultSession", "解析会话记录失败（将视为无会话）", it) }
                 .getOrDefault(emptyList())
         val now = System.currentTimeMillis()
         // 自动清理已过期会话（当场有效 ttlMs=Long.MAX_VALUE 不过期）

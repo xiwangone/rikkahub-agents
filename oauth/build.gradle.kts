@@ -10,6 +10,7 @@ android {
 dependencies {
     api(libs.okhttp)
 
+    implementation(project(":common"))
     implementation(libs.androidx.browser)
     implementation(libs.androidx.core.ktx)
     implementation(libs.kotlinx.coroutines.core)

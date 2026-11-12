@@ -23,6 +23,7 @@ import me.rerere.locallm.ModelInstall
 import me.rerere.locallm.litert.LiteRtModelMetadata
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.log.AppLog
 import okhttp3.OkHttpClient
 
 /**
@@ -209,7 +210,7 @@ class SettingLocalLlmViewModel(
                     },
             )
         }
-        android.util.Log.i(
+        AppLog.i(
             "SettingLocalLlmVM",
             "migrateExistingModelMetadata: patched $changedCount model(s) to add catalog-declared abilities/modalities",
         )
@@ -407,7 +408,7 @@ class SettingLocalLlmViewModel(
             _downloadProgress.value = null
             throw cancel
         } catch (t: Throwable) {
-            android.util.Log.w("LocalLlmVM", "Uncaught download failure", t)
+            AppLog.w("LocalLlmVM", "Uncaught download failure", t)
             _downloadProgress.value = null
             _errorMessage.value = "Download failed: ${t::class.simpleName}: ${t.message ?: ""}"
         }

@@ -17,7 +17,6 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.data.agentrun.AgentRunBootRecovery
 import me.rerere.rikkahub.data.agentrun.AgentRunRepository
-import me.rerere.rikkahub.data.ai.AIRequestInterceptor
 import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.ai.RequestLoggingInterceptor
 import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
@@ -127,7 +126,7 @@ val dataSourceModule =
                                     val result = it.getString(0)
                                     val success = result?.trimEnd('/') == dictDir.absolutePath.trimEnd('/')
                                     if (!success) {
-                                        android.util.Log.e(
+                                        AppLog.e(
                                             "DataSourceModule",
                                             "jieba_dict failed: $result, path=${dictDir.absolutePath}",
                                         )
@@ -343,7 +342,6 @@ val dataSourceModule =
                     }
                 }
                 .addNetworkInterceptor(RequestLoggingInterceptor())
-                .addInterceptor(AIRequestInterceptor())
                 .apply {
                     // HEADERS-level logging prints Authorization: Bearer <api-key> to logcat.
                     // Debug-only so release builds never leak provider keys to logcat.
@@ -351,7 +349,7 @@ val dataSourceModule =
                     // logcat still must not carry a provider key in plaintext.
                     if (BuildConfig.DEBUG) {
                         addInterceptor(
-                            HttpLoggingInterceptor().apply {
+                            HttpLoggingInterceptor(OkHttpLoggingBridge).apply {
                                 level = HttpLoggingInterceptor.Level.HEADERS
                                 redactHeader("Authorization")
                                 redactHeader("Proxy-Authorization")

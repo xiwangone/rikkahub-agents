@@ -16,6 +16,10 @@ import java.util.Locale
  * [MAX_VERBOSE_LOGS]），并对相邻重复条目做合并计数，避免逐 token 的详细日志把关键
  * 事件冲掉。开关持久化在 SharedPreferences
  * （key = "rikkahub.preferences" / "app_log_enabled"）。
+ *
+ * 默认策略：开关默认开，只记 I/W/E。D 级诊断默认不进内存 buffer 与落盘
+ * （仍进 logcat，见 [DEFAULT_MIN_LEVEL]），避免逐 token 的详细日志把缓冲刷满；
+ * 需要 D 级进 buffer 时把 [minLevel] 降到 'D'（目前无 UI 入口，由调用方设置）。
  */
 object AppLog {
     /**
@@ -46,6 +50,12 @@ object AppLog {
     private const val PREFS_NAME = "rikkahub.preferences"
     private const val PREF_APP_LOG_ENABLED = "app_log_enabled"
 
+    /** 默认进 buffer 的最低级别：'I'，即 D 级诊断默认只进 logcat、不进 buffer/落盘。 */
+    private const val DEFAULT_MIN_LEVEL = 'I'
+
+    /** 最低级别的持久化 key（与开关同一份 SharedPreferences）。 */
+    private const val PREF_MIN_LEVEL = "app_log_min_level"
+
     /** 详细级（D）原文是否落盘（默认关；排查 provider/思考流时临时开）。 */
     private const val PREF_VERBOSE_FILE = "app_log_verbose_file"
 
@@ -73,8 +83,13 @@ object AppLog {
     /** 重要级（I/W/E）缓冲：审批、取消、错误等排查主线（key 规则同上） */
     private val importantBuffer = LinkedHashMap<String, Entry>()
 
+    /** 总开关：默认开（用户显式关过才会持久化为关）。 */
     @Volatile
-    private var enabled = false
+    private var enabled = true
+
+    /** 进 buffer 的最低级别（默认 'I'）；低于它的条目只进 logcat。 */
+    @Volatile
+    private var minLevel: Char = DEFAULT_MIN_LEVEL
 
     /** 详细级原文落盘开关（与 [enabled] 独立：主日志可开、原文单独控制）。 */
     @Volatile
@@ -85,7 +100,7 @@ object AppLog {
     fun isEnabled(context: Context): Boolean =
         context
             .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
-            .getBoolean(PREF_APP_LOG_ENABLED, false)
+            .getBoolean(PREF_APP_LOG_ENABLED, true)
 
     fun setEnabled(
         context: Context,
@@ -99,10 +114,34 @@ object AppLog {
         enabled = value
     }
 
-    /** 应用启动时调用：读取持久化开关并同步到内存 */
+    /** 应用启动时调用：读取持久化开关与最低级别并同步到内存 */
     fun startIfEnabled(context: Context) {
         enabled = isEnabled(context)
         verboseFileEnabled = isVerboseFileEnabled(context)
+        minLevel = getMinLevel(context)
+    }
+
+    /** 持久化的最低级别（默认 'I'）；非法值回落到默认。 */
+    fun getMinLevel(context: Context): Char =
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .getString(PREF_MIN_LEVEL, DEFAULT_MIN_LEVEL.toString())
+            ?.firstOrNull()
+            ?.takeIf { it in "DIWE" }
+            ?: DEFAULT_MIN_LEVEL
+
+    /** 设置最低级别并持久化（非法值回落到默认 'I'）。 */
+    fun setMinLevel(
+        context: Context,
+        level: Char,
+    ) {
+        val normalized = if (level in "DIWE") level else DEFAULT_MIN_LEVEL
+        context
+            .getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+            .edit()
+            .putString(PREF_MIN_LEVEL, normalized.toString())
+            .apply()
+        minLevel = normalized
     }
 
     fun isVerboseFileEnabled(context: Context): Boolean =
@@ -138,6 +177,7 @@ object AppLog {
         tr: Throwable,
     ) {
         Log.d(tag, message, tr)
+        if (!shouldBuffer('D')) return
         append('D', tag, "$message\n${Log.getStackTraceString(tr)}".take(MAX_MESSAGE_LENGTH))
     }
 
@@ -155,6 +195,7 @@ object AppLog {
         tr: Throwable,
     ) {
         Log.w(tag, message, tr)
+        if (!shouldBuffer('W')) return
         append('W', tag, "$message\n${Log.getStackTraceString(tr)}".take(MAX_MESSAGE_LENGTH))
     }
 
@@ -172,6 +213,7 @@ object AppLog {
         tr: Throwable,
     ) {
         Log.e(tag, message, tr)
+        if (!shouldBuffer('E')) return
         append('E', tag, "$message\n${Log.getStackTraceString(tr)}".take(MAX_MESSAGE_LENGTH))
     }
 
@@ -233,12 +275,32 @@ object AppLog {
 
     // ---- 内部 ----
 
+    /**
+     * 级别门控：该级别是否进内存 buffer 与落盘。logcat 不受此门控，各公开方法
+     * 总是先调 `Log.*` 再判断，所以 D 级被过滤时仍能在 logcat 里看到。
+     */
+    private fun shouldBuffer(level: Char): Boolean =
+        enabled && levelRank(level) >= levelRank(minLevel)
+
+    /** 级别高低：D < I < W < E（注意 Char 本身的字典序不是这个顺序）。 */
+    private fun levelRank(level: Char): Int =
+        when (level) {
+            'D' -> 0
+            'I' -> 1
+            'W' -> 2
+            'E' -> 3
+            else -> 1
+        }
+
     private fun append(
         level: Char,
         tag: String,
         message: String,
     ) {
-        if (!enabled) return
+        // 级别门控放最前面：低于最低级别的条目在任何格式化、对象分配、buffer 操作、
+        // 落盘之前丢弃。D 级高频调用被过滤时只有两次 volatile 读 + 两次分支判断，
+        // 几乎零成本；不要为了判断级别先拼字符串或建集合。
+        if (!shouldBuffer(level)) return
         val safeTag = tag.take(64)
         val safeMessage = message.take(MAX_MESSAGE_LENGTH)
         val important = level != 'D'

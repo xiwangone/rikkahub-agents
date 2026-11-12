@@ -1,6 +1,6 @@
 package me.rerere.ai.provider.providers.google
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.channels.awaitClose
@@ -114,7 +114,7 @@ internal class InteractionsAPI(
         fun sendChunks(chunks: Iterable<StreamChunk>) {
             chunks.forEach { chunk ->
                 trySend(chunk).onFailure { e ->
-                    Log.w(TAG, "onEvent: chunk dropped (${e?.message})")
+                    AppLogger.w(TAG, "onEvent: chunk dropped (${e?.message})")
                 }
             }
         }
@@ -129,13 +129,13 @@ internal class InteractionsAPI(
                 type: String?,
                 data: String
             ) {
-                Log.d(TAG, "onEvent: $id/$type")
+                AppLogger.d(TAG, "onEvent: $id/$type")
                 try {
                     val result = decoder.accept(SseEvent(id = id, event = type, data = data))
                     sendChunks(result.chunks)
                     if (result.completed) close()
                 } catch (e: Throwable) {
-                    Log.e(TAG, "Failed to parse stream event (type=$type)", e)
+                    AppLogger.e(TAG, "Failed to parse stream event (type=$type)", e)
                     close(e)
                 }
             }
@@ -155,7 +155,7 @@ internal class InteractionsAPI(
                     }
                 } catch (e: Throwable) {
                     // 保留原始 cause：后续 close(exception) 决定流失败原因时要用到
-                    Log.w(TAG, "onFailure: failed to parse error response", e)
+                    AppLogger.e(TAG, "onFailure: failed to parse error response", e)
                 } finally {
                     close(exception ?: Exception("Stream failed"))
                 }
@@ -406,7 +406,7 @@ internal class InteractionsAPI(
         is UIMessagePart.Image -> {
             val result = encodeBase64(false)
             if (result.isFailure) {
-                Log.w(TAG, "toInteractionsContent: dropping unencodable Image part", result.exceptionOrNull())
+                AppLogger.e(TAG, "toInteractionsContent: dropping unencodable Image part", result.exceptionOrNull())
             }
             result.getOrNull()?.let { encoded ->
                 buildJsonObject {
@@ -428,7 +428,7 @@ internal class InteractionsAPI(
         is UIMessagePart.Video -> {
             val result = encodeBase64(false)
             if (result.isFailure) {
-                Log.w(TAG, "toInteractionsContent: dropping unencodable Video part", result.exceptionOrNull())
+                AppLogger.e(TAG, "toInteractionsContent: dropping unencodable Video part", result.exceptionOrNull())
             }
             result.getOrNull()?.let { base64Data ->
                 buildJsonObject {
@@ -445,7 +445,7 @@ internal class InteractionsAPI(
         is UIMessagePart.Audio -> {
             val result = encodeBase64(false)
             if (result.isFailure) {
-                Log.w(TAG, "toInteractionsContent: dropping unencodable Audio part", result.exceptionOrNull())
+                AppLogger.e(TAG, "toInteractionsContent: dropping unencodable Audio part", result.exceptionOrNull())
             }
             result.getOrNull()?.let { base64Data ->
                 buildJsonObject {

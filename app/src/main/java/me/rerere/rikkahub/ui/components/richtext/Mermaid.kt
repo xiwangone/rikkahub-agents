@@ -33,6 +33,7 @@ import me.rerere.hugeicons.stroke.Download01
 import me.rerere.hugeicons.stroke.View
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.webview.WEB_VIEW_ASSET_URL
 import me.rerere.rikkahub.ui.components.webview.WEB_VIEW_BASE_URL
 import me.rerere.rikkahub.ui.components.webview.WebView
@@ -45,6 +46,8 @@ import me.rerere.rikkahub.utils.escapeHtml
 import me.rerere.rikkahub.utils.exportImage
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.toCssHex
+
+private const val TAG = "Mermaid"
 
 @Composable
 fun Mermaid(
@@ -79,7 +82,7 @@ fun Mermaid(
                             type = ToastType.Success,
                         )
                     }.onFailure {
-                        it.printStackTrace()
+                        AppLog.e(TAG, "Mermaid: export image failed", it)
                         toaster.show(
                             context.getString(R.string.mermaid_export_failed),
                             type = ToastType.Error,

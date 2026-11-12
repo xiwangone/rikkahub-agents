@@ -19,7 +19,6 @@ fun <T> Flow<T>.toMutableStateFlow(
                 stateFlow.value = value
             }
         }.onFailure {
-            it.printStackTrace()
             AppLog.e(TAG, "Error while collecting flow: ${it.message}", it)
         }
     }

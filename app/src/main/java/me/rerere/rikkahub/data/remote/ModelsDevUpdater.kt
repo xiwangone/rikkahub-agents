@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.data.remote
 
 import android.content.Context
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.ai.registry.ModelRegistry
@@ -37,7 +37,7 @@ class ModelsDevUpdater(
         val hasCache = loadLocal()
         if (System.currentTimeMillis() - etagFile.lastModified() >= REFRESH_INTERVAL.inWholeMilliseconds) {
             runCatching { refresh(useEtag = hasCache) }
-                .onFailure { Log.w(TAG, "refresh failed", it) }
+                .onFailure { AppLog.w(TAG, "refresh failed", it) }
         }
     }
 
@@ -45,7 +45,7 @@ class ModelsDevUpdater(
     private fun loadLocal(): Boolean {
         if (dataFile.exists()) {
             val cached = runCatching { dataFile.inputStream().use { ModelsDevCatalog.decode(it) } }
-                .onFailure { Log.w(TAG, "cached catalog is broken", it) }
+                .onFailure { AppLog.w(TAG, "cached catalog is broken", it) }
                 .getOrNull()
             if (cached != null) {
                 ModelRegistry.installCatalog(cached)
@@ -55,7 +55,7 @@ class ModelsDevUpdater(
         }
         runCatching { context.assets.open(ASSET_NAME).use { ModelsDevCatalog.decode(it) } }
             .onSuccess { ModelRegistry.installCatalog(it) }
-            .onFailure { Log.e(TAG, "failed to load bundled catalog", it) }
+            .onFailure { AppLog.e(TAG, "failed to load bundled catalog", it) }
         return false
     }
 
@@ -80,7 +80,7 @@ class ModelsDevUpdater(
             check(tmp.renameTo(dataFile)) { "failed to replace $dataFile" }
             ModelRegistry.installCatalog(catalog)
             markChecked(response.header("ETag"))
-            Log.i(TAG, "catalog updated: ${catalog.size} entries")
+            AppLog.i(TAG, "catalog updated: ${catalog.size} entries")
         }
     }
 

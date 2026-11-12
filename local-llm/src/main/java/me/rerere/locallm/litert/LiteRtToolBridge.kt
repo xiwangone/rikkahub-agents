@@ -1,6 +1,6 @@
 package me.rerere.locallm.litert
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import com.google.ai.edge.litertlm.OpenApiTool
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -61,7 +61,7 @@ internal class LiteRtToolDeclaration(private val tool: RikkaTool) : OpenApiTool 
      * read rather than doing the unsafe thing.
      */
     override fun execute(params: String): String {
-        Log.e(
+        AppLogger.e(
             TAG,
             "execute() called for '${tool.name}': automaticToolCalling should be false so " +
                 "the host can apply approval and the HARDLINE floor. Refusing to run it here.",

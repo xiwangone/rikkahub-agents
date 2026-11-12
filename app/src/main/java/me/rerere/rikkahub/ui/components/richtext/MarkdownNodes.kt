@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.ui.components.richtext
 
 import android.content.ClipData
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.BorderStroke
@@ -86,6 +87,8 @@ import org.intellij.markdown.flavours.gfm.GFMTokenTypes
 import java.io.IOException
 import kotlin.time.Clock
 import me.rerere.rikkahub.R
+
+private const val TAG = "MarkdownNodes"
 
 @Composable
 internal fun UnorderedListNode(
@@ -378,7 +381,7 @@ internal fun TableNode(
                         }
                     } catch (e: IOException) {
                         // openOutputStream/write 仅声明 IOException；收窄后 CancellationException 不再被吞
-                        e.printStackTrace()
+                        AppLog.e(TAG, "TableNode: save image failed", e)
                     }
                 }
             }

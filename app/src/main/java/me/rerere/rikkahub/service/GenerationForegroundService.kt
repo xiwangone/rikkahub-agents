@@ -7,7 +7,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -41,7 +41,7 @@ class GenerationForegroundService : Service() {
                 ContextCompat.startForegroundService(context, intent)
                 true
             }.onFailure {
-                Log.e(TAG, "Unable to start generation foreground service", it)
+                AppLog.e(TAG, "Unable to start generation foreground service", it)
             }.getOrDefault(false)
         }
 
@@ -52,7 +52,7 @@ class GenerationForegroundService : Service() {
                 putExtra(EXTRA_CONVERSATION_ID, conversationId)
             }
             runCatching { context.startService(intent) }.onFailure {
-                Log.e(TAG, "Unable to release generation foreground service", it)
+                AppLog.e(TAG, "Unable to release generation foreground service", it)
             }
         }
     }
@@ -100,7 +100,7 @@ class GenerationForegroundService : Service() {
 
     override fun onTimeout(startId: Int, fgsType: Int) {
         // 系统回收前台服务不等于生成失败：进程还在就继续跑，用户回到界面仍能看到结果。
-        Log.w(TAG, "Foreground service timed out (type=$fgsType)")
+        AppLog.w(TAG, "Foreground service timed out (type=$fgsType)")
         activeConversations.clear()
         finishForeground()
     }
@@ -120,7 +120,7 @@ class GenerationForegroundService : Service() {
             }
             isForeground = true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to enter foreground", e)
+            AppLog.e(TAG, "Failed to enter foreground", e)
             activeConversations.clear()
             stopSelf()
         }

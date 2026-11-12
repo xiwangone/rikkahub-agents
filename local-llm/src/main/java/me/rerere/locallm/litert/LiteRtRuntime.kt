@@ -29,6 +29,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import me.rerere.common.log.AppLogger
 import me.rerere.locallm.AcceleratorProbe
 import me.rerere.locallm.BuildConfig
 import java.io.File
@@ -202,12 +203,12 @@ class LiteRtRuntime(private val context: Context) {
                 val current = loaded ?: return@withLock
                 val sinceLastUseMs = android.os.SystemClock.elapsedRealtime() - current.lastUseAtMs
                 if (sinceLastUseMs >= delay) {
-                    android.util.Log.i(
+                    AppLogger.i(
                         "LiteRtRuntime",
                         "armIdleTeardown: idle ${sinceLastUseMs}ms >= ${delay}ms; closing engine",
                     )
-                    try { current.conversation.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "Idle teardown: conversation close failed", e) }
-                    try { current.engine.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "Idle teardown: engine close failed", e) }
+                    try { current.conversation.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "Idle teardown: conversation close failed", e) }
+                    try { current.engine.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "Idle teardown: engine close failed", e) }
                     loaded = null
                     lastTelemetry = null
                 }
@@ -348,7 +349,7 @@ class LiteRtRuntime(private val context: Context) {
     ): LoadResult {
         val classified = classifyEngineError(modelPath, firstError)
         if (classified is LiteRtVisionUnavailableException && desiredEngineKey.supportImage) {
-            android.util.Log.w(
+            AppLogger.w(
                 "LiteRtRuntime",
                 "Vision executor failed on $accel (${firstError.message}); retrying without vision backend (text-only)",
             )
@@ -380,7 +381,7 @@ class LiteRtRuntime(private val context: Context) {
         }
         if (classified is LiteRtModelCorruptException) throw classified
 
-        android.util.Log.w(
+        AppLogger.w(
             "LiteRtRuntime",
             "Engine init failed on $accel (${firstError.message}); retrying on CPU",
         )
@@ -399,7 +400,7 @@ class LiteRtRuntime(private val context: Context) {
     ): LoadResult {
         val cpuClassified = classifyEngineError(modelPath, cpuError)
         if (cpuClassified is LiteRtVisionUnavailableException && desiredEngineKey.supportImage) {
-            android.util.Log.w(
+            AppLogger.w(
                 "LiteRtRuntime",
                 "Vision executor failed on CPU too; retrying without vision backend",
             )
@@ -460,7 +461,7 @@ class LiteRtRuntime(private val context: Context) {
         // while reporting NNAPI. Normalise it to CPU here so the reported
         // accelerator always matches the backend actually used.
         val requestedAccel = if (requestedAccelRaw == "NNAPI") {
-            android.util.Log.w(
+            AppLogger.w(
                 "LiteRtRuntime",
                 "ensureLoaded: cached accelerator NNAPI has no backend mapping; using CPU",
             )
@@ -471,7 +472,7 @@ class LiteRtRuntime(private val context: Context) {
         // A prior run on this accelerator took the process down mid-inference. There is no
         // safe way to retry it, so stay on CPU until the SDK version changes.
         val accel = if (crashedPreviously(modelPath, requestedAccel)) {
-            android.util.Log.w(
+            AppLogger.w(
                 "LiteRtRuntime",
                 "ensureLoaded: $requestedAccel crashed the process on a previous run for " +
                     "${File(modelPath).name} (SDK ${BuildConfig.LITERTLM_SDK_VERSION}); using CPU",
@@ -488,7 +489,7 @@ class LiteRtRuntime(private val context: Context) {
         } catch (t: Throwable) {
             // A probe failure is not the same as "file does not support it": surface it
             // so a damaged or unreadable file is not silently treated as unsupported.
-            android.util.Log.w(
+            AppLogger.e(
                 "LiteRtRuntime",
                 "Speculative-decoding probe failed for ${File(modelPath).name}; " +
                     "treating as unsupported for this load",
@@ -545,7 +546,7 @@ class LiteRtRuntime(private val context: Context) {
             // next turn mistakes it for a warm Conversation and fails again on it.
             // Tear the whole load down so the next call rebuilds cold.
             val oldConversation = current.conversation
-            try { oldConversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: close failed", t) }
+            try { oldConversation.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation config change: close failed", t) }
             try {
                 current.conversation = createConversationWithFlags(
                     engine = current.engine,
@@ -554,7 +555,7 @@ class LiteRtRuntime(private val context: Context) {
                 )
             } catch (t: Throwable) {
                 current.processed.clear()
-                try { current.engine.close() } catch (closeError: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation config change: engine close failed", closeError) }
+                try { current.engine.close() } catch (closeError: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation config change: engine close failed", closeError) }
                 loaded = null
                 lastTelemetry = null
                 throw t
@@ -572,8 +573,8 @@ class LiteRtRuntime(private val context: Context) {
         }
 
         // Engine swap path: tear down any prior Engine + Conversation.
-        try { current?.conversation?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Engine swap: conversation close failed", t) }
-        try { current?.engine?.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Engine swap: engine close failed", t) }
+        try { current?.conversation?.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Engine swap: conversation close failed", t) }
+        try { current?.engine?.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Engine swap: engine close failed", t) }
         loaded = null
 
         // Try the preferred accelerator first; fall back to CPU if it isn't already CPU.
@@ -617,7 +618,7 @@ class LiteRtRuntime(private val context: Context) {
             fileSupportsSpeculativeDecoding = supportsSpeculativeDecoding,
             speculativeDecodingEngaged = effectiveSpeculativeDecoding,
         )
-        android.util.Log.i(
+        AppLogger.i(
             "LiteRtRuntime",
             "ensureLoaded: accel=${loadResult.accelerator} visionEnabled=${loadResult.supportImage} " +
                 "fileSupportsSpecDecoding=$supportsSpeculativeDecoding " +
@@ -717,7 +718,7 @@ class LiteRtRuntime(private val context: Context) {
                     runCatching { built.initialize() }.onFailure { t ->
                         runCatching { built.close() }
                             .onFailure { closeError ->
-                                android.util.Log.w(
+                                AppLogger.e(
                                     "LiteRtRuntime",
                                     "Engine initialize failed and cleanup close also failed",
                                     closeError,
@@ -744,7 +745,7 @@ class LiteRtRuntime(private val context: Context) {
         } catch (t: Throwable) {
             runCatching { engine.close() }
                 .onFailure { closeError ->
-                    android.util.Log.w(
+                    AppLogger.e(
                         "LiteRtRuntime",
                         "Conversation creation failed and engine cleanup close also failed",
                         closeError,
@@ -803,7 +804,7 @@ class LiteRtRuntime(private val context: Context) {
      *  [LoadedModel.processed] signature that the next turn would mistake for warm. */
     @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：原生 Conversation/Engine 的 close/create 失败可能是 Error；重建失败必须拆掉整个加载，不能留已关闭的 Conversation。
     private fun recreateConversationLocked(instance: LoadedModel) {
-        try { instance.conversation.close() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation recreate: close failed", t) }
+        try { instance.conversation.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation recreate: close failed", t) }
         try {
             instance.conversation = createConversationWithFlags(
                 engine = instance.engine,
@@ -812,7 +813,7 @@ class LiteRtRuntime(private val context: Context) {
             )
         } catch (t: Throwable) {
             instance.processed.clear()
-            try { instance.engine.close() } catch (closeError: Throwable) { android.util.Log.w("LiteRtRuntime", "Conversation recreate: engine close failed", closeError) }
+            try { instance.engine.close() } catch (closeError: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation recreate: engine close failed", closeError) }
             if (loaded === instance) {
                 loaded = null
                 lastTelemetry = null
@@ -906,7 +907,7 @@ class LiteRtRuntime(private val context: Context) {
             val imagesToSend = images.filter { image ->
                 val pixels = image.width.toLong() * image.height.toLong()
                 if (pixels > MAX_IMAGE_PIXELS) {
-                    android.util.Log.w(
+                    AppLogger.w(
                         "LiteRtRuntime",
                         "streamTurns: dropping oversized image ${image.width}x${image.height} " +
                             "(${pixels}px > $MAX_IMAGE_PIXELS px cap)",
@@ -917,7 +918,7 @@ class LiteRtRuntime(private val context: Context) {
                 }
             }.let { kept ->
                 if (kept.size > MAX_STREAM_IMAGES) {
-                    android.util.Log.w(
+                    AppLogger.w(
                         "LiteRtRuntime",
                         "streamTurns: dropping ${kept.size - MAX_STREAM_IMAGES} image(s); " +
                             "at most $MAX_STREAM_IMAGES are forwarded per turn",
@@ -1028,13 +1029,13 @@ class LiteRtRuntime(private val context: Context) {
                 // sendMessageAsync on a Conversation that has not finished the previous
                 // one. Cancel it so stopping actually stops.
                 if (!generationFinished.get()) {
-                    android.util.Log.i(
+                    AppLogger.i(
                         "LiteRtRuntime",
                         "stream cancelled before completion; cancelling native generation",
                     )
                     runCatching { conv.cancelProcess() }
                         .onFailure {
-                            android.util.Log.w("LiteRtRuntime", "cancelProcess failed", it)
+                            AppLogger.e("LiteRtRuntime", "cancelProcess failed", it)
                         }
                     // The KV cache now holds a partial turn, so the next turn must go cold.
                     instance.processed.clear()
@@ -1060,7 +1061,7 @@ class LiteRtRuntime(private val context: Context) {
     @Suppress("TooGenericExceptionCaught") // 有意 catch Throwable：cancelProcess 是原生调用，失败也不能让 stop() 抛出去；停止必须是尽力而为。
     fun stop() {
         val current = loaded
-        try { current?.conversation?.cancelProcess() } catch (t: Throwable) { android.util.Log.w("LiteRtRuntime", "stop: cancelProcess failed", t) }
+        try { current?.conversation?.cancelProcess() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "stop: cancelProcess failed", t) }
     }
 
     /**
@@ -1070,8 +1071,8 @@ class LiteRtRuntime(private val context: Context) {
         idleTeardownJob?.cancel()
         idleTeardownJob = null
         mutex.withLock {
-            try { loaded?.conversation?.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: conversation close failed", e) }
-            try { loaded?.engine?.close() } catch (e: IllegalStateException) { android.util.Log.w("LiteRtRuntime", "closeIfLoaded: engine close failed", e) }
+            try { loaded?.conversation?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: conversation close failed", e) }
+            try { loaded?.engine?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: engine close failed", e) }
             loaded = null
             lastTelemetry = null
         }

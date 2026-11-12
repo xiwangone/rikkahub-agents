@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
+import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -146,7 +147,7 @@ class BackendSseClient(
                     if (attempt > 0) {
                         daemonThread("BackendSse-backfill") {
                             runCatching { backfill(destination) }.onFailure {
-                                android.util.Log.w("BackendSse", "断流补拉失败", it)
+                                AppLogger.e("BackendSse", "断流补拉失败", it)
                             }
                         }
                         daemonThread("BackendSse-status-notice") {
@@ -159,7 +160,7 @@ class BackendSseClient(
                                             level = "warn",
                                         )
                                     if (!destination.tryEmit(notice)) {
-                                        android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=notice）")
+                                        AppLogger.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=notice）")
                                     }
                                 }
                             }
@@ -188,10 +189,10 @@ class BackendSseClient(
                             }
                         }
                         if (!destination.tryEmit(event)) {
-                            android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=" + event.kind + "）")
+                            AppLogger.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=" + event.kind + "）")
                         }
                     } catch (e: Exception) {
-                        android.util.Log.w("BackendSse", "事件 JSON 解析失败，丢弃该事件：${data.take(200)}", e)
+                        AppLogger.e("BackendSse", "事件 JSON 解析失败，丢弃该事件：${data.take(200)}", e)
                     }
                 }
 
@@ -216,7 +217,7 @@ class BackendSseClient(
                                 err = "HTTP $status ${response?.message?.ifBlank { "request failed" }}",
                             )
                         if (!destination.tryEmit(errorEvent)) {
-                            android.util.Log.w("BackendSse", "SSE 缓冲已满，错误事件被丢弃（HTTP $status）")
+                            AppLogger.w("BackendSse", "SSE 缓冲已满，错误事件被丢弃（HTTP $status）")
                         }
                         return
                     }
@@ -272,7 +273,7 @@ class BackendSseClient(
         if (closed) return
         val loader = historyLoader ?: return
         val history = runCatching { loader() }
-            .onFailure { android.util.Log.w("BackendSse", "断流补拉 loader 失败", it) }
+            .onFailure { AppLogger.e("BackendSse", "断流补拉 loader 失败", it) }
             .getOrNull() ?: return
         val last =
             history.lastOrNull { h ->
@@ -296,7 +297,7 @@ class BackendSseClient(
             }
         if (!textDiff.isNullOrEmpty()) {
             if (!destination.tryEmit(SseEvent(kind = "text", text = textDiff))) {
-                android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=text, len=" + textDiff.length + "）")
+                AppLogger.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=text, len=" + textDiff.length + "）")
             }
         }
 
@@ -311,14 +312,14 @@ class BackendSseClient(
             }
         if (!reasoningDiff.isNullOrEmpty()) {
             if (!destination.tryEmit(SseEvent(kind = "reasoning", reasoning = reasoningDiff))) {
-                android.util.Log.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=reasoning, len=" + reasoningDiff.length + "）")
+                AppLogger.w("BackendSse", "SSE 缓冲已满，事件被丢弃（kind=reasoning, len=" + reasoningDiff.length + "）")
             }
         }
     }
 
     private fun Request.Builder.applyAuth(): Request.Builder {
         if (!isAuthSafeTarget()) {
-            android.util.Log.w(
+            AppLogger.w(
                 "BackendSse",
                 "baseUrl 未使用 https 且非本机地址，不发送 Authorization，避免凭据走明文 HTTP",
             )

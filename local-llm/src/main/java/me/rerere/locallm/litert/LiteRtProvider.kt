@@ -1,6 +1,6 @@
 package me.rerere.locallm.litert
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -91,16 +91,16 @@ class LiteRtProvider(
     private suspend fun handleCorruptModel(corrupt: LiteRtModelCorruptException): Nothing {
         val file = java.io.File(corrupt.modelPath)
         val fileName = file.name
-        Log.w(TAG, "Model file is corrupt — auto-removing: $fileName (${corrupt.modelPath})")
+        AppLogger.w(TAG, "Model file is corrupt — auto-removing: $fileName (${corrupt.modelPath})")
 
         // 1. Delete the file from disk (best-effort; log if it fails).
         runCatching { file.delete() }.onFailure { e ->
-            Log.e(TAG, "Failed to delete corrupt model file: ${corrupt.modelPath}", e)
+            AppLogger.e(TAG, "Failed to delete corrupt model file: ${corrupt.modelPath}", e)
         }
 
         // 2. Remove from the installed-models DataStore index.
         runCatching { prefs.removeInstalledModel(LocalRuntime.LiteRT, fileName) }.onFailure { e ->
-            Log.e(TAG, "Failed to remove model from prefs: $fileName", e)
+            AppLogger.e(TAG, "Failed to remove model from prefs: $fileName", e)
         }
 
         // 3. Remove the matching Model entry from ProviderSetting.LiteRtLocal.models so the
@@ -117,7 +117,7 @@ class LiteRtProvider(
                 }
             }
         }.onFailure { e ->
-            Log.e(TAG, "Failed to remove model from provider settings: $fileName", e)
+            AppLogger.e(TAG, "Failed to remove model from provider settings: $fileName", e)
         }
 
         throw IllegalStateException(
@@ -234,7 +234,7 @@ class LiteRtProvider(
         val requestedMaxNumTokens = maxNumTokensOverride ?: config.maxTokens
         val effectiveMaxNumTokens = engineContextTokens(requestedMaxNumTokens, contextCeiling)
         if (contextCeiling != null && requestedMaxNumTokens > contextCeiling) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "clamped maxNumTokens $requestedMaxNumTokens -> $contextCeiling for " +
                     "${params.model.modelId}: the model cannot hold more than its declared " +
@@ -307,7 +307,7 @@ class LiteRtProvider(
         }
         val nativeTools: List<ToolProvider> = declarations.map { litertTool(it) }
         if (params.tools.isNotEmpty()) {
-            Log.i(
+            AppLogger.i(
                 TAG,
                 "declared ${nativeTools.size}/${params.tools.size} tool(s) natively, " +
                     "$toolCharsUsed/$toolCharBudget chars (context ${contextTokens}t)",
@@ -317,7 +317,7 @@ class LiteRtProvider(
         // loses real capability here, and that has to be visible when debugging why the
         // model "ignored" a tool.
         if (droppedTools.isNotEmpty()) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "dropped ${droppedTools.size} tool(s) over the declaration budget: " +
                     droppedTools.joinToString(",").take(300),
@@ -358,7 +358,7 @@ class LiteRtProvider(
         // rebuild. The engine has no bounds check we can rely on here: a prompt past its
         // token budget faults inside the native executor rather than returning an error.
         val prefillChars = combinedSystem.length + toolCharsUsed + coldBlob.length
-        Log.i(
+        AppLogger.i(
             TAG,
             "prefill budget: system=${combinedSystem.length} tools=$toolCharsUsed " +
                 "history=${coldBlob.length} total=${prefillChars}c " +
@@ -424,17 +424,17 @@ class LiteRtProvider(
         // Doctor and Settings UI ("running on CPU because GPU failed at init").
         if (resolvedAccel != cachedAccel) {
             runCatching { prefs.setAccelerator(LocalRuntime.LiteRT, resolvedAccel) }
-                .onFailure { Log.w(TAG, "setAccelerator($resolvedAccel) failed", it) }
+                .onFailure { AppLogger.e(TAG, "setAccelerator($resolvedAccel) failed", it) }
         }
         // If the runtime had to drop vision to text-only on this load, persist that so the
         // next load skips the doomed GPU vision attempt up front. Only stamp on a true
         // fallback — not when we already skipped vision because of the persisted flag.
         if (outcome.visionFellBackToTextOnly && !visionPersistentlyUnavailable) {
-            Log.w(TAG, "Vision encoder unavailable on this device for ${params.model.modelId}; " +
+            AppLogger.w(TAG, "Vision encoder unavailable on this device for ${params.model.modelId}; " +
                 "persisting decision so future loads skip the GPU vision attempt")
             runCatching {
                 prefs.setVisionUnavailable(LocalRuntime.LiteRT, params.model.modelId)
-            }.onFailure { Log.w(TAG, "setVisionUnavailable failed", it) }
+            }.onFailure { AppLogger.e(TAG, "setVisionUnavailable failed", it) }
         }
 
         // ---- Stream + cumulative→delta conversion ----
@@ -482,7 +482,7 @@ class LiteRtProvider(
                 .filter { bitmap ->
                     val pixels = bitmap.width.toLong() * bitmap.height.toLong()
                     if (pixels > LiteRtRuntime.MAX_IMAGE_PIXELS) {
-                        Log.w(
+                        AppLogger.w(
                             TAG,
                             "dropping oversized image ${bitmap.width}x${bitmap.height} " +
                                 "(${pixels}px > ${LiteRtRuntime.MAX_IMAGE_PIXELS} px cap)",
@@ -494,7 +494,7 @@ class LiteRtProvider(
                 }
                 .let { kept ->
                     if (kept.size > LiteRtRuntime.MAX_STREAM_IMAGES) {
-                        Log.w(
+                        AppLogger.w(
                             TAG,
                             "dropping ${kept.size - LiteRtRuntime.MAX_STREAM_IMAGES} image(s); " +
                                 "at most ${LiteRtRuntime.MAX_STREAM_IMAGES} are forwarded per turn",
@@ -519,7 +519,7 @@ class LiteRtProvider(
             emptyList()
         }
         if (turnImages.isNotEmpty() || turnAudio.isNotEmpty()) {
-            Log.i(
+            AppLogger.i(
                 TAG,
                 "streamText: forwarding ${turnImages.size} image(s) + ${turnAudio.size} " +
                     "audio clip(s) to runtime for modelId=${params.model.modelId}",
@@ -530,7 +530,7 @@ class LiteRtProvider(
         // initialise on this device, so they were dropped above. Tell the user once, in-line,
         // so a text-only reply to an image prompt isn't silently confusing.
         if (imageDecision.noteImagesDropped) {
-            Log.w(
+            AppLogger.w(
                 TAG,
                 "vision not live post-load for ${params.model.modelId}; dropped " +
                     "${userImageParts.size} image(s), noting it to the user",
@@ -577,7 +577,7 @@ class LiteRtProvider(
                             // stream. GenerationHandler matches parts by it.
                             event.calls.forEach { call ->
                                 val id = "$streamId-tool-${toolCallCount++}"
-                                Log.i(TAG, "model requested tool '${call.name}' (id=$id)")
+                                AppLogger.i(TAG, "model requested tool '${call.name}' (id=$id)")
                                 emit(StreamChunk.ToolCallStart(id = id, toolName = call.name))
                                 emit(StreamChunk.ToolCallDelta(id = id, inputDelta = call.argumentsJson))
                             }
@@ -617,8 +617,8 @@ class LiteRtProvider(
                             sampledAtMs = System.currentTimeMillis(),
                         ),
                     )
-                }.onFailure { Log.w(TAG, "setPerfTelemetry failed", it) }
-                Log.i(
+                }.onFailure { AppLogger.e(TAG, "setPerfTelemetry failed", it) }
+                AppLogger.i(
                     TAG,
                     "telemetry: prefill=${"%.2f".format(tele.prefillTps)} tok/s decode=${"%.2f".format(tele.decodeTps)} tok/s " +
                         "(prefillMs=${tele.prefillMs} decodeMs=${tele.decodeMs} inChars=${tele.inputCharCount} outChars=${tele.outputCharCount} " +

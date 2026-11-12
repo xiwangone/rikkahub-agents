@@ -1,6 +1,6 @@
 package me.rerere.locallm.litert
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import java.io.File
 
 private const val TAG = "LiteRtModelFile"
@@ -94,7 +94,7 @@ internal object LiteRtModelFile {
         }
         null
     }.onFailure {
-        Log.w(TAG, "readDeclaredMaxTokens failed for ${file.name}", it)
+        AppLogger.e(TAG, "readDeclaredMaxTokens failed for ${file.name}", it)
     }.getOrNull()
 
     /**

@@ -5,6 +5,7 @@ import android.content.Context
 import android.graphics.Bitmap
 import android.net.Uri
 import android.widget.Toast
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.Image
@@ -72,6 +73,8 @@ import org.koin.compose.koinInject
 import java.io.FileOutputStream
 import java.io.IOException
 import java.time.LocalDateTime
+
+private const val TAG = "Export"
 
 @Composable
 fun ChatExportSheet(
@@ -231,7 +234,7 @@ fun ChatExportSheet(
                                                 options = imageExportOptions,
                                             )
                                         }.onFailure {
-                                            it.printStackTrace()
+                                            AppLog.e(TAG, "ChatExportSheet: export image failed", it)
                                             toaster.showFailure(context, it)
                                         }.onSuccess { exported ->
                                             if (exported) {
@@ -510,7 +513,7 @@ private suspend fun exportToImage(
 
         // Save to gallery (best-effort; a gallery-save failure must not abort sharing)
         runCatching { context.exportImage(activity, bitmap, filename) }
-            .onFailure { it.printStackTrace() }
+            .onFailure { AppLog.e(TAG, "exportToImage: save image to gallery failed", it) }
 
         // Share the file
         val uri =
@@ -522,7 +525,7 @@ private suspend fun exportToImage(
         shareFile(context, uri, "image/png")
         true
     } catch (e: IOException) {
-        e.printStackTrace()
+        AppLog.e(TAG, "exportToImage: share image failed", e)
         withContext(Dispatchers.Main) {
             Toast.makeText(
                 context,
@@ -532,7 +535,7 @@ private suspend fun exportToImage(
         }
         false
     } catch (e: RuntimeException) {
-        e.printStackTrace()
+        AppLog.e(TAG, "exportToImage: share image failed", e)
         withContext(Dispatchers.Main) {
             Toast.makeText(
                 context,
@@ -585,7 +588,7 @@ fun exportToJson(
 }
 
 private fun showExportFailure(context: Context, e: Exception) {
-    e.printStackTrace()
+    AppLog.e(TAG, "showExportFailure: export failed", e)
     Toast.makeText(
         context,
         context.getString(R.string.backup_page_export_failed, e.message.orEmpty()),

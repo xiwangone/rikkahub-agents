@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import android.content.res.Resources
 import androidx.activity.result.contract.ActivityResultContracts
@@ -53,6 +54,8 @@ import java.io.FileInputStream
 import java.io.FileOutputStream
 import java.time.LocalDateTime
 import java.time.format.DateTimeFormatter
+
+private const val TAG = "ImportExportTab"
 
 private data class PendingPasswordRequest(
     val mode: String, // "local", "migration", "cloud_migration"
@@ -136,7 +139,7 @@ fun ImportExportTab(
                         type = if (undecryptable > 0) ToastType.Warning else ToastType.Success,
                     )
                 }.onFailure { e ->
-                    e.printStackTrace()
+                    AppLog.e(TAG, "export backup failed", e)
                     toaster.show(
                         if (exportType == "migration" && e is IllegalStateException) {
                             // 含明文密钥的包必须加密后才能导出
@@ -268,7 +271,7 @@ fun ImportExportTab(
                     onShowRestartDialog()
                 }.onFailure { e ->
                     if (e !is BackupNeedsPasswordException) {
-                        e.printStackTrace()
+                        AppLog.e(TAG, "import backup failed", e)
                         toaster.show(
                             resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                             type = ToastType.Error,

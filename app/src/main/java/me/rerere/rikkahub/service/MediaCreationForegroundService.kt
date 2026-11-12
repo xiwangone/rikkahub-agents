@@ -7,7 +7,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -44,7 +44,7 @@ class MediaCreationForegroundService : Service() {
                 ContextCompat.startForegroundService(context, intent)
                 true
             }.onFailure {
-                Log.e(TAG, "Unable to start media creation foreground service", it)
+                AppLog.e(TAG, "Unable to start media creation foreground service", it)
             }.getOrDefault(false)
         }
 
@@ -56,7 +56,7 @@ class MediaCreationForegroundService : Service() {
             runCatching {
                 context.startService(intent)
             }.onFailure {
-                Log.e(TAG, "Unable to release media creation foreground service", it)
+                AppLog.e(TAG, "Unable to release media creation foreground service", it)
             }
         }
 
@@ -101,7 +101,7 @@ class MediaCreationForegroundService : Service() {
 
     override fun onTimeout(startId: Int, fgsType: Int) {
         // 任务不依赖前台服务才能恢复：进程还在就继续跑，被回收了下次启动会按任务 ID 接着查询
-        Log.w(TAG, "Foreground service timed out (type=$fgsType)")
+        AppLog.w(TAG, "Foreground service timed out (type=$fgsType)")
         activeRecords.clear()
         stopService()
     }
@@ -137,7 +137,7 @@ class MediaCreationForegroundService : Service() {
             }
             isForeground = true
         } catch (e: Exception) {
-            Log.e(TAG, "Failed to enter foreground", e)
+            AppLog.e(TAG, "Failed to enter foreground", e)
             activeRecords.clear()
             stopSelf()
         }

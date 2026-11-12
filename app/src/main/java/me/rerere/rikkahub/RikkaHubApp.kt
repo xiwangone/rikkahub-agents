@@ -40,7 +40,6 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceManager
 import org.koin.android.ext.android.get
 import org.koin.android.ext.koin.androidContext
-import org.koin.android.ext.koin.androidLogger
 import org.koin.androidx.workmanager.koin.workManagerFactory
 import me.rerere.rikkahub.service.debug.DebugApiManager
 import org.koin.core.context.GlobalContext
@@ -48,6 +47,7 @@ import org.koin.core.context.startKoin
 import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.ImportedDatabaseReconciler
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.log.KoinAppLogLogger
 import me.rerere.rikkahub.data.sync.PendingDatabaseRestore
 import me.rerere.search.SearchService
 import okhttp3.OkHttpClient
@@ -80,6 +80,39 @@ class RikkaHubApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        // 日志先行：恢复三个日志开关并装好跨模块桥，再做其他启动步骤——
+        // 数据库自检、JSch 配置、隧道自启等早期日志才能进内存 buffer。
+        // 只是各读一次 SharedPreferences 并设一个字段，无阻塞 I/O 与重初始化；
+        // 启动期日志先进有上限的内存 buffer（重要 800 / 详细 2000），
+        // FileLogSink.init 之前的不落盘（不引入无界队列，取舍见日志批 1 说明）。
+        me.rerere.rikkahub.data.log.AppLog.startIfEnabled(this)
+        me.rerere.common.android.Logging.startIfEnabled(this)
+        // 让 ai / speech / search 等下游模块的日志也进入应用内日志（设置页可查看/导出、并落盘）
+        me.rerere.common.log.AppLogger.install(
+            object : me.rerere.common.log.AppLogger.Sink {
+                override fun d(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.d(tag, message)
+
+                override fun i(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.i(tag, message)
+
+                override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+
+                override fun w(tag: String, message: String, tr: Throwable?) =
+                    if (tr != null) {
+                        me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
+                    } else {
+                        me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+                    }
+
+                override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+
+                override fun e(tag: String, message: String, tr: Throwable?) =
+                    if (tr != null) {
+                        me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
+                    } else {
+                        me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+                    }
+            },
+        )
         // 应用内语言：API 33+ 由系统按应用语言持久化，无需处理；
         // API 26–32 需在进程启动时把已选语言重新写回资源，否则重启后回退到系统语言。
         me.rerere.rikkahub.utils.AppLocale.restoreOnStartup(this)
@@ -101,7 +134,7 @@ class RikkaHubApp : Application() {
         // is already gated behind BuildConfig.DEBUG in DataSourceModule.
         Logging.setDebugLoggingEnabled(BuildConfig.DEBUG)
         startKoin {
-            androidLogger()
+            logger(KoinAppLogLogger())
             androidContext(this@RikkaHubApp)
             workManagerFactory()
             modules(appModule, viewModelModule, dataSourceModule, repositoryModule)
@@ -252,34 +285,6 @@ class RikkaHubApp : Application() {
         // every change. With zero enabled workflows, no receivers are registered.
         startWorkflowRegistry()
 
-        // 应用层日志：开关开启时启动 logcat 流式记录（ChatService 等）
-        me.rerere.rikkahub.data.log.AppLog.startIfEnabled(this)
-        // 让 ai / speech / search 等下游模块的日志也进入应用内日志（设置页可查看/导出、并落盘）
-        me.rerere.common.log.AppLogger.install(
-            object : me.rerere.common.log.AppLogger.Sink {
-                override fun d(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.d(tag, message)
-
-                override fun i(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.i(tag, message)
-
-                override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
-
-                override fun w(tag: String, message: String, tr: Throwable?) =
-                    if (tr != null) {
-                        me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
-                    } else {
-                        me.rerere.rikkahub.data.log.AppLog.w(tag, message)
-                    }
-
-                override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
-
-                override fun e(tag: String, message: String, tr: Throwable?) =
-                    if (tr != null) {
-                        me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
-                    } else {
-                        me.rerere.rikkahub.data.log.AppLog.e(tag, message)
-                    }
-            },
-        )
         // 模型能力目录：注册表未登记的新模型走它兜底，因此新模型无需发版即可识别能力。
         // 缓存超过 7 天时在后台静默刷新一次（只拉公开目录，不发送任何本地数据）。
         get<AppScope>().launch(Dispatchers.IO) {

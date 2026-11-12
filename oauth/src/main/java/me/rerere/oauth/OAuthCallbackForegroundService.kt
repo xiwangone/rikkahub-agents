@@ -9,7 +9,7 @@ import android.content.Intent
 import android.content.pm.ServiceInfo
 import android.os.Build
 import android.os.IBinder
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import androidx.core.app.NotificationCompat
 import androidx.core.app.ServiceCompat
 import androidx.core.content.ContextCompat
@@ -61,7 +61,7 @@ class OAuthCallbackForegroundService : Service() {
         }
         isForeground = true
     }.onFailure {
-        Log.e(TAG, "Failed to enter foreground", it)
+        AppLogger.e(TAG, "Failed to enter foreground", it)
     }.isSuccess
 
     private fun stopCallbackService() {
@@ -139,7 +139,7 @@ class OAuthCallbackForegroundService : Service() {
                     }
                     ContextCompat.startForegroundService(appContext, intent)
                 }.onFailure {
-                    Log.e(TAG, "Unable to start OAuth callback foreground service", it)
+                    AppLogger.e(TAG, "Unable to start OAuth callback foreground service", it)
                     synchronized(lifecycleLock) {
                         pendingForegroundStarts.remove(sessionId)?.complete(false)
                     }

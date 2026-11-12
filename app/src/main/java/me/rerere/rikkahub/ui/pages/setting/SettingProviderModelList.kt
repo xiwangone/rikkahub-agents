@@ -57,6 +57,7 @@ import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
@@ -68,6 +69,8 @@ import me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+
+private const val TAG = "SettingProviderModelList"
 
 @Composable
 internal fun ModelList(
@@ -116,7 +119,7 @@ internal fun ModelList(
             // and Compose cancels this produceState's coroutine). Re-throw so
             // we don't print a stack trace + show a toast for normal teardown.
             if (error is kotlinx.coroutines.CancellationException) throw error
-            error.printStackTrace()
+            AppLog.e(TAG, "ModelList: listModels failed", error)
             // 失败只在页内显示原因与重试入口，不再只弹一个 Toast 后留空列表。
             modelLoadError = diagnoseFailure(context, error).label
         }

@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.Intent
 import android.net.Uri
 import androidx.activity.compose.ManagedActivityResultLauncher
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
@@ -20,6 +21,8 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import java.io.File
+
+private const val TAG = "ExportHooks"
 
 @Stable
 class ExporterState<T>(
@@ -68,7 +71,7 @@ class ExporterState<T>(
                 context.contentResolver.openOutputStream(uri)?.use { output ->
                     output.write(value.toByteArray())
                 }
-            }.onFailure { it.printStackTrace() }
+            }.onFailure { AppLog.e(TAG, "writeToUri: write export data failed", it) }
         }
     }
 }

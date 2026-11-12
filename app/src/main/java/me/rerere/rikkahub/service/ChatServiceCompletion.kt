@@ -644,7 +644,7 @@ private suspend fun ChatService.handleMessageCompleteFailure(
             AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
         }
 
-        error.printStackTrace()
+        AppLog.e(TAG, "handleMessageComplete: generation failed", error)
         addError(error, conversationId, title = str(R.string.error_title_generation))
         Logging.log(TAG, "handleMessageComplete: $error")
         Logging.log(TAG, error.stackTraceToString())

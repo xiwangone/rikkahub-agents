@@ -149,7 +149,7 @@ private fun LogPageContent() {
                             requestLoggingEnabled = requestLoggingEnabled,
                             onRequestLoggingChange = {
                                 requestLoggingEnabled = it
-                                Logging.setRequestLoggingEnabled(it)
+                                Logging.setRequestLoggingEnabled(context, it)
                             },
                             modifier = Modifier.fillMaxSize(),
                         )

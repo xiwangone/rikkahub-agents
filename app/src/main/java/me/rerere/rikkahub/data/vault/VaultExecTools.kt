@@ -5,6 +5,7 @@ import com.jcraft.jsch.JSch
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonArray
+import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
@@ -96,7 +97,7 @@ private suspend fun runVaultExportEnv(
             ?: return fail("工作区不可用")
     val ws = wsRepository.getAll().firstOrNull() ?: return fail("无工作区")
     runCatching { wsRepository.writeText(ws.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
-        .onFailure { android.util.Log.w("VaultTools", "写入 vault-env.sh 失败", it) }
+        .onFailure { AppLog.w("VaultTools", "写入 vault-env.sh 失败", it) }
         .getOrNull()
         ?: return fail("写沙箱环境文件失败")
 

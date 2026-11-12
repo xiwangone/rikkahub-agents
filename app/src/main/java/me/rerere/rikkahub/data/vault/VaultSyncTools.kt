@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
@@ -51,7 +52,7 @@ fun vaultExportLoadCredsTool(
                         ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
                 val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
                 runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }
-                    .onFailure { android.util.Log.w("VaultTools", "写入 load-creds-export.sh 失败", it) }
+                    .onFailure { AppLog.w("VaultTools", "写入 load-creds-export.sh 失败", it) }
                     .getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ 写工作区文件失败"))
                 quads.forEach { q -> repository.logAccess(q.name, "ai-tool", "export_loadcreds") }

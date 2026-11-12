@@ -16,6 +16,9 @@ import com.google.zxing.MultiFormatReader
 import com.google.zxing.RGBLuminanceSource
 import com.google.zxing.common.HybridBinarizer
 import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
+
+private const val TAG = "ImageUtils"
 
 /**
  * 图片处理工具类
@@ -68,7 +71,7 @@ object ImageUtils {
             // 第三步：处理图片旋转（如果需要）
             bitmap?.let { correctImageOrientation(context, uri, it) }
         }.onFailure {
-            it.printStackTrace()
+            AppLog.e(TAG, "loadOptimizedBitmap: load bitmap failed", it)
         }.getOrNull()
 
     /**
@@ -142,7 +145,7 @@ object ImageUtils {
             }
             rotatedBitmap
         }.onFailure {
-            it.printStackTrace()
+            AppLog.e(TAG, "correctImageOrientation: rotate image failed", it)
         }.getOrDefault(bitmap)
     }
 
@@ -206,7 +209,7 @@ object ImageUtils {
                 recycleBitmapSafely(oriented)
             }
         }.onFailure {
-            it.printStackTrace()
+            AppLog.e(TAG, "convertHeifToJpeg: convert failed", it)
         }.getOrDefault(false)
 
     private val HEIF_BRANDS =
@@ -245,7 +248,7 @@ object ImageUtils {
 
             result.text
         }.onFailure {
-            it.printStackTrace()
+            AppLog.e(TAG, "decodeQRCodeFromBitmap: decode failed", it)
         }.getOrNull()
 
     /**
@@ -313,7 +316,7 @@ object ImageUtils {
                 null
             }
         }.onFailure {
-            it.printStackTrace()
+            AppLog.e(TAG, "getImageInfo: load image failed", it)
         }.getOrNull()
 
     /**

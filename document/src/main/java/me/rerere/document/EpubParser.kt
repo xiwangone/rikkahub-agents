@@ -1,6 +1,6 @@
 package me.rerere.document
 
-import android.util.Log
+import me.rerere.common.log.AppLogger
 import org.xmlpull.v1.XmlPullParser
 import org.xmlpull.v1.XmlPullParserException
 import org.xmlpull.v1.XmlPullParserFactory
@@ -291,7 +291,7 @@ object EpubParser {
                     // A malformed entity or tag partway through used to silently drop the
                     // rest of the chapter. Record it and mark the output instead.
                     parseFailed = true
-                    Log.w("EpubParser", "parseXhtml: parser failed partway through chapter", e)
+                    AppLogger.w("EpubParser", "parseXhtml: parser failed partway through chapter", e)
                     break
                 }
             }
@@ -308,7 +308,7 @@ object EpubParser {
                     }
                 }
         } catch (e: Exception) {
-            Log.w("EpubParser", "parseXhtml: chapter could not be parsed", e)
+            AppLogger.w("EpubParser", "parseXhtml: chapter could not be parsed", e)
             "[Error parsing chapter: ${e.message}]"
         }
 }

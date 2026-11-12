@@ -31,9 +31,12 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Share03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.utils.JsonInstant
 import kotlin.io.encoding.Base64
+
+private const val TAG = "ShareSheet"
 
 @Composable
 fun ShareSheet(state: ShareSheetState) {
@@ -76,7 +79,7 @@ fun ShareSheet(state: ShareSheetState) {
                             try {
                                 context.startActivity(Intent.createChooser(intent, null))
                             } catch (e: ActivityNotFoundException) {
-                                e.printStackTrace()
+                                AppLog.e(TAG, "start share activity failed: no app available", e)
                                 toaster.show(noAppAvailableText)
                             }
                         },

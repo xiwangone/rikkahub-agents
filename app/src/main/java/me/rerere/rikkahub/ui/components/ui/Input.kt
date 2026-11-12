@@ -14,6 +14,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
+import me.rerere.rikkahub.data.log.AppLog
+
+private const val TAG = "Input"
 
 @Composable
 fun <T : Number> OutlinedNumberInput(
@@ -44,7 +47,7 @@ fun <T : Number> OutlinedNumberInput(
                 } catch (e: IllegalArgumentException) {
                     // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
                     // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
-                    e.printStackTrace()
+                    AppLog.e(TAG, "parse number input failed", e)
                 }
             }
         },
@@ -84,7 +87,7 @@ fun <T : Number> NumberInput(
                 } catch (e: IllegalArgumentException) {
                     // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
                     // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
-                    e.printStackTrace()
+                    AppLog.e(TAG, "parse number input failed", e)
                 }
             }
         },

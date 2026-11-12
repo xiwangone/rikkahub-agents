@@ -16,6 +16,7 @@ import java.io.File
 import java.io.FileOutputStream
 import java.lang.ref.WeakReference
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Kind of AI-driven browser action recorded in the trail. Each value has a paired
@@ -522,7 +523,7 @@ object BrowserController {
             // A throw reading webView.url (StrictMode off-main-thread, destroyed WebView)
             // would otherwise vanish — the de-dupe check then treats the URL as null and
             // streams anyway. Log so the cause is recoverable from logcat.
-            android.util.Log.w(TAG, "streamScreenshotIfHeadless: reading webView.url failed", it)
+            AppLog.w(TAG, "streamScreenshotIfHeadless: reading webView.url failed", it)
         }.getOrNull()
         val now = System.currentTimeMillis()
         // Per-conv de-dupe: only this conversation's own prior stream can suppress this one,
@@ -533,7 +534,7 @@ object BrowserController {
             currentUrl == lastMark?.url &&
             (now - lastMark.atMs) < STREAM_DEDUPE_WINDOW_MS
         ) {
-            android.util.Log.d(TAG, "streamScreenshotIfHeadless: skipping duplicate URL $currentUrl within ${STREAM_DEDUPE_WINDOW_MS}ms")
+            AppLog.d(TAG, "streamScreenshotIfHeadless: skipping duplicate URL $currentUrl within ${STREAM_DEDUPE_WINDOW_MS}ms")
             return
         }
         // Paint settle: awaitReadyState ensures HTML+resources, NOT first paint. Without
@@ -562,7 +563,7 @@ object BrowserController {
                 }
                 Capture(out.absolutePath, currentUrl)
             }
-        }.onFailure { android.util.Log.w(TAG, "streamScreenshotIfHeadless: capture failed", it) }
+        }.onFailure { AppLog.w(TAG, "streamScreenshotIfHeadless: capture failed", it) }
             .getOrNull() ?: return
         // Record what we just streamed AFTER the bitmap path succeeds so a transient
         // capture failure doesn't lock out a subsequent attempt for the dedupe window.
@@ -574,7 +575,7 @@ object BrowserController {
         runCatching {
             (streamer ?: BrowserScreenshotStreamer.NoOp)
                 .send(m.callerConvId, capture.path, actionLabel, capture.url)
-        }.onFailure { android.util.Log.w(TAG, "streamScreenshotIfHeadless: streamer.send failed", it) }
+        }.onFailure { AppLog.w(TAG, "streamScreenshotIfHeadless: streamer.send failed", it) }
     }
 }
 
@@ -659,7 +660,7 @@ suspend fun WebView.evaluateJavascriptAsync(code: String, timeoutMs: Long = 8_00
             // us (Activity finished, headless session stopped). Log so the cause is
             // visible — the caller still gets a clean null and falls back. Narrowed from
             // Throwable so JVM Errors (OOM etc.) still propagate.
-            android.util.Log.w("BrowserController", "evaluateJavascriptAsync: evaluateJavascript threw", e)
+            AppLog.w("BrowserController", "evaluateJavascriptAsync: evaluateJavascript threw", e)
             deferred.complete(null)
         }
     }

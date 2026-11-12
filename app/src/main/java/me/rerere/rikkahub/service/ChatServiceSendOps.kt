@@ -199,7 +199,6 @@ internal fun ChatService.sendMessageNowImpl(
                     } else {
                         AppLog.w(TAG, "msg-fail conv=$conversationId err=${e.message}", e)
                     }
-                    e.printStackTrace()
                     // 修复：headless 会话（子代理/cron/工作流/外部自动化）的调用方靠「协程
                     // 正常结束」判定成功——异常被吞 → SubAgentEngine.executeRun 的
                     // first { it == null } 立即满足 → 误判 SUCCEEDED 空转。对 headless 且

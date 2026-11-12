@@ -17,6 +17,7 @@ import me.rerere.rikkahub.data.ai.GenerationLoop
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.TranslationHistoryEntity
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import java.util.Locale
 
@@ -114,7 +115,7 @@ class TranslatorVM(
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Exception) {
-                    error.printStackTrace()
+                    AppLog.e(TAG, "translate: translation failed", error)
                     errorFlow.emit(error)
                 } finally {
                     if (currentJob == coroutineContext[Job]) {

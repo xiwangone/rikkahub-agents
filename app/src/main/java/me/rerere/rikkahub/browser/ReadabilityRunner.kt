@@ -10,6 +10,7 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * Token-cost optimisation pass — Readability.js bridge for browser_get_text.
@@ -106,7 +107,7 @@ object ReadabilityRunner {
                 BufferedReader(InputStreamReader(stream)).use { it.readText() }
             }
         }.onSuccess { cachedLibrary = it }
-            .onFailure { android.util.Log.w("ReadabilityRunner", "asset load failed", it) }
+            .onFailure { AppLog.w("ReadabilityRunner", "asset load failed", it) }
             .getOrNull()
     }
 

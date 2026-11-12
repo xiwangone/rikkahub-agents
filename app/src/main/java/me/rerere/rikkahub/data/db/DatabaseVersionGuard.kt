@@ -2,7 +2,7 @@ package me.rerere.rikkahub.data.db
 
 import android.content.Context
 import android.os.StatFs
-import android.util.Log
+import me.rerere.rikkahub.data.log.AppLog
 import java.io.File
 import java.io.RandomAccessFile
 
@@ -50,10 +50,10 @@ internal object DatabaseVersionGuard {
         val dir =
             runCatching { snapshot(context, dbFile, installed, codeVersion, kind) }
                 .getOrElse {
-                    Log.w(TAG, "database snapshot failed ($kind $installed -> $codeVersion)", it)
+                    AppLog.w(TAG, "database snapshot failed ($kind $installed -> $codeVersion)", it)
                     return SnapshotResult.Failed(it)
                 } ?: return SnapshotResult.Failed(null)
-        Log.w(TAG, "database $kind $installed -> $codeVersion, snapshot at ${dir.absolutePath}")
+        AppLog.w(TAG, "database $kind $installed -> $codeVersion, snapshot at ${dir.absolutePath}")
         return SnapshotResult.Taken(dir)
     }
 
@@ -90,7 +90,7 @@ internal object DatabaseVersionGuard {
         val totalBytes = dbFile.length() + sidecars.sumOf { it.length() }
         val available = runCatching { StatFs(root.absolutePath).availableBytes }.getOrDefault(Long.MAX_VALUE)
         if (available < (totalBytes * 1.2).toLong()) {
-            Log.w(TAG, "skip snapshot: need ${totalBytes / 1024 / 1024}MB, available ${available / 1024 / 1024}MB")
+            AppLog.w(TAG, "skip snapshot: need ${totalBytes / 1024 / 1024}MB, available ${available / 1024 / 1024}MB")
             return null
         }
         val dir = File(root, "v${installed}-to-v${codeVersion}-$kind")

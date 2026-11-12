@@ -25,6 +25,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.common.log.AppLogger
 import okhttp3.OkHttpClient
 import java.util.UUID
 import java.util.concurrent.ConcurrentHashMap
@@ -255,15 +256,15 @@ class BackendProvider(
                     api.newSession()
                 } else {
                     runCatching { api.resumeSession(existingPath) }.onFailure {
-                        android.util.Log.w("BackendProvider", "resume 会话失败，将新建", it)
+                        AppLogger.e("BackendProvider", "resume 会话失败，将新建", it)
                         runCatching { api.newSession() }
                             .onSuccess { created ->
                                 if (!created) {
-                                    android.util.Log.w("BackendProvider", "resume 失败后新建会话失败：服务端未返回成功")
+                                    AppLogger.w("BackendProvider", "resume 失败后新建会话失败：服务端未返回成功")
                                 }
                             }
                             .onFailure {
-                                android.util.Log.w("BackendProvider", "resume 失败后新建会话失败", it)
+                                AppLogger.e("BackendProvider", "resume 失败后新建会话失败", it)
                             }
                     }
                 }
