@@ -27,6 +27,7 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalIconToggleButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -46,6 +47,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastFilter
 import kotlinx.coroutines.launch
@@ -59,6 +61,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.Package01
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tick01
 import me.rerere.hugeicons.stroke.Tools
@@ -267,6 +270,8 @@ internal fun ModelSettingsForm(
 internal fun AddModelButton(
     models: List<Model>,
     loading: Boolean = false,
+    error: String? = null,
+    onRefresh: () -> Unit = {},
     selectedModels: List<Model>,
     expanded: Boolean,
     onAddModel: (Model) -> Unit,
@@ -286,6 +291,8 @@ internal fun AddModelButton(
         ModelPicker(
             models = models,
             loading = loading,
+            error = error,
+            onRefresh = onRefresh,
             selectedModels = selectedModels,
             onModelSelected = { model ->
                 onAddModel(model.enrichCapabilities())
@@ -433,6 +440,8 @@ internal fun AddModelButton(
 internal fun ModelPicker(
     models: List<Model>,
     loading: Boolean = false,
+    error: String? = null,
+    onRefresh: () -> Unit = {},
     selectedModels: List<Model>,
     onModelSelected: (Model) -> Unit,
     onModelDeselected: (Model) -> Unit,
@@ -482,7 +491,15 @@ internal fun ModelPicker(
                     Text(
                         text = stringResource(R.string.setting_provider_page_avaliable_models),
                         style = MaterialTheme.typography.titleMedium,
+                        modifier = Modifier.weight(1f),
                     )
+
+                    IconButton(
+                        onClick = onRefresh,
+                        enabled = !loading,
+                    ) {
+                        Icon(HugeIcons.Refresh01, contentDescription = "Refresh")
+                    }
 
                     val unselectedCount =
                         filteredModels.count { model ->
@@ -511,7 +528,39 @@ internal fun ModelPicker(
                     }
                 }
 
-                if (loading) {
+                if (loading && filteredModels.isNotEmpty()) {
+                    // 已有列表时手动刷新：顶上只显示一条波浪进度线，列表保留可见；
+                    // 首次拉取（列表为空）时仍走下面的全区转圈。
+                    LinearWavyProgressIndicator(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 16.dp),
+                    )
+                }
+
+                error?.let { message ->
+                    // 拉取失败时保留上次拿到的列表，只在顶上显示原因；重试用标题栏的刷新按钮。
+                    Surface(
+                        shape = MaterialTheme.shapes.large,
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(horizontal = 8.dp),
+                    ) {
+                        Text(
+                            text = message,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                            maxLines = 4,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.padding(12.dp),
+                        )
+                    }
+                }
+
+                if (loading && filteredModels.isEmpty()) {
                     // 远程模型列表还在拉取：先转圈，别先给一个空列表；
                     // 拉完确实为空时再显示空态。
                     Box(

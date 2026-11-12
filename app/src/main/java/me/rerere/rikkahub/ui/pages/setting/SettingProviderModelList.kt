@@ -456,6 +456,8 @@ internal fun ModelList(
             AddModelButton(
                 models = modelList,
                 loading = modelListLoading,
+                error = modelLoadError,
+                onRefresh = { refreshTrigger++ },
                 selectedModels = providerSetting.models,
                 onAddModel = {
                     onUpdateProvider(providerSetting.addModel(it))
@@ -479,8 +481,8 @@ private fun formatCatalogTime(ms: Long): String =
         DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", Locale.getDefault()).withZone(ZoneId.systemDefault()).format(Instant.ofEpochMilli(ms))
     }
 
-/** 模型列表拉取 key 用的 baseUrl：没有 baseUrl 的类型返回空串。 */
-private fun ProviderSetting.modelListBaseUrl(): String =
+/** 模型列表拉取 key 用的 baseUrl：没有 baseUrl 的类型返回空串。internal 以便单测覆盖 key 推导。 */
+internal fun ProviderSetting.modelListBaseUrl(): String =
     when (this) {
         is ProviderSetting.OpenAI -> baseUrl
         is ProviderSetting.Google -> baseUrl
