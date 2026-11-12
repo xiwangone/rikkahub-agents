@@ -97,7 +97,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                         runCatching {
                             api(p.setting).approve(id = requestId, allow = approved)
                         }.onFailure {
-                            AppLog.w(TAG, "approve($requestId, $approved) failed", it)
+                            AppLog.e(TAG, "approve($requestId, $approved) failed", it)
                             // 投递失败不丢决策：放回待处理并重发通知，用户可重试。
                             synchronized(lock) { pendingApprovals[requestId] = p }
                             syncPendingIds()
@@ -126,7 +126,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                                     },
                             )
                         }.onFailure {
-                            AppLog.w(TAG, "answer($requestId) failed", it)
+                            AppLog.e(TAG, "answer($requestId) failed", it)
                             // 投递失败不丢回答：放回待处理并重发通知，用户可重试。
                             synchronized(lock) { pendingAsks[requestId] = p }
                             syncPendingIds()
@@ -226,7 +226,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             syncPendingIds()
             throw cancelled
         } catch (failure: Exception) {
-            AppLog.w(TAG, "approve($requestId, $approved) failed", failure)
+            AppLog.e(TAG, "approve($requestId, $approved) failed", failure)
             // 投递失败不丢决策：放回待处理，调用方提示用户重试。
             synchronized(lock) { pendingApprovals[requestId] = p }
             syncPendingIds()
@@ -259,7 +259,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             syncPendingIds()
             throw cancelled
         } catch (failure: Exception) {
-            AppLog.w(TAG, "answer($requestId) failed", failure)
+            AppLog.e(TAG, "answer($requestId) failed", failure)
             // 投递失败不丢回答：放回待处理，调用方提示用户重试。
             synchronized(lock) { pendingAsks[requestId] = p }
             syncPendingIds()
@@ -373,7 +373,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
                 android.Manifest.permission.POST_NOTIFICATIONS,
             ) != android.content.pm.PackageManager.PERMISSION_GRANTED
         ) {
-            AppLog.w(TAG, "POST_NOTIFICATIONS not granted; interaction stays card-only")
+            AppLog.i(TAG, "POST_NOTIFICATIONS not granted; interaction stays card-only")
             return
         }
         runCatching {

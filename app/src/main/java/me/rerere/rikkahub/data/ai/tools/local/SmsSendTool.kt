@@ -82,7 +82,7 @@ fun smsSendTool(context: Context): Tool = Tool(
                 SmsManager.getDefault()
             }
         } catch (e: Throwable) {
-            AppLog.w(TAG, "SmsManager acquisition failed", e)
+            AppLog.e(TAG, "SmsManager acquisition failed", e)
             null
         } ?: return@Tool smsErr("feature unavailable")
 

@@ -124,6 +124,7 @@ class ExternalAutomationActivity : Activity() {
     }
 
     companion object {
-        private const val TAG = "ExtAutomation"
+        // 原与 ExternalAutomationDispatcher 共用 ExtAutomation, 现按类名区分。
+        private const val TAG = "ExternalAutoActivity"
     }
 }

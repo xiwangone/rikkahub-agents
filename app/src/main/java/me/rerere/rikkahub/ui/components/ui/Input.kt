@@ -47,7 +47,7 @@ fun <T : Number> OutlinedNumberInput(
                 } catch (e: IllegalArgumentException) {
                     // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
                     // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
-                    AppLog.e(TAG, "parse number input failed", e)
+                    AppLog.d(TAG, "parse number input failed", e)
                 }
             }
         },
@@ -87,7 +87,7 @@ fun <T : Number> NumberInput(
                 } catch (e: IllegalArgumentException) {
                     // toInt/toFloat/toDouble 抛 NumberFormatException（IllegalArgumentException 子类），
                     // else 分支显式抛 IllegalArgumentException，两者都被此 catch 覆盖
-                    AppLog.e(TAG, "parse number input failed", e)
+                    AppLog.d(TAG, "parse number input failed", e)
                 }
             }
         },

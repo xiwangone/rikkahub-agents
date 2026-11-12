@@ -54,14 +54,14 @@ class RemoteCatalogFetcher(
         withContext(Dispatchers.IO) {
             val normalized = SkillStoreSourceStore.normalizeUrl(source.url)
             if (normalized == null) {
-                AppLog.w(TAG, "source ${source.id} has an unusable URL: ${source.url}")
+                AppLog.e(TAG, "source ${source.id} has an unusable URL: ${source.url}")
                 return@withContext RemoteCatalogResult(source, null, SkillStoreSourceStatus.FAILED)
             }
             val body =
                 try {
                     download(normalized)
                 } catch (t: Throwable) {
-                    AppLog.w(TAG, "fetch failed for $normalized", t)
+                    AppLog.e(TAG, "fetch failed for $normalized", t)
                     null
                 }
             if (body != null) {
@@ -72,7 +72,7 @@ class RemoteCatalogFetcher(
                 }
                 // A well-formed but empty catalog is a legitimate (if useless) source;
                 // do not poison the cache with it, and do not treat it as a failure.
-                AppLog.w(TAG, "catalog at $normalized parsed but contains no skills")
+                AppLog.i(TAG, "catalog at $normalized parsed but contains no skills")
                 return@withContext RemoteCatalogResult(source, catalog, SkillStoreSourceStatus.OK)
             }
             val cached = readCache(source.id)
@@ -94,7 +94,7 @@ class RemoteCatalogFetcher(
         val request = Request.Builder().url(url).header("Accept", "application/json").build()
         httpClient.newCall(request).execute().use { response ->
             if (!response.isSuccessful) {
-                AppLog.w(TAG, "non-200 for $url: ${response.code}")
+                AppLog.e(TAG, "non-200 for $url: ${response.code}")
                 return null
             }
             val body = response.body ?: return null

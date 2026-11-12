@@ -389,7 +389,7 @@ internal class AgentLoop(
             throw e
         } catch (e: Throwable) {
             // 完整堆栈只记日志；回灌给模型的信封只留异常类名 + 首行 message，避免淹没真正的错误信息。
-            AppLogger.w(TAG, "Tool ${tool.toolName} failed", e)
+            AppLogger.e(TAG, "Tool ${tool.toolName} failed", e)
             hooks.toolFailureOutput(tool, e)
                 ?: errorOutput(toolErrorMessage(e))
         }

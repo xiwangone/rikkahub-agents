@@ -107,7 +107,7 @@ fun TextArea(
                         state.setTextAndPlaceCursorAtEnd(content)
                         toaster.show(context.getString(R.string.text_area_import_success), type = ToastType.Success)
                     } catch (e: IOException) {
-                        AppLog.e(TAG, "import text file failed", e)
+                        AppLog.d(TAG, "import text file failed", e)
                         val errorMessage = e.message ?: context.getString(R.string.text_area_import_failed)
                         onImportError?.invoke(errorMessage) ?: toaster.show(
                             message = errorMessage,

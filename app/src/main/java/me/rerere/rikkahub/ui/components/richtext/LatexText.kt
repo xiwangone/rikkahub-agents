@@ -60,7 +60,7 @@ fun LatexText(
                     )
                 }
             }.onFailure {
-                AppLog.e(TAG, "LatexText: build latex drawable failed", it)
+                AppLog.d(TAG, "LatexText: build latex drawable failed", it)
             }.getOrNull()
         }
 
@@ -102,7 +102,7 @@ fun getLatexDrawable(
             .align(JLatexMathDrawable.ALIGN_LEFT)
             .build()
     }.onFailure {
-        AppLog.e(TAG, "getLatexDrawable: build latex drawable failed", it)
+        AppLog.d(TAG, "getLatexDrawable: build latex drawable failed", it)
     }.getOrNull()
 
 /**
@@ -119,7 +119,7 @@ fun splitLatex(
     runCatching {
         JLatexMathSplitter.split(processLatex(latex), maxWidthPx, fontSize, color)
     }.onFailure {
-        AppLog.e(TAG, "splitLatex: split latex failed", it)
+        AppLog.d(TAG, "splitLatex: split latex failed", it)
     }.getOrElse { emptyList() }
 
 @Composable

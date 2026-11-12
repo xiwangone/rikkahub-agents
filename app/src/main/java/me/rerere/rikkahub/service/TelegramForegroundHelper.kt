@@ -86,6 +86,7 @@ internal class TelegramForegroundHelper(
     companion object {
         const val CHANNEL_ID = "rikkahub_telegram_bot"
         const val NOTIF_ID = 0xA1B2
-        private const val TAG = "TelegramBotService"
+        // 原与 TelegramBotService 同名, 改按类名区分。
+        private const val TAG = "TelegramFgHelper"
     }
 }

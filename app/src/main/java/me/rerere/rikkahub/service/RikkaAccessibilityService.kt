@@ -20,7 +20,8 @@ import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "RikkaAccService"
+// 类名 RikkaAccessibilityService 26 字符, 超过 23 字符会被 logcat 截断, Service 缩写为 Svc。
+private const val TAG = "RikkaAccessibilitySvc"
 private const val GESTURE_TIMEOUT_MS = 5_000L
 private const val LOG_RING_SIZE = 50
 

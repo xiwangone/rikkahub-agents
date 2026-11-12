@@ -79,7 +79,7 @@ fun ShareSheet(state: ShareSheetState) {
                             try {
                                 context.startActivity(Intent.createChooser(intent, null))
                             } catch (e: ActivityNotFoundException) {
-                                AppLog.e(TAG, "start share activity failed: no app available", e)
+                                AppLog.d(TAG, "start share activity failed: no app available", e)
                                 toaster.show(noAppAvailableText)
                             }
                         },

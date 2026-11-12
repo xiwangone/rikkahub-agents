@@ -20,7 +20,8 @@ import me.rerere.rikkahub.data.log.AppLog
  * Inbox hygiene: files older than 24 h are pruned, then total size is capped at
  * [INBOUND_ATTACHMENT_INBOX_CAP_BYTES] (oldest first).
  */
-private const val TAG = "TelegramInboundAttachments"
+// 类名 26 字符, 超过 23 字符会被 logcat 截断, Telegram 缩写为 Tg。
+private const val TAG = "TgInboundAttachments"
 
 /** Maximum file size for auto-downloading inbound non-photo attachments.
  *  Telegram allows up to 2 GB, but the Bot API's getFile only serves files up to ~20 MB;

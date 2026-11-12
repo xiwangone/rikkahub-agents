@@ -55,13 +55,13 @@ class AgentRunBootRecovery(
                 return@runCatching 0
             }
             val flipped = repository.markAllProcessLost(stranded.map { it.id })
-            logSafe { AppLog.w(TAG, "runRecovery: flipped $flipped stranded run(s) to process_lost") }
+            logSafe { AppLog.i(TAG, "runRecovery: flipped $flipped stranded run(s) to process_lost") }
             if (flipped > 0) {
                 runCatching { notifyStranded(stranded) }
                     .onFailure { logSafe { AppLog.w(TAG, "notifyStranded failed", it) } }
             }
             flipped
-        }.onFailure { logSafe { AppLog.w(TAG, "runRecovery failed", it) } }
+        }.onFailure { logSafe { AppLog.e(TAG, "runRecovery failed", it) } }
             .getOrDefault(0)
     }
 

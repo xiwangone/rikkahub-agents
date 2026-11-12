@@ -172,7 +172,7 @@ internal class InteractionsAPI(
                     // 与其余 provider 一致——一次流失败留 1 条可查的记录。汇总行必须
                     // 在 close() 之前落盘：close 会唤醒收集端，写在它之后汇总行可能
                     // 晚于流终止到达。
-                    AppLogger.w(
+                    AppLogger.e(
                         TAG,
                         "onFailure: HTTP ${response?.code ?: "?"}: " +
                             "${exception?.logSafeMessage() ?: "Stream failed"}" +

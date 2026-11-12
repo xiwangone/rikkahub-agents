@@ -379,7 +379,7 @@ class WorkspaceRepository(
                     _statsById.value = _statsById.value + (id to stats)
                     persistStats(id, stats)
                 }
-                .onFailure { AppLog.w("WorkspaceStats", "collect failed for $id", it) }
+                .onFailure { AppLog.e("WorkspaceStats", "collect failed for $id", it) }
         }
     }
 
@@ -392,7 +392,7 @@ class WorkspaceRepository(
                     persistStats(id, stats)
                 }
                 .onFailure {
-                    AppLog.w("WorkspaceStats", "refresh failed for $id", it)
+                    AppLog.e("WorkspaceStats", "refresh failed for $id", it)
                     _statsRefreshFailure.value = it.message ?: it::class.simpleName ?: "?"
                 }
         }
@@ -419,7 +419,7 @@ class WorkspaceRepository(
             if (!dir.exists()) {
                 // 目录缺失时不删除记录(例如恢复备份后工作区文件未随数据库一起恢复),
                 // 仅标记为 BROKEN 以保留记录与助手绑定, 避免误删用户工作区
-                AppLog.w(TAG, "Workspace directory missing, marking as broken: id=${workspace.id}, root=${workspace.root}")
+                AppLog.i(TAG, "Workspace directory missing, marking as broken: id=${workspace.id}, root=${workspace.root}")
                 if (workspace.shellStatus != WorkspaceShellStatus.BROKEN.name) {
                     updateShellState(workspace.id, WorkspaceShellStatus.BROKEN.name)
                 }
@@ -429,7 +429,7 @@ class WorkspaceRepository(
             if ((statusName == WorkspaceShellStatus.READY.name || statusName == WorkspaceShellStatus.INSTALLING.name)
                 && !manager.hasRootfs(workspace.root)
             ) {
-                AppLog.w(TAG, "Rootfs missing, resetting shell status: id=${workspace.id}")
+                AppLog.i(TAG, "Rootfs missing, resetting shell status: id=${workspace.id}")
                 updateShellState(workspace.id, WorkspaceShellStatus.DISABLED.name)
             }
         }

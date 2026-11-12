@@ -71,7 +71,7 @@ object ImageUtils {
             // 第三步：处理图片旋转（如果需要）
             bitmap?.let { correctImageOrientation(context, uri, it) }
         }.onFailure {
-            AppLog.e(TAG, "loadOptimizedBitmap: load bitmap failed", it)
+            AppLog.d(TAG, "loadOptimizedBitmap: load bitmap failed", it)
         }.getOrNull()
 
     /**
@@ -145,7 +145,7 @@ object ImageUtils {
             }
             rotatedBitmap
         }.onFailure {
-            AppLog.e(TAG, "correctImageOrientation: rotate image failed", it)
+            AppLog.d(TAG, "correctImageOrientation: rotate image failed", it)
         }.getOrDefault(bitmap)
     }
 
@@ -209,7 +209,7 @@ object ImageUtils {
                 recycleBitmapSafely(oriented)
             }
         }.onFailure {
-            AppLog.e(TAG, "convertHeifToJpeg: convert failed", it)
+            AppLog.d(TAG, "convertHeifToJpeg: convert failed", it)
         }.getOrDefault(false)
 
     private val HEIF_BRANDS =
@@ -248,7 +248,7 @@ object ImageUtils {
 
             result.text
         }.onFailure {
-            AppLog.e(TAG, "decodeQRCodeFromBitmap: decode failed", it)
+            AppLog.d(TAG, "decodeQRCodeFromBitmap: decode failed", it)
         }.getOrNull()
 
     /**
@@ -316,7 +316,7 @@ object ImageUtils {
                 null
             }
         }.onFailure {
-            AppLog.e(TAG, "getImageInfo: load image failed", it)
+            AppLog.d(TAG, "getImageInfo: load image failed", it)
         }.getOrNull()
 
     /**

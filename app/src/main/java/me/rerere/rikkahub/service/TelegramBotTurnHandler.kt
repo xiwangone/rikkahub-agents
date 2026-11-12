@@ -58,7 +58,7 @@ internal suspend fun TelegramBotService.handleIncoming(
     ) {
         val sender =
             m.senderId ?: run {
-                AppLog.w(TAG, "handleIncoming: dropping — no sender id")
+                AppLog.i(TAG, "handleIncoming: dropping — no sender id")
                 return
             }
         // Strict whitelist: nobody is allowed unless their sender_id (or the chat_id, for
@@ -67,7 +67,7 @@ internal suspend fun TelegramBotService.handleIncoming(
         // bot whose owner forgot to fill in the whitelist would happily accept messages
         // from any random Telegram user who knows the bot's @username.
         if (sender !in cfg.whitelist && m.chatId !in cfg.whitelist) {
-            AppLog.w(
+            AppLog.i(
                 TAG,
                 "handleIncoming: dropping — sender=$sender chat=${m.chatId} not in whitelist=${cfg.whitelist}",
             )
@@ -133,7 +133,7 @@ internal suspend fun TelegramBotService.handleIncoming(
                 } catch (ignored: Throwable) {
                     // 「上一轮还在生成」的提示发不出去时记一条 w，否则用户收不到
                     // 提示、又不知道为什么没反应，时间线里也查不到。
-                    AppLog.w(TAG, "handleIncoming: turn-busy notice send failed chat=${m.chatId}", ignored)
+                    AppLog.e(TAG, "handleIncoming: turn-busy notice send failed chat=${m.chatId}", ignored)
                 }
                 return
             }
@@ -202,7 +202,7 @@ internal suspend fun TelegramBotService.handleLlmTurn(
                 res["message_id"]?.jsonPrimitive?.longOrNull
             }.onFailure { e ->
                 if (e is CancellationException) throw e
-                AppLog.w(TAG, "handleIncoming: placeholder send failed", e)
+                AppLog.e(TAG, "handleIncoming: placeholder send failed", e)
             }.getOrNull()
 
         chatService.addConversationReference(convId)
@@ -221,7 +221,7 @@ internal suspend fun TelegramBotService.handleLlmTurn(
                 turnCancelled = true
                 throw err
             } else if (err != null) {
-                AppLog.w(TAG, "handleIncoming: generation flow ended with error", err)
+                AppLog.e(TAG, "handleIncoming: generation flow ended with error", err)
                 generationError = err
             }
         } finally {
@@ -446,7 +446,7 @@ private suspend fun TelegramBotService.autoDenyRepeatedFailedTool(
         )
     }.onFailure { t ->
         if (t is CancellationException) throw t
-        AppLog.w(TAG, "tool-failure notice send failed", t)
+        AppLog.e(TAG, "tool-failure notice send failed", t)
     }
 }
 

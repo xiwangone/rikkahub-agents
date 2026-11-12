@@ -10,7 +10,8 @@ import java.io.File
 import java.io.FileOutputStream
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "TelegramInteractiveStreamer"
+// 类名 27 字符, 超过 23 字符会被 logcat 截断, Telegram 缩写为 Tg。
+private const val TAG = "TgInteractiveStreamer"
 private const val STREAM_DIR = "interactive-stream"
 private const val MAX_CACHED_FILES = 20
 private const val MAX_CAPTION_CHARS = 1024

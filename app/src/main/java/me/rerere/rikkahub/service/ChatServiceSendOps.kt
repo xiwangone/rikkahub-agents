@@ -34,7 +34,7 @@ import me.rerere.rikkahub.data.model.toMessageNode
 import kotlin.uuid.Uuid
 
 
-private const val TAG = "ChatService"
+private const val TAG = "ChatServiceSendOps"
 
     /**
      * 生成结束后派发队首消息。由 [sendMessageNow] 的收尾统一调用，

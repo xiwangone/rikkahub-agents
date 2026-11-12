@@ -20,7 +20,8 @@ import me.rerere.rikkahub.data.telegram.TelegramBotClient
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import org.koin.android.ext.android.inject
 
-private const val TAG = "RikkaNListener"
+// 类名 RikkaNotificationListenerService 过长, Notification 缩写为 Notif, Service 后缀省略。
+private const val TAG = "RikkaNotifListener"
 
 // Generous ring so a busy morning (school bus app + Slack + WhatsApp + Instagram +
 // dozen others piling notifications on while the user wakes up) does not silently roll

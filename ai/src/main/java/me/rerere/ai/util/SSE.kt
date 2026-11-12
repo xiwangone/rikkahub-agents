@@ -81,7 +81,7 @@ class SSEEventSource(
             } catch (e: Exception) {
                 // 断流归因：canceled=true 只说明「本地调了 cancel()」，真实诱因往往在取消方；
                 // 这里连同异常类型与「距最后一条事件多久」一起记，能分开「刚有数据就被切」与「静默等待很久」。
-                AppLogger.w(
+                AppLogger.e(
                     TAG,
                     "stream interrupted: canceled=$canceled cause=${e.javaClass.simpleName}:${e.message} ${eventGap()}",
                 )
@@ -94,7 +94,7 @@ class SSEEventSource(
                 return
             }
             if (canceled) {
-                AppLogger.w(TAG, "stream ended by cancel() (no exception) ${eventGap()}")
+                AppLogger.i(TAG, "stream ended by cancel() (no exception) ${eventGap()}")
                 listener.onFailure(this, IOException("canceled"), response)
             } else {
                 listener.onClosed(this)
@@ -112,10 +112,18 @@ class SSEEventSource(
         e: IOException,
     ) {
         // 诊断：区分「我们自己 cancel」与「网络/服务端断流」；isCanceled=true 说明是本地取消
-        AppLogger.w(
-            TAG,
-            "call failed: ${e.javaClass.simpleName}:${e.message} isCanceled=${call.isCanceled()} ${eventGap()}",
-        )
+        if (call.isCanceled()) {
+            AppLogger.i(
+                TAG,
+                "call failed: ${e.javaClass.simpleName}:${e.message} isCanceled=${call.isCanceled()} ${eventGap()}",
+            )
+        } else {
+            AppLogger.e(
+                TAG,
+                "call failed: ${e.javaClass.simpleName}:${e.message} isCanceled=${call.isCanceled()} ${eventGap()}",
+                e,
+            )
+        }
         listener.onFailure(this, e, null)
     }
 
@@ -125,7 +133,7 @@ class SSEEventSource(
         canceled = true
         // 记录取消方：本地 cancel() 与中继重置此前在日志里完全同形（都是 IOException("canceled")），
         // 没有这一行就无法得知是谁掐断的流。
-        AppLogger.w(
+        AppLogger.i(
             TAG,
             "cancel(): caller=${cancelCaller()} thread=${Thread.currentThread().name} ${eventGap()}",
         )

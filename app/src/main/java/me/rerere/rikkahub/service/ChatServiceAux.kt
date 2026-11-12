@@ -22,7 +22,7 @@ import me.rerere.rikkahub.utils.applyPlaceholders
 import java.util.Locale
 import kotlin.uuid.Uuid
 
-private const val TAG = "ChatService"
+private const val TAG = "ChatServiceAux"
 
 
     // ---- 生成标题 ----

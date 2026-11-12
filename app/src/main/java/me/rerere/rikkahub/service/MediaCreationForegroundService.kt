@@ -16,7 +16,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
 import kotlin.uuid.Uuid
 
-private const val TAG = "MediaCreationFgs"
+// 前台服务 tag 统一用 FgSvc 后缀 (ForegroundService 缩写), 避免超过 23 字符被 logcat 截断。
+private const val TAG = "MediaCreationFgSvc"
 
 /**
  * 有媒体生成任务在跑时把进程留在前台，界面被隐藏后上传、轮询和下载仍能继续。

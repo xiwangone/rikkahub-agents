@@ -142,7 +142,7 @@ object TsnetBridge {
                         .onFailure { AppLog.w(TAG, "path monitor start failed: ${it.message}", it) }
                     // 临时节点标记必须在拉起 server 之前写进 native（tsnet 只在注册时读）。
                     runCatching { Tsnetlib.setEphemeral(config.ephemeral) }
-                        .onFailure { AppLog.w(TAG, "setEphemeral(${config.ephemeral}) failed: ${it.message}", it) }
+                        .onFailure { AppLog.e(TAG, "setEphemeral(${config.ephemeral}) failed: ${it.message}", it) }
                     // 子网路由与出口节点由 native 在启动阶段写进 prefs：tailscale 的 RouteAll
                     // 默认为开，不能等启动回来再改（那样开隧道瞬间就把对端网段接进来了）。
                     val ip = Tsnetlib.start(
@@ -191,7 +191,7 @@ object TsnetBridge {
                         desiredRunning = false
                     }
                     publish(TunnelState.Failed(e.message ?: e::class.simpleName ?: "start failed"))
-                    AppLog.w(TAG, "tunnel start failed: ${e.message}", e)
+                    AppLog.e(TAG, "tunnel start failed: ${e.message}", e)
                 }
             } finally {
                 isConnecting = false
@@ -207,7 +207,7 @@ object TsnetBridge {
         val localPort = parts[1].trim().toIntOrNull() ?: return
         if (tailnetPort <= 0 || localPort <= 0) return
         runCatching { Tsnetlib.listenForward(tailnetPort.toLong(), localPort.toLong()) }
-            .onFailure { AppLog.w(TAG, "serve $tailnetPort->$localPort failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "serve $tailnetPort->$localPort failed: ${it.message}", it) }
     }
 
     /**
@@ -251,7 +251,7 @@ object TsnetBridge {
                 }
                 publish(TunnelState.Off)
                 AppLog.i(TAG, "tunnel stopped")
-            }.onFailure { AppLog.w(TAG, "tunnel stop failed: ${it.message}", it) }
+            }.onFailure { AppLog.e(TAG, "tunnel stop failed: ${it.message}", it) }
         }
     }
 
@@ -275,7 +275,7 @@ object TsnetBridge {
                     nodeIp = null
                 }
                 publish(TunnelState.Offline)
-            }.onFailure { AppLog.w(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
+            }.onFailure { AppLog.e(TAG, "tunnel resetForReconnect failed: ${it.message}", it) }
         }
     }
 
@@ -286,31 +286,31 @@ object TsnetBridge {
     /** 接受 peer 广播的子网路由（Prefs.RouteAll）；默认关，避免把对端 LAN 拉进 tailnet。 */
     suspend fun setAcceptRoutes(on: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.setAcceptRoutes(on) }
-            .onFailure { AppLog.w(TAG, "setAcceptRoutes($on) failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "setAcceptRoutes($on) failed: ${it.message}", it) }
     }
 
     /** 临时节点：下次启动时生效（控制面在进程消失后自动移除该设备）。 */
     suspend fun setEphemeral(on: Boolean): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.setEphemeral(on) }
-            .onFailure { AppLog.w(TAG, "setEphemeral($on) failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "setEphemeral($on) failed: ${it.message}", it) }
     }
 
     /** 把本机某个回环端口暴露到 tailnet 内（tailnetPort → 127.0.0.1:localPort）。 */
     suspend fun listenForward(tailnetPort: Int, localPort: Int): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.listenForward(tailnetPort.toLong(), localPort.toLong()) }
-            .onFailure { AppLog.w(TAG, "listenForward($tailnetPort->$localPort) failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "listenForward($tailnetPort->$localPort) failed: ${it.message}", it) }
     }
 
     /** 出口节点：传 peer 的 Tailscale IP，空串关闭；LAN 直连保持可用。 */
     suspend fun setExitNode(ip: String): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.setExitNode(ip) }
-            .onFailure { AppLog.w(TAG, "setExitNode($ip) failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "setExitNode($ip) failed: ${it.message}", it) }
     }
 
     /** 节点与 peer 列表（JSON）：running / IP / 域名 / peers / acceptRoutes / exitNodeIP。 */
     suspend fun statusJson(): String? = withContext(Dispatchers.IO) {
         runCatching { Tsnetlib.statusJSON() }
-            .onFailure { AppLog.w(TAG, "statusJSON failed: ${it.message}", it) }
+            .onFailure { AppLog.e(TAG, "statusJSON failed: ${it.message}", it) }
             .getOrNull()
     }
 
@@ -337,7 +337,7 @@ object TsnetBridge {
                     nodeIp = null
                 }
                 publish(TunnelState.Off)
-            }.onFailure { AppLog.w(TAG, "logout failed: ${it.message}", it) }
+            }.onFailure { AppLog.e(TAG, "logout failed: ${it.message}", it) }
         }
     }
 
@@ -347,14 +347,14 @@ object TsnetBridge {
             val key = "${host.trim().lowercase()}:$port"
             proxyCache[key]?.let { return@runCatching it }
             Tsnetlib.startProxy(host.trim(), port.toLong()).toInt().also { proxyCache[key] = it }
-        }.onFailure { AppLog.w(TAG, "proxy $host:$port failed: ${it.message}", it) }
+        }.onFailure { AppLog.e(TAG, "proxy $host:$port failed: ${it.message}", it) }
     }
 
     suspend fun stopProxy(localPort: Int): Result<Unit> = withContext(Dispatchers.IO) {
         runCatching {
             proxyCache.entries.removeIf { it.value == localPort }
             Tsnetlib.stopProxy(localPort.toLong())
-        }.onFailure { AppLog.w(TAG, "stopProxy $localPort failed: ${it.message}", it) }
+        }.onFailure { AppLog.e(TAG, "stopProxy $localPort failed: ${it.message}", it) }
     }
 
     /**

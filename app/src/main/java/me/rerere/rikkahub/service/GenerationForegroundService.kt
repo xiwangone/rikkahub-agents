@@ -14,7 +14,8 @@ import androidx.core.content.ContextCompat
 import me.rerere.rikkahub.GENERATION_NOTIFICATION_CHANNEL_ID
 import me.rerere.rikkahub.R
 
-private const val TAG = "GenerationFgs"
+// 前台服务 tag 统一用 FgSvc 后缀 (ForegroundService 缩写), 避免超过 23 字符被 logcat 截断。
+private const val TAG = "GenerationFgSvc"
 
 /**
  * 生成回复期间把进程留在前台。

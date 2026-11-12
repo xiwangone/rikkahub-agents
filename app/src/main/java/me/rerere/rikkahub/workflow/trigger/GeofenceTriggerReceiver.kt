@@ -33,7 +33,7 @@ class GeofenceTriggerReceiver : BroadcastReceiver() {
     }
 
     companion object {
-        const val TAG = "WorkflowTrigger"
+        const val TAG = "GeofenceTriggerReceiver"
         const val ACTION = "me.rerere.rikkahub.workflow.GEOFENCE_TRANSITION"
     }
 }

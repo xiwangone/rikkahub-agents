@@ -66,7 +66,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                 dao.insert(row)
                 dao.purgeOldest(AgentRunDefaults.RETENTION_CAP)
             }
-        }.onFailure { logSafe { AppLog.w(TAG, "open($kind, $domainId) failed", it) } }
+        }.onFailure { logSafe { AppLog.e(TAG, "open($kind, $domainId) failed", it) } }
         return id
     }
 
@@ -90,7 +90,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { AppLog.w(TAG, "setStatus($id, $status) failed", it) } }
+        }.onFailure { logSafe { AppLog.e(TAG, "setStatus($id, $status) failed", it) } }
     }
 
     /**
@@ -100,7 +100,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
      */
     suspend fun markTerminal(id: String, status: AgentRunStatus, lastError: String? = null) {
         if (!status.isTerminal) {
-            logSafe { AppLog.w(TAG, "markTerminal($id) called with non-terminal status $status — ignoring") }
+            logSafe { AppLog.i(TAG, "markTerminal($id) called with non-terminal status $status — ignoring") }
             return
         }
         runCatching {
@@ -117,7 +117,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { AppLog.w(TAG, "markTerminal($id, $status) failed", it) } }
+        }.onFailure { logSafe { AppLog.e(TAG, "markTerminal($id, $status) failed", it) } }
     }
 
     fun observeRecent(limit: Int = 50): Flow<List<AgentRun>> = dao.observeRecent(limit)
@@ -154,7 +154,7 @@ class AgentRunRepository(private val dao: AgentRunDao) {
             writeMutex.withLock {
                 dao.markProcessLost(ids, System.currentTimeMillis())
             }
-        }.onFailure { logSafe { AppLog.w(TAG, "markAllProcessLost failed", it) } }
+        }.onFailure { logSafe { AppLog.e(TAG, "markAllProcessLost failed", it) } }
             .getOrDefault(0)
     }
 

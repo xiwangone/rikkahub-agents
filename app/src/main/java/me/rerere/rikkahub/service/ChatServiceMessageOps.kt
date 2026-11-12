@@ -20,7 +20,7 @@ import me.rerere.rikkahub.web.NotFoundException
 import java.util.Locale
 import kotlin.uuid.Uuid
 
-private const val TAG = "ChatService"
+private const val TAG = "ChatServiceMessageOps"
 
 
     // ---- 翻译消息 ----

@@ -15,7 +15,7 @@ import me.rerere.rikkahub.service.RikkaAccessibilityService
  *
  * 用户主动切走了应用则跳过回切（安全特性，避免抢前台）。
  */
-private const val TAG = "GenerationLoop"
+private const val TAG = "AutoReturnHandler"
 
 internal class AutoReturnHandler(
     private val context: Context,

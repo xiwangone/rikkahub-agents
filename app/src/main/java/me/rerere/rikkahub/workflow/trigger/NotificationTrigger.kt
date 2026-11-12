@@ -102,7 +102,7 @@ internal class NotificationTriggerFamily(
     }
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "NotificationTrigger"
 
         /**
          * True if [pattern] (Java regex) finds a match in [input]. A pattern that fails to

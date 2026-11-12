@@ -33,6 +33,9 @@ internal abstract class BaseBroadcastTriggerFamily(
 
     abstract val intentFilter: IntentFilter
 
+    /** 各触发器家族在日志里用的 tag, 基类日志调用共用此值。 */
+    protected abstract val logTag: String
+
     abstract fun matchEvent(
         intent: Intent,
         workflows: List<WorkflowDefinition>,
@@ -61,14 +64,14 @@ internal abstract class BaseBroadcastTriggerFamily(
                     val event = intent ?: return
                     val matches =
                         runCatching { matchEvent(event, matchingSnapshot) }.getOrElse {
-                            AppLog.w(TAG, "$name match failed", it)
+                            AppLog.w(logTag, "$name match failed", it)
                             emptyList()
                         }
                     if (matches.isEmpty()) return
                     scope.launch(Dispatchers.IO) {
                         for ((wfId, spec) in matches) {
                             runCatching { callback.onFire(wfId, spec) }.onFailure {
-                                AppLog.w(TAG, "$name fire failed for wf=$wfId", it)
+                                AppLog.w(logTag, "$name fire failed for wf=$wfId", it)
                             }
                         }
                     }
@@ -84,25 +87,22 @@ internal abstract class BaseBroadcastTriggerFamily(
                 }
             context.registerReceiver(r, intentFilter, flags)
             receiver = r
-            AppLog.d(TAG, "$name: receiver registered (${matchingSnapshot.size} workflow(s))")
+            AppLog.d(logTag, "$name: receiver registered (${matchingSnapshot.size} workflow(s))")
         } catch (t: Throwable) {
-            AppLog.w(TAG, "$name: registerReceiver failed", t)
+            AppLog.w(logTag, "$name: registerReceiver failed", t)
         }
     }
 
     private fun unregisterReceiver() {
         val r = receiver ?: return
         runCatching { context.unregisterReceiver(r) }
-            .onFailure { AppLog.w(TAG, "$name: unregisterReceiver failed", it) }
+            .onFailure { AppLog.w(logTag, "$name: unregisterReceiver failed", it) }
         receiver = null
-        AppLog.d(TAG, "$name: receiver unregistered")
+        AppLog.d(logTag, "$name: receiver unregistered")
     }
 
     override suspend fun shutdown() = unregisterReceiver()
 
-    companion object {
-        private const val TAG = "WorkflowTrigger"
-    }
 }
 
 // -- WiFi connect / disconnect ---------------------------------------------------------
@@ -111,6 +111,7 @@ internal class WifiTriggerFamily(
     context: Context,
     scope: CoroutineScope,
 ) : BaseBroadcastTriggerFamily(context, scope) {
+    override val logTag = "WifiTrigger"
     override val name = "wifi"
     override val intentFilter = IntentFilter(WifiManager.NETWORK_STATE_CHANGED_ACTION)
 
@@ -163,7 +164,7 @@ internal class WifiTriggerFamily(
                 it.isNotBlank() && it != "<unknown ssid>"
             }
         } catch (e: Throwable) {
-            AppLog.w("WorkflowTrigger", "wifi: currentSsid lookup failed", e)
+            AppLog.w("WifiTrigger", "wifi: currentSsid lookup failed", e)
             null
         }
 }
@@ -174,6 +175,7 @@ internal class BluetoothTriggerFamily(
     context: Context,
     scope: CoroutineScope,
 ) : BaseBroadcastTriggerFamily(context, scope) {
+    override val logTag = "BluetoothTrigger"
     override val name = "bluetooth"
     override val intentFilter =
         IntentFilter().apply {
@@ -229,6 +231,7 @@ internal class HeadphoneTriggerFamily(
     context: Context,
     scope: CoroutineScope,
 ) : BaseBroadcastTriggerFamily(context, scope) {
+    override val logTag = "HeadphoneTrigger"
     override val name = "headphones"
     override val intentFilter = IntentFilter(Intent.ACTION_HEADSET_PLUG)
 
@@ -257,6 +260,7 @@ internal class PowerTriggerFamily(
     context: Context,
     scope: CoroutineScope,
 ) : BaseBroadcastTriggerFamily(context, scope) {
+    override val logTag = "PowerTrigger"
     override val name = "power"
     override val intentFilter =
         IntentFilter().apply {
@@ -288,6 +292,7 @@ internal class ScreenTriggerFamily(
     context: Context,
     scope: CoroutineScope,
 ) : BaseBroadcastTriggerFamily(context, scope) {
+    override val logTag = "ScreenTrigger"
     override val name = "screen"
     override val intentFilter =
         IntentFilter().apply {

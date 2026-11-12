@@ -48,7 +48,7 @@ val Migration_15_16 = object : Migration(15, 16) {
                             rows.add(ToolNodeMigrationRow(id, messages, selectIndex))
                         }.onFailure {
                             hasUnparsableRow = true
-                            AppLog.w(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
+                            AppLog.e(TAG, "migrate: failed to parse messages for node $id, conversation $conversationId will be left untouched", it)
                         }
                     }
                 } finally {

@@ -79,7 +79,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             val status: Int = try {
                 generativeModel.checkStatus()
             } catch (t: Throwable) {
-                AppLogger.w(TAG, "checkStatus threw", t)
+                AppLogger.e(TAG, "checkStatus threw", t)
                 error(translateAICoreError(t))
             }
             if (status != FeatureStatus.AVAILABLE) {
@@ -88,7 +88,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             try {
                 generativeModel.warmup()
             } catch (t: Throwable) {
-                AppLogger.w(TAG, "warmup threw", t)
+                AppLogger.e(TAG, "warmup threw", t)
                 error(translateAICoreError(t))
             }
 
@@ -176,7 +176,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
                     }
                 }
             } catch (t: Throwable) {
-                AppLogger.w(TAG, "generateContentStream threw", t)
+                AppLogger.e(TAG, "generateContentStream threw", t)
                 error(translateAICoreError(t))
             }
         } finally {

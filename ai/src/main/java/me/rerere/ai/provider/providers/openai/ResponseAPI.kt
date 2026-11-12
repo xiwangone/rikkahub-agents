@@ -382,7 +382,7 @@ class ResponseAPI(
                 }
                 // 一次流失败只留 1 条：HTTP 状态 + 最终异常摘要（放在
                 // receivedMeaningfulOutput 包装之后，摘要与 close 的原因一致）。
-                AppLogger.w(
+                AppLogger.e(
                     TAG,
                     "onFailure: HTTP ${response?.code ?: "?"}: " +
                         "${exception.logSafeMessage() ?: "Stream failed"}" +

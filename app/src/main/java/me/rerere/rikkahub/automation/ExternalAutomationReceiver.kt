@@ -97,6 +97,7 @@ class ExternalAutomationReceiver : BroadcastReceiver(), KoinComponent {
     }
 
     companion object {
-        private const val TAG = "ExtAutomationRecv"
+        // 类名 ExternalAutomationReceiver 26 字符, 超过 23 字符会被 logcat 截断, Automation 缩写为 Auto。
+        private const val TAG = "ExternalAutoReceiver"
     }
 }

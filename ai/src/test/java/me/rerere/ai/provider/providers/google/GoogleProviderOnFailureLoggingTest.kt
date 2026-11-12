@@ -24,11 +24,11 @@ import org.junit.Test
 private const val TAG = "GoogleProvider"
 
 /**
- * 批 4（降噪去重）降-P1-1：`onFailure` 一错三条合并为 1 条 w。
+ * 批 4（降噪去重）降-P1-1：`onFailure` 一错三条合并为 1 条 e。
  *
  * 旧行为：一次流失败记 3 条——首条 w（仅 message）、错误体全文 d、解析失败时
  * w（无 body 原文，但与首条重复）。
- * 新行为：一次流失败只留 1 条 w（HTTP 状态 + 最终异常摘要）；错误体全文只在
+ * 新行为：一次流失败只留 1 条 e（HTTP 状态 + 最终异常摘要）；错误体全文只在
  * debug 下记；解析失败时汇总行里只留一句。
  *
  * 用录制 sink 驱动真实 [GoogleProvider.streamText]（默认路径，即
@@ -144,7 +144,7 @@ class GoogleProviderOnFailureLoggingTest {
         recorded.filter { it.second == TAG && it.third.startsWith("onFailure:") }
 
     @Test
-    fun `parsable json error body produces exactly one w line with the parsed message`() {
+    fun `parsable json error body produces exactly one e line with the parsed message`() {
         val body = """{"error":{"message":"boom-test-marker"}}"""
         val result = streamTextWith(clientReturningBody(body))
         // NB: never assert inside a try/catch(Throwable) here — fail() throws
@@ -153,26 +153,26 @@ class GoogleProviderOnFailureLoggingTest {
 
         val lines = onFailureLines()
         assertEquals("one stream failure must log exactly one onFailure line, got $lines", 1, lines.size)
-        assertEquals('W', lines[0].first)
+        assertEquals('E', lines[0].first)
         assertTrue("summary must start with HTTP status, got: ${lines[0].third}", lines[0].third.startsWith("onFailure: HTTP 500:"))
         assertTrue("summary must carry the parsed error message, got: ${lines[0].third}", lines[0].third.contains("boom-test-marker"))
         assertTrue("no line may contain the full error body", recorded.none { it.third.contains(body) })
     }
 
     @Test
-    fun `empty error body produces exactly one w line`() {
+    fun `empty error body produces exactly one e line`() {
         val result = streamTextWith(clientReturningBody(""))
         assertTrue("streamText must fail on HTTP 500, but it completed", result.isFailure)
 
         val lines = onFailureLines()
         assertEquals("one stream failure must log exactly one onFailure line, got $lines", 1, lines.size)
-        assertEquals('W', lines[0].first)
+        assertEquals('E', lines[0].first)
         assertTrue("summary must start with HTTP status, got: ${lines[0].third}", lines[0].third.startsWith("onFailure: HTTP 500:"))
         assertTrue("summary must fall back to Unknown error, got: ${lines[0].third}", lines[0].third.contains("Unknown error: 500"))
     }
 
     @Test
-    fun `unparsable error body produces exactly one w line without the raw body`() {
+    fun `unparsable error body produces exactly one e line without the raw body`() {
         // 截断的 JSON 对象才是真不可解析："<html>..." 这类纯文本会被解析器当作裸字面量接受。
         val body = "{\"boom-test-raw\":"
         val result = streamTextWith(clientReturningBody(body))

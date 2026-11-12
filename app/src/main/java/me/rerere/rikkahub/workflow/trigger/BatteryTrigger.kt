@@ -124,6 +124,6 @@ internal class BatteryTriggerFamily(
     override suspend fun shutdown() = unregister()
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "BatteryTrigger"
     }
 }

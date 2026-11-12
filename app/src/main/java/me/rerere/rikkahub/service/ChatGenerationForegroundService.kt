@@ -16,7 +16,8 @@ import me.rerere.rikkahub.R
 import java.util.concurrent.atomic.AtomicBoolean
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "ChatGenerationFgs"
+// 前台服务 tag 统一用 FgSvc 后缀 (ForegroundService 缩写), 避免超过 23 字符被 logcat 截断。
+private const val TAG = "ChatGenerationFgSvc"
 
 /**
  * Keeps an interactive generation alive after the UI is backgrounded. It owns no generation

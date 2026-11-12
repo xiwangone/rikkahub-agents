@@ -179,7 +179,7 @@ internal class TimeCronTriggerFamily(
     }
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "TimeCronTrigger"
         const val KEY_WORKFLOW_ID = "workflow_id"
 
         fun workName(workflowId: String) = "wf_timecron_$workflowId"

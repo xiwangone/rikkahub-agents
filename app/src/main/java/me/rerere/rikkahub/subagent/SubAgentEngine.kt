@@ -475,7 +475,7 @@ class SubAgentEngine(
             ?: profile?.workspaceId?.toString()
             ?: settings.subAgentDefaultWorkspaceId?.toString()
         if (workspaceId != null && runCatching { Uuid.parse(workspaceId) }.isFailure) {
-            AppLog.w(TAG, "ignoring unparseable sub-agent workspace id: $workspaceId")
+            AppLog.i(TAG, "ignoring unparseable sub-agent workspace id: $workspaceId")
         }
         // B1 会话级作用域：默认**收敛为只读集**（headless 工具调用是自动批准的，不能默认给全量）。
         // 优先级：request.tools > profile.toolScope；显式声明 `*` 表示继承父助手全量（逃生口）。
@@ -649,7 +649,7 @@ class SubAgentEngine(
             }
             postRunResultToParent(parentChatId, registry.get(runId))
         } catch (t: Throwable) {
-            AppLog.w(TAG, "sub-agent run failed", t)
+            AppLog.e(TAG, "sub-agent run failed", t)
             // CancellationException → CANCELLED, anything else → FAILED.
             val terminal = if (t is kotlinx.coroutines.CancellationException) SubAgentStatus.CANCELLED else SubAgentStatus.FAILED
             markTerminal(runId, terminal, "${t::class.simpleName}: ${t.message.orEmpty()}")

@@ -15,7 +15,7 @@ import java.io.IOException
  *
  * 落盘目录经 context 注入；掩码用的 vault 保持经 Koin 获取。
  */
-private const val TAG = "GenerationLoop"
+private const val TAG = "ToolOutputProcessor"
 
 // 搜索结果的体积由用户设置的结果数决定，且结果列表 UI 与引用跳转都依赖完整的 JSON 结构，不参与截断
 private val TOOLS_WITHOUT_OUTPUT_TRUNCATION = setOf("search_web")

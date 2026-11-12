@@ -4,7 +4,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "ChatService"
+private const val TAG = "ToolHistoryHelper"
 
 /**
  * 工具历史处理：历史消息中工具输出的截断与工具执行历史摘要。

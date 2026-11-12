@@ -15,7 +15,7 @@ import kotlinx.serialization.json.contentOrNull
 import java.io.ByteArrayOutputStream
 import org.koin.java.KoinJavaComponent.getKoin
 
-private const val TAG_SSH = "SshTool"
+private const val TAG_SSH = "SshCommandPrep"
 
 
 /** Per-network probe timeout. Tight because we now race networks in parallel. */

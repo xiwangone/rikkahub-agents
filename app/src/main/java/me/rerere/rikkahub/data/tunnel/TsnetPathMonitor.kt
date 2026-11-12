@@ -65,7 +65,7 @@ object TsnetPathMonitor {
             }
             runCatching { cm.registerDefaultNetworkCallback(listener) }
                 .onSuccess { callback = listener }
-                .onFailure { AppLog.w(TAG, "register default network callback failed: ${it.message}", it) }
+                .onFailure { AppLog.e(TAG, "register default network callback failed: ${it.message}", it) }
         }
         // 无论注册成败都先喂一次：没有回调也比没有快照强。
         feed("initial")
@@ -95,19 +95,19 @@ object TsnetPathMonitor {
             executor.execute {
                 val json = interfacesJson()
                 if (json == null) {
-                    AppLog.w(TAG, "feed($reason): interface list unavailable or empty, snapshot untouched")
+                    AppLog.i(TAG, "feed($reason): interface list unavailable or empty, snapshot untouched")
                     return@execute
                 }
                 runCatching { Tsnetlib.setInterfaces(json) }
-                    .onFailure { AppLog.w(TAG, "setInterfaces failed: ${it.message}", it) }
+                    .onFailure { AppLog.e(TAG, "setInterfaces failed: ${it.message}", it) }
                 val name = defaultRouteInterface()
                 runCatching { Tsnetlib.setDefaultRouteInterface(name) }
-                    .onFailure { AppLog.w(TAG, "setDefaultRouteInterface failed: ${it.message}", it) }
+                    .onFailure { AppLog.e(TAG, "setDefaultRouteInterface failed: ${it.message}", it) }
                 runCatching { Tsnetlib.networkChanged() }
-                    .onFailure { AppLog.w(TAG, "networkChanged failed: ${it.message}", it) }
+                    .onFailure { AppLog.e(TAG, "networkChanged failed: ${it.message}", it) }
                 AppLog.i(TAG, "feed($reason): ifaces=${countOf(json)} route=$name")
             }
-        }.onFailure { AppLog.w(TAG, "feed($reason) rejected: ${it.message}", it) }
+        }.onFailure { AppLog.e(TAG, "feed($reason) rejected: ${it.message}", it) }
     }
 
     /** 只用于日志：数一下 JSON 里有几个条目。 */

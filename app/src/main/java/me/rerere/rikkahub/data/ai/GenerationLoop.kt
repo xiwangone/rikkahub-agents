@@ -77,7 +77,6 @@ sealed interface GenerationChunk {
     ) : GenerationChunk
 }
 
-private const val TAG_GH_LOOP = "GenHandlerLoop"
 
 /**
  * If the model calls the same tool with the same exact JSON args this many times within a

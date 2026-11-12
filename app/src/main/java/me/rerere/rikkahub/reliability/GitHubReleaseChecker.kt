@@ -9,7 +9,7 @@ import okhttp3.OkHttpClient
 import okhttp3.Request
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "GHReleaseChecker"
+private const val TAG = "GitHubReleaseChecker"
 
 /**
  * Checks the release feed for the latest published tag and compares against

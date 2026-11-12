@@ -10,7 +10,8 @@ import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.rikkahub.data.log.AppLog
 
-private const val TAG = "GenerationStreamCoalescer"
+// 类名 25 字符, 超过 23 字符会被 logcat 截断, Generation 缩写为 Gen。
+private const val TAG = "GenStreamCoalescer"
 
 internal fun newReasoningRepetitionDetector(): OutputRepetitionDetector = OutputRepetitionDetector(
     // 思考流比正文更易撞上短片段重复（路径 / 标识符 / 数字）：下限仍到 8 字符，

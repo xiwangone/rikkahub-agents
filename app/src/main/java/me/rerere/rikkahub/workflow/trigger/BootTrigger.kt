@@ -75,7 +75,7 @@ internal class BootTriggerFamily(
     }
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "BootTrigger"
     }
 }
 

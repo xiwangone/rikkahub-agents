@@ -455,7 +455,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     // 一次流失败只留 1 条：HTTP 状态 + 最终异常摘要。汇总行必须在
                     // close() 之前落盘：close 会唤醒收集端，写在它之后汇总行可能
                     // 晚于流终止到达。
-                    AppLogger.w(
+                    AppLogger.e(
                         TAG,
                         "onFailure: HTTP ${response?.code ?: "?"}: " +
                             "${exception?.logSafeMessage() ?: "Stream failed"}" +

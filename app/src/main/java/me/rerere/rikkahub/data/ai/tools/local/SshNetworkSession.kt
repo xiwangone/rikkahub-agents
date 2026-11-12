@@ -28,7 +28,7 @@ import java.net.Inet4Address
 import java.net.InetAddress
 import java.util.Properties
 
-private const val TAG_SSH = "SshTool"
+private const val TAG_SSH = "SshNetworkSession"
 
 /**
  * Resolves [host] to an IPv4 address string. JSch's `Socket(addr, port)` does NOT implement

@@ -17,7 +17,8 @@ import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlin.time.Duration.Companion.seconds
 
-private const val TAG = "OAuthCallbackFgs"
+// 前台服务 tag 统一用 FgSvc 后缀 (ForegroundService 缩写), 避免超过 23 字符被 logcat 截断。
+private const val TAG = "OAuthCallbackFgSvc"
 
 /** 在浏览器授权期间保持应用进程和 loopback callback server 活跃。 */
 class OAuthCallbackForegroundService : Service() {

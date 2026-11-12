@@ -358,7 +358,7 @@ class McpManager(
             reconnectAttempts[config.id] = 0 // 重置重连计数
             AppLog.i(TAG, "addClient: connected ${config.commonOptions.name}")
         }.onFailure {
-            AppLog.w(TAG, "addClient: connect failed for ${config.commonOptions.name}", it)
+            AppLog.e(TAG, "addClient: connect failed for ${config.commonOptions.name}", it)
             if (needsAuthorization(config, it)) {
                 setStatus(config = config, status = McpStatus.NeedsAuthorization)
             } else {

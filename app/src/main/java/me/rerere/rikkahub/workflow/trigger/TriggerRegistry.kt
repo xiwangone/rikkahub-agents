@@ -161,7 +161,7 @@ class TriggerRegistry(
     fun debugFamilyState(): Map<String, Boolean> = families.associate { it.name to (it.handles(TriggerSpec.Manual)) }
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "TriggerRegistry"
         private const val RESYNC_DEBOUNCE_MS = 500L
     }
 }

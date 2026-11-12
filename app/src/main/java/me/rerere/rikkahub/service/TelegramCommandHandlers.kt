@@ -139,7 +139,7 @@ internal suspend fun TelegramBotService.sendStart(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /help failed", t)
+        AppLog.e(TAG, "send /start welcome failed chat=$chatId", t)
     }
 }
 
@@ -173,7 +173,7 @@ internal suspend fun TelegramBotService.sendHelp(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /help failed", t)
+        AppLog.e(TAG, "send /help failed chat=$chatId", t)
     }
 }
 
@@ -262,7 +262,7 @@ internal suspend fun TelegramBotService.handleResetCommand(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /new confirmation failed", t)
+        AppLog.e(TAG, "send /new confirmation failed chat=$chatId", t)
     }
 }
 
@@ -274,7 +274,7 @@ internal suspend fun TelegramBotService.handleStopCommand(chatId: Long) {
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /stop reply failed", t)
+            AppLog.e(TAG, "send /stop no-conversation reply failed chat=$chatId", t)
         }
         return
     }
@@ -287,7 +287,7 @@ internal suspend fun TelegramBotService.handleStopCommand(chatId: Long) {
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                AppLog.w(TAG, "send /stop reply failed", t)
+                AppLog.e(TAG, "send /stop unparsable-conversation reply failed chat=$chatId", t)
             }
             return
         }
@@ -320,7 +320,7 @@ internal suspend fun TelegramBotService.handleStopCommand(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /stop reply failed", t)
+        AppLog.e(TAG, "send /stop cancelled reply failed chat=$chatId", t)
     }
 }
 
@@ -355,7 +355,7 @@ internal suspend fun TelegramBotService.handleStatusCommand(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /status reply failed", t)
+        AppLog.e(TAG, "send /status reply failed chat=$chatId", t)
     }
 }
 
@@ -414,7 +414,7 @@ internal suspend fun TelegramBotService.handleModelCommand(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                AppLog.w(TAG, "send /model reply failed", t)
+                AppLog.e(TAG, "send /model no-models reply failed chat=$chatId", t)
             }
             return
         }
@@ -451,7 +451,7 @@ internal suspend fun TelegramBotService.handleModelCommand(
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                AppLog.w(TAG, "send /model reply failed", t)
+                AppLog.e(TAG, "send /model provider-picker reply failed chat=$chatId", t)
             }
             return
         }
@@ -487,7 +487,7 @@ internal suspend fun TelegramBotService.handleModelCommand(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /model reply failed", t)
+            AppLog.e(TAG, "send /model model-list reply failed chat=$chatId", t)
         }
         return
     }
@@ -508,7 +508,7 @@ internal suspend fun TelegramBotService.handleModelCommand(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /model reply failed", t)
+            AppLog.e(TAG, "send /model no-match reply failed chat=$chatId", t)
         }
         return
     }
@@ -529,7 +529,7 @@ internal suspend fun TelegramBotService.handleModelCommand(
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /model reply failed", t)
+        AppLog.e(TAG, "send /model switched reply failed chat=$chatId", t)
     }
 }
 
@@ -553,7 +553,7 @@ internal suspend fun TelegramBotService.handleRateLimitCommand(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /ratelimit reply failed", t)
+            AppLog.e(TAG, "send /ratelimit show reply failed chat=$chatId", t)
         }
         return
     }
@@ -599,7 +599,7 @@ internal suspend fun TelegramBotService.handleRateLimitCommand(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /ratelimit reply failed", t)
+            AppLog.e(TAG, "send /ratelimit parse-error reply failed chat=$chatId", t)
         }
         return
     }
@@ -622,7 +622,7 @@ internal suspend fun TelegramBotService.handleRateLimitCommand(
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /ratelimit reply failed", t)
+        AppLog.e(TAG, "send /ratelimit set reply failed chat=$chatId", t)
     }
 }
 
@@ -802,7 +802,7 @@ internal suspend fun TelegramBotService.tryRescueImageFromTurn(
             AppLog.i(TAG, "tryRescueImageFromTurn: sent ${tool.toolName} artifact to chat=$chatId path=$path")
             true
         }.getOrElse {
-            AppLog.w(TAG, "tryRescueImageFromTurn: sendPhoto failed", it)
+            AppLog.e(TAG, "tryRescueImageFromTurn: sendPhoto failed chat=$chatId", it)
             false
         }
     }
@@ -820,7 +820,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /doctor typing action failed", t)
+        AppLog.w(TAG, "send /doctor typing action failed chat=$chatId", t)
     }
     val results =
         runCatching { doctorChecks.runAll() }.getOrElse {
@@ -832,7 +832,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
             } catch (ce: CancellationException) {
                 throw ce
             } catch (t: Throwable) {
-                AppLog.w(TAG, "send /doctor failure reply failed", t)
+                AppLog.e(TAG, "send /doctor failure reply failed chat=$chatId", t)
             }
             return
         }
@@ -987,7 +987,7 @@ internal suspend fun TelegramBotService.handleStreamCommand(
         } catch (ce: CancellationException) {
             throw ce
         } catch (t: Throwable) {
-            AppLog.w(TAG, "send /stream reply failed", t)
+            AppLog.e(TAG, "send /stream usage reply failed chat=$chatId", t)
         }
         return
     }
@@ -1003,7 +1003,7 @@ internal suspend fun TelegramBotService.handleStreamCommand(
     } catch (ce: CancellationException) {
         throw ce
     } catch (t: Throwable) {
-        AppLog.w(TAG, "send /stream reply failed", t)
+        AppLog.e(TAG, "send /stream set reply failed chat=$chatId", t)
     }
 }
 
@@ -1030,6 +1030,6 @@ internal suspend fun TelegramBotService.registerBuiltInCommandsWithTelegram() {
                 "(builtins=${BUILT_IN_COMMANDS.size}, custom=${custom.size})",
         )
     } catch (e: Throwable) {
-        AppLog.w(TAG, "registerBuiltInCommandsWithTelegram failed", e)
+        AppLog.e(TAG, "registerBuiltInCommandsWithTelegram failed", e)
     }
 }

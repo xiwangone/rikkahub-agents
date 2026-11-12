@@ -28,7 +28,8 @@ import me.rerere.common.http.jsonPrimitiveOrNull
 import me.rerere.common.log.AppLogger
 import kotlin.time.Clock
 
-private const val TAG = "ChatCompletionsStreamDecoder"
+// 类名 28 字符，超过 23 字符会被 logcat 截断，缩短为 ChatCmplStreamDecoder。
+private const val TAG = "ChatCmplStreamDecoder"
 
 internal class ChatCompletionsStreamDecoder : StreamChunkDecoder {
     private val streamState = ChatCompletionsStreamState()

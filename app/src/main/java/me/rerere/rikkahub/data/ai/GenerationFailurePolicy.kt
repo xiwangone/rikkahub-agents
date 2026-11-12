@@ -22,7 +22,7 @@ import me.rerere.rikkahub.data.log.AppLog
  * 除字符串资源外无 Android 框架依赖，便于单测。
  */
 
-private const val TAG = "GenerationLoop"
+private const val TAG = "GenerationFailurePolicy"
 
 internal const val GENERATION_STREAM_RETRY_INITIAL_DELAY_MS = 750L
 internal const val GENERATION_STREAM_RETRY_MAX_DELAY_MS = 4_000L

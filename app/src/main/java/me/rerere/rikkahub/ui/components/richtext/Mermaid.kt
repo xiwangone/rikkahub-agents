@@ -82,7 +82,7 @@ fun Mermaid(
                             type = ToastType.Success,
                         )
                     }.onFailure {
-                        AppLog.e(TAG, "Mermaid: export image failed", it)
+                        AppLog.d(TAG, "Mermaid: export image failed", it)
                         toaster.show(
                             context.getString(R.string.mermaid_export_failed),
                             type = ToastType.Error,

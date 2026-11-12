@@ -137,7 +137,7 @@ fun Context.openUrl(url: String) {
                 .build()
         intent.launchUrl(this, url.toUri())
     }.onFailure {
-        AppLog.e(TAG, "open url failed", it)
+        AppLog.d(TAG, "open url failed", it)
         Toast.makeText(this, getString(R.string.toast_open_url_failed, url), Toast.LENGTH_SHORT).show()
     }
 }

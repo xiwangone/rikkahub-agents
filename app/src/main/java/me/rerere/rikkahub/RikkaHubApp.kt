@@ -693,7 +693,7 @@ class RikkaHubApp : Application() {
                             android.Manifest.permission.POST_NOTIFICATIONS
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        AppLog.w(TAG, "startWebServerIfEnabled: notification permission not granted, skipping")
+                        AppLog.i(TAG, "startWebServerIfEnabled: notification permission not granted, skipping")
                         return@launch
                     }
                     // Android 17 (API 37) requires ACCESS_LOCAL_NETWORK to bind to LAN
@@ -706,7 +706,7 @@ class RikkaHubApp : Application() {
                             android.Manifest.permission.ACCESS_LOCAL_NETWORK
                         ) != PackageManager.PERMISSION_GRANTED
                     ) {
-                        AppLog.w(TAG, "startWebServerIfEnabled: local network permission not granted, skipping")
+                        AppLog.i(TAG, "startWebServerIfEnabled: local network permission not granted, skipping")
                         return@launch
                     }
                     val intent = Intent(this@RikkaHubApp, WebServerService::class.java).apply {

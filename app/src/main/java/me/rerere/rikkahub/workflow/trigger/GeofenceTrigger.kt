@@ -219,13 +219,13 @@ internal class GeofenceTriggerFamily(
     }
 
     companion object {
-        private const val TAG = "WorkflowTrigger"
+        private const val TAG = "GeofenceTrigger"
     }
 }
 
 /** App-wide bridge so the manifest receiver can find the family at fire time. */
 object GeofenceTriggerDispatcher {
-    private const val TAG = "WorkflowTrigger"
+    private const val TAG = "GeofenceTrigger"
 
     /**
      * Bounded window the cold-start path holds the broadcast lease before releasing it. A

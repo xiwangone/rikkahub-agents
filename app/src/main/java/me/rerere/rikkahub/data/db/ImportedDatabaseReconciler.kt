@@ -46,7 +46,8 @@ import me.rerere.rikkahub.data.log.AppLog
  */
 object ImportedDatabaseReconciler {
 
-    private const val TAG = "DbReconciler"
+    // 类名 ImportedDatabaseReconciler 24 字符, 超过 23 字符会被 logcat 截断, Database 缩写为 Db。
+    private const val TAG = "ImportedDbReconciler"
     private const val DB_NAME = "rikka_hub"
 
     /**

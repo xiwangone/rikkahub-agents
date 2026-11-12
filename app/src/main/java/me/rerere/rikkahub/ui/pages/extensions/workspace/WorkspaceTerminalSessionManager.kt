@@ -255,7 +255,8 @@ class WorkspaceTerminalSessionManager internal constructor(
     }
 
     private companion object {
-        const val TAG = "WorkspaceTerminalManager"
+        // 类名 24 字符, 超过 23 字符会被 logcat 截断, Terminal 缩写为 Term。
+        const val TAG = "WorkspaceTermManager"
     }
 }
 

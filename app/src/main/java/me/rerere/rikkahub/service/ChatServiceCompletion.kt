@@ -46,7 +46,7 @@ import me.rerere.rikkahub.data.model.generationPhase
 import java.time.Instant
 import kotlin.uuid.Uuid
 
-private const val TAG = "ChatService"
+private const val TAG = "ChatServiceCompletion"
 
 
 fun ChatService.handleToolApproval(
@@ -124,7 +124,7 @@ private fun ChatService.persistToolApprovalScopeGrant(
 
                 ChatService.ApprovalScope.Once -> Unit
             }
-        }.onFailure { AppLog.w(TAG, "approval grant write failed", it) }
+        }.onFailure { AppLog.e(TAG, "approval grant write failed", it) }
     }
 }
 
@@ -641,7 +641,7 @@ private suspend fun ChatService.handleMessageCompleteFailure(
                 saveConversation(conversationId, final)
             }
         }.onFailure { saveErr ->
-            AppLog.w(TAG, "handleMessageComplete: failure-path save failed", saveErr)
+            AppLog.e(TAG, "handleMessageComplete: failure-path save failed", saveErr)
         }
 
         AppLog.e(TAG, "handleMessageComplete: generation failed", error)

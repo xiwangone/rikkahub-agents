@@ -282,7 +282,8 @@ class ExternalAutomationDispatcher(
         const val EXTRA_STATUS = "status"
         const val EXTRA_MESSAGE = "message"
 
-        private const val TAG = "ExtAutomation"
+        // 原与 ExternalAutomationActivity 共用 ExtAutomation, 现按类名区分。
+        private const val TAG = "ExternalAutoDispatcher"
 
         /**
          * Pull the prompt out of an intent. Spec mandates support for both raw string and

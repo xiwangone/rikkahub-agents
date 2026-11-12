@@ -246,7 +246,7 @@ internal suspend fun TelegramBotService.sendChunked(
                 val plain = TelegramHtmlRenderer.stripHtml(html).ifBlank { chunk }
                 err = sendWithFloodRetry(chatId, plain, null, if (idx == 0) replyTo else null)
                 if (err != null) {
-                    AppLog.w(
+                    AppLog.e(
                         TelegramBotService.TAG,
                         "sendChunked: plain-text fallback also failed for chunk ${idx + 1}/${chunks.size} (len=${plain.length})",
                         err,
@@ -279,7 +279,7 @@ internal suspend fun TelegramBotService.sendChunked(
             runCatching {
                 client.sendMessage(chatId = chatId, text = notice, parseMode = null)
             }.onFailure {
-                AppLog.w(TelegramBotService.TAG, "sendChunked: even the failure notice failed to deliver", it)
+                AppLog.e(TelegramBotService.TAG, "sendChunked: even the failure notice failed to deliver", it)
             }
         }
     }
@@ -304,7 +304,7 @@ internal suspend fun TelegramBotService.sendWithFloodRetry(
         if (firstErr !is TelegramApiException || firstErr.errorCode != 429 || firstErr.retryAfterSec == null) {
             return firstErr
         }
-        AppLog.w(
+        AppLog.i(
             TelegramBotService.TAG,
             "sendWithFloodRetry: 429 flood-wait ${firstErr.retryAfterSec}s; backing off then retrying once",
         )
