@@ -4,7 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 
 /**
- * 回归 2026-09-10 实测的静默失败：`workspace_shell(env=…)` 注入的变量在命令里恒为空。
+ * 回归曾出现的静默失败：`workspace_shell(env=…)` 注入的变量在命令里恒为空。
  *
  * 根因是 proot 启动链用 `/usr/bin/env -i`（清空继承环境），只在
  * `ProcessBuilder.environment()` 里 set 是无效的——必须把变量作为 `env` 的 `K=V`

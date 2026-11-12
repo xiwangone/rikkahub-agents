@@ -8,11 +8,25 @@ name: 安全扫描（密钥 / 依赖漏洞 / 依赖变更审查）
 on:
   push:
     branches: [master]
+    # 纯文档 / 发版说明改动不触发密钥与依赖扫描（lint 作业单跑约 40 分钟，代价高）
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/release-notes/**'
   pull_request:
     branches: [master]
+    paths-ignore:
+      - 'docs/**'
+      - '**.md'
+      - '.github/release-notes/**'
   schedule:
     - cron: '0 20 * * 0'
   workflow_dispatch:
+
+# 连续 push 时取消上一次未跑完的扫描，避免多个 40 分钟的 lint job 并行堆积
+concurrency:
+  group: security-${{ github.ref }}
+  cancel-in-progress: true
 
 permissions:
   contents: read
@@ -189,6 +203,8 @@ jobs:
   lint:
     name: Android Lint（含无障碍规则）
     runs-on: ubuntu-latest
+    # 单次全量 :app:lintDebug 约 40 分钟；给足余量但不容忍卡到 GitHub 默认 360 分钟上限
+    timeout-minutes: 60
     steps:
       # 编译依赖子模块（material-color-utilities 等），与构建作业保持一致
       - name: Checkout
