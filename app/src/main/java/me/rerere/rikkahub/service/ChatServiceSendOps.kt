@@ -448,6 +448,7 @@ internal fun ChatService.regenerateAtMessageImpl(
                 } catch (e: CancellationException) {
                     throw e
                 } catch (e: Exception) {
+                    AppLog.e(TAG, "regenerateAtMessage failed conv=$conversationId msg=${message.id}", e)
                     addError(e, conversationId, title = str(R.string.error_title_regenerate_message))
                 } finally {
                     dispatchNextQueuedMessage(conversationId, fromJob = coroutineContext[Job])

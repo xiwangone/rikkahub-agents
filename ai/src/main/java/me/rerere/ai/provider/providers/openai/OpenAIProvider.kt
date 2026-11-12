@@ -57,6 +57,9 @@ import me.rerere.common.log.AppLogger
 
 private const val TAG = "OpenAIProvider"
 
+/** listModels 失败日志里 error 详情的最大长度：服务端错误体可能很大，只记摘要。 */
+private const val MAX_LIST_MODELS_FAILURE_DETAIL_CHARS = 500
+
 // Same shape as ClaudeProvider.MINIMAX_FALLBACK_MODELS — see comment there for
 // why a fallback is needed (Minimax's /v1/models returns `{"object":"","data":null}`
 // even with a valid key, despite their published OpenAPI spec). Duplicated rather
@@ -85,6 +88,24 @@ class OpenAIProvider(
     private val responseAPI = ResponseAPI(client = client, keyRoulette = keyRoulette)
 
 
+    /**
+     * listModels 失败记一条 e：只记供应商名、脱敏后的 host（请求 URL 的 host，不含
+     * path/query，key 不会进日志）、HTTP 状态码与截断后的错误摘要；完整错误体仍
+     * 随 error() 抛给调用方展示，不重复进日志。
+     */
+    private fun logListModelsFailure(
+        providerSetting: ProviderSetting.OpenAI,
+        request: Request,
+        code: Int?,
+        detail: String,
+    ) {
+        AppLogger.e(
+            TAG,
+            "listModels failed: provider=${providerSetting.name} host=${request.url.host} " +
+                "code=${code ?: "n/a"} detail=${detail.take(MAX_LIST_MODELS_FAILURE_DETAIL_CHARS)}",
+        )
+    }
+
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
             // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
@@ -106,6 +127,7 @@ class OpenAIProvider(
             val response = shortClient.newCall(request).await()
             val bodyStr = response.body.string()
             if (!response.isSuccessful) {
+                logListModelsFailure(providerSetting, request, response.code, bodyStr)
                 error("Failed to get models: ${response.code} $bodyStr")
             }
 
@@ -122,11 +144,13 @@ class OpenAIProvider(
                 val statusCode = baseResp?.get("status_code")?.jsonPrimitive?.intOrNull
                 if (statusCode != null && statusCode != 0) {
                     val msg = baseResp["status_msg"]?.jsonPrimitive?.contentOrNull
+                    logListModelsFailure(providerSetting, request, 200, msg ?: "status_code=$statusCode")
                     error("Failed to get models: ${msg ?: "status_code=$statusCode"}")
                 }
                 val errMsg = (bodyJson["error"] as? JsonObject)?.get("message")
                     ?.jsonPrimitive?.contentOrNull
                 if (errMsg != null) {
+                    logListModelsFailure(providerSetting, request, 200, errMsg)
                     error("Failed to get models: $errMsg")
                 }
                 if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
@@ -138,6 +162,7 @@ class OpenAIProvider(
                     )
                     return@withContext MINIMAX_FALLBACK_MODELS
                 }
+                logListModelsFailure(providerSetting, request, 200, "response has no `data` field")
                 error("Failed to get models: response has no `data` field")
             }
 

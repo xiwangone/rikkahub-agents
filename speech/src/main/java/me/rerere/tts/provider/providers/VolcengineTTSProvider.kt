@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.common.http.SseEvent
 import me.rerere.common.http.sseFlow
 import me.rerere.tts.model.AudioChunk
@@ -98,6 +99,9 @@ internal class VolcengineTTSStreamProcessor {
 class VolcengineTTSProvider : TTSProvider<TTSProviderSetting.Volcengine> {
     private val httpClient = OkHttpClient.Builder()
         .readTimeout(120, TimeUnit.SECONDS)
+        // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
+        // （请求体含合成文本，:common 层无脱敏能力）。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build()
 
     override fun generateSpeech(

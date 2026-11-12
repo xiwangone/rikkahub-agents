@@ -309,7 +309,12 @@ class ExternalAutomationDispatcher(
                     String(java.util.Base64.getUrlDecoder().decode(encoded))
                 }.recoverCatching {
                     String(java.util.Base64.getDecoder().decode(encoded))
-                }.getOrNull()
+                }.getOrElse {
+                    // 两路 base64 解码都失败：记一条 w（只记长度，不记内容），否则
+                    // 「外部自动化调起的 prompt 丢了」在时间线里完全消失。
+                    AppLog.w(TAG, "extractPromptStrings: base64 decode failed (${encoded.length} chars)", it)
+                    null
+                }
             }
             return null
         }

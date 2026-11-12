@@ -130,7 +130,10 @@ internal suspend fun TelegramBotService.handleIncoming(
                         text = "⏳ A previous turn is still generating. Send /stop to cancel it.",
                         replyToMessageId = m.messageId,
                     )
-                } catch (_: Throwable) {
+                } catch (ignored: Throwable) {
+                    // 「上一轮还在生成」的提示发不出去时记一条 w，否则用户收不到
+                    // 提示、又不知道为什么没反应，时间线里也查不到。
+                    AppLog.w(TAG, "handleIncoming: turn-busy notice send failed chat=${m.chatId}", ignored)
                 }
                 return
             }

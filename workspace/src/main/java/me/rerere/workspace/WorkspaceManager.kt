@@ -9,6 +9,7 @@ import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
 import java.util.ArrayDeque
+import me.rerere.common.log.AppLogger
 
 /**
  * 可选挂载（开关控制，如 /sdcard）：挂载表 + 启用开关 provider + 访问留痕回调。
@@ -593,6 +594,9 @@ class WorkspaceManager(
             chrootProbeCache[root] = false
             chrootProbeCachedAt[root] = System.currentTimeMillis()
             recordFallback("su_unavailable: ${result.stderr}")
+            // chroot 后端 su 丢失时回退 proot：记一条 w，否则「这次命令其实是
+            // proot 跑的」在时间线里看不出来。
+            AppLogger.w(TAG, "executeCommand: chroot backend unavailable, falling back to proot (root=$root)")
             return@synchronized shellRunner.execute(ctx)
         }
         result
@@ -638,6 +642,7 @@ class WorkspaceManager(
                     chrootProbeCache[root] = false
                     chrootProbeCachedAt[root] = System.currentTimeMillis()
                     recordFallback("su_unavailable: ${e.message}")
+                    AppLogger.w(TAG, "startBackground: chroot backend unavailable, falling back to proot (root=$root)", e)
                     shellRunner.start(context)
                 } else {
                     throw e
@@ -696,6 +701,7 @@ class WorkspaceManager(
     }
 
     companion object {
+        private const val TAG = "WorkspaceManager"
         private const val FILES_DIR = "files"
         private const val LINUX_DIR = "linux"
         private const val TEMP_DIR = "tmp"

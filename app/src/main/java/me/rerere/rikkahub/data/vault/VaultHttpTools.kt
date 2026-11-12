@@ -11,6 +11,7 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -277,6 +278,9 @@ private suspend fun runVaultHttpExec(
                 .connectTimeout(timeout, TimeUnit.SECONDS)
                 .readTimeout(timeout, TimeUnit.SECONDS)
                 .callTimeout(timeout * 2, TimeUnit.SECONDS)
+                // 最小请求日志：只记 host + 状态码 + 耗时。凭据 header 名由用户配置，
+                // 未必在脱敏集合里，完整拦截器可能把凭据值记进日志。
+                .addInterceptor(SafeRequestLoggingInterceptor())
                 .build()
             val reqBuilder = Request.Builder().url(url)
             val headerValue = if (scheme == "raw") secret else "$scheme $secret"

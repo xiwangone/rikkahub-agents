@@ -7,6 +7,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -55,6 +56,9 @@ class BackendSseClient(
         // 取 10 分钟，长于事件处理器的 300 秒首内容超时，不会先于它触发。
         .readTimeout(10, TimeUnit.MINUTES)
         .writeTimeout(120, TimeUnit.SECONDS)
+        // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
+        // （SSE URL 后的路径含会话信息，:common 层无脱敏能力）。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build(),
 ) {
     private val json = Json { ignoreUnknownKeys = true }

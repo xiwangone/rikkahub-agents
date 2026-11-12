@@ -755,6 +755,7 @@
   <string name="notification_agent_run_interrupted_title_plural">Прервано автономных задач: %1$d</string>
   <string name="notification_agent_run_interrupted_text">Приложение было закрыто во время выполнения (%1$s). Если это повторяется, проверьте список исключений батареи и настройки фоновой службы.</string>
   <string name="toast_failed_get_activity">Не удалось получить текущий экран</string>
+  <string name="toast_export_failed">Не удалось экспортировать: %1$s</string>
   <string name="toast_failed_export_image">Не удалось экспортировать изображение: %1$s</string>
   <string name="toast_provider_imported">Импортировано: %1$s</string>
   <string name="toast_provider_import_failed">Ошибка импорта: %1$s</string>

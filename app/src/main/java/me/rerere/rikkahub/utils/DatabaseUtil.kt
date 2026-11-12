@@ -16,7 +16,8 @@ object DatabaseUtil {
         } catch (e: ReflectiveOperationException) {
             // 反射失败面：NoSuchFieldException / IllegalAccessException 等，均为
             // ReflectiveOperationException 子类；Android 无 SecurityManager，不存在 SecurityException 路径
-            AppLog.e(TAG, "setCursorWindowSize: reflection failed", e)
+            // 反射失败只是降级（CursorWindow 保持默认大小），本次操作继续，用 w 而不用 e。
+            AppLog.w(TAG, "setCursorWindowSize: reflection failed", e)
         }
         // 已fork io.requery.android.database 修改了window size，避免无法反射修改final字段
 //        try {

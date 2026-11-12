@@ -2,6 +2,9 @@ package me.rerere.workspace
 
 import java.io.File
 import java.io.IOException
+import me.rerere.common.log.AppLogger
+
+private const val TAG = "AtomicFileReplacement"
 
 /**
  * Replace a file from a fully-written sibling temporary file without deleting the existing target.
@@ -40,6 +43,7 @@ internal fun replaceFilePreservingTarget(
         if (!targetFile.exists() && backup.exists() && !rename(backup, targetFile)) {
             failure.addSuppressed(IOException("Could not restore original target; recovery copy remains at ${backup.absolutePath}"))
         }
+        AppLogger.e(TAG, "replaceFilePreservingTarget failed: ${targetFile.absolutePath}", failure)
         throw failure
     }
 

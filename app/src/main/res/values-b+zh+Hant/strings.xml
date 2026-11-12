@@ -750,6 +750,7 @@
   <string name="notification_agent_run_interrupted_title_plural">有 %1$d 個自主任務被中斷</string>
   <string name="notification_agent_run_interrupted_text">應用在任務執行中被系統結束（%1$s）。如果反覆出現，請檢查電池白名單與前景服務設定。</string>
   <string name="toast_failed_get_activity">無法取得目前畫面</string>
+  <string name="toast_export_failed">匯出失敗：%1$s</string>
   <string name="toast_failed_export_image">匯出圖片失敗：%1$s</string>
   <string name="toast_provider_imported">已匯入 %1$s</string>
   <string name="toast_provider_import_failed">匯入失敗：%1$s</string>

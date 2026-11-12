@@ -159,7 +159,10 @@ private val regexCache = SimpleCache.builder<String, Result<Regex>>()
 
 private fun compileRegexCached(pattern: String): Regex? {
     regexCache.getIfPresent(pattern)?.let { return it.getOrNull() }
-    val result = runCatching { Regex(pattern) }.onFailure { AppLog.e(TAG, "compileRegexCached: invalid regex pattern", it) }
+    val result = runCatching { Regex(pattern) }.onFailure {
+        // 非法正则只是跳过该条规则，生成继续，用 w 而不用 e。
+        AppLog.w(TAG, "compileRegexCached: invalid regex pattern", it)
+    }
     regexCache.put(pattern, result)
     return result.getOrNull()
 }

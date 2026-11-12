@@ -10,6 +10,7 @@ import java.nio.file.FileVisitResult
 import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.Path
+import me.rerere.common.log.AppLogger
 import java.nio.file.PathMatcher
 import java.nio.file.SimpleFileVisitor
 import java.nio.file.attribute.BasicFileAttributes
@@ -38,6 +39,10 @@ data class WorkspaceGlobResult(
 class WorkspaceFileSystem(
     private val config: WorkspaceConfig = WorkspaceConfig(),
 ) {
+    private companion object {
+        const val TAG = "WorkspaceFileSystem"
+    }
+
     fun list(
         root: File,
         path: String = "",
@@ -218,7 +223,13 @@ class WorkspaceFileSystem(
                     "Failed to move $source to $target"
                 }
             } catch (e: IllegalArgumentException) {
-                runCatching { backupFile.renameTo(targetFile) }
+                // 备份恢复失败会丢数据：单独记一条 e（renameTo 返回 false 不抛异常，
+                // 必须看返回值，不能只靠 runCatching）。
+                val restored = runCatching { backupFile.renameTo(targetFile) }.getOrDefault(false)
+                if (!restored) {
+                    AppLogger.e(TAG, "move rollback failed: could not restore $target from backup")
+                }
+                AppLogger.e(TAG, "move failed: $source -> $target", e)
                 throw e
             }
             runCatching {
@@ -244,12 +255,15 @@ class WorkspaceFileSystem(
                 runCatching {
                     if (targetFile.isDirectory) deleteRecursivelyNoFollow(targetFile) else targetFile.delete()
                 }
+                AppLogger.e(TAG, "move failed: $source -> $target ($reason); copy fallback also failed", error)
                 throw IllegalStateException(
                     "Failed to move $source to $target: $reason; copy fallback also failed: ${error.message}",
                     error,
                 )
             }
             if (!deleteRecursivelyNoFollow(sourceFile)) {
+                // 已复制到位但源删不掉：目标与源同时存在（重复文件），记一条 e。
+                AppLogger.e(TAG, "move partial: $source copied to $target but source could not be deleted ($reason)")
                 throw IllegalStateException(
                     "Moved $source to $target by copying, but failed to delete the source: $reason",
                 )

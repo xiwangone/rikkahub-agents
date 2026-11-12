@@ -2,6 +2,9 @@ package me.rerere.rikkahub.data.sync
 
 import java.io.File
 import java.io.IOException
+import me.rerere.rikkahub.data.log.AppLog
+
+private const val TAG = "AtomicFileReplacement"
 
 /**
  * Replace a file from a fully-written sibling temporary file without deleting the existing target.
@@ -40,6 +43,7 @@ internal fun replaceFilePreservingTarget(
         if (!targetFile.exists() && backup.exists() && !rename(backup, targetFile)) {
             failure.addSuppressed(IOException("Could not restore original target; recovery copy remains at ${backup.absolutePath}"))
         }
+        AppLog.e(TAG, "replaceFilePreservingTarget failed: ${targetFile.absolutePath}", failure)
         throw failure
     }
 

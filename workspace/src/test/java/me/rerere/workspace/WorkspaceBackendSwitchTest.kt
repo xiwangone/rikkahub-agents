@@ -1,9 +1,12 @@
 package me.rerere.workspace
 
+import me.rerere.common.log.AppLogger
+import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
@@ -14,6 +17,34 @@ class WorkspaceBackendSwitchTest {
 
     @get:Rule
     val tmp = TemporaryFolder()
+
+    // 批 3 在 executeCommand 的 chroot 回退分支加了 AppLogger.w；纯 JVM 单测
+    // 没有 sink 时 AppLogger 直调 android.util.Log（stub），会抛
+    // RuntimeException。装空 sink，测完再装一次，避免影响后续测试。
+    private val noopSink =
+        object : AppLogger.Sink {
+            override fun d(tag: String, message: String) = Unit
+
+            override fun i(tag: String, message: String) = Unit
+
+            override fun w(tag: String, message: String) = Unit
+
+            override fun w(tag: String, message: String, tr: Throwable?) = Unit
+
+            override fun e(tag: String, message: String) = Unit
+
+            override fun e(tag: String, message: String, tr: Throwable?) = Unit
+        }
+
+    @Before
+    fun setUp() {
+        AppLogger.install(noopSink)
+    }
+
+    @After
+    fun tearDown() {
+        AppLogger.install(noopSink)
+    }
 
     private class RecordingRunner(
         private val tag: String,

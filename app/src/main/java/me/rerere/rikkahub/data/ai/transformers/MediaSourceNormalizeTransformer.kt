@@ -17,6 +17,7 @@ import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.encodeBase64
+import me.rerere.rikkahub.data.ai.LoggedOkHttpClients
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import okio.Buffer
@@ -44,7 +45,7 @@ import okio.Buffer
 object MediaSourceNormalizeTransformer : InputMessageTransformer {
 
     private val httpClient by lazy {
-        OkHttpClient.Builder()
+        LoggedOkHttpClients.builder()
             .connectTimeout(REMOTE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .readTimeout(REMOTE_TIMEOUT_SECONDS, TimeUnit.SECONDS)
             .callTimeout(REMOTE_TIMEOUT_SECONDS * 2, TimeUnit.SECONDS)

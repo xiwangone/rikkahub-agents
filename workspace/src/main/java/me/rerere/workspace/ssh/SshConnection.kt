@@ -13,6 +13,7 @@ import com.jcraft.jsch.SftpException
 import com.jcraft.jsch.SocketFactory as JschSocketFactory
 import com.jcraft.jsch.UIKeyboardInteractive
 import com.jcraft.jsch.UserInfo
+import me.rerere.common.log.AppLogger
 import me.rerere.workspace.StreamCollector
 import me.rerere.workspace.StreamWriter
 import me.rerere.workspace.WorkspaceCommandResult
@@ -252,6 +253,7 @@ internal class SshConnection private constructor(
         private const val EXEC_POLL_INTERVAL_MS = 20L
         private const val SHELL_DETECT_TIMEOUT_MS = 5_000L
         private const val TERMINAL_TYPE = "xterm-256color"
+        private const val TAG = "SshConnection"
 
         // RFC 4254 的 PTY 模式编码: 开启 IUTF8 (RFC 8160 opcode 42), 让行编辑按 UTF-8 字符退格; 以 TTY_OP_END 结尾
         private val TERMINAL_MODES = byteArrayOf(42, 0, 0, 0, 1, 0)
@@ -348,6 +350,10 @@ internal class SshConnection private constructor(
             try {
                 session.connect(CONNECT_TIMEOUT_MS)
             } catch (e: JSchException) {
+                // 建连失败记一条 e：label 只含 user@host:port，不含凭据；主机密钥拒绝 /
+                // 额外验证 / 其他失败三个分支都走这里，详情见抛出的异常。直连与跳板机
+                // 各调一次 connectSession，失败方各自记一条。
+                AppLogger.e(TAG, "connectSession failed: ${endpoint.label}", e)
                 hostKeys.rejection?.let { throw it }
                 if (passwordUserInfo?.sawExtraVerificationPrompt == true) {
                     throw IOException("SSH authentication failed: server requested additional verification (for example a one-time code)", e)

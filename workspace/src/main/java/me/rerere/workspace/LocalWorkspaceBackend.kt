@@ -3,6 +3,8 @@ package me.rerere.workspace
 import java.io.File
 import java.io.InputStream
 import java.io.OutputStream
+import kotlinx.coroutines.CancellationException
+import me.rerere.common.log.AppLogger
 
 /** 本机上的工作区: 文件落在 [WorkspaceManager] 管理的目录下, 命令在 PRoot Rootfs 内执行 */
 class LocalWorkspaceBackend(
@@ -142,15 +144,23 @@ class LocalWorkspaceBackend(
         env: Map<String, String>,
     ): WorkspaceCommandResult {
         manager.ensureWorkspace(root)
-        return manager.executeCommand(
-            root = root,
-            command = command,
-            cwd = cwd,
-            timeoutMillis = timeoutMillis,
-            stdin = stdin,
-            env = env,
-            shellCompatibilityMode = shellCompatibilityMode,
-        )
+        return try {
+            manager.executeCommand(
+                root = root,
+                command = command,
+                cwd = cwd,
+                timeoutMillis = timeoutMillis,
+                stdin = stdin,
+                env = env,
+                shellCompatibilityMode = shellCompatibilityMode,
+            )
+        } catch (caught: CancellationException) {
+            throw caught
+        } catch (ignored: Exception) {
+            // 命令文本可能含 env 值，不记；只记 cwd 与超时，失败详情见异常。
+            AppLogger.e(TAG, "executeCommand failed: cwd=$cwd timeoutMs=$timeoutMillis", ignored)
+            throw ignored
+        }
     }
 
     /**
@@ -163,6 +173,7 @@ class LocalWorkspaceBackend(
             output.parseShellEntries().single()
         } catch (error: Exception) {
             val snippet = output.replace('\u0000', ' ').trim().take(200)
+            AppLogger.e(TAG, "parseSingleEntry failed: $action", error)
             throw IllegalStateException(
                 "$action failed: could not parse file metadata from shell output " +
                     "(${error.message}); output was: \"$snippet\"",
@@ -186,6 +197,7 @@ class LocalWorkspaceBackend(
     }
 
     private companion object {
+        private const val TAG = "LocalWorkspaceBackend"
         /** 权限串会拼进 shell 命令, 先限定成 3-4 位八进制 */
         val OCTAL_MODE = Regex("^[0-7]{3,4}$")
     }

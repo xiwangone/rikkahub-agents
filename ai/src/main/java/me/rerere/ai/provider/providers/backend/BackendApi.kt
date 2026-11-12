@@ -11,6 +11,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.util.shortRequestClient
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -32,6 +33,9 @@ class BackendApi(
         .connectTimeout(120, TimeUnit.SECONDS)
         .readTimeout(120, TimeUnit.SECONDS)
         .writeTimeout(120, TimeUnit.SECONDS)
+        // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
+        // （baseUrl 后的路径含会话信息，:common 层无脱敏能力）。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build(),
 ) {
     private val json = Json { ignoreUnknownKeys = true }

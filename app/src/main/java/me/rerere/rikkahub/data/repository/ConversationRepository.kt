@@ -461,14 +461,16 @@ class ConversationRepository(
                 val page = try {
                     messageNodeDAO.getNodesOfConversationPaged(conversationId, pageSize, offset)
                 } catch (e: SQLiteBlobTooBigException) {
-                    AppLog.e(TAG, "loadMessageNodes: blob too big, skipping page", e)
+                    // 带上 conversationId 与 offset，否则「哪次会话的第几页被跳过」
+                    // 在时间线里查不出来，缺失的消息页无法定位。
+                    AppLog.e(TAG, "loadMessageNodes: blob too big, skipping page conv=$conversationId offset=$offset", e)
                     offset += pageSize
                     continue
                 } catch (e: CancellationException) {
                     // CancellationException 是 IllegalStateException 的子类，必须先重新抛出，否则取消后会在事务内无限循环
                     throw e
                 } catch (e: IllegalStateException) {
-                    AppLog.e(TAG, "loadMessageNodes: illegal state, skipping page", e)
+                    AppLog.e(TAG, "loadMessageNodes: illegal state, skipping page conv=$conversationId offset=$offset", e)
                     offset += pageSize
                     continue
                 }

@@ -86,6 +86,9 @@ import kotlin.time.Clock
 import me.rerere.common.log.AppLogger
 
 private const val TAG = "ClaudeProvider"
+
+/** listModels 失败日志里 error 详情的最大长度：服务端错误体可能很大，只记摘要。 */
+private const val MAX_LIST_MODELS_FAILURE_DETAIL_CHARS = 500
 private const val ANTHROPIC_VERSION = "2023-06-01"
 private const val CLAUDE_PAUSE_TURN = "pause_turn"
 private const val MAX_PAUSE_TURN_CONTINUATIONS = 5
@@ -283,6 +286,24 @@ private val MINIMAX_FALLBACK_MODELS = listOf(
 class ClaudeProvider(private val client: OkHttpClient, context: Context? = null) : Provider<ProviderSetting.Claude> {
     private val keyRoulette = if (context != null) KeyRoulette.lru(context) else KeyRoulette.default()
 
+    /**
+     * listModels 失败记一条 e：只记供应商名、脱敏后的 host（请求 URL 的 host，不含
+     * path/query，key 不会进日志）、HTTP 状态码与截断后的错误摘要；完整错误体仍
+     * 随 error() 抛给调用方展示，不重复进日志。
+     */
+    private fun logListModelsFailure(
+        providerSetting: ProviderSetting.Claude,
+        request: Request,
+        code: Int?,
+        detail: String,
+    ) {
+        AppLogger.e(
+            TAG,
+            "listModels failed: provider=${providerSetting.name} host=${request.url.host} " +
+                "code=${code ?: "n/a"} detail=${detail.take(MAX_LIST_MODELS_FAILURE_DETAIL_CHARS)}",
+        )
+    }
+
     override suspend fun listModels(providerSetting: ProviderSetting.Claude): List<Model> =
         withContext(Dispatchers.IO) {
             val request = Request.Builder()
@@ -295,6 +316,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
             val response = client.shortRequestClient().newCall(request).execute()
             val bodyStr = response.body.string()
             if (!response.isSuccessful) {
+                logListModelsFailure(providerSetting, request, response.code, bodyStr)
                 error("Failed to get models: ${response.code} $bodyStr")
             }
 
@@ -311,11 +333,13 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 val statusCode = baseResp?.get("status_code")?.jsonPrimitive?.intOrNull
                 if (statusCode != null && statusCode != 0) {
                     val msg = baseResp["status_msg"]?.jsonPrimitive?.contentOrNull
+                    logListModelsFailure(providerSetting, request, 200, msg ?: "status_code=$statusCode")
                     error("Failed to get models: ${msg ?: "status_code=$statusCode"}")
                 }
                 val errMsg = (bodyJson["error"] as? JsonObject)?.get("message")
                     ?.jsonPrimitive?.contentOrNull
                 if (errMsg != null) {
+                    logListModelsFailure(providerSetting, request, 200, errMsg)
                     error("Failed to get models: $errMsg")
                 }
                 if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
@@ -327,6 +351,12 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     )
                     return@withContext MINIMAX_FALLBACK_MODELS
                 }
+                logListModelsFailure(
+                    providerSetting,
+                    request,
+                    200,
+                    "response has no `data` field and no error detail",
+                )
                 error(
                     "Failed to get models: response has no `data` field and no error detail " +
                         "(HTTP 200 with an empty model list is not a usable answer)",

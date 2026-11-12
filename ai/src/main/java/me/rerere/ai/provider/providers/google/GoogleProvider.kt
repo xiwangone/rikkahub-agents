@@ -88,6 +88,9 @@ import me.rerere.common.log.AppLogger
 
 private const val TAG = "GoogleProvider"
 
+/** listModels 失败日志里 error 详情的最大长度：服务端错误体可能很大，只记摘要。 */
+private const val MAX_LIST_MODELS_FAILURE_DETAIL_CHARS = 500
+
 /** listModels 翻页上限：单页 100 个，10 页即 1000 个模型，防服务端异常翻页死循环。 */
 private const val MAX_LIST_MODELS_PAGES = 10
 
@@ -165,6 +168,26 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
+    /**
+     * listModels 失败记一条 e：只记供应商名、脱敏后的 host（请求 URL 的 host，不含
+     * path/query，key 不会进日志）、HTTP 状态码、翻页序号与截断后的错误摘要；
+     * 完整错误体仍随 error() 抛给调用方展示，不重复进日志。
+     */
+    private fun logListModelsFailure(
+        providerSetting: ProviderSetting.Google,
+        request: Request,
+        code: Int?,
+        page: Int,
+        detail: String,
+    ) {
+        AppLogger.e(
+            TAG,
+            "listModels failed: provider=${providerSetting.name} host=${request.url.host} " +
+                "code=${code ?: "n/a"} page=$page " +
+                "detail=${detail.take(MAX_LIST_MODELS_FAILURE_DETAIL_CHARS)}",
+        )
+    }
+
     override suspend fun listModels(providerSetting: ProviderSetting.Google): List<Model> =
         withContext(Dispatchers.IO) {
             // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
@@ -186,6 +209,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 val response = shortClient.newCall(request).await()
                 val body = response.body.string()
                 if (!response.isSuccessful) {
+                    logListModelsFailure(providerSetting, request, response.code, it + 1, body)
                     error("Failed to get models: ${response.code} $body")
                 }
                 // Full model-list body is large and unneeded outside debug:

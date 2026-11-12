@@ -4,6 +4,7 @@ import me.rerere.rikkahub.data.files.SkillFrontmatterParser
 import me.rerere.rikkahub.data.files.SkillManager
 import me.rerere.rikkahub.data.files.SkillMetadata
 import kotlinx.serialization.json.contentOrNull
+import me.rerere.rikkahub.data.ai.LoggedOkHttpClients
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import java.net.InetAddress
@@ -333,7 +334,7 @@ class SkillUrlImporter(
     companion object {
         const val MAX_BODY_BYTES = 256 * 1024  // 256 KB
 
-        fun defaultClient(): OkHttpClient = OkHttpClient.Builder()
+        fun defaultClient(): OkHttpClient = LoggedOkHttpClients.builder()
             .connectTimeout(15, TimeUnit.SECONDS)
             .readTimeout(15, TimeUnit.SECONDS)
             .followRedirects(true)

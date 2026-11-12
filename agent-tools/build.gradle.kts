@@ -38,6 +38,8 @@ dependencies {
     api(project(":ai"))
     // WorkspaceFileEntry / WorkspaceStorageArea
     implementation(project(":workspace"))
+    // AppLogger（批 3：配置损坏/备份跳过记日志）
+    implementation(project(":common"))
 
     api(libs.kotlinx.serialization.json)
 

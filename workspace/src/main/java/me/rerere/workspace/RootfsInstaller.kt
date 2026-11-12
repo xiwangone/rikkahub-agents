@@ -12,6 +12,8 @@ import java.nio.file.Files
 import java.nio.file.LinkOption
 import java.nio.file.StandardCopyOption
 import java.util.zip.GZIPInputStream
+import kotlinx.coroutines.CancellationException
+import me.rerere.common.log.AppLogger
 
 /** tar 时间戳合理上限（9999-12-31，秒）；超出视为非法，避免 *1000 溢出或负数 */
 private const val MAX_TAR_MOD_TIME_SECONDS = 253_402_300_799L
@@ -142,7 +144,14 @@ class RootfsInstaller(
         try {
             stagingDir.deleteRecursively()
             stagingDir.mkdirs()
-            val extractResult = extractTar(archive, stagingDir, format, onProgress)
+            val extractResult = try {
+                extractTar(archive, stagingDir, format, onProgress)
+            } catch (caught: CancellationException) {
+                throw caught
+            } catch (ignored: Exception) {
+                AppLogger.e(TAG, "extractTar failed: root=$root archive=${archive.name}", ignored)
+                throw ignored
+            }
             var totalEntries = extractResult.entriesExtracted
             if (shouldOverlay) {
                 totalEntries += overlayDirectory(stagingDir, linuxDir, stagingDir, totalEntries, onProgress)
@@ -305,11 +314,36 @@ class RootfsInstaller(
             } catch (error: IOException) {
                 lastError = error
                 downloaded = if (target.exists()) target.length() else 0L
-                if (attempt == DOWNLOAD_MAX_ATTEMPTS - 1) throw error
+                if (attempt == DOWNLOAD_MAX_ATTEMPTS - 1) {
+                    // 最后一次也失败：记一条 e。错误摘要去掉 URL 部分
+                    // （HttpURLConnection 的报错含完整 URL，镜像地址可能带 token）。
+                    AppLogger.e(
+                        TAG,
+                        "download failed after $DOWNLOAD_MAX_ATTEMPTS attempts " +
+                            "(downloaded=$downloaded bytes): ${downloadErrorSummary(error)}",
+                    )
+                    throw error
+                }
+                // 还有重试机会：记一条 w，否则「下载其实是第 N 次才成功」
+                // 在时间线里看不出来。
+                AppLogger.w(
+                    TAG,
+                    "download attempt ${attempt + 1}/$DOWNLOAD_MAX_ATTEMPTS failed " +
+                        "(downloaded=$downloaded bytes): ${downloadErrorSummary(error)}",
+                )
             }
         }
         throw lastError ?: IOException("Rootfs download failed: $url")
     }
+
+    /**
+     * 下载失败日志用的错误摘要：HttpURLConnection 的报错可能含完整 URL
+     * （如 `Server returned HTTP response code: 403 for URL: ...`），
+     * 镜像地址可能带 token，先截掉 URL 部分再记。
+     */
+    private fun downloadErrorSummary(error: IOException): String =
+        error.message?.substringBefore(" for URL:")?.take(200)
+            ?: error.javaClass.simpleName
 
     private data class DownloadResult(
         val bytesRead: Long,
@@ -818,6 +852,7 @@ class RootfsInstaller(
     }
 
     companion object {
+        private const val TAG = "RootfsInstaller"
         private const val TAR_BLOCK_SIZE = 512
         private const val BUFFER_SIZE = 64 * 1024
         private const val PROGRESS_STEP_BYTES = 512 * 1024

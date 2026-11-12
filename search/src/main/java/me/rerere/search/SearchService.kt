@@ -9,6 +9,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import okhttp3.Call
 import okhttp3.Callback
 import okhttp3.OkHttpClient
@@ -89,6 +90,10 @@ interface SearchService<T : SearchServiceOptions> {
                 .retryOnConnectionFailure(true)
                 .followRedirects(true)
                 .followSslRedirects(false)
+                // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
+                // （搜索 URL 含查询词，:common 层无脱敏能力）。init() 换上 DI client 后
+                // 走 :app 的完整拦截器（含脱敏后的 path/query/body）。
+                .addInterceptor(SafeRequestLoggingInterceptor())
                 .build()
 
         @Volatile

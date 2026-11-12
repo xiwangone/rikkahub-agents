@@ -214,6 +214,9 @@ fun sshDownloadTool(
                         appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
                     }
                 } catch (e: Throwable) {
+                    // 失败已随 error 信封返回给调用方；再记一条 w，否则
+                    // 「这次 sftp 下载失败」只留在工具返回里，时间线里查不到。
+                    AppLog.w(TAG_SFTP, "sftp get failed: $remotePath -> ${localFile.absolutePath}", e)
                     ToolErrors.envelopeFor(error = "tool_failed", message = "sftp get failed: ${e.message ?: "unknown"}")
                 } finally {
                     // Delete partial files left by a failed get. Otherwise the user is left

@@ -73,7 +73,7 @@ class ModelCapabilityOverrides(
             File(context.filesDir, FILE_NAME).writeText(text)
             load()
             true
-        }.onFailure { AppLog.w(TAG, "import local overrides failed: ${it.message}") }.getOrDefault(false)
+        }.onFailure { AppLog.w(TAG, "import local overrides failed: ${it.message}", it) }.getOrDefault(false)
     }
 
     /** 导出当前**基线表**原文（供用户在此基础上编辑后导入）。 */
@@ -86,7 +86,7 @@ class ModelCapabilityOverrides(
             val deleted = !f.exists() || f.delete()
             load()
             deleted
-        }.onFailure { AppLog.w(TAG, "clear local overrides failed: ${it.message}") }.getOrDefault(false)
+        }.onFailure { AppLog.w(TAG, "clear local overrides failed: ${it.message}", it) }.getOrDefault(false)
 
     fun inputModalities(modelId: String): Set<Modality>? = lookup(modelId)?.input
 
@@ -109,12 +109,12 @@ class ModelCapabilityOverrides(
         runCatching {
             val f = File(context.filesDir, FILE_NAME)
             if (f.exists()) f.readText() else null
-        }.onFailure { AppLog.w(TAG, "read local overrides failed: ${it.message}") }.getOrNull()
+        }.onFailure { AppLog.w(TAG, "read local overrides failed: ${it.message}", it) }.getOrNull()
 
     private fun readBaseline(): String? =
         runCatching {
             context.assets.open(FILE_NAME).bufferedReader(Charsets.UTF_8).use { it.readText() }
-        }.onFailure { AppLog.w(TAG, "read baseline overrides failed: ${it.message}") }.getOrNull()
+        }.onFailure { AppLog.w(TAG, "read baseline overrides failed: ${it.message}", it) }.getOrNull()
 
     /** 解析一张表；整表非法（非 JSON / 结构不对）返回 null。单条非法只跳过该条。 */
     private fun parseOverrideTable(text: String, source: String): List<Entry>? =

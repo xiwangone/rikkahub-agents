@@ -15,6 +15,7 @@ import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.log.AppLogger
 import java.io.IOException
 import java.util.UUID
 
@@ -35,6 +36,7 @@ private val configJson = Json { prettyPrint = false }
 private const val SETTINGS_PATH = "config/settings.json"
 private const val SETTINGS_BACKUP_PATH = "config/settings.json.bak"
 private const val AUDIT_PATH = "config/audit.jsonl"
+private const val TAG = "ConfigTools"
 
 // 审计文件轮转上限: 超限时只保留最近的条目, 避免文件永久增长且每次追加都全量读写.
 // 完整修复需要宿主接口提供追加写, 仅靠读-改-写无法消除全量读写, 这里只做进程内
@@ -97,6 +99,8 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         if (parsed is JsonObject) return parsed
         val salvaged = runCatching { configJson.parseToJsonElement(closeTruncated(raw)) }.getOrNull()
         if (salvaged is JsonObject) return salvaged
+        // 两次解析都失败：配置已损坏，拒绝用空对象覆盖，记一条 w 再抛。
+        AppLogger.w(TAG, "parseSettings: $SETTINGS_PATH is corrupt and cannot be parsed (${raw.length} bytes)")
         throw IllegalStateException("config/settings.json is corrupt and cannot be parsed; refusing to overwrite it with an empty config")
     }
 
@@ -131,7 +135,12 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
      */
     private suspend fun fileExists(path: String): Boolean {
         val dir = path.substringBeforeLast('/', "")
-        return runCatching { io.listFiles(dir) }.getOrNull()?.any { it.path == path } ?: false
+        return runCatching { io.listFiles(dir) }.getOrElse {
+            // 列表失败时无法区分「文件不存在」与「读失败」：按不存在处理，
+            // 但记一条 w，否则损坏的配置会被静默当成空配置。
+            AppLogger.w(TAG, "fileExists check failed for $path, treating as not-exists", it)
+            null
+        }?.any { it.path == path } ?: false
     }
 
     suspend fun set(key: String, valueJson: String, note: String?): JsonObject {
@@ -226,7 +235,11 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         if (raw == null) return emptyList()
         return raw.lines().filter { it.isNotBlank() }.map { line ->
             (runCatching { configJson.parseToJsonElement(line) }.getOrNull() as? JsonObject)
-                ?: throw IllegalStateException("config/audit.jsonl contains a corrupt entry; refusing to use it for revert")
+                ?: run {
+                    // 审计文件含损坏行：拒绝用它回滚，记一条 w 再抛。
+                    AppLogger.w(TAG, "readAudit: $AUDIT_PATH contains a corrupt entry; refusing to use it for revert")
+                    throw IllegalStateException("config/audit.jsonl contains a corrupt entry; refusing to use it for revert")
+                }
         }
     }
 
@@ -235,6 +248,10 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
      */
     private suspend fun save(map: Map<String, JsonElement>) {
         val existing = runCatching { io.readText(SETTINGS_PATH) }.getOrNull()
+        if (existing == null && fileExists(SETTINGS_PATH)) {
+            // 旧配置存在但读不出来：备份跳过，本次覆盖会丢旧内容，记一条 w。
+            AppLogger.w(TAG, "save: existing config could not be read, skipping backup before overwrite")
+        }
         if (!existing.isNullOrBlank()) {
             io.writeText(SETTINGS_BACKUP_PATH, existing, true)
         }

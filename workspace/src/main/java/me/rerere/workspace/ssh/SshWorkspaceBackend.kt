@@ -3,6 +3,8 @@ package me.rerere.workspace.ssh
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.SftpATTRS
 import com.jcraft.jsch.SftpException
+import kotlinx.coroutines.CancellationException
+import me.rerere.common.log.AppLogger
 import me.rerere.workspace.WorkspaceBackend
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceConfig
@@ -146,6 +148,7 @@ class SshWorkspaceBackend(
                     sftp.rename(tempTarget.sftpQuote(), target.sftpQuote())
                 } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
                     runCatching { sftp.rm(tempTarget.sftpQuote()) }
+                    AppLogger.e(TAG, "importBytes failed: $targetPath", e)
                     throw e
                 }
                 sftp.requireStat(target, targetPath).toWorkspaceEntry(relativePath(area, target), target.fileName())
@@ -255,7 +258,8 @@ class SshWorkspaceBackend(
         env: Map<String, String>,
     ): WorkspaceCommandResult {
         val workingDir = normalizeAbsolute(layout.absolutePath(WorkspaceStorageArea.FILES, cwd))
-        return pool.use(id, config, retry = false) { connection ->
+        return try {
+            pool.use(id, config, retry = false) { connection ->
             connection.ensureDir(workspaceDir)
             if (config.platform == "WINDOWS") {
                 // Windows 远端：跳过 POSIX shell 包装，直接拼 PowerShell 脚本；
@@ -297,6 +301,13 @@ class SshWorkspaceBackend(
                 ).joinToString(" ") { it.shellQuote() }
                 connection.exec(remoteCommand, timeoutMillis, stdin)
             }
+        }
+        } catch (caught: CancellationException) {
+            throw caught
+        } catch (ignored: Exception) {
+            // 命令文本可能含 env 值，不记；只记 cwd 与超时，失败详情见异常。
+            AppLogger.e(TAG, "executeCommand failed: cwd=$cwd timeoutMs=$timeoutMillis", ignored)
+            throw ignored
         }
     }
 
@@ -509,6 +520,7 @@ class SshWorkspaceBackend(
             output.parseShellEntries().single()
         } catch (error: Exception) {
             val snippet = output.replace('\u0000', ' ').trim().take(200)
+            AppLogger.e(TAG, "parseSingleEntry failed: $action", error)
             throw IllegalStateException(
                 "$action failed: could not parse file metadata from shell output " +
                     "(${error.message}); output was: \"$snippet\"",
@@ -533,6 +545,8 @@ class SshWorkspaceBackend(
     }
 
     companion object {
+        private const val TAG = "SshWorkspaceBackend"
+
         /** 权限串会拼进远程命令, 先限定成 3-4 位八进制 */
         private val OCTAL_MODE = Regex("^[0-7]{3,4}$")
 
@@ -655,6 +669,7 @@ class SshWorkspaceBackend(
                     chmod(mode.toInt(8), temp.sftpQuote())
                 } catch (e: Exception) {
                     // chmod 失败要单独说明，否则会被当成普通的写失败
+                    AppLogger.e(TAG, "Failed to set permissions $mode for $displayPath", e)
                     throw IllegalStateException(
                         "Failed to set permissions $mode for $displayPath: ${e.message}",
                         e,
@@ -664,6 +679,7 @@ class SshWorkspaceBackend(
             rename(temp.sftpQuote(), path.sftpQuote())
         } catch (e: Exception) {
             runCatching { rm(temp.sftpQuote()) }
+            AppLogger.e(TAG, "writeAtomic failed: $displayPath", e)
             throw e
         }
         return requireStat(path, displayPath)

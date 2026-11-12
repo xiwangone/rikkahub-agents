@@ -81,7 +81,7 @@ class ModelCatalogRepository(
     init {
         // 启动即加载上次缓存，保证离线也有目录可用
         runCatching { loadFromCache() }
-            .onFailure { AppLog.w(TAG, "load cached catalog failed: ${it.message}") }
+            .onFailure { AppLog.w(TAG, "load cached catalog failed: ${it.message}", it) }
     }
 
     fun status(): Status = Status(index.size, lastUpdatedMs, isStale(lastUpdatedMs))
@@ -106,7 +106,7 @@ class ModelCatalogRepository(
                 AppLog.i(TAG, "refresh: kept ${entries.size} entries (from ${data.size} models)")
                 entries.size
             }
-        }.onFailure { AppLog.w(TAG, "refresh failed: ${it.message}") }
+        }.onFailure { AppLog.w(TAG, "refresh failed: ${it.message}", it) }
     }
 
     // ---------------- 能力查询（供桥调用） ----------------
@@ -201,7 +201,7 @@ class ModelCatalogRepository(
         runCatching {
             cacheFile.writeText(rawBody)
             AppLog.i(TAG, "catalog cached: ${cacheFile.length() / 1024}KB, kept=$kept")
-        }.onFailure { AppLog.w(TAG, "cache write failed: ${it.message}") }
+        }.onFailure { AppLog.w(TAG, "cache write failed: ${it.message}", it) }
     }
 
     private fun loadFromCache() {

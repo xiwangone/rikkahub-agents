@@ -7,7 +7,10 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.common.log.AppLogger
 import okhttp3.Response
+
+private const val TAG = "ErrorParser"
 
 class HttpException(
     message: String,
@@ -70,7 +73,12 @@ fun Response.retryAfterMs(): Long? = parseRetryAfterMs(header("Retry-After"))
  * （第二次读 body 必抛 `IllegalStateException("closed")`，错误详情会被吞成空串）。
  */
 fun Response.errorAsHttpException(): HttpException {
-    val bodyRaw = runCatching { body.string() }.getOrNull().orEmpty()
+    val bodyRaw = runCatching { body.string() }.getOrElse {
+        // 读不到错误体时解析只能拿到空串：记一条 w，否则「服务端到底报了什么错」
+        // 在时间线里完全消失，调用方只能看到截断后的空兜底文案。
+        AppLogger.w(TAG, "errorAsHttpException: failed to read error body (HTTP $code)", it)
+        ""
+    }
     return errorAsHttpException(bodyRaw)
 }
 
@@ -82,7 +90,17 @@ fun Response.errorAsHttpException(bodyRaw: String): HttpException {
     val retryAfter = retryAfterMs()
     val detail = runCatching {
         Json.parseToJsonElement(bodyRaw).parseErrorDetail(code, retryAfter)
-    }.getOrNull()
+    }.getOrElse {
+        // 错误体不是合法 JSON 时解析失败，兜底用原始体截断：记一条 w，否则
+        // 「错误体结构异常」这个信号在时间线里消失。
+        AppLogger.w(
+            TAG,
+            "errorAsHttpException: failed to parse error body as JSON " +
+                "(HTTP $code, ${bodyRaw.length} bytes), falling back to raw body",
+            it,
+        )
+        null
+    }
     if (detail != null) return detail
     return HttpException(
         message = buildString {

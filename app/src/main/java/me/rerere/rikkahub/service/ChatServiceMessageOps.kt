@@ -13,6 +13,7 @@ import me.rerere.ai.ui.isEmptyInputMessage
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.getAssistantById
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.web.BadRequestException
 import me.rerere.rikkahub.web.NotFoundException
@@ -62,6 +63,7 @@ fun ChatService.translateMessage(
             } catch (e: Exception) {
                 // Clear translation field on error
                 clearTranslationField(conversationId, message.id)
+                AppLog.e(TAG, "translateMessage failed conv=$conversationId msg=${message.id}", e)
                 addError(e, conversationId, title = str(R.string.error_title_translate_message))
             }
         }

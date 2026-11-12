@@ -125,7 +125,12 @@ class RikkaHubApp : Application() {
                 "ssh-ed25519,ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521," +
                     "rsa-sha2-512,rsa-sha2-256,ssh-rsa"
             )
-        } catch (_: Throwable) {}
+        } catch (ignored: Throwable) {
+            // 启动极早期、AppLog.startIfEnabled 之前：这条 w 只进 logcat、不进
+            // AppLog 缓冲（门控尚未打开），仍比完全静默好；配置失败时 SSH 仍用
+            // JSch 默认候选，老设备可能连不上，时间线里至少留一条。
+            me.rerere.rikkahub.data.log.AppLog.w(TAG, "JSch server_host_key config failed", ignored)
+        }
         // 内嵌隧道：把 tailnet 目标的拨号接到 App 内代理（未开启隧道时不接管）
         me.rerere.rikkahub.data.tunnel.TsnetBridge.installSshRouter()
         // :ai (and other sub-:app modules) have no BuildConfig of their own, so this is

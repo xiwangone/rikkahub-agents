@@ -3,6 +3,7 @@ package me.rerere.workspace
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import me.rerere.common.log.AppLogger
 
 /**
  * chroot 后端命令执行器（root 设备实验）：把命令包进 `su -c chroot-run.sh`。
@@ -32,7 +33,10 @@ class ChrootShellRunner(
             val process = try {
                 newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers)
             } catch (e: IOException) {
-                // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链
+                // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链；
+                // 记一条 w，否则「chroot 后端不可用」只出现在返回的 stderr 里，
+                // 时间线里看不到这次回退。
+                AppLogger.w(TAG, "execute: su not accessible, chroot backend unavailable", e)
                 return WorkspaceCommandResult(
                     exitCode = -1,
                     stdout = "",
@@ -48,6 +52,7 @@ class ChrootShellRunner(
         } catch (@Suppress("TooGenericExceptionCaught") e: Exception) {
             // 任何异常都得先清理 root 侧进程树再原样抛出（否则命令会在后台变成孤儿进程）。
             cancel(token)
+            AppLogger.e(TAG, "execute failed", e)
             throw e
         } finally {
             cmdFile.delete()
@@ -69,6 +74,7 @@ class ChrootShellRunner(
             }
         } catch (e: IOException) {
             cmdFile.delete()
+            AppLogger.e(TAG, "start failed: su not accessible", e)
             throw IllegalStateException("chroot backend requires root: su not accessible (${e.message})", e)
         }
     }
@@ -214,6 +220,7 @@ class ChrootShellRunner(
             )
         } catch (e: Exception) {
             runCatching { tmpFile.delete() }
+            AppLogger.e(TAG, "writeCommandFile failed", e)
             throw e
         }
         return cmdFile
@@ -247,6 +254,7 @@ class ChrootShellRunner(
     }
 
     companion object {
+        private const val TAG = "ChrootShellRunner"
         /** 命令中转文件**前缀**（rootfs 根下；实际名 = 前缀 + UUID，见 writeCommandFile）。 */
         const val COMMAND_FILE = ".chroot-exec"
         private val PROBE_SUMMARY = Regex("summary: pass=(\\d+) fail=(\\d+) warn=(\\d+)")

@@ -3,7 +3,9 @@ package me.rerere.rikkahub.data.export
 import android.content.Context
 import android.content.Intent
 import android.net.Uri
+import android.widget.Toast
 import androidx.activity.compose.ManagedActivityResultLauncher
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -71,7 +73,17 @@ class ExporterState<T>(
                 context.contentResolver.openOutputStream(uri)?.use { output ->
                     output.write(value.toByteArray())
                 }
-            }.onFailure { AppLog.e(TAG, "writeToUri: write export data failed", it) }
+            }.onFailure { error ->
+                AppLog.e(TAG, "writeToUri: write export data failed", error)
+                // 只记日志用户看不到：导出失败时弹 Toast，否则用户会以为已经导出成功。
+                withContext(Dispatchers.Main) {
+                    Toast.makeText(
+                        context,
+                        context.getString(R.string.toast_export_failed, error.message.orEmpty()),
+                        Toast.LENGTH_LONG,
+                    ).show()
+                }
+            }
         }
     }
 }

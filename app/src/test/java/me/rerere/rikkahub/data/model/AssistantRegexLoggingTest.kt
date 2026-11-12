@@ -50,7 +50,8 @@ class AssistantRegexLoggingTest {
         // 编译失败的正则被跳过，原文本原样返回
         assertEquals("hello world", result)
         val logs = AppLog.getLogs()
-        assertTrue(logs.any { it.level == 'E' && it.tag == "Assistant" })
+        // 批 3：非法正则只是跳过该条规则、生成继续，级别由 e 改为 w
+        assertTrue(logs.any { it.level == 'W' && it.tag == "Assistant" })
         assertTrue(logs.none { it.message.contains("[invalid-batch2-test") })
     }
 }

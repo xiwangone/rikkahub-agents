@@ -227,9 +227,15 @@ internal fun newJSch(context: Context): JSch {
     val jsch = JSch()
     val knownHosts = knownHostsFile(context)
     if (!knownHosts.exists()) {
-        try { knownHosts.createNewFile() } catch (_: Throwable) {}
+        try { knownHosts.createNewFile() } catch (ignored: Throwable) {
+            AppLog.w(TAG_SSH, "newJSch: could not create known_hosts file ${knownHosts.absolutePath}", ignored)
+        }
     }
-    try { jsch.setKnownHosts(knownHosts.absolutePath) } catch (_: Throwable) {}
+    try { jsch.setKnownHosts(knownHosts.absolutePath) } catch (ignored: Throwable) {
+        // known_hosts 读不到时主机密钥校验退回默认行为：记一条 w，否则
+        // 「这次 SSH 没校验 known_hosts」在时间线里看不出来。
+        AppLog.w(TAG_SSH, "newJSch: could not load known_hosts ${knownHosts.absolutePath}", ignored)
+    }
     return jsch
 }
 

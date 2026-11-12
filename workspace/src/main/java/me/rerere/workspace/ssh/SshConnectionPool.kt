@@ -7,6 +7,7 @@ import java.util.concurrent.TimeUnit
 import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.locks.ReentrantLock
 import kotlin.concurrent.withLock
+import me.rerere.common.log.AppLogger
 
 /**
  * 按工作区复用 SSH 连接; 配置变化或连接断开时重新连接。
@@ -96,6 +97,9 @@ class SshConnectionPool(
             if (pooled.connection.isConnected && !channelFailed) throw e
             evict(id, pooled)
             if (!retry && !channelFailed) throw e
+            // 连接已断/打不开 channel 时重连重试一次：记一条 w，否则「这次命令/操作
+            // 其实是第二次建连才成功」在时间线里看不出来。
+            AppLogger.w(TAG, "use: retrying after connection/channel failure (id=$id)", e)
             val retried = acquire(id, config)
             try {
                 block(retried.connection)
@@ -126,6 +130,9 @@ class SshConnectionPool(
             if (pooled.connection.isConnected && !channelFailed) throw e
             evict(id, pooled)
             if (!channelFailed) throw e
+            // shell channel 没打开时重连重试一次：记一条 w，否则「这次 shell 其实是
+            // 第二次建连才打开」在时间线里看不出来。
+            AppLogger.w(TAG, "openShell: retrying after channel failure (id=$id)", e)
             val retried = acquire(id, config)
             try {
                 open(retried.connection, retried::release)
@@ -249,5 +256,6 @@ class SshConnectionPool(
     private companion object {
         const val DEFAULT_IDLE_TIMEOUT_MS = 5 * 60_000L
         const val DEFAULT_SWEEP_INTERVAL_MS = 30_000L
+        const val TAG = "SshConnectionPool"
     }
 }

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.network
 
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
@@ -422,6 +423,9 @@ private fun buildDohClient(bootstrapServers: List<String>): OkHttpClient {
             if (list.isEmpty()) throw UnknownHostException("Cannot bootstrap DoH host: $dohHost")
             list
         }
+        // 最小请求日志：只记 host + 状态码 + 耗时。DoH 的 body/query 含域名明文，
+        // 完整拦截器会把查询的域名记进日志。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build()
     cachedDohClient = bootstrapServers to client
     return client

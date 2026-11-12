@@ -1,6 +1,9 @@
 package me.rerere.workspace
 
 import java.io.File
+import me.rerere.common.log.AppLogger
+
+private const val TAG = "WorkspaceMirrors"
 
 /**
  * Package-manager mirrors for the sandbox rootfs.
@@ -266,6 +269,7 @@ internal fun writeFileAtomic(file: File, content: String) {
         )
     } catch (e: Exception) {
         runCatching { tmp.delete() }
+        AppLogger.e(TAG, "writeFileAtomic failed: ${file.absolutePath}", e)
         throw e
     }
 }

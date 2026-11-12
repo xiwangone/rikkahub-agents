@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.telegram
 
+import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.rikkahub.data.log.AppLog
 
 import kotlinx.coroutines.Dispatchers
@@ -119,6 +120,9 @@ class TelegramBotClient(
         // stuck call can never wedge the request forever.
         .callTimeout(10, TimeUnit.MINUTES)
         .applyTelegramProxy()
+        // 最小请求日志：只记 host + 状态码 + 耗时。Bot token 在 URL path 里，
+        // maskUrl 只掩 query，完整拦截器会把 token 记进日志。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build()
         .also { me.rerere.rikkahub.utils.NetworkChangeMonitor.register(it) }
 
@@ -134,6 +138,8 @@ class TelegramBotClient(
         // eventually evicts the socket.
         .callTimeout(120, TimeUnit.SECONDS)
         .applyTelegramProxy()
+        // 最小请求日志：只记 host + 状态码 + 耗时（同 shortClient，token 在 path 里）。
+        .addInterceptor(SafeRequestLoggingInterceptor())
         .build()
         .also { me.rerere.rikkahub.utils.NetworkChangeMonitor.register(it) }
 
