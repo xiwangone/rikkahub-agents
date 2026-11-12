@@ -58,7 +58,7 @@ jobs:
       - name: 构建 Debug APK（日志落盘）
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 | tee build-debug.log
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace --build-cache 2>&1 | tee build-debug.log
 
       # 放在 APK 上传之前：构建失败时 APK 不存在，但日志与报告必须能拿到，
       # 否则只能翻 Actions 网页逐行找错。

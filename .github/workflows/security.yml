@@ -220,7 +220,7 @@ jobs:
       - name: Run lint
         run: |
           set -o pipefail
-          ./gradlew :app:lintDebug --no-daemon --console=plain 2>&1 | tee lint.log
+          ./gradlew :app:lintDebug --no-daemon --console=plain --build-cache 2>&1 | tee lint.log
 
       - name: 上传 lint 日志（完整 gradle 输出）
         if: always()
