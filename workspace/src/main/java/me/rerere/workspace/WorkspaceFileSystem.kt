@@ -612,6 +612,8 @@ class WorkspaceFileSystem(
             isDirectory = isDirectory,
             sizeBytes = if (isFile) length() else 0L,
             updatedAt = lastModified(),
+            // 本地 lstat，无网络往返；isDirectory 本身跟随软链，故单独立标志
+            isSymlink = Files.isSymbolicLink(toPath()),
         )
 
     private fun File.relativePath(root: File): String {

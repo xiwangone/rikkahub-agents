@@ -704,13 +704,15 @@ class SshWorkspaceBackend(
         rmdir(dir.sftpQuote())
     }
 
-    private fun SftpATTRS.toWorkspaceEntry(path: String, name: String, isDirectory: Boolean = isDir) = WorkspaceFileEntry(
+    private fun SftpATTRS.toWorkspaceEntry(path: String, name: String, isDirectory: Boolean = isDir, isSymlink: Boolean = isLink) = WorkspaceFileEntry(
         path = path,
         name = name,
         isDirectory = isDirectory,
         sizeBytes = if (isReg) size else 0L,
         // SFTP v3 的 mtime 是无符号 32 位秒数
         updatedAt = (mTime.toLong() and 0xFFFFFFFFL) * 1_000L,
+        // ls 返回的是 lstat 语义的属性，isLink 即为该条目本身是否软链，无需额外往返
+        isSymlink = isSymlink,
     )
 
     private fun SftpException.wrap(displayPath: String): IOException = when (id) {

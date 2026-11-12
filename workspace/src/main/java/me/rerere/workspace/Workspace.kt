@@ -99,6 +99,8 @@ data class WorkspaceFileEntry(
     val isDirectory: Boolean,
     val sizeBytes: Long,
     val updatedAt: Long,
+    /** 是否符号链接；快照与文件树不展开指向目录的软链，避免沿软链循环下钻 */
+    val isSymlink: Boolean = false,
 )
 
 data class WorkspaceSearchMatch(

@@ -539,25 +539,27 @@ private fun createShellTool(
             ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
         val timeoutMillis = effectiveTimeoutSeconds * 1_000L
         val timeoutClamped = timeoutSeconds != null && timeoutSeconds != effectiveTimeoutSeconds
-        val targetWorkspace = params.string("workspace")
+        val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
 
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
         val (injectedEnv, envError) = resolveInjectedEnv(params.jsonObject)
         if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 
         // 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
-        // 快照有遍历数与缓存上限，超限即放弃检测（退回原行为，不影响命令执行）。
+        // 快照有遍历数、缓存上限与时间预算，超限/超时即放弃检测（退回原行为，不影响命令执行）。
         // 扫描根取命令的 cwd（默认工作区根）：范围越小越快，也越不容易撞上条目上限
         val diffScanRoot = cwd.orEmpty()
-        val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, workspaceId, diffScanRoot)
+        val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, diffScanRoot)
 
         val result = workspaceRepository.executeCommand(
             workspaceId, command, cwd, timeoutMillis,
-            targetId = targetWorkspace, env = injectedEnv,
+            targetId = targetWorkspaceId, env = injectedEnv,
         )
 
-        val afterSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, workspaceId, diffScanRoot)
-        val changes = WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
+        val afterSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, diffScanRoot)
+        // 任一快照超时即跳过 diff：空快照与全量快照对比会谎报全量新增/删除
+        val diffSkipped = beforeSnapshot.skipped || afterSnapshot.skipped
+        val changes = if (diffSkipped) emptyList() else WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
         val changeDiff =
             if (changes.isNotEmpty()) WorkspaceChangeDiff.buildDiff(changes, beforeSnapshot, afterSnapshot) else ""
 
@@ -574,6 +576,7 @@ private fun createShellTool(
                         put("timeoutSeconds", effectiveTimeoutSeconds)
                     }
                     if (result.truncated) put("truncated", true)
+                    if (diffSkipped) put("diffSkipped", true)
                     if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
                 }.toString(),
                 // diff 存入 metadata 供 UI 渲染（不随工具结果发给模型，不占上下文）

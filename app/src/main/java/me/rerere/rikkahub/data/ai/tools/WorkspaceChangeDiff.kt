@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools
 
 import me.rerere.rikkahub.utils.generateUnifiedDiff
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -26,7 +28,7 @@ object WorkspaceChangePolicy {
     /**
      * 遍历深度上限（相对扫描根）。
      *
-     * 工作区可能挂着完整代码仓库（实测某工作区 2 万+ 文件），无限制遍历既慢又会触发条目上限，
+     * 工作区可能挂着完整代码仓库（数万个文件），无限制遍历既慢又会触发条目上限，
      * 反而完全不产出 diff。命令改动的文件绝大多数在浅层，故默认限制深度；
      * 命令可传 cwd 进一步收窄扫描根。
      */
@@ -41,10 +43,22 @@ object WorkspaceChangePolicy {
     /** 执行前内容缓存的总字节上限（超出即不再缓存，仅能做文件名级变更提示）。 */
     const val MAX_CACHED_BYTES = 4L * 1024 * 1024
 
+    /** 单次快照的时间预算：超时即放弃检测（退回原行为，不影响命令本身）。 */
+    const val SNAPSHOT_TIMEOUT_MS = 3_000L
+
+    /**
+     * 远程工作区且未指定扫描根时的遍历深度上限。
+     *
+     * 全根深度遍历在弱网下是几千次往返；只扫根下一层仍能覆盖绝大多数命令改动
+     * （改动深的命令可传 cwd 收窄扫描根，此时仍用 [MAX_DEPTH]）。
+     */
+    const val REMOTE_ROOT_MAX_DEPTH = 1
+
     /** 跳过这些目录（依赖 / 缓存 / 版本库元数据）。 */
     val SKIPPED_DIRS = setOf(
         ".git", "node_modules", "__pycache__", ".gradle", ".cache",
         "build", "dist", ".venv", "venv", ".idea", ".pytest_cache",
+        ".nvm", ".bun", ".local", ".npm", ".config", ".android",
     )
 
     /** 文本扩展名白名单（其余按二进制处理，仅列名）。 */
@@ -74,6 +88,8 @@ data class WorkspaceSnapshot(
     val contents: Map<String, String> = emptyMap(),
     /** 遍历是否因超过上限而截断；截断时不做变更判定，避免误报。 */
     val truncated: Boolean = false,
+    /** 是否因超时而放弃采集（内容为空）；调用方据此跳过 diff，不与全量快照对比。 */
+    val skipped: Boolean = false,
 )
 
 /** 变更类型。 */
@@ -204,35 +220,67 @@ object WorkspaceChangeDiff {
         var truncated = false
         // 队列元素带深度，超过 maxDepth 的目录不再展开
         val queue = ArrayDeque<Pair<String, Int>>()
+        // 已展开过的目录路径：同一目录只扫一次，防重复入队
+        val visited = mutableSetOf<String>()
         queue += rootPath to 0
         while (queue.isNotEmpty()) {
             val (dir, depth) = queue.removeFirst()
-            val entries = runCatching { listFiles(dir) }.getOrDefault(emptyList())
-            for (entry in entries) {
+            if (!visited.add(dir)) continue
+            for (entry in listFilesOrEmpty(listFiles, dir)) {
                 if (++count > WorkspaceChangePolicy.MAX_ENTRIES) {
                     truncated = true
                     break
                 }
                 if (entry.isDirectory) {
-                    val descend = entry.name !in WorkspaceChangePolicy.SKIPPED_DIRS && depth < maxDepth
-                    if (descend) queue += entry.path to (depth + 1)
+                    if (shouldDescend(entry, depth, maxDepth)) queue += entry.path to (depth + 1)
                     continue
                 }
                 files[entry.path] = FileFingerprint(entry.sizeBytes, entry.updatedAt)
-                if (isTextFile(entry.path) &&
-                    entry.sizeBytes <= WorkspaceChangePolicy.MAX_DIFF_FILE_BYTES &&
-                    cachedBytes < WorkspaceChangePolicy.MAX_CACHED_BYTES
-                ) {
-                    runCatching { readText(entry.path) }.getOrNull()?.let { text ->
-                        contents[entry.path] = text
-                        cachedBytes += text.length
-                    }
-                }
+                if (!shouldCacheText(entry, cachedBytes)) continue
+                val text = readTextOrNull(readText, entry.path) ?: continue
+                contents[entry.path] = text
+                cachedBytes += text.length
             }
             if (truncated) break
         }
         return WorkspaceSnapshot(files = files, contents = contents, truncated = truncated)
     }
+
+    /** 列目录；取消必须重抛，否则外层 withTimeoutOrNull 收不到超时、超时机制形同失效。 */
+    private suspend fun listFilesOrEmpty(
+        listFiles: suspend (path: String) -> List<me.rerere.workspace.WorkspaceFileEntry>,
+        dir: String,
+    ): List<me.rerere.workspace.WorkspaceFileEntry> = runCatching { listFiles(dir) }
+        .onFailure { e -> if (e is CancellationException) throw e }
+        .getOrDefault(emptyList())
+
+    /** 读正文；同样重抛取消。 */
+    private suspend fun readTextOrNull(
+        readText: suspend (path: String) -> String?,
+        path: String,
+    ): String? = runCatching { readText(path) }
+        .onFailure { e -> if (e is CancellationException) throw e }
+        .getOrNull()
+
+    /**
+     * 是否继续下钻：指向目录的软链按文件处理、不展开（与文件树的 expandable 规则一致），
+     * 避免沿软链循环下钻（同一目录经不同链接反复出现）。
+     */
+    private fun shouldDescend(
+        entry: me.rerere.workspace.WorkspaceFileEntry,
+        depth: Int,
+        maxDepth: Int,
+    ): Boolean = !entry.isSymlink &&
+        entry.name !in WorkspaceChangePolicy.SKIPPED_DIRS &&
+        depth < maxDepth
+
+    /** 是否需要缓存正文：纯文本、未超单文件上限、且未超总缓存预算。 */
+    private fun shouldCacheText(
+        entry: me.rerere.workspace.WorkspaceFileEntry,
+        cachedBytes: Long,
+    ): Boolean = isTextFile(entry.path) &&
+        entry.sizeBytes <= WorkspaceChangePolicy.MAX_DIFF_FILE_BYTES &&
+        cachedBytes < WorkspaceChangePolicy.MAX_CACHED_BYTES
 
     fun kindLabel(kind: FileChangeKind): String = when (kind) {
         FileChangeKind.ADDED -> "新增"
@@ -241,18 +289,39 @@ object WorkspaceChangeDiff {
     }
 }
 
-/** 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。 */
+/**
+ * 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
+ *
+ * 快照是 best-effort：超时（[WorkspaceChangePolicy.SNAPSHOT_TIMEOUT_MS]）即返回空快照
+ * 并标 skipped，调用方跳过 diff、命令本身不受影响。远程工作区且未指定扫描根时
+ * 只扫一层，避免弱网下几千次往返；传了 cwd 的命令仍用完整深度。
+ */
 internal suspend fun takeWorkspaceChangeSnapshot(
     workspaceRepository: WorkspaceRepository,
     workspaceId: String,
     rootPath: String,
-): WorkspaceSnapshot = WorkspaceChangeDiff.takeSnapshot(
-    listFiles = { path ->
-        workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path)
-    },
-    readText = { path -> runCatching { workspaceRepository.readText(workspaceId, path) }.getOrNull() },
-    rootPath = rootPath,
-)
+): WorkspaceSnapshot {
+    val maxDepth =
+        if (rootPath.isEmpty() && workspaceRepository.getById(workspaceId)?.isSsh() == true) {
+            WorkspaceChangePolicy.REMOTE_ROOT_MAX_DEPTH
+        } else {
+            WorkspaceChangePolicy.MAX_DEPTH
+        }
+    return withTimeoutOrNull(WorkspaceChangePolicy.SNAPSHOT_TIMEOUT_MS) {
+        WorkspaceChangeDiff.takeSnapshot(
+            listFiles = { path ->
+                workspaceRepository.listFiles(workspaceId, me.rerere.workspace.WorkspaceStorageArea.FILES, path)
+            },
+            readText = { path ->
+                runCatching { workspaceRepository.readText(workspaceId, path) }
+                    .onFailure { e -> if (e is CancellationException) throw e }
+                    .getOrNull()
+            },
+            rootPath = rootPath,
+            maxDepth = maxDepth,
+        )
+    } ?: WorkspaceSnapshot(files = emptyMap(), skipped = true)
+}
 
 /**
  * 结构化改动摘要（给 AI，平级字段）：路径 + 变更类型 + ±行数 + 总数/截断标记；正文仍在 metadata。
