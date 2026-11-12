@@ -46,6 +46,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.LocalMcpServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
@@ -76,6 +77,8 @@ fun SettingToolApprovalsPage() {
     val scope = rememberCoroutineScope()
 
     var pendingYoloEnable by remember { mutableStateOf(false) }
+    var pendingRevoke by remember { mutableStateOf<String?>(null) }
+    var pendingRevokeAll by remember { mutableStateOf(false) }
     if (pendingYoloEnable) {
         AlertDialog(
             onDismissRequest = { pendingYoloEnable = false },
@@ -105,6 +108,37 @@ fun SettingToolApprovalsPage() {
                 }
             },
         )
+    }
+
+    RikkaConfirmDialog(
+        show = pendingRevoke != null,
+        title = stringResource(R.string.setting_page_tool_approvals_revoke_confirm_title),
+        confirmText = stringResource(R.string.setting_page_tool_approvals_revoke),
+        dismissText = stringResource(R.string.common_cancel),
+        onConfirm = {
+            val target = pendingRevoke
+            pendingRevoke = null
+            if (target != null) {
+                scope.launch { prefs.revoke(target) }
+            }
+        },
+        onDismiss = { pendingRevoke = null },
+    ) {
+        Text(stringResource(R.string.setting_page_tool_approvals_revoke_confirm_message, pendingRevoke.orEmpty()))
+    }
+
+    RikkaConfirmDialog(
+        show = pendingRevokeAll,
+        title = stringResource(R.string.setting_page_tool_approvals_revoke_all_confirm_title),
+        confirmText = stringResource(R.string.setting_page_tool_approvals_revoke_all),
+        dismissText = stringResource(R.string.common_cancel),
+        onConfirm = {
+            pendingRevokeAll = false
+            scope.launch { prefs.revokeAll() }
+        },
+        onDismiss = { pendingRevokeAll = false },
+    ) {
+        Text(stringResource(R.string.setting_page_tool_approvals_revoke_all_confirm_message, granted.size))
     }
 
     Scaffold(
@@ -290,9 +324,7 @@ fun SettingToolApprovalsPage() {
                             item(
                                 headlineContent = { Text(toolName) },
                                 trailingContent = {
-                                    IconButton(onClick = {
-                                        scope.launch { prefs.revoke(toolName) }
-                                    }) {
+                                    IconButton(onClick = { pendingRevoke = toolName }) {
                                         Icon(
                                             imageVector = HugeIcons.Cancel01,
                                             contentDescription =
@@ -308,7 +340,7 @@ fun SettingToolApprovalsPage() {
                 }
                 item {
                     TextButton(
-                        onClick = { scope.launch { prefs.revokeAll() } },
+                        onClick = { pendingRevokeAll = true },
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
                         Text(stringResource(R.string.setting_page_tool_approvals_revoke_all))

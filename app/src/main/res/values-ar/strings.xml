@@ -155,6 +155,10 @@
   <string name="setting_page_tool_approvals_empty">لم تُمنح أي أداة «السماح دائمًا» بعد. سيسأل البوت قبل تشغيل أي أداة ذات أثر جانبي.</string>
   <string name="setting_page_tool_approvals_revoke">إلغاء</string>
   <string name="setting_page_tool_approvals_revoke_all">إلغاء الكل</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_title">إلغاء كل الموافقات؟</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_message">سيؤدي هذا إلى إزالة كل موافقات «السماح دائمًا» البالغ عددها %1$d. وستطلب كل أداة الموافقة مجددًا عند تشغيلها في المرة التالية.</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_title">إلغاء هذا الإذن؟</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_message">سيطلب «%1$s» الموافقة مجددًا عند تشغيله في المرة التالية.</string>
   <string name="setting_page_telegram_token">رمز البوت</string>
   <string name="setting_page_telegram_token_desc">من @BotFather. يجب إيقاف البوت للتعديل.</string>
   <string name="setting_page_telegram_default_chat">الدردشة الافتراضية</string>
@@ -1025,6 +1029,10 @@
   <string name="setting_page_web_server_error">خطأ</string>
   <string name="setting_page_web_server_jwt_enable">تمكين المصادقة</string>
   <string name="setting_page_web_server_jwt_enable_desc">طلب التحقق بكلمة مرور عند الوصول إلى واجهة الويب</string>
+  <string name="setting_page_web_server_jwt_needs_password">عيّن كلمة مرور للوصول أولًا لتفعيل المصادقة.</string>
+  <string name="setting_page_web_server_clear_password_title">مسح كلمة المرور سيؤدي أيضًا إلى إيقاف المصادقة</string>
+  <string name="setting_page_web_server_clear_password_message">تتطلب المصادقة كلمة مرور للوصول. إذا مسحت كلمة المرور، فسيتم إيقاف المصادقة وستصبح واجهة الويب متاحة دون كلمة مرور.</string>
+  <string name="setting_page_web_server_clear_password_confirm">مسح كلمة المرور</string>
   <string name="setting_page_web_server_lan_address">عنوان الشبكة المحلية</string>
   <string name="setting_page_web_server_local_address">العنوان المحلي</string>
   <string name="setting_page_web_server_localhost_only">localhost فقط</string>
@@ -2690,6 +2698,8 @@
   <string name="setting_ssh_host_passphrase">عبارة المرور</string>
   <string name="setting_ssh_from_template">التعبئة من قالب الخادم</string>
   <string name="setting_ssh_pick_vault_key">اختيار المفتاح الخاص من المخزن</string>
+  <string name="setting_ssh_no_saved_key_hint">لا توجد مفاتيح SSH محفوظة بعد. أنشئ مفتاحًا جديدًا بدلًا من ذلك.</string>
+  <string name="setting_ssh_no_saved_template_hint">لا توجد قوالب خوادم محفوظة بعد.</string>
   <string name="setting_ssh_template_used">القالب: %1$s</string>
   <string name="setting_ssh_vault_key_used">مخزن المفاتيح: %1$s</string>
   <string name="tts_label_1">S2.1-Pro (موصى به)</string>
@@ -2825,6 +2835,7 @@
   <string name="web_bridge_connection">حالة الاتصال</string>
   <string name="web_bridge_connect">تشغيل جسر الويب</string>
   <string name="web_bridge_disconnect">إيقاف</string>
+  <string name="setting_web_bridge_invalid_port_hint">صحّح أرقام المنافذ المميزة (1–65535) قبل الاتصال.</string>
   <string name="web_bridge_state_connected">✅ النفق متصل (الخادم:%1$d ← الهاتف:%2$d)</string>
   <string name="web_bridge_state_connecting">⏳ خدمة الويب قيد التشغيل وجارٍ ربط النفق…</string>
   <string name="web_bridge_state_disconnected">حالة النفق: غير متصل</string>
@@ -3468,6 +3479,7 @@
   <string name="setting_files_page_clean_content_description">تنظيف الملفات</string>
   <string name="setting_files_page_clean_failed_toast">تعذّر تنظيف بعض الملفات</string>
   <string name="setting_files_page_clean_older_than_days">أقدم من %1$d يوم</string>
+  <string name="setting_files_page_clean_preview">سيؤدي هذا إلى حذف %1$d ملفات (%2$s).</string>
   <string name="setting_files_page_clean_range_description">حدد الملفات التي تريد حذفها نهائيًا. لا يمكن التراجع عن هذا الإجراء.</string>
   <string name="setting_files_page_clean_title">تأكيد تنظيف الملفات؟</string>
   <string name="setting_files_page_cleaned_toast">تم تنظيف الملفات</string>
@@ -3783,6 +3795,7 @@
   <string name="usage_stats_by_provider_tokens">حصة الاستخدام حسب المزوّد</string>
   <string name="usage_stats_detail">التفاصيل</string>
   <string name="usage_stats_empty">لا توجد بيانات بعد</string>
+  <string name="usage_stats_empty_range">%1$s: لا يوجد استخدام بعد. جرّب نطاقًا آخر.</string>
   <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
   <string name="diff_view_expand_all">… +%1$d سطرًا (انقر للتوسيع الكامل)</string>
   <string name="json_tree_more_items">… %1$d عناصر إضافية (انقر للتوسيع)</string>
@@ -4324,6 +4337,8 @@
   <string name="ssh_terminal_clear_output">مسح المخرجات</string>
   <string name="ssh_terminal_command_timeout">انتهت مهلة الأمر (30s)</string>
   <string name="ssh_terminal_connection_lost">انقطع الاتصال، يُرجى إعادة الاتصال</string>
+  <string name="ssh_terminal_disconnect">قطع الاتصال</string>
+  <string name="ssh_terminal_disconnected">تم قطع الاتصال.</string>
   <string name="ssh_terminal_copy_output">نسخ المخرجات</string>
   <string name="ssh_terminal_retry">إعادة المحاولة</string>
   <string name="ssh_terminal_status_connected">متصل</string>

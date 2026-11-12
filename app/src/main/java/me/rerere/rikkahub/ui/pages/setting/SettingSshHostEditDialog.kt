@@ -208,11 +208,22 @@ internal fun SshHostEditDialog(
                     )
                 }
 
-                if (serverTemplates.isNotEmpty()) {
-                    OutlinedButton(onClick = { showTemplatePicker = true }, modifier = Modifier.fillMaxWidth()) {
-                        Text(stringResource(R.string.setting_ssh_from_template))
-                    }
-                    if (showTemplatePicker) {
+                // “从模板新建”始终显示：空库时置灰并注明原因，否则用户根本不知道有模板功能。
+                OutlinedButton(
+                    onClick = { showTemplatePicker = true },
+                    enabled = serverTemplates.isNotEmpty(),
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Text(stringResource(R.string.setting_ssh_from_template))
+                }
+                if (serverTemplates.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.setting_ssh_no_saved_template_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (showTemplatePicker) {
                         serverTemplates.forEach { tpl ->
                             TextButton(
                                 onClick = {
@@ -245,7 +256,6 @@ internal fun SshHostEditDialog(
                             }
                         }
                     }
-                }
                 if (templateRef != null) {
                     Text(
                         stringResource(R.string.setting_ssh_template_used, templateRef!!),
@@ -254,74 +264,81 @@ internal fun SshHostEditDialog(
                     )
                 }
 
-                if (keyCandidates.isNotEmpty()) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
+                // “新建密钥”始终显示（空库时最需要）；仅“从凭证库选择”在无候选项时置灰。
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    OutlinedButton(
+                        onClick = { showVaultPicker = true },
+                        enabled = keyCandidates.isNotEmpty(),
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                     ) {
-                        OutlinedButton(
-                            onClick = { showVaultPicker = true },
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Key01,
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.setting_ssh_pick_vault_key),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                        OutlinedButton(
-                            onClick = { showKeyGen = true },
-                            modifier = Modifier.weight(1f),
-                            contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
-                        ) {
-                            Icon(
-                                imageVector = HugeIcons.Add01,
-                                contentDescription = null,
-                                modifier = Modifier.size(ButtonDefaults.IconSize),
-                            )
-                            Spacer(Modifier.width(4.dp))
-                            Text(
-                                text = stringResource(R.string.vault_new_key),
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                    if (showVaultPicker) {
-                        VaultCredentialPickerDialog(
-                            entries = keyCandidates,
-                            onPick = {
-                                vaultCredentialRef = it.name
-                                showVaultPicker = false
-                            },
-                            onDismiss = { showVaultPicker = false },
+                        Icon(
+                            imageVector = HugeIcons.Key01,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
                         )
-                    }
-                    if (showKeyGen) {
-                        SshKeyPairDialog(
-                            credentialName = "",
-                            defaultGroup = "SSH",
-                            onDismiss = { showKeyGen = false },
-                            onSaved = { savedName ->
-                                vaultCredentialRef = savedName
-                                showKeyGen = false
-                            },
-                        )
-                    }
-                    if (vaultCredentialRef != null) {
+                        Spacer(Modifier.width(4.dp))
                         Text(
-                            stringResource(R.string.setting_ssh_vault_key_used, vaultCredentialRef!!),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
+                            text = stringResource(R.string.setting_ssh_pick_vault_key),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
                         )
                     }
+                    OutlinedButton(
+                        onClick = { showKeyGen = true },
+                        modifier = Modifier.weight(1f),
+                        contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Add01,
+                            contentDescription = null,
+                            modifier = Modifier.size(ButtonDefaults.IconSize),
+                        )
+                        Spacer(Modifier.width(4.dp))
+                        Text(
+                            text = stringResource(R.string.vault_new_key),
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+                if (keyCandidates.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.setting_ssh_no_saved_key_hint),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+                if (showVaultPicker) {
+                    VaultCredentialPickerDialog(
+                        entries = keyCandidates,
+                        onPick = {
+                            vaultCredentialRef = it.name
+                            showVaultPicker = false
+                        },
+                        onDismiss = { showVaultPicker = false },
+                    )
+                }
+                if (showKeyGen) {
+                    SshKeyPairDialog(
+                        credentialName = "",
+                        defaultGroup = "SSH",
+                        onDismiss = { showKeyGen = false },
+                        onSaved = { savedName ->
+                            vaultCredentialRef = savedName
+                            showKeyGen = false
+                        },
+                    )
+                }
+                if (vaultCredentialRef != null) {
+                    Text(
+                        stringResource(R.string.setting_ssh_vault_key_used, vaultCredentialRef!!),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
                 }
             }
         },

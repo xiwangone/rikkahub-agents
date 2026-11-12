@@ -62,6 +62,12 @@ import org.koin.compose.koinInject
 
 private const val WEB_BRIDGE_KEY_NAME = "WEB_BRIDGE_SSH_KEY"
 
+/** 端口号是否合法：能解析为整数且在 1–65535 内（与 SSH 主机页同口径）。 */
+internal fun webBridgePortValid(text: String): Boolean {
+    val port = text.toIntOrNull() ?: return false
+    return port in 1..65535
+}
+
 /**
  * Web 桥三级页（反向隧道到 ECS，Material 3 Expressive 分组卡片样式）。
  */
@@ -195,8 +201,10 @@ fun SettingWebBridgePage() {
                             OutlinedTextField(
                                 value = webBridgeSshPort,
                                 onValueChange = {
-                                    webBridgeSshPort = it
-                                    it.toIntOrNull()?.let { port ->
+                                    val filtered = it.filter { ch -> ch.isDigit() }
+                                    webBridgeSshPort = filtered
+                                    // 超出 1–65535 的不再静默存入（旧逻辑只拦解析失败，99999/0 会直接写库）。
+                                    filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
                                         scope.launch { settingsStore.update { s -> s.copy(webBridgeEcsPort = port) } }
                                     }
                                 },
@@ -204,6 +212,12 @@ fun SettingWebBridgePage() {
                                 modifier = Modifier.weight(0.35f),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = !webBridgePortValid(webBridgeSshPort),
+                                supportingText = {
+                                    if (!webBridgePortValid(webBridgeSshPort)) {
+                                        Text(stringResource(R.string.setting_ssh_host_port_invalid))
+                                    }
+                                },
                             )
                         }
                         Row(
@@ -213,30 +227,46 @@ fun SettingWebBridgePage() {
                             OutlinedTextField(
                                 value = webBridgeRemotePort,
                                 onValueChange = {
-                                    webBridgeRemotePort = it
-                                    it.toIntOrNull()?.let { port ->
+                                    val filtered = it.filter { ch -> ch.isDigit() }
+                                    webBridgeRemotePort = filtered
+                                    filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
                                         scope.launch { settingsStore.update { s -> s.copy(webBridgeRemotePort = port) } }
                                     }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_remote_port)) },
-                                supportingText = { Text(stringResource(R.string.setting_web_bridge_remote_port_desc)) },
+                                supportingText = {
+                                    if (!webBridgePortValid(webBridgeRemotePort)) {
+                                        Text(stringResource(R.string.setting_ssh_host_port_invalid))
+                                    } else {
+                                        Text(stringResource(R.string.setting_web_bridge_remote_port_desc))
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = !webBridgePortValid(webBridgeRemotePort),
                             )
                             OutlinedTextField(
                                 value = webBridgeLocalPort,
                                 onValueChange = {
-                                    webBridgeLocalPort = it
-                                    it.toIntOrNull()?.let { port ->
+                                    val filtered = it.filter { ch -> ch.isDigit() }
+                                    webBridgeLocalPort = filtered
+                                    filtered.toIntOrNull()?.takeIf { port -> port in 1..65535 }?.let { port ->
                                         scope.launch { settingsStore.update { s -> s.copy(webBridgeLocalPort = port) } }
                                     }
                                 },
                                 label = { Text(stringResource(R.string.setting_web_bridge_local_port)) },
-                                supportingText = { Text(stringResource(R.string.setting_web_bridge_local_port_desc)) },
+                                supportingText = {
+                                    if (!webBridgePortValid(webBridgeLocalPort)) {
+                                        Text(stringResource(R.string.setting_ssh_host_port_invalid))
+                                    } else {
+                                        Text(stringResource(R.string.setting_web_bridge_local_port_desc))
+                                    }
+                                },
                                 modifier = Modifier.weight(1f),
                                 singleLine = true,
                                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                                isError = !webBridgePortValid(webBridgeLocalPort),
                             )
                         }
                     }
@@ -434,6 +464,11 @@ fun SettingWebBridgePage() {
                                 color = MaterialTheme.colorScheme.error,
                             )
                         }
+                        // 连接前再校验一次三个端口：任一非法就禁点并说明原因，不再拿旧端口去连。
+                        val portsValid =
+                            webBridgePortValid(webBridgeSshPort) &&
+                                webBridgePortValid(webBridgeRemotePort) &&
+                                webBridgePortValid(webBridgeLocalPort)
                         Row(
                             horizontalArrangement = Arrangement.spacedBy(12.dp),
                             modifier = Modifier.fillMaxWidth(),
@@ -453,7 +488,7 @@ fun SettingWebBridgePage() {
                                         )
                                     }
                                 },
-                                enabled = !bridgeState.tunnelConnected,
+                                enabled = !bridgeState.tunnelConnected && portsValid,
                                 modifier = Modifier.weight(1f),
                             ) {
                                 Text(stringResource(R.string.web_bridge_connect))
@@ -465,6 +500,14 @@ fun SettingWebBridgePage() {
                             ) {
                                 Text(stringResource(R.string.web_bridge_disconnect))
                             }
+                        }
+                        if (!portsValid) {
+                            Text(
+                                text = stringResource(R.string.setting_web_bridge_invalid_port_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.error,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
                         }
                     }
                 }

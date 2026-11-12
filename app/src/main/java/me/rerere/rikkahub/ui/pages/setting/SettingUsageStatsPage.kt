@@ -90,60 +90,70 @@ fun SettingUsageStatsPage() {
         modifier = Modifier.nestedScroll(scrollBehavior.nestedScrollConnection),
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
-        if (stats.runs == 0L) {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxSize()
-                        .padding(innerPadding)
-                        .padding(24.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = Arrangement.Center,
-            ) {
-                Text(
-                    text = stringResource(R.string.usage_stats_empty),
-                    style = MaterialTheme.typography.bodyLarge,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-            return@Scaffold
-        }
         val rows = remember(stats) { stats.byProviderModel.entries.sortedByDescending { it.value.runs } }
+        val rangeLabelRes =
+            when (range) {
+                UsageRange.TODAY -> R.string.usage_stats_range_today
+                UsageRange.LAST_7_DAYS -> R.string.usage_stats_range_7d
+                UsageRange.LAST_30_DAYS -> R.string.usage_stats_range_30d
+                UsageRange.ALL_TIME -> R.string.usage_stats_range_all
+            }
+        // 空态只替换内容区：范围 Chip 始终渲染，否则某范围没数据时连切范围的入口都没了。
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
             contentPadding = innerPadding + PaddingValues(16.dp),
         ) {
             item {
-                Column(
+                UsageRangeChips(
+                    range = range,
+                    onRangeChange = { range = it },
                     modifier = Modifier.padding(bottom = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    UsageRangeChips(range = range, onRangeChange = { range = it })
-                    UsageOverviewCard(stats = stats)
-                    UsageProviderPieCard(stats = stats)
+                )
+            }
+            if (stats.runs == 0L) {
+                item {
                     Text(
-                        text = stringResource(R.string.usage_stats_detail),
-                        style = MaterialTheme.typography.titleSmallEmphasized,
-                        color = MaterialTheme.colorScheme.primary,
-                        modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                        text = stringResource(R.string.usage_stats_empty_range, stringResource(rangeLabelRes)),
+                        style = MaterialTheme.typography.bodyLarge,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(top = 48.dp),
                     )
                 }
-            }
-            itemsIndexed(rows, key = { _, item -> item.key }) { index, (key, rowStats) ->
-                UsageDetailRow(
-                    key = key,
-                    stats = rowStats,
-                    shape = cardGroupItemShape(index, rows.size),
-                    modifier = Modifier.padding(bottom = if (index == rows.lastIndex) 0.dp else 2.dp),
-                )
-            }
-            item {
-                Text(
-                    text = stringResource(R.string.usage_stats_note),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 12.dp, start = 4.dp),
-                )
+            } else {
+                item {
+                    Column(
+                        modifier = Modifier.padding(bottom = 12.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        UsageOverviewCard(stats = stats)
+                        UsageProviderPieCard(stats = stats)
+                        Text(
+                            text = stringResource(R.string.usage_stats_detail),
+                            style = MaterialTheme.typography.titleSmallEmphasized,
+                            color = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier.padding(start = 4.dp, top = 4.dp),
+                        )
+                    }
+                }
+                itemsIndexed(rows, key = { _, item -> item.key }) { index, (key, rowStats) ->
+                    UsageDetailRow(
+                        key = key,
+                        stats = rowStats,
+                        shape = cardGroupItemShape(index, rows.size),
+                        modifier = Modifier.padding(bottom = if (index == rows.lastIndex) 0.dp else 2.dp),
+                    )
+                }
+                item {
+                    Text(
+                        text = stringResource(R.string.usage_stats_note),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 12.dp, start = 4.dp),
+                    )
+                }
             }
         }
     }
@@ -153,6 +163,7 @@ fun SettingUsageStatsPage() {
 private fun UsageRangeChips(
     range: UsageRange,
     onRangeChange: (UsageRange) -> Unit,
+    modifier: Modifier = Modifier,
 ) {
     val options =
         listOf(
@@ -162,7 +173,7 @@ private fun UsageRangeChips(
             UsageRange.ALL_TIME to R.string.usage_stats_range_all,
         )
     Row(
-        modifier = Modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
         options.forEach { (option, labelRes) ->

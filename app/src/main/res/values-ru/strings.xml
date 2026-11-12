@@ -984,6 +984,10 @@
   <string name="setting_page_web_server_error">Ошибка</string>
   <string name="setting_page_web_server_jwt_enable">Включить аутентификацию</string>
   <string name="setting_page_web_server_jwt_enable_desc">Требовать проверку пароля при доступе к веб-интерфейсу</string>
+  <string name="setting_page_web_server_jwt_needs_password">Сначала задайте пароль доступа, чтобы включить проверку подлинности.</string>
+  <string name="setting_page_web_server_clear_password_title">Очистка пароля также отключит проверку подлинности</string>
+  <string name="setting_page_web_server_clear_password_message">Для проверки подлинности нужен пароль доступа. Если очистить пароль, проверка отключится, и веб-интерфейс станет доступен без пароля.</string>
+  <string name="setting_page_web_server_clear_password_confirm">Очистить пароль</string>
   <string name="setting_page_web_server_lan_address">LAN-адрес</string>
   <string name="setting_page_web_server_local_address">Локальный адрес</string>
   <string name="setting_page_web_server_localhost_only">Только localhost</string>
@@ -1723,6 +1727,10 @@
   <string name="setting_page_tool_approvals_header">Инструменты ниже выполняются без запроса на этом устройстве. Отзовите, если больше не доверяете модели эту возможность.</string>
   <string name="setting_page_tool_approvals_revoke">Отозвать</string>
   <string name="setting_page_tool_approvals_revoke_all">Отозвать всё</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_title">Отозвать все разрешения?</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_message">Будут удалены все %1$d разрешений «разрешать всегда». При следующем запуске каждый инструмент снова запросит разрешение.</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_title">Отозвать это разрешение?</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_message">«%1$s» снова запросит разрешение при следующем запуске.</string>
   <string name="setting_page_tool_approvals_yolo_dialog_body">Каждый инструмент — локальная оболочка, SSH, запись файлов, автоматизация экрана, отправка в Telegram, MCP — будет выполняться без запроса у вас. Агент сможет отправлять сообщения, выполнять команды на удалённых хостах, делать фотографии, записывать файлы, планировать задачи — всё без подтверждения.\n\nЗащита HARDLINE по-прежнему действует: rm -rf /, mkfs, shutdown / reboot, dd на блочные устройства, fork-бомба, конвейеры с закодированной нагрузкой — это всё остаётся заблокированным.\n\nЭто опасная функция. Включайте, только если доверяете модели + конфигурации ассистента + собственным запросам в ответственном поведении.</string>
   <string name="setting_page_tool_approvals_yolo_dialog_cancel">Оставить одобрения</string>
   <string name="setting_page_tool_approvals_yolo_dialog_confirm">Да, я ГЛУПЫЙ, включить</string>
@@ -3132,6 +3140,8 @@
   <string name="setting_ssh_host_passphrase">Парольная фраза</string>
   <string name="setting_ssh_from_template">Заполнить из шаблона сервера</string>
   <string name="setting_ssh_pick_vault_key">Выбрать ключ из хранилища</string>
+  <string name="setting_ssh_no_saved_key_hint">Сохранённых SSH-ключей пока нет. Создайте новый.</string>
+  <string name="setting_ssh_no_saved_template_hint">Сохранённых шаблонов серверов пока нет.</string>
   <string name="setting_ssh_template_used">Шаблон: %1$s</string>
   <string name="setting_ssh_vault_key_used">Хранилище ключей: %1$s</string>
   <string name="tts_label_1">S2.1-Pro (рекомендуется)</string>
@@ -3267,6 +3277,7 @@
   <string name="web_bridge_connection">Состояние подключения</string>
   <string name="web_bridge_connect">Запустить веб-мост</string>
   <string name="web_bridge_disconnect">Остановить</string>
+  <string name="setting_web_bridge_invalid_port_hint">Перед подключением исправьте выделенные номера портов (1–65535).</string>
   <string name="web_bridge_state_connected">✅ Туннель подключён (сервер:%1$d ← телефон:%2$d)</string>
   <string name="web_bridge_state_connecting">⏳ Веб-служба запущена, подключение туннеля…</string>
   <string name="web_bridge_state_disconnected">Состояние туннеля: не подключён</string>
@@ -3507,6 +3518,7 @@
     <string name="chat_generation_network_disconnected">Сетевое соединение потеряно</string>
   <string name="setting_files_page_clean_all">Все файлы</string>
   <string name="setting_files_page_clean_older_than_days">Старше %1$d дней</string>
+  <string name="setting_files_page_clean_preview">Будет удалено файлов: %1$d (%2$s).</string>
   <string name="setting_files_page_clean_range_description">Выберите файлы для окончательного удаления. Это действие нельзя отменить.</string>
   <string name="search_page_scope_current_assistant">Текущий ассистент</string>
   <string name="search_page_scope_all_assistants">Все ассистенты</string>
@@ -3780,6 +3792,7 @@
   <string name="usage_stats_by_provider_tokens">Доля использования по провайдерам</string>
   <string name="usage_stats_detail">Детализация</string>
   <string name="usage_stats_empty">Данных пока нет</string>
+  <string name="usage_stats_empty_range">%1$s: использований пока нет. Попробуйте другой период.</string>
   <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
   <string name="diff_view_expand_all">… +%1$d строк (нажмите, чтобы развернуть все)</string>
   <string name="json_tree_more_items">… ещё %1$d элементов (нажмите, чтобы развернуть)</string>
@@ -4321,6 +4334,8 @@
   <string name="ssh_terminal_clear_output">Очистить вывод</string>
   <string name="ssh_terminal_command_timeout">Время выполнения команды истекло (30s)</string>
   <string name="ssh_terminal_connection_lost">Соединение потеряно, подключитесь снова</string>
+  <string name="ssh_terminal_disconnect">Отключиться</string>
+  <string name="ssh_terminal_disconnected">Отключено.</string>
   <string name="ssh_terminal_copy_output">Копировать вывод</string>
   <string name="ssh_terminal_retry">Повторить</string>
   <string name="ssh_terminal_status_connected">Подключено</string>

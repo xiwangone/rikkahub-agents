@@ -1011,6 +1011,7 @@
   <string name="setting_files_page_clean_content_description">清理文件</string>
   <string name="setting_files_page_clean_failed_toast">部分文件清理失败</string>
   <string name="setting_files_page_clean_older_than_days">%1$d 天前</string>
+  <string name="setting_files_page_clean_preview">将删除 %1$d 个文件（共 %2$s）。</string>
   <string name="setting_files_page_clean_range_description">选择要永久删除的文件。此操作无法撤销。</string>
   <string name="setting_files_page_clean_title">清理文件？</string>
   <string name="setting_files_page_cleaned_toast">文件已清理</string>
@@ -1180,6 +1181,10 @@
   <string name="setting_page_web_server_error">错误</string>
   <string name="setting_page_web_server_jwt_enable">启用身份验证</string>
   <string name="setting_page_web_server_jwt_enable_desc">访问网页界面时需要密码验证</string>
+  <string name="setting_page_web_server_jwt_needs_password">请先设置访问密码，再开启身份验证。</string>
+  <string name="setting_page_web_server_clear_password_title">清空密码将同时关闭身份验证</string>
+  <string name="setting_page_web_server_clear_password_message">身份验证需要访问密码。清空密码后，身份验证将关闭，任何人无需密码即可访问网页界面。</string>
+  <string name="setting_page_web_server_clear_password_confirm">清空密码</string>
   <string name="setting_page_web_server_lan_address">局域网地址</string>
   <string name="setting_page_web_server_local_address">本机地址</string>
   <string name="setting_page_web_server_localhost_only">仅本地主机</string>
@@ -2017,6 +2022,10 @@
   <string name="setting_page_tool_approvals_header">以下工具在本设备上运行时永不询问。如果你不再信任模型拥有此能力，请撤销。</string>
   <string name="setting_page_tool_approvals_revoke">撤销</string>
   <string name="setting_page_tool_approvals_revoke_all">全部撤销</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_title">撤销全部授权？</string>
+  <string name="setting_page_tool_approvals_revoke_all_confirm_message">将清除全部 %1$d 项“始终允许”授权，相关工具下次运行时会再次请求授权。</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_title">撤销这项授权？</string>
+  <string name="setting_page_tool_approvals_revoke_confirm_message">「%1$s」下次运行时会再次请求授权。</string>
   <string name="setting_page_tool_approvals_yolo_dialog_body">每个工具 — 本地 shell、SSH、文件写入、屏幕自动化、Telegram 外发、MCP — 都将无需询问你直接运行。智能体可能发送消息、在远程主机上运行命令、拍照、写入文件、安排任务，全部无需确认。\n\nHARDLINE 保护仍然生效：rm -rf /、mkfs、shutdown / reboot、向块设备 dd、fork 炸弹、编码载荷管道 — 这些仍会被拦截。\n\n这是个危险操作。仅在你信任模型 + 助手配置 + 你自己的提示词会负责任地行事时才启用。</string>
   <string name="setting_page_tool_approvals_yolo_dialog_cancel">保持授权开启</string>
   <string name="setting_page_tool_approvals_yolo_dialog_confirm">是的，我很蠢，启用</string>
@@ -2677,6 +2686,8 @@
   <string name="setting_ssh_host_passphrase">口令</string>
   <string name="setting_ssh_from_template">从服务器样板填充</string>
   <string name="setting_ssh_pick_vault_key">从密钥库选择私钥</string>
+  <string name="setting_ssh_no_saved_key_hint">暂无已保存的 SSH 密钥，可新建一个。</string>
+  <string name="setting_ssh_no_saved_template_hint">暂无已保存的服务器模板。</string>
   <string name="setting_ssh_template_used">样板：%1$s</string>
   <string name="setting_ssh_vault_key_used">密钥库：%1$s</string>
   <string name="setting_ssh_platform_label">平台</string>
@@ -2965,6 +2976,7 @@
   <string name="web_bridge_connection">连接状态</string>
   <string name="web_bridge_connect">启动 Web 桥</string>
   <string name="web_bridge_disconnect">停止</string>
+  <string name="setting_web_bridge_invalid_port_hint">连接前请先修正标红的端口号（1–65535）。</string>
   <string name="web_bridge_state_connected">✅ 隧道已连接（服务器:%1$d ← 手机:%2$d）</string>
   <string name="web_bridge_state_connecting">⏳ Web 服务已启动，隧道连接中…</string>
   <string name="web_bridge_state_disconnected">隧道状态：未连接</string>
@@ -3481,6 +3493,8 @@
   <string name="ssh_terminal_execute">执行</string>
   <string name="ssh_terminal_retry">重试</string>
   <string name="ssh_terminal_connection_lost">连接已断开，请重连</string>
+  <string name="ssh_terminal_disconnect">断开连接</string>
+  <string name="ssh_terminal_disconnected">已断开连接。</string>
   <string name="ssh_terminal_command_timeout">命令超时（30s）</string>
   <string name="ssh_terminal_status_connected">已连接</string>
   <string name="ssh_terminal_status_connecting">连接中…</string>
@@ -3860,6 +3874,7 @@
   <string name="usage_stats_by_provider_tokens">提供商用量占比</string>
   <string name="usage_stats_detail">明细</string>
   <string name="usage_stats_empty">暂无用量数据</string>
+  <string name="usage_stats_empty_range">%1$s：暂无调用，可切换其他范围查看。</string>
   <string name="usage_stats_note">按生成口径统计：一次生成记一条；费用仅含服务商上报部分，未上报的不估算。</string>
   <string name="diff_view_expand_all">… +%1$d 行（点击展开全部）</string>
   <string name="json_tree_more_items">… 还有 %1$d 个项目（点击展开）</string>

@@ -45,6 +45,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.FormItem
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.withResolvedVaultCredentials
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -70,6 +71,7 @@ fun SettingSearchDetailPage(
     val service = settings.searchServices.find { it.id == serviceId } ?: return
     val serviceIndex = settings.searchServices.indexOf(service)
     var options by remember(service) { mutableStateOf(service) }
+    var pendingDelete by remember { mutableStateOf(false) }
 
     fun save(updated: SearchServiceOptions) {
         options = updated
@@ -92,14 +94,7 @@ fun SettingSearchDetailPage(
                 actions = {
                     if (settings.searchServices.size > 1) {
                         IconButton(
-                            onClick = {
-                                vm.updateSettings { current ->
-                                    if (current.searchServices.size > 1) {
-                                        current.copy(searchServices = current.searchServices.filterNot { it.id == serviceId })
-                                    } else current
-                                }
-                                nav.popBackStack()
-                            },
+                            onClick = { pendingDelete = true },
                         ) {
                             Icon(
                                 imageVector = HugeIcons.Delete01,
@@ -146,6 +141,22 @@ fun SettingSearchDetailPage(
             }
         }
     }
+
+    RikkaDeleteConfirmDialog(
+        show = pendingDelete,
+        title = stringResource(R.string.setting_page_search_delete_provider),
+        message = stringResource(R.string.common_delete_confirm_message, options.displayName),
+        onConfirm = {
+            pendingDelete = false
+            vm.updateSettings { current ->
+                if (current.searchServices.size > 1) {
+                    current.copy(searchServices = current.searchServices.filterNot { it.id == serviceId })
+                } else current
+            }
+            nav.popBackStack()
+        },
+        onDismiss = { pendingDelete = false },
+    )
 }
 
 @Suppress("UNCHECKED_CAST")

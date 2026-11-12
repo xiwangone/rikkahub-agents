@@ -55,6 +55,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.WebServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionLocalNetwork
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionManager
 import me.rerere.rikkahub.ui.components.ui.permission.PermissionNotification
@@ -68,6 +69,13 @@ import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.CredentialType
+
+/**
+ * 清空密码是否需要先确认：只有“新值为空且身份验证当前开着”时才需要——
+ * 此时保存会联动关掉身份验证，不能悄悄做。
+ */
+internal fun passwordClearNeedsConfirm(newValue: String, jwtEnabled: Boolean): Boolean =
+    newValue.isBlank() && jwtEnabled
 
 @Composable
 fun SettingWebServerPage() {
@@ -89,6 +97,7 @@ fun SettingWebServerPage() {
     var accessPasswordText by remember(settings.webServerAccessPassword) {
         mutableStateOf(settings.webServerAccessPassword)
     }
+    var pendingPasswordClear by remember { mutableStateOf(false) }
 
     val permissionState =
         rememberPermissionState(
@@ -135,6 +144,19 @@ fun SettingWebServerPage() {
     fun copyUrl(url: String) {
         clipboardManager.setText(AnnotatedString(url))
         toaster.show(copiedText)
+    }
+
+    val jwtNeedsPasswordText = stringResource(R.string.setting_page_web_server_jwt_needs_password)
+
+    // 开关保持可点：没密码时点开只提示、不生效；关闭随时可关。
+    fun trySetJwt(checked: Boolean) {
+        if (checked && accessPasswordText.isBlank()) {
+            toaster.show(jwtNeedsPasswordText)
+            return
+        }
+        scope.launch {
+            settingsStore.update { it.copy(webServerJwtEnabled = checked) }
+        }
     }
 
     Scaffold(
@@ -296,27 +318,14 @@ fun SettingWebServerPage() {
                         },
                     )
                     item(
-                        onClick = {
-                            scope.launch {
-                                settingsStore.update {
-                                    it.copy(webServerJwtEnabled = !settings.webServerJwtEnabled)
-                                }
-                            }
-                        },
+                        onClick = { trySetJwt(!settings.webServerJwtEnabled) },
                         headlineContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable)) },
                         supportingContent = { Text(stringResource(R.string.setting_page_web_server_jwt_enable_desc)) },
                         trailingContent = {
                             Switch(
                                 modifier = Modifier.testTag("web_server_jwt_switch"),
                                 checked = settings.webServerJwtEnabled,
-                                onCheckedChange = { checked ->
-                                    scope.launch {
-                                        settingsStore.update {
-                                            it.copy(webServerJwtEnabled = checked)
-                                        }
-                                    }
-                                },
-                                enabled = settings.webServerJwtEnabled || accessPasswordText.isNotBlank(),
+                                onCheckedChange = { checked -> trySetJwt(checked) },
                             )
                         },
                     )
@@ -327,12 +336,17 @@ fun SettingWebServerPage() {
                                 value = accessPasswordText,
                                 onValueChange = { value ->
                                     accessPasswordText = value
-                                    scope.launch {
-                                        settingsStore.update {
-                                            it.copy(
-                                                webServerAccessPassword = value,
-                                                webServerJwtEnabled = it.webServerJwtEnabled && value.isNotBlank(),
-                                            )
+                                    if (passwordClearNeedsConfirm(value, settings.webServerJwtEnabled)) {
+                                        // 清空密码会联动关掉身份验证：先弹确认，不再悄悄关。
+                                        pendingPasswordClear = true
+                                    } else {
+                                        scope.launch {
+                                            settingsStore.update {
+                                                it.copy(
+                                                    webServerAccessPassword = value,
+                                                    webServerJwtEnabled = it.webServerJwtEnabled && value.isNotBlank(),
+                                                )
+                                            }
                                         }
                                     }
                                 },
@@ -413,5 +427,25 @@ fun SettingWebServerPage() {
                 }
             }
         }
+    }
+
+    RikkaConfirmDialog(
+        show = pendingPasswordClear,
+        title = stringResource(R.string.setting_page_web_server_clear_password_title),
+        confirmText = stringResource(R.string.setting_page_web_server_clear_password_confirm),
+        dismissText = stringResource(R.string.common_cancel),
+        onConfirm = {
+            pendingPasswordClear = false
+            scope.launch {
+                settingsStore.update { it.copy(webServerAccessPassword = "", webServerJwtEnabled = false) }
+            }
+        },
+        onDismiss = {
+            pendingPasswordClear = false
+            // 取消则恢复已保存的密码，输入框回到清空前的样子。
+            accessPasswordText = settings.webServerAccessPassword
+        },
+    ) {
+        Text(stringResource(R.string.setting_page_web_server_clear_password_message))
     }
 }

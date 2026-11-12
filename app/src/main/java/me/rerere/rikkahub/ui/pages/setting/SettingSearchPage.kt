@@ -52,6 +52,7 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
@@ -76,6 +77,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
     val scope = rememberCoroutineScope()
     val nav = LocalNavController.current
     var showAddDialog by remember { mutableStateOf(false) }
+    var pendingDelete by remember { mutableStateOf<SearchServiceOptions?>(null) }
 
     Scaffold(
         topBar = {
@@ -135,16 +137,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                         onEdit = {
                             nav.navigate(Screen.SettingSearchDetail(service.id.toString()))
                         },
-                        onDelete = {
-                            if (settings.searchServices.size > 1) {
-                                val index = settings.searchServices.indexOf(service)
-                                val newServices = settings.searchServices.toMutableList()
-                                newServices.removeAt(index)
-                                vm.updateSettings { current ->
-            current.copy(searchServices = newServices)
-        }
-                            }
-                        },
+                        onDelete = { pendingDelete = service },
                         canDelete = settings.searchServices.size > 1,
                         modifier =
                             Modifier
@@ -193,6 +186,22 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
             },
         )
     }
+
+    RikkaDeleteConfirmDialog(
+        show = pendingDelete != null,
+        title = stringResource(R.string.setting_page_search_delete_provider),
+        message = stringResource(R.string.common_delete_confirm_message, pendingDelete?.displayName.orEmpty()),
+        onConfirm = {
+            val target = pendingDelete
+            pendingDelete = null
+            if (target != null && settings.searchServices.size > 1) {
+                vm.updateSettings { current ->
+                    current.copy(searchServices = current.searchServices.filterNot { it.id == target.id })
+                }
+            }
+        },
+        onDismiss = { pendingDelete = null },
+    )
 }
 
 @Composable

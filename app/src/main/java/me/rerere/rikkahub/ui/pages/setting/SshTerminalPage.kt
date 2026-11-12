@@ -60,6 +60,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Clean
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Play
@@ -280,8 +281,20 @@ fun SshTerminalPage(hostName: String) {
                 if (session == null || !session.isConnected) {
                     sessionRef.set(null)
                     connected = false
+                    // 断线也要弹出错误卡片（带“重试”按钮），否则输入框和快捷栏
+                    // 消失后用户只能退出页面再进来重连。
+                    connectError = appContext.getString(R.string.ssh_terminal_connection_lost)
                     output += appContext.getString(R.string.ssh_terminal_connection_lost) + "\n"
                     return@withContext
+                }
+                // 执行中会话断掉时同样回到断线态（错误卡片 + 重试），而不是
+                // 只留一行失败记录、把输入框留在已死的会话上。
+                fun markDisconnectedIfSessionDown() {
+                    if (session?.isConnected == false) {
+                        sessionRef.set(null)
+                        connected = false
+                        connectError = appContext.getString(R.string.ssh_terminal_connection_lost)
+                    }
                 }
                 var ch: com.jcraft.jsch.ChannelExec? = null
                 try {
@@ -324,8 +337,10 @@ fun SshTerminalPage(hostName: String) {
                     }
                 } catch (e: JSchException) {
                     output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
+                    markDisconnectedIfSessionDown()
                 } catch (e: IOException) {
                     output += appResources.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
+                    markDisconnectedIfSessionDown()
                 } finally {
                     runCatching { ch?.disconnect() }
                 }
@@ -372,6 +387,17 @@ fun SshTerminalPage(hostName: String) {
                 },
                 navigationIcon = { BackButton() },
                 actions = {
+                    if (connected) {
+                        IconButton(
+                            onClick = {
+                                runCatching { sessionRef.getAndSet(null)?.disconnect() }
+                                connected = false
+                                connectError = appContext.getString(R.string.ssh_terminal_disconnected)
+                            },
+                        ) {
+                            Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.ssh_terminal_disconnect))
+                        }
+                    }
                     if (output.isNotBlank()) {
                         IconButton(
                             onClick = { clipboard.setText(AnnotatedString(output)) },

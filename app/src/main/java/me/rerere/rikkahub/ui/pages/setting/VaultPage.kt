@@ -87,7 +87,8 @@ fun VaultPage() {
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val passwordRequiredStr = stringResource(R.string.vault_export_password_required)
 
-    var credentialCount by remember { mutableStateOf(0) }
+    // null 表示首次加载中：先显示“计算中…”，而不是先闪一个假的 0。
+    var credentialCount by remember { mutableStateOf<Int?>(null) }
     var importResult by remember { mutableStateOf<String?>(null) }
     var importPassword by remember { mutableStateOf("") }
     var showClearDialog by remember { mutableStateOf(false) }
@@ -185,8 +186,11 @@ fun VaultPage() {
         val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
         return fmt.format(java.util.Date(tsMs))
     }
-    refreshCount()
-    refreshAudit()
+    // 只在进入页面时查一次：直接写在组合函数体里会在每次重组时都重新发起查询。
+    LaunchedEffect(Unit) {
+        refreshCount()
+        refreshAudit()
+    }
 
     val backupExportLauncher =
         rememberSafeLauncherForActivityResult(ActivityResultContracts.CreateDocument("application/json")) { uri ->
@@ -392,7 +396,14 @@ fun VaultPage() {
                                 )
                             },
                             headlineContent = {
-                                Text(stringResource(R.string.vault_credential_count, credentialCount))
+                                val count = credentialCount
+                                Text(
+                                    if (count == null) {
+                                        stringResource(R.string.calculating)
+                                    } else {
+                                        stringResource(R.string.vault_credential_count, count)
+                                    },
+                                )
                             },
                             supportingContent = {
                                 Text(stringResource(R.string.vault_page_intro))

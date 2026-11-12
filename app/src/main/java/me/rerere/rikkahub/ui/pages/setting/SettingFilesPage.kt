@@ -95,6 +95,21 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
     val files by filesManager.observe(selectedFolder).collectAsStateWithLifecycle(initialValue = emptyList())
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
+    var pendingCleanPreview by remember { mutableStateOf<CleanPreview?>(null) }
+    var pendingCleanAllConfirm by remember { mutableStateOf(false) }
+
+    // 清理真正执行：与预览同口径（见 cleanPreview），ALL 走 deleteAll。
+    fun doClean() {
+        scope.launch {
+            val ok = selectedCleanRange.days?.let { days ->
+                filesManager.deleteOlderThan(
+                    folder = selectedFolder,
+                    cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()),
+                )
+            } ?: filesManager.deleteAll(selectedFolder)
+            toaster.show(if (ok) cleanedToast else cleanFailedToast)
+        }
+    }
 
     if (pendingDelete != null) {
         val target = pendingDelete!!
@@ -176,20 +191,73 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
             CleanFilesSheet(
                 selectedRange = selectedCleanRange,
                 onRangeSelected = { selectedCleanRange = it },
+                preview = remember(files, selectedCleanRange) {
+                    cleanPreview(files, selectedCleanRange, System.currentTimeMillis())
+                },
                 onClean = {
                     showCleanSheet = false
-                    scope.launch {
-                        val ok = selectedCleanRange.days?.let { days ->
-                            filesManager.deleteOlderThan(
-                                folder = selectedFolder,
-                                cutoffMillis = System.currentTimeMillis() - TimeUnit.DAYS.toMillis(days.toLong()),
-                            )
-                        } ?: filesManager.deleteAll(selectedFolder)
-                        toaster.show(if (ok) cleanedToast else cleanFailedToast)
-                    }
+                    pendingCleanPreview = cleanPreview(files, selectedCleanRange, System.currentTimeMillis())
                 },
             )
         }
+    }
+
+    pendingCleanPreview?.let { preview ->
+        AlertDialog(
+            onDismissRequest = { pendingCleanPreview = null },
+            title = { Text(stringResource(R.string.setting_files_page_clean_title)) },
+            text = {
+                Text(
+                    stringResource(
+                        R.string.setting_files_page_clean_preview,
+                        preview.count,
+                        preview.totalBytes.fileSizeToString(),
+                    ),
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingCleanPreview = null
+                        if (selectedCleanRange == CleanRange.ALL) {
+                            pendingCleanAllConfirm = true
+                        } else {
+                            doClean()
+                        }
+                    },
+                ) {
+                    Text(stringResource(R.string.setting_files_page_clean_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCleanPreview = null }) {
+                    Text(stringResource(R.string.setting_files_page_cancel_action))
+                }
+            },
+        )
+    }
+
+    if (pendingCleanAllConfirm) {
+        AlertDialog(
+            onDismissRequest = { pendingCleanAllConfirm = false },
+            title = { Text(stringResource(R.string.setting_files_page_clean_title)) },
+            text = { Text(stringResource(R.string.setting_files_page_clean_confirmation)) },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        pendingCleanAllConfirm = false
+                        doClean()
+                    },
+                ) {
+                    Text(stringResource(R.string.setting_files_page_clean_action))
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { pendingCleanAllConfirm = false }) {
+                    Text(stringResource(R.string.setting_files_page_cancel_action))
+                }
+            },
+        )
     }
 
     Scaffold(
@@ -318,17 +386,42 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
     }
 }
 
-private enum class CleanRange(val days: Int?) {
+internal enum class CleanRange(val days: Int?) {
     DAYS_7(7),
     DAYS_14(14),
     DAYS_30(30),
     ALL(null),
 }
 
+/** 本次清理的预览：待删文件数 + 总字节数。 */
+internal data class CleanPreview(val count: Int, val totalBytes: Long)
+
+/**
+ * 按 [FilesManager.deleteOlderThan]/[FilesManager.deleteAll] 的口径算出本次清理会删的文件：
+ * 按天数的档只取 [ManagedFileEntity.createdAt] 严格早于截止时间的文件（与 deleteOlderThan
+ * 的 `< cutoffMillis` 一致，恰好等于截止时间的不删）；ALL 取当前分类的全部文件。
+ */
+internal fun cleanPreview(
+    files: List<ManagedFileEntity>,
+    range: CleanRange,
+    nowMillis: Long,
+): CleanPreview {
+    val targets =
+        when (val days = range.days) {
+            null -> files
+            else -> {
+                val cutoff = nowMillis - TimeUnit.DAYS.toMillis(days.toLong())
+                files.filter { it.createdAt < cutoff }
+            }
+        }
+    return CleanPreview(targets.size, targets.sumOf { it.sizeBytes })
+}
+
 @Composable
 private fun CleanFilesSheet(
     selectedRange: CleanRange,
     onRangeSelected: (CleanRange) -> Unit,
+    preview: CleanPreview,
     onClean: () -> Unit,
 ) {
     Column(
@@ -371,8 +464,21 @@ private fun CleanFilesSheet(
             }
         }
 
+        Text(
+            text = stringResource(
+                R.string.setting_files_page_clean_preview,
+                preview.count,
+                preview.totalBytes.fileSizeToString(),
+            ),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(top = 8.dp),
+        )
         TextButton(
             onClick = onClean,
+            enabled = preview.count > 0,
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),
