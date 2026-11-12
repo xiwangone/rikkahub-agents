@@ -8,10 +8,13 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -373,7 +376,7 @@ fun VaultPage() {
     ) { padding ->
         if (unlocked) {
             LazyColumn(
-                modifier = Modifier.fillMaxSize(),
+                modifier = Modifier.fillMaxSize().imePadding(),
                 contentPadding = padding + PaddingValues(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -453,7 +456,10 @@ fun VaultPage() {
                             onDismissRequest = { pinDialogShown = false },
                             title = { Text(stringResource(R.string.vault_pin_setup_title)) },
                             text = {
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                Column(
+                                    modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
+                                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
                                     OutlinedTextField(
                                         value = pinInput,
                                         onValueChange = { pinInput = it },

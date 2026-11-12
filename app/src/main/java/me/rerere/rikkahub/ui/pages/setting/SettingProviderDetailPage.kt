@@ -686,7 +686,8 @@ internal fun ProviderOverrideSettings(
                         Modifier
                             .fillMaxWidth()
                             .fillMaxHeight(0.9f)
-                            .padding(16.dp),
+                            .padding(16.dp)
+                            .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
                 ) {
                     Text(

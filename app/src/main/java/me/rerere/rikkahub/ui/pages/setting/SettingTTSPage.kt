@@ -181,7 +181,8 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                     Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .fillMaxHeight(0.8f),
+                        .fillMaxHeight(0.8f)
+                        .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(

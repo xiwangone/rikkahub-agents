@@ -571,7 +571,8 @@ private fun AddButton(onAdd: (ProviderSetting) -> Unit) {
                             Modifier
                                 .fillMaxWidth()
                                 .heightIn(max = 420.dp)
-                                .verticalScroll(rememberScrollState()),
+                                .verticalScroll(rememberScrollState())
+                                .imePadding(),
                     ) {
                         ProviderConfigure(it, showTypeSwitcher = false) { newState ->
                             dialogState.currentState = newState

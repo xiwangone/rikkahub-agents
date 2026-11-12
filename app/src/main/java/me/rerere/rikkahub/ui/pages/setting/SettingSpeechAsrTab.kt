@@ -216,7 +216,8 @@ internal fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .fillMaxHeight(0.8f),
+                        .fillMaxHeight(0.8f)
+                        .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Text(
@@ -285,7 +286,8 @@ internal fun ASRProviderEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .fillMaxHeight(0.8f),
+                    .fillMaxHeight(0.8f)
+                    .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
