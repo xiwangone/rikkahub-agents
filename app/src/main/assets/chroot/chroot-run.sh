@@ -89,7 +89,10 @@ do_unmount_quiet() {
         ( umount "$m" 2>/dev/null || umount -l "$m" 2>/dev/null || true ) &
     done
     wait
-    rm -rf "$ROOTFS"/.chroot-mounted "$ROOTFS"/.chroot-fixed "$ROOTFS"/.chroot-lock 2>/dev/null || true
+    # 只清 .chroot-mounted：它有清理契约（切回 proot 后必须不残留，见 workspace 侧
+    # WorkspaceBackendSwitchTest 的断言），也兼容旧版本留下的文件。
+    # .chroot-fixed / .chroot-lock 历史上从无写入点（只在旧清理名单里挂着），已去掉。
+    rm -rf "$ROOTFS"/.chroot-mounted 2>/dev/null || true
 }
 
 do_unmount() {
