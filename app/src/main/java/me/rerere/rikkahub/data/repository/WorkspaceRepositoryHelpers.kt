@@ -2,8 +2,11 @@ package me.rerere.rikkahub.data.repository
 
 import android.content.Context
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.runInterruptible
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
@@ -12,6 +15,7 @@ import me.rerere.rikkahub.data.ai.tools.local.RemotePlatformStore
 import me.rerere.rikkahub.data.ai.tools.local.SshHostProbeStore
 import me.rerere.rikkahub.data.ai.tools.local.probePreferredWindows
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
+import me.rerere.rikkahub.data.datastore.SshHostProbeMode
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
@@ -37,6 +41,7 @@ import me.rerere.workspace.ssh.SshHostProbe
 import me.rerere.workspace.ssh.SshJumpHostConfig
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshWorkspaceBackend
+import me.rerere.workspace.ssh.probeBudgetMs
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 import java.io.IOException
@@ -51,7 +56,9 @@ import me.rerere.rikkahub.data.log.AppLog
 internal suspend fun WorkspaceRepository.probeSshImpl(id: String?, draft: SshWorkspaceDraft): SshProbeResult {
         val previous = id?.let { dao.getById(it)?.sshSettings() }
         val config = withContext(Dispatchers.IO) { toConnectionConfig(draft.toSettings(previous), audit = false) }
-        val result = runInterruptible(Dispatchers.IO) { sshPool.probe(config) }
+        // 设置为关闭时不跑探针（hostProbe 保持 null，不写缓存）；其余两档都走显式入口跑一次。
+        val includeHostProbe = settingsStore.settingsFlow.value.sshHostProbe != SshHostProbeMode.OFF
+        val result = runInterruptible(Dispatchers.IO) { sshPool.probe(config, includeHostProbe) }
         // 测试连接每次重跑探针（手动刷新入口）：探针结果写回探针缓存（app SSH 与
         // 工作区共用同一份），平台结论同时写回平台缓存（探针优先于 banner）。
         // 探针失败只记 null，不影响本次测试连接结果；写缓存失败同样不影响。
@@ -60,7 +67,7 @@ internal suspend fun WorkspaceRepository.probeSshImpl(id: String?, draft: SshWor
             val context = runCatching { getKoin().get<Context>() }.getOrNull()
             if (context != null) {
                 try {
-                    SshHostProbeStore(context).put(config.host, config.port, hostProbe)
+                    SshHostProbeStore(context).put(config.host, config.port, hostProbe, config.username)
                     RemotePlatformStore(context).put(config.host, config.port, hostProbe.isWindows)
                 } catch (_: Throwable) {
                     // 写缓存失败不影响本次测试连接结果
@@ -267,13 +274,17 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
         host: String,
         port: Int,
         workspacePlatform: SshPlatform? = null,
+        user: String? = null,
     ): String {
-        val savedHostExplicit = runCatching { getKoin().get<SshHostRepository>() }
-            .getOrNull()?.getByHost(host)?.let { SshPlatform.fromPreference(it.platform) }
+        val savedHost = runCatching { getKoin().get<SshHostRepository>() }
+            .getOrNull()?.getByHost(host)
+        val savedHostExplicit = savedHost?.let { SshPlatform.fromPreference(it.platform) }
             ?.takeUnless { it == SshPlatform.AUTO }
         val explicit = workspacePlatform?.takeUnless { it == SshPlatform.AUTO } ?: savedHostExplicit
+        // 探针缓存的键含用户名：调用方传了用调用方的，否则用已保存主机的登录用户。
+        val probeUser = user ?: savedHost?.user
         val cached = runCatching { getKoin().get<Context>() }
-            .getOrNull()?.let { probePreferredWindows(it, host, port) }
+            .getOrNull()?.let { probePreferredWindows(it, host, port, probeUser) }
         val globalDefault = settingsStore.settingsFlow.value.defaultSshPlatform
         return when (RemotePlatform.resolveWindows(explicit, cached, globalDefault)) {
             true -> "WINDOWS"
@@ -348,36 +359,93 @@ internal suspend fun WorkspaceRepository.readEnvironmentInfoImpl(id: String): Wo
         return info
     }
 
+/**
+ * AUTO 模式后台补探针的执行作用域（仓库级后台任务同款做法：进程内常驻，
+ * 与 WorkspaceRepository.statsScope 一致；补探针是一次性任务，跑完即结束）。
+ */
+private val hostProbeSupplementScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+/**
+ * AUTO 模式后台补探针的启动钩子（默认在 [hostProbeSupplementScope] 上跑；
+ * 单测替换它可断言“启动即返回、不等探测完成”，而不必建真连接）。
+ */
+internal var launchHostProbeSupplement: (suspend () -> Unit) -> Unit =
+    { block -> hostProbeSupplementScope.launch { block() } }
+
     /**
-     * 主机探针摘要（供提示词）：缓存命中直接用；未命中时在本次连接上跑一次探针
-     * （与 app SSH 共用 [SshHostProbe]），写回探针缓存与平台缓存。
-     * 探针失败只返回 null，不阻塞环境信息读取；下次重读时（缓存未命中）会再试。
+     * 主机探针摘要（供提示词）：缓存命中直接用；未命中时按设置项 `ssh_host_probe` 决定：
+     * - AUTO：启动后台补一次（独立协程 + 自有会话 + 预算，不占调用方超时；
+     *   见 [supplementHostProbeInBackground]），本次返回 null；
+     * - MANUAL_ONLY / OFF：不跑探针，返回 null（只走显式入口：测试连接、工作区页按钮）。
+     * 探针失败只写否定缓存（24h 内不再自动重探），不阻塞环境信息读取。
      */
     private suspend fun WorkspaceRepository.readHostProbeSummary(id: String): String? {
         val workspace = dao.getById(id) ?: return null
         val settings = workspace.sshSettings() ?: return null
         val context = runCatching { getKoin().get<Context>() }.getOrNull() ?: return null
         val store = SshHostProbeStore(context)
-        store.get(settings.host, settings.port)?.let { return it.summary() }
-        val platform = resolveSshPlatform(settings.host, settings.port)
-        val probe = try {
-            readFromBackend(workspace) { backend ->
-                SshHostProbe.runProbe(
-                    exec = { script, timeout -> backend.executeCommand(script, "", timeout, null, emptyMap()) },
-                    platform = platform,
-                    execWrapsWindows = platform == "WINDOWS",
+        store.get(settings.host, settings.port, settings.username)?.let { return it.summary() }
+        if (settingsStore.settingsFlow.value.sshHostProbe != SshHostProbeMode.AUTO) return null
+        if (store.isNegativeCached(settings.host, settings.port, settings.username)) return null
+        supplementHostProbeInBackground(id, workspace)
+        return null
+    }
+
+    /**
+     * AUTO 模式的进工作区自动补一次：独立协程 + 自有会话（readFromBackend 每次建连），
+     * 预算 min(15s, 剩余时间-1s)（无调用方 deadline 时 15s）；跑完写回探针缓存与平台缓存，
+     * 成功后刷新环境信息缓存条目的 hostSummary（下次提示词构建即带上）。
+     * 失败写否定缓存（24h 内不再自动重探），任何失败都不影响调用方。
+     */
+    private fun WorkspaceRepository.supplementHostProbeInBackground(id: String, workspace: WorkspaceEntity) {
+        val settings = workspace.sshSettings() ?: return
+        launchHostProbeSupplement {
+            val context = runCatching { getKoin().get<Context>() }.getOrNull()
+                ?: return@launchHostProbeSupplement
+            val store = SshHostProbeStore(context)
+            // 协程启动后重新查一次：测试连接等显式入口可能已在期间写好缓存。
+            if (store.get(settings.host, settings.port, settings.username) != null) {
+                return@launchHostProbeSupplement
+            }
+            if (store.isNegativeCached(settings.host, settings.port, settings.username)) {
+                return@launchHostProbeSupplement
+            }
+            val platform = resolveSshPlatform(settings.host, settings.port, user = settings.username)
+            val budget = probeBudgetMs(deadlineMs = null)
+                ?: SshHostProbe.PROBE_TIMEOUT_MS
+            val probe = try {
+                readFromBackend(workspace) { backend ->
+                    SshHostProbe.runProbe(
+                        exec = { script, timeout -> backend.executeCommand(script, "", timeout, null, emptyMap()) },
+                        platform = platform,
+                        execWrapsWindows = platform == "WINDOWS",
+                        timeoutMs = budget,
+                    )
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (ignored: Throwable) {
+                null
+            }
+            if (probe == null) {
+                runCatching { store.putFailure(settings.host, settings.port, settings.username) }
+                return@launchHostProbeSupplement
+            }
+            runCatching {
+                store.put(settings.host, settings.port, probe, settings.username)
+                RemotePlatformStore(context).put(settings.host, settings.port, probe.isWindows)
+            }
+            // 成功后刷新环境信息缓存条目的 hostSummary（下次提示词构建即带上）。
+            val entry = remoteEnvironments[id]
+            val info = entry?.info
+            if (entry != null && info != null && info.hostSummary == null) {
+                remoteEnvironments[id] = RemoteEnvironment(
+                    entry.configKey,
+                    info.copy(hostSummary = probe.summary()),
+                    entry.failedAt,
                 )
             }
-        } catch (_: Throwable) {
-            null
-        } ?: return null
-        try {
-            store.put(settings.host, settings.port, probe)
-            RemotePlatformStore(context).put(settings.host, settings.port, probe.isWindows)
-        } catch (_: Throwable) {
-            // 写缓存失败不影响本次摘要
         }
-        return probe.summary()
     }
 
 

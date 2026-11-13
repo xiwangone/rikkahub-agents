@@ -66,13 +66,13 @@ class TermuxCliCommandExecutor(
         // 本路径无全局默认来源）；execOneShot 只收已包装好的命令，故平台在此处用于包装，轮换开关直接透传。
         val resolvedWindows = RemotePlatform.resolveWindows(
             RemotePlatform.platformFromStored(host.platform),
-            probePreferredWindows(context, host.host, host.port),
+            probePreferredWindows(context, host.host, host.port, host.user),
             null,
         )
         val effectiveCommand = withUtf8ConsoleEncoding(command, resolvedWindows)
         val payload =
             runCancellableSshOp(SSH_TIMEOUT_MS) { sessionRef ->
-                execOneShot(context, host.host, host.port, host.user, auth, effectiveCommand, SSH_TIMEOUT_MS.toInt(), sessionRef, allowHostKeyRotation = host.allowHostKeyRotation, platformWindows = resolvedWindows)
+                execOneShot(context, host.host, host.port, host.user, auth, effectiveCommand, SSH_TIMEOUT_MS.toInt(), sessionRef, allowHostKeyRotation = host.allowHostKeyRotation)
             }
         val stdout = payload["stdout"]?.jsonPrimitive?.contentOrNull?.trim()
         if (!stdout.isNullOrBlank()) return stdout

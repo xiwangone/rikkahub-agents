@@ -4292,6 +4292,11 @@
   <string name="ssh_terminal_platform_unknown">平台未判定</string>
   <string name="setting_ssh_default_platform">預設遠端平台</string>
   <string name="setting_ssh_default_platform_desc">主機設為自動時使用</string>
+  <string name="setting_ssh_host_probe">主機探針</string>
+  <string name="setting_ssh_host_probe_desc">首次連接時如何探測遠端系統：自動會在進入工作區時補一次（不佔用命令逾時）；僅手動只在測試連接時探測；關閉則永不探測。</string>
+  <string name="setting_ssh_host_probe_auto">自動</string>
+  <string name="setting_ssh_host_probe_manual_only">僅手動</string>
+  <string name="setting_ssh_host_probe_off">關閉</string>
   <string name="setting_ssh_allow_host_key_rotation">允許主機金鑰輪換</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">主機金鑰變更時自動信任新金鑰</string>
   <string name="setting_page_trusted_keys">受信主機金鑰</string>

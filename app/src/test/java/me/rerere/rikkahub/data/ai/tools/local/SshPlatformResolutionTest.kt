@@ -71,4 +71,13 @@ class SshPlatformResolutionTest {
         assertEquals(SshPlatform.AUTO, SshPlatform.fromPreference("not-a-platform"))
         assertEquals(SshPlatform.AUTO, SshPlatform.fromPreference(""))
     }
+
+    @Test
+    fun `probe cache key includes the login user`() {
+        // 同一主机不同用户互不干扰；user 为空时退回旧 host:port 键（平台缓存与旧数据迁移用它）。
+        assertEquals("example.com:22:alice", RemotePlatform.cacheKey("example.com", 22, "alice"))
+        assertEquals("example.com:22", RemotePlatform.cacheKey("example.com", 22, null))
+        assertEquals("example.com:22", RemotePlatform.cacheKey("example.com", 22, "  "))
+        assertEquals("example.com:22:alice", RemotePlatform.cacheKey(" Example.COM ", 22, " Alice "))
+    }
 }

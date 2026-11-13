@@ -52,6 +52,7 @@ import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.datastore.SshHostProbeMode
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.log.AppLog
@@ -204,6 +205,38 @@ fun SettingSshHostsPage() {
                     }
                     Text(
                         text = stringResource(R.string.setting_ssh_default_platform_desc),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                }
+            }
+
+            item("sshHostProbe") {
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text(
+                        text = stringResource(R.string.setting_ssh_host_probe),
+                        style = MaterialTheme.typography.titleSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
+                        SshHostProbeMode.entries.forEachIndexed { index, mode ->
+                            SegmentedButton(
+                                shape = SegmentedButtonDefaults.itemShape(index = index, count = SshHostProbeMode.entries.size),
+                                selected = settings.sshHostProbe == mode,
+                                onClick = {
+                                    scope.launch {
+                                        settingsStore.update { it.copy(sshHostProbe = mode) }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(sshHostProbeModeLabelRes(mode)))
+                            }
+                        }
+                    }
+                    Text(
+                        text = stringResource(R.string.setting_ssh_host_probe_desc),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier.padding(horizontal = 4.dp),

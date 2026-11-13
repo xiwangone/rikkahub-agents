@@ -4300,6 +4300,11 @@
   <string name="ssh_terminal_platform_unknown">تعذّر تحديد المنصة</string>
   <string name="setting_ssh_default_platform">المنصة البعيدة الافتراضية</string>
   <string name="setting_ssh_default_platform_desc">يُستخدم عندما يكون المضيف مضبوطًا على تلقائي</string>
+  <string name="setting_ssh_host_probe">مسبار المضيف</string>
+  <string name="setting_ssh_host_probe_desc">كيفية استكشاف النظام البعيد عند الاتصال الأول: تلقائي يستكشف مرة واحدة عند دخول مساحة العمل (دون استهلاك مهلة الأمر)؛ يدوي فقط يستكشف عند اختبار الاتصال؛ إيقاف لا يستكشف أبدا.</string>
+  <string name="setting_ssh_host_probe_auto">تلقائي</string>
+  <string name="setting_ssh_host_probe_manual_only">يدوي فقط</string>
+  <string name="setting_ssh_host_probe_off">إيقاف</string>
   <string name="setting_ssh_allow_host_key_rotation">السماح بتدوير مفتاح المضيف</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">الوثوق تلقائيًا بالمفتاح الجديد عند تغيير مفتاح المضيف</string>
   <string name="setting_page_trusted_keys">مفاتيح المضيف الموثوقة</string>

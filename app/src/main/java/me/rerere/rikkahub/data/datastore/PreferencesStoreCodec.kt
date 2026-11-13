@@ -74,6 +74,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SELECT_ASSISTAN
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SELECT_MODEL
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SETTING_SHORTCUT_IDS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SPONSOR_ALERT_DISMISSED_AT
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SSH_HOST_PROBE
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SUB_AGENTS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SUB_AGENT_DEFAULT_WORKSPACE
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SUB_AGENT_FOREGROUND_RECEIPT
@@ -505,6 +506,7 @@ internal suspend fun persistSettingsTo(
         preferences[WEB_SERVER_LOCALHOST_ONLY] = settings.webServerLocalhostOnly
         preferences[AI_LOG_LEVEL] = settings.aiLogLevel.preferenceName
         preferences[DEFAULT_SSH_PLATFORM] = settings.defaultSshPlatform.preferenceName
+        preferences[SSH_HOST_PROBE] = settings.sshHostProbe.preferenceName
         preferences.putJsonIfChanged(
             BACKUP_REMINDER_CONFIG,
             previous,

@@ -42,6 +42,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.SshHostProbeMode
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.vault.CredentialType
@@ -393,4 +394,12 @@ internal fun sshPlatformLabelRes(platform: SshPlatform): Int =
         SshPlatform.AUTO -> R.string.setting_ssh_platform_auto
         SshPlatform.LINUX -> R.string.setting_ssh_platform_linux
         SshPlatform.WINDOWS -> R.string.setting_ssh_platform_windows
+    }
+
+/** 探针触发模式枚举到界面文案的映射。 */
+internal fun sshHostProbeModeLabelRes(mode: SshHostProbeMode): Int =
+    when (mode) {
+        SshHostProbeMode.AUTO -> R.string.setting_ssh_host_probe_auto
+        SshHostProbeMode.MANUAL_ONLY -> R.string.setting_ssh_host_probe_manual_only
+        SshHostProbeMode.OFF -> R.string.setting_ssh_host_probe_off
     }

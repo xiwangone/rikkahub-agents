@@ -1,6 +1,7 @@
 package me.rerere.workspace
 
 import me.rerere.workspace.ssh.SshHostProbe
+import me.rerere.workspace.ssh.probeBudgetMs
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -13,6 +14,7 @@ import java.util.Base64
  * - POSIX / Windows 探针输出解析（分段、字段、缺失项）；
  * - 摘要拼装（缺失项省略、MB/GB 换算）；
  * - runProbe 的平台分发与 AUTO 回退（用假 exec，不走网络）。
+ * - 探针预算 probeBudgetMs（默认 15s、有 deadline 时 min(15s, 剩余-1s)、耗尽返回 null）。
  * Windows 远端 pwsh 包装、首次连接行为、缓存命中不再重跑，不在本测试覆盖范围。
  */
 class SshHostProbeTest {
@@ -227,6 +229,22 @@ class SshHostProbeTest {
         assertEquals(2, seen.size)
         assertEquals("WINDOWS", result?.platform)
         assertEquals("Windows 11 Pro", result?.os)
+    }
+
+    @Test
+    fun `probeBudgetMs defaults to 15s without a deadline`() {
+        assertEquals(15_000L, probeBudgetMs(deadlineMs = null))
+    }
+
+    @Test
+    fun `probeBudgetMs caps at 15s and reserves 1s before the deadline`() {
+        // deadline 60s 后：15s 上限
+        assertEquals(15_000L, probeBudgetMs(deadlineMs = 60_000L, nowMs = 0L))
+        // deadline 10s 后：10s - 1s = 9s
+        assertEquals(9_000L, probeBudgetMs(deadlineMs = 10_000L, nowMs = 0L))
+        // deadline 只剩 1s 或已过：预算耗尽，返回 null（跳过本次探测）
+        assertNull(probeBudgetMs(deadlineMs = 1_000L, nowMs = 0L))
+        assertNull(probeBudgetMs(deadlineMs = 500L, nowMs = 0L))
     }
 
     @Test

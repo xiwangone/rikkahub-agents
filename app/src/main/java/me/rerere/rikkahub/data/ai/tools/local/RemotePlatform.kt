@@ -21,8 +21,19 @@ internal object RemotePlatform {
     /** 服务端版本串里的 Windows 标识（大小写无关）。 */
     private const val WINDOWS_MARKER = "for_windows"
 
-    /** 缓存键：同一主机大小写/首尾空白差异不应产生两条记录。 */
-    fun cacheKey(host: String, port: Int): String = "${host.trim().lowercase()}:$port"
+    /**
+     * 缓存键：同一主机大小写/首尾空白差异不应产生两条记录。
+     *
+     * 探针缓存的键含登录用户名（同一主机的 shell/工具因用户而异）；[user] 为空时退回
+     * 旧 host:port 键——平台缓存（banner 结论与登录用户无关）与旧数据迁移读取用它。
+     * 两处键格式不再相同是有意的：探针结果因用户而异，banner 结论不因用户而异；
+     * 平台缓存仍按 host:port 存取。
+     */
+    fun cacheKey(host: String, port: Int, user: String? = null): String {
+        val base = "${host.trim().lowercase()}:$port"
+        val u = user?.trim()?.lowercase().orEmpty()
+        return if (u.isEmpty()) base else "$base:$u"
+    }
 
     /** 由服务端版本串判定是否 Windows 远端；无法判定返回 `null`（调用方回退）。 */
     fun isWindowsServer(serverVersion: String?): Boolean? {

@@ -4293,6 +4293,11 @@
   <string name="ssh_terminal_platform_unknown">プラットフォーム未判定</string>
   <string name="setting_ssh_default_platform">既定のリモートプラットフォーム</string>
   <string name="setting_ssh_default_platform_desc">ホストが自動に設定されている場合に使用</string>
+  <string name="setting_ssh_host_probe">ホストプローブ</string>
+  <string name="setting_ssh_host_probe_desc">初回接続時にリモートシステムをどう検出するか：自動はワークスペースに入るときに1回だけ検出します（コマンドのタイムアウトを使いません）。手動のみは接続テスト時のみ検出します。オフは検出しません。</string>
+  <string name="setting_ssh_host_probe_auto">自動</string>
+  <string name="setting_ssh_host_probe_manual_only">手動のみ</string>
+  <string name="setting_ssh_host_probe_off">オフ</string>
   <string name="setting_ssh_allow_host_key_rotation">ホスト鍵のローテーションを許可</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">ホスト鍵が変更されたときに新しい鍵を自動的に信頼する</string>
   <string name="setting_page_trusted_keys">信頼済みホスト鍵</string>

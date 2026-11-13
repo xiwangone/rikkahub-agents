@@ -55,7 +55,8 @@ class SshConnectionPool(
     }
 
     /** 用一条临时连接测试配置, 不进入连接池 */
-    fun probe(config: SshConnectionConfig): SshProbeResult = SshConnection.probe(config)
+    fun probe(config: SshConnectionConfig, includeHostProbe: Boolean = true): SshProbeResult =
+        SshConnection.probe(config, includeHostProbe)
 
     fun close(id: String) {
         lockOf(id).withLock {

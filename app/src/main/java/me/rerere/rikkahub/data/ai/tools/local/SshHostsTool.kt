@@ -526,7 +526,7 @@ fun sshExecSavedTool(
         // 注意：env 前置用主 host 的平台（fallback 候选各有自己的平台，但 env 语句在循环外只拼一次）。
         if (env.isNotEmpty() && !background) {
             val mainExplicit = RemotePlatform.explicitOrStored(explicitPlatform, RemotePlatform.platformFromStored(h.platform))
-            val mainCached = probePreferredWindows(context, h.host, h.port)
+            val mainCached = probePreferredWindows(context, h.host, h.port, h.user)
             val mainWindows = RemotePlatform.resolveWindows(mainExplicit, mainCached, globalDefault)
             val envStyle = p["env_style"]?.jsonPrimitive?.contentOrNull
             val envWindows = when {
@@ -598,12 +598,12 @@ fun sshExecSavedTool(
             // 命令包装按候选各自取值：主 host 的平台/缓存不能套到 fallback host 身上
             // （旧实现在循环外用主 host 缓存一次性算好 effectiveCommand）。
             val candExplicit = RemotePlatform.explicitOrStored(explicitPlatform, RemotePlatform.platformFromStored(cand.platform))
-            val candCached = probePreferredWindows(context, cand.host, cand.port)
+            val candCached = probePreferredWindows(context, cand.host, cand.port, cand.user)
             val candWindows = RemotePlatform.resolveWindows(candExplicit, candCached, globalDefault)
             val (detachedCmd, candBgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand, windows = candWindows) else (withUtf8ConsoleEncoding(finalCommand, candWindows) to null)
             val effectiveCommand = detachedCmd
             val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation, platformWindows = candWindows)
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation)
             }
             tried.add(cand.name to classifySshPayload(payload))
             val err = payload["error"]?.jsonPrimitive?.contentOrNull

@@ -263,3 +263,15 @@ object SshHostProbe {
         return tokens.getOrNull(3)?.toLongOrNull()
     }
 }
+
+/**
+ * 探针单次执行预算（毫秒）：默认 [SshHostProbe.PROBE_TIMEOUT_MS]；调用方有 deadline 时取
+ * min(15s, deadline-now-1s)——给调用方留 1 秒收尾；预算耗尽返回 null（跳过本次探测）。
+ * AUTO 模式最多两次执行，每次各取自己的预算。
+ * 放顶层而非 [SshHostProbe] 的成员：对象内函数数有 detekt 阈值，成员再多一个即超限。
+ */
+fun probeBudgetMs(deadlineMs: Long?, nowMs: Long = System.currentTimeMillis()): Long? {
+    val budget = deadlineMs?.let { minOf(SshHostProbe.PROBE_TIMEOUT_MS, it - nowMs - 1_000) }
+        ?: SshHostProbe.PROBE_TIMEOUT_MS
+    return budget.takeIf { it > 0 }
+}

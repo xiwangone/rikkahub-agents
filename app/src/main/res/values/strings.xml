@@ -2706,6 +2706,11 @@
   <string name="ssh_terminal_platform_unknown">Platform not detected</string>
   <string name="setting_ssh_default_platform">Default remote platform</string>
   <string name="setting_ssh_default_platform_desc">Used when a host is set to Auto</string>
+  <string name="setting_ssh_host_probe">Host probe</string>
+  <string name="setting_ssh_host_probe_desc">How the remote system is probed on first connection: Auto probes once when entering a workspace (without using the command timeout); Manual only probes on Test connection; Off never probes.</string>
+  <string name="setting_ssh_host_probe_auto">Auto</string>
+  <string name="setting_ssh_host_probe_manual_only">Manual only</string>
+  <string name="setting_ssh_host_probe_off">Off</string>
   <string name="setting_ssh_allow_host_key_rotation">Allow host key rotation</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">Automatically trust the new key when the host key changes</string>
   <string name="setting_trusted_keys_title">Trusted host keys</string>

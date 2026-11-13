@@ -2713,6 +2713,11 @@
   <string name="ssh_terminal_platform_unknown">平台未判定</string>
   <string name="setting_ssh_default_platform">默认远端平台</string>
   <string name="setting_ssh_default_platform_desc">主机设为自动时使用</string>
+  <string name="setting_ssh_host_probe">主机探针</string>
+  <string name="setting_ssh_host_probe_desc">首次连接时如何探测远端系统：自动会在进入工作区时补一次（不占用命令超时）；仅手动只在测试连接时探测；关闭则永不探测。</string>
+  <string name="setting_ssh_host_probe_auto">自动</string>
+  <string name="setting_ssh_host_probe_manual_only">仅手动</string>
+  <string name="setting_ssh_host_probe_off">关闭</string>
   <string name="setting_ssh_allow_host_key_rotation">允许主机密钥轮换</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">主机密钥变更时自动信任新密钥</string>
   <string name="setting_trusted_keys_title">受信主机密钥</string>

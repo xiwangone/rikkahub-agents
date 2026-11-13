@@ -4297,6 +4297,11 @@
   <string name="ssh_terminal_platform_unknown">Платформа не определена</string>
   <string name="setting_ssh_default_platform">Платформа удалённого хоста по умолчанию</string>
   <string name="setting_ssh_default_platform_desc">Используется, когда для хоста выбрано «Авто»</string>
+  <string name="setting_ssh_host_probe">Зонд хоста</string>
+  <string name="setting_ssh_host_probe_desc">Как определять удалённую систему при первом подключении: автоматически — один раз при входе в рабочую область (без расхода тайм-аута команды); только вручную — при проверке соединения; выключено — никогда.</string>
+  <string name="setting_ssh_host_probe_auto">Авто</string>
+  <string name="setting_ssh_host_probe_manual_only">Только вручную</string>
+  <string name="setting_ssh_host_probe_off">Выкл.</string>
   <string name="setting_ssh_allow_host_key_rotation">Разрешить смену ключа хоста</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">Автоматически доверять новому ключу при смене ключа хоста</string>
   <string name="setting_page_trusted_keys">Доверенные ключи хостов</string>

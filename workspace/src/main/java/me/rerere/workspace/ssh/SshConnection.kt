@@ -368,7 +368,7 @@ internal class SshConnection private constructor(
         }
 
         /** 用一条临时连接验证配置, 并取回远程环境的基本信息 */
-        fun probe(config: SshConnectionConfig): SshProbeResult {
+        fun probe(config: SshConnectionConfig, includeHostProbe: Boolean = true): SshProbeResult {
             // 被取消时放弃等待, 之后建好的连接直接关掉
             val connection = awaitInterruptibly({ open(config) }, onAbandoned = { it.close() })
             return connection.use {
@@ -390,11 +390,16 @@ internal class SshConnection private constructor(
                     // 首次连接主机探针：与 app SSH 共用 SshHostProbe（同一份命令/解析/摘要）；
                     // exec 在 config.platform == "WINDOWS" 时自动包 pwsh，故 execWrapsWindows
                     // 直接取该条件。探针失败只记 null，不影响本次测试连接。
-                    hostProbe = SshHostProbe.runProbe(
-                        exec = { script, timeout -> connection.exec(script, timeout) },
-                        platform = config.platform,
-                        execWrapsWindows = config.platform == "WINDOWS",
-                    ),
+                    // 设置为关闭时（includeHostProbe=false）不跑探针，hostProbe 保持 null。
+                    hostProbe = if (includeHostProbe) {
+                        SshHostProbe.runProbe(
+                            exec = { script, timeout -> connection.exec(script, timeout) },
+                            platform = config.platform,
+                            execWrapsWindows = config.platform == "WINDOWS",
+                        )
+                    } else {
+                        null
+                    },
                 )
             }
         }

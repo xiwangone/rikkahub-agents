@@ -248,6 +248,9 @@ class SettingsStore(
         // 默认 SSH 目标系统类型
         val DEFAULT_SSH_PLATFORM = stringPreferencesKey("default_ssh_platform")
 
+        // SSH 主机探针触发模式
+        val SSH_HOST_PROBE = stringPreferencesKey("ssh_host_probe")
+
         // 提示词注入
         val MODE_INJECTIONS = stringPreferencesKey("mode_injections")
         val LOREBOOKS = stringPreferencesKey("lorebooks")
@@ -457,6 +460,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
                 aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
                 defaultSshPlatform = SshPlatform.fromPreference(preferences[DEFAULT_SSH_PLATFORM]),
+                sshHostProbe = SshHostProbeMode.fromPreference(preferences[SSH_HOST_PROBE]),
                 backupReminderConfig = decodePrefOrDefault(preferences[BACKUP_REMINDER_CONFIG], BackupReminderConfig()),
                 backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
                 backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",

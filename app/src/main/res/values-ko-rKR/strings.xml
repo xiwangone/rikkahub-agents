@@ -4293,6 +4293,11 @@
   <string name="ssh_terminal_platform_unknown">플랫폼을 확인하지 못했습니다</string>
   <string name="setting_ssh_default_platform">기본 원격 플랫폼</string>
   <string name="setting_ssh_default_platform_desc">호스트가 자동으로 설정된 경우에 사용</string>
+  <string name="setting_ssh_host_probe">호스트 프로브</string>
+  <string name="setting_ssh_host_probe_desc">첫 연결 시 원격 시스템을 어떻게 검색할지: 자동은 워크스페이스에 들어갈 때 한 번 검색합니다(명령 시간 제한을 사용하지 않음). 수동만은 연결 테스트 시에만 검색합니다. 끄기는 검색하지 않습니다.</string>
+  <string name="setting_ssh_host_probe_auto">자동</string>
+  <string name="setting_ssh_host_probe_manual_only">수동만</string>
+  <string name="setting_ssh_host_probe_off">끄기</string>
   <string name="setting_ssh_allow_host_key_rotation">호스트 키 교체 허용</string>
   <string name="setting_ssh_allow_host_key_rotation_desc">호스트 키가 변경되면 새 키를 자동으로 신뢰</string>
   <string name="setting_page_trusted_keys">신뢰할 수 있는 호스트 키</string>

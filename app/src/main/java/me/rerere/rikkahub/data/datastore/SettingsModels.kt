@@ -219,6 +219,8 @@ data class Settings(
     val aiLogLevel: AiLogLevel = AiLogLevel.INFO,
     /** 默认 SSH 目标系统类型（新建主机未指定时使用；AUTO = 自动探测） */
     val defaultSshPlatform: SshPlatform = SshPlatform.AUTO,
+    /** SSH 主机探针触发模式（默认仅手动：只走显式入口；自动才会在进工作区时补一次） */
+    val sshHostProbe: SshHostProbeMode = SshHostProbeMode.MANUAL_ONLY,
     val backupReminderConfig: BackupReminderConfig = BackupReminderConfig(),
     /** 备份包整包口令加密总开关（WebDAV/S3/本地全通道生效；默认关=明文兼容旧包）。 */
     val backupEncryptionEnabled: Boolean = false,
@@ -285,6 +287,24 @@ enum class SshPlatform(val preferenceName: String) {
 
     companion object {
         fun fromPreference(value: String?): SshPlatform = entries.firstOrNull { it.preferenceName == value } ?: AUTO
+    }
+}
+
+/**
+ * SSH 主机探针触发模式（设置项 `ssh_host_probe`，默认仅手动）：
+ * - AUTO：首次连接可自动探（进工作区自动补一次，走独立协程 + 自有会话 + 预算，不占调用方超时）；
+ * - MANUAL_ONLY：只走显式入口（测试连接、工作区页按钮）；
+ * - OFF：永不探测。
+ */
+@Serializable
+enum class SshHostProbeMode(val preferenceName: String) {
+    AUTO("AUTO"),
+    MANUAL_ONLY("MANUAL_ONLY"),
+    OFF("OFF");
+
+    companion object {
+        fun fromPreference(value: String?): SshHostProbeMode =
+            entries.firstOrNull { it.preferenceName == value } ?: MANUAL_ONLY
     }
 }
 
