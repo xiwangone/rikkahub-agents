@@ -550,7 +550,13 @@ private suspend fun resolveShellPresetCommand(
 
 /** `workspace_shell` 的 timeout 参数解析结果。 */
 private sealed interface ShellTimeout {
-    data class Ok(val seconds: Long, val millis: Long, val clamped: Boolean) : ShellTimeout
+    /** [requested] 是调用方原始传入的字符串（未传为 null），用于回显“你请求的是多少”。 */
+    data class Ok(
+        val seconds: Long,
+        val millis: Long,
+        val clamped: Boolean,
+        val requested: String?,
+    ) : ShellTimeout
     data class Invalid(val envelope: String) : ShellTimeout
 }
 
@@ -582,6 +588,7 @@ private fun resolveShellTimeout(timeoutRaw: String?): ShellTimeout {
         seconds = effective,
         millis = effective * 1_000L,
         clamped = parsed != null && parsed != effective,
+        requested = timeoutRaw,
     )
 }
 
@@ -627,14 +634,15 @@ private fun createShellTool(
             )
         }
         val cwd = layout.relativeToWorkspace(params.string("cwd") ?: defaultCwd.orEmpty())
+        // 解析 timeout：非法值直接返回错误信封；合法值夹取到上限并标注是否被夹取。
         val timeoutSpec = resolveShellTimeout(params.string("timeout"))
-        if (timeoutSpec is ShellTimeout.Invalid) {
-            return@Tool listOf(UIMessagePart.Text(timeoutSpec.envelope))
+        val timeout = when (timeoutSpec) {
+            is ShellTimeout.Invalid -> return@Tool listOf(UIMessagePart.Text(timeoutSpec.envelope))
+            is ShellTimeout.Ok -> timeoutSpec
         }
-        timeoutSpec as ShellTimeout.Ok
-        val timeoutMillis = timeoutSpec.millis
-        val effectiveTimeoutSeconds = timeoutSpec.seconds
-        val timeoutClamped = timeoutSpec.clamped
+        val timeoutMillis = timeout.millis
+        val effectiveTimeoutSeconds = timeout.seconds
+        val timeoutClamped = timeout.clamped
         val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
 
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
@@ -668,7 +676,7 @@ private fun createShellTool(
                     put("timedOut", result.timedOut)
                     if (timeoutClamped) {
                         put("timeoutClamped", true)
-                        put("requestedTimeoutSeconds", timeoutRaw)
+                        put("requestedTimeoutSeconds", timeout.requested)
                         put("timeoutSeconds", effectiveTimeoutSeconds)
                     }
                     if (result.truncated) put("truncated", true)
