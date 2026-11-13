@@ -23,10 +23,14 @@ import me.rerere.workspace.ssh.SshHostProbeResult
  * 探针缓存只在首次连接（无缓存时）跑探针后写入，或测试连接时手动刷新覆盖。
  * 平台决议读探针缓存优先（探针是真实执行，比 banner 字符串更可靠），见
  * [probePreferredWindows]。
+ *
+ * ⚠ delegate 必须声明在**顶层**（与 [RemotePlatformStore] 的 remotePlatformDataStore 一致）：
+ * 写在类体里的话，每 new 一个 SshHostProbeStore 都会新建一个 DataStore 实例，
+ * 第二个实例构造时即抛 “multiple DataStores active for the same file”。
  */
-class SshHostProbeStore(private val context: Context) {
-    private val Context.hostProbeDataStore: DataStore<Preferences> by preferencesDataStore(name = "host_probes")
+private val Context.hostProbeDataStore: DataStore<Preferences> by preferencesDataStore(name = "host_probes")
 
+class SshHostProbeStore(private val context: Context) {
     private val probesKey = stringPreferencesKey("probes")
 
     suspend fun get(host: String, port: Int): SshHostProbeResult? =
