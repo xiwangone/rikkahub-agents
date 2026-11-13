@@ -62,6 +62,8 @@ enter_private_ns() {
 
 do_unmount_quiet() {
     # 按层级分批并行卸载：子挂载点必须先于父挂载点摘，同级可以并行。
+    # ⚠ 以后新增挂载点必须放进对应层级的批次里（先子后父）：toybox 的 umount -l 对有
+    #   子挂载的父挂载点仍会报 Invalid argument（dev / workspace 均如此）。
     # 串行 13 次 umount 每次都是 fork+exec，分批并行可显著缩短退出耗时。
     # 注：toybox 的 umount 不支持 -R（会报 Unknown option），此行从未生效，已删。
     for m in \
@@ -175,6 +177,23 @@ has_residual_mounts() {
     ' /proc/self/mountinfo 2>/dev/null
 }
 
+# 挂载完整性自检：只校验**硬必备**的六个挂载点（proc/sys/dev/dev/pts/tmp/workspace）。
+# 不校验总数：可选 bind（skills / tool_outputs / upload / mnt/shared / app-databases /
+# app-shared-prefs）随源目录存在与否增减，写死条数会误报；缺必备项才是真异常
+# （典型成因：挂载被路径别名漏判、或静默失败）。
+verify_mounts() {
+    local missing="" m
+    for m in proc sys dev dev/pts tmp workspace; do
+        awk -v base="$ROOTFS" -v rel="$m" '
+            BEGIN { want = base "/" rel }
+            $5 == want { found = 1; exit }
+            END { exit(found ? 0 : 1) }
+        ' /proc/self/mountinfo 2>/dev/null || missing="$missing $m"
+    done
+    [ -n "$missing" ] && echo "WARN: required mounts missing:${missing} (commands may misbehave)" >&2
+    return 0
+}
+
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
     # 幂等自愈：上一会话被 SIGKILL 时 trap 不执行，残留挂载会被新会话的 unshare 复制进来，
@@ -226,6 +245,7 @@ do_mounts() {
     if [ "$BIND_FAILED" -gt 0 ]; then
         echo "WARN: $BIND_FAILED optional bind mount(s) failed (see WARN lines above)" >&2
     fi
+    verify_mounts
     return 0
 }
 
