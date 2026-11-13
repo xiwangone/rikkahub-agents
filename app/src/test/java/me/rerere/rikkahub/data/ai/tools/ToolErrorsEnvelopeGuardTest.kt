@@ -9,7 +9,7 @@ import java.io.File
  * 防退化：工具错误输出必须走 [ToolErrors] 信封（JSON-RPC 2.0 形状），不得手写 `put("error", ...)`。
  *
  * 例外（非工具错误信封，不在本规则内）：
- * - [ToolErrors] 自身（信封的唯一实现）；
+ * - [ToolErrors] 自身（信封的 app 侧门面；实现在 ai 内核层 ToolErrorEnvelope）；
  * - 嵌套数据字段（如 batch 汇总中每项的 error、tried_hosts 数组元素）；
  * - 诊断/状态对象（如 MCP serverView、probe 结果）；
  * - 历史记录/运行摘要（如 workflow history）。

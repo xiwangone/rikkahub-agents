@@ -4,12 +4,13 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 
 /**
- * 工具错误信封的**唯一实现**（v2，JSON-RPC 2.0 对齐）。
+ * 工具错误信封的 app 侧门面（v2，JSON-RPC 2.0 对齐）。
+ *
+ * JSON 构建由 ai 内核层的 `me.rerere.ai.agent.ToolErrorEnvelope` 实现；本对象保留
+ * 业务码 → (code, recovery) 映射表与便捷 API。
  *
  * 形状（对齐 JSON-RPC 2.0 §5.1 Error Object，https://www.jsonrpc.org/specification）：
  * ```json
@@ -275,11 +276,10 @@ object ToolErrors {
         }
     }
 
-    private val RESERVED = setOf("error", "recovery", "hint")
-
     /**
      * 显式 code 版：调用方明确知道 JSON-RPC 分类码时使用。
      * 输出 `{"code","message","data":{"error","recovery","hint",...extra}}`。
+     * JSON 构建走 ai 内核层 `me.rerere.ai.agent.ToolErrorEnvelope`。
      */
     fun envelope(
         code: Int,
@@ -288,18 +288,14 @@ object ToolErrors {
         recovery: String? = null,
         hint: String? = null,
         extra: Map<String, JsonElement> = emptyMap(),
-    ): JsonObject = buildJsonObject {
-        put("code", code)
-        put("message", message)
-        put("data", buildJsonObject {
-            if (error != null) put("error", error)
-            if (recovery != null) put("recovery", recovery)
-            if (!hint.isNullOrBlank()) put("hint", hint)
-            for ((k, v) in extra) {
-                if (k !in RESERVED) put(k, v)
-            }
-        })
-    }
+    ): JsonObject = me.rerere.ai.agent.ToolErrorEnvelope.envelope(
+        code = code,
+        message = message,
+        error = error,
+        recovery = recovery,
+        hint = hint,
+        extra = extra,
+    )
 
     /**
      * 业务码版：code/recovery 从 [categoryFor]/[recoveryFor] 推导。

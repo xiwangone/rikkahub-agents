@@ -51,4 +51,33 @@ class OpenRouterModelParseTest {
         assertTrue(Modality.IMAGE !in m.outputModalities)
         assertTrue(ModelAbility.TOOL !in m.abilities)
     }
+
+    @Test
+    fun `registry union adds image input for a known model whose raw response lists text only`() {
+        // gpt-4o 在注册表内置规则里是视觉输入模型；接口这次只给了 text，
+        // 并集必须把 IMAGE 补回来，输出仍只有 TEXT（内置规则不含图片输出）。
+        val json = """
+            {"id":"gpt-4o","name":"GPT-4o",
+             "architecture":{"input_modalities":["text"],"output_modalities":["text"]},
+             "supported_parameters":["tools"]}
+        """.trimIndent()
+        val m = openRouterModelFromJson(Json.parseToJsonElement(json).jsonObject)!!
+        assertTrue(Modality.IMAGE in m.inputModalities)
+        assertTrue(Modality.IMAGE !in m.outputModalities)
+    }
+
+    @Test
+    fun `brand-new model keeps raw image capability when the registry does not know it`() {
+        // 新模型刚拉下来时注册表里没有它，能力只有接口返回的 raw 值；
+        // 并集必须原样保留 raw 的 IMAGE，不能因为注册表不知道就丢掉。
+        val json = """
+            {"id":"acme/nova-image-9","name":"Nova Image 9",
+             "architecture":{"input_modalities":["image","text"],"output_modalities":["image","text"]},
+             "supported_parameters":[]}
+        """.trimIndent()
+        val m = openRouterModelFromJson(Json.parseToJsonElement(json).jsonObject)!!
+        assertTrue(Modality.IMAGE in m.inputModalities)
+        assertTrue(Modality.IMAGE in m.outputModalities)
+        assertEquals(ModelType.IMAGE, m.type)
+    }
 }

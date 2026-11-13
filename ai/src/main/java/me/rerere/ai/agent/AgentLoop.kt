@@ -17,8 +17,7 @@ import kotlinx.coroutines.withTimeout
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.JsonElement
-import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.put
+import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.core.Tool
@@ -335,7 +334,10 @@ internal class AgentLoop(
     private suspend fun execute(tool: UIMessagePart.Tool): List<UIMessagePart> =
         when (val state = tool.approvalState) {
             is ToolApprovalState.Denied -> errorOutput(
-                "Tool execution denied by user. Reason: ${state.reason.ifBlank { "No reason provided" }}",
+                error = "permission_denied",
+                message = "Tool execution denied by user. Reason: ${state.reason.ifBlank { "No reason provided" }}",
+                code = ToolErrorEnvelope.SERVER_ERROR,
+                recovery = ToolErrorEnvelope.RECOVERY_ABORT,
             )
 
             is ToolApprovalState.Answered -> listOf(UIMessagePart.Text(state.answer))
@@ -348,7 +350,15 @@ internal class AgentLoop(
         val definition = findTool(tool.toolName)
         val args = parseArgs(tool)
         val outcome = hooks.beforeToolCall(tool, args, ToolCallScopeImpl(tool, args))
-        if (definition == null) return errorOutput("Tool ${tool.toolName} not found")
+        if (definition == null) {
+            return errorOutput(
+                error = "not_found",
+                message = "Tool ${tool.toolName} not found",
+                code = ToolErrorEnvelope.METHOD_NOT_FOUND,
+                recovery = ToolErrorEnvelope.RECOVERY_FIX_PARAM,
+                hint = "Check available tools and retry with a valid tool name.",
+            )
+        }
         return when (outcome) {
             is ToolCallOutcome.Intercept -> outcome.output.ifEmpty { placeholder() }
             is ToolCallOutcome.Reject -> outcome.output.ifEmpty { placeholder() }
@@ -383,7 +393,13 @@ internal class AgentLoop(
         } catch (e: TimeoutCancellationException) {
             // 超时由调用方给的预算掐掉，不能当成工具异常，也不能触发网络重试
             hooks.toolFailureOutput(tool, e)
-                ?: errorOutput("Tool ${tool.toolName} timed out after $timeout. It was not completed.")
+                ?: errorOutput(
+                    error = "timeout",
+                    message = "Tool ${tool.toolName} timed out after $timeout. It was not completed.",
+                    code = ToolErrorEnvelope.SERVER_ERROR,
+                    recovery = ToolErrorEnvelope.RECOVERY_RETRY,
+                    hint = "Retry or simplify the request parameters.",
+                )
         } catch (e: CancellationException) {
             // 取消必须向上传播，否则停止生成会被误报为工具执行错误
             throw e
@@ -391,7 +407,13 @@ internal class AgentLoop(
             // 完整堆栈只记日志；回灌给模型的信封只留异常类名 + 首行 message，避免淹没真正的错误信息。
             AppLogger.e(TAG, "Tool ${tool.toolName} failed", e)
             hooks.toolFailureOutput(tool, e)
-                ?: errorOutput(toolErrorMessage(e))
+                ?: errorOutput(
+                    error = "tool_failed",
+                    message = toolErrorMessage(e),
+                    code = ToolErrorEnvelope.INTERNAL_ERROR,
+                    recovery = ToolErrorEnvelope.RECOVERY_ABORT,
+                    extra = mapOf("exception" to JsonPrimitive(e.javaClass.simpleName)),
+                )
         }
     }
 
@@ -409,12 +431,16 @@ internal class AgentLoop(
     }
 
     private fun invalidArgsOutput(tool: UIMessagePart.Tool): List<UIMessagePart> = errorOutput(
-        buildString {
+        error = "invalid_argument",
+        message = buildString {
             append("Invalid tool arguments JSON for ${tool.toolName}")
             lastArgsParseError?.let { append("; parse error: $it") }
             val rawInput = tool.input.take(500)
             if (rawInput.isNotBlank()) append("; input: $rawInput")
         },
+        code = ToolErrorEnvelope.INVALID_PARAMS,
+        recovery = ToolErrorEnvelope.RECOVERY_FIX_PARAM,
+        hint = "Provide valid JSON matching the tool schema.",
     )
 
     /** 回灌给模型的工具失败信封：只留异常类名 + 首行 message，完整堆栈见日志。 */
@@ -463,8 +489,21 @@ internal class AgentLoop(
     }
 }
 
-private fun errorOutput(error: String): List<UIMessagePart> =
-    listOf(UIMessagePart.Text(buildJsonObject { put("error", error) }.toString()))
+private fun errorOutput(
+    error: String,
+    message: String,
+    code: Int = ToolErrorEnvelope.SERVER_ERROR,
+    recovery: String = ToolErrorEnvelope.RECOVERY_ABORT,
+    hint: String? = null,
+    extra: Map<String, JsonElement> = emptyMap(),
+): List<UIMessagePart> = ToolErrorEnvelope.partsFor(
+    error = error,
+    message = message,
+    code = code,
+    recovery = recovery,
+    hint = hint,
+    extra = extra,
+)
 
 // 当前 receiver 只含本模型请求的 usage；不同请求累计一次，工具执行不增加 stepCount。
 private fun UIMessage.withStepStats(

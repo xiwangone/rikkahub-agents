@@ -19,6 +19,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.OpenRouterRouting
+import me.rerere.ai.registry.ModelRegistry
 import me.rerere.ai.ui.ImageAspectRatio
 import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.util.json
@@ -96,6 +97,18 @@ fun parseImageDataUri(url: String): ParsedImageDataUri? {
 }
 
 /**
+ * OpenRouter 接口返回的 raw 模态与注册表（内置规则 + 目录）取并集。
+ *
+ * 新模型刚拉下来时注册表可能还不知道它，能力只有 raw 值，所以 raw 永远保留，
+ * 注册表只补、不覆盖；内置表已有的能力也不会被 raw 覆盖掉。
+ */
+private fun unionModalities(raw: List<String>, known: List<Modality>): List<Modality> =
+    buildList {
+        add(Modality.TEXT)
+        if ("image" in raw || Modality.IMAGE in known) add(Modality.IMAGE)
+    }.distinct()
+
+/**
  * Map one item from OpenRouter's `GET /models` `data[]` into a [Model] with capabilities
  * and pricing detected from `architecture` / `supported_parameters` / `pricing`, so image
  * models, tool models and reasoning models work on import without manual toggling.
@@ -113,14 +126,8 @@ fun openRouterModelFromJson(modelObj: JsonObject): Model? {
     val supported = strList(modelObj, "supported_parameters")
     val pricing = modelObj["pricing"] as? JsonObject
 
-    val inputModalities = buildList {
-        add(Modality.TEXT)
-        if ("image" in inMods) add(Modality.IMAGE)
-    }.distinct()
-    val outputModalities = buildList {
-        add(Modality.TEXT)
-        if ("image" in outMods) add(Modality.IMAGE)
-    }.distinct()
+    val inputModalities = unionModalities(inMods, ModelRegistry.MODEL_INPUT_MODALITIES.getData(id))
+    val outputModalities = unionModalities(outMods, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(id))
     val abilities = buildList {
         if ("tools" in supported || "tool_choice" in supported) add(ModelAbility.TOOL)
         if ("reasoning" in supported || "include_reasoning" in supported) add(ModelAbility.REASONING)

@@ -579,26 +579,26 @@ internal fun classifyGeminiError(statusCode: Int?, body: String?, json: Json): G
     val error = runCatching {
         body?.let { json.parseToJsonElement(it).jsonObject["error"]?.jsonObject }
     }.getOrNull()
-    val effectiveStatus = statusCode ?: error?.get("code")?.jsonPrimitive?.intOrNull
+    val effectiveStatus = statusCode ?: (error?.get("code") as? JsonPrimitive)?.intOrNull
     val transientStatus = effectiveStatus == 408 || effectiveStatus == 429 ||
         (effectiveStatus != null && effectiveStatus >= 500)
-    val rpcStatus = error?.get("status")?.jsonPrimitive?.contentOrNull
+    val rpcStatus = (error?.get("status") as? JsonPrimitive)?.contentOrNull
     val details = (error?.get("details") as? JsonArray)?.mapNotNull { it as? JsonObject }.orEmpty()
     var reason = if (rpcStatus?.uppercase() == "RESOURCE_EXHAUSTED") {
-        details.firstOrNull { it["@type"]?.jsonPrimitive?.contentOrNull == GOOGLE_RPC_ERROR_INFO_TYPE }
-            ?.get("reason")?.jsonPrimitive?.contentOrNull
+        (details.firstOrNull { (it["@type"] as? JsonPrimitive)?.contentOrNull == GOOGLE_RPC_ERROR_INFO_TYPE }
+            ?.get("reason") as? JsonPrimitive)?.contentOrNull
     } else {
         null
     }
-    val message = error?.get("message")?.jsonPrimitive?.contentOrNull
+    val message = (error?.get("message") as? JsonPrimitive)?.contentOrNull
     if (reason == "RATE_LIMIT_EXCEEDED" && message != null &&
         ANTIGRAVITY_MODEL_QUOTA_PATTERN.containsMatchIn(message)
     ) {
         reason = "QUOTA_EXHAUSTED"
     }
-    val retryDelayMs = details
-        .firstOrNull { it["@type"]?.jsonPrimitive?.contentOrNull == GOOGLE_RPC_RETRY_INFO_TYPE }
-        ?.get("retryDelay")?.jsonPrimitive?.contentOrNull
+    val retryDelayMs = (details
+        .firstOrNull { (it["@type"] as? JsonPrimitive)?.contentOrNull == GOOGLE_RPC_RETRY_INFO_TYPE }
+        ?.get("retryDelay") as? JsonPrimitive)?.contentOrNull
         ?.let(::parseGeminiRetryDelayMs)
     val quotaExhausted = reason == "QUOTA_EXHAUSTED" ||
         (reason == "RATE_LIMIT_EXCEEDED" && retryDelayMs != null && retryDelayMs >= GEMINI_RETRY_DELAY_CAP_MS)
