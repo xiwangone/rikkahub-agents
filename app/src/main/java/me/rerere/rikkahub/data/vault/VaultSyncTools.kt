@@ -12,10 +12,14 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 
 /**
- * Vault 凭证工具（App 内 AI 凭证中枢）。
+ * Vault 凭证导入导出与整理工具（`vault_export_loadcreds` / `vault_import_loadcreds` /
+ * `vault_compare_loadcreds` / `vault_credential_merge` / `vault_credential_normalize_names`）。
  *
- * 安全模型：凭证值只在 App 进程内存使用（JSch 字节加载 / 密码对象），
- * 工具返回值不含明文——只返回变量名、公钥、命令输出。
+ * 安全模型：
+ * - `vault_export_loadcreds`：需有效 Vault 授权与调用审批，将解密后的凭证明文导出写入工作区脚本
+ *   （`/workspace/tmp/load-creds-export.sh`）；明文仅存在于该工作区文件内，工具向 AI 返回的内容
+ *   不含明文，仅含导出条数、文件路径与用完删除提醒。
+ * - 其余导入、比对、合并与名称规范化工具仅在 App 进程内读写凭证库，工具返回值只含变量名与变更摘要。
  */
 
 /** 将凭证库导出为 load-creds.sh 风格脚本（含分组/描述/公钥注释，与导入格式对称）。 */

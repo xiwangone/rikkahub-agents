@@ -100,10 +100,6 @@ private const val LOOP_GUARD_REPEAT_THRESHOLD = 3
  */
 internal const val MAX_LOOP_GUARD_TRIPS_PER_TURN = 6
 
-// 轮预算将尽时提前注入收尾指令的宽限窗口：让模型总结收场，而不是被硬掐在半句话上。
-// 长会话单步 prefill 可达数十秒，120s 跨不过一步 → 300s。
-internal const val WRAP_UP_GRACE_MS = 300_000L
-
 // 流式期间「输出变换 + 界面投递」的合并窗口由当前渲染档位给出（见 data/perf/RenderProfile.kt）：
 // 每个 token 都做一次全量变换，在长会话下开销随消息数增长。同一窗口内只保留最新快照，
 // 并在 step 边界与生成结束时强制补齐，最终结果与逐次变换一致（窗口为 0 即恢复逐次处理）。

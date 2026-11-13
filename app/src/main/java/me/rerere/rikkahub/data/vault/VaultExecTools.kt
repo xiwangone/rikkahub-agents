@@ -23,10 +23,14 @@ import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
 import me.rerere.rikkahub.data.datastore.SshPlatform
 
 /**
- * Vault 凭证工具（App 内 AI 凭证中枢）。
+ * Vault 凭证执行与环境导出工具（`vault_export_env` / `vault_ssh_exec`）。
  *
- * 安全模型：凭证值只在 App 进程内存使用（JSch 字节加载 / 密码对象），
- * 工具返回值不含明文——只返回变量名、公钥、命令输出。
+ * 安全模型：
+ * - `vault_export_env`：需有效 Vault 授权与调用审批，将解密后的凭证明文写入工作区环境文件
+ *   （`/workspace/tmp/vault-env.sh`）供沙箱脚本 `source`；工具向 AI 返回的内容不含明文，
+ *   仅含已导出变量名列表、文件路径与用完立即删除提醒。
+ * - `vault_ssh_exec`：SSH 私钥或密码只在 App 进程内存中通过 JSch 加载使用，不落盘，
+ *   工具返回值仅含命令执行输出。
  */
 
 /** vault_export_env — 工具桥：把密钥库凭证解密值导出为沙箱环境变量文件（AI 不见明文）。 */

@@ -1,10 +1,11 @@
 package me.rerere.rikkahub.browser
 
 /**
- * Authoritative list of the 17 browser tools the LLM can drive, plus their default
- * enabled/disabled state. Read tools (cheap, don't touch the page) default ON;
- * write tools (mutate state, can be misused) default OFF; the loop-control tool
- * defaults ON because the AI can't escape the browser loop without it.
+ * Authoritative list of the 18 browser tools the LLM can drive, plus their default
+ * enabled/disabled state. Read tools (cheap, don't touch the page) default ON, except
+ * [SCREENSHOT] which defaults OFF because image payloads are token-heavy; write tools
+ * (mutate state, can be misused) default OFF; the loop-control tool defaults ON
+ * because the AI can't escape the browser loop without it.
  *
  * Pass 1 lays the catalogue. Pass 2's [me.rerere.rikkahub.data.ai.tools.LocalTools]
  * registration block will gate per-tool registration on these defaults via
@@ -12,7 +13,7 @@ package me.rerere.rikkahub.browser
  */
 object BrowserToolDefaults {
 
-    // --- Read tools (default ON) --------------------------------------------------------------
+    // --- Read tools (default ON, except SCREENSHOT which defaults OFF) -----------------------
     const val OPEN = "browser_open"
     const val CURRENT_URL = "browser_current_url"
     const val SCREENSHOT = "browser_screenshot"
@@ -59,9 +60,9 @@ object BrowserToolDefaults {
     )
 
     /**
-     * Defaults baked in. Read tools + the loop-control tool default ON; write tools
-     * default OFF — matches the spec's "highest-trust surface — user must explicitly
-     * grant write access" rule.
+     * Defaults baked in. Read tools (except [SCREENSHOT], which is opt-in due to image
+     * token cost) + the loop-control tool default ON; write tools default OFF — matches
+     * the spec's "highest-trust surface — user must explicitly grant write access" rule.
      */
     val DEFAULT_ENABLED: Map<String, Boolean> = buildMap {
         READ_TOOLS.forEach { put(it, it != SCREENSHOT) }
