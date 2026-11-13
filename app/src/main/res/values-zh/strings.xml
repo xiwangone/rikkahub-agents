@@ -1090,6 +1090,8 @@
   <string name="setting_model_page_title">模型设置</string>
   <string name="setting_model_clear_local_confirm">将清空本地能力表（共 %1$d 条），此操作不可恢复</string>
   <string name="setting_provider_model_list_refresh">刷新模型列表</string>
+  <string name="setting_provider_model_form_model_id_required">请填写模型 ID</string>
+  <string name="setting_provider_model_form_name_required">请填写显示名</string>
   <string name="setting_model_page_title_model">标题总结模型</string>
   <string name="setting_model_page_title_model_desc">用于总结对话标题的模型。未设置时使用快速模型</string>
   <string name="setting_model_page_translate_model">翻译模型</string>

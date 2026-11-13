@@ -902,6 +902,8 @@
   <string name="setting_model_page_title">Настройки модели</string>
   <string name="setting_model_clear_local_confirm">Локальная таблица возможностей будет очищена (записей: %1$d). Отменить это действие нельзя</string>
   <string name="setting_provider_model_list_refresh">Обновить список моделей</string>
+  <string name="setting_provider_model_form_model_id_required">Укажите ID модели</string>
+  <string name="setting_provider_model_form_name_required">Укажите отображаемое имя</string>
   <string name="setting_model_page_title_model">Модель сводки заголовков</string>
   <string name="setting_model_page_title_model_desc">Модель для генерации заголовков бесед. Если не задана, используется быстрая модель</string>
   <string name="setting_model_page_translate_model">Модель перевода</string>

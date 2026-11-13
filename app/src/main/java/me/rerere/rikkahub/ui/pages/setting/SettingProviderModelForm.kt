@@ -155,7 +155,7 @@ internal fun ModelSettingsForm(
                             isError = showErrors && model.modelId.isBlank(),
                             supportingText = {
                                 if (showErrors && model.modelId.isBlank()) {
-                                    Text("请填写模型 ID", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.setting_provider_model_form_model_id_required), color = MaterialTheme.colorScheme.error)
                                 }
                             },
                         )
@@ -181,7 +181,7 @@ internal fun ModelSettingsForm(
                             isError = showErrors && model.displayName.isBlank(),
                             supportingText = {
                                 if (showErrors && model.displayName.isBlank()) {
-                                    Text("请填写显示名", color = MaterialTheme.colorScheme.error)
+                                    Text(stringResource(R.string.setting_provider_model_form_name_required), color = MaterialTheme.colorScheme.error)
                                 }
                             },
                         )
