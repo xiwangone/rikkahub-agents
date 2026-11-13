@@ -23,10 +23,11 @@ permissions:
   contents: write
 
 # 两个发版同时触发会同时 bump versionCode、同时推 master，必然冲突；
-# 后到的取消前面的，只留一个发版继续。
+# 后到的排队等前面的跑完再跑（cancel-in-progress: false），绝不中途取消——
+# 取消会让“版本号已推上 master、Release 却没发出来”的半截状态落盘。
 concurrency:
-  group: release-${{ github.ref }}
-  cancel-in-progress: true
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
