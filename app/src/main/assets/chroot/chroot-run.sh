@@ -396,7 +396,7 @@ case "$1" in
         exit $rc
         ;;
     *)
-        echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount}" >&2
+        echo "usage: chroot-run.sh <rootfs_dir> {shell|exec <cmd...>|prepare|unmount|fixowner}" >&2
         exit 2
         ;;
 esac

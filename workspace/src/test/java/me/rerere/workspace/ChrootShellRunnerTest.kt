@@ -105,4 +105,31 @@ class ChrootShellRunnerTest {
         assertTrue(result.supported)
         assertTrue(!ChrootProbeResult(pass = 5, fail = 1, warn = 0, raw = "").supported)
     }
+
+    /**
+     * env 值原样进命令文件（POSIX 单引号转义），不做脱敏替换：
+     * 命令文件是 chroot 内执行的脚本，值被改写会让命令拿到错误的值。
+     */
+    @Test
+    fun `writeCommandFile prepends exported env when env is non-empty`() {
+        val runner = newRunner()
+        val linux = tmp.newFolder("linux-env")
+        val ctx = newContext(linux).copy(
+            command = "echo \$API_KEY",
+            cwd = "",
+            env = mapOf("API_KEY" to "sec'ret"),
+        )
+        val file = runner.writeCommandFile(ctx)
+        assertEquals("export API_KEY='sec'\\''ret'\necho \$API_KEY", file.readText())
+        file.delete()
+    }
+
+    @Test
+    fun `chrootWorkdirFor maps cwd to workspace dir`() {
+        val runner = newRunner()
+        assertEquals("/workspace/sub/dir", runner.chrootWorkdirFor("/sub/dir/"))
+        assertEquals("/workspace", runner.chrootWorkdirFor(""))
+        assertEquals("/workspace", runner.chrootWorkdirFor("/"))
+        assertEquals("/workspace/subdir", runner.chrootWorkdirFor("subdir"))
+    }
 }

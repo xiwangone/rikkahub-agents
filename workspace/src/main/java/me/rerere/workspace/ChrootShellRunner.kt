@@ -31,7 +31,7 @@ class ChrootShellRunner(
         val token = cmdFile.name.removePrefix("$COMMAND_FILE-")
         try {
             val process = try {
-                newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers)
+                newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers, chrootWorkdirFor(context.cwd))
             } catch (e: IOException) {
                 // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链；
                 // 记一条 w，否则「chroot 后端不可用」只出现在返回的 stderr 里，
@@ -64,7 +64,7 @@ class ChrootShellRunner(
         // 交互 bash——命令从未执行，且该进程 hasAlive 恒真，5 个就把每工作区名额占满。
         val cmdFile = writeCommandFile(context)
         return try {
-            newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers).also { process ->
+            newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers, chrootWorkdirFor(context.cwd)).also { process ->
                 // 只删自己的命令文件：同字符串服务的并发任务共用同一前缀，
                 // 用通配符清理会互删对方尚未读取的文件。
                 Thread {
@@ -193,8 +193,7 @@ class ChrootShellRunner(
             if (context.cwd.isNotBlank()) {
                 // 与 ProotShellRunner.prootCwd 对齐：cwd 是「相对工作区根」的路径（如 subdir 或 /subdir），
                 // 在 chroot 内必须解析到 /workspace/<path>；直接 cd 原始值会跑到 rootfs 根目录下。
-                val rel = context.cwd.trim().trimStart('/')
-                val target = if (rel.isEmpty()) "/workspace" else "/workspace/$rel"
+                val target = chrootWorkdirFor(context.cwd)
                 append("cd -- ").append(shellQuote(target)).append(" 2>/dev/null || cd -- ")
                     .append(shellQuote(context.cwd)).append(" 2>/dev/null || true\n")
             }
@@ -226,6 +225,19 @@ class ChrootShellRunner(
         return cmdFile
     }
 
+    /**
+     * 调用方 cwd（相对工作区根，如 subdir 或 /subdir）映射到 chroot 内的工作目录。
+     * 空 cwd 落到 ROOTFS_WORKSPACE_DIR；前后斜杠都去掉，避免拼出 `//` 或尾随 `/`。
+     */
+    internal fun chrootWorkdirFor(cwd: String): String {
+        val normalized = cwd.trim().trim('/')
+        return if (normalized.isBlank()) {
+            WorkspaceManager.ROOTFS_WORKSPACE_DIR
+        } else {
+            "${WorkspaceManager.ROOTFS_WORKSPACE_DIR}/$normalized"
+        }
+    }
+
     /** POSIX 单引号转义（内嵌单引号拆成 `'\''`）。 */
     private fun shellQuote(raw: String): String = "'" + raw.replace("'", "'\\''") + "'"
 
@@ -233,6 +245,7 @@ class ChrootShellRunner(
         linuxDir: File,
         inner: String,
         dnsServers: List<String> = emptyList(),
+        workdir: String? = null,
     ): Process {
         val validDns = ShellDnsConfig.parseServers(dnsServers.joinToString(" "))
         return ProcessBuilder("su", "-c", suCommand(linuxDir, inner, validDns))
@@ -241,6 +254,13 @@ class ChrootShellRunner(
                     environment()["CHROOT_DNS"] = validDns.joinToString(" ")
                 } else {
                     environment().remove("CHROOT_DNS")
+                }
+                // chroot-run.sh 用 $WORKDIR（默认 /workspace）做入口 cd；命令文件里另有一次 cd 兜底，
+                // 两者同值：入口目录先对，后面即使 cd 行失败也不会跑到 rootfs 根目录。
+                if (!workdir.isNullOrBlank()) {
+                    environment()["CHROOT_WORKDIR"] = workdir
+                } else {
+                    environment().remove("CHROOT_WORKDIR")
                 }
             }.start()
     }
