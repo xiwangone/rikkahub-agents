@@ -342,7 +342,8 @@ fun deleteSshHostTool(repo: SshHostRepository): Tool = Tool(
 
 /**
  * Forget the stored SSH host key(s) for a host. Use after the user explicitly confirms they
- * reinstalled the remote — the next connect will trust the new key per accept-new policy.
+ * reinstalled the remote — the next connect will trust the new key per the trust-on-first-use
+ * policy (AcceptNewHostKeyRepository).
  *
  * The host argument is the actual hostname/IP (not a saved-host name). If the saved host's
  * underlying address changed too, look it up via list_ssh_hosts first.

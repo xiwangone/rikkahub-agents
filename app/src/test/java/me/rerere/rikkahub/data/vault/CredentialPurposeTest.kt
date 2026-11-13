@@ -17,9 +17,12 @@ import org.junit.Test
 class CredentialPurposeTest {
 
     @Test
-    fun `authorization-gated purposes are exactly the value-exporting ones`() {
+    fun `authorization-gated purposes are all purposes`() {
         val gated = CredentialPurpose.values().filter { it.requiresAuthorization }.map { it.name }.toSet()
-        assertEquals(setOf("ENV_INJECT", "EXPORT"), gated)
+        assertEquals(
+            setOf("ENV_INJECT", "EXPORT", "HTTP_HEADER", "SSH_AUTH", "SSH_DEPLOY_KEY", "LOCAL_USE"),
+            gated,
+        )
     }
 
     @Test

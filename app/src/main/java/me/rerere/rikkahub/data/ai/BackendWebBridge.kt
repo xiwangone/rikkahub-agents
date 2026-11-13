@@ -15,6 +15,7 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.ai.tools.local.installHostKeyVerification
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.utils.LogRedactor
@@ -191,9 +192,10 @@ class BackendWebBridge(
                 setHostKeyAlias(ecsHost)
                 (vaultPassword ?: password.takeIf { it.isNotBlank() })?.let(::setPassword)
             }
-            // 与 ssh_exec 一致：首次连接信任并写入共用的 known_hosts，主机密钥变更则拒绝连接。
+            // 与 ssh_exec 一致：首次连接信任并写入共用的 known_hosts，主机密钥变更则拒绝连接
+            // （AcceptNewHostKeyRepository；JSch 本身没有 "accept-new"）。
             // 本桥是设置页按钮触发的后台连接，无指纹确认弹窗的接入点，故不用逐次确认模式。
-            session.setConfig("StrictHostKeyChecking", "accept-new")
+            installHostKeyVerification(jsch, session)
             session.setConfig("ServerAliveInterval", "30")
             session.setConfig("ServerAliveCountMax", "3")
             // RSA-2048 私钥走 rsa-sha2-256/512 签名（SshKeyGenerator 默认输出，

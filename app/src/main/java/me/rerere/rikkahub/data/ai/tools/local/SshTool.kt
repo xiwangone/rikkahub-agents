@@ -468,8 +468,10 @@ private fun connectSingleSshAttempt(
                 session = target
                 if (host != target.host) target.setHostKeyAlias(host)
                 if (!auth.password.isNullOrBlank()) target.setPassword(auth.password)
+                // 跳板目标主机的密钥校验与直连同一口径：首次信任、变更拒绝
+                // （AcceptNewHostKeyRepository；JSch 本身没有 "accept-new"）。
+                installHostKeyVerification(jsch, target)
                 target.setConfig(Properties().apply {
-                    setProperty("StrictHostKeyChecking", "accept-new")
                     setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
                 })
                 if (!auth.privateKey.isNullOrBlank()) {
@@ -615,9 +617,9 @@ internal data class ForgetHostKeyResult(
 
 /**
  * Remove all stored host keys for [host] from both known_hosts files: the app's
- * `filesDir/known_hosts` and the Vault's `filesDir/vault_known_hosts`. Use after the
+ * `filesDir/known_hosts` and the Vault's legacy `filesDir/vault_known_hosts`. Use after the
  * user confirms they reinstalled the remote — the next connect will trust the new key per
- * the accept-new policy.
+ * the trust-on-first-use policy (AcceptNewHostKeyRepository).
  *
  * IMPORTANT: JSch's [com.jcraft.jsch.HostKeyRepository.remove] only updates the in-memory
  * KnownHosts; it does not write back to the file. JSch's KnownHosts.dump(OutputStream)

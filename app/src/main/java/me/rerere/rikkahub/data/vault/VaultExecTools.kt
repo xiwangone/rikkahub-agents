@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.vault
 
 import com.jcraft.jsch.ChannelExec
-import com.jcraft.jsch.JSch
 import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonArray
@@ -19,6 +18,10 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.importLegacyVaultKnownHosts
+import me.rerere.rikkahub.data.ai.tools.local.installHostKeyVerification
+import me.rerere.rikkahub.data.ai.tools.local.newJSch
+import me.rerere.rikkahub.data.ai.tools.local.persistKnownHosts
 import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
 import me.rerere.rikkahub.data.datastore.SshPlatform
 
@@ -259,10 +262,16 @@ private suspend fun executeVaultSshSession(
     /** 显式平台；AUTO/缺省时用建连后读到的 banner 判定。 */
     platform: SshPlatform? = null,
 ): List<UIMessagePart> {
-    val jsch = JSch()
-    val knownHostsFile = java.io.File(context.filesDir, "vault_known_hosts")
-    jsch.setKnownHosts(knownHostsFile.absolutePath)
-    val isFirstConnect = isFirstKnownHostConnect(knownHostsFile, host, port)
+    // 与 AI 侧共用同一 known_hosts 与同一校验实现（AcceptNewHostKeyRepository）：
+    // 首次信任、变更拒绝，一处拒绝、处处拒绝。旧 vault_known_hosts 的条目
+    // 一次性并入共用文件（共用侧已有记录时以共用为准），此后不再读写旧文件
+    // （旧文件留盘，ssh_forget_host_key 仍会清理它）。
+    val jsch = newJSch(context)
+    val legacyVaultFile = java.io.File(context.filesDir, "vault_known_hosts")
+    if (importLegacyVaultKnownHosts(jsch.hostKeyRepository, legacyVaultFile) > 0) {
+        persistKnownHosts(jsch)
+    }
+    val isFirstConnect = jsch.hostKeyRepository.getHostKey(host, null).isNullOrEmpty()
     // 与 SshNetworkSession / SshTerminalPage 保持一致：先问隧道。
     // tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号，userspace tsnet 只把出口开在
     // 127.0.0.1:<随机端口>；不解析会表现为 "connection is closed by foreign host"
@@ -278,17 +287,12 @@ private suspend fun executeVaultSshSession(
     } else {
         session.setPassword(secret)
     }
-    session.setConfig("StrictHostKeyChecking", if (isFirstConnect) "no" else "yes")
+    installHostKeyVerification(jsch, session)
     session.setConfig("ServerAliveInterval", "30")
     session.setConfig("ServerAliveCountMax", "3")
     session.connect(timeout * 1000)
     val outcome =
         try {
-            if (isFirstConnect) {
-                session.hostKey?.let { hk ->
-                    knownHostsFile.appendText("$host ${hk.type} ${hk.key}\n")
-                }
-            }
             val channel = session.openChannel("exec") as ChannelExec
             try {
                 // 显式平台优先；未显式指定时用本次建连读到的 banner 判定
@@ -339,21 +343,6 @@ private suspend fun executeVaultSshSession(
             },
         ),
     )
-}
-
-private fun isFirstKnownHostConnect(knownHostsFile: java.io.File, host: String, port: Int): Boolean {
-    if (!knownHostsFile.exists()) return true
-    val want = if (port == 22) host else "[$host]:$port"
-    return knownHostsFile.readText().lines().none { raw ->
-        val line = raw.trim()
-        if (line.isEmpty() || line.startsWith("#")) return@none false
-        // 精确匹配第一字段（支持逗号分隔多主机、[host]:port 形式）。
-        // 旧的 startsWith(host) 会把 10.0.0.1 判成命中 10.0.0.10 → 首连误判为「已知」，
-        // 随后 yes 连接失败又被误报成 host_key_changed。
-        line.substringBefore(' ').split(',').any { entry ->
-            entry == want || entry == host || entry == "[$host]:$port"
-        }
-    }
 }
 
 /** One exec channel run: captured streams, exit code, and whether the deadline hit first. */

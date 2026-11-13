@@ -53,10 +53,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
-import com.jcraft.jsch.HostKey
-import com.jcraft.jsch.HostKeyRepository
 import com.jcraft.jsch.JSchException
-import com.jcraft.jsch.UserInfo
+import me.rerere.rikkahub.data.ai.tools.local.VerifyingHostKeyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -87,7 +85,6 @@ import me.rerere.workspace.ssh.SshHostKey
 import org.koin.compose.koinInject
 import java.io.File
 import java.io.IOException
-import java.util.Base64
 
 private val SSH_QUICK_COMMANDS_POSIX =
     listOf(
@@ -610,69 +607,6 @@ private data class PendingTerminalHostKey(
     val actual: SshHostKey,
     val expected: SshHostKey?,
 )
-
-/**
- * 包装文件持久化的 known_hosts 仓库：严格校验（未知 / 变更的密钥一律拒绝），
- * 同时记下对方出示的密钥，供确认弹窗展示指纹；信任后由调用方写入 known_hosts 再重连。
- */
-private class VerifyingHostKeyRepository(
-    private val delegate: HostKeyRepository,
-) : HostKeyRepository {
-    @Volatile
-    var unknownKey: SshHostKey? = null
-        private set
-
-    /** first 为已信任的旧密钥，second 为对方新出示的密钥 */
-    @Volatile
-    var changedKey: Pair<SshHostKey, SshHostKey>? = null
-        private set
-
-    override fun check(host: String, key: ByteArray): Int {
-        val result = delegate.check(host, key)
-        when (result) {
-            HostKeyRepository.OK -> {
-                unknownKey = null
-                changedKey = null
-            }
-            HostKeyRepository.NOT_INCLUDED -> {
-                unknownKey = key.toSshHostKey(host)
-                changedKey = null
-            }
-            HostKeyRepository.CHANGED -> {
-                val actual = key.toSshHostKey(host)
-                val expected = delegate.getHostKey(host, actual.type)
-                    ?.firstOrNull()
-                    ?.let { SshHostKey(it.type, it.key) }
-                if (expected == null) {
-                    unknownKey = actual
-                    changedKey = null
-                } else {
-                    unknownKey = null
-                    changedKey = expected to actual
-                }
-            }
-        }
-        return result
-    }
-
-    override fun add(hostkey: HostKey, ui: UserInfo?) = delegate.add(hostkey, ui)
-
-    override fun remove(host: String, type: String) = delegate.remove(host, type)
-
-    override fun remove(host: String, type: String, key: ByteArray) = delegate.remove(host, type, key)
-
-    override fun getKnownHostsRepositoryID(): String = delegate.knownHostsRepositoryID
-
-    override fun getHostKey(): Array<HostKey> = delegate.hostKey
-
-    override fun getHostKey(host: String?, type: String?): Array<HostKey> = delegate.getHostKey(host, type)
-}
-
-/** 从密钥 blob 解析算法名并拼成可算指纹的 [SshHostKey] */
-private fun ByteArray.toSshHostKey(host: String): SshHostKey {
-    val type = runCatching { HostKey(host, this).type }.getOrDefault("unknown")
-    return SshHostKey(type = type, key = Base64.getEncoder().encodeToString(this))
-}
 
 /**
  * 把用户确认过的主机密钥写入持久化 known_hosts：同主机同算法的旧记录替换掉，

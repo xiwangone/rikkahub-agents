@@ -211,9 +211,13 @@ internal data class JumpSpec(
 )
 
 /**
- * Construct a JSch instance pre-loaded with the app's persistent known_hosts file. New host
- * keys are automatically appended ("StrictHostKeyChecking=accept-new"); changed keys cause
- * the connect to fail (MITM protection).
+ * Construct a JSch instance pre-loaded with the app's persistent known_hosts file.
+ * Host-key checking itself is NOT done here: use [installHostKeyVerification]
+ * on each session before connect() — it installs [AcceptNewHostKeyRepository]
+ * (trust on first use, refuse changed keys) and StrictHostKeyChecking=yes.
+ * Do not set "accept-new" on a session: JSch 2.28.7 has no such value, so a
+ * session configured with it silently accepts changed keys and never records
+ * new ones (see AcceptNewHostKeyRepository).
  */
 internal fun newJSch(context: Context): JSch {
     // 兼容老 SSH 服务端（如小米路由 dropbear 2017.75 只提供 ssh-rsa host key）：
@@ -287,9 +291,13 @@ internal fun openSshSession(
         session.setHostKeyAlias(host)
     }
     if (!auth.password.isNullOrBlank()) session.setPassword(auth.password)
+    // Trust on first use, refuse changed keys (AcceptNewHostKeyRepository).
+    // JSch itself has no "accept-new" value — a session configured with it
+    // would silently accept changed keys — so the policy lives in the wrapper
+    // and the session config is "yes". Extra user options below may still
+    // override the config (explicit user choice, unchanged behaviour).
+    installHostKeyVerification(jsch, session)
     session.setConfig(Properties().apply {
-        // accept-new: trust on first use, fail if a known host's key changes
-        setProperty("StrictHostKeyChecking", "accept-new")
         setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
         // 自定义选项最后应用，可覆盖默认值（每行 "键 值"，# 开头为注释）
         extraOptions?.lineSequence()?.forEach { line ->
