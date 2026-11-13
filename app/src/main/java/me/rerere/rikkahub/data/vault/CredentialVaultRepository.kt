@@ -1,7 +1,7 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.rikkahub.data.crypto.KeystoreHmacKey
 import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
-import java.security.MessageDigest
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import kotlin.coroutines.coroutineContext
@@ -70,7 +70,29 @@ class CredentialVaultRepository(
     private val dao: VaultCredentialDao,
     private val auditDao: VaultAuditLogDao,
     private val vaultPreferences: VaultPreferences,
+    /**
+     * 值指纹的设备密钥来源：默认取 AndroidKeyStore 里的 HMAC 密钥（惰性调用，只在
+     * 算指纹时才碰 KeyStore，构造仓库本身不碰）。单测可注入固定密钥。
+     */
+    private val fingerprintKeyProvider: () -> javax.crypto.SecretKey =
+        { KeystoreHmacKey.getOrCreate(FINGERPRINT_KEY_ALIAS) },
 ) {
+
+    /**
+     * 值指纹（设备密钥 HMAC-SHA256，截断为 16 位十六进制）。
+     *
+     * 用途是**不见值比对**——回答"两条是否相同 / 值是否变过"，而不暴露明文。
+     * 密钥是设备级生成、不出 KeyStore 的 HMAC 密钥：离线字典反推必须拿到本设备
+     * 的密钥，换设备或清应用数据都会换密钥。此指纹仅用于本地比对，不要写进配
+     * 置或日志。存量条目 meta 里的旧指纹（无盐 SHA-256）在条目下次保存时才刷新
+     * 为新指纹；判重列表按存量指纹分组，跨代条目在重存前可能漏判（与"无指纹旧条
+     * 目不计入"是同一口径的惰性迁移）。
+     */
+    fun fingerprint(value: String): String {
+        val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+        mac.init(fingerprintKeyProvider())
+        return mac.doFinal(value.toByteArray()).toFingerprintHex()
+    }
 
     /** 审计写入串行化：聚合需「查目标 → 计次/插入」原子，单进程内用互斥锁就够（不动 Room 事务）。 */
     private val auditWriteMutex = Mutex()
@@ -607,16 +629,26 @@ class CredentialVaultRepository(
         private val NAME_REGEX = Regex("^[A-Z][A-Z0-9_]*$")
 
         /**
-         * 值指纹：明文取 SHA-256 后截断为 16 位十六进制。
-         *
-         * 用途是**不见值比对**——回答"两条是否相同 / 值是否变过"，而不暴露明文。
-         * 高熵密钥无需加盐；此指纹仅用于本地比对，不要写进配置或日志。
+         * 值指纹的设备密钥在 AndroidKeyStore 里的条目名（勿改名——改名等于换密钥，旧指纹全废）。
          */
-        fun fingerprint(value: String): String =
-            MessageDigest.getInstance("SHA-256")
-                .digest(value.toByteArray())
-                .joinToString("") { "%02x".format(it) }
-                .take(16)
+        const val FINGERPRINT_KEY_ALIAS = "rikkahub_vault_fingerprint"
+
+        /**
+         * 值指纹（纯函数版）：给定密钥的 HMAC-SHA256，截断为 16 位十六进制。
+         *
+         * 与实例方法 [CredentialVaultRepository.fingerprint] 同值——实例方法只是用设备
+         * 密钥调这个纯函数。单测与不需要碰 KeyStore 的调用方用这个版本；不要在这里
+         * 传固定写死的密钥（那等于回到无盐散列）。
+         */
+        fun fingerprint(value: String, key: ByteArray): String {
+            val mac = javax.crypto.Mac.getInstance("HmacSHA256")
+            mac.init(javax.crypto.spec.SecretKeySpec(key, "HmacSHA256"))
+            return mac.doFinal(value.toByteArray()).toFingerprintHex()
+        }
+
+        /** 摘要转指纹：16 位小写十六进制。 */
+        private fun ByteArray.toFingerprintHex(): String =
+            joinToString("") { "%02x".format(it) }.take(16)
 
         /**
          * 把任意输入规范化成合规凭证名（`^[A-Z][A-Z0-9_]*$`）。

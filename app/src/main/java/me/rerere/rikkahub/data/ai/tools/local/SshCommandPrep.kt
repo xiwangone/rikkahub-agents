@@ -254,8 +254,8 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
         ?: error("env injection failed: credential vault unavailable")
     val appContext = runCatching { getKoin().get<Context>() }.getOrNull()
     // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
-    val resolver = CredentialResolver(vaultRepository) {
-        appContext?.let { VaultSessionManager(it) }?.hasActiveAuthorization() == true
+    val resolver = CredentialResolver(vaultRepository) { name ->
+        appContext?.let { VaultSessionManager(it) }?.hasActiveAuthorization(name) == true
     }
     return literals.map { (k, v) ->
         if (!isVaultReference(v)) return@map k to v

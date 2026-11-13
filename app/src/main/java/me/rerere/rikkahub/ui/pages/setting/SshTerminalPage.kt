@@ -184,7 +184,7 @@ fun SshTerminalPage(hostName: String) {
                     return@withContext
                 }
             }
-            val authResolution = resolveHostAuthDetailed(host, vaultRepo)
+            val authResolution = resolveHostAuthDetailed(host, vaultRepo, appContext)
             val auth = (authResolution as? HostAuthResolution.Ready)?.auth
             AppLog.w(
                 "SshTerm",

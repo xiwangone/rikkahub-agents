@@ -164,9 +164,9 @@ internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, St
     val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
     // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
     val resolver =
-        CredentialResolver(vaultRepository) {
+        CredentialResolver(vaultRepository) { name ->
             context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
-                ?.hasActiveAuthorization() == true
+                ?.hasActiveAuthorization(name) == true
         }
     val resolved = mutableMapOf<String, String>()
     for ((envName, credNameJson) in envObj) {

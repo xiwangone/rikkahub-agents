@@ -74,7 +74,12 @@ object TunnelAutoStart {
     ) {
         val appContext = context.applicationContext
         CoroutineScope(SupervisorJob() + Dispatchers.IO).launch {
-            val resolver = CredentialResolver(vaultRepository)
+            // 隧道自启也要过会话授权门（LOCAL_USE 自 df5ad9c71 起必须授权）：自启发生在
+            // 应用启动时，若用户尚未完成 vault 授权，`$$` 引用的认证密钥解析失败、
+            // 本轮自启按退避重试——这是新语义下的预期行为，不是静默放行。
+            val resolver = CredentialResolver(vaultRepository) { name ->
+                me.rerere.rikkahub.data.vault.VaultSessionManager(appContext).hasActiveAuthorization(name)
+            }
             restoreDesiredRunning(settingsStore)
             var retryIndex = 0
             // 本退避周期内的失败计数：首条失败记 1 条 w，其后抑制；周期耗尽或

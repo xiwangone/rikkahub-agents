@@ -50,6 +50,18 @@ import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import me.rerere.rikkahub.data.log.AppLog
 
+/**
+ * 仓库层取会话授权检查：从 Koin 取应用 Context，构造按名过滤的检查函数。
+ * 拿不到 Context 时返回 null → [CredentialResolver] 拒绝（fail-closed），
+ * 避免 df5ad9c71 之后“无检查可用就放行”的旧语义（本函数是仓库层唯一能拿到
+ * Context 的地方——仓库函数本身没有 Context 参数）。
+ */
+internal fun vaultSessionAuthCheck(): (suspend (String) -> Boolean)? =
+    runCatching { getKoin().get<Context>() }.getOrNull()
+        ?.let { ctx ->
+            { name: String -> me.rerere.rikkahub.data.vault.VaultSessionManager(ctx).hasActiveAuthorization(name) }
+        }
+
 /** chroot 开启失败的原因：UI 按此取本地化文案（异常 message 保留英文供日志排障）。 */
 
     /** 用一条临时连接测试 SSH 配置; [id] 不为空时, 表单里留空的凭证条目沿用该工作区已保存的 */
@@ -193,7 +205,9 @@ internal fun vaultRefInput(input: String, keep: () -> String?): String? {
 internal suspend fun WorkspaceRepository.requireCredential(ref: String?) {
         val text = ref?.trim().orEmpty()
         if (text.isEmpty()) return
-        val resolver = CredentialResolver(vaultRepository)
+        // 工作区保存/探针时的凭证可用性检查也要过会话授权门（df5ad9c71 起 SSH_AUTH
+        // 必须授权）：无 Context 可用时拒绝（fail-closed），不走“无检查就放行”的旧语义。
+        val resolver = CredentialResolver(vaultRepository, vaultSessionAuthCheck())
         val name = text.removePrefix(VAULT_REF_PREFIX)
         var resolution = resolver.resolve(name, CredentialPurpose.SSH_AUTH, caller = "ssh-workspace", audit = true)
         if (resolution is CredentialResolution.Missing) {
@@ -209,7 +223,8 @@ internal suspend fun WorkspaceRepository.requireCredential(ref: String?) {
     }
 
 internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspaceSettings, audit: Boolean): SshConnectionConfig {
-        val resolver = CredentialResolver(vaultRepository)
+        // 建连时的凭证解析也要过会话授权门（同 requireCredential）。
+        val resolver = CredentialResolver(vaultRepository, vaultSessionAuthCheck())
         suspend fun resolve(ref: String?): String? {
             val text = ref?.trim().orEmpty()
             if (text.isEmpty()) return null
@@ -246,7 +261,10 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             ?: throw IOException("Jump host '$name' cannot be resolved: saved hosts are unavailable")
         val entity = repo.getByName(name)
             ?: throw IOException("Jump host '$name' not found (check saved host names)")
-        val auth = when (val r = resolveHostAuthDetailed(entity, vaultRepository)) {
+        // 跳板机凭证同样走会话授权门（df5ad9c71 起 SSH_AUTH 必须授权）；Koin 拿不到
+        // Context 时传 null → 引用解析拒绝（fail-closed）。
+        val jumpContext = runCatching { getKoin().get<Context>() }.getOrNull()
+        val auth = when (val r = resolveHostAuthDetailed(entity, vaultRepository, jumpContext)) {
             is HostAuthResolution.Ready -> r.auth
             is HostAuthResolution.Unusable -> throw IOException("Jump host '$name' credential is unavailable: ${r.reason}")
         }

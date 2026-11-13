@@ -46,8 +46,8 @@ private suspend fun resolvePgpKey(
     if (text.isEmpty()) return PgpKeyResolution.Err("key is required (entry reference or armored PGP key block)")
     if (isVaultReference(text)) {
         val name = text.removePrefix(VAULT_REF_PREFIX).trim()
-        val authCheck: (suspend () -> Boolean)? = if (context != null) {
-            { VaultSessionManager(context).hasActiveAuthorization() }
+        val authCheck: (suspend (String) -> Boolean)? = if (context != null) {
+            { name -> VaultSessionManager(context).hasActiveAuthorization(name) }
         } else {
             null
         }
@@ -121,6 +121,10 @@ private suspend fun resolvePgpPassphrase(
     CredentialPurpose.LOCAL_USE,
     repository,
     caller = caller,
+    // 口令引用也要过会话授权门（LOCAL_USE 自 df5ad9c71 起必须授权）：无 context 时拒绝（fail-closed）。
+    isAuthorized = context?.let { ctx ->
+        { name: String -> VaultSessionManager(ctx).hasActiveAuthorization(name) }
+    },
 )?.toCharArray()
 
 /** vault_pgp_sign —— 对文本/文件生成 GPG detached 签名（armored）。 */

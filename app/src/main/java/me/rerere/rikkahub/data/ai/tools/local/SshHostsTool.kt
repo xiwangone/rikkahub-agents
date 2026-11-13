@@ -127,22 +127,33 @@ internal sealed interface JumpResolution {
  * 名称容错：历史数据里的 `vaultCredentialRef` 可能是归一前的形态
  * （如 `PC ED25519 KEY`），与库中现名（`PC_ED25519_KEY`）不一致 → 名字不存在时按
  * [CredentialVaultRepository.normalizeName] 再解析一次，避免“库里明明有这条凭证却连不上”。
+ *
+ * @param context 有 UI/工具上下文时传：vault 引用解析需过会话授权门（df5ad9c71 起
+ *   SSH_AUTH 必须授权，且按凭证名过滤）；不传 = 无检查可用，引用解析一律拒绝
+ *   （fail-closed）。不要在有 context 的调用点漏传——漏传等于该主机永远连不上。
  */
 internal suspend fun resolveHostAuthDetailed(
     h: SshHostEntity,
     vaultRepository: CredentialVaultRepository,
+    context: android.content.Context? = null,
 ): HostAuthResolution {
+    // 会话授权检查（按名过滤）；无 context 时为 null → 解析器拒绝（fail-closed）。
+    val isAuthorized: (suspend (String) -> Boolean)? =
+        context?.let { ctx ->
+            { name: String -> me.rerere.rikkahub.data.vault.VaultSessionManager(ctx).hasActiveAuthorization(name) }
+        }
     // 三个认证材料都允许是 `$$引用`：否则“私钥走了引用、口令却还是明文”等于白做。
     val passphrase = resolveLiteralOrReference(
         h.passphrase,
         CredentialPurpose.SSH_AUTH,
         vaultRepository,
         caller = "ssh-passphrase",
+        isAuthorized = isAuthorized,
     )
     val ref = h.vaultCredentialRef?.trim().orEmpty()
     if (ref.isNotEmpty()) {
         // 连接前探测：audit = false，避免候选主机探测写满审计
-        val resolver = CredentialResolver(vaultRepository)
+        val resolver = CredentialResolver(vaultRepository, isAuthorized)
         var r = resolver.resolve(ref, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false)
         if (r is CredentialResolution.Missing) {
             val normalized = CredentialVaultRepository.normalizeName(ref)
@@ -165,12 +176,14 @@ internal suspend fun resolveHostAuthDetailed(
         CredentialPurpose.SSH_AUTH,
         vaultRepository,
         caller = "ssh-password",
+        isAuthorized = isAuthorized,
     )
     val privateKey = resolveLiteralOrReference(
         h.privateKey,
         CredentialPurpose.SSH_AUTH,
         vaultRepository,
         caller = "ssh-key",
+        isAuthorized = isAuthorized,
     )
     val auth = SshAuth(password = password, privateKey = privateKey, passphrase = passphrase)
     return if (auth.isUsable()) HostAuthResolution.Ready(auth)
@@ -181,7 +194,8 @@ internal suspend fun resolveHostAuthDetailed(
 internal suspend fun resolveHostAuth(
     h: SshHostEntity,
     vaultRepository: CredentialVaultRepository,
-): SshAuth? = (resolveHostAuthDetailed(h, vaultRepository) as? HostAuthResolution.Ready)?.auth
+    context: android.content.Context? = null,
+): SshAuth? = (resolveHostAuthDetailed(h, vaultRepository, context) as? HostAuthResolution.Ready)?.auth
 
 /**
  * 工具入口用：解析认证；失败时把**原因**包成工具错误对象（error 字段）。
@@ -190,8 +204,9 @@ internal suspend fun resolveHostAuth(
 private suspend fun resolveAuthOrError(
     h: SshHostEntity,
     vaultRepository: CredentialVaultRepository,
+    context: android.content.Context? = null,
 ): Pair<SshAuth?, JsonObject?> =
-    when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
+    when (val r = resolveHostAuthDetailed(h, vaultRepository, context)) {
         is HostAuthResolution.Ready -> r.auth to null
         is HostAuthResolution.Unusable -> null to me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
             error = me.rerere.rikkahub.data.ai.tools.ToolErrors.classifyMessage(r.reason),
@@ -561,7 +576,7 @@ fun sshExecSavedTool(
             }
             val jEntity = repo.getByName(jh)
                 ?: return JumpResolution.Unusable("Jump host '$jh' does not exist (use list_ssh_hosts to list available names)")
-            val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository)) {
+            val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository, context)) {
                 is HostAuthResolution.Ready -> r.auth
                 is HostAuthResolution.Unusable -> return JumpResolution.Unusable(r.reason)
             }
@@ -577,7 +592,7 @@ fun sshExecSavedTool(
         var usedHost: String? = null
         var usedBgLogPath: String? = null
         for ((idx, cand) in candidates.withIndex()) {
-            val candAuth = when (val r = resolveHostAuthDetailed(cand, vaultRepository)) {
+            val candAuth = when (val r = resolveHostAuthDetailed(cand, vaultRepository, context)) {
                 is HostAuthResolution.Ready -> r.auth
                 is HostAuthResolution.Unusable -> {
                     // 原因原样带出去：“名字不存在”与“解不开/未授权”必须能分辨（只报“无可用凭证”没法排查）
@@ -723,11 +738,12 @@ fun vaultDeployKeyTool(
         }
         // 部署公钥 = 给远端增加一个可登录身份（授权变更）→ 需要 vault 会话授权，
         // 不只靠 needsApproval（审批只管“这一次”，授权门管“凭据能否被动用”）。
+        // 先读凭证名再过门：受限会话只能部署白名单内的凭证。
+        val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
         val sessionManager = me.rerere.rikkahub.data.vault.VaultSessionManager(context)
-        if (!sessionManager.hasActiveAuthorization()) {
+        if (!sessionManager.hasActiveAuthorization(credName)) {
             return@Tool fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
         }
-        val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
         val hostName = p["host_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("host_name is required")
         val remoteUser = p["remote_user"]?.jsonPrimitive?.contentOrNull
 
@@ -749,7 +765,7 @@ fun vaultDeployKeyTool(
         // 2. 用 host 自身凭证连接，幂等追加公钥 + 收紧权限（连与跑见 deployAuthorizedKey）
         // execute 本身就是 suspend：直接调用 suspend 的部署函数，不用 runBlocking 占住线程
         // （取消可正常传导进网络调用）。
-        val authPair = resolveAuthOrError(h, vaultRepository)
+        val authPair = resolveAuthOrError(h, vaultRepository, context)
         val deployAuth = authPair.first
         val deployResult = if (deployAuth == null) {
             authPair.second ?: ToolErrors.envelopeFor(error = "invalid_argument", message = "saved host has no usable credentials", hint = "Check the parameter values and retry with corrected arguments.")
@@ -762,7 +778,7 @@ fun vaultDeployKeyTool(
             deployResult["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
 
         // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami（连与跑见 verifyVaultKeyLogin）
-        val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName)
+        val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName, context)
         val verify = if (verifyAuth == null) {
             ToolErrors.envelopeFor(error = "tool_failed", message = "credential decrypt failed")
         } else {
@@ -900,8 +916,14 @@ private suspend fun runOnHostOnce(
 private suspend fun vaultPrivateKeyAuth(
     vaultRepository: CredentialVaultRepository,
     credName: String,
+    context: android.content.Context? = null,
 ): SshAuth? {
-    val secret = (CredentialResolver(vaultRepository)
+    // 部署验连也要过会话授权门（SSH_DEPLOY_KEY 必须授权）：无 context 时拒绝（fail-closed）。
+    val isAuthorized: (suspend (String) -> Boolean)? =
+        context?.let { ctx ->
+            { name: String -> me.rerere.rikkahub.data.vault.VaultSessionManager(ctx).hasActiveAuthorization(name) }
+        }
+    val secret = (CredentialResolver(vaultRepository, isAuthorized)
         .resolve(credName, CredentialPurpose.SSH_DEPLOY_KEY, caller = "ai-tool") as? CredentialResolution.Granted)?.value
         ?: return null
     return SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = null)

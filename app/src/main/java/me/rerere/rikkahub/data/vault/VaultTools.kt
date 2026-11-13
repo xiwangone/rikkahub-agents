@@ -93,7 +93,8 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
             }
         val sb = StringBuilder()
         if (showDupes) {
-            // 精确判重：按值指纹（同指纹 = 同值；指纹随保存写进 meta，无指纹的旧条目不计入）
+            // 精确判重：按值指纹（同指纹 = 同值；指纹随保存写进 meta，无指纹的旧条目不计入；
+            // 存量旧指纹在条目重存前仍是上一代算法，与新指纹互不分组——与"无指纹不计入"同一口径的惰性迁移）
             val dupGroups =
                 all.mapNotNull { e -> CredentialMeta.decode(e.metaJson)["value_fp"]?.let { it to e.name } }
                     .groupBy { it.first }

@@ -157,10 +157,21 @@ class VaultSessionManager(private val context: Context) {
         return true
     }
 
-    /** 是否有任意未过期授权会话（工具桥授权门禁用；ttlMs=MAX 视为永久有效）。 */
-    suspend fun hasActiveAuthorization(now: Long = System.currentTimeMillis()): Boolean =
+    /**
+     * 是否有任意未过期授权会话（工具桥授权门禁用；ttlMs=MAX 视为永久有效）。
+     *
+     * @param requiredName 指定后只统计允许访问该凭证的会话：会话的 [VaultSessionRecord.allowedNames]
+     *   非空且不含该名字时不计入；空集合 = 不限制（保持既有行为）。「一直有效」
+     *   （ttlMs=Long.MAX_VALUE）的会话同样受名字过滤——过期与名字是两个独立维度，
+     *   永不过期不等于可访问全部凭证。
+     */
+    suspend fun hasActiveAuthorization(
+        requiredName: String? = null,
+        now: Long = System.currentTimeMillis(),
+    ): Boolean =
         readSessions().any { rec ->
-            if (rec.ttlMs == Long.MAX_VALUE) true else now < rec.createdAt + rec.ttlMs
+            val unexpired = if (rec.ttlMs == Long.MAX_VALUE) true else now < rec.createdAt + rec.ttlMs
+            unexpired && (requiredName == null || rec.allowedNames.isEmpty() || requiredName in rec.allowedNames)
         }
 
     /** 会话列表（UI 展示，最新在前）。 */

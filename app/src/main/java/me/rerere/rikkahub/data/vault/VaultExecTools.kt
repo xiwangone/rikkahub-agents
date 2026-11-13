@@ -7,6 +7,7 @@ import kotlinx.serialization.json.jsonArray
 import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -62,13 +63,21 @@ fun vaultExportEnvTool(
                         },
                     )
                     // 目标工作区：不传 = 第一个工作区（旧行为）；传了 = 指定区。
-                    // 工具执行上下文拿不到调用方工作区，不传时会写到第一个区，
-                    // 调用方在别的区既 source 不到也删不掉（明文会滞留）。
+                    // 工具执行上下文拿不到调用方工作区，不传时会写到第一个本地工作区，
+                    // 调用方在别的区既 source 不到也删不掉（明文会滞留）。显式指向 SSH
+                    // 工作区时还要再传 confirm=true 二次确认。
                     put(
                         "workspace",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "Target workspace name or id; default = first workspace")
+                            put("description", "Target workspace name or id; default = first local workspace")
+                        },
+                    )
+                    put(
+                        "confirm",
+                        buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "Set true to confirm a remote (SSH) workspace as the source or destination for plaintext credentials. Required when workspace names an SSH workspace; ignored for local workspaces. Default false (remote targets are refused without it).")
                         },
                     )
                     put(
@@ -113,8 +122,8 @@ private suspend fun runVaultExportEnv(
     val exported = mutableListOf<String>()
     val failures = mutableListOf<String>()
     // 必须传 isAuthorized：EXPORT 的 requiresAuthorization = true，缺省 null 时
-    // `isAuthorized?.invoke() != true` 但恒为真 → 每个条目都返回 NotAuthorized。
-    val resolver = CredentialResolver(repository) { sessionManager.hasActiveAuthorization() }
+    // 每个条目都返回 NotAuthorized；且按名过滤——受限会话只能导出白名单内的凭证。
+    val resolver = CredentialResolver(repository) { name -> sessionManager.hasActiveAuthorization(name) }
     for (entry in selected) {
         when (val r = resolver.resolve(entry.name, CredentialPurpose.EXPORT, caller = "ai-tool")) {
             is CredentialResolution.Granted -> {
@@ -132,6 +141,9 @@ private suspend fun runVaultExportEnv(
     val target =
         resolveVaultWorkspace(wsRepository, o["workspace"]?.jsonPrimitive?.contentOrNull)
             .getOrElse { return fail(it.message ?: "Cannot resolve target workspace") }
+    // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
+    remoteTargetNeedsConfirm(target, o["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+        ?.let { reason -> return fail(reason) }
     runCatching { wsRepository.writeText(target.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
         .onFailure { AppLog.w("VaultTools", "Failed to write vault-env.sh", it) }
         .getOrNull()
@@ -208,9 +220,11 @@ private suspend fun runVaultSshExec(
     val timeout = (o["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(5, 300)
 
     // SSH_AUTH 现需会话授权：不传 isAuthorized 会直接被拒（值不出进程 ≠ 不要紧，
-    // AI 能借此在任意已配主机上执行命令）。
+    // AI 能借此在任意已配主机上执行命令）；且按凭证名过滤——受限会话只能用白名单内的凭证。
+    // 名字过滤由上面这道门执行（credName 已定）；下面解析器的检查只是复核"有会话"，
+    // 不再重复按名过滤。
     val sessionManager = VaultSessionManager(context)
-    if (!sessionManager.hasActiveAuthorization()) {
+    if (!sessionManager.hasActiveAuthorization(credName)) {
         return fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
     }
     // auth 取值先验：无效取值不应走到凭证解析（否则类型校验会先报"类型不匹配"，掩盖真正的参数错）。

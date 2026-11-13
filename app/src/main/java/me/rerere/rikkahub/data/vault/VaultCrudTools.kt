@@ -71,7 +71,7 @@ fun vaultCredentialUpdateTool(
             listOf(UIMessagePart.Text("❌ name is required"))
         } else {
             val sessionManager = VaultSessionManager(context)
-            if (!sessionManager.hasActiveAuthorization()) {
+            if (!sessionManager.hasActiveAuthorization(name)) {
                 listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
             } else {
                 val existing = repository.getByName(name)
@@ -109,6 +109,11 @@ fun vaultCredentialUpdateTool(
                     if (newName != null && newName != name) {
                         if (repository.getByName(newName) != null) {
                             return@Tool listOf(UIMessagePart.Text("❌ Target name already exists: $newName (rename conflict, please pick another name)"))
+                        }
+                        // 改名目标同样受白名单约束：否则把白名单外的凭证改名成白名单内的
+                        // 名字，就能绕过名字过滤去使用它（与批量更新同一口径）。
+                        if (!sessionManager.hasActiveAuthorization(newName)) {
+                            return@Tool listOf(UIMessagePart.Text("❌ Not authorized: session is not authorized for target name $newName"))
                         }
                         changed += "Name: $name → $newName"
                     }
@@ -299,10 +304,22 @@ fun vaultCredentialBulkUpdateTool(
                         preflightErrors += "Item ${index + 1}: credential $name does not exist"
                         return@forEachIndexed
                     }
+                    // 名字级收敛：批量更新逐条按名过滤——受限会话只能改白名单内的凭证，
+                    // 白名单外的条目在预检阶段就拦下（不走到写盘），其余条目不受影响。
+                    if (!sessionManager.hasActiveAuthorization(name)) {
+                        preflightErrors += "Item ${index + 1}: session is not authorized for credential $name"
+                        return@forEachIndexed
+                    }
 
                     val targetName = requestedName ?: name
                     if (targetName != name && !CredentialVaultRepository.validateCredentialName(targetName)) {
                         preflightErrors += "Item ${index + 1}: new name is invalid (must be UPPER_SNAKE_CASE, max 64 chars): $targetName"
+                    }
+                    // 改名目标同样受白名单约束：否则把白名单外的凭证改名成白名单内的名字，
+                    // 就能绕过名字过滤去使用它。
+                    if (targetName != name && !sessionManager.hasActiveAuthorization(targetName)) {
+                        preflightErrors += "Item ${index + 1}: session is not authorized for target name $targetName"
+                        return@forEachIndexed
                     }
                     if (!seenTargets.add(targetName)) {
                         preflightErrors += "Multiple updates point to the same target name: $targetName"
@@ -477,7 +494,7 @@ fun vaultCredentialDeleteTool(
             listOf(UIMessagePart.Text("❌ name is required"))
         } else {
             val sessionManager = VaultSessionManager(context)
-            if (!sessionManager.hasActiveAuthorization()) {
+            if (!sessionManager.hasActiveAuthorization(name)) {
                 listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
             } else {
                 val existing = repository.getByName(name)

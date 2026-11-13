@@ -34,8 +34,8 @@ object CredentialMeta {
         "domain_id",
         "project_id",
         "region",
-        // 值指纹（SHA-256 前 16 hex，见 CredentialVaultRepository.fingerprint）：
-        // 供“不见值比对”（判重 / 判值是否变过）；高熵密钥不可反推。
+        // 值指纹（设备密钥 HMAC-SHA256 前 16 hex，见 CredentialVaultRepository.fingerprint）：
+        // 供“不见值比对”（判重 / 判值是否变过）；无设备密钥离线反推不了。
         "value_fp",
     )
 
@@ -45,9 +45,9 @@ object CredentialMeta {
     /**
      * 白名单内、但**不允许按字段引用**（`$$名字.字段`）的键。
      *
-     * `value_fp` 是主值 SHA-256 的前 16 hex，用途是"不见值比对"（判重 / 判值是否变过）。
-     * 口令类主值往往是低熵的，指纹可被离线字典反推；一旦能注入到任意位置，
-     * "比对用的散列"就变成了"可用的值"。元数据侧照常展示（`vault_credential_meta`），
+     * `value_fp` 是主值的设备密钥 HMAC 前 16 hex，用途是"不见值比对"（判重 / 判值是否变过）。
+     * 它仍不是值本身——一旦能注入到任意位置，"比对用的散列"就变成了"可用的值"
+     * （比如拿它当口令去撞需要指纹的接口）。元数据侧照常展示（`vault_credential_meta`），
      * 只是不进引用通道。
      */
     val NON_REFERENCEABLE_KEYS: Set<String> = setOf("value_fp")

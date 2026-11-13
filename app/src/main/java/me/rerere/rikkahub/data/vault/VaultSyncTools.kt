@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.vault
 
 import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
+import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
@@ -40,12 +41,19 @@ fun vaultExportLoadCredsTool(
         InputSchema.Obj(
             properties =
                 buildJsonObject {
-                    // 目标工作区：不传 = 第一个工作区（旧行为）；传了 = 指定区（名字或 id）。
+                    // 目标工作区：不传 = 第一个本地工作区；传了 = 指定区（名字或 id，SSH 区需再传 confirm=true）。
                     put(
                         "workspace",
                         buildJsonObject {
                             put("type", "string")
-                            put("description", "Target workspace name or id; default = first workspace")
+                            put("description", "Target workspace name or id; default = first local workspace")
+                        },
+                    )
+                    put(
+                        "confirm",
+                        buildJsonObject {
+                            put("type", "boolean")
+                            put("description", "Set true to confirm a remote (SSH) workspace as the source or destination for plaintext credentials. Required when workspace names an SSH workspace; ignored for local workspaces. Default false (remote targets are refused without it).")
                         },
                     )
                     put(
@@ -66,12 +74,21 @@ fun vaultExportLoadCredsTool(
             listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
             val entries = repository.getAll()
+            // 名字级收敛：整库导出只导出白名单内的条目——受限会话不能把整个库倒出去。
             val quads =
                 entries.mapNotNull { e ->
-                    repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
+                    if (!sessionManager.hasActiveAuthorization(e.name)) {
+                        null
+                    } else {
+                        repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
+                    }
                 }
             if (quads.isEmpty()) {
-                listOf(UIMessagePart.Text("❌ The vault is empty, nothing to export"))
+                if (entries.isEmpty()) {
+                    listOf(UIMessagePart.Text("❌ The vault is empty, nothing to export"))
+                } else {
+                    listOf(UIMessagePart.Text("❌ No credentials exported: session is not authorized for any entry in the vault"))
+                }
             } else {
                 val ttlHours = (params.jsonObject["ttl_hours"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, 24 * 365)
                 val expiresAtMs = if (ttlHours > 0) System.currentTimeMillis() + ttlHours * 3_600_000L else null
@@ -83,6 +100,9 @@ fun vaultExportLoadCredsTool(
                 val target =
                     resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
                         .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
+                // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
+                remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+                    ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
                 runCatching { wsRepository.writeText(target.id, "tmp/load-creds-export.sh", script, overwrite = true) }
                     .onFailure { AppLog.w("VaultTools", "Failed to write load-creds-export.sh", it) }
                     .getOrNull()
@@ -147,6 +167,15 @@ fun vaultCredentialMergeTool(
         if (source == target) {
             return@Tool listOf(UIMessagePart.Text("❌ source and target are the same, nothing to merge"))
         }
+        // 名字级收敛：合并会解密两条凭证的值做指纹比对并删除源条目——受限会话只能合
+        // 并白名单内的凭证；无 context 时沿用旧口径（本工具的授权门本身就是 context 非空才生效）。
+        if (context != null) {
+            val sessionManager = VaultSessionManager(context)
+            val denied = listOf(source, target).firstOrNull { !sessionManager.hasActiveAuthorization(it) }
+            if (denied != null) {
+                return@Tool listOf(UIMessagePart.Text("❌ Not authorized: session is not authorized for credential $denied"))
+            }
+        }
         val sourceEntry = repository.getByName(source)
             ?: return@Tool listOf(UIMessagePart.Text("❌ Source credential does not exist: $source"))
         val targetEntry = repository.getByName(target)
@@ -157,8 +186,8 @@ fun vaultCredentialMergeTool(
         val targetValue = repository.decryptValue(targetEntry)
         val sameValue =
             sourceValue != null && targetValue != null &&
-                CredentialVaultRepository.fingerprint(sourceValue) ==
-                    CredentialVaultRepository.fingerprint(targetValue)
+                repository.fingerprint(sourceValue) ==
+                    repository.fingerprint(targetValue)
 
         val synced =
             try {
@@ -228,6 +257,16 @@ suspend fun renameCredentialWithRefs(
     repository.logAccess(oldName, "ai-tool", "rename_from")
     repository.logAccess(newName, "ai-tool", "rename_to")
     return synced
+}
+
+/** 受限会话下改名：源名与目标名都必须在白名单内，否则返回第一个未授权的名字，无则 null。 */
+private suspend fun deniedRenameName(
+    sessionManager: VaultSessionManager?,
+    oldName: String,
+    newName: String,
+): String? {
+    if (sessionManager == null) return null
+    return listOf(oldName, newName).firstOrNull { !sessionManager.hasActiveAuthorization(it) }
 }
 
 /**
@@ -303,7 +342,17 @@ fun vaultCredentialNormalizeTool(
         var skipped = 0
         var syncedTotal = 0
         val failures = mutableListOf<String>()
+        // 有 context 时才做名字级收敛（本工具的授权门本身就是 context 非空才生效）。
+        val sessionManager = context?.let { VaultSessionManager(it) }
         plans.forEach { p ->
+            // 源名与目标名都要在白名单内——否则受限会话能把任意条目改名成白名单内的
+            // 名字再用它；跳过的条目进 failures，不静默。
+            val denied = deniedRenameName(sessionManager, p.old, p.new)
+            if (denied != null) {
+                skipped++
+                failures += "${p.old} → ${p.new}: session is not authorized for credential $denied"
+                return@forEach
+            }
             if (repository.getByName(p.new) != null) {
                 skipped++
                 return@forEach
@@ -350,7 +399,8 @@ fun vaultImportLoadCredsTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds-export.sh") })
-                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first workspace") })
+                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first local workspace") })
+                put("confirm", buildJsonObject { put("type", "boolean"); put("description", "Set true to confirm a remote (SSH) workspace as the source or destination for plaintext credentials. Required when workspace names an SSH workspace; ignored for local workspaces. Default false (remote targets are refused without it).") })
             },
             required = emptyList(),
         )
@@ -368,6 +418,9 @@ fun vaultImportLoadCredsTool(
             val target =
                 resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
                     .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
+            // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
+            remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+                ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
@@ -419,7 +472,8 @@ fun vaultCompareLoadCredsTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds.sh") })
-                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first workspace") })
+                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first local workspace") })
+                put("confirm", buildJsonObject { put("type", "boolean"); put("description", "Set true to confirm a remote (SSH) workspace as the source or destination for plaintext credentials. Required when workspace names an SSH workspace; ignored for local workspaces. Default false (remote targets are refused without it).") })
             },
             required = emptyList(),
         )
@@ -436,6 +490,9 @@ fun vaultCompareLoadCredsTool(
             val target =
                 resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
                     .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
+            // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
+            remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+                ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
@@ -449,7 +506,12 @@ fun vaultCompareLoadCredsTool(
                 if (fileEntries.isEmpty()) {
                     listOf(UIMessagePart.Text("❌ No entries parsed from the file (does the format match load-creds.sh?)"))
                 } else {
-                    val vaultEntries = repository.getAll().associateBy { it.name }
+                    // 名字级收敛：比对只覆盖白名单内的条目——否则用文件里的猜测值比对任意
+                    // 条目的哈希，就能当预言机逐个试出低熵值。白名单外的条目在报告里
+                    // 表现为"只在文件里"，不泄露它在库里、也不泄露值是否相同。
+                    val vaultEntries = repository.getAll()
+                        .filter { sessionManager.hasActiveAuthorization(it.name) }
+                        .associateBy { it.name }
                     listOf(UIMessagePart.Text(buildVaultCompareReport(path, fileEntries, vaultEntries, repository)))
                 }
             }

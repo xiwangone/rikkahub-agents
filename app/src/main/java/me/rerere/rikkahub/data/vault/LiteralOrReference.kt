@@ -53,13 +53,19 @@ suspend fun resolveLiteralOrReference(
     vaultRepository: CredentialVaultRepository,
     caller: String,
     audit: Boolean = false,
+    /**
+     * 会话授权检查（按凭证名过滤）；null = 拒绝（fail-closed）。df5ad9c71 起
+     * SSH_AUTH / HTTP_HEADER / SSH_DEPLOY_KEY / LOCAL_USE 必须授权——引用解析
+     * 不传检查时，解析器对这些用途一律返回 NotAuthorized，而不是静默放行。
+     */
+    isAuthorized: (suspend (String) -> Boolean)? = null,
 ): String? {
     val text = raw?.trim().orEmpty()
     if (text.isEmpty()) return null
     if (!isVaultReference(text)) return text
     val ref = text.removePrefix(VAULT_REF_PREFIX).trim()
     if (ref.isEmpty()) return null
-    val resolution = CredentialResolver(vaultRepository)
+    val resolution = CredentialResolver(vaultRepository, isAuthorized)
         .resolveRef(ref, purpose, caller = caller, audit = audit)
     return (resolution as? CredentialResolution.Granted)?.value
 }

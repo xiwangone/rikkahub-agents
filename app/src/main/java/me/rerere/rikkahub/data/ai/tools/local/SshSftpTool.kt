@@ -47,7 +47,7 @@ private suspend fun withSavedHostSession(
 ): JsonObject {
     val h = repo.getByName(name)
         ?: return ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.")
-    val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository)) {
+    val auth = when (val r = resolveHostAuthDetailed(h, vaultRepository, context)) {
         is HostAuthResolution.Ready -> r.auth
         is HostAuthResolution.Unusable -> return ToolErrors.envelopeFor(
             error = ToolErrors.classifyMessage(r.reason),

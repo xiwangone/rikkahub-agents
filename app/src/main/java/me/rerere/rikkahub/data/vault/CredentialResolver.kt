@@ -108,8 +108,14 @@ val CredentialResolution.message: String
  */
 class CredentialResolver(
     private val repository: CredentialVaultRepository,
-    /** 会话授权检查；null 表示该场景不启用授权门（无 UI 上下文或单测）。 */
-    private val isAuthorized: (suspend () -> Boolean)? = null,
+    /**
+     * 会话授权检查；按凭证名过滤（见 [VaultSessionManager.hasActiveAuthorization]）。
+     * null 表示**拒绝**（fail-closed）：调用方必须显式传入检查——无 UI 上下文或单测
+     * 场景下传 null 意味着"该场景不启用授权门"已不再成立；df5ad9c71 把 SSH_AUTH /
+     * HTTP_HEADER / SSH_DEPLOY_KEY / LOCAL_USE 改为必须授权后，未传检查的解析一律
+     * 返回 NotAuthorized（而不是静默放行）。不要把 null 读成"不检查"。
+     */
+    private val isAuthorized: (suspend (String) -> Boolean)? = null,
 ) {
 
     suspend fun resolve(
@@ -128,7 +134,7 @@ class CredentialResolver(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return CredentialResolution.Missing(name)
 
-        if (purpose.requiresAuthorization && isAuthorized?.invoke() != true) {
+        if (purpose.requiresAuthorization && isAuthorized?.invoke(trimmed) != true) {
             if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_denied")
             return CredentialResolution.NotAuthorized(trimmed)
         }

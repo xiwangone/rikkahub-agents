@@ -81,7 +81,14 @@ fun TunnelSettingSection(vm: SettingVM) {
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val vaultRepository: CredentialVaultRepository = koinInject()
-    val credentialResolver = remember(vaultRepository) { CredentialResolver(vaultRepository) }
+    // 隧道认证密钥解析也要过会话授权门（LOCAL_USE 自 df5ad9c71 起必须授权）：
+    // 按名过滤，未授权的凭证名解析失败并在状态行显示原因。
+    val credentialResolver = remember(vaultRepository, context) {
+        CredentialResolver(vaultRepository) { name ->
+            me.rerere.rikkahub.data.vault.VaultSessionManager(context.applicationContext)
+                .hasActiveAuthorization(name)
+        }
+    }
 
     var controlUrl by remember(network.tailscaleControlUrl) {
         mutableStateOf(network.tailscaleControlUrl)

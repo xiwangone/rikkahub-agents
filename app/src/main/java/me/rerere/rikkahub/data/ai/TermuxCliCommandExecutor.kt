@@ -58,7 +58,7 @@ class TermuxCliCommandExecutor(
     private suspend fun executeSsh(hostName: String, command: String): String {
         val host = sshHostRepository.getByName(hostName) ?: return "SSH host $hostName does not exist"
         // 带原因解析：报错能区分“名字不存在/解不开/未授权”（旧写法只报“无可用凭证”）
-        val auth = when (val r = resolveHostAuthDetailed(host, vaultRepository)) {
+        val auth = when (val r = resolveHostAuthDetailed(host, vaultRepository, context)) {
             is HostAuthResolution.Ready -> r.auth
             is HostAuthResolution.Unusable -> return r.reason
         }

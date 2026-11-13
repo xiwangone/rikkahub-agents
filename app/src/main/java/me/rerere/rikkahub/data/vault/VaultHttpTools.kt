@@ -268,9 +268,12 @@ private suspend fun runVaultHttpExec(
     }.getOrElse { return fail("extra_headers must be a valid JSON object") }
 
     // 取值统一走单点解析器：存在性 / 解密 / 审计一处实现，失败文案一致
-    // HTTP_HEADER 现需会话授权：不传 isAuthorized 会直接被拒（AI 能借此代用户对任意服务发请求）。
+    // HTTP_HEADER 现需会话授权：不传 isAuthorized 会直接被拒（AI 能借此代用户对任意服务发请求）；
+    // 且按凭证名过滤——受限会话只能用白名单内的凭证。
+    // 名字过滤由下面这道门执行（credName 已定）；解析器的检查只是复核"有会话"，
+    // 不再重复按名过滤。
     val sessionManager = VaultSessionManager(context)
-    if (!sessionManager.hasActiveAuthorization()) {
+    if (!sessionManager.hasActiveAuthorization(credName)) {
         return fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
     }
     val resolved =
