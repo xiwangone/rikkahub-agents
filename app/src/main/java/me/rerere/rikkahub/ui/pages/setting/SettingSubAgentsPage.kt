@@ -28,7 +28,6 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Switch
@@ -78,6 +77,7 @@ import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
@@ -441,7 +441,7 @@ private fun SubAgentProfileEditSheet(
                     .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
-                OutlinedTextField(
+                SettingTextField(
                     value = profile.name,
                     onValueChange = { onEdit(profile.copy(name = it)) },
                     label = { Text(stringResource(R.string.setting_sub_agents_page_name)) },
@@ -453,7 +453,7 @@ private fun SubAgentProfileEditSheet(
                     modifier = Modifier.fillMaxWidth(),
                 )
 
-                OutlinedTextField(
+                SettingTextField(
                     value = profile.description,
                     onValueChange = { onEdit(profile.copy(description = it)) },
                     label = { Text(stringResource(R.string.setting_sub_agents_page_description)) },
@@ -518,7 +518,7 @@ private fun SubAgentProfileEditSheet(
                     description = { Text(stringResource(R.string.setting_sub_agents_page_tools_desc)) },
                     content = {
                         Column(modifier = Modifier.fillMaxWidth()) {
-                            OutlinedTextField(
+                            SettingTextField(
                                 value = profile.toolScope?.joinToString(", ") ?: "",
                                 onValueChange = { raw ->
                                     val parsed = raw.split(',', '\n').map { it.trim() }.filter { it.isNotEmpty() }
@@ -552,7 +552,7 @@ private fun SubAgentProfileEditSheet(
                     },
                 )
 
-                OutlinedTextField(
+                SettingTextField(
                     value = profile.systemPrompt,
                     onValueChange = { onEdit(profile.copy(systemPrompt = it)) },
                     label = { Text(stringResource(R.string.setting_sub_agents_page_system_prompt)) },

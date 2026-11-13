@@ -37,6 +37,17 @@ import java.nio.charset.CodingErrorAction
  */
 internal const val SHELL_TIMEOUT_MAX_SECONDS = 600L
 internal const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
+internal const val MAX_BINARY_BASE64_BYTES = 256 * 1024
+
+/**
+ * Base64 内联上限判定：二进制文件超过 256KB 不直接内联进消息，
+ * 改由调用方用 shell（head/xxd/python）查看，避免撑爆上下文。
+ */
+internal fun requireInlineBase64Size(sizeBytes: Int, path: String) {
+    require(sizeBytes <= MAX_BINARY_BASE64_BYTES) {
+        "Binary file is too large to inline as base64: $path ($sizeBytes bytes, limit $MAX_BINARY_BASE64_BYTES bytes). Use workspace_shell (e.g. head/xxd/python) to inspect it."
+    }
+}
 
 /**
  * English text of the workspace tool messages, kept in sync with values/strings.xml.

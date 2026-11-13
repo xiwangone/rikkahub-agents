@@ -19,7 +19,6 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.rememberCoroutineScope
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.context.LocalNavController
 import org.koin.compose.koinInject
 
@@ -303,7 +303,7 @@ internal fun VaultAuditAndBackupSection(
                 headlineContent = { Text(stringResource(R.string.vault_import_title)) },
                 supportingContent = { Text(stringResource(R.string.vault_import_desc)) },
             ) {
-                OutlinedTextField(
+                SettingTextField(
                     value = importPassword,
                     onValueChange = onImportPasswordChange,
                     label = { Text(stringResource(R.string.vault_export_password_label)) },
@@ -353,7 +353,7 @@ internal fun VaultAuditAndBackupSection(
                     }
                 }
                 if (exportFormat == VaultFormats.FORMAT_VAULT) {
-                    OutlinedTextField(
+                    SettingTextField(
                         value = exportPassword,
                         onValueChange = onExportPasswordChange,
                         label = { Text(stringResource(R.string.vault_export_password_label)) },
@@ -397,7 +397,7 @@ internal fun VaultAuditAndBackupSection(
                 headlineContent = { Text(stringResource(R.string.vault_backup_title)) },
                 supportingContent = { Text(stringResource(R.string.vault_backup_desc)) },
             ) {
-                OutlinedTextField(
+                SettingTextField(
                     value = backupPassword,
                     onValueChange = onBackupPasswordChange,
                     label = { Text(stringResource(R.string.vault_backup_password_label)) },

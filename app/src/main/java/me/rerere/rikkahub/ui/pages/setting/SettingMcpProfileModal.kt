@@ -13,7 +13,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -35,6 +34,7 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolCategory
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 
@@ -68,8 +68,8 @@ internal fun LocalMcpProfileModal(
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                SettingTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                SettingTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.mcp_profile_listen_scope), style = MaterialTheme.typography.labelLarge)
                 listOf(
                     "loopback" to stringResource(R.string.net_scope_loopback),

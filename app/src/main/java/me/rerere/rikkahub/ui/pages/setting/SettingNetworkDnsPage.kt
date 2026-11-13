@@ -54,6 +54,8 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.network.AppDnsResolver
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.DraftState
+import me.rerere.rikkahub.ui.components.setting.dohUrlValid
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -62,18 +64,35 @@ import me.rerere.rikkahub.utils.plus
 import me.rerere.workspace.ShellDnsConfig
 import org.koin.androidx.compose.koinViewModel
 
+/** DNS 弹窗草稿：模式 + 各模式地址 + 回退 / IPv6 开关 + 测试域名（打开弹窗时从已保存值同步初始化，取消即丢弃）。 */
+internal data class DnsDraft(
+    val mode: String = NetworkSetting.DNS_MODE_SYSTEM,
+    val dohUrl: String = NetworkSetting.DEFAULT_DOH_URL,
+    val dotHost: String = NetworkSetting.DEFAULT_DOT_HOST,
+    val customServers: String = NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS,
+    val fallbackToSystem: Boolean = true,
+    val enableIpv6: Boolean = false,
+    val testDomain: String = NetworkSetting.DEFAULT_DNS_TEST_DOMAIN,
+) {
+    companion object {
+        fun from(net: NetworkSetting) = DnsDraft(
+            mode = net.dnsMode,
+            dohUrl = net.dohUrl,
+            dotHost = net.dotHost,
+            customServers = net.customDnsServers,
+            fallbackToSystem = net.dnsFallbackToSystem,
+            enableIpv6 = net.dnsEnableIpv6,
+            testDomain = net.dnsTestDomain,
+        )
+    }
+}
+
 @Composable
 fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val net = settings.networkSetting
     var dnsDialogVisible by remember { mutableStateOf(false) }
-    var dnsModeDraft by remember { mutableStateOf(NetworkSetting.DNS_MODE_SYSTEM) }
-    var dohUrlDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_DOH_URL) }
-    var dotHostDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_DOT_HOST) }
-    var customDnsDraft by remember { mutableStateOf(NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS) }
-    var dnsFallbackDraft by remember { mutableStateOf(true) }
-    var dnsIpv6Draft by remember { mutableStateOf(false) }
-    var dnsTestDomain by remember(net.dnsTestDomain) { mutableStateOf(net.dnsTestDomain) }
+    val dnsDraft = remember { DraftState(DnsDraft.from(net)) }
     var dnsTesting by remember { mutableStateOf(false) }
 
     val savedShellDnsMode = ShellDnsConfig.normalizeMode(settings.shellDnsMode)
@@ -86,28 +105,23 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
     val toaster = LocalToaster.current
 
     fun loadDnsDrafts() {
-        dnsModeDraft = net.dnsMode
-        dohUrlDraft = net.dohUrl
-        dotHostDraft = net.dotHost
-        customDnsDraft = net.customDnsServers
-        dnsFallbackDraft = net.dnsFallbackToSystem
-        dnsIpv6Draft = net.dnsEnableIpv6
-        dnsTestDomain = net.dnsTestDomain
+        dnsDraft.load(DnsDraft.from(net))
     }
 
     fun saveDnsConfig() {
         AppDnsResolver.invalidateCache()
+        val saved = dnsDraft.save()
         vm.updateSettings { current ->
             current.copy(
                 networkSetting = buildDnsTestSetting(
                     base = current.networkSetting,
-                    mode = dnsModeDraft,
-                    dohUrl = dohUrlDraft,
-                    dotHost = dotHostDraft,
-                    customServers = customDnsDraft,
-                    fallbackToSystem = dnsFallbackDraft,
-                    enableIpv6 = dnsIpv6Draft,
-                    testDomain = dnsTestDomain,
+                    mode = saved.mode,
+                    dohUrl = saved.dohUrl,
+                    dotHost = saved.dotHost,
+                    customServers = saved.customServers,
+                    fallbackToSystem = saved.fallbackToSystem,
+                    enableIpv6 = saved.enableIpv6,
+                    testDomain = saved.testDomain,
                 ),
             )
         }
@@ -176,11 +190,11 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
     }
 
     if (dnsDialogVisible) {
-        val customServersInvalid = customDnsDraft.isNotBlank() &&
-            AppDnsResolver.parseServerList(customDnsDraft).isEmpty()
+        val customServersInvalid = dnsDraft.draft.customServers.isNotBlank() &&
+            AppDnsResolver.parseServerList(dnsDraft.draft.customServers).isEmpty()
         AlertDialog(
             onDismissRequest = {
-                loadDnsDrafts()
+                dnsDraft.discard()
                 dnsDialogVisible = false
             },
             modifier = Modifier.imePadding(),
@@ -208,14 +222,14 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                             NetworkSetting.DNS_MODE_CUSTOM to R.string.setting_page_preferences_network_dns_mode_custom,
                         ).forEach { (modeKey, labelRes) ->
                             FilterChip(
-                                selected = dnsModeDraft == modeKey,
-                                onClick = { dnsModeDraft = modeKey },
+                                selected = dnsDraft.draft.mode == modeKey,
+                                onClick = { dnsDraft.edit { it.copy(mode = modeKey) } },
                                 label = { Text(stringResource(labelRes)) },
                             )
                         }
                     }
 
-                    if (dnsModeDraft != NetworkSetting.DNS_MODE_SYSTEM) {
+                    if (dnsDraft.draft.mode != NetworkSetting.DNS_MODE_SYSTEM) {
                         Text(
                             text = stringResource(R.string.setting_page_preferences_network_dns_presets),
                             style = MaterialTheme.typography.labelMedium,
@@ -226,17 +240,21 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         ) {
                             AppDnsResolver.PRESETS.forEach { preset ->
-                                val selected = when (dnsModeDraft) {
-                                    NetworkSetting.DNS_MODE_DOH -> dohUrlDraft.trim() == preset.dohUrl
-                                    NetworkSetting.DNS_MODE_DOT -> dotHostDraft.trim() == preset.dotHost
-                                    else -> customDnsDraft.trim() == preset.bootstrapIps
+                                val selected = when (dnsDraft.draft.mode) {
+                                    NetworkSetting.DNS_MODE_DOH -> dnsDraft.draft.dohUrl.trim() == preset.dohUrl
+                                    NetworkSetting.DNS_MODE_DOT -> dnsDraft.draft.dotHost.trim() == preset.dotHost
+                                    else -> dnsDraft.draft.customServers.trim() == preset.bootstrapIps
                                 }
                                 FilterChip(
                                     selected = selected,
                                     onClick = {
-                                        dohUrlDraft = preset.dohUrl
-                                        dotHostDraft = preset.dotHost
-                                        customDnsDraft = preset.bootstrapIps
+                                        dnsDraft.edit {
+                                            it.copy(
+                                                dohUrl = preset.dohUrl,
+                                                dotHost = preset.dotHost,
+                                                customServers = preset.bootstrapIps,
+                                            )
+                                        }
                                     },
                                     label = { Text(preset.label) },
                                 )
@@ -244,24 +262,25 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                         }
                     }
 
-                    if (dnsModeDraft == NetworkSetting.DNS_MODE_DOH) {
+                    if (dnsDraft.draft.mode == NetworkSetting.DNS_MODE_DOH) {
                         OutlinedTextField(
-                            value = dohUrlDraft,
-                            onValueChange = { dohUrlDraft = it },
+                            value = dnsDraft.draft.dohUrl,
+                            onValueChange = { newValue -> dnsDraft.edit { it.copy(dohUrl = newValue) } },
                             modifier = Modifier.fillMaxWidth(),
                             label = {
                                 Text(stringResource(R.string.setting_page_preferences_network_dns_doh_url))
                             },
                             placeholder = { Text(NetworkSetting.DEFAULT_DOH_URL) },
+                            isError = dnsDraft.draft.dohUrl.isNotBlank() && !dohUrlValid(dnsDraft.draft.dohUrl),
                             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                             singleLine = true,
                         )
                     }
 
-                    if (dnsModeDraft == NetworkSetting.DNS_MODE_DOT) {
+                    if (dnsDraft.draft.mode == NetworkSetting.DNS_MODE_DOT) {
                         OutlinedTextField(
-                            value = dotHostDraft,
-                            onValueChange = { dotHostDraft = it },
+                            value = dnsDraft.draft.dotHost,
+                            onValueChange = { newValue -> dnsDraft.edit { it.copy(dotHost = newValue) } },
                             modifier = Modifier.fillMaxWidth(),
                             label = {
                                 Text(stringResource(R.string.setting_page_preferences_network_dns_dot_host))
@@ -272,10 +291,10 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                         )
                     }
 
-                    if (dnsModeDraft != NetworkSetting.DNS_MODE_SYSTEM) {
+                    if (dnsDraft.draft.mode != NetworkSetting.DNS_MODE_SYSTEM) {
                         OutlinedTextField(
-                            value = customDnsDraft,
-                            onValueChange = { customDnsDraft = it },
+                            value = dnsDraft.draft.customServers,
+                            onValueChange = { newValue -> dnsDraft.edit { it.copy(customServers = newValue) } },
                             modifier = Modifier.fillMaxWidth(),
                             label = {
                                 Text(stringResource(R.string.setting_page_preferences_network_dns_custom_servers))
@@ -308,8 +327,8 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                                 modifier = Modifier.weight(1f),
                             )
                             Switch(
-                                checked = dnsFallbackDraft,
-                                onCheckedChange = { dnsFallbackDraft = it },
+                                checked = dnsDraft.draft.fallbackToSystem,
+                                onCheckedChange = { newValue -> dnsDraft.edit { it.copy(fallbackToSystem = newValue) } },
                             )
                         }
 
@@ -324,15 +343,15 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                                 modifier = Modifier.weight(1f),
                             )
                             Switch(
-                                checked = dnsIpv6Draft,
-                                onCheckedChange = { dnsIpv6Draft = it },
+                                checked = dnsDraft.draft.enableIpv6,
+                                onCheckedChange = { newValue -> dnsDraft.edit { it.copy(enableIpv6 = newValue) } },
                             )
                         }
                     }
 
                     OutlinedTextField(
-                        value = dnsTestDomain,
-                        onValueChange = { dnsTestDomain = it },
+                        value = dnsDraft.draft.testDomain,
+                        onValueChange = { newValue -> dnsDraft.edit { it.copy(testDomain = newValue) } },
                         modifier = Modifier.fillMaxWidth(),
                         label = {
                             Text(stringResource(R.string.setting_page_preferences_network_dns_test_domain))
@@ -351,13 +370,13 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                                 testDns(
                                     buildDnsTestSetting(
                                         base = net,
-                                        mode = dnsModeDraft,
-                                        dohUrl = dohUrlDraft,
-                                        dotHost = dotHostDraft,
-                                        customServers = customDnsDraft,
-                                        fallbackToSystem = dnsFallbackDraft,
-                                        enableIpv6 = dnsIpv6Draft,
-                                        testDomain = dnsTestDomain,
+                                        mode = dnsDraft.draft.mode,
+                                        dohUrl = dnsDraft.draft.dohUrl,
+                                        dotHost = dnsDraft.draft.dotHost,
+                                        customServers = dnsDraft.draft.customServers,
+                                        fallbackToSystem = dnsDraft.draft.fallbackToSystem,
+                                        enableIpv6 = dnsDraft.draft.enableIpv6,
+                                        testDomain = dnsDraft.draft.testDomain,
                                     ),
                                 )
                             },
@@ -389,7 +408,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
             dismissButton = {
                 TextButton(
                     onClick = {
-                        loadDnsDrafts()
+                        dnsDraft.discard()
                         dnsDialogVisible = false
                     },
                 ) {
@@ -472,7 +491,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                             Text(stringResource(R.string.setting_provider_page_test_connection))
                         },
                         supportingContent = {
-                            Text(dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN })
+                            Text(net.dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN })
                         },
                         trailingContent = {
                             TextButton(

@@ -71,6 +71,9 @@ import me.rerere.rikkahub.data.db.entity.ManagedFileEntity
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.ConfirmDialogState
+import me.rerere.rikkahub.ui.components.setting.request
+import me.rerere.rikkahub.ui.components.setting.cleanDeleteButtonEnabled
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -156,7 +159,7 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
     var showCleanSheet by remember { mutableStateOf(false) }
     var selectedCleanRange by remember { mutableStateOf(CleanRange.DAYS_7) }
     var pendingCleanPreview by remember { mutableStateOf<CleanPreview?>(null) }
-    var pendingCleanAllConfirm by remember { mutableStateOf(false) }
+    val pendingCleanAllConfirm = remember { ConfirmDialogState<Unit>() }
 
     // 清理真正执行：与预览同口径（见 cleanPreview），ALL 走 deleteAll。
     fun doClean() {
@@ -280,7 +283,7 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
                     onClick = {
                         pendingCleanPreview = null
                         if (selectedCleanRange == CleanRange.ALL) {
-                            pendingCleanAllConfirm = true
+                            pendingCleanAllConfirm.request()
                         } else {
                             doClean()
                         }
@@ -297,15 +300,15 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
         )
     }
 
-    if (pendingCleanAllConfirm) {
+    if (pendingCleanAllConfirm.isShowing) {
         AlertDialog(
-            onDismissRequest = { pendingCleanAllConfirm = false },
+            onDismissRequest = { pendingCleanAllConfirm.dismiss() },
             title = { Text(stringResource(R.string.setting_files_page_clean_title)) },
             text = { Text(stringResource(R.string.setting_files_page_clean_confirmation)) },
             confirmButton = {
                 TextButton(
                     onClick = {
-                        pendingCleanAllConfirm = false
+                        pendingCleanAllConfirm.confirm()
                         doClean()
                     },
                 ) {
@@ -313,7 +316,7 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { pendingCleanAllConfirm = false }) {
+                TextButton(onClick = { pendingCleanAllConfirm.dismiss() }) {
                     Text(stringResource(R.string.setting_files_page_cancel_action))
                 }
             },
@@ -538,7 +541,7 @@ private fun CleanFilesSheet(
         )
         TextButton(
             onClick = onClean,
-            enabled = preview.count > 0,
+            enabled = cleanDeleteButtonEnabled(preview.count),
             modifier = Modifier
                 .fillMaxWidth()
                 .padding(top = 8.dp),

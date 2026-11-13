@@ -43,6 +43,8 @@ import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.ConfirmDialogState
+import me.rerere.rikkahub.ui.components.setting.request
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
@@ -71,7 +73,7 @@ fun SettingSearchDetailPage(
     val service = settings.searchServices.find { it.id == serviceId } ?: return
     val serviceIndex = settings.searchServices.indexOf(service)
     var options by remember(service) { mutableStateOf(service) }
-    var pendingDelete by remember { mutableStateOf(false) }
+    val pendingDelete = remember { ConfirmDialogState<Unit>() }
 
     fun save(updated: SearchServiceOptions) {
         options = updated
@@ -94,7 +96,7 @@ fun SettingSearchDetailPage(
                 actions = {
                     if (settings.searchServices.size > 1) {
                         IconButton(
-                            onClick = { pendingDelete = true },
+                            onClick = { pendingDelete.request() },
                         ) {
                             Icon(
                                 imageVector = HugeIcons.Delete01,
@@ -143,11 +145,11 @@ fun SettingSearchDetailPage(
     }
 
     RikkaDeleteConfirmDialog(
-        show = pendingDelete,
+        show = pendingDelete.isShowing,
         title = stringResource(R.string.setting_page_search_delete_provider),
         message = stringResource(R.string.common_delete_confirm_message, options.displayName),
         onConfirm = {
-            pendingDelete = false
+            pendingDelete.confirm()
             vm.updateSettings { current ->
                 if (current.searchServices.size > 1) {
                     current.copy(searchServices = current.searchServices.filterNot { it.id == serviceId })
@@ -155,7 +157,7 @@ fun SettingSearchDetailPage(
             }
             nav.popBackStack()
         },
-        onDismiss = { pendingDelete = false },
+        onDismiss = { pendingDelete.dismiss() },
     )
 }
 

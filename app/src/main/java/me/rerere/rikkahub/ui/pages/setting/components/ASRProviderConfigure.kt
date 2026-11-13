@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
@@ -16,6 +15,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 
 @Composable
 fun ASRProviderConfigure(
@@ -31,7 +31,7 @@ fun ASRProviderConfigure(
             label = { Text(stringResource(R.string.setting_asr_configure_provider_type)) },
             description = { Text(stringResource(R.string.setting_asr_configure_provider_type_desc)) },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value =
                     when (setting) {
                         is ASRProviderSetting.OpenAIRealtime -> "OpenAI Realtime"
@@ -50,7 +50,7 @@ fun ASRProviderConfigure(
             label = { Text(stringResource(R.string.setting_asr_configure_name)) },
             description = { Text(stringResource(R.string.setting_asr_configure_name_desc)) },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.name,
                 onValueChange = { onValueChange(setting.copyProvider(name = it)) },
                 modifier = Modifier.fillMaxWidth(),
@@ -91,7 +91,7 @@ private fun OpenAIRealtimeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         description = { Text(stringResource(R.string.setting_asr_configure_openai_websocket_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -103,7 +103,7 @@ private fun OpenAIRealtimeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_model)) },
         description = { Text(stringResource(R.string.setting_asr_configure_model_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -115,7 +115,7 @@ private fun OpenAIRealtimeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_language)) },
         description = { Text(stringResource(R.string.setting_asr_configure_language_iso_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -127,7 +127,7 @@ private fun OpenAIRealtimeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_prompt)) },
         description = { Text(stringResource(R.string.setting_asr_configure_prompt_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.prompt,
             onValueChange = { onValueChange(setting.copy(prompt = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -208,7 +208,7 @@ private fun DashScopeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         description = { Text(stringResource(R.string.setting_asr_configure_dashscope_websocket_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -220,7 +220,7 @@ private fun DashScopeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_model)) },
         description = { Text(stringResource(R.string.setting_asr_configure_model_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -232,7 +232,7 @@ private fun DashScopeASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_language)) },
         description = { Text(stringResource(R.string.setting_asr_configure_language_iso_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -296,7 +296,7 @@ private fun VolcengineASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_websocket_url)) },
         description = { Text(stringResource(R.string.setting_asr_configure_volcengine_websocket_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.websocketUrl,
             onValueChange = { onValueChange(setting.copy(websocketUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -308,7 +308,7 @@ private fun VolcengineASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_resource_id)) },
         description = { Text(stringResource(R.string.setting_asr_configure_resource_id_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -320,7 +320,7 @@ private fun VolcengineASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_language)) },
         description = { Text(stringResource(R.string.setting_asr_configure_language_code_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -352,7 +352,7 @@ private fun MiMoASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
         description = { Text(stringResource(R.string.setting_asr_configure_mimo_base_url_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -364,7 +364,7 @@ private fun MiMoASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_model)) },
         description = { Text(stringResource(R.string.setting_asr_configure_mimo_model_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -376,7 +376,7 @@ private fun MiMoASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_language)) },
         description = { Text(stringResource(R.string.setting_asr_configure_mimo_language_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -440,7 +440,7 @@ private fun StepASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
         description = { Text(stringResource(R.string.setting_asr_configure_step_base_url_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -452,7 +452,7 @@ private fun StepASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_model)) },
         description = { Text(stringResource(R.string.setting_asr_configure_step_model_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.model,
             onValueChange = { onValueChange(setting.copy(model = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -464,7 +464,7 @@ private fun StepASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_language)) },
         description = { Text(stringResource(R.string.setting_asr_configure_step_language_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.language,
             onValueChange = { onValueChange(setting.copy(language = it)) },
             modifier = Modifier.fillMaxWidth(),
@@ -528,7 +528,7 @@ private fun StepASRConfiguration(
         label = { Text(stringResource(R.string.setting_asr_configure_step_hotwords)) },
         description = { Text(stringResource(R.string.setting_asr_configure_step_hotwords_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             // 用逗号分隔展示, 输入时按逗号 split 回 List
             value = setting.hotwords.joinToString(","),
             onValueChange = { text ->

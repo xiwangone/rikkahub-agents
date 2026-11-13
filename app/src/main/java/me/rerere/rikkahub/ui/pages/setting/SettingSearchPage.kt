@@ -50,6 +50,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.ConfirmDialogState
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
@@ -77,7 +78,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
     val scope = rememberCoroutineScope()
     val nav = LocalNavController.current
     var showAddDialog by remember { mutableStateOf(false) }
-    var pendingDelete by remember { mutableStateOf<SearchServiceOptions?>(null) }
+    val pendingDelete = remember { ConfirmDialogState<SearchServiceOptions>() }
 
     Scaffold(
         topBar = {
@@ -137,7 +138,7 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
                         onEdit = {
                             nav.navigate(Screen.SettingSearchDetail(service.id.toString()))
                         },
-                        onDelete = { pendingDelete = service },
+                        onDelete = { pendingDelete.request(service) },
                         canDelete = settings.searchServices.size > 1,
                         modifier =
                             Modifier
@@ -188,19 +189,18 @@ fun SettingSearchPage(vm: SettingVM = koinViewModel()) {
     }
 
     RikkaDeleteConfirmDialog(
-        show = pendingDelete != null,
+        show = pendingDelete.isShowing,
         title = stringResource(R.string.setting_page_search_delete_provider),
-        message = stringResource(R.string.common_delete_confirm_message, pendingDelete?.displayName.orEmpty()),
+        message = stringResource(R.string.common_delete_confirm_message, pendingDelete.pending?.displayName.orEmpty()),
         onConfirm = {
-            val target = pendingDelete
-            pendingDelete = null
+            val target = pendingDelete.confirm()
             if (target != null && settings.searchServices.size > 1) {
                 vm.updateSettings { current ->
                     current.copy(searchServices = current.searchServices.filterNot { it.id == target.id })
                 }
             }
         },
-        onDismiss = { pendingDelete = null },
+        onDismiss = { pendingDelete.dismiss() },
     )
 }
 

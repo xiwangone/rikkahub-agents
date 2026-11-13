@@ -15,6 +15,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.input.KeyboardType
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.ui.components.setting.bringIntoViewOnFocus
 
 private const val TAG = "Input"
 
@@ -28,7 +29,7 @@ fun <T : Number> OutlinedNumberInput(
 ) {
     var textFieldValue by remember(value) { mutableStateOf(value.toString()) }
     OutlinedTextField(
-        modifier = modifier,
+        modifier = modifier.bringIntoViewOnFocus(),
         value = textFieldValue,
         onValueChange = { newValue ->
             textFieldValue = newValue
@@ -68,7 +69,7 @@ fun <T : Number> NumberInput(
 ) {
     var textFieldValue by remember(value) { mutableStateOf(value.toString()) }
     TextField(
-        modifier = modifier,
+        modifier = modifier.bringIntoViewOnFocus(),
         value = textFieldValue,
         onValueChange = { newValue ->
             textFieldValue = newValue

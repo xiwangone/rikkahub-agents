@@ -58,7 +58,7 @@ fun NetworkAccessField(
             singleLine = true,
             enabled = enabled,
             keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
-            modifier = Modifier.fillMaxWidth(),
+            modifier = Modifier.fillMaxWidth().bringIntoViewOnFocus(),
         )
 
         val entries = parseCidrEntries(value)

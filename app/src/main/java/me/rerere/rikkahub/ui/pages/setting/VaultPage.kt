@@ -20,7 +20,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -63,6 +62,9 @@ import me.rerere.rikkahub.data.vault.VaultImportOutcome
 import me.rerere.rikkahub.data.vault.VaultPreferences
 import me.rerere.rikkahub.data.vault.VaultSessionManager
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.CountState
+import me.rerere.rikkahub.ui.components.setting.toCountState
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.switchItem
@@ -396,14 +398,12 @@ fun VaultPage() {
                                 )
                             },
                             headlineContent = {
-                                val count = credentialCount
-                                Text(
-                                    if (count == null) {
-                                        stringResource(R.string.calculating)
-                                    } else {
-                                        stringResource(R.string.vault_credential_count, count)
-                                    },
-                                )
+                                when (val countState = credentialCount.toCountState()) {
+                                    CountState.Loading -> Text(stringResource(R.string.calculating))
+                                    is CountState.Ready -> Text(
+                                        stringResource(R.string.vault_credential_count, countState.count),
+                                    )
+                                }
                             },
                             supportingContent = {
                                 Text(stringResource(R.string.vault_page_intro))
@@ -471,7 +471,7 @@ fun VaultPage() {
                                     modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
                                     verticalArrangement = Arrangement.spacedBy(8.dp),
                                 ) {
-                                    OutlinedTextField(
+                                    SettingTextField(
                                         value = pinInput,
                                         onValueChange = { pinInput = it },
                                         label = { Text(stringResource(R.string.vault_pin_hint)) },
@@ -485,7 +485,7 @@ fun VaultPage() {
                                             style = MaterialTheme.typography.bodySmall,
                                         )
                                     }
-                                    OutlinedTextField(
+                                    SettingTextField(
                                         value = pinInput2,
                                         onValueChange = { pinInput2 = it },
                                         label = { Text(stringResource(R.string.vault_pin_confirm_hint)) },

@@ -127,6 +127,7 @@ private fun createReadFileTool(
             // 二进制内容不按 UTF-8 文本返回：乱码会被 AI 当成文本误判，改走 base64；
             // 本地 Rootfs 与远程 SSH 共用 readRootfsBuffer，两条路径一次覆盖
             if (bytes.isBinaryContent()) {
+                requireInlineBase64Size(bytes.size, path)
                 return@Tool listOf(
                     UIMessagePart.Text(
                         buildJsonObject {

@@ -66,6 +66,8 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.web.WebServerManager
 import org.koin.compose.koinInject
+import me.rerere.rikkahub.ui.components.setting.ConfirmDialogState
+import me.rerere.rikkahub.ui.components.setting.request
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.CredentialType
@@ -97,7 +99,7 @@ fun SettingWebServerPage() {
     var accessPasswordText by remember(settings.webServerAccessPassword) {
         mutableStateOf(settings.webServerAccessPassword)
     }
-    var pendingPasswordClear by remember { mutableStateOf(false) }
+    val pendingPasswordClear = remember { ConfirmDialogState<Unit>() }
 
     val permissionState =
         rememberPermissionState(
@@ -338,7 +340,7 @@ fun SettingWebServerPage() {
                                     accessPasswordText = value
                                     if (passwordClearNeedsConfirm(value, settings.webServerJwtEnabled)) {
                                         // 清空密码会联动关掉身份验证：先弹确认，不再悄悄关。
-                                        pendingPasswordClear = true
+                                        pendingPasswordClear.request()
                                     } else {
                                         scope.launch {
                                             settingsStore.update {
@@ -430,18 +432,18 @@ fun SettingWebServerPage() {
     }
 
     RikkaConfirmDialog(
-        show = pendingPasswordClear,
+        show = pendingPasswordClear.isShowing,
         title = stringResource(R.string.setting_page_web_server_clear_password_title),
         confirmText = stringResource(R.string.setting_page_web_server_clear_password_confirm),
         dismissText = stringResource(R.string.common_cancel),
         onConfirm = {
-            pendingPasswordClear = false
+            pendingPasswordClear.confirm()
             scope.launch {
                 settingsStore.update { it.copy(webServerAccessPassword = "", webServerJwtEnabled = false) }
             }
         },
         onDismiss = {
-            pendingPasswordClear = false
+            pendingPasswordClear.dismiss()
             // 取消则恢复已保存的密码，输入框回到清空前的样子。
             accessPasswordText = settings.webServerAccessPassword
         },

@@ -17,7 +17,6 @@ import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -47,6 +46,8 @@ import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
+import me.rerere.rikkahub.ui.components.setting.sshKeyChoiceAvailability
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
 
@@ -84,6 +85,7 @@ internal fun SshHostEditDialog(
     LaunchedEffect(Unit) { vaultEntries = vaultRepo.getAll() }
     val serverTemplates = vaultEntries.filter { it.grp == "server" }
     val keyCandidates = vaultEntries.filter { it.grp == "SSH" }
+    val keyChoice = sshKeyChoiceAvailability(serverTemplates.isNotEmpty(), keyCandidates.isNotEmpty())
 
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -93,7 +95,7 @@ internal fun SshHostEditDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
-                OutlinedTextField(
+                SettingTextField(
                     value = name,
                     onValueChange = { name = it },
                     label = { Text(stringResource(R.string.setting_ssh_host_name)) },
@@ -108,7 +110,7 @@ internal fun SshHostEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    OutlinedTextField(
+                    SettingTextField(
                         value = host,
                         onValueChange = { host = it },
                         label = { Text(stringResource(R.string.setting_ssh_host_addr)) },
@@ -119,7 +121,7 @@ internal fun SshHostEditDialog(
                         },
                         modifier = Modifier.weight(0.60f),
                     )
-                    OutlinedTextField(
+                    SettingTextField(
                         value = port,
                         onValueChange = { port = it.filter { ch -> ch.isDigit() } },
                         label = { Text(stringResource(R.string.setting_ssh_host_port)) },
@@ -132,7 +134,7 @@ internal fun SshHostEditDialog(
                         modifier = Modifier.weight(0.40f),
                     )
                 }
-                OutlinedTextField(
+                SettingTextField(
                     value = user,
                     onValueChange = { user = it },
                     label = { Text(stringResource(R.string.setting_ssh_host_user)) },
@@ -211,12 +213,12 @@ internal fun SshHostEditDialog(
                 // “从模板新建”始终显示：空库时置灰并注明原因，否则用户根本不知道有模板功能。
                 OutlinedButton(
                     onClick = { showTemplatePicker = true },
-                    enabled = serverTemplates.isNotEmpty(),
+                    enabled = keyChoice.templateEnabled,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(stringResource(R.string.setting_ssh_from_template))
                 }
-                if (serverTemplates.isEmpty()) {
+                if (keyChoice.templateHintVisible) {
                     Text(
                         text = stringResource(R.string.setting_ssh_no_saved_template_hint),
                         style = MaterialTheme.typography.bodySmall,
@@ -271,7 +273,7 @@ internal fun SshHostEditDialog(
                 ) {
                     OutlinedButton(
                         onClick = { showVaultPicker = true },
-                        enabled = keyCandidates.isNotEmpty(),
+                        enabled = keyChoice.vaultPickEnabled,
                         modifier = Modifier.weight(1f),
                         contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
                     ) {
@@ -305,7 +307,7 @@ internal fun SshHostEditDialog(
                         )
                     }
                 }
-                if (keyCandidates.isEmpty()) {
+                if (keyChoice.vaultHintVisible) {
                     Text(
                         text = stringResource(R.string.setting_ssh_no_saved_key_hint),
                         style = MaterialTheme.typography.bodySmall,

@@ -51,6 +51,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.webBridgePortValid
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.switchItem
@@ -61,12 +62,6 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 
 private const val WEB_BRIDGE_KEY_NAME = "WEB_BRIDGE_SSH_KEY"
-
-/** 端口号是否合法：能解析为整数且在 1–65535 内（与 SSH 主机页同口径）。 */
-internal fun webBridgePortValid(text: String): Boolean {
-    val port = text.toIntOrNull() ?: return false
-    return port in 1..65535
-}
 
 /**
  * 只把全局 Web 桥字段同步进各后端供应商自己的副本，不动各自的开关。

@@ -6,7 +6,6 @@ import androidx.compose.material3.ExposedDropdownMenu
 import androidx.compose.material3.ExposedDropdownMenuAnchorType
 import androidx.compose.material3.ExposedDropdownMenuBox
 import androidx.compose.material3.ExposedDropdownMenuDefaults
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -19,6 +18,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.FormItem
 import me.rerere.rikkahub.ui.components.ui.OutlinedNumberInput
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.tts.provider.TTSProviderSetting
 
 
@@ -47,7 +47,7 @@ internal fun XAITTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -76,7 +76,7 @@ internal fun XAITTSConfiguration(
             expanded = voiceExpanded,
             onExpandedChange = { voiceExpanded = !voiceExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.voiceId,
                 onValueChange = { newVoiceId ->
                     onValueChange(setting.copy(voiceId = newVoiceId))
@@ -138,7 +138,7 @@ internal fun XAITTSConfiguration(
             expanded = languageExpanded,
             onExpandedChange = { languageExpanded = !languageExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.language,
                 onValueChange = { newLanguage ->
                     onValueChange(setting.copy(language = newLanguage))
@@ -194,7 +194,7 @@ internal fun ElevenLabsTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -221,7 +221,7 @@ internal fun ElevenLabsTTSConfiguration(
             expanded = modelExpanded,
             onExpandedChange = { modelExpanded = !modelExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.model,
                 onValueChange = { newModel ->
                     onValueChange(setting.copy(model = newModel))
@@ -256,7 +256,7 @@ internal fun ElevenLabsTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_voice)) },
         description = { Text(stringResource(R.string.setting_tts_page_voice_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.voiceId,
             onValueChange = { newVoiceId ->
                 onValueChange(setting.copy(voiceId = newVoiceId))
@@ -322,7 +322,7 @@ internal fun FishAudioTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -350,7 +350,7 @@ internal fun FishAudioTTSConfiguration(
             expanded = modelExpanded,
             onExpandedChange = { modelExpanded = !modelExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.model,
                 onValueChange = { newModel ->
                     onValueChange(setting.copy(model = newModel))
@@ -385,7 +385,7 @@ internal fun FishAudioTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_voice_id)) },
         description = { Text(stringResource(R.string.setting_tts_page_voice_id_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.referenceId,
             onValueChange = { newReferenceId ->
                 onValueChange(setting.copy(referenceId = newReferenceId))
@@ -451,7 +451,7 @@ internal fun StepTTSConfiguration(
         label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
         description = { Text(stringResource(R.string.setting_tts_page_base_url_description)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { newBaseUrl ->
                 onValueChange(setting.copy(baseUrl = newBaseUrl))
@@ -479,7 +479,7 @@ internal fun StepTTSConfiguration(
             expanded = modelExpanded,
             onExpandedChange = { modelExpanded = !modelExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.model,
                 onValueChange = { newModel ->
                     onValueChange(setting.copy(model = newModel))
@@ -556,7 +556,7 @@ internal fun StepTTSConfiguration(
             expanded = voiceExpanded,
             onExpandedChange = { voiceExpanded = !voiceExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.voice,
                 onValueChange = { newVoice ->
                     onValueChange(setting.copy(voice = newVoice))
@@ -598,7 +598,7 @@ internal fun StepTTSConfiguration(
             expanded = formatExpanded,
             onExpandedChange = { formatExpanded = !formatExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.responseFormat,
                 onValueChange = { newFormat ->
                     onValueChange(setting.copy(responseFormat = newFormat))
@@ -674,7 +674,7 @@ internal fun StepTTSConfiguration(
             expanded = sampleRateExpanded,
             onExpandedChange = { sampleRateExpanded = !sampleRateExpanded },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = setting.sampleRate.toString(),
                 onValueChange = {},
                 readOnly = true,
@@ -708,7 +708,7 @@ internal fun StepTTSConfiguration(
         label = { Text(stringResource(R.string.tts_instruction)) },
         description = { Text(stringResource(R.string.tts_global_instruction_desc)) },
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.instruction,
             onValueChange = { newInstruction ->
                 // 服务端上限 200 字符, 客户端做一层保护
@@ -742,7 +742,7 @@ internal fun VolcengineTTSConfiguration(
         )
     }
     FormItem(label = { Text(stringResource(R.string.setting_tts_page_base_url)) }) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.baseUrl,
             onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
             placeholder = { Text("https://openspeech.bytedance.com") },
@@ -754,7 +754,7 @@ internal fun VolcengineTTSConfiguration(
         label = { Text(stringResource(R.string.tts_volcengine_resource_id)) },
         description = { Text(stringResource(R.string.tts_volcengine_resource_id_desc)) }
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.resourceId,
             onValueChange = { onValueChange(setting.copy(resourceId = it)) },
             singleLine = true,
@@ -765,7 +765,7 @@ internal fun VolcengineTTSConfiguration(
         label = { Text(stringResource(R.string.tts_volcengine_speaker)) },
         description = { Text(stringResource(R.string.tts_volcengine_speaker_desc)) }
     ) {
-        OutlinedTextField(
+        SettingTextField(
             value = setting.speaker,
             onValueChange = { onValueChange(setting.copy(speaker = it)) },
             singleLine = true,

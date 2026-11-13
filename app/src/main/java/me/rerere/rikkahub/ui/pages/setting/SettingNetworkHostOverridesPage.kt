@@ -43,6 +43,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.HostAddressOverride
 import me.rerere.rikkahub.data.network.parseFixedAddress
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.DraftState
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -54,7 +55,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val net = settings.networkSetting
     var hostOverrideDialogVisible by remember { mutableStateOf(false) }
-    var hostOverrideDrafts by remember { mutableStateOf(emptyList<HostAddressOverride>()) }
+    val hostOverrideDrafts = remember { DraftState(emptyList<HostAddressOverride>()) }
     var hostOverrideHostDraft by remember { mutableStateOf("") }
     var hostOverrideAddressDraft by remember { mutableStateOf("") }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
@@ -72,7 +73,10 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
             hostOverrideHostDraft.isNotBlank() &&
                 parseFixedAddress(hostOverrideAddressDraft) != null
         AlertDialog(
-            onDismissRequest = { hostOverrideDialogVisible = false },
+            onDismissRequest = {
+                hostOverrideDrafts.discard()
+                hostOverrideDialogVisible = false
+            },
             modifier = Modifier.imePadding(),
             title = {
                 Text(stringResource(R.string.setting_page_preferences_network_host_overrides))
@@ -82,14 +86,14 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
                     modifier = Modifier.verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
-                    if (hostOverrideDrafts.isEmpty()) {
+                    if (hostOverrideDrafts.draft.isEmpty()) {
                         Text(
                             stringResource(
                                 R.string.setting_page_preferences_network_host_overrides_empty,
                             )
                         )
                     }
-                    hostOverrideDrafts.forEachIndexed { index, entry ->
+                    hostOverrideDrafts.draft.forEachIndexed { index, entry ->
                         Row(
                             modifier = Modifier.fillMaxWidth(),
                             verticalAlignment = Alignment.CenterVertically,
@@ -101,16 +105,17 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
                             Switch(
                                 checked = entry.enabled,
                                 onCheckedChange = { checked ->
-                                    hostOverrideDrafts =
-                                        hostOverrideDrafts.mapIndexed { i, item ->
+                                    hostOverrideDrafts.edit { current ->
+                                        current.mapIndexed { i, item ->
                                             if (i == index) item.copy(enabled = checked) else item
                                         }
+                                    }
                                 },
                             )
                             IconButton(
                                 onClick = {
-                                    hostOverrideDrafts = hostOverrideDrafts.filterIndexed { i, _ ->
-                                        i != index
+                                    hostOverrideDrafts.edit { current ->
+                                        current.filterIndexed { i, _ -> i != index }
                                     }
                                 },
                             ) {
@@ -161,10 +166,12 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
                     )
                     TextButton(
                         onClick = {
-                            hostOverrideDrafts = hostOverrideDrafts + HostAddressOverride(
-                                host = hostOverrideHostDraft.trim(),
-                                address = hostOverrideAddressDraft.trim(),
-                            )
+                            hostOverrideDrafts.edit { current ->
+                                current + HostAddressOverride(
+                                    host = hostOverrideHostDraft.trim(),
+                                    address = hostOverrideAddressDraft.trim(),
+                                )
+                            }
                             hostOverrideHostDraft = ""
                             hostOverrideAddressDraft = ""
                         },
@@ -182,7 +189,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        saveHostAddressOverrides(resolveHostOverridesToSave(hostOverrideDrafts))
+                        saveHostAddressOverrides(resolveHostOverridesToSave(hostOverrideDrafts.save()))
                         hostOverrideDialogVisible = false
                     },
                 ) {
@@ -190,7 +197,12 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { hostOverrideDialogVisible = false }) {
+                TextButton(
+                    onClick = {
+                        hostOverrideDrafts.discard()
+                        hostOverrideDialogVisible = false
+                    },
+                ) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
@@ -226,7 +238,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = {
-                            hostOverrideDrafts = vm.settings.value.networkSetting.hostAddressOverrides
+                            hostOverrideDrafts.load(net.hostAddressOverrides)
                             hostOverrideHostDraft = ""
                             hostOverrideAddressDraft = ""
                             hostOverrideDialogVisible = true

@@ -7,7 +7,6 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.text.TextAutoSize
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SegmentedButton
 import androidx.compose.material3.SegmentedButtonDefaults
 import androidx.compose.material3.SingleChoiceSegmentedButtonRow
@@ -36,6 +35,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.context.LocalToaster
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 
@@ -401,7 +401,7 @@ private fun ProviderConfigureOpenAI(
         formItem(
             headlineContent = { Text(stringResource(R.string.setting_provider_page_name)) },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = provider.name,
                 onValueChange = { onEdit(provider.copy(name = it)) },
                 modifier = Modifier.fillMaxWidth(),
@@ -419,7 +419,7 @@ private fun ProviderConfigureOpenAI(
         formItem(
             headlineContent = { Text(stringResource(R.string.setting_provider_page_api_base_url)) },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = provider.baseUrl,
                 onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
                 modifier = Modifier.fillMaxWidth(),
@@ -433,7 +433,7 @@ private fun ProviderConfigureOpenAI(
         formItem(
             headlineContent = { Text(stringResource(R.string.setting_provider_page_api_path)) },
         ) {
-            OutlinedTextField(
+            SettingTextField(
                 value = if (provider.useResponseApi) provider.responsesPath else provider.chatCompletionsPath,
                 onValueChange = {
                     onEdit(
@@ -526,20 +526,20 @@ private fun OpenRouterRoutingSection(
             }
         }
         formItem {
-            OutlinedTextField(
+            SettingTextField(
                 value = listToText(routing.order),
                 onValueChange = { onChange(routing.copy(order = textToList(it))) },
                 label = { Text(stringResource(R.string.openrouter_routing_provider_order_label)) },
                 placeholder = { Text(stringResource(R.string.openrouter_routing_order_placeholder)) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            SettingTextField(
                 value = listToText(routing.only),
                 onValueChange = { onChange(routing.copy(only = textToList(it))) },
                 label = { Text(stringResource(R.string.openrouter_routing_only_label)) },
                 modifier = Modifier.fillMaxWidth(),
             )
-            OutlinedTextField(
+            SettingTextField(
                 value = listToText(routing.ignore),
                 onValueChange = { onChange(routing.copy(ignore = textToList(it))) },
                 label = { Text(stringResource(R.string.openrouter_routing_ignore_label)) },
@@ -572,7 +572,7 @@ private fun OpenRouterRoutingSection(
             var promptPriceText by remember { mutableStateOf(routing.maxPricePrompt?.toString() ?: "") }
             var completionPriceText by remember { mutableStateOf(routing.maxPriceCompletion?.toString() ?: "") }
             Row(modifier = Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                OutlinedTextField(
+                SettingTextField(
                     value = promptPriceText,
                     onValueChange = {
                         promptPriceText = it
@@ -592,7 +592,7 @@ private fun OpenRouterRoutingSection(
                     },
                     modifier = Modifier.weight(1f),
                 )
-                OutlinedTextField(
+                SettingTextField(
                     value = completionPriceText,
                     onValueChange = {
                         completionPriceText = it
@@ -613,7 +613,7 @@ private fun OpenRouterRoutingSection(
                     modifier = Modifier.weight(1f),
                 )
             }
-            OutlinedTextField(
+            SettingTextField(
                 value = listToText(routing.quantizations),
                 onValueChange = { onChange(routing.copy(quantizations = textToList(it))) },
                 label = { Text(stringResource(R.string.openrouter_routing_quantizations_label)) },

@@ -12,7 +12,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -38,6 +37,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.Select
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
 
@@ -239,10 +239,10 @@ private fun BackendEditDialog(
                 modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                OutlinedTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && name.isBlank(), supportingText = { if (showErrors && name.isBlank()) Text(stringResource(R.string.backend_service_name_required)) })
-                OutlinedTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.backend_service_type_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                OutlinedTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && endpoint.isBlank(), supportingText = { if (showErrors && endpoint.isBlank()) Text(stringResource(R.string.backend_service_endpoint_required)) })
-                OutlinedTextField(value = authRef, onValueChange = { authRef = it }, label = { Text(stringResource(R.string.backend_service_auth_ref_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                SettingTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && name.isBlank(), supportingText = { if (showErrors && name.isBlank()) Text(stringResource(R.string.backend_service_name_required)) })
+                SettingTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.backend_service_type_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                SettingTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && endpoint.isBlank(), supportingText = { if (showErrors && endpoint.isBlank()) Text(stringResource(R.string.backend_service_endpoint_required)) })
+                SettingTextField(value = authRef, onValueChange = { authRef = it }, label = { Text(stringResource(R.string.backend_service_auth_ref_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 // 凭证库下拉快捷选择：点击填入 authRef
                 if (credentialNames.isNotEmpty()) {
                     Select(

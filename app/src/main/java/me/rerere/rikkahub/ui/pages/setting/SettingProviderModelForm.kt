@@ -31,7 +31,6 @@ import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -75,6 +74,7 @@ import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
@@ -137,7 +137,7 @@ internal fun ModelSettingsForm(
                                 .padding(vertical = 16.dp)
                                 .verticalScroll(rememberScrollState()),
                     ) {
-                        OutlinedTextField(
+                        SettingTextField(
                             value = model.modelId,
                             onValueChange = {
                                 if (!isEdit) {
@@ -160,7 +160,7 @@ internal fun ModelSettingsForm(
                             },
                         )
 
-                        OutlinedTextField(
+                        SettingTextField(
                             value = model.displayName,
                             onValueChange = {
                                 onModelChange(model.copy(displayName = it))
@@ -656,7 +656,7 @@ internal fun ModelPicker(
                     }
                     }
                 }
-                OutlinedTextField(
+                SettingTextField(
                     value = filterText,
                     onValueChange = {
                         filterText = it
@@ -795,7 +795,7 @@ private fun ModelContextWindowEditor(
             Text(stringResource(R.string.setting_provider_page_context_window_unknown))
         }
     }
-    OutlinedTextField(
+    SettingTextField(
         value = customValue,
         onValueChange = { raw ->
             customValue = raw.filter(Char::isDigit)

@@ -28,6 +28,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import me.rerere.rikkahub.ui.components.setting.bringIntoViewOnFocus
 import org.koin.compose.koinInject
 
 /** 引用前缀：与运行时解析层（provider 密钥解析）保持一致。 */
@@ -178,7 +179,7 @@ fun SecretRefField(
                 }
             }
         },
-        modifier = modifier.fillMaxWidth(),
+        modifier = modifier.fillMaxWidth().bringIntoViewOnFocus(),
     )
 
     if (showPicker) {

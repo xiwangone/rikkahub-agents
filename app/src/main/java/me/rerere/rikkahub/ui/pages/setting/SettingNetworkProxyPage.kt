@@ -45,8 +45,11 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Router
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.network.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.DraftState
+import me.rerere.rikkahub.ui.components.setting.canTestProxyUrl
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
@@ -62,6 +65,17 @@ import java.util.concurrent.TimeUnit
 
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
 
+/** 代理弹窗草稿：URL + 认证（打开弹窗时从已保存值同步初始化，取消即丢弃）。 */
+internal data class ProxyDraft(
+    val url: String = "",
+    val username: String = "",
+    val password: String = "",
+) {
+    companion object {
+        fun from(net: NetworkSetting) = ProxyDraft(net.proxyUrl, net.proxyUsername, net.proxyPassword)
+    }
+}
+
 @Composable
 fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     val httpClient = koinInject<OkHttpClient>()
@@ -76,12 +90,10 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     var proxyPassword by remember(net.proxyPassword) {
         mutableStateOf(net.proxyPassword)
     }
-    var proxyUrlDraft by remember { mutableStateOf("") }
-    var proxyUsernameDraft by remember { mutableStateOf("") }
-    var proxyPasswordDraft by remember { mutableStateOf("") }
+    val proxyDraft = remember { DraftState(ProxyDraft.from(net)) }
     var proxyPasswordVisible by remember { mutableStateOf(false) }
     var proxyDialogVisible by remember { mutableStateOf(false) }
-    val proxyUrlInvalid = proxyUrlDraft.isNotBlank() && proxyUrlDraft.toProxyOrNull() == null
+    val proxyUrlInvalid = proxyDraft.draft.url.isNotBlank() && !canTestProxyUrl(proxyDraft.draft.url)
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
@@ -89,28 +101,25 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     var proxyTesting by remember { mutableStateOf(false) }
 
     fun loadProxyDrafts() {
-        proxyUrlDraft = proxyUrl
-        proxyUsernameDraft = proxyUsername
-        proxyPasswordDraft = proxyPassword
+        proxyDraft.load(ProxyDraft(proxyUrl, proxyUsername, proxyPassword))
         proxyPasswordVisible = false
     }
 
     fun saveProxy() {
+        val saved = proxyDraft.save()
         vm.updateSettings { current ->
             current.copy(
                 networkSetting = current.networkSetting.copy(
-                    proxyUrl = proxyUrlDraft,
-                    proxyUsername = proxyUsernameDraft,
-                    proxyPassword = proxyPasswordDraft,
+                    proxyUrl = saved.url,
+                    proxyUsername = saved.username,
+                    proxyPassword = saved.password,
                 ),
             )
         }
     }
 
     fun resetProxy() {
-        proxyUrlDraft = ""
-        proxyUsernameDraft = ""
-        proxyPasswordDraft = ""
+        proxyDraft.edit(ProxyDraft())
     }
 
     fun testProxy(urlToTest: String = proxyUrl) {
@@ -159,7 +168,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     if (proxyDialogVisible) {
         AlertDialog(
             onDismissRequest = {
-                loadProxyDrafts()
+                proxyDraft.discard()
                 proxyDialogVisible = false
             },
             modifier = Modifier.imePadding(),
@@ -172,8 +181,8 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                     verticalArrangement = Arrangement.spacedBy(8.dp),
                 ) {
                     OutlinedTextField(
-                        value = proxyUrlDraft,
-                        onValueChange = { proxyUrlDraft = it },
+                        value = proxyDraft.draft.url,
+                        onValueChange = { newValue -> proxyDraft.edit { it.copy(url = newValue) } },
                         modifier = Modifier.fillMaxWidth(),
                         label = {
                             Text(stringResource(R.string.setting_page_preferences_network_proxy))
@@ -195,15 +204,15 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         singleLine = true,
                     )
                     OutlinedTextField(
-                        value = proxyUsernameDraft,
-                        onValueChange = { proxyUsernameDraft = it },
+                        value = proxyDraft.draft.username,
+                        onValueChange = { newValue -> proxyDraft.edit { it.copy(username = newValue) } },
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(stringResource(R.string.backup_page_username)) },
                         singleLine = true,
                     )
                     SecretRefField(
-                        value = proxyPasswordDraft,
-                        onValueChange = { proxyPasswordDraft = it },
+                        value = proxyDraft.draft.password,
+                        onValueChange = { newValue -> proxyDraft.edit { it.copy(password = newValue) } },
                         label = stringResource(R.string.backup_page_password),
                         nameHint = "PROXY_PASSWORD",
                         singleLine = true,
@@ -214,8 +223,8 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(
-                            onClick = { testProxy(proxyUrlDraft) },
-                            enabled = canTestProxyUrl(proxyUrlDraft) && !proxyTesting,
+                            onClick = { testProxy(proxyDraft.draft.url) },
+                            enabled = canTestProxyUrl(proxyDraft.draft.url) && !proxyTesting,
                         ) {
                             if (proxyTesting) {
                                 CircularProgressIndicator(
@@ -228,9 +237,9 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         }
                         TextButton(
                             onClick = ::resetProxy,
-                            enabled = proxyUrlDraft.isNotEmpty() ||
-                                proxyUsernameDraft.isNotEmpty() ||
-                                proxyPasswordDraft.isNotEmpty(),
+                            enabled = proxyDraft.draft.url.isNotEmpty() ||
+                                proxyDraft.draft.username.isNotEmpty() ||
+                                proxyDraft.draft.password.isNotEmpty(),
                         ) {
                             Text(stringResource(R.string.setting_model_page_reset_to_default))
                         }
@@ -251,7 +260,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
             dismissButton = {
                 TextButton(
                     onClick = {
-                        loadProxyDrafts()
+                        proxyDraft.discard()
                         proxyDialogVisible = false
                     },
                 ) {
@@ -342,9 +351,3 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
-
-/**
- * 代理草稿是否可测试：能解析出有效代理地址才允许发起测试。
- * 页内测试按钮与弹窗内测试按钮共用同一口径。
- */
-internal fun canTestProxyUrl(draftUrl: String): Boolean = draftUrl.toProxyOrNull() != null

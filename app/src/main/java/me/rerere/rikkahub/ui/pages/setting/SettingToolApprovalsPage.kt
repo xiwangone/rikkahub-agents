@@ -45,6 +45,8 @@ import me.rerere.rikkahub.data.preferences.ToolApprovalPreferences
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.service.LocalMcpServerService
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.ConfirmDialogState
+import me.rerere.rikkahub.ui.components.setting.request
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -77,8 +79,8 @@ fun SettingToolApprovalsPage() {
     val scope = rememberCoroutineScope()
 
     var pendingYoloEnable by remember { mutableStateOf(false) }
-    var pendingRevoke by remember { mutableStateOf<String?>(null) }
-    var pendingRevokeAll by remember { mutableStateOf(false) }
+    val pendingRevoke = remember { ConfirmDialogState<String>() }
+    val pendingRevokeAll = remember { ConfirmDialogState<Unit>() }
     if (pendingYoloEnable) {
         AlertDialog(
             onDismissRequest = { pendingYoloEnable = false },
@@ -111,32 +113,31 @@ fun SettingToolApprovalsPage() {
     }
 
     RikkaConfirmDialog(
-        show = pendingRevoke != null,
+        show = pendingRevoke.isShowing,
         title = stringResource(R.string.setting_page_tool_approvals_revoke_confirm_title),
         confirmText = stringResource(R.string.setting_page_tool_approvals_revoke),
         dismissText = stringResource(R.string.common_cancel),
         onConfirm = {
-            val target = pendingRevoke
-            pendingRevoke = null
+            val target = pendingRevoke.confirm()
             if (target != null) {
                 scope.launch { prefs.revoke(target) }
             }
         },
-        onDismiss = { pendingRevoke = null },
+        onDismiss = { pendingRevoke.dismiss() },
     ) {
-        Text(stringResource(R.string.setting_page_tool_approvals_revoke_confirm_message, pendingRevoke.orEmpty()))
+        Text(stringResource(R.string.setting_page_tool_approvals_revoke_confirm_message, pendingRevoke.pending.orEmpty()))
     }
 
     RikkaConfirmDialog(
-        show = pendingRevokeAll,
+        show = pendingRevokeAll.isShowing,
         title = stringResource(R.string.setting_page_tool_approvals_revoke_all_confirm_title),
         confirmText = stringResource(R.string.setting_page_tool_approvals_revoke_all),
         dismissText = stringResource(R.string.common_cancel),
         onConfirm = {
-            pendingRevokeAll = false
+            pendingRevokeAll.confirm()
             scope.launch { prefs.revokeAll() }
         },
-        onDismiss = { pendingRevokeAll = false },
+        onDismiss = { pendingRevokeAll.dismiss() },
     ) {
         Text(stringResource(R.string.setting_page_tool_approvals_revoke_all_confirm_message, granted.size))
     }
@@ -324,7 +325,7 @@ fun SettingToolApprovalsPage() {
                             item(
                                 headlineContent = { Text(toolName) },
                                 trailingContent = {
-                                    IconButton(onClick = { pendingRevoke = toolName }) {
+                                    IconButton(onClick = { pendingRevoke.request(toolName) }) {
                                         Icon(
                                             imageVector = HugeIcons.Cancel01,
                                             contentDescription =
@@ -340,7 +341,7 @@ fun SettingToolApprovalsPage() {
                 }
                 item {
                     TextButton(
-                        onClick = { pendingRevokeAll = true },
+                        onClick = { pendingRevokeAll.request() },
                         modifier = Modifier.padding(horizontal = 16.dp),
                     ) {
                         Text(stringResource(R.string.setting_page_tool_approvals_revoke_all))

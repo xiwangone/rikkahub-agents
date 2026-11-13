@@ -47,6 +47,7 @@ import me.rerere.rikkahub.ui.components.charts.ChartSeries
 import me.rerere.rikkahub.ui.components.charts.ChartSpec
 import me.rerere.rikkahub.ui.components.charts.ChartStyle
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.components.setting.usageRangeLabelRes
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -91,13 +92,7 @@ fun SettingUsageStatsPage() {
         containerColor = CustomColors.topBarColors.containerColor,
     ) { innerPadding ->
         val rows = remember(stats) { stats.byProviderModel.entries.sortedByDescending { it.value.runs } }
-        val rangeLabelRes =
-            when (range) {
-                UsageRange.TODAY -> R.string.usage_stats_range_today
-                UsageRange.LAST_7_DAYS -> R.string.usage_stats_range_7d
-                UsageRange.LAST_30_DAYS -> R.string.usage_stats_range_30d
-                UsageRange.ALL_TIME -> R.string.usage_stats_range_all
-            }
+        val rangeLabelRes = usageRangeLabelRes(range)
         // 空态只替换内容区：范围 Chip 始终渲染，否则某范围没数据时连切范围的入口都没了。
         LazyColumn(
             modifier = Modifier.fillMaxSize(),
@@ -165,13 +160,7 @@ private fun UsageRangeChips(
     onRangeChange: (UsageRange) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    val options =
-        listOf(
-            UsageRange.TODAY to R.string.usage_stats_range_today,
-            UsageRange.LAST_7_DAYS to R.string.usage_stats_range_7d,
-            UsageRange.LAST_30_DAYS to R.string.usage_stats_range_30d,
-            UsageRange.ALL_TIME to R.string.usage_stats_range_all,
-        )
+    val options = UsageRange.entries.map { it to usageRangeLabelRes(it) }
     Row(
         modifier = modifier.fillMaxWidth(),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
