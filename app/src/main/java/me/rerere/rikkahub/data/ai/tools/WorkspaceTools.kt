@@ -666,9 +666,9 @@ private fun createShellTool(
                     put("stdout", result.stdout)
                     put("stderr", result.stderr)
                     put("timedOut", result.timedOut)
-                    if (timeoutClamped && timeoutSeconds != null) {
+                    if (timeoutClamped) {
                         put("timeoutClamped", true)
-                        put("requestedTimeoutSeconds", timeoutSeconds)
+                        put("requestedTimeoutSeconds", timeoutRaw)
                         put("timeoutSeconds", effectiveTimeoutSeconds)
                     }
                     if (result.truncated) put("truncated", true)
