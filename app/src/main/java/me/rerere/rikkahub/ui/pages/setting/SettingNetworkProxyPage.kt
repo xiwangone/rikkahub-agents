@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.setting
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -87,6 +88,13 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     val toaster = LocalToaster.current
     var proxyTesting by remember { mutableStateOf(false) }
 
+    fun loadProxyDrafts() {
+        proxyUrlDraft = proxyUrl
+        proxyUsernameDraft = proxyUsername
+        proxyPasswordDraft = proxyPassword
+        proxyPasswordVisible = false
+    }
+
     fun saveProxy() {
         vm.updateSettings { current ->
             current.copy(
@@ -105,8 +113,8 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
         proxyPasswordDraft = ""
     }
 
-    fun testProxy() {
-        val proxy = proxyUrl.toProxyOrNull() ?: return
+    fun testProxy(urlToTest: String = proxyUrl) {
+        val proxy = urlToTest.toProxyOrNull() ?: return
         if (proxyTesting) return
         proxyTesting = true
         scope.launch {
@@ -150,7 +158,10 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
 
     if (proxyDialogVisible) {
         AlertDialog(
-            onDismissRequest = { proxyDialogVisible = false },
+            onDismissRequest = {
+                loadProxyDrafts()
+                proxyDialogVisible = false
+            },
             modifier = Modifier.imePadding(),
             title = {
                 Text(stringResource(R.string.setting_page_preferences_network_proxy))
@@ -197,14 +208,32 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         nameHint = "PROXY_PASSWORD",
                         singleLine = true,
                     )
-                    TextButton(
-                        onClick = ::resetProxy,
-                        modifier = Modifier.align(Alignment.End),
-                        enabled = proxyUrlDraft.isNotEmpty() ||
-                            proxyUsernameDraft.isNotEmpty() ||
-                            proxyPasswordDraft.isNotEmpty(),
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
                     ) {
-                        Text(stringResource(R.string.setting_model_page_reset_to_default))
+                        TextButton(
+                            onClick = { testProxy(proxyUrlDraft) },
+                            enabled = canTestProxyUrl(proxyUrlDraft) && !proxyTesting,
+                        ) {
+                            if (proxyTesting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text(stringResource(R.string.setting_provider_page_test))
+                            }
+                        }
+                        TextButton(
+                            onClick = ::resetProxy,
+                            enabled = proxyUrlDraft.isNotEmpty() ||
+                                proxyUsernameDraft.isNotEmpty() ||
+                                proxyPasswordDraft.isNotEmpty(),
+                        ) {
+                            Text(stringResource(R.string.setting_model_page_reset_to_default))
+                        }
                     }
                 }
             },
@@ -217,6 +246,16 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                     enabled = !proxyUrlInvalid,
                 ) {
                     Text(stringResource(R.string.common_confirm))
+                }
+            },
+            dismissButton = {
+                TextButton(
+                    onClick = {
+                        loadProxyDrafts()
+                        proxyDialogVisible = false
+                    },
+                ) {
+                    Text(stringResource(R.string.common_cancel))
                 }
             },
         )
@@ -250,10 +289,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = {
-                            proxyUrlDraft = proxyUrl
-                            proxyUsernameDraft = proxyUsername
-                            proxyPasswordDraft = proxyPassword
-                            proxyPasswordVisible = false
+                            loadProxyDrafts()
                             proxyDialogVisible = true
                         },
                         leadingContent = {
@@ -288,7 +324,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         trailingContent = {
                             TextButton(
                                 onClick = ::testProxy,
-                                enabled = proxyUrl.toProxyOrNull() != null && !proxyTesting,
+                                enabled = canTestProxyUrl(proxyUrl) && !proxyTesting,
                             ) {
                                 if (proxyTesting) {
                                     CircularProgressIndicator(
@@ -306,3 +342,9 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
+
+/**
+ * 代理草稿是否可测试：能解析出有效代理地址才允许发起测试。
+ * 页内测试按钮与弹窗内测试按钮共用同一口径。
+ */
+internal fun canTestProxyUrl(draftUrl: String): Boolean = draftUrl.toProxyOrNull() != null

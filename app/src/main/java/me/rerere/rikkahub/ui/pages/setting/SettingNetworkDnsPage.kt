@@ -85,18 +85,29 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
     val resources = LocalResources.current
     val toaster = LocalToaster.current
 
+    fun loadDnsDrafts() {
+        dnsModeDraft = net.dnsMode
+        dohUrlDraft = net.dohUrl
+        dotHostDraft = net.dotHost
+        customDnsDraft = net.customDnsServers
+        dnsFallbackDraft = net.dnsFallbackToSystem
+        dnsIpv6Draft = net.dnsEnableIpv6
+        dnsTestDomain = net.dnsTestDomain
+    }
+
     fun saveDnsConfig() {
         AppDnsResolver.invalidateCache()
         vm.updateSettings { current ->
             current.copy(
-                networkSetting = current.networkSetting.copy(
-                    dnsMode = dnsModeDraft,
-                    dohUrl = dohUrlDraft.trim().ifEmpty { NetworkSetting.DEFAULT_DOH_URL },
-                    dotHost = dotHostDraft.trim().ifEmpty { NetworkSetting.DEFAULT_DOT_HOST },
-                    customDnsServers = customDnsDraft.trim().ifEmpty { NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS },
-                    dnsFallbackToSystem = dnsFallbackDraft,
-                    dnsEnableIpv6 = dnsIpv6Draft,
-                    dnsTestDomain = dnsTestDomain.trim().ifEmpty { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
+                networkSetting = buildDnsTestSetting(
+                    base = current.networkSetting,
+                    mode = dnsModeDraft,
+                    dohUrl = dohUrlDraft,
+                    dotHost = dotHostDraft,
+                    customServers = customDnsDraft,
+                    fallbackToSystem = dnsFallbackDraft,
+                    enableIpv6 = dnsIpv6Draft,
+                    testDomain = dnsTestDomain,
                 ),
             )
         }
@@ -124,7 +135,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
                     AppDnsResolver.testResolve(
-                        domain = dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
+                        domain = targetSetting.dnsTestDomain.ifBlank { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
                         setting = targetSetting,
                     )
                 }
@@ -168,7 +179,10 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
         val customServersInvalid = customDnsDraft.isNotBlank() &&
             AppDnsResolver.parseServerList(customDnsDraft).isEmpty()
         AlertDialog(
-            onDismissRequest = { dnsDialogVisible = false },
+            onDismissRequest = {
+                loadDnsDrafts()
+                dnsDialogVisible = false
+            },
             modifier = Modifier.imePadding(),
             title = {
                 Text(stringResource(R.string.setting_page_preferences_network_dns_title))
@@ -327,6 +341,38 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
                         singleLine = true,
                     )
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.End,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        TextButton(
+                            onClick = {
+                                testDns(
+                                    buildDnsTestSetting(
+                                        base = net,
+                                        mode = dnsModeDraft,
+                                        dohUrl = dohUrlDraft,
+                                        dotHost = dotHostDraft,
+                                        customServers = customDnsDraft,
+                                        fallbackToSystem = dnsFallbackDraft,
+                                        enableIpv6 = dnsIpv6Draft,
+                                        testDomain = dnsTestDomain,
+                                    ),
+                                )
+                            },
+                            enabled = !dnsTesting,
+                        ) {
+                            if (dnsTesting) {
+                                CircularProgressIndicator(
+                                    modifier = Modifier.size(18.dp),
+                                    strokeWidth = 2.dp,
+                                )
+                            } else {
+                                Text(stringResource(R.string.setting_provider_page_test))
+                            }
+                        }
+                    }
                 }
             },
             confirmButton = {
@@ -341,7 +387,12 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                 }
             },
             dismissButton = {
-                TextButton(onClick = { dnsDialogVisible = false }) {
+                TextButton(
+                    onClick = {
+                        loadDnsDrafts()
+                        dnsDialogVisible = false
+                    },
+                ) {
                     Text(stringResource(R.string.common_cancel))
                 }
             },
@@ -388,13 +439,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                 ) {
                     item(
                         onClick = {
-                            dnsModeDraft = net.dnsMode
-                            dohUrlDraft = net.dohUrl
-                            dotHostDraft = net.dotHost
-                            customDnsDraft = net.customDnsServers
-                            dnsFallbackDraft = net.dnsFallbackToSystem
-                            dnsIpv6Draft = net.dnsEnableIpv6
-                            dnsTestDomain = net.dnsTestDomain
+                            loadDnsDrafts()
                             dnsDialogVisible = true
                         },
                         leadingContent = {
@@ -573,3 +618,28 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
+
+/**
+ * 用弹窗草稿拼一份待测试/待保存的 [NetworkSetting]：其余字段沿用 [base]，
+ * 草稿字段按保存时同一口径归一化（去空白、空值回落默认）。
+ *
+ * 保存与弹窗内测试共用它，避免两处归一化口径漂移：弹窗里测的就是将要保存的配置。
+ */
+internal fun buildDnsTestSetting(
+    base: NetworkSetting,
+    mode: String,
+    dohUrl: String,
+    dotHost: String,
+    customServers: String,
+    fallbackToSystem: Boolean,
+    enableIpv6: Boolean,
+    testDomain: String,
+): NetworkSetting = base.copy(
+    dnsMode = mode,
+    dohUrl = dohUrl.trim().ifEmpty { NetworkSetting.DEFAULT_DOH_URL },
+    dotHost = dotHost.trim().ifEmpty { NetworkSetting.DEFAULT_DOT_HOST },
+    customDnsServers = customServers.trim().ifEmpty { NetworkSetting.DEFAULT_BOOTSTRAP_SERVERS },
+    dnsFallbackToSystem = fallbackToSystem,
+    dnsEnableIpv6 = enableIpv6,
+    dnsTestDomain = testDomain.trim().ifEmpty { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN },
+)

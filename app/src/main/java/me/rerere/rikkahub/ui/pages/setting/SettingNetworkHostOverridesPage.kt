@@ -182,10 +182,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
             confirmButton = {
                 TextButton(
                     onClick = {
-                        val saved = vm.settings.value.networkSetting.hostAddressOverrides
-                        saveHostAddressOverrides(
-                            if (hostOverrideDrafts.isEmpty() && saved.isNotEmpty()) saved else hostOverrideDrafts,
-                        )
+                        saveHostAddressOverrides(resolveHostOverridesToSave(hostOverrideDrafts))
                         hostOverrideDialogVisible = false
                     },
                 ) {
@@ -267,3 +264,15 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
         }
     }
 }
+
+/**
+ * 主机覆写确认时保存的列表：直接保存草稿原样。
+ *
+ * 草稿在打开弹窗时已从已保存值同步初始化（见打开入口的赋值），弹窗渲染前
+ * 草稿一定已就绪；空草稿只可能来自“用户删光了”或“本来就为空”，两种情况
+ * 保存空列表都是对的。旧的“草稿为空就回退已保存值”兜底把“未初始化”与
+ * “用户删光了”撞在了一起，删光操作会被悄悄丢掉。
+ */
+internal fun resolveHostOverridesToSave(
+    drafts: List<HostAddressOverride>,
+): List<HostAddressOverride> = drafts
