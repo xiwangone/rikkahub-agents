@@ -142,8 +142,8 @@ fixowner_quick() {
     [ -d "$files_src" ] || return 0
     appuid=$(stat -c %u "$ROOTFS/../.." 2>/dev/null) || return 0
     [ -n "$appuid" ] || return 0
-    [ -n "$(find "$files_src" -user 0 -print -quit 2>/dev/null)" ] || return 0
-    find "$files_src" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
+    [ -n "$(find -P "$files_src" -user 0 -print -quit 2>/dev/null)" ] || return 0
+    find -P "$files_src" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
     return 0
 }
 
@@ -352,11 +352,11 @@ case "$1" in
         n=0
         for area in "$ROOTFS/root" "$files_src"; do
             [ -d "$area" ] || continue
-            before=$(find "$area" -user 0 2>/dev/null | wc -l)
+            before=$(find -P "$area" -user 0 2>/dev/null | wc -l)
             if [ "$before" -gt 0 ]; then
-                find "$area" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
+                find -P "$area" -user 0 -exec chown -h "$appuid:$appuid" {} + 2>/dev/null
             fi
-            after=$(find "$area" -user 0 2>/dev/null | wc -l)
+            after=$(find -P "$area" -user 0 2>/dev/null | wc -l)
             n=$((n + before - after))
             [ "$after" -gt 0 ] && echo "WARN: $area still has $after zero-owner files" >&2
         done
