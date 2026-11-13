@@ -568,7 +568,7 @@ internal fun conversationToConversationEntityImpl(conversation: Conversation): C
         maxToolStepsOverride = conversation.maxToolStepsOverride ?: 0,
         isSubAgentRun = conversation.isSubAgentRun,
         // 会话级模型：空串 = 跟随所属助手（旧的空字段行沿用助手模型，行为不变）
-        chatModelId = conversation.chatModelId?.toString() ?: "",
+        chatModelId = encodeChatModelId(conversation.chatModelId),
     )
 }
 
@@ -598,8 +598,20 @@ internal fun conversationEntityToConversationImpl(
             ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
         maxToolStepsOverride = conversationEntity.maxToolStepsOverride.takeIf { it > 0 },
         isSubAgentRun = conversationEntity.isSubAgentRun,
-        chatModelId = conversationEntity.chatModelId
-            .ifEmpty { null }
-            ?.let { runCatching { Uuid.parse(it) }.getOrNull() },
+        chatModelId = decodeChatModelId(conversationEntity.chatModelId),
     )
 }
+
+/**
+ * Encodes [Conversation.chatModelId] for the `chat_model_id` column. `null` (no override)
+ * stores as the empty string, matching the `folder_id` convention.
+ */
+internal fun encodeChatModelId(chatModelId: Uuid?): String = chatModelId?.toString() ?: ""
+
+/**
+ * Decodes the `chat_model_id` column back to [Conversation.chatModelId]. A blank column means
+ * "no override". A malformed stored value must not throw — a corrupt row would otherwise make
+ * the conversation unopenable — so it decodes to `null`.
+ */
+internal fun decodeChatModelId(stored: String): Uuid? =
+    stored.ifEmpty { null }?.let { runCatching { Uuid.parse(it) }.getOrNull() }

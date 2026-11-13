@@ -63,6 +63,28 @@ internal suspend fun awaitGenerationTerminal(
 }
 
 /**
+ * Turn an [awaitGenerationTerminal] result into the LLM-mode run outcome, stopping the
+ * still-running generation on timeout via [stop]. Left uncalled, a timed-out generation
+ * keeps burning tokens indefinitely, and a later fire of the same job can start a second
+ * parallel generation while the first is still going. [stop] is responsible for its own
+ * failure handling (see the call site in [CronJobWorker.runLlm]) — this function only
+ * guarantees it is invoked before the timeout is reported. Split out (like
+ * [awaitGenerationTerminal]) so a JVM test can pin the stop-on-timeout contract without a
+ * live ChatService.
+ */
+internal suspend fun finishRunLlm(
+    completed: Boolean,
+    convId: Uuid,
+    stop: suspend () -> Unit,
+): Triple<String, String?, Uuid?> {
+    if (!completed) {
+        stop()
+        return Triple("timed_out", "llm turn exceeded 15min", convId)
+    }
+    return Triple("success", null, convId)
+}
+
+/**
  * The slot to stamp into the run row. Manual fires (trigger_job_now) happen at nowMs and
  * are NOT bound to any scheduled slot — stamping them with [jobNextRunAtMs] would poison
  * the next regular fire's replay guard. Natural fires stamp the slot they were enqueued
@@ -91,6 +113,24 @@ internal fun shouldSuppressAsReplay(
     if (priorRow.outcome == "concurrent_skip" || priorRow.outcome == "skipped_catchup") return false
     return priorRow.startedAtMs >= nowMs - windowMs
 }
+
+/**
+ * Ceiling on how many run-history rows a single job's max_runs can force [trim] to retain.
+ * schedule_job only validates max_runs >= 1, so without this cap [historyRetentionFor]
+ * scales with an unbounded max_runs and trim(keep=...) would retain the job's run history
+ * essentially forever.
+ */
+internal const val MAX_HISTORY_RETENTION = 1000
+
+/**
+ * How many run-history rows `ScheduledJobRunDao.trim` must retain for max_runs enforcement
+ * to stay correct. boundsExpired() derives the job's progress from
+ * `ScheduledJobRunRepository.countSuccessful`, which only sees rows that survived trim() —
+ * trimming below [maxRuns] silently caps the achievable success count at the trim floor, so
+ * a job configured for e.g. 150 runs would fire forever once history reaches 100 rows.
+ */
+internal fun historyRetentionFor(maxRuns: Int?, baseline: Int = 100): Int =
+    maxOf(baseline, maxRuns ?: 0).coerceAtMost(MAX_HISTORY_RETENTION)
 
 /**
  * Tracks which jobs currently have a worker actively running. Prevents two
@@ -274,7 +314,7 @@ class CronJobWorker(
             }
 
             // Trim history at the end so this row's insert/update is reflected in the cap.
-            runRepo.trim(jobId, keep = 100)
+            runRepo.trim(jobId, keep = historyRetentionFor(job.maxRuns))
 
             return Result.success()
         } finally {
@@ -328,10 +368,9 @@ class CronJobWorker(
                     flow = chatService.getGenerationJobStateFlow(conv.id),
                     timeoutMs = 15L * 60_000L,
                 )
-            return if (!completed) {
-                Triple("timed_out", "llm turn exceeded 15min", conv.id)
-            } else {
-                Triple("success", null, conv.id)
+            return finishRunLlm(completed, conv.id) {
+                runCatching { chatService.stopGeneration(conv.id) }
+                    .onFailure { AppLog.w(TAG, "runLlm: stopGeneration failed after timeout for ${job.id}", it) }
             }
         } catch (t: Throwable) {
             return Triple("failed", "${t::class.simpleName}: ${t.message.orEmpty()}", conv.id)

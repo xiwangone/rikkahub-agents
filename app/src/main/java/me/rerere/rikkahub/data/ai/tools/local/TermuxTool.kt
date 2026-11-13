@@ -53,22 +53,41 @@ internal object TermuxIntegration {
     enum class State { NOT_INSTALLED, NO_PERMISSION, READY }
 
     /**
-     * Process-scoped timestamp of the last successful end-to-end smoke test. The toggle row
-     * in the assistant Local-tools page reads this so the green indicator persists across
-     * navigations within the session — without it the dot would reset to orange every time
-     * the user left and re-entered the page. Resets on app restart, which is acceptable
-     * since re-verifying is one tap.
+     * Timestamp of the last successful end-to-end smoke test. The toggle row in the assistant
+     * Local-tools page reads this so the green indicator persists across navigations — without
+     * it the dot would reset to orange every time the user left and re-entered the page. It
+     * also survives app restarts: [me.rerere.rikkahub.data.preferences.TermuxPreferences]
+     * restores it from DataStore via [restoreVerifiedAt] and re-persists every change through
+     * [persister] (issue #14 — users had to re-verify on every launch).
      */
     @Volatile
     var lastVerifiedOkAtMs: Long = 0L
         private set
 
+    /**
+     * Write-path for [lastVerifiedOkAtMs], set by [me.rerere.rikkahub.data.preferences.TermuxPreferences]
+     * so every [markVerifiedOk] / [clearVerified] persists without this object needing a
+     * [Context] of its own. Null until the preferences singleton is constructed.
+     */
+    @Volatile
+    var persister: ((Long) -> Unit)? = null
+
     fun markVerifiedOk() {
         lastVerifiedOkAtMs = System.currentTimeMillis()
+        persister?.invoke(lastVerifiedOkAtMs)
     }
 
     fun clearVerified() {
         lastVerifiedOkAtMs = 0L
+        persister?.invoke(lastVerifiedOkAtMs)
+    }
+
+    /**
+     * Restore a timestamp persisted in a previous process. Does not invoke [persister] — the
+     * value already came from disk, so there is nothing new to write back.
+     */
+    fun restoreVerifiedAt(ms: Long) {
+        lastVerifiedOkAtMs = ms
     }
 
     fun state(ctx: Context): State {

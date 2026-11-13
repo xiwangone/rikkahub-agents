@@ -147,7 +147,6 @@ class MediaPlaybackService : Service() {
     private var mediaPlayer: MediaPlayer? = null
     private lateinit var mediaSession: MediaSessionCompat
     private lateinit var audioManager: AudioManager
-    private var audioFocusRequest: AudioFocusRequest? = null
 
     // Mirrored metadata so get_media_status can read without a binder
     @Volatile var currentSource: String? = null
@@ -437,56 +436,63 @@ class MediaPlaybackService : Service() {
     // Audio focus
     // ------------------------------------------------------------------
 
-    private fun requestAudioFocus(): Boolean {
-        val focusListener =
-            AudioManager.OnAudioFocusChangeListener { focusChange ->
-                when (focusChange) {
-                    // Permanent focus loss: PAUSE instead of stop. Stopping kills the
-                    // foreground service entirely, which leaves the user with a dead
-                    // session that subsequent seek_media / resume_media calls report as
-                    // "no_session". Pausing keeps the session alive so the user can
-                    // resume manually after whatever stole focus is done.
-                    AudioManager.AUDIOFOCUS_LOSS -> {
-                        pausePlayback()
-                    }
+    // One listener + one request for the whole service lifetime (issue #30): building a fresh
+    // listener/request on every requestAudioFocus() made the framework treat a resume-triggered
+    // re-request as a different client stealing focus from our own still-held request, so
+    // resume_media instantly re-paused. See [AudioFocusHolder].
+    private val audioFocusHolder =
+        AudioFocusHolder<AudioManager.OnAudioFocusChangeListener, AudioFocusRequest>(
+            createListener = {
+                AudioManager.OnAudioFocusChangeListener { focusChange ->
+                    when (focusChange) {
+                        // Permanent focus loss: PAUSE instead of stop. Stopping kills the
+                        // foreground service entirely, which leaves the user with a dead
+                        // session that subsequent seek_media / resume_media calls report as
+                        // "no_session". Pausing keeps the session alive so the user can
+                        // resume manually after whatever stole focus is done.
+                        AudioManager.AUDIOFOCUS_LOSS -> {
+                            pausePlayback()
+                        }
 
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
-                        pausePlayback()
-                    }
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT -> {
+                            pausePlayback()
+                        }
 
-                    AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
-                        mediaPlayer?.setVolume(0.2f, 0.2f)
-                    }
+                        AudioManager.AUDIOFOCUS_LOSS_TRANSIENT_CAN_DUCK -> {
+                            mediaPlayer?.setVolume(0.2f, 0.2f)
+                        }
 
-                    AudioManager.AUDIOFOCUS_GAIN -> {
-                        mediaPlayer?.setVolume(1.0f, 1.0f)
-                        resumePlayback()
+                        AudioManager.AUDIOFOCUS_GAIN -> {
+                            mediaPlayer?.setVolume(1.0f, 1.0f)
+                            resumePlayback()
+                        }
                     }
                 }
-            }
+            },
+            createRequest = { listener ->
+                AudioFocusRequest
+                    .Builder(AudioManager.AUDIOFOCUS_GAIN)
+                    .apply {
+                        setAudioAttributes(
+                            AudioAttributes
+                                .Builder()
+                                .setUsage(AudioAttributes.USAGE_MEDIA)
+                                .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
+                                .build(),
+                        )
+                        setAcceptsDelayedFocusGain(true)
+                        setOnAudioFocusChangeListener(listener)
+                    }.build()
+            },
+            doRequest = { request ->
+                audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
+            },
+            doAbandon = { request -> audioManager.abandonAudioFocusRequest(request) },
+        )
 
-        val request =
-            AudioFocusRequest
-                .Builder(AudioManager.AUDIOFOCUS_GAIN)
-                .apply {
-                    setAudioAttributes(
-                        AudioAttributes
-                            .Builder()
-                            .setUsage(AudioAttributes.USAGE_MEDIA)
-                            .setContentType(AudioAttributes.CONTENT_TYPE_MUSIC)
-                            .build(),
-                    )
-                    setAcceptsDelayedFocusGain(true)
-                    setOnAudioFocusChangeListener(focusListener)
-                }.build()
-        audioFocusRequest = request
-        return audioManager.requestAudioFocus(request) == AudioManager.AUDIOFOCUS_REQUEST_GRANTED
-    }
+    private fun requestAudioFocus(): Boolean = audioFocusHolder.requestFocus()
 
-    private fun abandonAudioFocus() {
-        audioFocusRequest?.let { audioManager.abandonAudioFocusRequest(it) }
-        audioFocusRequest = null
-    }
+    private fun abandonAudioFocus() = audioFocusHolder.abandon()
 
     // ------------------------------------------------------------------
     // MediaPlayer cleanup
@@ -669,4 +675,30 @@ class MediaPlaybackService : Service() {
             // player is mid-teardown.
             positionMs
         }
+}
+
+/**
+ * Owns the single audio-focus listener + request pair for [MediaPlaybackService] (issue #30).
+ * Both are created lazily on the first [requestFocus] and then reused for every later request,
+ * including after [abandon], so the framework always sees the same client. Generic over the
+ * listener/request types so a plain JVM test can pin the reuse contract without Android.
+ */
+internal class AudioFocusHolder<Listener, Request>(
+    private val createListener: () -> Listener,
+    private val createRequest: (Listener) -> Request,
+    private val doRequest: (Request) -> Boolean,
+    private val doAbandon: (Request) -> Unit,
+) {
+    private var listener: Listener? = null
+    private var request: Request? = null
+
+    fun requestFocus(): Boolean {
+        val stableListener = listener ?: createListener().also { listener = it }
+        val stableRequest = request ?: createRequest(stableListener).also { request = it }
+        return doRequest(stableRequest)
+    }
+
+    fun abandon() {
+        request?.let { doAbandon(it) }
+    }
 }

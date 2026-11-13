@@ -171,6 +171,14 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     val isPending = tool.isPending
     val isDenied = tool.approvalState is ToolApprovalState.Denied
     val images = tool.output.filterIsInstance<UIMessagePart.Image>()
+    // Text parts nested in tool.output (e.g. run_js's webview payload) that carry
+    // rikkahub.webview metadata never reach the top-level Text rendering branch in
+    // ChatMessage.kt, since tool output is always folded into this step. Surface them
+    // here so skill webview cards render (#38).
+    val webviewParts =
+        tool.output
+            .filterIsInstance<UIMessagePart.Text>()
+            .filter { it.hasSkillWebviewMeta() }
 
     // 诊断（「审批停住但无按钮」排查）：渲染侧看到的审批状态与回调可用性。
     // 只有它和 GenLoop 的 approval-check 一起看，才能区分「状态没到 UI」与「到了但回调为空」。
@@ -183,9 +191,10 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
         if (isPending) AppLog.i("ToolApprovalUI", line) else AppLog.d("ToolApprovalUI", line)
     }
 
-    // Summary detection is delegated to the registered renderer; image output and
-    // denial reasons are common to all tools.
-    val hasExtraContent = renderer.hasSummary(context) || isDenied || images.isNotEmpty()
+    // Summary detection is delegated to the registered renderer; image output, webview
+    // cards and denial reasons are common to all tools.
+    val hasExtraContent =
+        renderer.hasSummary(context) || isDenied || images.isNotEmpty() || webviewParts.isNotEmpty()
     val stepStatus =
         resolveToolStepStatus(
             isPending = isPending,
@@ -392,6 +401,9 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                 {
                     ToolSummarySurface {
                         renderer.Summary(context)
+                        webviewParts.forEach { webviewPart ->
+                            SkillWebviewCardOrNull(part = webviewPart)
+                        }
                         if (images.isNotEmpty()) {
                             LazyRow(
                                 horizontalArrangement = Arrangement.spacedBy(4.dp),

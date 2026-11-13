@@ -8,8 +8,13 @@ package me.rerere.rikkahub.data.preferences
  */
 object TermuxDefaults {
 
-    /** Default max tool-call steps per turn (was hardcoded 32; 0 disables cap). */
+    // --- Per-turn tool-call step cap (app-wide) --------------------------------------------
+    // Was hardcoded 32 (issue #22 raised it). The wall-clock turn budget is the primary limit;
+    // this cap only has to stop a runaway loop. 0 does NOT disable the cap — the agent loop
+    // requires a positive step count — so every value is clamped into [MIN, MAX].
     const val DEFAULT_MAX_TOOL_STEPS = 100
+    const val MIN_MAX_TOOL_STEPS     =   1
+    const val MAX_MAX_TOOL_STEPS     = 500
 
     // --- Command capture timeout -----------------------------------------------------------
     /** Default ms to wait for a Termux background command to complete. */
@@ -74,4 +79,7 @@ object TermuxDefaults {
      */
     fun clampWorkingDir(dir: String): String =
         dir.ifBlank { DEFAULT_WORKING_DIR }
+
+    fun clampMaxToolSteps(steps: Int): Int =
+        steps.coerceIn(MIN_MAX_TOOL_STEPS, MAX_MAX_TOOL_STEPS)
 }

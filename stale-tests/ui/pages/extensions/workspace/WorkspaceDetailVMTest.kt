@@ -6,7 +6,8 @@ import org.junit.Test
 
 /**
  * Coverage for the pure helpers backing the workspace Files tab tree view and folder
- * export (#40 G3/G4): [flattenWorkspaceTree] and [planWorkspaceFolderExport].
+ * export (#40 G3/G4): [flattenWorkspaceTree]. The [planWorkspaceFolderExport] cases now live in
+ * app/src/test/.../WorkspaceFolderExportPlanTest.kt (the helper is ported; the tree view is not).
  */
 class WorkspaceDetailVMTest {
 
@@ -71,30 +72,5 @@ class WorkspaceDetailVMTest {
         val rows = flattenWorkspaceTree(entries, expandedPaths = setOf("src"), childrenCache = emptyMap())
 
         assertEquals(listOf("src" to 0), rows.map { it.entry.path to it.depth })
-    }
-
-    @Test
-    fun `export plan enumerates parents before children with correct parent paths`() {
-        val listing = mapOf(
-            "notes" to listOf(dir("sub", "notes/sub"), file("a.txt", "notes/a.txt")),
-            "notes/sub" to listOf(file("b.txt", "notes/sub/b.txt")),
-        )
-
-        val plan = planWorkspaceFolderExport("notes", listing)
-
-        assertEquals(
-            listOf(
-                Triple("notes/sub", "notes", true),
-                Triple("notes/sub/b.txt", "notes/sub", false),
-                Triple("notes/a.txt", "notes", false),
-            ),
-            plan.map { Triple(it.sourcePath, it.parentPath, it.isDirectory) },
-        )
-    }
-
-    @Test
-    fun `export plan for an empty folder is empty`() {
-        val plan = planWorkspaceFolderExport("empty", mapOf("empty" to emptyList()))
-        assertEquals(emptyList<Any>(), plan)
     }
 }

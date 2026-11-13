@@ -85,6 +85,51 @@ fun browserClickTool(): Tool = Tool(
     },
 )
 
+/**
+ * JS payload for browser_type. React (and similar frameworks) install their own `value`
+ * setter on the DOM node instance to track the "last known value", so a plain
+ * `el.value = ...` write is invisible to them: the framework's state never updates and the
+ * rendered input silently keeps its old value even though this tool reports success.
+ *
+ * Fix: fetch the *native* value setter off the element's prototype
+ * (`HTMLInputElement.prototype` / `HTMLTextAreaElement.prototype` — whichever
+ * `Object.getPrototypeOf(el)` resolves to) and invoke it directly, bypassing the
+ * instance-level override, then dispatch real `input`/`change` events. Falls back to plain
+ * `el.value = ...` when the prototype has no setter (custom elements, exotic hosts) — the
+ * previous behavior for those cases. Pure string builder so it stays unit-testable.
+ */
+internal fun buildTypeScript(selector: String, text: String, clear: Boolean): String {
+    val sel = jsString(selector)
+    val txt = jsString(text)
+    val clearFlag = if (clear) "true" else "false"
+    return """(function(){
+        try {
+            var el = document.querySelector($sel);
+            if (!el) return JSON.stringify({error:'selector_not_found', selector:$sel});
+            el.focus();
+            function setNativeValue(node, value) {
+                var proto = Object.getPrototypeOf(node);
+                var desc = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+                if (desc && typeof desc.set === 'function') {
+                    desc.set.call(node, value);
+                    return true;
+                }
+                return false;
+            }
+            if ('value' in el) {
+                var next = ($clearFlag ? '' : (el.value || '')) + $txt;
+                if (!setNativeValue(el, next)) { el.value = next; }
+            } else if (el.isContentEditable) {
+                if ($clearFlag) el.textContent = '';
+                el.textContent = (el.textContent || '') + $txt;
+            }
+            el.dispatchEvent(new Event('input', {bubbles:true}));
+            el.dispatchEvent(new Event('change', {bubbles:true}));
+            return JSON.stringify({typed:true});
+        } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
+    })()"""
+}
+
 fun browserTypeTool(): Tool = Tool(
     name = BrowserToolDefaults.TYPE,
     description = "Type text into an input/textarea/contenteditable matching a CSS selector. Focuses, optionally clears, sets the value + dispatches an 'input' event so SPA frameworks observe the change. Returns the diff between the page before and after by default; pass full:true to skip the diff. {success, [diff]}.$TELEGRAM_HEADLESS_CUE",
@@ -107,25 +152,10 @@ fun browserTypeTool(): Tool = Tool(
             else -> withTimeoutOrNull(toolTimeoutMs) {
                 BrowserControllerHandle.withController {
                     withDiff(full) {
-                        // Use both 'input' and 'change' events to satisfy frameworks that listen
-                        // to either; React's synthetic event layer needs the native value setter
-                        // path which we don't replicate here — covers ~90% of real inputs.
-                        val js = """(function(){
-                            try {
-                                var el = document.querySelector(${jsString(selector)});
-                                if (!el) return JSON.stringify({error:'selector_not_found', selector:${jsString(selector)}});
-                                el.focus();
-                                if (${if (clear) "true" else "false"}) {
-                                    if ('value' in el) el.value = '';
-                                    else if (el.isContentEditable) el.textContent = '';
-                                }
-                                if ('value' in el) el.value = (el.value || '') + ${jsString(text)};
-                                else if (el.isContentEditable) el.textContent = (el.textContent || '') + ${jsString(text)};
-                                el.dispatchEvent(new Event('input', {bubbles:true}));
-                                el.dispatchEvent(new Event('change', {bubbles:true}));
-                                return JSON.stringify({typed:true});
-                            } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
-                        })()"""
+                        // Routes the write through the element prototype's native value
+                        // setter so React-style instance trackers observe it (see
+                        // buildTypeScript), then fires both 'input' and 'change'.
+                        val js = buildTypeScript(selector, text, clear)
                         val res = parseJsResult(webView.evaluateJavascriptAsync(js))
                         if (res.containsKey("error")) return@withDiff res
                         BrowserController.appendAction("Typed into $selector")

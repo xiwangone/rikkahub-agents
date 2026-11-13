@@ -17,7 +17,12 @@ object ToolRuntimeLimits {
 
     /**
      * Tool-call iterations a single turn may run before it is force-ended. Was hardcoded at 32,
-     * which truncated long Termux chains mid-task (issue #22).
+     * which truncated long Termux chains mid-task (issue #22). Writes are clamped into
+     * [TermuxDefaults.MIN_MAX_TOOL_STEPS]..[TermuxDefaults.MAX_MAX_TOOL_STEPS]: the agent loop
+     * rejects a non-positive step count, so a stray 0 must never reach it.
      */
     @Volatile var maxToolSteps: Int = TermuxDefaults.DEFAULT_MAX_TOOL_STEPS
+        set(value) {
+            field = TermuxDefaults.clampMaxToolSteps(value)
+        }
 }

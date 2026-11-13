@@ -3,13 +3,17 @@ package me.rerere.rikkahub.data.db
 import android.content.Context
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.Room
+import androidx.room.testing.MigrationTestHelper
+import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import me.rerere.rikkahub.data.db.migrations.APP_DATABASE_MIGRATIONS
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Assert.fail
 import org.junit.Before
+import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
 
@@ -23,13 +27,15 @@ import org.junit.runner.RunWith
  * earlier versions). This app's schema-equivalent version is 27, so an un-reconciled restore
  * makes Room replay this app's 24 -> 25 auto-migration, which re-ADDs custom_system_prompt and
  * crashes. This app's shared tables at v27 are byte-for-byte identical to the earlier build's at v24, so
- * [ImportedDatabaseReconciler] stamps such a file straight to v27 and skips the replay.
+ * [ImportedDatabaseReconciler] re-stamps such a file as a genuine v27 file and lets Room run the
+ * ordinary 27 -> current migrations (the JVM twin of this test is
+ * app/src/test/.../data/db/ImportedDatabaseReconcilerTest.kt).
  *
- * The test builds a faithful 2.4.1 file (this app's v27 shared schema, the earlier version +
- * identity, app-specific tables removed) and asserts:
+ * The test builds a faithful 2.4.1 file (this app's v27 shared schema from 27.json via
+ * [MigrationTestHelper], the earlier version + identity, app-specific tables removed) and asserts:
  *  - without reconcile, opening it through Room reproduces the reported duplicate-column crash;
- *  - after reconcile, Room opens it cleanly, the seeded conversation survives, and every
- *    app-specific table exists and starts empty.
+ *  - after reconcile, Room migrates it to the current schema, the seeded conversation survives,
+ *    and every app-specific table exists and starts empty.
  */
 @RunWith(AndroidJUnit4::class)
 class ImportedDatabaseReconcilerTest {
@@ -47,6 +53,14 @@ class ImportedDatabaseReconcilerTest {
 
     private val context: Context = InstrumentationRegistry.getInstrumentation().targetContext
 
+    @get:Rule
+    val helper: MigrationTestHelper = MigrationTestHelper(
+        InstrumentationRegistry.getInstrumentation(),
+        AppDatabase::class.java,
+        emptyList(),
+        FrameworkSQLiteOpenHelperFactory(),
+    )
+
     @Before
     fun setUp() {
         context.deleteDatabase(TEST_DB)
@@ -62,6 +76,7 @@ class ImportedDatabaseReconcilerTest {
         createLegacy241Backup(conversationId = "c1")
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
+            .addMigrations(*APP_DATABASE_MIGRATIONS)
             .allowMainThreadQueries()
             .build()
         try {
@@ -90,10 +105,12 @@ class ImportedDatabaseReconcilerTest {
         ImportedDatabaseReconciler.reconcileDatabaseFile(context.getDatabasePath(TEST_DB))
 
         val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
+            .addMigrations(*APP_DATABASE_MIGRATIONS)
             .allowMainThreadQueries()
             .build()
         try {
-            val db = room.openHelper.writableDatabase // opens + validates now; no migration runs
+            val db = room.openHelper.writableDatabase // runs 27 -> current and validates now
+            assertEquals(AppDatabase.VERSION, db.version)
 
             db.query("SELECT title FROM ConversationEntity WHERE id = 'c1'").use { c ->
                 assertTrue("seeded conversation row should survive the restore", c.moveToFirst())
@@ -112,23 +129,19 @@ class ImportedDatabaseReconcilerTest {
     }
 
     /**
-     * Writes a file that looks exactly like a 2.4.1 backup: start from a
-     * genuine v27 database (Room creates every table and stamps the v27 identity), seed a
-     * conversation, then downgrade the file on disk by dropping the app-specific tables and
-     * stamping the earlier user_version + identity.
+     * Writes a file that looks exactly like a 2.4.1 backup: start from a genuine v27 database
+     * built from app/schemas/.../27.json (the shape a 2.4.1 file shares), seed a conversation,
+     * then downgrade the file on disk by dropping the app-specific tables and stamping the
+     * earlier user_version + identity.
      */
     private fun createLegacy241Backup(conversationId: String) {
-        val room = Room.databaseBuilder(context, AppDatabase::class.java, TEST_DB)
-            .allowMainThreadQueries()
-            .build()
-        try {
-            room.openHelper.writableDatabase.execSQL(
+        helper.createDatabase(TEST_DB, ImportedDatabaseReconciler.LEGACY_BASELINE_VERSION).apply {
+            execSQL(
                 "INSERT INTO ConversationEntity (id, title, nodes, create_at, update_at) " +
                     "VALUES (?, ?, ?, ?, ?)",
                 arrayOf<Any?>(conversationId, "hello", "[]", 1_000L, 1_000L),
             )
-        } finally {
-            room.close() // checkpoints WAL so the raw handle below sees a settled file
+            close()
         }
 
         val dbFile = context.getDatabasePath(TEST_DB)

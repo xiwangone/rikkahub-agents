@@ -43,22 +43,7 @@ import me.rerere.rikkahub.data.db.AppDatabase
 import me.rerere.rikkahub.data.db.DatabaseVersionGuard
 import me.rerere.rikkahub.data.db.fts.MessageFtsManager
 import me.rerere.rikkahub.data.db.fts.SimpleDictManager
-import me.rerere.rikkahub.data.db.migrations.Migration_11_12
-import me.rerere.rikkahub.data.db.migrations.Migration_13_14
-import me.rerere.rikkahub.data.db.migrations.Migration_14_15
-import me.rerere.rikkahub.data.db.migrations.Migration_15_16
-import me.rerere.rikkahub.data.db.migrations.Migration_23_24
-import me.rerere.rikkahub.data.db.migrations.Migration_28_29
-import me.rerere.rikkahub.data.db.migrations.Migration_29_30
-import me.rerere.rikkahub.data.db.migrations.Migration_30_31
-import me.rerere.rikkahub.data.db.migrations.Migration_31_32
-import me.rerere.rikkahub.data.db.migrations.Migration_32_33
-import me.rerere.rikkahub.data.db.migrations.Migration_33_34
-import me.rerere.rikkahub.data.db.migrations.Migration_34_35
-import me.rerere.rikkahub.data.db.migrations.Migration_35_36
-import me.rerere.rikkahub.data.db.migrations.Migration_44_45
-import me.rerere.rikkahub.data.db.migrations.Migration_45_46
-import me.rerere.rikkahub.data.db.migrations.Migration_6_7
+import me.rerere.rikkahub.data.db.migrations.APP_DATABASE_MIGRATIONS
 import me.rerere.rikkahub.data.gemini.GeminiAccountRepository
 import me.rerere.rikkahub.data.gemini.GeminiCredentialStore
 import me.rerere.rikkahub.data.gemini.GeminiOAuthManager
@@ -96,27 +81,12 @@ val dataSourceModule =
             if (DatabaseVersionGuard.beforeOpen(context, AppDatabase.VERSION) is DatabaseVersionGuard.SnapshotResult.Failed) {
                 AppLog.e("DataSourceModule", "database upgrade proceeding without a pre-upgrade snapshot; rollback to the previous version is unavailable")
             }
-            Room
+            val builder = Room
                 .databaseBuilder(context, AppDatabase::class.java, "rikka_hub")
                 .setJournalMode(RoomDatabase.JournalMode.WRITE_AHEAD_LOGGING)
-                .addMigrations(
-                    Migration_6_7,
-                    Migration_11_12,
-                    Migration_13_14,
-                    Migration_14_15,
-                    Migration_15_16,
-                    Migration_23_24,
-                    Migration_28_29,
-                    Migration_29_30,
-                    Migration_30_31,
-                    Migration_31_32,
-                    Migration_32_33,
-                    Migration_33_34,
-                    Migration_34_35,
-                    Migration_35_36,
-                    Migration_44_45,
-                    Migration_45_46,
-                ).addCallback(
+            APP_DATABASE_MIGRATIONS.forEach { builder.addMigrations(it) }
+            builder
+                .addCallback(
                     object : RoomDatabase.Callback() {
                         override fun onOpen(db: SupportSQLiteDatabase) {
                             val dictDir = SimpleDictManager.extractDict(context)

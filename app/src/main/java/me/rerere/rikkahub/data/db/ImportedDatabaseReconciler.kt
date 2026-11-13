@@ -11,31 +11,34 @@ import me.rerere.rikkahub.data.log.AppLog
  * This app added several tables (scheduled jobs, workflows, ssh hosts, telegram chats,
  * the agent-run ledger) on top of an earlier build, and renumbered its Room schema so
  * the same version number no longer means the same thing in the two apps. A backup exported
- * from an earlier build therefore breaks a fresh restore in two ways:
+ * from an earlier build (2.4.x) therefore breaks a fresh restore in two ways:
  *  - it is missing the app-specific tables, so Room fails its integrity check or hits "no such
  *    table: scheduled_jobs" at first query (issue #8); and
- *  - it is stamped with an older user_version (24 for 2.4.x), which is LOWER than the
- *    this app's schema-equivalent version (27), so Room replays this app's 24->25 / 25->26 /
- *    26->27 auto-migrations and re-ADDs columns the file already carries, crashing with
- *    "duplicate column name: custom_system_prompt" (issues #10, #11).
+ *  - it is stamped with an older user_version (24 for 2.4.x), which is LOWER than this app's
+ *    schema-equivalent version ([LEGACY_BASELINE_VERSION] = 27), so Room replays this app's
+ *    24->25 / 25->26 / 26->27 auto-migrations and re-ADDs columns the file already carries,
+ *    crashing with "duplicate column name: custom_system_prompt" (issues #10, #11).
  * Either way the app crashes on the very first launch after the import.
  *
  * This step runs once, right after the restore writes `rikka_hub.db`, on the raw file before
  * Room touches it:
- *  - It creates any of the app-specific tables that are missing, empty, with the exact schema
- *    Room expects (copied verbatim from app/schemas/.../27.json), so the file looks like a
- *    clean agent install for those tables.
- *  - If the file is already at this app's current schema (stamped at the matching version, or
- *    an older file whose shared tables already carry every modern column), it stamps Room's
- *    user_version and identity row to this app's current values so Room opens the file with no
- *    migration. Without this Room either replays colliding migrations or rejects the foreign
- *    hash, even though every table is now present. The shared tables match column-for-column
- *    because this app tracks the same shared schema, so trusting the hash is sound.
+ *  - It creates any of the app-specific tables that are missing, empty, with the exact v27
+ *    schema (copied verbatim from app/schemas/.../27.json). Every statement is IF NOT EXISTS,
+ *    so on a genuine backup of this app (where the tables already exist) it is a no-op.
+ *  - A 2.4.x file (stamped below v27, carrying every [LEGACY_BASELINE_SENTINELS] column and
+ *    none of the [POST_BASELINE_SENTINELS] columns) has shared tables byte-for-byte equal to
+ *    this app's v27. It is re-stamped as a genuine v27 file ([LEGACY_BASELINE_VERSION] +
+ *    [LEGACY_BASELINE_IDENTITY_HASH]); Room then runs this app's ordinary 27 -> current
+ *    migrations, which add every later column, table and index exactly as on a real upgrade.
+ *    It is deliberately NOT stamped straight to the current version: the current schema has
+ *    many columns/tables a 2.4.x file lacks, and stamping past the migrations that add them
+ *    would fail Room's validation (that shortcut only worked while 27 was the current version).
+ *  - A file already stamped at [EXPECTED_VERSION] gets its identity row pointed at this
+ *    app's current hash (harmless if it already is).
  *
- * If the backup is at an older version that is not yet schema-complete, Room runs its normal
- * migrations up to current and sets the identity itself; pre-creating the tables just lets
- * those migrations find them. Backups newer than the app are left untouched (Room reports the
- * downgrade).
+ * Any other file (a genuine older backup of this app, or a pre-2.4 file without the baseline
+ * columns) is left to Room's normal migrations. Backups newer than the app are left untouched
+ * (Room reports the downgrade).
  *
  * Best-effort: any failure here is logged and returned as a failed [Result] instead of
  * thrown, so a restore never half-breaks — but the caller must treat a failed result as
@@ -51,53 +54,74 @@ object ImportedDatabaseReconciler {
     private const val DB_NAME = "rikka_hub"
 
     /**
-     * Room's schema version and identity hash for [AppDatabase]. Both are copied verbatim
-     * from app/schemas/me.rerere.rikkahub.data.db.AppDatabase/27.json (the identity hash also
-     * appears in the generated AppDatabase_Impl RoomOpenDelegate). When the schema version is
-     * bumped, update BOTH constants (and the table DDL below if the app-specific tables changed,
-     * and MODERN_COLUMN_SENTINELS_BY_TABLE if newer shared columns were added) or this
-     * reconciliation will silently stop matching.
+     * Room's current schema version and identity hash for [AppDatabase]. The version follows
+     * [AppDatabase.VERSION] directly; the hash is copied verbatim from
+     * app/schemas/me.rerere.rikkahub.data.db.AppDatabase/<VERSION>.json (it also appears in the
+     * generated AppDatabase_Impl RoomOpenDelegate). When the schema version is bumped, update the
+     * hash — ImportedDatabaseReconcilerConstantsTest fails until it matches the exported schema.
      */
-    internal const val EXPECTED_VERSION = 27
-    internal const val EXPECTED_IDENTITY_HASH = "47dc97ce825856b039f96c2769103dd1"
+    internal const val EXPECTED_VERSION = AppDatabase.VERSION
+    internal const val EXPECTED_IDENTITY_HASH = "c2222aef4fc160047a5db0cb2f35ac0e"
 
     /**
-     * Columns that a restored file must already have for its shared schema to be considered
-     * byte-for-byte equal to this app's current schema. They are exactly the columns the
-     * this app's 24->25 / 25->26 / 26->27 auto-migrations add (custom_system_prompt at 25,
-     * workspace_cwd at 26, folder_id at 27), so a file carrying all three would collide on
-     * every one of those replays. 2.4.x builds carry all three; a genuine file from this app below
-     * v27 carries only a prefix, so it still migrates normally.
+     * This app's version whose shared tables equal a 2.4.x file's, with its identity hash
+     * (verbatim from app/schemas/.../27.json). Fixed history: never bump these with the schema.
      */
-    private val MODERN_COLUMN_SENTINELS_BY_TABLE: List<Pair<String, String>> =
+    internal const val LEGACY_BASELINE_VERSION = 27
+    internal const val LEGACY_BASELINE_IDENTITY_HASH = "47dc97ce825856b039f96c2769103dd1"
+
+    /**
+     * Columns a file stamped below [LEGACY_BASELINE_VERSION] must carry to be treated as a
+     * 2.4.x file. They are exactly the columns this app's 24->25 / 25->26 / 26->27
+     * auto-migrations add (custom_system_prompt at 25, workspace_cwd at 26, folder_id at 27),
+     * so a file carrying all three would collide on every one of those replays. A genuine file
+     * of this app below v27 carries only a prefix, so it still migrates normally.
+     */
+    internal val LEGACY_BASELINE_SENTINELS: List<Pair<String, String>> =
         listOf(
-            // 24→25 / 25→26 / 26→27（历史基线列）
             "ConversationEntity" to "custom_system_prompt",
             "ConversationEntity" to "workspace_cwd",
             "ConversationEntity" to "folder_id",
-            // 32→33
+        )
+
+    /**
+     * Columns this app's migrations add AFTER v27 to tables that already exist at v27 (diff of
+     * 27.json vs 48.json; ssh_hosts included because it is created here in its v27 shape).
+     * A file that already carries any of them is not a plain 2.4.x file: re-stamping it to v27
+     * would make Room's 27 -> current migrations re-ADD that column and crash the same way, so
+     * such a file is left alone (Room then reports the mismatch and the startup probe can roll
+     * back to the pre-restore copy). Add to this list when a later version adds a column to a
+     * table that exists at v27.
+     */
+    internal val POST_BASELINE_SENTINELS: List<Pair<String, String>> =
+        listOf(
             "ConversationEntity" to "chat_model_id",
-            // 31→32
-            "memoryentity" to "tier",
-            // 33→34
-            "vault_credentials" to "publicKey",
-            // 30→31 / 34→35 / 35→36
+            "ConversationEntity" to "is_sub_agent_run",
+            "ConversationEntity" to "max_tool_steps_override",
+            "ConversationEntity" to "tool_scope_override",
+            "ConversationEntity" to "workspace_id_override",
+            "MemoryEntity" to "tier",
+            "workspaces" to "shell_compatibility_mode",
+            "workspaces" to "tags",
+            "workspaces" to "type",
+            "workspaces" to "ssh_config",
             "ssh_hosts" to "vaultCredentialRef",
             "ssh_hosts" to "templateRef",
             "ssh_hosts" to "fallbackHostsJson",
             "ssh_hosts" to "jumpHost",
             "ssh_hosts" to "sshOptions",
+            "ssh_hosts" to "platform",
+            "ssh_hosts" to "allowHostKeyRotation",
         )
 
-    private const val CONTEXT_COMPACTION_DDL =
-        "CREATE TABLE IF NOT EXISTS `conversation_compaction` (`conversation_id` TEXT NOT NULL, `summary` TEXT NOT NULL, `tail_start_node_id` TEXT, `source_end_node_id` TEXT NOT NULL, `summary_model_id` TEXT NOT NULL, `is_auto` INTEGER NOT NULL, `source_token_estimate` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`conversation_id`), FOREIGN KEY(`conversation_id`) REFERENCES `ConversationEntity`(`id`) ON UPDATE NO ACTION ON DELETE CASCADE )"
-
     /**
-     * App-specific tables absent from an older backup, with their exact v25 create + index
-     * statements. Every statement is IF NOT EXISTS so running it against a genuine agent
-     * backup (where the tables already exist) is a no-op.
+     * App-specific tables absent from a 2.4.x backup, with their exact v27 create + index
+     * statements (the shape [LEGACY_BASELINE_VERSION] declares, so Room's 27 -> current
+     * migrations find what they expect). Every statement is IF NOT EXISTS so running it against
+     * a genuine backup of this app (where the tables already exist, possibly in a newer shape)
+     * is a no-op.
      */
-    private val APP_SPECIFIC_DDL: List<String> = listOf(
+    internal val APP_SPECIFIC_DDL: List<String> = listOf(
         "CREATE TABLE IF NOT EXISTS `scheduled_jobs` (`id` TEXT NOT NULL, `name` TEXT NOT NULL, `prompt` TEXT, `assistantId` TEXT NOT NULL, `scheduleType` TEXT NOT NULL, `atUnixMs` INTEGER, `intervalSeconds` INTEGER, `enabled` INTEGER NOT NULL, `createdAtMs` INTEGER NOT NULL, `lastRunAtMs` INTEGER, `nextRunAtMs` INTEGER, `mode` TEXT NOT NULL DEFAULT 'llm', `actionsJson` TEXT, `cronExpression` TEXT, `timezone` TEXT, `startAtUnixMs` INTEGER, `endAtUnixMs` INTEGER, `maxRuns` INTEGER, `runsSoFar` INTEGER NOT NULL DEFAULT 0, `catchup` TEXT NOT NULL DEFAULT 'fire_once', `description` TEXT, `tags` TEXT, PRIMARY KEY(`id`))",
         "CREATE TABLE IF NOT EXISTS `scheduled_job_runs` (`id` TEXT NOT NULL, `jobId` TEXT NOT NULL, `mode` TEXT NOT NULL, `scheduledAtMs` INTEGER NOT NULL, `startedAtMs` INTEGER NOT NULL, `finishedAtMs` INTEGER, `outcome` TEXT NOT NULL, `conversationId` TEXT, `errorMessage` TEXT, PRIMARY KEY(`id`))",
         "CREATE TABLE IF NOT EXISTS `ssh_hosts` (`name` TEXT NOT NULL, `host` TEXT NOT NULL, `port` INTEGER NOT NULL, `user` TEXT NOT NULL, `password` TEXT, `privateKey` TEXT, `passphrase` TEXT, `createdAtMs` INTEGER NOT NULL, PRIMARY KEY(`name`))",
@@ -110,25 +134,6 @@ object ImportedDatabaseReconciler {
         "CREATE INDEX IF NOT EXISTS `idx_runs_kind_dom` ON `agent_runs` (`kind`, `domain_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_parent` ON `agent_runs` (`parent_run_id`)",
         "CREATE INDEX IF NOT EXISTS `idx_runs_updated_at` ON `agent_runs` (`updated_at_ms`)",
-    )
-
-    /**
-     * Indices this app's 27->28 auto-migration adds on tables that already exist before that
-     * step (`ConversationEntity`, `MemoryEntity`) or that [APP_SPECIFIC_DDL] just created fresh
-     * (`scheduled_jobs`, `scheduled_job_runs`). That migration is a pure schema diff compiled
-     * from app/schemas/.../27.json and 28.json, so it never runs on the "already current" path
-     * below, which stamps the file straight to [EXPECTED_VERSION]: the indices would otherwise
-     * be silently missing (issue #60, `Found: indices = {}` on `ConversationEntity`). Every
-     * statement is `IF NOT EXISTS`, so running this against a database that already has the
-     * indices - including a genuine backup already on v30 - is a safe no-op that touches no data.
-     */
-    internal val BACKFILL_INDEX_DDL: List<String> = listOf(
-        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_assistant_id_is_pinned_update_at` ON `ConversationEntity` (`assistant_id`, `is_pinned`, `update_at`)",
-        "CREATE INDEX IF NOT EXISTS `index_ConversationEntity_is_pinned_update_at` ON `ConversationEntity` (`is_pinned`, `update_at`)",
-        "CREATE INDEX IF NOT EXISTS `index_MemoryEntity_assistant_id` ON `MemoryEntity` (`assistant_id`)",
-        "CREATE INDEX IF NOT EXISTS `index_scheduled_jobs_enabled` ON `scheduled_jobs` (`enabled`)",
-        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_startedAtMs` ON `scheduled_job_runs` (`jobId`, `startedAtMs`)",
-        "CREATE INDEX IF NOT EXISTS `index_scheduled_job_runs_jobId_outcome` ON `scheduled_job_runs` (`jobId`, `outcome`)",
     )
 
     /**
@@ -216,44 +221,41 @@ object ImportedDatabaseReconciler {
                     return Result.success(Unit)
                 }
 
-                // A file whose shared schema already matches this app's current schema must not
-                // be migrated: Room would replay this app's 24->27 auto-migrations and re-ADD
-                // columns the file already has, crashing with "duplicate column name" (an
-                // a 2.4.x backup stamps user_version 24 but carries every modern column;
-                // see issues #10, #11). Detect that case by the sentinel columns those very
-                // migrations add.
-                val alreadyCurrent = MODERN_COLUMN_SENTINELS_BY_TABLE.all { (table, column) ->
-                    hasColumn(db, table, column)
+                // A 2.4.x file is stamped below v27 but already carries every column this app's
+                // 24 -> 27 auto-migrations add; letting Room replay them crashes with
+                // "duplicate column name" (issues #10, #11). Detect it by those very columns,
+                // and make sure it carries nothing newer (see POST_BASELINE_SENTINELS).
+                val legacyBaseline = version < LEGACY_BASELINE_VERSION &&
+                    LEGACY_BASELINE_SENTINELS.all { (table, column) -> hasColumn(db, table, column) }
+                val hasPostBaselineColumns = legacyBaseline &&
+                    POST_BASELINE_SENTINELS.any { (table, column) -> hasColumn(db, table, column) }
+                if (hasPostBaselineColumns) {
+                    AppLog.w(TAG, "reconcile: db stamped $version carries columns newer than v$LEGACY_BASELINE_VERSION; not re-stamping")
                 }
 
                 db.beginTransaction()
                 try {
                     APP_SPECIFIC_DDL.forEach(db::execSQL)
 
-                    if (version == EXPECTED_VERSION || alreadyCurrent) {
-                        // No migration should run: the file is either already stamped at the
-                        // this app's version, or it is an older file whose shared schema already
-                        // matches it. Point Room's identity row and user_version at this app so
-                        // the integrity check passes now that every app-specific table is present.
-                        db.execSQL(
-                            "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT)"
-                        )
-                        db.execSQL(
-                            "INSERT OR REPLACE INTO room_master_table (id, identity_hash) VALUES (42, ?)",
-                            arrayOf(EXPECTED_IDENTITY_HASH),
-                        )
-                        if (version != EXPECTED_VERSION) {
-                            // PRAGMA user_version is transactional (SQLiteOpenHelper sets it the
-                            // same way inside its own upgrade transaction), so this commits or
-                            // rolls back atomically with the DDL and identity row above.
-                            db.version = EXPECTED_VERSION
+                    when {
+                        version == EXPECTED_VERSION -> stampIdentity(db, EXPECTED_IDENTITY_HASH)
+                        legacyBaseline && !hasPostBaselineColumns -> {
+                            // Shared tables equal this app's v27 and every app-specific table now
+                            // exists in its v27 shape: make the file a genuine v27 file, so Room
+                            // runs the ordinary 27 -> current migrations instead of the colliding
+                            // 24 -> 27 replays. PRAGMA user_version is transactional
+                            // (SQLiteOpenHelper sets it the same way inside its own upgrade
+                            // transaction), so this commits or rolls back atomically with the DDL
+                            // and identity row.
+                            stampIdentity(db, LEGACY_BASELINE_IDENTITY_HASH)
+                            db.version = LEGACY_BASELINE_VERSION
                         }
                     }
                     db.setTransactionSuccessful()
                 } finally {
                     db.endTransaction()
                 }
-                AppLog.i(TAG, "reconcile: reconciled imported db (version=$version, alreadyCurrent=$alreadyCurrent)")
+                AppLog.i(TAG, "reconcile: reconciled imported db (version=$version, legacyBaseline=$legacyBaseline)")
             }
             Result.success(Unit)
         } catch (t: Throwable) {
@@ -263,6 +265,15 @@ object ImportedDatabaseReconciler {
             AppLog.e(TAG, "reconcile: failed to reconcile imported db", t)
             Result.failure(t)
         }
+    }
+
+    /** Points Room's identity row at [identityHash] (creating the metadata table if absent). */
+    private fun stampIdentity(db: SQLiteDatabase, identityHash: String) {
+        db.execSQL("CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY, identity_hash TEXT)")
+        db.execSQL(
+            "INSERT OR REPLACE INTO room_master_table (id, identity_hash) VALUES (42, ?)",
+            arrayOf(identityHash),
+        )
     }
 
     /** True if [table] exists and has a column named [column]. Best-effort; false on error. */

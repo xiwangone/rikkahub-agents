@@ -400,14 +400,59 @@ internal fun clipText(text: String, maxChars: Int): Pair<String, Boolean> =
     if (text.length <= maxChars) text to false
     else text.substring(0, maxChars) to true
 
+/**
+ * How [runHistoryNav] should carry out a back/forward request, decided from state read off
+ * the live WebView. Extracted as a pure function so the decision (issue #59: Chromium's
+ * history-manipulation intervention marks gesture-less navigations skippable, making
+ * `canGoBack()`/`canGoForward()` false even though a real entry exists) unit-tests without
+ * Robolectric.
+ */
+internal enum class HistoryNavMethod { NATIVE, OFFSET, NONE }
+
+/**
+ * NATIVE when the native canGoBack()/canGoForward() check already agrees. Otherwise OFFSET
+ * when `copyBackForwardList()`'s index proves a real entry exists in that direction (back:
+ * not already at the oldest entry; forward: not already at the newest). NONE when there's
+ * genuinely nowhere to go.
+ */
+internal fun resolveHistoryNav(
+    forward: Boolean,
+    canNative: Boolean,
+    currentIndex: Int,
+    size: Int,
+): HistoryNavMethod = when {
+    canNative -> HistoryNavMethod.NATIVE
+    forward && currentIndex < size - 1 -> HistoryNavMethod.OFFSET
+    !forward && currentIndex > 0 -> HistoryNavMethod.OFFSET
+    else -> HistoryNavMethod.NONE
+}
+
 internal suspend fun runHistoryNav(toolName: String, forward: Boolean): JsonObject {
     val out = withTimeoutOrNull(toolTimeoutMs) {
         BrowserControllerHandle.withController {
-            val ok = withContext(Dispatchers.Main) {
-                if (forward) {
-                    if (webView.canGoForward()) { webView.goForward(); true } else false
-                } else {
-                    if (webView.canGoBack()) { webView.goBack(); true } else false
+            // Returns (navigated, usedHistoryLoadFallback).
+            val (ok, usedFallback) = withContext(Dispatchers.Main) {
+                val list = webView.copyBackForwardList()
+                val canNative = if (forward) webView.canGoForward() else webView.canGoBack()
+                when (resolveHistoryNav(forward, canNative, list.currentIndex, list.size)) {
+                    HistoryNavMethod.NATIVE -> {
+                        if (forward) webView.goForward() else webView.goBack()
+                        true to false
+                    }
+                    HistoryNavMethod.OFFSET -> {
+                        // goBackOrForward(offset) honors the skippable flag on some WebView
+                        // builds too and silently no-ops, so load the target history item's
+                        // URL directly — a fresh load can't be suppressed, at the cost of
+                        // appending a new entry rather than moving the index.
+                        val target = list.getItemAtIndex(list.currentIndex + (if (forward) 1 else -1))
+                        me.rerere.rikkahub.data.log.AppLog.i(
+                            "BrowserNav",
+                            "runHistoryNav: native nav refused, loading history item directly: ${target.url.take(120)}",
+                        )
+                        webView.loadUrl(target.url)
+                        true to true
+                    }
+                    HistoryNavMethod.NONE -> false to false
                 }
             }
             if (ok) webView.awaitReadyState(8_000L)
@@ -415,6 +460,7 @@ internal suspend fun runHistoryNav(toolName: String, forward: Boolean): JsonObje
             buildJsonObject {
                 put("success", ok)
                 put("current_url", webView.url.orEmpty())
+                if (ok && usedFallback) put("method", "history_load_fallback")
             }
         }
     } ?: timeoutEnvelope(toolName)

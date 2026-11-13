@@ -166,10 +166,24 @@ class TermuxDefaultsTest {
     }
 
     @Test
-    fun maxToolSteps_defaultMatchesTheOldHardcodedLimit() {
-        // 32 was GenerationHandler's hardcoded maxSteps before issue #22 made it configurable.
-        // Pinning it here keeps an existing user's behaviour identical until they change it.
-        assertEquals(32, TermuxDefaults.DEFAULT_MAX_TOOL_STEPS)
+    fun maxToolSteps_defaultIs100() {
+        // 32 was the old hardcoded maxSteps; issue #22 raised this build's default to 100
+        // (long Termux chains were truncated mid-task). Pin it so a change is deliberate.
+        assertEquals(100, TermuxDefaults.DEFAULT_MAX_TOOL_STEPS)
+    }
+
+    @Test
+    fun maxToolSteps_runtimeHolderClampsWrites() {
+        val limits = me.rerere.rikkahub.data.ai.limits.ToolRuntimeLimits
+        val prev = limits.maxToolSteps
+        try {
+            limits.maxToolSteps = 0
+            assertEquals(TermuxDefaults.MIN_MAX_TOOL_STEPS, limits.maxToolSteps)
+            limits.maxToolSteps = Int.MAX_VALUE
+            assertEquals(TermuxDefaults.MAX_MAX_TOOL_STEPS, limits.maxToolSteps)
+        } finally {
+            limits.maxToolSteps = prev
+        }
     }
 
     @Test

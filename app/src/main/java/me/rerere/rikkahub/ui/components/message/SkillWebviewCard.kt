@@ -111,8 +111,21 @@ internal fun SkillWebviewCardOrNull(
                     // Routes through the in-app browser so the persistent profile, tool
                     // toggles, and HARDLINE all apply uniformly. Falls back to about:blank
                     // if the URL was somehow lost between metadata write + render.
+                    //
+                    // When the skill declared `iframe: true` for a remote URL, top-level
+                    // navigation would hit the endpoint's own "must be used in an iframe"
+                    // rejection page (e.g. the Google Maps Embed API). Open a locally built
+                    // wrapper page that embeds it instead. It is handed over as a `data:` URL
+                    // rather than a cache file: the browser's file:// whitelist only admits
+                    // filesDir/skills, and a data: page needs no disk write at all.
                     runCatching {
-                        context.startActivity(BrowserActivity.intent(context, webview.url))
+                        val launchUrl =
+                            if (shouldWrapInIframe(webview.url, webview.iframe)) {
+                                iframeWrapperDataUrl(webview.url)
+                            } else {
+                                webview.url
+                            }
+                        context.startActivity(BrowserActivity.intent(context, launchUrl))
                     }
                 }) {
                     Text(stringResource(R.string.skill_webview_card_open))
@@ -142,3 +155,59 @@ private fun extractWebviewMeta(metadata: JsonObject?): WebviewMeta? {
     val source = webview["source"]?.jsonPrimitive?.contentOrNull
     return WebviewMeta(url = url, iframe = iframe, source = source)
 }
+
+/**
+ * Cheap predicate for whether this part carries a usable `rikkahub.webview` metadata
+ * block, without doing the full render. Shares [extractWebviewMeta] so it can never
+ * disagree with what [SkillWebviewCardOrNull] actually renders — used by the tool step to
+ * decide whether a `run_js` tool's nested output parts should be rendered as webview cards.
+ */
+internal fun UIMessagePart.Text.hasSkillWebviewMeta(): Boolean =
+    extractWebviewMeta(metadata) != null
+
+/**
+ * True only when the skill declared `iframe: true` and [url] is a remote `http`/`https`
+ * address. A `file://` skill page (e.g. the virtual-piano skill) is already local and
+ * full-screen — wrapping it in an iframe buys nothing and would break any relative asset
+ * paths inside it.
+ */
+internal fun shouldWrapInIframe(url: String, iframe: Boolean): Boolean {
+    if (!iframe) return false
+    val scheme = url.substringBefore("://", missingDelimiterValue = "").lowercase()
+    return scheme == "http" || scheme == "https"
+}
+
+/**
+ * Builds a minimal full-height HTML document that embeds [url] in an `<iframe>`. Some skill
+ * endpoints (e.g. the Google Maps Embed API) render a plain-text rejection page
+ * ("must be used in an iframe") when navigated to top-level, but render correctly when
+ * embedded. [url] may be skill-authored and is therefore untrusted — it is HTML-attribute-
+ * escaped before interpolation so it cannot break out of the `src` attribute.
+ */
+internal fun buildIframeWrapperHtml(url: String): String {
+    val escapedUrl =
+        url
+            .replace("&", "&amp;")
+            .replace("\"", "&quot;")
+            .replace("<", "&lt;")
+            .replace(">", "&gt;")
+            .replace("'", "&#39;")
+    return """
+        <!DOCTYPE html>
+        <html>
+        <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <style>html, body { height: 100%; margin: 0; }</style>
+        </head>
+        <body>
+        <iframe src="$escapedUrl" style="width:100%; height:100%; border:0; display:block"></iframe>
+        </body>
+        </html>
+    """.trimIndent()
+}
+
+/** [buildIframeWrapperHtml] for [url] as a self-contained base64 `data:` URL. */
+internal fun iframeWrapperDataUrl(url: String): String =
+    "data:text/html;charset=utf-8;base64," +
+        java.util.Base64.getEncoder().encodeToString(buildIframeWrapperHtml(url).toByteArray(Charsets.UTF_8))

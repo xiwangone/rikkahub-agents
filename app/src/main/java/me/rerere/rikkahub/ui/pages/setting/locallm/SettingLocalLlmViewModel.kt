@@ -13,7 +13,9 @@ import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.LITERT_PROVIDER_ID
 import me.rerere.ai.provider.LLAMACPP_PROVIDER_ID
+import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
+import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.locallm.AcceleratorProbe
 import me.rerere.locallm.LocalRuntime
@@ -180,7 +182,7 @@ class SettingLocalLlmViewModel(
                         inputModalities = model.inputModalities,
                         abilities = model.abilities,
                     )
-                val target = LiteRtModelMetadata.deriveCapabilities(model.modelId)
+                val target = deriveLocalModelCapabilities(runtime, model.modelId)
                 val merged = LiteRtModelMetadata.mergeAdditive(current, target)
                 if (merged.inputModalities == model.inputModalities &&
                     merged.abilities == model.abilities
@@ -271,7 +273,7 @@ class SettingLocalLlmViewModel(
             val knownModelIds = currentProvider.models.map { it.modelId }.toSet()
             val missing = finalInstalled.keys.filter { it !in knownModelIds }
             for (fileName in missing) {
-                val caps = LiteRtModelMetadata.deriveCapabilities(fileName)
+                val caps = deriveLocalModelCapabilities(runtime, fileName)
                 val model =
                     Model(
                         modelId = fileName,
@@ -439,7 +441,7 @@ class SettingLocalLlmViewModel(
                 is ModelInstall.Progress.Done -> {
                     _downloadProgress.value = null
                     prefs.addInstalledModel(runtime, fileName, p.file.absolutePath)
-                    val caps = LiteRtModelMetadata.deriveCapabilities(fileName)
+                    val caps = deriveLocalModelCapabilities(runtime, fileName)
                     val model =
                         Model(
                             modelId = fileName,
@@ -447,15 +449,11 @@ class SettingLocalLlmViewModel(
                             inputModalities = caps.inputModalities,
                             abilities = caps.abilities,
                         )
-                    updateMyProvider { provider -> provider.addModel(model) }
+                    // Re-downloading a file already registered updates that entry in place
+                    // instead of appending a same-modelId duplicate (see registerInstalledModel).
+                    updateMyProvider { provider -> registerInstalledModel(provider, model) }
                     // Enable the provider automatically after the first successful download.
-                    updateMyProvider { provider ->
-                        when (provider) {
-                            is ProviderSetting.LiteRtLocal -> provider.copy(enabled = true)
-                            is ProviderSetting.LlamaCppLocal -> provider.copy(enabled = true)
-                            else -> provider
-                        }
-                    }
+                    updateMyProvider { provider -> enableAfterFirstDownload(provider) }
                     refreshFromDisk()
                 }
 
@@ -483,7 +481,7 @@ class SettingLocalLlmViewModel(
     ) {
         viewModelScope.launch {
             prefs.addInstalledModel(runtime, fileName, absolutePath)
-            val caps = LiteRtModelMetadata.deriveCapabilities(fileName)
+            val caps = deriveLocalModelCapabilities(runtime, fileName)
             val model =
                 Model(
                     modelId = fileName,
@@ -491,14 +489,9 @@ class SettingLocalLlmViewModel(
                     inputModalities = caps.inputModalities,
                     abilities = caps.abilities,
                 )
-            updateMyProvider { provider -> provider.addModel(model) }
+            updateMyProvider { provider -> registerInstalledModel(provider, model) }
             // Enable the provider automatically after a successful import, same as a download.
-            updateMyProvider { provider ->
-                when (provider) {
-                    is ProviderSetting.LiteRtLocal -> provider.copy(enabled = true)
-                    else -> provider
-                }
-            }
+            updateMyProvider { provider -> enableAfterFirstDownload(provider) }
             refreshFromDisk()
         }
     }
@@ -551,3 +544,62 @@ class SettingLocalLlmViewModel(
             LocalRuntime.LlamaCpp -> me.rerere.llamacpp.LlamaCppCatalog.ENTRIES.first().sizeBytes + 200_000_000L
         }
 }
+
+/**
+ * Auto-enable transform applied after a model download/import completes: local-runtime
+ * provider settings (LiteRT, llama.cpp) flip to `enabled = true` so the just-installed model
+ * becomes usable without a second trip to Settings. Everything else passes through unchanged;
+ * a total function over [ProviderSetting] so it is directly unit-testable.
+ */
+internal fun enableAfterFirstDownload(provider: ProviderSetting): ProviderSetting =
+    when (provider) {
+        is ProviderSetting.LiteRtLocal -> provider.copy(enabled = true)
+        is ProviderSetting.LlamaCppLocal -> provider.copy(enabled = true)
+        else -> provider
+    }
+
+/**
+ * Registers a just-installed local model on [provider]. [ProviderSetting.addModel] is a plain
+ * append, so calling it for a file name that already has a registered [Model] would leave two
+ * entries with the same `modelId` but different [Model.id]s — the older an unreachable ghost
+ * that id-keyed deletion can never clean up. When an existing model already has [model]'s
+ * `modelId`, update that entry in place (keeping its [Model.id]) instead of appending.
+ */
+internal fun registerInstalledModel(provider: ProviderSetting, model: Model): ProviderSetting {
+    val existing = provider.models.firstOrNull { it.modelId == model.modelId }
+    return if (existing != null) {
+        provider.editModel(model.copy(id = existing.id))
+    } else {
+        provider.addModel(model)
+    }
+}
+
+/**
+ * Runtime-aware capability derivation for an installed model file. LiteRT routes through the
+ * catalog-driven [LiteRtModelMetadata.deriveCapabilities]. llama.cpp has no vision support in
+ * this build, so it always reports TEXT-only input (routing a GGUF through the LiteRT table
+ * could wrongly grant IMAGE); TOOL is assumed, REASONING comes from a matching
+ * [me.rerere.llamacpp.LlamaCppCatalog] entry's `thinking` tag.
+ */
+internal fun deriveLocalModelCapabilities(
+    runtime: LocalRuntime,
+    fileName: String,
+): LiteRtModelMetadata.Capabilities =
+    when (runtime) {
+        LocalRuntime.LiteRT -> LiteRtModelMetadata.deriveCapabilities(fileName)
+        LocalRuntime.LlamaCpp -> {
+            val tags =
+                me.rerere.llamacpp.LlamaCppCatalog.ENTRIES
+                    .firstOrNull { it.file == fileName }
+                    ?.tags
+                    .orEmpty()
+            LiteRtModelMetadata.Capabilities(
+                inputModalities = listOf(Modality.TEXT),
+                abilities =
+                    buildList {
+                        add(ModelAbility.TOOL)
+                        if ("thinking" in tags) add(ModelAbility.REASONING)
+                    },
+            )
+        }
+    }
