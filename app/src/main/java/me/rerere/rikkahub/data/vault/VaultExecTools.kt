@@ -262,7 +262,7 @@ private suspend fun executeVaultSshSession(
     val jsch = JSch()
     val knownHostsFile = java.io.File(context.filesDir, "vault_known_hosts")
     jsch.setKnownHosts(knownHostsFile.absolutePath)
-    val isFirstConnect = isFirstKnownHostConnect(knownHostsFile, host)
+    val isFirstConnect = isFirstKnownHostConnect(knownHostsFile, host, port)
     // 与 SshNetworkSession / SshTerminalPage 保持一致：先问隧道。
     // tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号，userspace tsnet 只把出口开在
     // 127.0.0.1:<随机端口>；不解析会表现为 "connection is closed by foreign host"
@@ -341,11 +341,18 @@ private suspend fun executeVaultSshSession(
     )
 }
 
-private fun isFirstKnownHostConnect(knownHostsFile: java.io.File, host: String): Boolean {
+private fun isFirstKnownHostConnect(knownHostsFile: java.io.File, host: String, port: Int): Boolean {
     if (!knownHostsFile.exists()) return true
-    return knownHostsFile.readText().lines().none { line ->
-        line.isNotBlank() && !line.startsWith("#") &&
-            (line.startsWith(host) || line.contains(" $host ") || line.contains(" $host,"))
+    val want = if (port == 22) host else "[$host]:$port"
+    return knownHostsFile.readText().lines().none { raw ->
+        val line = raw.trim()
+        if (line.isEmpty() || line.startsWith("#")) return@none false
+        // 精确匹配第一字段（支持逗号分隔多主机、[host]:port 形式）。
+        // 旧的 startsWith(host) 会把 10.0.0.1 判成命中 10.0.0.10 → 首连误判为「已知」，
+        // 随后 yes 连接失败又被误报成 host_key_changed。
+        line.substringBefore(' ').split(',').any { entry ->
+            entry == want || entry == host || entry == "[$host]:$port"
+        }
     }
 }
 
