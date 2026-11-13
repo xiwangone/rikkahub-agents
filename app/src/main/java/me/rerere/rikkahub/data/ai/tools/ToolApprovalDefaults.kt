@@ -320,9 +320,29 @@ object ToolApprovalDefaults {
         // licence for the model to prune the user's vault unattended.
         "vault_credential_delete",
         "vault_credential_merge",
+        // P0-2 — vault_ssh_exec / vault_http_exec: the credential value leaves the app
+        // (SSH session / HTTP header) on every call, so a standing "Always Allow" would
+        // let an unattended turn (cron / sub-agent / workflow) fire credentials at
+        // arbitrary hosts. Per-call confirmation every time; see [isAutoApprovable].
+        "vault_ssh_exec",
+        "vault_http_exec",
     )
 
     fun allowsAlwaysAllow(toolName: String): Boolean = toolName !in NO_ALWAYS_ALLOW
+
+    /**
+     * Whether a tool may ever be auto-approved by a blanket path (global YOLO,
+     * headless auto-approve, per-chat allow-list, persistent "Always Allow").
+     *
+     * This is exactly [allowsAlwaysAllow]: the NO_ALWAYS_ALLOW contract is "confirm
+     * every single call", and a blanket path that auto-approves the tool breaks that
+     * contract just as surely as a persistent grant does. The single enforcement
+     * point is the auto-approval decision in `ChatService` — every execution path
+     * (chat / cron / sub-agent / workflow / Telegram) funnels through it, so a
+     * NO_ALWAYS_ALLOW tool can never silently fire in a headless session: it lands
+     * in Pending and the turn ends without executing it.
+     */
+    fun isAutoApprovable(toolName: String): Boolean = allowsAlwaysAllow(toolName)
 
     /**
      * True if [toolName] requires approval. Local tools are looked up in [ALWAYS_ASK];

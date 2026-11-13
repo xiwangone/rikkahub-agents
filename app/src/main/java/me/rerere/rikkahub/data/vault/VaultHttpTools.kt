@@ -167,6 +167,8 @@ internal suspend fun allVaultSecrets(repository: CredentialVaultRepository): Lis
  * - 每次调用需人工审批（needsApproval = true），审批面展示 URL + 凭证名
  * - 响应体经 SecretMasker 掩码（防响应中夹带其他凭证明文）
  * - 审计记录（logAccess）
+ * - 凭证须通过目的地绑定（`metaJson.endpoint`，绑定后请求 URL 必须在基址之下）
+ *   与类型校验（须为 api-key / cloud-ak 类型），否则拒绝（P0-2）。
  */
 fun vaultHttpExecTool(
     context: Context,
@@ -177,6 +179,8 @@ fun vaultHttpExecTool(
         append("Call an HTTP(S) API using a credential stored in the vault. ")
         append("The credential value is injected as a request header inside the app process (default Authorization: <scheme> <value>); ")
         append("the AI only receives the response. Use for backend services / APIs that require a token or key. ")
+        append("The credential must be an api-key (or cloud-ak) credential, and if the credential has an endpoint bound ")
+        append("in its metadata, the URL must be under that endpoint. ")
         append("The response body is masked against credential patterns before returning. Approval required before making the request.")
     },
     parameters = {
@@ -271,7 +275,13 @@ private suspend fun runVaultHttpExec(
     }
     val resolved =
         CredentialResolver(repository) { sessionManager.hasActiveAuthorization() }
-            .resolve(credName, CredentialPurpose.HTTP_HEADER, caller = "ai-tool")
+            .resolve(
+                credName,
+                CredentialPurpose.HTTP_HEADER,
+                caller = "ai-tool",
+                destination = CredentialDestination.Http(url),
+                use = CredentialUse.HTTP_HEADER,
+            )
     val secret = (resolved as? CredentialResolution.Granted)?.value ?: return fail(resolved.message)
 
     return try {

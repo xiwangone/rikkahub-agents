@@ -59,4 +59,25 @@ class McpAlwaysAllowExclusionTest {
         assertTrue("eval_javascript" in ToolApprovalDefaults.ALWAYS_ASK)
         assertTrue(ToolApprovalDefaults.requiresApproval("eval_javascript"))
     }
+
+    // P0-2 — vault_ssh_exec / vault_http_exec: the credential value leaves the app on
+    // every call, so a standing "Always Allow" would let an unattended turn fire
+    // credentials at arbitrary hosts. Both must be per-call confirmed, and no blanket
+    // path (YOLO / headless auto-approve / per-chat / persistent) may auto-approve
+    // them — that is what ToolApprovalDefaults.isAutoApprovable enforces.
+    @Test fun `vault exec tools reject always-allow scope and are never auto-approvable`() {
+        assertFalse(ToolApprovalDefaults.allowsAlwaysAllow("vault_ssh_exec"))
+        assertFalse(ToolApprovalDefaults.allowsAlwaysAllow("vault_http_exec"))
+        assertFalse(ToolApprovalDefaults.isAutoApprovable("vault_ssh_exec"))
+        assertFalse(ToolApprovalDefaults.isAutoApprovable("vault_http_exec"))
+    }
+
+    @Test fun `no-always-allow tools are never auto-approvable, others are`() {
+        for (name in ToolApprovalDefaults.NO_ALWAYS_ALLOW) {
+            assertFalse("$name should never auto-approve", ToolApprovalDefaults.isAutoApprovable(name))
+        }
+        assertTrue(ToolApprovalDefaults.isAutoApprovable("ssh_exec"))
+        assertTrue(ToolApprovalDefaults.isAutoApprovable("termux_run_command"))
+        assertTrue(ToolApprovalDefaults.isAutoApprovable("vault_export_env"))
+    }
 }

@@ -495,7 +495,10 @@ internal fun CredentialEditorDialog(
                 val recommendedKeys =
                     when (type) {
                         CredentialType.API_KEY -> listOf("endpoint", "header", "prefix", "account", "access_key_id", "region")
-                        CredentialType.BASIC_AUTH -> listOf("username", "account")
+                        // P0-2：endpoint 是目的地绑定的载体——SSH 密钥/口令凭证也要能填
+                        // （vault_ssh_exec 只允许连绑定的 host），否则绑定在 UI 里设不出来。
+                        CredentialType.SSH_KEY -> listOf("endpoint", "account")
+                        CredentialType.BASIC_AUTH -> listOf("endpoint", "username", "account")
                         CredentialType.TOTP -> listOf("algorithm", "digits", "period")
                         CredentialType.CLOUD_AK -> listOf("access_key_id", "account", "region", "project_id")
                         else -> listOf("account")

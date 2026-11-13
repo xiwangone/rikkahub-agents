@@ -33,7 +33,9 @@ import me.rerere.rikkahub.data.datastore.SshPlatform
  *   （`/workspace/tmp/vault-env.sh`）供沙箱脚本 `source`；工具向 AI 返回的内容不含明文，
  *   仅含已导出变量名列表、文件路径与用完立即删除提醒。
  * - `vault_ssh_exec`：SSH 私钥或密码只在 App 进程内存中通过 JSch 加载使用，不落盘，
- *   工具返回值仅含命令执行输出。
+ *   工具返回值仅含命令执行输出。凭证须通过目的地绑定（`metaJson.endpoint`，绑定后
+ *   host 必须命中）与类型校验（`auth=key` 须为 ssh-key 类型，`auth=password` 须为
+ *   basic-auth 类型），否则拒绝（P0-2）。
  */
 
 /** vault_export_env — 工具桥：把密钥库凭证解密值导出为沙箱环境变量文件（AI 不见明文）。 */
@@ -166,6 +168,8 @@ fun vaultSshExecTool(
         "Connect to a server via SSH using a credential stored in the vault " +
             "(private key or password), run a single command, and return its output. " +
             "auth: 'key' uses a vault-stored SSH private key; 'password' uses a vault-stored password. " +
+            "The credential must match the auth kind, and if the credential has an endpoint bound " +
+            "in its metadata, the host must match that endpoint. " +
             "Approval required before connecting.",
     parameters = {
         InputSchema.Obj(
@@ -209,11 +213,18 @@ private suspend fun runVaultSshExec(
     if (!sessionManager.hasActiveAuthorization()) {
         return fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
     }
+    // auth 取值先验：无效取值不应走到凭证解析（否则类型校验会先报"类型不匹配"，掩盖真正的参数错）。
+    if (auth != "key" && auth != "password") return fail("auth only supports key/password")
     val resolved =
         CredentialResolver(repository) { sessionManager.hasActiveAuthorization() }
-            .resolve(credName, CredentialPurpose.SSH_AUTH, caller = "ai-tool")
+            .resolve(
+                credName,
+                CredentialPurpose.SSH_AUTH,
+                caller = "ai-tool",
+                destination = CredentialDestination.Ssh(host, port, user),
+                use = if (auth == "key") CredentialUse.SSH_KEY else CredentialUse.SSH_PASSWORD,
+            )
     val secret = (resolved as? CredentialResolution.Granted)?.value ?: return fail(resolved.message)
-    if (auth != "key" && auth != "password") return fail("auth only supports key/password")
 
     return runCatching {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
@@ -240,13 +251,19 @@ private suspend fun runVaultSshExec(
     }
 }
 
-/** 与 SshTool.isHostKeyChange 同口径的主机密钥变化判定（Vault 侧本地复刻，跨包不可见）。 */
-private fun isVaultHostKeyChange(msg: String?): Boolean {
+/**
+ * 主机密钥变化判定（P0-2 收窄：只认"密钥已变更"的确切报错）。
+ *
+ * P0-1 之前这里是裸子串（"HostKey" / "host key"），会把 "HostKey algorithm … not
+ * supported" 这类与变更无关的失败也判成 host_key_changed，信封里的 hint 还会教模型
+ * 去调 ssh_forget_host_key——没变过的 key 被忘掉，等于帮攻击者清信任。P0-1 把校验
+ * 接到 AcceptNewHostKeyRepository 后，变更时 JSch 抛的就是 "HostKey has been changed"，
+ * 只认这句 + OpenSSH 的同义报错即可。
+ */
+internal fun isVaultHostKeyChange(msg: String?): Boolean {
     val m = msg.orEmpty()
-    return m.contains("HostKey", ignoreCase = true) ||
-        m.contains("host key", ignoreCase = true) ||
-        m.contains("identification has changed", ignoreCase = true) ||
-        m.contains("REMOTE HOST IDENTIFICATION", ignoreCase = true)
+    return m.contains("HostKey has been changed", ignoreCase = true) ||
+        m.contains("identification has changed", ignoreCase = true)
 }
 
 private suspend fun executeVaultSshSession(

@@ -60,6 +60,13 @@ sealed interface CredentialResolution {
     data class Undecryptable(val name: String) : CredentialResolution
 
     /**
+     * 目的地绑定 / 类型校验拒绝（P0-2）：凭证存在、授权通过、能解密，但本次使用
+     * 不在凭证允许的范围内（目的地不在绑定的 endpoint 内，或类型与用途不匹配）。
+     * [reason] 是可直接展示的拒绝原因。
+     */
+    data class Rejected(val name: String, val reason: String) : CredentialResolution
+
+    /**
      * 字段引用（`$$名字.字段`）取不到值：该条目没有这个明文字段，或该字段不允许引用。
      *
      * **不与"字段不存在"区分对外文案**——能分辨两者就等于给了一个"这条凭证里藏了什么"的
@@ -81,6 +88,7 @@ val CredentialResolution.message: String
         is CredentialResolution.Missing -> "Credential does not exist: $name (use vault_credential_names to list available names)"
         is CredentialResolution.NotAuthorized -> "Credential $name needs session authorization: complete vault authorization first (30 minutes or always valid)"
         is CredentialResolution.Undecryptable -> "Credential decryption failed: $name"
+        is CredentialResolution.Rejected -> reason
         is CredentialResolution.MissingField ->
             "Credential $name has no referable plaintext field \"$field\":" +
                 "\$\$name takes the main value; \$\$name.field only supports plaintext metadata keys (endpoint/access_key_id/region/custom.* etc.)"
@@ -89,8 +97,9 @@ val CredentialResolution.message: String
 /**
  * 凭证引用解析器（单点）。
  *
- * 所有需要凭证明文的地方都必须经此解析，以保证四项语义**只有一处实现**：
- * 存在性 → 会话授权（按 purpose 策略）→ 解密 → 审计（**成功与拒绝都记**）。
+ * 所有需要凭证明文的地方都必须经此解析，以保证以下语义**只有一处实现**：
+ * 存在性 → 会话授权（按 purpose 策略）→ 解密 → 目的地绑定 / 类型校验
+ * （仅传 `destination` + `use` 的调用方，如 vault_ssh_exec / vault_http_exec）→ 审计（**成功与拒绝都记**）。
  *
  * 约定：
  * - [audit] = false 仅用于"内部分辨"（如连接前探测候选主机是否有可用凭证），
@@ -108,6 +117,13 @@ class CredentialResolver(
         purpose: CredentialPurpose,
         caller: String = "app",
         audit: Boolean = true,
+        /**
+         * 本次使用的目的地 + 用途（P0-2，仅 vault_ssh_exec / vault_http_exec 传）。
+         * 两者都传时才做目的地绑定 + 类型校验；任一为空 = 不做对应检查（其余调用方行为不变）。
+         * 校验在解密之后、放行之前：拒绝时记 `${purpose.action}_denied` 审计，值不出进程。
+         */
+        destination: CredentialDestination? = null,
+        use: CredentialUse? = null,
     ): CredentialResolution {
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return CredentialResolution.Missing(name)
@@ -127,6 +143,14 @@ class CredentialResolver(
         if (value == null) {
             if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_undecryptable")
             return CredentialResolution.Undecryptable(trimmed)
+        }
+
+        if (destination != null && use != null) {
+            val rejection = CredentialBinding.check(entry, value, use, destination)
+            if (rejection != null) {
+                if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_denied")
+                return CredentialResolution.Rejected(trimmed, rejection)
+            }
         }
 
         if (audit) repository.logAccess(trimmed, caller, purpose.action)

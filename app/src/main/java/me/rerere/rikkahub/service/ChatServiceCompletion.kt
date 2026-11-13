@@ -339,6 +339,13 @@ private suspend fun ChatService.isToolAutoApprovedForConversation(
     if (toolName == "ask_user") {
         me.rerere.rikkahub.data.ai.tools.HeadlessConversations
             .shouldAutoApprove(conversationId)
+    } else if (!me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.isAutoApprovable(toolName)) {
+        // NO_ALWAYS_ALLOW（P0-2：vault_ssh_exec / vault_http_exec 等）：该集合的契约是
+        // "每次调用都必须单独确认"，任何 blanket 放行（YOLO / 无界面自动审批 / 本会话
+        // 允许 / 持久"总是允许"）都不能覆盖它——否则无界面会话（cron / 子代理 /
+        // workflow）仍会在无人确认的情况下把凭据发往任意目的地。命中时直接返回 false，
+        // 工具落成 Pending、该轮不执行。
+        false
     } else {
         toolApprovalPreferences.currentYolo() ||
             me.rerere.rikkahub.data.ai.tools.HeadlessConversations
