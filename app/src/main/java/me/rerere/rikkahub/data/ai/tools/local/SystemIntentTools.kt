@@ -172,9 +172,9 @@ fun createContactTool(
         }
         val result = fireIntent(
             context, intent, action = "create_contact",
-            summary = "Contact draft: ${displayName.ifBlank { "（未命名）" }}",
+            summary = "Contact draft: ${displayName.ifBlank { "(Unnamed)" }}",
         )
-        streamer.streamIfHeadless(invocationContext, "CreateContact: ${displayName.ifBlank { "（未命名）" }}")
+        streamer.streamIfHeadless(invocationContext, "CreateContact: ${displayName.ifBlank { "(Unnamed)" }}")
         result
     },
 )

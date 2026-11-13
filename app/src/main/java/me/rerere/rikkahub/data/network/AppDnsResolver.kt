@@ -65,14 +65,14 @@ object AppDnsResolver {
     val PRESETS: List<DnsPreset> = listOf(
         DnsPreset(
             id = "alidns",
-            label = "AliDNS (阿里)",
+            label = "AliDNS (Alibaba)",
             dohUrl = "https://dns.alidns.com/dns-query",
             dotHost = "dns.alidns.com",
             bootstrapIps = "223.5.5.5, 223.6.6.6",
         ),
         DnsPreset(
             id = "dnspod",
-            label = "DNSPod (腾讯)",
+            label = "DNSPod (Tencent)",
             dohUrl = "https://doh.pub/dns-query",
             dotHost = "dot.pub",
             bootstrapIps = "119.29.29.29, 1.12.12.12, 120.53.53.53",

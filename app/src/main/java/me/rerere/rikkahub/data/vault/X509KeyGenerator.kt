@@ -37,7 +37,7 @@ object X509KeyGenerator {
     private const val SIGNATURE_ALGORITHM = "SHA256withECDSA"
 
     enum class Kind(val label: String) {
-        SELF_SIGNED_CERTIFICATE("X.509 自签证书"),
+        SELF_SIGNED_CERTIFICATE("X.509 Self-signed Certificate"),
         CSR("PKCS#10 CSR"),
     }
 

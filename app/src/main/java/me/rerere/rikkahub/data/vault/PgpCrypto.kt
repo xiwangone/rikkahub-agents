@@ -72,7 +72,7 @@ object PgpCrypto {
      */
     fun sign(armoredPrivateKey: String, data: ByteArray, passphrase: CharArray? = null): String {
         val ring = parseSecretRing(armoredPrivateKey)
-        val secretKey = ring.secretKey ?: throw PgpCryptoException("私钥环里没有可用的签名密钥")
+        val secretKey = ring.secretKey ?: throw PgpCryptoException("No usable signing key in the private key ring")
         val privateKey = extractPrivateKey(secretKey, passphrase)
         val hashAlg =
             if (secretKey.publicKey.algorithm == PublicKeyAlgorithmTags.EDDSA) {
@@ -104,24 +104,24 @@ object PgpCrypto {
                 }
             }
             list?.takeIf { !it.isEmpty }?.get(0)
-        }.getOrElse { return VerifyResult.Invalid("签名解析失败: ${it.message}") }
-            ?: return VerifyResult.Invalid("未找到签名对象")
+        }.getOrElse { return VerifyResult.Invalid("Failed to parse signature: ${it.message}") }
+            ?: return VerifyResult.Invalid("No signature object found")
 
         val publicKeyRing = resolvePublicRing(armoredPublicKey)
         val signerKey: PGPPublicKey = publicKeyRing.getPublicKey(sig.keyID)
-            ?: return VerifyResult.Invalid("签名者 Key ID ${"%016X".format(sig.keyID)} 不在提供的公钥环中")
+            ?: return VerifyResult.Invalid("Signer Key ID ${"%016X".format(sig.keyID)} is not in the provided public key ring")
         return try {
             sig.init(BcPGPContentVerifierBuilderProvider(), signerKey)
             sig.update(data)
             if (sig.verify()) {
                 VerifyResult.Valid(Hex.toHexString(signerKey.fingerprint).uppercase())
             } else {
-                VerifyResult.Invalid("签名与数据不匹配（数据被篡改或签名者不同）")
+                VerifyResult.Invalid("Signature does not match the data (data tampered with, or a different signer)")
             }
         } catch (e: PGPException) {
-            VerifyResult.Invalid("验签过程失败: ${e.message}")
+            VerifyResult.Invalid("Signature verification failed: ${e.message}")
         } catch (e: RuntimeException) {
-            VerifyResult.Invalid("验签过程失败: ${e.message}")
+            VerifyResult.Invalid("Signature verification failed: ${e.message}")
         }
     }
 
@@ -132,7 +132,7 @@ object PgpCrypto {
         val ring = resolvePublicRing(armoredPublicKey)
         val encryptionKey = ring.firstOrNull { it.isEncryptionKey }
             ?: throw PgpCryptoException(
-                "该公钥环没有加密子密钥（只有签名能力）——需要带 ECDH 加密子密钥的公钥",
+                "This public key ring has no encryption subkey (signing only) — a public key with an ECDH encryption subkey is required",
             )
         val generator = PGPEncryptedDataGenerator(
             BcPGPDataEncryptorBuilder(SymmetricKeyAlgorithmTags.AES_256)
@@ -167,7 +167,7 @@ object PgpCrypto {
             }
         }
         val list = encryptedList
-            ?: throw PgpCryptoException("密文里没有找到加密数据包（不是有效的 OpenPGP 消息？）")
+            ?: throw PgpCryptoException("No encrypted data packet found in the ciphertext (not a valid OpenPGP message?)")
 
         var matchedKey: PGPPrivateKey? = null
         var matchedData: PGPPublicKeyEncryptedData? = null
@@ -185,9 +185,9 @@ object PgpCrypto {
         if (key == null || data == null) {
             throw PgpCryptoException(
                 if (passphrase == null || passphrase.isEmpty()) {
-                    "私钥环里没有能解开这份密文的密钥（或私钥带口令但未传 passphrase）"
+                    "No key in the private key ring can decrypt this ciphertext (or the private key has a passphrase that was not passed)"
                 } else {
-                    "passphrase 不正确，或私钥环里没有匹配的密钥"
+                    "Incorrect passphrase, or no matching key in the private key ring"
                 },
             )
         }
@@ -201,7 +201,7 @@ object PgpCrypto {
             obj = PGPObjectFactory(obj.dataStream, BcKeyFingerprintCalculator()).nextObject()
         }
         val literal = obj as? PGPLiteralData
-            ?: throw PgpCryptoException("解密后不是字面量数据包（结构异常）")
+            ?: throw PgpCryptoException("Decrypted output is not a literal data packet (malformed structure)")
         return literal.inputStream.readBytes()
     }
 
@@ -214,11 +214,11 @@ object PgpCrypto {
             BcKeyFingerprintCalculator(),
         )
     } catch (e: IOException) {
-        throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
+        throw PgpCryptoException("Failed to parse private key (armored private key block required): ${e.message}", e)
     } catch (e: PGPException) {
-        throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
+        throw PgpCryptoException("Failed to parse private key (armored private key block required): ${e.message}", e)
     } catch (e: RuntimeException) {
-        throw PgpCryptoException("私钥解析失败（需要 armored 私钥块）: ${e.message}", e)
+        throw PgpCryptoException("Failed to parse private key (armored private key block required): ${e.message}", e)
     }
 
     /** armored 公钥块 → 公钥环。 */
@@ -228,9 +228,9 @@ object PgpCrypto {
             BcKeyFingerprintCalculator(),
         )
     } catch (e: IOException) {
-        throw PgpCryptoException("公钥解析失败（需要 armored 公钥块）: ${e.message}", e)
+        throw PgpCryptoException("Failed to parse public key (armored public key block required): ${e.message}", e)
     } catch (e: RuntimeException) {
-        throw PgpCryptoException("公钥解析失败（需要 armored 公钥块）: ${e.message}", e)
+        throw PgpCryptoException("Failed to parse public key (armored public key block required): ${e.message}", e)
     }
 
     /**
@@ -253,9 +253,9 @@ object PgpCrypto {
                 BcKeyFingerprintCalculator(),
             )
         } catch (e: IOException) {
-            throw PgpCryptoException("从私钥块提取公钥失败: ${e.message}", e)
+            throw PgpCryptoException("Failed to extract public key from private key block: ${e.message}", e)
         } catch (e: RuntimeException) {
-            throw PgpCryptoException("从私钥块提取公钥失败: ${e.message}", e)
+            throw PgpCryptoException("Failed to extract public key from private key block: ${e.message}", e)
         }
     }
 
@@ -273,7 +273,7 @@ object PgpCrypto {
     private fun extractPrivateKey(secretKey: PGPSecretKey, passphrase: CharArray?): PGPPrivateKey =
         extractPrivateKeyOrNull(secretKey, passphrase)
             ?: throw PgpCryptoException(
-                if (passphrase == null || passphrase.isEmpty()) "私钥被口令保护，需要传 passphrase" else "passphrase 不正确",
+                if (passphrase == null || passphrase.isEmpty()) "The private key is passphrase-protected; pass a passphrase" else "Incorrect passphrase",
             )
 
     private fun extractPrivateKeyOrNull(secretKey: PGPSecretKey, passphrase: CharArray?): PGPPrivateKey? = try {

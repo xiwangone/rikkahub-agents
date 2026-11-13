@@ -81,7 +81,7 @@ class SshPublicKeyParseTest {
         val b64 = line.split(" ")[1]
         val damaged = line.substringBefore(b64) + b64 + "Q"
         assertNull(SshKeyGenerator.fingerprint(damaged))
-        assertTrue(SshKeyGenerator.publicKeyLineIssue(damaged)!!.contains("无法解码"))
+        assertTrue(SshKeyGenerator.publicKeyLineIssue(damaged)!!.contains("cannot be decoded"))
     }
 
     /** 声明类型与 blob 内嵌类型不一致（改错头、或粘串了行）。 */
@@ -90,7 +90,7 @@ class SshPublicKeyParseTest {
         val line = SshKeyGenerator.generate(SshKeyGenerator.KeyType.ED25519, "c@ed").publicKeyLine
         val swapped = "ssh-rsa " + line.split(" ").drop(1).joinToString(" ")
         assertNull(SshKeyGenerator.fingerprint(swapped))
-        assertTrue(SshKeyGenerator.publicKeyLineIssue(swapped)!!.contains("不一致"))
+        assertTrue(SshKeyGenerator.publicKeyLineIssue(swapped)!!.contains("does not match"))
     }
 
     /** 长度前缀越界：结构校验的意义就在这 —— 别把"看着像 base64"当"能用"。 */
@@ -101,13 +101,13 @@ class SshPublicKeyParseTest {
             byteArrayOf(0x7F.toByte(), 0xFF.toByte(), 0xFF.toByte(), 0xFF.toByte())
         val line = "ssh-ed25519 ${b64u(blob)} c@evil"
         assertNull(SshKeyGenerator.fingerprint(line))
-        assertTrue(SshKeyGenerator.publicKeyLineIssue(line)!!.contains("越界"))
+        assertTrue(SshKeyGenerator.publicKeyLineIssue(line)!!.contains("out of bounds"))
     }
 
     @Test
     fun `field counts are enforced per key type`() {
         val ed = sshString("ssh-ed25519".toByteArray()) + sshString(ByteArray(32)) + sshString(ByteArray(32))
-        assertTrue(SshKeyGenerator.publicKeyLineIssue("ssh-ed25519 ${b64u(ed)}")!!.contains("键体字段"))
+        assertTrue(SshKeyGenerator.publicKeyLineIssue("ssh-ed25519 ${b64u(ed)}")!!.contains("key-body fields"))
         val shortEd = sshString("ssh-ed25519".toByteArray()) + sshString(ByteArray(31))
         assertTrue(SshKeyGenerator.publicKeyLineIssue("ssh-ed25519 ${b64u(shortEd)}")!!.contains("32"))
     }
@@ -137,7 +137,7 @@ class SshPublicKeyParseTest {
         val stripped = sshString(fields[0]) + sshString(fields[1]) + sshString(fields[2].copyOfRange(1, fields[2].size))
         val damaged = "ssh-rsa ${b64u(stripped)} c@rsa"
         assertNotNull(SshKeyGenerator.publicKeyLineIssue(damaged))
-        assertTrue(SshKeyGenerator.publicKeyLineIssue(damaged)!!.contains("负数"))
+        assertTrue(SshKeyGenerator.publicKeyLineIssue(damaged)!!.contains("negative"))
         assertNull(SshKeyGenerator.fingerprint(damaged))
     }
 

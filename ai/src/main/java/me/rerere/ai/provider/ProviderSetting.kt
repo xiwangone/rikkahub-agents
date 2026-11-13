@@ -533,7 +533,7 @@ sealed class ProviderSetting {
     data class Backend(
         override var id: Uuid = Uuid.random(),
         override var enabled: Boolean = false,
-        override var name: String = "后端服务",
+        override var name: String = "Backend Service",
         override var models: List<Model> = emptyList(),
         override val balanceOption: BalanceOption = BalanceOption(),
         override val customHeaders: List<CustomHeader> = emptyList(),

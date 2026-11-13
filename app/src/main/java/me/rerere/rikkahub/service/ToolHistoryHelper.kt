@@ -68,7 +68,7 @@ internal object ToolHistoryHelper {
     // 工具输出预览的保留长度：开头 + 结尾，总长不高于原来的 500 字符上限。
     private const val OUTPUT_HEAD_CHARS = 200
     private const val OUTPUT_TAIL_CHARS = 300
-    private const val OUTPUT_TRUNCATION_MARK = "…[中间已省略]…"
+    private const val OUTPUT_TRUNCATION_MARK = "…[omitted in the middle]…"
 
     /**
      * 工具输出预览：保留**开头**与**结尾**，中间用省略标记替代。

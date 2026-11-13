@@ -49,14 +49,14 @@ class TermuxCliCommandExecutor(
         return when (result) {
             is CaptureResult.Success ->
                 if (result.stdout.isNotBlank()) result.stdout.trim() else result.stderr.trim()
-            is CaptureResult.Timeout -> "CLI 命令执行超时"
-            is CaptureResult.Denied -> "CLI 命令执行被拒绝（Termux 未授权）"
-            is CaptureResult.OtherError -> "CLI 命令执行失败：${result.message}"
+            is CaptureResult.Timeout -> "CLI command execution timed out"
+            is CaptureResult.Denied -> "CLI command execution denied (Termux not authorized)"
+            is CaptureResult.OtherError -> "CLI command execution failed: ${result.message}"
         }
     }
 
     private suspend fun executeSsh(hostName: String, command: String): String {
-        val host = sshHostRepository.getByName(hostName) ?: return "SSH 主机 $hostName 不存在"
+        val host = sshHostRepository.getByName(hostName) ?: return "SSH host $hostName does not exist"
         // 带原因解析：报错能区分“名字不存在/解不开/未授权”（旧写法只报“无可用凭证”）
         val auth = when (val r = resolveHostAuthDetailed(host, vaultRepository)) {
             is HostAuthResolution.Ready -> r.auth
@@ -78,6 +78,6 @@ class TermuxCliCommandExecutor(
         if (!stdout.isNullOrBlank()) return stdout
         val stderr = payload["stderr"]?.jsonPrimitive?.contentOrNull?.trim()
         if (!stderr.isNullOrBlank()) return stderr
-        return payload["error"]?.jsonPrimitive?.contentOrNull ?: "SSH 执行无输出"
+        return payload["error"]?.jsonPrimitive?.contentOrNull ?: "SSH execution produced no output"
     }
 }

@@ -305,7 +305,7 @@ internal fun ModelCard(
     RikkaDeleteConfirmDialog(
         show = showDeleteDialog,
         title = stringResource(R.string.confirm_delete),
-        message = "将删除模型「${model.displayName}」，此操作不可恢复",
+        message = stringResource(R.string.setting_provider_delete_model_message, model.displayName),
         onConfirm = {
             showDeleteDialog = false
             onDelete()

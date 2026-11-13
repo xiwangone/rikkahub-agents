@@ -4379,4 +4379,54 @@
   <string name="workspace_tool_preset_empty">Shell 预设“%1$s”为空，请在 %2$s 里为它填一条非空命令。</string>
   <string name="workspace_tool_preset_file_corrupted">Shell 预设文件 %1$s 已损坏，无法读取。请先修复该文件的 JSON 内容，而不是新增预设。</string>
   <string name="workspace_tool_timeout_invalid">超时值“%1$s”无效：超时必须是 1 到 %2$s 秒之间的整数。</string>
+  <string name="setting_model_prompt_reset_confirm_text">当前提示词将被替换为默认提示词</string>
+  <string name="setting_model_prompt_unsaved_title">未保存的改动</string>
+  <string name="setting_model_prompt_discard">放弃修改</string>
+  <string name="setting_model_prompt_continue_editing">继续编辑</string>
+  <string name="setting_model_prompt_unsaved_text">提示词已修改但未保存，离开将丢失改动。</string>
+  <string name="setting_provider_delete_selected_message">将删除已选的 %1$d 个模型，此操作不可恢复</string>
+  <string name="setting_provider_remove_override_message">将移除供应商覆盖，模型改用父级供应商配置，此操作不可恢复</string>
+  <string name="setting_provider_delete_model_message">将删除模型「%1$s」，此操作不可恢复</string>
+  <string name="browser_error_code">错误码 %1$d</string>
+  <string name="browser_ssl_title">证书有问题，是否继续访问？</string>
+  <string name="browser_ssl_body">该网站的证书存在问题：%1$s。\n网址：%2$s\n\n自签证书在局域网/自建服务上很常见，但继续访问可能有风险，请确认这是你要访问的网站。</string>
+  <string name="browser_ssl_continue">继续访问</string>
+  <string name="browser_ssl_reason_not_yet_valid">证书尚未生效</string>
+  <string name="browser_ssl_reason_expired">证书已过期</string>
+  <string name="browser_ssl_reason_mismatch">证书域名与网址不匹配</string>
+  <string name="browser_ssl_reason_untrusted">证书颁发机构不受信任（可能是自签证书）</string>
+  <string name="browser_ssl_reason_date_invalid">证书日期无效</string>
+  <string name="browser_ssl_reason_invalid">证书无效</string>
+  <string name="browser_error_page_title">页面加载失败</string>
+  <string name="browser_error_page_cannot_open">无法打开：%1$s</string>
+  <string name="browser_error_page_reason">原因：%1$s</string>
+  <string name="browser_error_page_reload">重新加载</string>
+  <string name="dev_mode_badge">[开发模式]</string>
+  <string name="workspace_detail_mirror_current_unset">当前：未设置</string>
+  <string name="workspace_detail_mirror_current">当前：%1$s</string>
+  <string name="workspace_detail_mirror_custom_address">自定义镜像地址</string>
+  <string name="workspace_detail_new_folder_name">新文件夹名</string>
+  <string name="workspace_detail_create_failed">创建失败</string>
+  <string name="workspace_detail_create_folder_and_move">新建文件夹并移入</string>
+  <string name="workspace_detail_folder_exists_title">“%1$s”已存在</string>
+  <string name="workspace_detail_folder_exists_body">目标位置已有同名文件夹，请选择如何处理：</string>
+  <string name="workspace_detail_export_overwrite">覆盖（删除已有文件夹后导出）</string>
+  <string name="workspace_detail_export_merge">合并到现有文件夹</string>
+  <string name="workspace_detail_selection_cleared_other_dirs">已清空其他目录的选择</string>
+  <string name="workspace_file_readonly_cannot_action">系统文件只读，无法%1$s</string>
+  <string name="workspace_file_editor_unsaved_title">未保存的更改</string>
+  <string name="workspace_file_editor_unsaved_text">此文件有未保存的更改，直接返回将丢失这些更改。</string>
+  <string name="workspace_file_editor_discard">放弃</string>
+  <string name="workspace_files_search_placeholder">搜索文件名</string>
+  <string name="workspace_files_truncated">只显示前 %1$d 条，共 %2$d 条</string>
+  <string name="workspace_terminal_reopen">重新打开</string>
+  <string name="common_apply">应用</string>
+  <string name="common_move">移动</string>
+  <string name="doctor_cred_decrypt_bad_value">凭据解密失败已触发坏值保护（原密文保留在磁盘未覆盖）：%1$s</string>
+  <string name="doctor_default_model">默认模型=%1$s (%2$s)</string>
+  <string name="doctor_default_model_broken">默认模型=%1$s (%2$s)；悬空/未启用模型绑定：%3$s</string>
+  <string name="doctor_broken_assistants">助手=%1$s</string>
+  <string name="doctor_global_model_dangling">全局默认模型悬空</string>
+  <string name="doctor_model_unresolved">未解析</string>
+  <string name="doctor_model_unconfigured">未配置</string>
 </resources>

@@ -84,7 +84,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("56a94d29-c88b-41c5-8e09-38a7612d6cf8"),
-        name = "硅基流动",
+        name = "SiliconFlow",
         baseUrl = "https://api.siliconflow.cn/v1",
         apiKey = "",
         enabled = false,
@@ -127,7 +127,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("d6c4d8c6-3f62-4ca9-a6f3-7ade6b15ecc3"),
-        name = "月之暗面",
+        name = "Moonshot AI",
         baseUrl = "https://api.moonshot.cn/v1",
         apiKey = "",
         enabled = false,
@@ -166,7 +166,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("da020a90-f7b3-4c29-b90e-c511a0630630"),
-        name = "小马算力",
+        name = "TokenPony",
         baseUrl = "https://api.tokenpony.cn/v1",
         apiKey = "",
         enabled = false,
@@ -174,7 +174,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("f76cae46-069a-4334-ab8e-224e4979e58c"),
-        name = "阿里云百炼",
+        name = "Alibaba Cloud Bailian",
         baseUrl = "https://dashscope.aliyuncs.com/compatible-mode/v1",
         apiKey = "",
         enabled = false,
@@ -182,7 +182,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("3dfd6f9b-f9d9-417f-80c1-ff8d77184191"),
-        name = "火山引擎",
+        name = "Volcano Engine",
         baseUrl = "https://ark.cn-beijing.volces.com/api/v3",
         apiKey = "",
         enabled = false,
@@ -190,7 +190,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("3bc40dc1-b11a-46fa-863b-6306971223be"),
-        name = "智谱AI开放平台",
+        name = "Zhipu AI",
         baseUrl = "https://open.bigmodel.cn/api/paas/v4",
         apiKey = "",
         enabled = false,
@@ -198,7 +198,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("f4f8870e-82d3-495b-9b64-d58e508b3b2c"),
-        name = "阶跃星辰",
+        name = "StepFun",
         baseUrl = "https://api.stepfun.com/v1",
         apiKey = "",
         enabled = false,
@@ -214,7 +214,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("ef5d149b-8e34-404b-818c-6ec242e5c3c5"),
-        name = "腾讯Hunyuan",
+        name = "Tencent Hunyuan",
         baseUrl = "https://tokenhub.tencentmaas.com/v1",
         apiKey = "",
         enabled = false,
@@ -231,7 +231,7 @@ val DEFAULT_PROVIDERS = listOf(
     ),
     ProviderSetting.OpenAI(
         id = Uuid.parse("aecf04fd-cb5c-4582-aed2-e8bf393923fd"),
-        name = "随想AI网关",
+        name = "SuiXiang AI Gateway",
         baseUrl = "https://sui-xiang.com/v1",
         apiKey = "",
         enabled = false,

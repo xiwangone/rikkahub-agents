@@ -49,7 +49,7 @@ internal fun InputStream.readBytesBounded(maxBytes: Long): ByteArray {
         if (read < 0) break
         total += read
         if (total > maxBytes) {
-            throw java.io.IOException("读取超过上限 $maxBytes 字节")
+            throw java.io.IOException("Read exceeds the $maxBytes byte limit")
         }
         out.write(buffer, 0, read)
     }

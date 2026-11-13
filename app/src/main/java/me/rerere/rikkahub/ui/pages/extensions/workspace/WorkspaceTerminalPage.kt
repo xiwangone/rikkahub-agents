@@ -450,7 +450,7 @@ private fun WorkspaceTerminalTabContent(
                     // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
                     // 再新建，点两轮才能重开。
                     TextButton(onClick = onRestart) {
-                        Text("重新打开")
+                        Text(stringResource(R.string.workspace_terminal_reopen))
                     }
                 }
             }

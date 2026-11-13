@@ -44,7 +44,7 @@ class BackupEncryptionManager(
         AppLog.i("BackupEnc", "maybeEncrypt: ${plainZip.name} enabled=${isEnabled}")
         if (!isEnabled) return plainZip
         val password = rememberedPassword
-            ?: throw IllegalStateException("备份加密已开启，但本机未记住口令。请先在「备份与恢复 → 加密设置」设置口令。")
+            ?: throw IllegalStateException("Backup encryption is on, but no passphrase is stored on this device. Please set a passphrase in \"Backup & Restore → Encryption Settings\" first.")
         val encFile = File(plainZip.parentFile, plainZip.name + ".enc")
         BackupCrypto.encryptFile(plainZip, encFile, password)
         return encFile
@@ -60,7 +60,7 @@ class BackupEncryptionManager(
         AppLog.i("BackupEnc", "maybeDecrypt: ${backupFile.name}")
         if (!BackupCrypto.isEncrypted(backupFile)) return backupFile
         val pwd = password ?: rememberedPassword
-            ?: throw IllegalStateException("备份文件已加密，需要口令才能恢复。")
+            ?: throw IllegalStateException("The backup file is encrypted; a passphrase is required to restore it.")
         val plainFile = File(backupFile.parentFile, backupFile.name.removeSuffix(".enc") + ".plain")
         BackupCrypto.decryptFile(backupFile, plainFile, pwd)
         return plainFile

@@ -102,14 +102,18 @@ internal fun MirrorPickerDialog(
                 // 当前值回显：之前配过自定义地址的用户打开选择器，列表里一个选中的都没有，
                 // 当前值根本不在列表里显示。
                 Text(
-                    text = if (current.isBlank()) "当前：未设置" else "当前：$current",
+                    text = if (current.isBlank()) {
+                        stringResource(R.string.workspace_detail_mirror_current_unset)
+                    } else {
+                        stringResource(R.string.workspace_detail_mirror_current, current)
+                    },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 OutlinedTextField(
                     value = selected,
                     onValueChange = { selected = it },
-                    label = { Text("自定义镜像地址") },
+                    label = { Text(stringResource(R.string.workspace_detail_mirror_custom_address)) },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
@@ -187,7 +191,7 @@ internal fun MirrorPickerDialog(
             TextButton(
                 onClick = { onSelect(selected) },
                 enabled = selected.isNotBlank(),
-            ) { Text("应用") }
+            ) { Text(stringResource(R.string.common_apply)) }
         },
     )
 }
@@ -524,7 +528,7 @@ internal fun WorkspaceDirectoryPickerDialog(
                             newFolderName = it
                             createError = null
                         },
-                        label = { Text("新文件夹名") },
+                        label = { Text(stringResource(R.string.workspace_detail_new_folder_name)) },
                         singleLine = true,
                         modifier = Modifier.fillMaxWidth().then(rememberBringIntoViewModifier()),
                     )
@@ -554,18 +558,20 @@ internal fun WorkspaceDirectoryPickerDialog(
                                 color = MaterialTheme.colorScheme.error,
                             )
                     }
+                    // 放在组合作用域读：onFailure 的协程里调不了 stringResource。
+                    val createFailed = stringResource(R.string.workspace_detail_create_failed)
                     TextButton(
                         enabled = newTrimmed.isNotBlank() && !newIllegal && !newConflict && options != null,
                         onClick = {
                             scope.launch {
                                 onCreateFolder(path, newTrimmed)
                                     .onSuccess { created -> onConfirm(created) }
-                                    .onFailure { createError = it.message ?: "创建失败" }
+                                    .onFailure { createError = it.message ?: createFailed }
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
                     ) {
-                        Text("新建文件夹并移入")
+                        Text(stringResource(R.string.workspace_detail_create_folder_and_move))
                     }
                 }
             }

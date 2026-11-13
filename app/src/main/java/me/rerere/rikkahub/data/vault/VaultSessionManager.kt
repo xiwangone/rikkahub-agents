@@ -79,7 +79,7 @@ class VaultSessionManager(private val context: Context) {
         const val TTL_7D_MS = 7L * 24 * 60 * 60 * 1000
         const val TTL_30D_MS = 30L * 24 * 60 * 60 * 1000
         const val TTL_SESSION_MS = Long.MAX_VALUE // 当场有效
-        const val DEFAULT_LABEL = "默认"
+        const val DEFAULT_LABEL = "Default"
 
         /** 作用域常量 */
         const val SCOPE_DECRYPT = "decrypt"

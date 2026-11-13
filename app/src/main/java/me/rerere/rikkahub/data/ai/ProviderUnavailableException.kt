@@ -16,7 +16,7 @@ class ProviderUnavailableException(
     val providerHint: String? = null,
 ) : IllegalStateException(
         buildString {
-            append("当前模型已不可用：它所属的供应商已被删除或名称变更，请重新选择模型")
+            append("The current model is no longer available: its provider was deleted or renamed, please select another model")
             append("（model=")
             append(modelId)
             if (!providerHint.isNullOrBlank()) append(", backend=").append(providerHint)

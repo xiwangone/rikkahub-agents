@@ -2,6 +2,7 @@ package me.rerere.search
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
@@ -32,7 +33,7 @@ object MetasoSearchService : SearchService<SearchServiceOptions.MetasoOptions> {
     override fun Description() {
         Text(
             buildAnnotatedString {
-                append("秘塔搜索: ")
+                append(stringResource(R.string.search_service_metaso_desc))
                 withLink(LinkAnnotation.Url("https://metaso.cn/")) {
                     append("https://metaso.cn/")
                 }

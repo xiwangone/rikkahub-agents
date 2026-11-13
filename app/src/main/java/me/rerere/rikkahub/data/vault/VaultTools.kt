@@ -37,14 +37,14 @@ fun vaultPublicKeyEntriesTool(repository: CredentialVaultRepository): Tool = Too
     execute = { _ ->
         val rows = repository.findPublicKeyOnlyEntries()
         if (rows.isEmpty()) {
-            listOf(UIMessagePart.Text("✅ 未发现独立公钥条目（公钥都挂在私钥条目上）"))
+            listOf(UIMessagePart.Text("✅ No standalone public key entries found (public keys all live on private-key entries)"))
         } else {
             val body = buildString {
-                appendLine("发现 ${rows.size} 条独立公钥条目（公钥无需单列）：")
+                appendLine("Found ${rows.size} standalone public key entries (public keys do not need their own entries):")
                 rows.forEach { r ->
-                    appendLine("- ${r.entry.name}（${r.entry.grp}）→ 可并入：${r.hostName ?: "未匹配到宿主（需人工确认）"}")
+                    appendLine("- ${r.entry.name} (${r.entry.grp}) → can merge into: ${r.hostName ?: "no host matched (needs manual confirmation)"}")
                 }
-                append("处理：vault_export_loadcreds 导出 → 把公钥写进宿主条目的 `# SSH公钥:` 注释、删掉该条目 → vault_import_loadcreds 导入。")
+                append("Fix: export with vault_export_loadcreds → write the public key into the host entry's `# SSH公钥:` comment and delete that entry → import with vault_import_loadcreds.")
             }
             listOf(UIMessagePart.Text(body))
         }
@@ -100,23 +100,23 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
                     .filter { (_, items) -> items.size > 1 }
             val withoutFp = all.count { CredentialMeta.decode(it.metaJson)["value_fp"].isNullOrBlank() }
             if (dupGroups.isEmpty()) {
-                sb.append("（未发现同值条目）\n")
+                sb.append("(no entries with the same value)\n")
             } else {
-                sb.append("⚠️ 同值条目（按值指纹精确判定，同一组内是同一份密钥）：\n")
+                sb.append("⚠️ Entries with the same value (matched exactly by value fingerprint; within one group they are the same secret):\n")
                 dupGroups.forEach { (fp, items) ->
                     sb.append("  fp=${fp.take(8)}: ${items.joinToString(" / ") { it.second }}\n")
                 }
-                sb.append("可用 vault_credential_merge 合并（会同步改写配置引用）。\n")
+                sb.append("Merge them with vault_credential_merge (config references are rewritten together).\n")
             }
             if (withoutFp > 0) {
-                sb.append("ℹ️ 另有 $withoutFp 条尚无指纹（保存/重新保存后生成），未参与判重。\n")
+                sb.append("ℹ️ Another $withoutFp entries have no fingerprint yet (generated on save/re-save) and were excluded from dedup.\n")
             }
             sb.append("\n")
         }
         if (entries.isEmpty()) {
-            sb.append("（凭证库为空，或无匹配条目）")
+            sb.append("(the vault is empty, or no entries match)")
         } else {
-            sb.append("凭证库条目（${entries.size}）：\n")
+            sb.append("Vault entries (${entries.size}):\n")
             entries.forEach { e ->
                 val fp = if (e.publicKey.isNotBlank()) " fp=${SshKeyGenerator.fingerprint(e.publicKey) ?: "?"}" else ""
                 val tt = if (e.type.isNotBlank()) " <${e.type}>" else ""
@@ -177,11 +177,11 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
         val rawName = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val finalName = rawName?.let { CredentialVaultRepository.normalizeName(it) }.orEmpty()
         when {
-            rawName == null -> listOf(UIMessagePart.Text("❌ name 必填"))
+            rawName == null -> listOf(UIMessagePart.Text("❌ name is required"))
             !CredentialVaultRepository.validateCredentialName(finalName) ->
-                listOf(UIMessagePart.Text("❌ 凭证名称不合规（须大写蛇形且不超过 64 字符）：$rawName"))
+                listOf(UIMessagePart.Text("❌ Credential name is invalid (must be UPPER_SNAKE_CASE, max 64 chars): $rawName"))
             repository.getByName(finalName) != null ->
-                listOf(UIMessagePart.Text("❌ 凭证已存在：$finalName（为防止覆盖已有凭证元数据与公钥，占位创建已拒绝；如需修改元数据请用 vault_credential_update）"))
+                listOf(UIMessagePart.Text("❌ Credential already exists: $finalName (placeholder creation refused to avoid overwriting existing credential metadata and public key; use vault_credential_update to change metadata)"))
             else -> {
                 val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
                 val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
@@ -206,9 +206,9 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
                 repository.logAccess(finalName, "ai-tool", "prepare")
                 listOf(
                     UIMessagePart.Text(
-                        "✅ 已创建凭证占位条目：$finalName [${group}]\n" +
-                            "值尚未填写。请用户到 安全凭证库 → $finalName 编辑，填入实际 key/token。" +
-                            if (pub.isNotBlank()) "\n公钥已记录（AI 可据此识别该密钥）。" else "",
+                        "✅ Created credential placeholder entry: $finalName [${group}]\n" +
+                            "Value not filled in yet. Ask the user to open Credential Vault → $finalName and edit it, then fill in the actual key/token." +
+                            if (pub.isNotBlank()) "\nPublic key recorded (AI can identify this key from it)." else "",
                     ),
                 )
             }
@@ -235,12 +235,12 @@ private fun defaultVaultKeyGroup(type: VaultKeyType): String = when (type) {
 
 /** 公钥该往哪儿配 —— 按类型给出提示（SSH 与 WireGuard/age 的用法完全不同）。 */
 private fun vaultKeyUsageHint(type: VaultKeyType): String = when (type) {
-    VaultKeyType.WIREGUARD -> "请将该公钥配置到对端 WireGuard（peer 的 PublicKey）："
-    VaultKeyType.AGE -> "age 加密时使用该公钥（-r / recipient）："
-    VaultKeyType.OPENPGP -> "请将该公钥上传到代码托管平台（GitHub 账户设置 → SSH and GPG keys）用于提交签名："
-    VaultKeyType.X509_CERT -> "自签证书可直接导入客户端/服务端信任库；私钥已存凭证库，供 mTLS 客户端认证："
-    VaultKeyType.X509_CSR -> "请把以下 CSR 交给 CA/PKI 签发；私钥已留在凭证库，签发后即可用于 mTLS："
-    else -> "请将以下公钥配置到服务器 ~/.ssh/authorized_keys："
+    VaultKeyType.WIREGUARD -> "Configure this public key on the peer WireGuard (peer's PublicKey):"
+    VaultKeyType.AGE -> "Use this public key for age encryption (-r / recipient):"
+    VaultKeyType.OPENPGP -> "Upload this public key to your code hosting platform (GitHub account settings → SSH and GPG keys) for commit signing:"
+    VaultKeyType.X509_CERT -> "The self-signed certificate can be imported directly into the client/server trust store; the private key is stored in the vault for mTLS client authentication:"
+    VaultKeyType.X509_CSR -> "Send the following CSR to a CA/PKI for signing; the private key stays in the vault, and it can be used for mTLS once issued:"
+    else -> "Configure the following public key on the server in ~/.ssh/authorized_keys:"
 }
 
 /** 把工具参数里的 type 字符串映射到密钥类型；未知值返回 null（由调用方报错）。 */
@@ -287,7 +287,7 @@ fun vaultGenKeyTool(
     needsApproval = { true },
     execute = { params ->
         if (!VaultSessionManager(context).hasActiveAuthorization()) {
-            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            return@Tool listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         }
         val rawName = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val rawGroup = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
@@ -297,8 +297,8 @@ fun vaultGenKeyTool(
         val keyType = parseVaultKeyType(typeStr)
             ?: return@Tool listOf(
                 UIMessagePart.Text(
-                    "❌ 不支持的 type: $typeStr" +
-                        "（可选 ED25519 / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP / X509CERT / CSR）",
+                    "❌ Unsupported type: $typeStr" +
+                        "(one of ED25519 / RSA / RSA4096 / ECDSA / ECDSA384 / ECDSA521 / WIREGUARD / AGE / OPENPGP / X509CERT / CSR)",
                 ),
             )
         // 默认名与分组按类型区分，避免 WireGuard/age 密钥落成 SSH 名字
@@ -307,10 +307,10 @@ fun vaultGenKeyTool(
         // 名字统一规范化并校验，且禁止静默覆盖已存在的同名密钥
         val finalName = CredentialVaultRepository.normalizeName(name)
         if (!CredentialVaultRepository.validateCredentialName(finalName)) {
-            return@Tool listOf(UIMessagePart.Text("❌ 凭证名称不合规（须大写蛇形且不超过 64 字符）：$name"))
+            return@Tool listOf(UIMessagePart.Text("❌ Credential name is invalid (must be UPPER_SNAKE_CASE, max 64 chars): $name"))
         }
         if (repository.getByName(finalName) != null) {
-            return@Tool listOf(UIMessagePart.Text("❌ 凭证名称已存在：$finalName（为防止静默覆盖现有私钥，请指定新的 name 或先显式删除旧条目）"))
+            return@Tool listOf(UIMessagePart.Text("❌ Credential name already exists: $finalName (specify a new name, or explicitly delete the old entry first, to avoid silently overwriting the existing private key)"))
         }
         // 强制注释带 RikkaHub Agents 标识便于溯源；未指定时默认用途注释
         val comment =
@@ -334,9 +334,9 @@ fun vaultGenKeyTool(
         repository.logAccess(finalName, "ai-tool", "gen_key")
         listOf(
             UIMessagePart.Text(
-                "✅ 密钥对已生成并保存到凭证库（$finalName）\n" +
-                    "类型：${keyType.label}" + (fp?.let { " | 指纹：$it" } ?: "") + "\n" +
-                    "私钥已在 App 内存中存入 Vault（未落盘明文），公钥存于同条目 publicKey 字段（明文）\n" +
+                "✅ Key pair generated and saved to the vault ($finalName)\n" +
+                    "Type: ${keyType.label}" + (fp?.let { " | Fingerprint: $it" } ?: "") + "\n" +
+                    "The private key was stored in the Vault in app memory (no plaintext written to disk); the public key is stored in the same entry's publicKey field (plaintext)\n" +
                     vaultKeyUsageHint(keyType) + "\n${key.publicText}",
             ),
         )

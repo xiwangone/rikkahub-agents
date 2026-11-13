@@ -23,11 +23,11 @@ internal suspend fun resolveTunnelAuthKey(
     raw: String,
 ): Result<String> {
     val value = raw.trim()
-    if (value.isEmpty()) return Result.failure(IllegalStateException("认证密钥为空"))
+    if (value.isEmpty()) return Result.failure(IllegalStateException("Auth key is empty"))
     if (!value.startsWith(TUNNEL_VAULT_REF_PREFIX)) return Result.success(value)
     val name = value.removePrefix(TUNNEL_VAULT_REF_PREFIX).trim()
     return when (val resolution = resolver.resolveRef(name, CredentialPurpose.LOCAL_USE, caller = "tunnel")) {
         is CredentialResolution.Granted -> Result.success(resolution.value)
-        else -> Result.failure(IllegalStateException(resolution.message.ifBlank { "认证密钥引用无效" }))
+        else -> Result.failure(IllegalStateException(resolution.message.ifBlank { "Invalid auth key reference" }))
     }
 }

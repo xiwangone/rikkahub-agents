@@ -43,7 +43,7 @@ private suspend fun resolvePgpKey(
     context: android.content.Context? = null,
 ): PgpKeyResolution {
     val text = raw?.trim().orEmpty()
-    if (text.isEmpty()) return PgpKeyResolution.Err("key 必填（条目引用或 armored PGP 密钥块）")
+    if (text.isEmpty()) return PgpKeyResolution.Err("key is required (entry reference or armored PGP key block)")
     if (isVaultReference(text)) {
         val name = text.removePrefix(VAULT_REF_PREFIX).trim()
         val authCheck: (suspend () -> Boolean)? = if (context != null) {
@@ -54,7 +54,7 @@ private suspend fun resolvePgpKey(
         val resolution = CredentialResolver(repository, isAuthorized = authCheck)
             .resolve(name, CredentialPurpose.LOCAL_USE, caller = caller)
         val granted = resolution as? CredentialResolution.Granted
-            ?: return PgpKeyResolution.Err("引用条目「$name」未解析到可用凭证（不存在或未授权）")
+            ?: return PgpKeyResolution.Err("Referenced entry \"$name\" did not resolve to a usable credential (does not exist or not authorized)")
         return PgpKeyResolution.Ok(
             PgpKeyMaterial(
                 privateKey = granted.value,
@@ -66,7 +66,7 @@ private suspend fun resolvePgpKey(
     val isPublic = text.contains("BEGIN PGP PUBLIC KEY BLOCK")
     val isPrivate = text.contains("BEGIN PGP PRIVATE KEY BLOCK")
     if (!isPublic && !isPrivate) {
-        return PgpKeyResolution.Err("key 既不是条目引用，也不是 armored PGP 密钥块")
+        return PgpKeyResolution.Err("key is neither an entry reference nor an armored PGP key block")
     }
     return PgpKeyResolution.Ok(
         PgpKeyMaterial(
@@ -83,12 +83,12 @@ private fun readPgpPayload(o: kotlinx.serialization.json.JsonObject): Result<Byt
     val fileRaw = o["file"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
     return when {
         dataRaw != null && fileRaw != null ->
-            Result.failure(IllegalArgumentException("data 与 file 只能传一个"))
+            Result.failure(IllegalArgumentException("Only one of data and file may be passed"))
         dataRaw != null ->
             Result.success(dataRaw.toByteArray(Charsets.UTF_8))
         fileRaw != null -> readPayloadFromFile(fileRaw)
         else ->
-            Result.failure(IllegalArgumentException("data 与 file 必须传其一（要处理的文本或文件路径）"))
+            Result.failure(IllegalArgumentException("One of data and file is required (the text or file path to process)"))
     }
 }
 
@@ -97,17 +97,17 @@ private fun readPayloadFromFile(fileRaw: String): Result<ByteArray> {
     val expanded = AgentWorkspace.expand(fileRaw)
     val violation = PathSafetyGuard.check(expanded)
     if (violation != null) {
-        return Result.failure(IllegalArgumentException("文件路径受限（$fileRaw）: ${violation.detail}"))
+        return Result.failure(IllegalArgumentException("File path is restricted ($fileRaw): ${violation.detail}"))
     }
     val file = java.io.File(expanded)
     if (file.length() > MAX_PGP_FILE_BYTES) {
-        return Result.failure(IllegalArgumentException("文件超过 16MB 上限（$fileRaw）"))
+        return Result.failure(IllegalArgumentException("File exceeds the 16MB limit ($fileRaw)"))
     }
     return try {
         Result.success(file.readBytes())
     } catch (e: java.io.IOException) {
         // File.readBytes 仅声明 IOException（FileNotFoundException 为其子类）
-        Result.failure(IllegalArgumentException("读文件失败（$fileRaw）: ${e.message}"))
+        Result.failure(IllegalArgumentException("Failed to read file ($fileRaw): ${e.message}"))
     }
 }
 
@@ -147,17 +147,17 @@ fun vaultPgpSignTool(repository: CredentialVaultRepository, context: android.con
         val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-sign", context = context)
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
-        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "载荷读取失败") }
-        val privateKey = material.privateKey ?: return@Tool pgpFail("签名需要私钥（当前 key 是公钥）")
+        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
+        val privateKey = material.privateKey ?: return@Tool pgpFail("Signing needs a private key (the current key is a public key)")
         val passphrase = resolvePgpPassphrase(repository, o, caller = "pgp-sign", context = context)
         val signature =
             try {
                 PgpCrypto.sign(privateKey, payload, passphrase)
             } catch (e: PgpCryptoException) {
-                return@Tool pgpFail("签名失败: ${e.message}")
+                return@Tool pgpFail("Signing failed: ${e.message}")
             }
         material.entryName?.let { repository.logAccess(it, "ai-tool", "pgp_sign") }
-        listOf(UIMessagePart.Text("✅ GPG 签名完成（detached armored）：\n\n$signature"))
+        listOf(UIMessagePart.Text("✅ GPG signing done (detached armored):\n\n$signature"))
     },
 )
 
@@ -185,31 +185,31 @@ fun vaultPgpVerifyTool(repository: CredentialVaultRepository): Tool = Tool(
         val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-verify")
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
-        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "载荷读取失败") }
+        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
         val signatureRaw = o["signature"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val signatureFile = o["signature_file"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         val signature: ByteArray =
             when {
                 signatureRaw != null && signatureFile != null ->
-                    return@Tool pgpFail("signature 与 signature_file 只能传一个")
+                    return@Tool pgpFail("Only one of signature and signature_file may be passed")
                 signatureRaw != null -> signatureRaw.toByteArray(Charsets.UTF_8)
                 signatureFile != null -> {
                     val expandedSig = AgentWorkspace.expand(signatureFile)
                     PathSafetyGuard.check(expandedSig)?.let { v ->
-                        return@Tool pgpFail("签名文件路径受限（$signatureFile）: ${v.detail}")
+                        return@Tool pgpFail("Signature file path is restricted ($signatureFile): ${v.detail}")
                     }
                     runCatching { java.io.File(expandedSig).readBytes() }
-                        .getOrElse { return@Tool pgpFail("读签名文件失败（$signatureFile）: ${it.message}") }
+                        .getOrElse { return@Tool pgpFail("Failed to read signature file ($signatureFile): ${it.message}") }
                 }
-                else -> return@Tool pgpFail("signature 与 signature_file 必须传其一")
+                else -> return@Tool pgpFail("One of signature and signature_file is required")
             }
         val verifierKey = material.publicKey ?: material.privateKey
-            ?: return@Tool pgpFail("key 未解析到可用密钥")
+            ?: return@Tool pgpFail("key did not resolve to a usable key")
         when (val result = PgpCrypto.verify(verifierKey, payload, signature)) {
             is PgpCrypto.VerifyResult.Valid ->
-                listOf(UIMessagePart.Text("✅ 验签通过（签名者指纹 ${result.fingerprint}）"))
+                listOf(UIMessagePart.Text("✅ Signature verified (signer fingerprint ${result.fingerprint})"))
             is PgpCrypto.VerifyResult.Invalid ->
-                listOf(UIMessagePart.Text("❌ 验签失败：${result.reason}"))
+                listOf(UIMessagePart.Text("❌ Signature verification failed: ${result.reason}"))
         }
     },
 )
@@ -237,17 +237,17 @@ fun vaultPgpEncryptTool(repository: CredentialVaultRepository): Tool = Tool(
         val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-encrypt")
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
-        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "载荷读取失败") }
+        val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
         val recipientKey = material.publicKey ?: material.privateKey
-            ?: return@Tool pgpFail("key 未解析到可用公钥")
+            ?: return@Tool pgpFail("key did not resolve to a usable public key")
         val ciphertext =
             try {
                 PgpCrypto.encrypt(recipientKey, payload)
             } catch (e: PgpCryptoException) {
-                return@Tool pgpFail("加密失败: ${e.message}")
+                return@Tool pgpFail("Encryption failed: ${e.message}")
             }
         material.entryName?.let { repository.logAccess(it, "ai-tool", "pgp_encrypt") }
-        listOf(UIMessagePart.Text("✅ GPG 加密完成（armored 密文）：\n\n$ciphertext"))
+        listOf(UIMessagePart.Text("✅ GPG encryption done (armored ciphertext):\n\n$ciphertext"))
     },
 )
 
@@ -275,16 +275,16 @@ fun vaultPgpDecryptTool(repository: CredentialVaultRepository, context: android.
         val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-decrypt", context = context)
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
-        val ciphertext = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "载荷读取失败") }
-        val privateKey = material.privateKey ?: return@Tool pgpFail("解密需要私钥（当前 key 是公钥）")
+        val ciphertext = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
+        val privateKey = material.privateKey ?: return@Tool pgpFail("Decryption needs a private key (the current key is a public key)")
         val passphrase = resolvePgpPassphrase(repository, o, caller = "pgp-decrypt", context = context)
         val plaintext =
             try {
                 PgpCrypto.decrypt(privateKey, ciphertext, passphrase)
             } catch (e: PgpCryptoException) {
-                return@Tool pgpFail("解密失败: ${e.message}")
+                return@Tool pgpFail("Decryption failed: ${e.message}")
             }
         material.entryName?.let { repository.logAccess(it, "ai-tool", "pgp_decrypt") }
-        listOf(UIMessagePart.Text("✅ GPG 解密结果：\n${plaintext.toString(Charsets.UTF_8)}"))
+        listOf(UIMessagePart.Text("✅ GPG decryption result:\n${plaintext.toString(Charsets.UTF_8)}"))
     },
 )

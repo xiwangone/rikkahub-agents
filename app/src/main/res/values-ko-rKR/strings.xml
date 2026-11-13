@@ -4383,4 +4383,54 @@
   <string name="workspace_ssh_jump_host_desc">먼저 경유할 저장된 SSH 호스트 이름(ProxyJump). 비워 두면 직접 연결합니다.</string>
   <string name="workspace_ssh_jump_host_key_trusted">신뢰하는 점프 호스트 키: %1$s %2$s</string>
   <string name="workspace_ssh_jump_host_key_missing">점프 호스트 키가 아직 확인되지 않았습니다. 첫 연결 시 지문을 확인하세요</string>
+  <string name="setting_model_prompt_reset_confirm_text">현재 프롬프트가 기본 프롬프트로 바뀝니다</string>
+  <string name="setting_model_prompt_unsaved_title">저장되지 않은 변경 사항</string>
+  <string name="setting_model_prompt_discard">변경 사항 버리기</string>
+  <string name="setting_model_prompt_continue_editing">계속 편집</string>
+  <string name="setting_model_prompt_unsaved_text">프롬프트가 수정되었지만 저장되지 않았습니다. 나가면 변경 사항이 사라집니다.</string>
+  <string name="setting_provider_delete_selected_message">선택한 모델 %1$d개를 삭제합니다. 이 작업은 되돌릴 수 없습니다</string>
+  <string name="setting_provider_remove_override_message">공급자 재정의가 제거되고 모델이 상위 공급자 설정을 사용합니다. 이 작업은 되돌릴 수 없습니다</string>
+  <string name="setting_provider_delete_model_message">모델 \u201c%1$s\u201d을(를) 삭제합니다. 이 작업은 되돌릴 수 없습니다</string>
+  <string name="browser_error_code">오류 코드 %1$d</string>
+  <string name="browser_ssl_title">인증서에 문제가 있습니다. 계속하시겠습니까?</string>
+  <string name="browser_ssl_body">이 사이트의 인증서에 문제가 있습니다: %1$s.\nURL: %2$s\n\n자체 서명 인증서는 LAN/자가 호스팅 서비스에서 흔하지만, 계속하면 위험할 수 있습니다. 이 사이트에 접속하려는 것이 맞는지 확인해 주세요.</string>
+  <string name="browser_ssl_continue">계속</string>
+  <string name="browser_ssl_reason_not_yet_valid">인증서가 아직 유효하지 않음</string>
+  <string name="browser_ssl_reason_expired">인증서가 만료됨</string>
+  <string name="browser_ssl_reason_mismatch">인증서 도메인이 URL과 일치하지 않음</string>
+  <string name="browser_ssl_reason_untrusted">인증 기관을 신뢰할 수 없음(자체 서명 인증서일 수 있음)</string>
+  <string name="browser_ssl_reason_date_invalid">인증서 날짜가 잘못됨</string>
+  <string name="browser_ssl_reason_invalid">인증서가 잘못됨</string>
+  <string name="browser_error_page_title">페이지를 로드하지 못했습니다</string>
+  <string name="browser_error_page_cannot_open">열 수 없음: %1$s</string>
+  <string name="browser_error_page_reason">원인: %1$s</string>
+  <string name="browser_error_page_reload">새로고침</string>
+  <string name="dev_mode_badge">[개발 모드]</string>
+  <string name="workspace_detail_mirror_current_unset">현재: 설정되지 않음</string>
+  <string name="workspace_detail_mirror_current">현재: %1$s</string>
+  <string name="workspace_detail_mirror_custom_address">사용자 지정 미러 주소</string>
+  <string name="workspace_detail_new_folder_name">새 폴더 이름</string>
+  <string name="workspace_detail_create_failed">만들지 못했습니다</string>
+  <string name="workspace_detail_create_folder_and_move">폴더를 만들고 이동</string>
+  <string name="workspace_detail_folder_exists_title">\u201c%1$s\u201d이(가) 이미 있습니다</string>
+  <string name="workspace_detail_folder_exists_body">대상 위치에 같은 이름의 폴더가 이미 있습니다. 처리 방법을 선택하세요:</string>
+  <string name="workspace_detail_export_overwrite">덮어쓰기(기존 폴더를 삭제한 후 내보내기)</string>
+  <string name="workspace_detail_export_merge">기존 폴더에 병합</string>
+  <string name="workspace_detail_selection_cleared_other_dirs">다른 디렉터리의 선택을 지웠습니다</string>
+  <string name="workspace_file_readonly_cannot_action">시스템 파일은 읽기 전용이라 %1$s할 수 없습니다</string>
+  <string name="workspace_file_editor_unsaved_title">저장되지 않은 변경 사항</string>
+  <string name="workspace_file_editor_unsaved_text">이 파일에는 저장되지 않은 변경 사항이 있습니다. 지금 돌아가면 변경 사항이 사라집니다.</string>
+  <string name="workspace_file_editor_discard">버리기</string>
+  <string name="workspace_files_search_placeholder">파일 이름 검색</string>
+  <string name="workspace_files_truncated">처음 %1$d개만 표시(전체 %2$d개)</string>
+  <string name="workspace_terminal_reopen">다시 열기</string>
+  <string name="common_apply">적용</string>
+  <string name="common_move">이동</string>
+  <string name="doctor_cred_decrypt_bad_value">자격 증명 복호화에 실패하여 잘못된 값 보호가 작동했습니다(원본 암호문은 디스크에 남아 있으며 덮어쓰지 않았습니다): %1$s</string>
+  <string name="doctor_default_model">기본 모델=%1$s(%2$s)</string>
+  <string name="doctor_default_model_broken">기본 모델=%1$s(%2$s); 연결이 끊겼거나 비활성화된 모델 바인딩: %3$s</string>
+  <string name="doctor_broken_assistants">어시스턴트=%1$s</string>
+  <string name="doctor_global_model_dangling">전역 기본 모델이 연결되어 있지 않음</string>
+  <string name="doctor_model_unresolved">확인되지 않음</string>
+  <string name="doctor_model_unconfigured">구성되지 않음</string>
 </resources>

@@ -225,7 +225,7 @@ internal fun WorkspaceFilesPage(
                         OutlinedTextField(
                             value = query,
                             onValueChange = { query = it },
-                            placeholder = { Text("搜索文件名") },
+                            placeholder = { Text(stringResource(R.string.workspace_files_search_placeholder)) },
                             leadingIcon = { Icon(HugeIcons.Search01, contentDescription = null) },
                             singleLine = true,
                             modifier = Modifier.fillMaxWidth(),
@@ -305,7 +305,11 @@ internal fun WorkspaceFilesPage(
             if (state.truncated) {
                 item {
                     Text(
-                        text = "只显示前 ${state.entries.size} 条，共 ${state.totalCount} 条",
+                        text = stringResource(
+                            R.string.workspace_files_truncated,
+                            state.entries.size,
+                            state.totalCount,
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         modifier = Modifier

@@ -297,8 +297,8 @@ object SshKeyGenerator {
      * ECDSA 的点、ed25519 的公钥是 ssh-string 不是 mpint，不适用。
      */
     private fun mpintIssue(field: ByteArray, label: String): String? = when {
-        field.isEmpty() -> "$label 为空"
-        (field[0].toInt() and 0x80) != 0 -> "$label 被解释成负数（缺前导符号字节 0x00）"
+        field.isEmpty() -> "$label is empty"
+        (field[0].toInt() and 0x80) != 0 -> "$label was interpreted as negative (missing leading 0x00 sign byte)"
         else -> null
     }
 
@@ -339,16 +339,16 @@ object SshKeyGenerator {
     /** 按 OpenSSH 的字段排布校验一段 public blob；合法返回 null，否则返回原因。 */
     internal fun blobIssue(declaredType: String, blob: ByteArray): String? {
         val c = SshReader(blob, 0)
-        val typeB = c.str() ?: return "公钥数据的长度前缀越界（内容被截断或插入了字符）"
+        val typeB = c.str() ?: return "Public key data length prefix out of bounds (content truncated or extra characters inserted)"
         val type = String(typeB, Charsets.ISO_8859_1)
-        if (type != declaredType) return "声明类型 $declaredType 与公钥数据内嵌类型 $type 不一致"
+        if (type != declaredType) return "Declared type $declaredType does not match the type $type embedded in the public key data"
         val count = keyFieldCount(type) ?: return null
         val rest = ArrayList<ByteArray>()
         while (!c.end()) {
-            val s = c.str() ?: return "公钥数据的长度前缀越界（内容被截断或插入了字符）"
+            val s = c.str() ?: return "Public key data length prefix out of bounds (content truncated or extra characters inserted)"
             rest.add(s)
         }
-        if (rest.size != count) return "$type 应有 $count 个键体字段，实际 ${rest.size} 个"
+        if (rest.size != count) return "$type should have $count key-body fields, found ${rest.size}"
         return keyFieldsIssue(type, rest)
     }
 
@@ -363,24 +363,24 @@ object SshKeyGenerator {
 
     /** RSA 键体：e（小指数）+ n（模数），两者都必须是**最简有符号 mpint**。 */
     private fun rsaFieldsIssue(rest: List<ByteArray>): String? {
-        if (rest[0].isEmpty() || rest[0].size > 8) return "ssh-rsa 的 e 字段长度异常：${rest[0].size}"
-        if (rest[1].size < 64 || rest[1].size > 1024) return "ssh-rsa 的 n 字段长度异常：${rest[1].size}"
-        mpintIssue(rest[0], "e")?.let { return "ssh-rsa 的$it" }
-        mpintIssue(rest[1], "n")?.let { return "ssh-rsa 的$it" }
+        if (rest[0].isEmpty() || rest[0].size > 8) return "ssh-rsa e field has an abnormal length: ${rest[0].size}"
+        if (rest[1].size < 64 || rest[1].size > 1024) return "ssh-rsa n field has an abnormal length: ${rest[1].size}"
+        mpintIssue(rest[0], "e")?.let { return "ssh-rsa $it" }
+        mpintIssue(rest[1], "n")?.let { return "ssh-rsa $it" }
         return null
     }
 
     /** DSA 键体：p / q / g / y 四个 mpint。 */
     private fun dssFieldsIssue(rest: List<ByteArray>): String? {
         listOf("p", "q", "g", "y").forEachIndexed { i, label ->
-            mpintIssue(rest[i], label)?.let { return "ssh-dss 的$it" }
+            mpintIssue(rest[i], label)?.let { return "ssh-dss $it" }
         }
         return null
     }
 
     /** Ed25519 键体：定长 32 字节裸公钥（不是 mpint，不涉及符号位）。 */
     private fun ed25519FieldsIssue(rest: List<ByteArray>): String? =
-        if (rest[0].size != 32) "ssh-ed25519 公钥长度应为 32 字节，实际 ${rest[0].size}" else null
+        if (rest[0].size != 32) "ssh-ed25519 public key should be 32 bytes, found ${rest[0].size}" else null
 
     /** ECDSA 键体：曲线名（与声明一致）+ 未压缩点（0x04 + X + Y）。 */
     private fun ecdsaFieldsIssue(type: String, rest: List<ByteArray>): String? {
@@ -390,8 +390,8 @@ object SshKeyGenerator {
             "nistp521" -> 133
             else -> -1
         }
-        if (expect > 0 && rest[1].size != expect) return "$type 点长度应为 $expect，实际 ${rest[1].size}"
-        if (rest[1].isEmpty() || rest[1][0] != 0x04.toByte()) return "$type 的点必须是未压缩形式（0x04 开头）"
+        if (expect > 0 && rest[1].size != expect) return "$type point length should be $expect, found ${rest[1].size}"
+        if (rest[1].isEmpty() || rest[1][0] != 0x04.toByte()) return "$type point must be in uncompressed form (starting with 0x04)"
         return null
     }
 
@@ -399,17 +399,17 @@ object SshKeyGenerator {
     private fun certInnerBlob(certType: String, blob: ByteArray): Pair<ByteArray?, String?> {
         val base = certType.removeSuffix(CERT_SUFFIX)
         val count = keyFieldCount(base)
-            ?: return null to "暂不支持 $certType 的指纹（OpenSSH 按内层公钥计算，该类型字段排布未实现）"
+            ?: return null to "Fingerprint for $certType is not supported yet (OpenSSH computes it from the inner public key, whose field layout is not implemented for this type)"
         val c = SshReader(blob, 0)
-        if (c.str() == null) return null to "证书线格式非法"
-        if (c.str() == null) return null to "证书线格式非法" // nonce
+        if (c.str() == null) return null to "Invalid certificate line format"
+        if (c.str() == null) return null to "Invalid certificate line format" // nonce
         val fields = ArrayList<ByteArray>()
         while (!c.end() && fields.size < count) {
-            val s = c.str() ?: return null to "证书内层公钥字段越界"
+            val s = c.str() ?: return null to "Inner public key field of the certificate out of bounds"
             fields.add(s)
         }
         if (fields.size != count) {
-            return null to "证书内层公钥字段不足：期望 $count 个，实际 ${fields.size} 个"
+            return null to "Too few inner public key fields in the certificate: expected $count, found ${fields.size}"
         }
         var inner = sshString(base.toByteArray())
         for (f in fields) inner += sshString(f)
@@ -422,12 +422,12 @@ object SshKeyGenerator {
      */
     private fun inspectPublicKey(publicKeyLine: String): Triple<ByteArray?, ByteArray?, String?> {
         val parts = publicKeyLine.trim().split(Regex("\\s+"))
-        if (parts.size < 2) return Triple(null, null, "不是公钥行（缺少 base64 段）")
+        if (parts.size < 2) return Triple(null, null, "Not a public key line (missing base64 segment)")
         val b64 = parts[1]
         val blob = decodePublicKeyBlob(b64) ?: return Triple(
             null,
             null,
-            "base64 段无法解码（长度 ${b64.length}，%4=${b64.length % 4}：截断或插入了多余字符）",
+            "base64 segment cannot be decoded (length ${b64.length}, %4=${b64.length % 4}: truncated or extra characters inserted)",
         )
         blobIssue(parts[0], blob)?.let { return Triple(null, null, it) }
         val isCert = parts[0].endsWith(CERT_SUFFIX)

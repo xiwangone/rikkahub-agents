@@ -32,7 +32,7 @@ object MediaCreationFiles {
         while (maxOf(bounds.outWidth, bounds.outHeight) / sampleSize > MAX_IMAGE_SIZE) sampleSize *= 2
         val options = BitmapFactory.Options().apply { inSampleSize = sampleSize }
         val decoded = context.contentResolver.openInputStream(uri)?.use { BitmapFactory.decodeStream(it, null, options) }
-            ?: error("无法读取图片")
+            ?: error("Cannot read image")
         val bitmap = ImageUtils.correctImageOrientation(context, uri, decoded)
         try {
             // 带透明通道的图片保留 PNG，其余用 JPEG 控制体积
@@ -58,7 +58,7 @@ object MediaCreationFiles {
         }
         dir.mkdirs()
         val file = File(dir, "${Uuid.random()}.$extension")
-        val input = context.contentResolver.openInputStream(uri) ?: error("无法读取视频")
+        val input = context.contentResolver.openInputStream(uri) ?: error("Cannot read video")
         input.use { source -> file.outputStream().use { source.copyTo(it) } }
         return file
     }

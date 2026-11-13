@@ -171,7 +171,7 @@ class CredentialVaultRepository(
         group: String = "Other",
     ): QuickImportResult {
         val sanitized = CredentialValueSanitizer.sanitize(rawValue)
-        require(sanitized.isNotBlank()) { "凭证值为空或只含不可见字符" }
+        require(sanitized.isNotBlank()) { "Credential value is empty or only invisible characters" }
 
         // 公钥不单列：粘贴的是公钥行 → 先并入对应私钥条目（指纹 → 名称），命中即复用、不新建
         if (SshKeyFormat.isPublicKeyLine(sanitized)) {
@@ -237,11 +237,11 @@ class CredentialVaultRepository(
     ) {
         // 命名规范校验（大写蛇形）。存量脏名改到此名时同样拦截；导入路径见 importEntries
         require(validateCredentialName(name)) {
-            "凭证名不合规范：$name（须大写蛇形如 GITHUB_TOKEN；禁止小写/连字符/空格）"
+            "Credential name is invalid: $name (must be UPPER_SNAKE_CASE like GITHUB_TOKEN; no lowercase, hyphens, or spaces)"
         }
         // 只含不可见字符的值等于"写入一个空密钥"：明确拒绝，而不是静默存空
         require(value.isBlank() || CredentialValueSanitizer.sanitize(value).isNotEmpty()) {
-            "凭证值只含不可见字符，已拒绝保存：$name"
+            "Credential value only contains invisible characters, save refused: $name"
         }
         val existing = dao.getByName(name)
         if (existing != null && value.isBlank()) {
@@ -286,12 +286,12 @@ class CredentialVaultRepository(
         createdAt: Long? = null,
     ) {
         require(validateCredentialName(name)) {
-            "凭证名不合规范：$name（须大写蛇形如 GITHUB_TOKEN；禁止小写/连字符/空格）"
+            "Credential name is invalid: $name (must be UPPER_SNAKE_CASE like GITHUB_TOKEN; no lowercase, hyphens, or spaces)"
         }
-        require(CredentialType.isValid(type)) { "未知凭证类型：$type" }
+        require(CredentialType.isValid(type)) { "Unknown credential type: $type" }
         val cleanValue = CredentialValueSanitizer.sanitize(value)
         require(value.isBlank() || cleanValue.isNotEmpty()) {
-            "凭证值只含不可见字符，已拒绝保存：$name"
+            "Credential value only contains invisible characters, save refused: $name"
         }
         val now = System.currentTimeMillis()
         val cleanPub = normalizePublicKey(publicKey)
@@ -590,7 +590,7 @@ class CredentialVaultRepository(
     companion object {
         /** 脱敏展示：前3后3+***；长度 ≤6 全掩 */
         fun mask(value: String): String {
-            if (value.isEmpty()) return "(空)"
+            if (value.isEmpty()) return "(empty)"
             if (value.length <= 6) return "*".repeat(value.length)
             return value.take(3) + "***" + value.takeLast(3)
         }

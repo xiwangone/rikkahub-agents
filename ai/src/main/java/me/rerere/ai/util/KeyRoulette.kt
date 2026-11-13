@@ -110,7 +110,7 @@ private class DefaultKeyRoulette : KeyRoulette {
     override fun next(keys: String, providerId: String): String {
         val keyList = splitKey(keys)
         if (keyList.isEmpty()) {
-            throw IllegalStateException("请先填写 API Key")
+            throw IllegalStateException("Please fill in the API Key first")
         }
         return keyList.random()
     }
@@ -170,7 +170,7 @@ private class LruKeyRoulette(
     override fun next(keys: String, providerId: String): String {
         val keyList = splitKey(keys)
         if (keyList.isEmpty()) {
-            throw IllegalStateException("请先填写 API Key")
+            throw IllegalStateException("Please fill in the API Key first")
         }
 
         synchronized(LruFileLock) {

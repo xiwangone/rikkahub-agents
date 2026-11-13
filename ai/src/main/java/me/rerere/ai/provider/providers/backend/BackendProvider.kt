@@ -233,7 +233,7 @@ class BackendProvider(
 
         val api = api(providerSetting)
         val fullInput = buildFullInput(messages)
-            ?: throw IllegalStateException("Backend streamText：消息中没有用户文本，无法构造提交内容")
+            ?: throw IllegalStateException("Backend streamText: no user text in the messages, cannot build the submission")
         val endpointLock = mutexForEndpoint(providerSetting.baseUrl)
 
         endpointLock.withLock {
@@ -269,7 +269,7 @@ class BackendProvider(
                     }
                 }
                 if (!api.submit(fullInput)) {
-                    throw java.io.IOException("Backend /submit 失败：网络不通或服务端非 2xx")
+                    throw java.io.IOException("Backend /submit failed: network unreachable or server returned non-2xx")
                 }
 
                 BackendEventProcessor(
@@ -310,7 +310,7 @@ class BackendProvider(
         providerSetting: ProviderSetting.Backend,
         messages: List<UIMessage>,
     ) {
-        val executor = cliExecutor ?: error("CLI 执行器未注入")
+        val executor = cliExecutor ?: error("CLI executor not injected")
         val prompt =
             messages.lastOrNull { it.role == MessageRole.USER }?.parts
                 ?.filterIsInstance<UIMessagePart.Text>()

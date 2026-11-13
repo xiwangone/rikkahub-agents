@@ -144,7 +144,7 @@ internal fun renderShellPreset(
             }
         }
     require(missing.isEmpty()) {
-        "preset '$presetName' 缺少参数: ${missing.joinToString()}（请通过 preset_args 提供）"
+        "preset '$presetName' is missing parameters: ${missing.joinToString()} (please provide them via preset_args)"
     }
     return rendered
 }
@@ -160,7 +160,7 @@ internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, St
     if (envObj.isEmpty()) return emptyMap<String, String>() to null
     val vaultRepository =
         runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
-            ?: return emptyMap<String, String>() to "❌ env 注入失败：凭证库不可用"
+            ?: return emptyMap<String, String>() to "❌ env injection failed: credential vault unavailable"
     val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
     // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
     val resolver =
@@ -174,7 +174,7 @@ internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, St
         if (credName.isNullOrBlank()) continue
         when (val r = resolver.resolveRef(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
             is CredentialResolution.Granted -> resolved[envName] = r.value
-            else -> return emptyMap<String, String>() to "❌ env 注入失败：${r.message}"
+            else -> return emptyMap<String, String>() to "❌ env injection failed: ${r.message}"
         }
     }
     return resolved to null

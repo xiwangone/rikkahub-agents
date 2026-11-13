@@ -74,7 +74,7 @@ class PgpCryptoTest {
             PgpCrypto.encrypt(signOnly, "data".toByteArray())
             fail("expected PgpCryptoException for sign-only key")
         } catch (expected: PgpCryptoException) {
-            assertTrue(expected.message!!.contains("没有加密子密钥"))
+            assertTrue(expected.message!!.contains("no encryption subkey"))
         }
     }
 

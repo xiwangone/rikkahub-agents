@@ -63,7 +63,7 @@ internal suspend fun enabledToolsPayload(
                     put("byCategory", byCategory)
                     put(
                         "note",
-                        "本地工具按「设置 → 工具」的分类勾选；未勾选的工具不会注入给模型。选项名对应一组工具，具体工具名见 tool_surface_report。",
+                        "Local tools are enabled by category under \"Settings → Tools\"; unchecked tools are not injected to the model. Each option name maps to a group of tools; see tool_surface_report for the concrete tool names.",
                     )
                 }
     return payload.toString()
@@ -150,7 +150,7 @@ internal fun runsPayload(
                         "otherMs",
                         (state.totalDurationMs - state.totalModelMs - state.totalToolMs).coerceAtLeast(0),
                     )
-                    put("note", "耗时分解 = 模型请求 + 工具执行 + 其余；otherMs 含审批等待、排队、用户输入等。")
+                    put("note", "Time breakdown = model requests + tool execution + other; otherMs includes approval waits, queueing, user input, etc.")
                 },
             )
             put(
@@ -187,10 +187,10 @@ internal fun runsPayload(
             )
             put(
                 "hint",
-                "每次生成一条归因记录（COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD / NETWORK_ERROR / " +
-                    "RATE_LIMIT / API_ERROR / UNKNOWN）；按 outcome、modelId 与 provider×模型 聚合，recent 为最近明细。" +
-                    "token 为**按请求累加**（与平台账单同口径：多步请求各按完整 prompt 计），cached 已夹在 " +
-                    "prompt 之内。cost 只含 provider 上报的部分（未上报的不估算）。只记枚举与计数，不含消息内容；reset=true 可清空。",
+                "One attribution record per generation (COMPLETED / USER_CANCELLED / TIMEOUT / LOOP_GUARD / NETWORK_ERROR / " +
+                    "RATE_LIMIT / API_ERROR / UNKNOWN); aggregated by outcome, modelId, and provider×model, with recent holding the latest details." +
+                    "token is **accumulated per request** (same basis as platform billing: each step in a multi-step request counts its full prompt); cached is already included in the " +
+                    "prompt. cost only covers what the provider reported (unreported parts are not estimated). Only enums and counts are recorded, no message content; reset=true clears it.",
             )
         }
     return payload.toString()
@@ -307,9 +307,9 @@ internal suspend fun usageStatsPayload(
                     put("advice", usageAdviceJson(snapshot, extraCold, minCalls))
                     put(
                         "hint",
-                        "enabledButNeverCalled = 已注入给模型但从未被调用的工具；injectedToolCount 为最近一次注入的工具总数。" +
-                            "advice = 可操作建议（按「调用次数 × 生效档位」算）：remove_from_extra_cold 表示该工具高频却在助手级降温名单里，" +
-                            "每次会话首用都要先 get_tool_schema 解锁，建议移出（adviceThreshold 为判定阈值，可用 min_calls 覆盖）。",
+                        "enabledButNeverCalled = tools injected to the model but never called; injectedToolCount is the total number of tools in the most recent injection." +
+                            "advice = actionable suggestions (computed from \"call count × effective tier\"): remove_from_extra_cold means the tool is called frequently yet sits on the assistant-level extra-cold list, " +
+                            "so its first use in every session needs a get_tool_schema unlock — consider removing it (adviceThreshold is the decision threshold, overridable with min_calls).",
                     )
                 }
     return payload.toString()
@@ -344,8 +344,8 @@ private fun usageAdviceJson(
                         put("suggestion", "remove_from_extra_cold")
                         put(
                             "reason",
-                            "调用 ${entry.count} 次（≥ 阈值 $minCalls）却生效为 COLD：每次会话首用需先 get_tool_schema 解锁，" +
-                                "成本高于留在热/温档，建议在助手设置里移出 extraColdTools。",
+                            "Called ${entry.count} times (≥ threshold $minCalls) but effective as COLD: its first use in every session needs a get_tool_schema unlock, " +
+                                "which costs more than keeping it in the hot/warm tier; consider removing it from extraColdTools in the assistant settings.",
                         )
                     },
                 )
@@ -443,7 +443,7 @@ internal suspend fun toolScopePayload(
                         )
                         put(
                             "hint",
-                            "字符 → token 为 chars/3 估算（与工具面报告同口径）；toolPrompts 与工具面的工具描述有语义重叠，别重复计算。",
+                            "Characters → tokens is estimated as chars/3 (same basis as the tool-surface report); toolPrompts semantically overlaps the tool descriptions in the tool surface, so do not double-count.",
                         )
                     },
                 )
@@ -560,19 +560,19 @@ internal suspend fun toolScopePayload(
                         put("usageTracked", usageSnapshot.size)
                         put("injectedZeroCall", injectedSet.count { name -> usageSnapshot.none { it.name == name } })
                     } else {
-                        put("usageNote", "toolStatsEnabled=false：无调用统计，零调用数不可用")
+                        put("usageNote", "toolStatsEnabled=false: no call statistics, zero-call counts unavailable")
                     }
                 },
             )
             put(
                 "hint",
-                "只读快照。tools 来自最近一次装配的注入集合（白名单同时是执行边界：名单外的工具既不可见也不可调用）。" +
-                    "tierSource: ASSISTANT_EXTRA_COLD=助手级降温 / POLICY_HOT=策略热档 / POLICY_COLD_EXTRA=策略冷档单件 / " +
-                    "POLICY_COLD_PREFIX=策略冷档家族前缀 / DEFAULT_WARM=默认温档。alwaysKept 的三条是零副作用自救层" +
-                    "（求援 / 列工具 / 取参数表），白名单模式下不可移除；onlyToolsNotInjected = 白名单里未出现在当前注入集的项" +
-                    "（拼错或与其它限制冲突）；trimEnabled=false 时档位不改变注入形态。" +
-                    "optionScope = 选项级启用情况：total/enabled/disabledCount + 逐项原因（not_selected=未勾选 / " +
-                    "capability_unavailable=能力未就绪），capabilityReady 为 Shizuku/无障碍/Termux 探测结果。",
+                "Read-only snapshot. tools come from the most recently assembled injection set (the allowlist is also the execution boundary: tools outside it are neither visible nor callable)." +
+                    "tierSource: ASSISTANT_EXTRA_COLD=assistant-level extra-cold / POLICY_HOT=policy hot tier / POLICY_COLD_EXTRA=policy cold-tier single item / " +
+                    "POLICY_COLD_PREFIX=policy cold-tier family prefix / DEFAULT_WARM=default warm tier. The three alwaysKept entries are the zero-side-effect self-rescue layer " +
+                    "(ask for help / list tools / fetch parameter tables) and cannot be removed in allowlist mode; onlyToolsNotInjected = allowlisted items missing from the current injection set" +
+                    "(misspelled or conflicting with another restriction); with trimEnabled=false the tiers do not change the injection shape." +
+                    "optionScope = per-option enablement: total/enabled/disabledCount + per-item reasons (not_selected=not checked / " +
+                    "capability_unavailable=capability not ready); capabilityReady holds the Shizuku/accessibility/Termux probe results.",
             )
         }
     return payload.toString()

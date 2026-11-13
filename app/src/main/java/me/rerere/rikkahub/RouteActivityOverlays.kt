@@ -24,7 +24,7 @@ import me.rerere.rikkahub.data.db.MigrationState
 internal fun BoxScope.RouteMigrationAndDebugOverlay(migrationState: MigrationState) {
                     if (BuildConfig.DEBUG) {
                         Text(
-                            text = "[开发模式]",
+                            text = stringResource(R.string.dev_mode_badge),
                             modifier = Modifier
                                 .align(Alignment.TopCenter)
                                 .padding(top = 4.dp),

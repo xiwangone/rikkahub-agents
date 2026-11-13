@@ -170,7 +170,7 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
                 })
                 put("env_style", buildJsonObject {
                     put("type", "string")
-                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
+                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/other remotes, using `NAME=... ; export NAME`).")
                 })
                 put("platform", buildJsonObject {
                     put("type", "string")

@@ -172,7 +172,7 @@ private fun assistantConfigJson(
     put(
         "system_prompt",
         if (full || a.systemPrompt.length <= PROMPT_PREVIEW_CHARS) a.systemPrompt
-        else a.systemPrompt.take(PROMPT_PREVIEW_CHARS) + "…(截断；full=true 取全文)",
+        else a.systemPrompt.take(PROMPT_PREVIEW_CHARS) + "…(truncated; full=true for the full text)",
     )
     put("sub_agent_prompt_chars", a.subAgentSystemPrompt.length)
     if (full) put("sub_agent_system_prompt", a.subAgentSystemPrompt)

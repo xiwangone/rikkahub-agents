@@ -166,17 +166,17 @@ object WorkspaceChangeDiff {
         var emitted = 0
         for (change in changes) {
             if (emitted >= WorkspaceChangePolicy.MAX_CHANGED_FILES) {
-                sb.appendLine("… 其余 ${changes.size - emitted} 个文件略")
+                sb.appendLine("… and ${changes.size - emitted} more files omitted")
                 break
             }
             if (!isTextFile(change.path)) {
-                sb.appendLine("${kindLabel(change.kind)} ${change.path}（二进制，未生成 diff）")
+                sb.appendLine("${kindLabel(change.kind)} ${change.path} (binary, no diff generated)")
                 emitted++
                 continue
             }
             // 敏感路径不生成 diff：凭证/密钥文件的内容不得进入消息与记录
             if (isSensitivePath(change.path)) {
-                sb.appendLine("${kindLabel(change.kind)} ${change.path}（内容已隐藏）")
+                sb.appendLine("${kindLabel(change.kind)} ${change.path} (content hidden)")
                 emitted++
                 continue
             }
@@ -283,9 +283,9 @@ object WorkspaceChangeDiff {
         cachedBytes < WorkspaceChangePolicy.MAX_CACHED_BYTES
 
     fun kindLabel(kind: FileChangeKind): String = when (kind) {
-        FileChangeKind.ADDED -> "新增"
-        FileChangeKind.MODIFIED -> "修改"
-        FileChangeKind.DELETED -> "删除"
+        FileChangeKind.ADDED -> "Added"
+        FileChangeKind.MODIFIED -> "Modified"
+        FileChangeKind.DELETED -> "Deleted"
     }
 }
 

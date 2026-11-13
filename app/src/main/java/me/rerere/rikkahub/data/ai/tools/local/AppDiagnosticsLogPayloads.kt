@@ -137,7 +137,7 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
                     put("firstAt", fmt.format(Instant.ofEpochMilli(matched.last().timestamp)))
                     put("lastAt", fmt.format(Instant.ofEpochMilli(matched.first().timestamp)))
                 }
-                put("hint", "仅统计；默认不含 D 级（要详细传 level=D）；要具体行时带 keyword/level 再调用（limit 默认 50）")
+                put("hint", "Statistics only; D level excluded by default (pass level=D for detail); pass keyword/level for specific lines (limit defaults to 50)")
             }.toString()
         }
 

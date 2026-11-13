@@ -33,7 +33,7 @@ class MigrationExporter(
         // 迁移包内含**明文密钥**（凭证值与 provider 配置）→ 必须整包加密；
         // 未开启加密就拒绝导出，绝不能像常规备份那样“未启用则明文放行”。
         check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
-            "迁移包含明文密钥，请先在「备份与恢复 → 加密设置」开启加密并设置口令。"
+            "The migration contains plaintext secrets. Please enable encryption and set a passphrase in \"Backup & Restore → Encryption Settings\" first."
         }
         val scope =
             config.copy(

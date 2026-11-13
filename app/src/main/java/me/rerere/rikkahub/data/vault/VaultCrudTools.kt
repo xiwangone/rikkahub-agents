@@ -68,15 +68,15 @@ fun vaultCredentialUpdateTool(
         val o = params.jsonObject
         val name = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         if (name == null) {
-            listOf(UIMessagePart.Text("❌ name 必填"))
+            listOf(UIMessagePart.Text("❌ name is required"))
         } else {
             val sessionManager = VaultSessionManager(context)
             if (!sessionManager.hasActiveAuthorization()) {
-                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+                listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
             } else {
                 val existing = repository.getByName(name)
                 if (existing == null) {
-                    listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+                    listOf(UIMessagePart.Text("❌ Credential does not exist: $name (use vault_credential_names to list available names)"))
                 } else {
                     val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
@@ -101,20 +101,20 @@ fun vaultCredentialUpdateTool(
                     val targetName = newName ?: name
                     if (newName != null && newName != name) {
                         if (repository.getByName(newName) != null) {
-                            return@Tool listOf(UIMessagePart.Text("❌ 目标名称已存在: $newName（改名冲突，请选其他名称）"))
+                            return@Tool listOf(UIMessagePart.Text("❌ Target name already exists: $newName (rename conflict, please pick another name)"))
                         }
-                        changed += "名称: $name → $newName"
+                        changed += "Name: $name → $newName"
                     }
-                    if (desc != null && desc != existing.description) changed += "描述"
-                    if (group != null && group != existing.grp) changed += "分组"
-                    if (typeParam != null && typeParam != existing.type) changed += "类型"
-                    if (metaParam != null && mergedMetaJson != existing.metaJson) changed += "元数据"
-                    if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isNullOrEmpty()) "公钥(清空)" else "公钥"
+                    if (desc != null && desc != existing.description) changed += "Description"
+                    if (group != null && group != existing.grp) changed += "Group"
+                    if (typeParam != null && typeParam != existing.type) changed += "Type"
+                    if (metaParam != null && mergedMetaJson != existing.metaJson) changed += "Metadata"
+                    if (pubParam != null && newPub != existing.publicKey) changed += if (newPub.isNullOrEmpty()) "Public key (cleared)" else "Public key"
                     if (changed.isEmpty()) {
-                        listOf(UIMessagePart.Text("ℹ️ 没有需要更新的字段（当前已是最新）"))
+                        listOf(UIMessagePart.Text("ℹ️ No fields to update (already up to date)"))
                     } else {
                         val value = repository.decryptValue(existing)
-                            ?: return@Tool listOf(UIMessagePart.Text("❌ 解密失败，已中止更新以避免用空值覆盖凭据（密钥可能临时不可用，请稍后重试）"))
+                            ?: return@Tool listOf(UIMessagePart.Text("❌ Decryption failed; update aborted to avoid overwriting the credential with empty values (the key may be temporarily unavailable, please retry later)"))
                         repository.save(
                             name = targetName,
                             value = value,
@@ -141,7 +141,7 @@ fun vaultCredentialUpdateTool(
                                 } catch (error: Exception) {
                                     return@Tool listOf(
                                         UIMessagePart.Text(
-                                            "⚠️ 引用同步失败；源凭证「$name」仍保留，目标「$targetName」也已创建，引用可能部分更新。请核对引用后再执行合并/清理。原因：${error.message ?: error::class.simpleName}",
+                                            "⚠️ Reference sync failed; source credential \"$name\" is kept, and target \"$targetName\" was already created, so references may be partially updated. Please verify the references before merging or cleaning up. Reason: ${error.message ?: error::class.simpleName}",
                                         ),
                                     )
                                 }
@@ -153,14 +153,14 @@ fun vaultCredentialUpdateTool(
                         }
                         listOf(
                             UIMessagePart.Text(
-                                "✅ 已更新凭证元数据：${targetName}\n变更：${changed.joinToString("；")}\n"
+                                "✅ Credential metadata updated: ${targetName}\nChanges: ${changed.joinToString("; ")}\n"
                                     + if (targetName != name) {
-                                        "引用同步：已更新 $syncedRefs 处配置引用" +
-                                            if (syncedRefs == 0) "（没有任何配置引用旧名）" else ""
+                                        "Reference sync: updated $syncedRefs config reference(s)" +
+                                            if (syncedRefs == 0) "(no config references the old name)" else ""
                                     } else {
                                         ""
                                     }
-                                    + "\n（值未改动，AI 不可读写密钥值）",
+                                    + "\n(Value unchanged; AI cannot read or write secret values)",
                             ),
                         )
                     }
@@ -222,11 +222,11 @@ fun vaultCredentialBulkUpdateTool(
     execute = { params ->
         val items = params.jsonObject["updates"] as? JsonArray
         if (items == null || items.isEmpty()) {
-            listOf(UIMessagePart.Text("❌ updates 必填且不能为空（数组）"))
+            listOf(UIMessagePart.Text("❌ updates is required and must not be empty (array)"))
         } else {
             val sessionManager = VaultSessionManager(context)
             if (!sessionManager.hasActiveAuthorization()) {
-                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+                listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
             } else {
                 data class PreparedUpdate(
                     val name: String,
@@ -249,23 +249,23 @@ fun vaultCredentialBulkUpdateTool(
                 fun readString(o: JsonObject, key: String, item: Int): String? {
                     if (key !in o) return null
                     val value = (o[key] as? JsonPrimitive)?.contentOrNull
-                    if (value == null) preflightErrors += "第${item + 1}条：$key 必须是字符串"
+                    if (value == null) preflightErrors += "Item ${item + 1}: $key must be a string"
                     return value
                 }
 
                 items.forEachIndexed { index, element ->
                     val o = element as? JsonObject
                     if (o == null) {
-                        preflightErrors += "第${index + 1}条：必须是对象"
+                        preflightErrors += "Item ${index + 1}: must be an object"
                         return@forEachIndexed
                     }
                     val name = readString(o, "name", index)?.ifBlank { null }
                     if (name == null) {
-                        preflightErrors += "第${index + 1}条：缺少有效 name"
+                        preflightErrors += "Item ${index + 1}: missing a valid name"
                         return@forEachIndexed
                     }
                     if (!seenNames.add(name)) {
-                        preflightErrors += "重复更新来源：$name"
+                        preflightErrors += "Duplicate update source: $name"
                         return@forEachIndexed
                     }
 
@@ -275,37 +275,37 @@ fun vaultCredentialBulkUpdateTool(
                     val typeParam = readString(o, "type", index)
                     val metaParam = if ("meta" in o) o["meta"] as? JsonObject else null
                     if ("meta" in o && metaParam == null) {
-                        preflightErrors += "第${index + 1}条：meta 必须是对象"
+                        preflightErrors += "Item ${index + 1}: meta must be an object"
                     }
                     if (!CredentialVaultRepository.validateCredentialName(name)) {
-                        preflightErrors += "第${index + 1}条：来源名称不符合凭证库命名规范：$name"
+                        preflightErrors += "Item ${index + 1}: source name does not follow the vault naming rules: $name"
                     }
                     if (typeParam != null && !CredentialType.isValid(typeParam)) {
-                        preflightErrors += "第${index + 1}条：未知凭证类型 '$typeParam'"
+                        preflightErrors += "Item ${index + 1}: unknown credential type '$typeParam'"
                     }
 
                     val existing = runCatching { repository.getByName(name) }.getOrElse {
-                        preflightErrors += "第${index + 1}条：无法读取凭证 $name"
+                        preflightErrors += "Item ${index + 1}: cannot read credential $name"
                         return@forEachIndexed
                     }
                     if (existing == null) {
-                        preflightErrors += "第${index + 1}条：不存在凭证 $name"
+                        preflightErrors += "Item ${index + 1}: credential $name does not exist"
                         return@forEachIndexed
                     }
 
                     val targetName = requestedName ?: name
                     if (targetName != name && !CredentialVaultRepository.validateCredentialName(targetName)) {
-                        preflightErrors += "第${index + 1}条：新名称不合规（须大写蛇形且不超过 64 字符）：$targetName"
+                        preflightErrors += "Item ${index + 1}: new name is invalid (must be UPPER_SNAKE_CASE, max 64 chars): $targetName"
                     }
                     if (!seenTargets.add(targetName)) {
-                        preflightErrors += "多个更新指向同一目标名称：$targetName"
+                        preflightErrors += "Multiple updates point to the same target name: $targetName"
                     }
                     if (targetName != name) {
                         val targetLookup = runCatching { repository.getByName(targetName) }
                         if (targetLookup.isFailure) {
-                            preflightErrors += "第${index + 1}条：无法检查目标名称是否可用：$targetName"
+                            preflightErrors += "Item ${index + 1}: cannot check whether the target name is available: $targetName"
                         } else if (targetLookup.getOrNull() != null) {
-                            preflightErrors += "第${index + 1}条：目标名称已存在：$targetName"
+                            preflightErrors += "Item ${index + 1}: target name already exists: $targetName"
                         }
                     }
 
@@ -323,17 +323,17 @@ fun vaultCredentialBulkUpdateTool(
                         existing.metaJson
                     }
                     val changed = buildList {
-                        if (targetName != name) add("改名→$targetName")
-                        if (description != existing.description) add("描述")
-                        if (group != existing.grp) add("分组→$group")
-                        if (type != existing.type) add("类型→$type")
-                        if (metaJson != existing.metaJson) add("元数据")
+                        if (targetName != name) add("Renamed → $targetName")
+                        if (description != existing.description) add("Description")
+                        if (group != existing.grp) add("Group → $group")
+                        if (type != existing.type) add("Type → $type")
+                        if (metaJson != existing.metaJson) add("Metadata")
                     }
                     val secretValue = if (changed.isEmpty() || existing.valueEncrypted.isBlank()) {
                         ""
                     } else {
                         repository.decryptValue(existing) ?: run {
-                            preflightErrors += "第${index + 1}条：无法解密 $name；为避免覆盖成空值已中止"
+                            preflightErrors += "Item ${index + 1}: cannot decrypt $name; aborted to avoid overwriting with empty values"
                             return@forEachIndexed
                         }
                     }
@@ -354,7 +354,7 @@ fun vaultCredentialBulkUpdateTool(
                 if (preflightErrors.isNotEmpty()) {
                     listOf(
                         UIMessagePart.Text(
-                            "批量更新预检失败：未执行任何写入。\n" + preflightErrors.joinToString("\n") { "❌ $it" },
+                            "Batch update pre-check failed: no writes were performed.\n" + preflightErrors.joinToString("\n") { "❌ $it" },
                         ),
                     )
                 } else {
@@ -365,7 +365,7 @@ fun vaultCredentialBulkUpdateTool(
                     for (update in prepared) {
                         if (update.changed.isEmpty()) {
                             noChange++
-                            lines += "ℹ️ ${update.name} 无变化"
+                            lines += "ℹ️ ${update.name} unchanged"
                             continue
                         }
                         var targetCreated = false
@@ -373,12 +373,12 @@ fun vaultCredentialBulkUpdateTool(
                             val current = repository.getByName(update.name)
                             if (current == null || current.updatedAt != update.expectedUpdatedAt) {
                                 failed++
-                                lines += "❌ ${update.name} 在预检后已变化，请重新读取后重试"
+                                lines += "❌ ${update.name} changed after the pre-check, please re-read and retry"
                                 continue
                             }
                             if (update.targetName != update.name && repository.getByName(update.targetName) != null) {
                                 failed++
-                                lines += "❌ ${update.name} → ${update.targetName}：目标名称在执行前已被占用"
+                                lines += "❌ ${update.name} → ${update.targetName}: the target name was taken just before execution"
                                 continue
                             }
                             if (update.targetName != update.name) {
@@ -425,17 +425,17 @@ fun vaultCredentialBulkUpdateTool(
                             val sourceRemains = runCatching { repository.getByName(update.name) }.getOrNull() != null
                             val targetRemains = runCatching { repository.getByName(update.targetName) }.getOrNull() != null
                             lines += if (targetCreated && sourceRemains && targetRemains) {
-                                "⚠️ ${update.name} → ${update.targetName} 未完成：新旧条目均保留且引用可能部分同步；先核对引用，确认一致后再人工清理旧条目。"
+                                "⚠️ ${update.name} → ${update.targetName} not completed: both old and new entries are kept and references may be partially synced; verify the references first, then manually clean up the old entry once they match."
                             } else if (targetCreated && targetRemains) {
-                                "⚠️ ${update.name} → ${update.targetName}：目标条目存在，源条目状态需核对；请检查引用和 Vault 后再处理。"
+                                "⚠️ ${update.name} → ${update.targetName}: the target entry exists and the source entry state needs verification; check the references and the Vault before proceeding."
                             } else {
-                                "❌ ${update.name} 更新失败（${error::class.simpleName}）"
+                                "❌ ${update.name} update failed (${error::class.simpleName})"
                             }
                         }
                     }
                     listOf(
                         UIMessagePart.Text(
-                            "批量更新完成：成功 $ok / 无变化 $noChange / 失败或待恢复 $failed\n" + lines.joinToString("\n"),
+                            "Batch update done: succeeded $ok / unchanged $noChange / failed or pending recovery $failed\n" + lines.joinToString("\n"),
                         ),
                     )
                 }
@@ -467,19 +467,19 @@ fun vaultCredentialDeleteTool(
     execute = { params ->
         val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         if (name == null) {
-            listOf(UIMessagePart.Text("❌ name 必填"))
+            listOf(UIMessagePart.Text("❌ name is required"))
         } else {
             val sessionManager = VaultSessionManager(context)
             if (!sessionManager.hasActiveAuthorization()) {
-                listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+                listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
             } else {
                 val existing = repository.getByName(name)
                 if (existing == null) {
-                    listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+                    listOf(UIMessagePart.Text("❌ Credential does not exist: $name (use vault_credential_names to list available names)"))
                 } else {
                     repository.delete(existing)
                     repository.logAccess(name, "ai-tool", "delete")
-                    listOf(UIMessagePart.Text("🗑️ 已删除凭证: $name"))
+                    listOf(UIMessagePart.Text("🗑️ Deleted credential: $name"))
                 }
             }
         }
@@ -506,18 +506,18 @@ fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
     execute = { params ->
         val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
         if (name == null) {
-            listOf(UIMessagePart.Text("❌ name 必填"))
+            listOf(UIMessagePart.Text("❌ name is required"))
         } else {
             val entry = repository.getByName(name)
             if (entry == null) {
-                listOf(UIMessagePart.Text("❌ 凭证不存在: $name（用 vault_credential_names 查看可用名称）"))
+                listOf(UIMessagePart.Text("❌ Credential does not exist: $name (use vault_credential_names to list available names)"))
             } else {
                 // 失败时给出**具体原因**：只说"(解析失败)"会让人以为是 App 读不动，
                 // 实际多数是库里那一行公钥本身写坏了（指纹/判重/部署全都会连带失效）
                 val fp = when {
-                    entry.publicKey.isBlank() -> "(无公钥)"
+                    entry.publicKey.isBlank() -> "(no public key)"
                     else -> SshKeyGenerator.fingerprint(entry.publicKey)
-                        ?: "(无法解析：${SshKeyGenerator.publicKeyLineIssue(entry.publicKey)})"
+                        ?: "(unparsable: ${SshKeyGenerator.publicKeyLineIssue(entry.publicKey)})"
                 }
                 val dtFmt = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm", java.util.Locale.getDefault()).withZone(ZoneId.systemDefault())
                 val created = dtFmt.format(Instant.ofEpochMilli(entry.createdAt))
@@ -525,16 +525,16 @@ fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
                 listOf(
                     UIMessagePart.Text(
                         buildString {
-                            append("凭证: ${entry.name}  [${entry.grp}]\n")
-                            append("描述: ${entry.description.ifEmpty { "(空)" }}\n")
-                            append("值长度: ${entry.valueLength}（已加密存储，AI 不可见）\n")
-                            append("创建: $created | 更新: $updated\n")
-                            append("公钥指纹: $fp\n")
-                            if (entry.publicKey.isNotBlank()) append("公钥全文:\n${entry.publicKey}\n")
+                            append("Credential: ${entry.name} [${entry.grp}]\n")
+                            append("Description: ${entry.description.ifEmpty { "(empty)" }}\n")
+                            append("Value length: ${entry.valueLength} (stored encrypted, invisible to AI)\n")
+                            append("Created: $created | Updated: $updated\n")
+                            append("Public key fingerprint: $fp\n")
+                            if (entry.publicKey.isNotBlank()) append("Public key (full):\n${entry.publicKey}\n")
                             // 非敏感明文元数据（endpoint/path/header/username/custom.*）：白名单键，秘密不在其中
                             val meta = CredentialMeta.decode(entry.metaJson)
                             if (meta.isNotEmpty()) {
-                                append("元数据（明文，非敏感）:\n")
+                                append("Metadata (plaintext, non-sensitive):\n")
                                 meta.forEach { (k, v) -> append("  $k = $v\n") }
                             }
                         },
@@ -569,13 +569,13 @@ fun vaultCredentialAuditTool(repository: CredentialVaultRepository): Tool = Tool
             .sortedByDescending { it.tsMs }
             .take(limit)
         if (logs.isEmpty()) {
-            listOf(UIMessagePart.Text(if (name != null) "（$name 无审计记录）" else "（审计记录为空）"))
+            listOf(UIMessagePart.Text(if (name != null) "($name has no audit records)" else "(audit log is empty)"))
         } else {
             val fmt = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss", java.util.Locale.getDefault()).withZone(ZoneId.systemDefault())
             listOf(
                 UIMessagePart.Text(
                     buildString {
-                        append("密钥调用记录（最近 ${logs.size} 条${if (name != null) "，凭证: $name" else ""}）：\n")
+                        append("Secret usage records (latest ${logs.size}${if (name != null) ", credential: $name" else ""}):\n")
                         logs.forEach { l ->
                             append("${fmt.format(java.time.Instant.ofEpochMilli(l.tsMs))} | ${l.caller} | ${l.action} | ${l.credentialName}\n")
                         }

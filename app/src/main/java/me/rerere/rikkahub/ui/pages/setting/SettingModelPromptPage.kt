@@ -302,20 +302,20 @@ private fun PromptEditSheet(
             draft = defaultValue
         },
         onDismiss = { showResetDialog = false },
-        text = { Text("当前提示词将被替换为默认提示词") },
+        text = { Text(stringResource(R.string.setting_model_prompt_reset_confirm_text)) },
     )
 
     // 未保存离开提示：放弃修改即离开，继续编辑则留在弹层里，保存走弹层里的“保存”按钮。
     RikkaConfirmDialog(
         show = showDiscardDialog,
-        title = "未保存的改动",
-        confirmText = "放弃修改",
-        dismissText = "继续编辑",
+        title = stringResource(R.string.setting_model_prompt_unsaved_title),
+        confirmText = stringResource(R.string.setting_model_prompt_discard),
+        dismissText = stringResource(R.string.setting_model_prompt_continue_editing),
         onConfirm = {
             showDiscardDialog = false
             onDismiss()
         },
         onDismiss = { showDiscardDialog = false },
-        text = { Text("提示词已修改但未保存，离开将丢失改动。") },
+        text = { Text(stringResource(R.string.setting_model_prompt_unsaved_text)) },
     )
 }

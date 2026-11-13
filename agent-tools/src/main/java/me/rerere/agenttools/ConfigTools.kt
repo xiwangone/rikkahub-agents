@@ -173,7 +173,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             return buildJsonObject {
                 put("key", key)
                 put("existed", existed)
-                put("result", "无 set 历史、无可恢复")
+                put("result", "No set history, nothing to revert")
             }
         }
         val prior = lastSet["prior"]
@@ -182,7 +182,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             return buildJsonObject {
                 put("key", key)
                 put("existed", existed)
-                put("result", "旧值未知（该条目早于 prior 记录）、键保持不变")
+                put("result", "Old value unknown (this entry predates prior records); key left unchanged")
             }
         }
         val before = current[key] ?: JsonNull

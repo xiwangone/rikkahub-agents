@@ -262,15 +262,14 @@ fun WorkspaceDetailPage(id: String) {
     }
 
     // 重复导出到同一位置：目标里已有同名文件夹，三选一，不再静默合并。
-    // 文案直接写中文（没有现成的同名字符串资源）。
     pendingFolderExport?.let { pending ->
         AlertDialog(
             onDismissRequest = { pendingFolderExport = null },
-            title = { Text("“${pending.entry.name}”已存在") },
+            title = { Text(stringResource(R.string.workspace_detail_folder_exists_title, pending.entry.name)) },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                     Text(
-                        text = "目标位置已有同名文件夹，请选择如何处理：",
+                        text = stringResource(R.string.workspace_detail_folder_exists_body),
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     // 三个选择平铺在正文里，各自一行、点即执行并关弹窗。
@@ -291,7 +290,7 @@ fun WorkspaceDetailPage(id: String) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("覆盖（删除已有文件夹后导出）") }
+                    ) { Text(stringResource(R.string.workspace_detail_export_overwrite)) }
                     TextButton(
                         onClick = {
                             // 合并：复用已存在的同名文件夹往里导（VM 层 createDirectory
@@ -308,7 +307,7 @@ fun WorkspaceDetailPage(id: String) {
                             }
                         },
                         modifier = Modifier.fillMaxWidth(),
-                    ) { Text("合并到现有文件夹") }
+                    ) { Text(stringResource(R.string.workspace_detail_export_merge)) }
                     TextButton(
                         onClick = { pendingFolderExport = null },
                         modifier = Modifier.fillMaxWidth(),
@@ -433,7 +432,7 @@ fun WorkspaceDetailPage(id: String) {
                                         // 不清的话，别的目录里还勾着的条目会被导出静默丢掉。
                                         if (selectedWorkspacePaths.isNotEmpty()) {
                                             selectedWorkspacePaths = emptySet()
-                                            toaster.show("已清空其他目录的选择")
+                                            toaster.show(resources.getString(R.string.workspace_detail_selection_cleared_other_dirs))
                                         }
                                         vm.open(entry)
                                     }

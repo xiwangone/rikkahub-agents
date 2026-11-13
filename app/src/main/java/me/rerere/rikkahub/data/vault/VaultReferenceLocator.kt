@@ -158,22 +158,22 @@ fun vaultDanglingRefsTool(
         fun checkText(location: String, text: String) {
             VaultReferenceLocator.extractRefs(text)
                 .filter { it !in known }
-                .forEach { issues += location + " → " + "\$\$" + it + "（库中不存在）" }
+                .forEach { issues += location + " → " + "\$\$" + it + "(not in vault)" }
         }
         fun checkName(location: String, name: String) {
             if (name.isNotBlank() && name !in known) {
-                issues += location + " → " + name + "（库中不存在）"
+                issues += location + " → " + name + "(not in vault)"
             }
         }
 
         settings.providers.forEach { p ->
-            checkText("模型提供方：" + p.name, VaultReferenceLocator.providerSecrets(p))
+            checkText("Model providers: " + p.name, VaultReferenceLocator.providerSecrets(p))
         }
         settings.mediaGenerationProviders.forEach { p ->
-            checkText("媒体生成：" + p.name, VaultReferenceLocator.mediaSecrets(p))
+            checkText("Media generation: " + p.name, VaultReferenceLocator.mediaSecrets(p))
         }
         settings.searchServices.forEach { options ->
-            checkText("搜索服务：" + options.typeKey, VaultReferenceLocator.searchSecrets(options))
+            checkText("Search services: " + options.typeKey, VaultReferenceLocator.searchSecrets(options))
         }
         settings.asrProviders.forEach { p ->
             checkText("ASR：" + p.name, VaultReferenceLocator.asrSecrets(p))
@@ -183,42 +183,42 @@ fun vaultDanglingRefsTool(
         }
         settings.mcpServers.forEach { m ->
             checkText(
-                "MCP 服务器：" + m.commonOptions.name.ifBlank { m.id.toString().take(8) },
+                "MCP servers: " + m.commonOptions.name.ifBlank { m.id.toString().take(8) },
                 m.commonOptions.headers.joinToString(" ") { it.second },
             )
         }
         (listOf(settings.s3Config) + settings.s3Configs).distinctBy { it.id }
-            .forEach { checkText("S3 备份：" + it.name.ifBlank { it.id.take(8) }, it.secretAccessKey) }
-        checkText("S3 上传", settings.uploadS3Config.secretAccessKey)
+            .forEach { checkText("S3 backup: " + it.name.ifBlank { it.id.take(8) }, it.secretAccessKey) }
+        checkText("S3 upload", settings.uploadS3Config.secretAccessKey)
         (listOf(settings.webDavConfig) + settings.webDavConfigs).distinctBy { it.id }
-            .forEach { checkText("WebDAV 备份：" + it.name.ifBlank { it.id.take(8) }, it.password) }
+            .forEach { checkText("WebDAV backup: " + it.name.ifBlank { it.id.take(8) }, it.password) }
         settings.localMcpProfiles.forEach {
-            checkName("本地 MCP：" + it.name.ifBlank { it.id }, it.authTokenRef.trim())
+            checkName("Local MCP: " + it.name.ifBlank { it.id }, it.authTokenRef.trim())
         }
-        checkName("Web 桥", settings.webBridgeCredentialRef.trim())
-        checkText("Web Bridge 私钥路径", settings.webBridgePrivateKeyPath)
-        checkText("全局代理密码", settings.networkSetting.proxyPassword)
-        checkText("Tailscale 认证密钥", settings.networkSetting.tailscaleAuthKey)
-        checkText("Web 桥密码", settings.webBridgePassword)
-        checkText("Web 服务访问密码", settings.webServerAccessPassword)
+        checkName("Web bridge", settings.webBridgeCredentialRef.trim())
+        checkText("Web Bridge private key path", settings.webBridgePrivateKeyPath)
+        checkText("Global proxy password", settings.networkSetting.proxyPassword)
+        checkText("Tailscale auth key", settings.networkSetting.tailscaleAuthKey)
+        checkText("Web bridge password", settings.webBridgePassword)
+        checkText("Web service access password", settings.webServerAccessPassword)
         val telegram = telegramBotPreferences.current()
         checkText("Telegram bot token", telegram.token)
         checkText("Telegram proxy password", telegram.proxyPassword)
         sshHostRepository.getAll().forEach { host ->
-            checkName("SSH 主机：" + host.name, host.vaultCredentialRef?.trim().orEmpty())
-            checkText("SSH 主机：${host.name} password", host.password.orEmpty())
-            checkText("SSH 主机：${host.name} privateKey", host.privateKey.orEmpty())
-            checkText("SSH 主机：${host.name} passphrase", host.passphrase.orEmpty())
+            checkName("SSH host: " + host.name, host.vaultCredentialRef?.trim().orEmpty())
+            checkText("SSH host: ${host.name} password", host.password.orEmpty())
+            checkText("SSH host: ${host.name} privateKey", host.privateKey.orEmpty())
+            checkText("SSH host: ${host.name} passphrase", host.passphrase.orEmpty())
         }
 
         val body =
             if (issues.isEmpty()) {
-                "✅ 未发现失效引用（配置里的凭证引用都能在库中找到）"
+                "✅ No broken references found (every credential reference in the config resolves in the vault)"
             } else {
                 buildString {
-                    appendLine("⚠ 发现 " + issues.size + " 处失效引用：")
+                    appendLine("⚠ Found " + issues.size + " broken reference(s):")
                     issues.forEach { appendLine("- " + it) }
-                    append("请修正配置或补建对应凭证；改名前可用 vault_credential_refs 预检。")
+                    append("Fix the config or create the missing credentials; use vault_credential_refs to pre-check before renaming.")
                 }
             }
         listOf(UIMessagePart.Text(body))
@@ -260,7 +260,7 @@ fun vaultCredentialRefsTool(
     execute = { params ->
         val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         if (name.isEmpty()) {
-            return@Tool listOf(UIMessagePart.Text("❌ name 必填"))
+            return@Tool listOf(UIMessagePart.Text("❌ name is required"))
         }
 
         val settings = settingsStore.settingsFlow.first()
@@ -269,18 +269,18 @@ fun vaultCredentialRefsTool(
         // 模型提供方：apiKey（含后端提供方的 token / password）
         settings.providers.forEach { provider ->
             if (VaultReferenceLocator.mentions(VaultReferenceLocator.providerSecrets(provider), name)) {
-                hits += "模型提供方：${provider.name}"
+                hits += "Model providers: ${provider.name}"
             }
         }
 
         settings.mediaGenerationProviders.forEach { provider ->
             if (VaultReferenceLocator.mentions(VaultReferenceLocator.mediaSecrets(provider), name)) {
-                hits += "媒体生成：${provider.name}"
+                hits += "Media generation: ${provider.name}"
             }
         }
         settings.searchServices.forEach { options ->
             if (VaultReferenceLocator.mentions(VaultReferenceLocator.searchSecrets(options), name)) {
-                hits += "搜索服务：${options.typeKey}"
+                hits += "Search services: ${options.typeKey}"
             }
         }
         settings.asrProviders.forEach { provider ->
@@ -298,43 +298,43 @@ fun vaultCredentialRefsTool(
         settings.mcpServers.forEach { server ->
             val headerValues = server.commonOptions.headers.joinToString(" ") { it.second }
             if (VaultReferenceLocator.mentions(headerValues, name)) {
-                hits += "MCP 服务器：${server.commonOptions.name.ifBlank { server.id.toString().take(8) }}"
+                hits += "MCP servers: ${server.commonOptions.name.ifBlank { server.id.toString().take(8) }}"
             }
         }
 
         // 备份目标：S3 / WebDAV 的密钥字段（漏掉它们会让人误判"无引用"从而改断配置）
         (listOf(settings.s3Config) + settings.s3Configs).distinctBy { it.id }.forEach { s3 ->
             if (VaultReferenceLocator.mentions(s3.secretAccessKey, name)) {
-                hits += "S3 备份：${s3.name.ifBlank { s3.id.take(8) }}"
+                hits += "S3 backup: ${s3.name.ifBlank { s3.id.take(8) }}"
             }
         }
         if (VaultReferenceLocator.mentions(settings.uploadS3Config.secretAccessKey, name)) {
-            hits += "S3 上传：${settings.uploadS3Config.name.ifBlank { settings.uploadS3Config.id.ifBlank { "媒体上传" } }}"
+            hits += "S3 upload: ${settings.uploadS3Config.name.ifBlank { settings.uploadS3Config.id.ifBlank { "Media upload" } }}"
         }
         (listOf(settings.webDavConfig) + settings.webDavConfigs).distinctBy { it.id }.forEach { dav ->
             if (VaultReferenceLocator.mentions(dav.password, name)) {
-                hits += "WebDAV 备份：${dav.name.ifBlank { dav.id.take(8) }}"
+                hits += "WebDAV backup: ${dav.name.ifBlank { dav.id.take(8) }}"
             }
         }
 
         // 本地 MCP 服务的鉴权令牌（按名引用）
         settings.localMcpProfiles.forEach { profile ->
             if (profile.authTokenRef.trim() == name) {
-                hits += "本地 MCP：${profile.name.ifBlank { profile.id }}"
+                hits += "Local MCP: ${profile.name.ifBlank { profile.id }}"
             }
         }
 
         // Web 桥的凭证引用（直接就是凭证名）
         if (settings.webBridgeCredentialRef.trim() == name) {
-            hits += "Web 桥：凭证引用"
+            hits += "Web bridge: credential reference"
         }
 
         listOf(
-            "全局代理密码" to settings.networkSetting.proxyPassword,
-            "Tailscale 认证密钥" to settings.networkSetting.tailscaleAuthKey,
-            "Web 桥密码" to settings.webBridgePassword,
-            "Web 服务访问密码" to settings.webServerAccessPassword,
-            "Web Bridge 私钥路径" to settings.webBridgePrivateKeyPath,
+            "Global proxy password" to settings.networkSetting.proxyPassword,
+            "Tailscale auth key" to settings.networkSetting.tailscaleAuthKey,
+            "Web bridge password" to settings.webBridgePassword,
+            "Web service access password" to settings.webServerAccessPassword,
+            "Web Bridge private key path" to settings.webBridgePrivateKeyPath,
         ).forEach { (location, value) ->
             if (VaultReferenceLocator.mentions(value, name)) hits += location
         }
@@ -346,15 +346,15 @@ fun vaultCredentialRefsTool(
         // 已保存的 SSH 主机（私钥引用及三个支持 $$ 引用的认证字段）
         hits += findSshHostCredentialReferences(name, sshHostRepository)
 
-        val head = "引用「$name」的位置（${hits.size}）："
+        val head = "Places referencing \"$name\" (${hits.size}):"
         val body =
             if (hits.isEmpty()) {
-                "$head\n（无）—— 没有配置按名字引用它，改名/删除不会破坏引用"
+                "$head\n(none) — no config references it by name, so renaming/deleting it will not break references"
             } else {
                 buildString {
                     appendLine(head)
                     hits.forEach { appendLine("- $it") }
-                    append("改名或删除前，请同步更新以上位置。")
+                    append("Before renaming or deleting, update the places above accordingly.")
                 }
             }
         listOf(UIMessagePart.Text(body))
@@ -367,7 +367,7 @@ private suspend fun findSshHostCredentialReferences(
 ): List<String> = buildList {
     for (host in sshHostRepository.getAll()) {
         if (host.vaultCredentialRef?.trim() == name) {
-            add("SSH 主机：${host.name}（Vault 私钥引用）")
+            add("SSH host: ${host.name} (Vault private key reference)")
         }
         val fields = listOf(
             "password" to host.password,
@@ -376,7 +376,7 @@ private suspend fun findSshHostCredentialReferences(
         )
         for ((field, value) in fields) {
             if (value != null && VaultReferenceLocator.mentions(value, name)) {
-                add("SSH 主机：${host.name}（$field）")
+                add("SSH host: ${host.name} ($field)")
             }
         }
     }

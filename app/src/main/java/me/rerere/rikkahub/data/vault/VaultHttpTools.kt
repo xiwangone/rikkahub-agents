@@ -239,10 +239,10 @@ private suspend fun runVaultHttpExec(
 
     val method = (o["method"]?.jsonPrimitive?.contentOrNull ?: "GET").uppercase()
         .takeIf { it in setOf("GET", "POST", "PUT", "PATCH", "DELETE") }
-        ?: return fail("method 只支持 GET/POST/PUT/PATCH/DELETE")
-    val url = o["url"]?.jsonPrimitive?.contentOrNull?.trim() ?: return fail("url 必填")
+        ?: return fail("method only supports GET/POST/PUT/PATCH/DELETE")
+    val url = o["url"]?.jsonPrimitive?.contentOrNull?.trim() ?: return fail("url is required")
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
-        return fail("url 必须是 http(s):// 开头")
+        return fail("url must start with http(s)://")
     }
     // 凭据会以 Authorization 头随请求发出：明文 http 会把密钥泄露在链路上 → 仅允许环回地址走 http
     if (url.startsWith("http://")) {
@@ -251,10 +251,10 @@ private suspend fun runVaultHttpExec(
             host == "localhost" || host == "127.0.0.1" || host == "::1" || host.startsWith("127.")
             )
         if (!loopback) {
-            return fail("携带凭据的请求必须使用 https://（仅环回地址允许 http://）")
+            return fail("Requests carrying credentials must use https:// (http:// is only allowed for loopback addresses)")
         }
     }
-    val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name 必填")
+    val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name is required")
     val scheme = o["auth_scheme"]?.jsonPrimitive?.contentOrNull ?: "Bearer"
     val headerName = o["header_name"]?.jsonPrimitive?.contentOrNull ?: "Authorization"
     val body = o["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
@@ -266,7 +266,7 @@ private suspend fun runVaultHttpExec(
         else kotlinx.serialization.json.Json.parseToJsonElement(raw).jsonObject.entries.mapNotNull { (k, v) ->
             (k to (v.jsonPrimitive.contentOrNull ?: return@mapNotNull null))
         }.toMap()
-    }.getOrElse { return fail("extra_headers 必须是合法 JSON 对象") }
+    }.getOrElse { return fail("extra_headers must be a valid JSON object") }
 
     // 取值统一走单点解析器：存在性 / 解密 / 审计一处实现，失败文案一致
     val resolved = CredentialResolver(repository).resolve(credName, CredentialPurpose.HTTP_HEADER, caller = "ai-tool")
@@ -297,7 +297,7 @@ private suspend fun runVaultHttpExec(
                 val code = resp.code
                 val rawBody = resp.body?.string() ?: ""
                 val truncated = rawBody.length > MAX_RESPONSE_BODY
-                val bodyOut = if (truncated) rawBody.take(MAX_RESPONSE_BODY) + "\n...[截断 ${rawBody.length - MAX_RESPONSE_BODY} chars]" else rawBody
+                val bodyOut = if (truncated) rawBody.take(MAX_RESPONSE_BODY) + "\n...[truncated ${rawBody.length - MAX_RESPONSE_BODY} chars]" else rawBody
                 val maskedBody = SecretMasker.mask(bodyOut, allVaultSecrets(repository))
                 val contentType = resp.header("Content-Type") ?: ""
                 listOf(
@@ -306,7 +306,7 @@ private suspend fun runVaultHttpExec(
                             append("status=$code")
                             if (contentType.isNotBlank()) append("\ncontent-type=$contentType")
                             if (maskedBody.isNotBlank()) append("\n--- body ---\n$maskedBody")
-                            append("\n（凭证已注入请求头，未出现在本次输出中）")
+                            append("\n(Credentials were injected into the request headers and do not appear in this output)")
                         },
                     ),
                 )
@@ -315,6 +315,6 @@ private suspend fun runVaultHttpExec(
     } catch (e: CancellationException) {
         throw e
     } catch (e: Exception) {
-        listOf(UIMessagePart.Text("❌ HTTP 请求失败: ${e.message}"))
+        listOf(UIMessagePart.Text("❌ HTTP request failed: ${e.message}"))
     }
 }

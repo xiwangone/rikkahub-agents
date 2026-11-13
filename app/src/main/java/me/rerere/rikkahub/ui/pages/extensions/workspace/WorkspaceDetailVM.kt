@@ -344,7 +344,7 @@ class WorkspaceDetailVM(
     }
 
     fun delete(entry: WorkspaceFileEntry) {
-        if (rejectLinuxWrite("删除")) return
+        if (rejectLinuxWrite(me.rerere.rikkahub.R.string.common_delete)) return
         viewModelScope.launch {
             runCatching {
                 repository.deleteFile(
@@ -371,7 +371,7 @@ class WorkspaceDetailVM(
         entry: WorkspaceFileEntry,
         rawName: String,
     ) {
-        if (rejectLinuxWrite("重命名")) return
+        if (rejectLinuxWrite(me.rerere.rikkahub.R.string.common_rename)) return
         val newName = rawName.trim()
         val invalid = validateEntryName(newName)
         if (invalid != null) {
@@ -403,7 +403,7 @@ class WorkspaceDetailVM(
         entry: WorkspaceFileEntry,
         targetDir: String,
     ) {
-        if (rejectLinuxWrite("移动")) return
+        if (rejectLinuxWrite(me.rerere.rikkahub.R.string.common_move)) return
         val target = childPath(targetDir, entry.name)
         if (target == entry.path || (entry.isDirectory && target.startsWith("${entry.path}/"))) {
             _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_move_same_dir)) }
@@ -461,7 +461,7 @@ class WorkspaceDetailVM(
      */
     fun paste(overwrite: Boolean) {
         val clip = state.value.clipboard ?: return
-        if (rejectLinuxWrite("粘贴")) return
+        if (rejectLinuxWrite(me.rerere.rikkahub.R.string.workspace_detail_paste)) return
         if (clip.area != state.value.area) {
             _state.update { it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_paste_diff_area)) }
             return
@@ -500,9 +500,15 @@ class WorkspaceDetailVM(
      * 与编辑页的只读保持一致。返回 true 表示已拦截、调用方直接返回。
      * rootfs 本身的权限不动，只是不让界面操作动系统文件。
      */
-    private fun rejectLinuxWrite(action: String): Boolean {
+    private fun rejectLinuxWrite(actionRes: Int): Boolean {
         if (state.value.area != WorkspaceStorageArea.LINUX) return false
-        _state.update { it.copy(error = "系统文件只读，无法$action") }
+        _state.update {
+            it.copy(
+                error = context.getString(me.rerere.rikkahub.R.string.workspace_file_readonly_cannot_action,
+                    context.getString(actionRes),
+                ),
+            )
+        }
         return true
     }
 

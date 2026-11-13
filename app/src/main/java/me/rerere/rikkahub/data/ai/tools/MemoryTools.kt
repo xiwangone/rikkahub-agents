@@ -126,7 +126,7 @@ fun buildMemoryTools(
                 properties = buildJsonObject {
                     put("keyword", buildJsonObject {
                         put("type", "string")
-                        put("description", "Keyword to search memory content (e.g. 'PC', 'ECS', '凭证', 'Backend')")
+                        put("description", "Keyword to search memory content (e.g. 'PC', 'ECS', 'credential', 'Backend')")
                     })
                 },
                 required = listOf("keyword"),

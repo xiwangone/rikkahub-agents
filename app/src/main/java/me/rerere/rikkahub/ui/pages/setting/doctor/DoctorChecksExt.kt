@@ -74,8 +74,10 @@ internal suspend fun DoctorChecks.networkChecks(): List<DoctorCheck> =
                             category = DoctorCategory.Network,
                             labelRes = R.string.doctor_net_01,
                             detail =
-                                "凭据解密失败已触发坏值保护（原密文保留在磁盘未覆盖）：" +
+                                str(
+                                    R.string.doctor_cred_decrypt_bad_value,
                                     credStatus.formatSummary(),
+                                ),
                             severity = Severity.WARN,
                             fix = FixAction.OpenAppRoute(R.string.doctor_net_02, AppRouteKey.SettingProvider),
                         ),
@@ -926,15 +928,29 @@ internal fun DoctorChecks.buildAssistantModelChecks(
                 val brokenSummary =
                     buildList {
                         if (status.brokenAssistants.isNotEmpty()) {
-                            add("助手=${status.brokenAssistants.joinToString(", ")}")
+                            add(
+                                str(
+                                    R.string.doctor_broken_assistants,
+                                    status.brokenAssistants.joinToString(", "),
+                                ),
+                            )
                         }
                         if (status.globalModelDangling) {
-                            add("全局默认模型悬空")
+                            add(str(R.string.doctor_global_model_dangling))
                         }
                     }.joinToString("；")
-                "默认模型=${status.effectiveModelLabel ?: "未解析"} (${status.source})；悬空/未启用模型绑定：$brokenSummary"
+                str(
+                    R.string.doctor_default_model_broken,
+                    status.effectiveModelLabel ?: str(R.string.doctor_model_unresolved),
+                    status.source,
+                    brokenSummary,
+                )
             } else {
-                "默认模型=${status.effectiveModelLabel ?: "未配置"} (${status.source})"
+                str(
+                    R.string.doctor_default_model,
+                    status.effectiveModelLabel ?: str(R.string.doctor_model_unconfigured),
+                    status.source,
+                )
             }
         add(
             DoctorCheck(

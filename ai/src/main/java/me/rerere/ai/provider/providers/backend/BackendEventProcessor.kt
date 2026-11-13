@@ -91,7 +91,7 @@ internal class BackendEventProcessor(
             if (event.kind == "error") {
                 closeOpenParts()
                 throw java.io.IOException(
-                    "Backend 事件流报错：${event.err ?: event.detail ?: event.code ?: "unknown error"}"
+                    "Backend event stream error: ${event.err ?: event.detail ?: event.code ?: "unknown error"}"
                 )
             }
 
@@ -104,10 +104,10 @@ internal class BackendEventProcessor(
         if (!turnDone) {
             val failure = streamFailure
             if (failure != null) {
-                throw java.io.IOException("Backend 事件流在 turn_done 之前结束", failure)
+                throw java.io.IOException("Backend event stream ended before turn_done", failure)
             }
             // 无流异常却退出循环，只可能是等待超时。
-            throw java.io.IOException("Backend 事件流超时：等待事件超时且未收到 turn_done")
+            throw java.io.IOException("Backend event stream timed out: timed out waiting for events without receiving turn_done")
         }
     }
 
@@ -336,7 +336,7 @@ internal class BackendEventProcessor(
                     emit(StreamChunk.ApprovalRequest(a.id, a.tool, a.subject))
                 } else {
                     AppLogger.w("BackendEventProcessor", "approval_request payload 为空，无法处理")
-                    emit(StreamChunk.Notice("服务端发起了审批请求，但内容缺失，无法处理", "warn"))
+                    emit(StreamChunk.Notice("The server initiated an approval request, but the content is missing and cannot be processed", "warn"))
                 }
             }
 
@@ -364,7 +364,7 @@ internal class BackendEventProcessor(
                     )
                 } else {
                     AppLogger.w("BackendEventProcessor", "ask_request payload 为空，无法处理")
-                    emit(StreamChunk.Notice("服务端发起了提问请求，但内容缺失，无法处理", "warn"))
+                    emit(StreamChunk.Notice("The server initiated a question, but the content is missing and cannot be processed", "warn"))
                 }
             }
         }

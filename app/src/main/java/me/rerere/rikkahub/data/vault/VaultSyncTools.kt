@@ -36,7 +36,7 @@ fun vaultExportLoadCredsTool(
     execute = { params ->
         val sessionManager = VaultSessionManager(context)
         if (!sessionManager.hasActiveAuthorization()) {
-            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
             val entries = repository.getAll()
             val quads =
@@ -44,23 +44,23 @@ fun vaultExportLoadCredsTool(
                     repository.decryptValue(e)?.let { VaultExporter.Quad(e.name, it, e.description, e.grp, e.publicKey, e.type) }
                 }
             if (quads.isEmpty()) {
-                listOf(UIMessagePart.Text("❌ 凭证库为空，无可导出条目"))
+                listOf(UIMessagePart.Text("❌ The vault is empty, nothing to export"))
             } else {
                 val script = VaultExporter.toLoadCreds(quads)
                 val wsRepository =
                     runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
-                        ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
-                val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+                        ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
+                val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
                 runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }
-                    .onFailure { AppLog.w("VaultTools", "写入 load-creds-export.sh 失败", it) }
+                    .onFailure { AppLog.w("VaultTools", "Failed to write load-creds-export.sh", it) }
                     .getOrNull()
-                    ?: return@Tool listOf(UIMessagePart.Text("❌ 写工作区文件失败"))
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ Failed to write the workspace file"))
                 quads.forEach { q -> repository.logAccess(q.name, "ai-tool", "export_loadcreds") }
                 listOf(
                     UIMessagePart.Text(
-                        "✅ 已导出 ${quads.size} 条凭证到 /workspace/tmp/load-creds-export.sh\n" +
-                            "含分组/描述/SSH公钥注释。修改后可用 vault_import_loadcreds 或 UI 导入同步。\n" +
-                            "⚠️ 该文件含明文密钥，用完请删除。",
+                        "✅ Exported ${quads.size} credentials to /workspace/tmp/load-creds-export.sh\n" +
+                            "Includes group/description/SSH公钥 comments. After editing, sync it back with vault_import_loadcreds or the UI import.\n" +
+                            "⚠️ This file contains plaintext secrets; delete it when done.",
                     ),
                 )
             }
@@ -103,20 +103,20 @@ fun vaultCredentialMergeTool(
     needsApproval = { true },
     execute = { params ->
         if (context != null && !VaultSessionManager(context).hasActiveAuthorization()) {
-            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            return@Tool listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         }
         val source = params.jsonObject["source"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         val target = params.jsonObject["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
         if (source.isEmpty() || target.isEmpty()) {
-            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 均必填"))
+            return@Tool listOf(UIMessagePart.Text("❌ Both source and target are required"))
         }
         if (source == target) {
-            return@Tool listOf(UIMessagePart.Text("❌ source 与 target 相同，无需合并"))
+            return@Tool listOf(UIMessagePart.Text("❌ source and target are the same, nothing to merge"))
         }
         val sourceEntry = repository.getByName(source)
-            ?: return@Tool listOf(UIMessagePart.Text("❌ 源凭证不存在: $source"))
+            ?: return@Tool listOf(UIMessagePart.Text("❌ Source credential does not exist: $source"))
         val targetEntry = repository.getByName(target)
-            ?: return@Tool listOf(UIMessagePart.Text("❌ 目标凭证不存在: $target"))
+            ?: return@Tool listOf(UIMessagePart.Text("❌ Target credential does not exist: $target"))
 
         // 值指纹比对（不见值）：仅用于提示，是否合并由调用方决定
         val sourceValue = repository.decryptValue(sourceEntry)
@@ -140,7 +140,7 @@ fun vaultCredentialMergeTool(
             } catch (error: Exception) {
                 return@Tool listOf(
                     UIMessagePart.Text(
-                        "⚠️ 引用同步失败；源凭证「$source」仍保留，引用可能部分更新。请核对后重试。原因：${error.message ?: error::class.simpleName}",
+                        "⚠️ Reference sync failed; source credential \"$source\" is kept and references may be partially updated. Please verify and retry. Reason: ${error.message ?: error::class.simpleName}",
                     ),
                 )
             }
@@ -150,10 +150,10 @@ fun vaultCredentialMergeTool(
 
         listOf(
             UIMessagePart.Text(
-                "✅ 已合并：$source → $target\n" +
-                    "值比对：" + if (sameValue) "两者内容一致（指纹相同）" else "⚠ 两者内容**不同**，已按你的指定保留 $target" + "\n" +
-                    "引用同步：已更新 $synced 处配置引用\n" +
-                    "（值不可读写；如需回滚请从 .vault 备份恢复）",
+                "✅ Merged: $source → $target\n" +
+                    "Value comparison: " + if (sameValue) "identical content (same fingerprint)" else "⚠ The contents **differ**; kept $target as you specified" + "\n" +
+                    "Reference sync: updated $synced config reference(s)\n" +
+                    "(values are not readable/writable; restore from a .vault backup to roll back)",
             ),
         )
     },
@@ -248,21 +248,21 @@ fun vaultCredentialNormalizeTool(
         }
 
         if (plans.isEmpty()) {
-            return@Tool listOf(UIMessagePart.Text("✅ 所有凭证名都符合规范，无需调整"))
+            return@Tool listOf(UIMessagePart.Text("✅ All credential names follow the rules, nothing to adjust"))
         }
 
         if (dryRun) {
             val body = buildString {
-                appendLine("将调整 ${plans.size} 条（dry_run，未执行）：")
+                appendLine("Would adjust ${plans.size} entries (dry_run, not executed):")
                 plans.forEach { p ->
-                    appendLine("- ${p.old} → ${p.new}" + if (p.conflict) "  ⚠ 目标名可能已被占用，执行时会跳过" else "")
+                    appendLine("- ${p.old} → ${p.new}" + if (p.conflict) "  ⚠ The target name may already be taken; it will be skipped on execution" else "")
                 }
-                append("确认后请用 dry_run=false 执行（会自动同步配置引用）。")
+                append("Once confirmed, run with dry_run=false (config references are synced automatically).")
             }
             return@Tool listOf(UIMessagePart.Text(body))
         }
         if (context != null && !VaultSessionManager(context).hasActiveAuthorization()) {
-            return@Tool listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再执行 dry_run=false"))
+            return@Tool listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then run with dry_run=false"))
         }
 
         var done = 0
@@ -282,17 +282,17 @@ fun vaultCredentialNormalizeTool(
                 throw error
             } catch (error: Exception) {
                 skipped++
-                failures += "${p.old} → ${p.new}：同步失败（${error.message ?: error::class.simpleName}），源凭证保留，引用可能部分更新"
+                failures += "${p.old} → ${p.new}: sync failed (${error.message ?: error::class.simpleName}); source credential kept, references may be partially updated"
             }
         }
         listOf(
             UIMessagePart.Text(
                 buildString {
-                    append("✅ 已规范化 $done 条（跳过/失败 $skipped 条）\n引用同步：共更新 $syncedTotal 处配置引用")
+                    append("✅ Normalized $done entries (skipped/failed $skipped)\nReference sync: updated $syncedTotal config reference(s) in total")
                     if (failures.isNotEmpty()) {
-                        appendLine("\n失败项：")
+                        appendLine("\nFailed items:")
                         failures.forEach { appendLine("- $it") }
-                        append("目标条目可能已创建；核对引用后再手工合并/清理源条目。")
+                        append("The target entry may already be created; verify the references, then manually merge/clean up the source entry.")
                     }
                 },
             ),
@@ -324,13 +324,13 @@ fun vaultImportLoadCredsTool(
     execute = { params ->
         val sessionManager = VaultSessionManager(context)
         if (!sessionManager.hasActiveAuthorization()) {
-            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
             val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds-export.sh"
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
-                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
-            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
@@ -338,21 +338,21 @@ fun vaultImportLoadCredsTool(
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
-                listOf(UIMessagePart.Text("❌ 读取文件失败: $path"))
+                listOf(UIMessagePart.Text("❌ Failed to read file: $path"))
             } else {
                 val parsed = CredentialImporter.parse(content)
                 if (parsed.isEmpty()) {
-                    listOf(UIMessagePart.Text("❌ 未解析到任何条目（格式不符 load-creds.sh？）"))
+                    listOf(UIMessagePart.Text("❌ No entries parsed (does the format match load-creds.sh?)"))
                 } else {
                     val result = repository.importEntries(parsed)
                     parsed.forEach { p -> repository.logAccess(p.name, "ai-tool", "import_loadcreds") }
                     listOf(
                         UIMessagePart.Text(
                             buildString {
-                                append("✅ 已导入/更新 ${result.imported} 条凭证（解析 ${parsed.size} 条）")
-                                if (result.skipped > 0) append("；跳过 ${result.skipped} 条（名称不合规或值非法）")
+                                append("✅ Imported/updated ${result.imported} credentials (parsed ${parsed.size})")
+                                if (result.skipped > 0) append("; skipped ${result.skipped} (invalid name or value)")
                                 if (result.overwrittenDifferentValue.isNotEmpty()) {
-                                    append("\n⚠ 以下条目同名但值不同，已被导入内容覆盖：")
+                                    append("\n⚠ The following entries had the same name but different values and were overwritten by the imported content:")
                                     result.overwrittenDifferentValue.forEach { append("\n- " + it) }
                                 }
                             },
@@ -389,13 +389,13 @@ fun vaultCompareLoadCredsTool(
     execute = { params ->
         val sessionManager = VaultSessionManager(context)
         if (!sessionManager.hasActiveAuthorization()) {
-            listOf(UIMessagePart.Text("❌ 未授权：请先完成 Vault 授权（30 分钟或一直有效）再调用本工具"))
+            listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
             val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds.sh"
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
-                    ?: return@Tool listOf(UIMessagePart.Text("❌ 工作区不可用"))
-            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ 无工作区"))
+                    ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
+            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
@@ -403,11 +403,11 @@ fun vaultCompareLoadCredsTool(
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
-                listOf(UIMessagePart.Text("❌ 读取文件失败: $path（先上传或 vault_export_loadcreds 生成）"))
+                listOf(UIMessagePart.Text("❌ Failed to read file: $path (upload it first, or generate it with vault_export_loadcreds)"))
             } else {
                 val fileEntries = CredentialImporter.parse(content).associateBy { it.name }
                 if (fileEntries.isEmpty()) {
-                    listOf(UIMessagePart.Text("❌ 文件未解析到任何条目（格式不符 load-creds.sh？）"))
+                    listOf(UIMessagePart.Text("❌ No entries parsed from the file (does the format match load-creds.sh?)"))
                 } else {
                     val vaultEntries = repository.getAll().associateBy { it.name }
                     listOf(UIMessagePart.Text(buildVaultCompareReport(path, fileEntries, vaultEntries, repository)))
@@ -442,29 +442,29 @@ private suspend fun buildVaultCompareReport(
         if (hash(fe.value) == vaultValueHash(name)) {
             sameValues += name
         } else {
-            diffValues += "$name（值不同）"
+            diffValues += "$name (different value)"
         }
         val metaDiff = listOfNotNull(
-            "描述".takeIf { fe.description != ve.description },
-            "分组".takeIf { fe.group != ve.grp },
-            "公钥".takeIf { fe.publicKey != ve.publicKey },
+            "Description".takeIf { fe.description != ve.description },
+            "Group".takeIf { fe.group != ve.grp },
+            "Public key".takeIf { fe.publicKey != ve.publicKey },
         )
         if (metaDiff.isNotEmpty()) diffMeta += "$name（${metaDiff.joinToString("/")}）"
     }
 
     return buildString {
-        append("核对报告（vault ↔ $path）\n")
-        append("文件条目 ${fileEntries.size} | vault 条目 ${vaultEntries.size}\n")
-        if (onlyVault.isNotEmpty()) append("🔹 仅 vault 有（${onlyVault.size}）：${onlyVault.sorted().joinToString(", ")}\n")
-        if (onlyFile.isNotEmpty()) append("🔹 仅文件有（${onlyFile.size}）：${onlyFile.sorted().joinToString(", ")}\n")
-        append("✅ 值一致（${sameValues.size}）：${sameValues.take(30).joinToString(", ")}${if (sameValues.size > 30) "…" else ""}\n")
-        if (diffValues.isNotEmpty()) append("⚠️ 值不同（${diffValues.size}）：${diffValues.joinToString("; ")}\n")
-        if (diffMeta.isNotEmpty()) append("ℹ️ 元数据不同（${diffMeta.size}）：${diffMeta.joinToString("; ")}\n")
+        append("Reconciliation report (vault ↔ $path)\n")
+        append("File entries ${fileEntries.size} | vault entries ${vaultEntries.size}\n")
+        if (onlyVault.isNotEmpty()) append("🔹 Only in vault (${onlyVault.size}): ${onlyVault.sorted().joinToString(", ")}\n")
+        if (onlyFile.isNotEmpty()) append("🔹 Only in file (${onlyFile.size}): ${onlyFile.sorted().joinToString(", ")}\n")
+        append("✅ Values match (${sameValues.size}): ${sameValues.take(30).joinToString(", ")}${if (sameValues.size > 30) "…" else ""}\n")
+        if (diffValues.isNotEmpty()) append("⚠️ Values differ (${diffValues.size}): ${diffValues.joinToString("; ")}\n")
+        if (diffMeta.isNotEmpty()) append("ℹ️ Metadata differs (${diffMeta.size}): ${diffMeta.joinToString("; ")}\n")
         if (onlyVault.isEmpty() && onlyFile.isEmpty() && diffValues.isEmpty()) {
-            append("🎉 值完全一致。")
-            if (diffMeta.isEmpty()) append("描述/分组/公钥也一致。")
+            append("🎉 All values match.")
+            if (diffMeta.isEmpty()) append("Descriptions, groups, and public keys match too.")
         } else {
-            append("\n修正方向需用户确认：文件为准→vault_import_loadcreds；vault 为准→vault_export_loadcreds 覆盖文件。")
+            append("\nWhich side wins needs user confirmation: file wins → vault_import_loadcreds; vault wins → vault_export_loadcreds to overwrite the file.")
         }
     }
 }

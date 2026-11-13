@@ -272,6 +272,6 @@ internal fun ensureSufficientDiskSpace(targetDir: File, requiredBytes: Long) {
     if (usable in 1 until needed) {
         val usableMb = usable / (1024 * 1024)
         val neededMb = needed / (1024 * 1024)
-        throw IOException("磁盘剩余空间不足（当前可用约 ${usableMb}MB，至少需要 ${neededMb}MB）")
+        throw IOException("Not enough free disk space (about ${usableMb}MB available, at least ${neededMb}MB required)")
     }
 }

@@ -251,7 +251,7 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
     if (referenced.isEmpty()) return literals
 
     val vaultRepository = runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
-        ?: error("env 注入失败：凭证库不可用")
+        ?: error("env injection failed: credential vault unavailable")
     val appContext = runCatching { getKoin().get<Context>() }.getOrNull()
     // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
     val resolver = CredentialResolver(vaultRepository) {
@@ -266,7 +266,7 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
         when (resolution) {
             // 只把真值交给 envPrelude；真值不进日志、不进返回给模型的文本
             is CredentialResolution.Granted -> k to resolution.value
-            else -> error("env 注入失败：$k -> ${resolution.message}")
+            else -> error("env injection failed: $k -> ${resolution.message}")
         }
     }.toMap()
 }

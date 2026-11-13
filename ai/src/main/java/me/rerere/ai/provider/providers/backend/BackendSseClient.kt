@@ -160,7 +160,7 @@ class BackendSseClient(
                                     val notice =
                                         SseEvent(
                                             kind = "notice",
-                                            text = "服务端仍在等待应答（审批 / 提问）：请在通知栏处理，或重启服务后重试",
+                                            text = "The server is still waiting for a response (approval / question): please handle it in the notification shade, or restart the service and retry",
                                             level = "warn",
                                         )
                                     if (!destination.tryEmit(notice)) {

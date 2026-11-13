@@ -152,7 +152,7 @@ internal suspend fun resolveHostAuthDetailed(
         }
         val secret = (r as? CredentialResolution.Granted)?.value
             ?: return HostAuthResolution.Unusable(
-                "saved host '${h.name}' 的凭证不可用：${r.message}（引用字段 = $ref）",
+                "saved host '${h.name}' has unusable credentials: ${r.message} (reference field = $ref)",
             )
         // OPENSSH 私钥末尾换行标准化（缺换行 Auth fail）——统一在此容错，覆盖所有走本函数的连接
         return HostAuthResolution.Ready(
@@ -174,7 +174,7 @@ internal suspend fun resolveHostAuthDetailed(
     )
     val auth = SshAuth(password = password, privateKey = privateKey, passphrase = passphrase)
     return if (auth.isUsable()) HostAuthResolution.Ready(auth)
-    else HostAuthResolution.Unusable("saved host '${h.name}' 没有可用认证材料（既无私钥也无密码）")
+    else HostAuthResolution.Unusable("saved host '${h.name}' has no usable auth material (neither private key nor password)")
 }
 
 /** 兼容入口：只取结果、丢掉原因；新调用点请用 [resolveHostAuthDetailed] 以保留失败原因。 */
@@ -449,7 +449,7 @@ fun sshExecSavedTool(
                 })
                 put("env_style", buildJsonObject {
                     put("type", "string")
-                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/其他远端，使用 `NAME=... ; export NAME`).")
+                    put("description", "Environment syntax for `env`: 'auto' (default; assumes a Windows/pwsh remote, where `\$env:NAME` is used) or 'posix' (Linux/other remotes, using `NAME=... ; export NAME`).")
                 })
                 put("platform", buildJsonObject {
                     put("type", "string")
@@ -556,10 +556,10 @@ fun sshExecSavedTool(
             val jh = cand.jumpHost?.trim().orEmpty()
             if (jh.isEmpty()) return JumpResolution.NotConfigured
             if (jh == cand.name) {
-                return JumpResolution.Unusable("saved host '${cand.name}' 的跳板指向自身（jump_host = $jh）")
+                return JumpResolution.Unusable("saved host '${cand.name}' jumps to itself (jump_host = $jh)")
             }
             val jEntity = repo.getByName(jh)
-                ?: return JumpResolution.Unusable("跳板主机 '$jh' 不存在（list_ssh_hosts 查看可用名）")
+                ?: return JumpResolution.Unusable("Jump host '$jh' does not exist (use list_ssh_hosts to list available names)")
             val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository)) {
                 is HostAuthResolution.Ready -> r.auth
                 is HostAuthResolution.Unusable -> return JumpResolution.Unusable(r.reason)

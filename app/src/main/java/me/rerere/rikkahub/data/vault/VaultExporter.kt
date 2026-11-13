@@ -76,7 +76,7 @@ object VaultExporter {
         password: String,
         entries: List<Quad>,
     ): String {
-        require(password.isNotBlank()) { "口令不能为空" }
+        require(password.isNotBlank()) { "Passphrase must not be empty" }
         val salt = ByteArray(SALT_SIZE).also { SecureRandom().nextBytes(it) }
         val key = deriveKey(password, salt)
         val cipher = Cipher.getInstance(TRANSFORMATION)
@@ -109,7 +109,7 @@ object VaultExporter {
         password: String,
     ): List<Quad> {
         val bundle = Json { ignoreUnknownKeys = true }.decodeFromString<VaultBundle>(vaultJson)
-        require(bundle.format == FORMAT) { "非 rikkahub-vault 格式" }
+        require(bundle.format == FORMAT) { "Not a rikkahub-vault format" }
         val salt = Base64.getDecoder().decode(bundle.kdf.salt)
         val key = deriveKey(password, salt)
         val cipher = Cipher.getInstance(TRANSFORMATION)
@@ -163,8 +163,8 @@ object VaultExporter {
     fun toLoadCreds(entries: List<Quad>): String {
         val sb = StringBuilder()
         sb.append("#!/bin/bash\n")
-        sb.append("# load-creds.sh — 由 RikkaHub Agents 凭证库导出（vault_export_loadcreds / UI），可与凭证库往返导入\n")
-        sb.append("# 格式：分组头注释 + 描述注释 + 公钥注释 + export 变量。修改后重新导入即可同步密钥库。\n")
+        sb.append("# load-creds.sh — exported from the RikkaHub Agents credential vault (vault_export_loadcreds / UI), can be imported back into the vault\n")
+        sb.append("# Format: group header comments + description comments + public key comments + export variables. Re-import after editing to sync the vault.\n")
         val byGroup = entries.groupBy { it.group.ifBlank { "Other" } }
         val sortedGroups = byGroup.keys.sorted()
         var first = true

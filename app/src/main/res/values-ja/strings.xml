@@ -4383,4 +4383,54 @@
   <string name="workspace_ssh_jump_host_desc">最初に経由する保存済み SSH ホストの名前（ProxyJump）。空欄の場合は直接接続します。</string>
   <string name="workspace_ssh_jump_host_key_trusted">信頼済みのジャンプホスト鍵：%1$s %2$s</string>
   <string name="workspace_ssh_jump_host_key_missing">ジャンプホストの鍵は未確認です。初回接続時にフィンガープリントを確認してください</string>
+  <string name="setting_model_prompt_reset_confirm_text">現在のプロンプトはデフォルトのプロンプトに置き換えられます</string>
+  <string name="setting_model_prompt_unsaved_title">未保存の変更</string>
+  <string name="setting_model_prompt_discard">変更を破棄</string>
+  <string name="setting_model_prompt_continue_editing">編集を続ける</string>
+  <string name="setting_model_prompt_unsaved_text">プロンプトは変更されましたが保存されていません。離れると変更は失われます。</string>
+  <string name="setting_provider_delete_selected_message">選択した %1$d 件のモデルを削除します。この操作は元に戻せません</string>
+  <string name="setting_provider_remove_override_message">プロバイダーのオーバーライドを削除します。モデルは親プロバイダーの設定を使用します。この操作は元に戻せません</string>
+  <string name="setting_provider_delete_model_message">モデル「%1$s」を削除します。この操作は元に戻せません</string>
+  <string name="browser_error_code">エラーコード %1$d</string>
+  <string name="browser_ssl_title">証明書に問題がありますが、このままアクセスしますか？</string>
+  <string name="browser_ssl_body">このサイトの証明書に問題があります：%1$s。\nURL：%2$s\n\n自己署名証明書は LAN／自前サービスではよくありますが、続行するとリスクがある場合があります。このサイトにアクセスしてよいか確認してください。</string>
+  <string name="browser_ssl_continue">このままアクセス</string>
+  <string name="browser_ssl_reason_not_yet_valid">証明書はまだ有効ではありません</string>
+  <string name="browser_ssl_reason_expired">証明書の有効期限が切れています</string>
+  <string name="browser_ssl_reason_mismatch">証明書のドメインが URL と一致しません</string>
+  <string name="browser_ssl_reason_untrusted">証明書の発行元が信頼できません（自己署名の可能性があります）</string>
+  <string name="browser_ssl_reason_date_invalid">証明書の日付が無効です</string>
+  <string name="browser_ssl_reason_invalid">証明書が無効です</string>
+  <string name="browser_error_page_title">ページの読み込みに失敗しました</string>
+  <string name="browser_error_page_cannot_open">開けません：%1$s</string>
+  <string name="browser_error_page_reason">原因：%1$s</string>
+  <string name="browser_error_page_reload">再読み込み</string>
+  <string name="dev_mode_badge">[開発モード]</string>
+  <string name="workspace_detail_mirror_current_unset">現在：未設定</string>
+  <string name="workspace_detail_mirror_current">現在：%1$s</string>
+  <string name="workspace_detail_mirror_custom_address">カスタムミラーアドレス</string>
+  <string name="workspace_detail_new_folder_name">新しいフォルダ名</string>
+  <string name="workspace_detail_create_failed">作成に失敗しました</string>
+  <string name="workspace_detail_create_folder_and_move">フォルダを作成して移動</string>
+  <string name="workspace_detail_folder_exists_title">「%1$s」は既に存在します</string>
+  <string name="workspace_detail_folder_exists_body">保存先に同名のフォルダが既にあります。処理方法を選択してください：</string>
+  <string name="workspace_detail_export_overwrite">上書き（既存のフォルダを削除してからエクスポート）</string>
+  <string name="workspace_detail_export_merge">既存のフォルダに統合</string>
+  <string name="workspace_detail_selection_cleared_other_dirs">他のディレクトリの選択をクリアしました</string>
+  <string name="workspace_file_readonly_cannot_action">システムファイルは読み取り専用のため、%1$sできません</string>
+  <string name="workspace_file_editor_unsaved_title">未保存の変更</string>
+  <string name="workspace_file_editor_unsaved_text">このファイルには未保存の変更があります。今戻ると変更は失われます。</string>
+  <string name="workspace_file_editor_discard">破棄</string>
+  <string name="workspace_files_search_placeholder">ファイル名を検索</string>
+  <string name="workspace_files_truncated">最初の %1$d 件を表示（全 %2$d 件）</string>
+  <string name="workspace_terminal_reopen">再度開く</string>
+  <string name="common_apply">適用</string>
+  <string name="common_move">移動</string>
+  <string name="doctor_cred_decrypt_bad_value">認証情報の復号に失敗し、不正値保護が作動しました（元の暗号文はディスクに残され、上書きされていません）：%1$s</string>
+  <string name="doctor_default_model">デフォルトモデル=%1$s（%2$s）</string>
+  <string name="doctor_default_model_broken">デフォルトモデル=%1$s（%2$s）；未解決／無効なモデルの紐付け：%3$s</string>
+  <string name="doctor_broken_assistants">アシスタント=%1$s</string>
+  <string name="doctor_global_model_dangling">グローバルデフォルトモデルが未解決です</string>
+  <string name="doctor_model_unresolved">未解決</string>
+  <string name="doctor_model_unconfigured">未設定</string>
 </resources>

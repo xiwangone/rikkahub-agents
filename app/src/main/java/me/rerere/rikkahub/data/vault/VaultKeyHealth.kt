@@ -55,7 +55,7 @@ object VaultKeyHealth {
             out += Issue(
                 Code.PRIVATE_UNPARSEABLE,
                 Severity.ERROR,
-                "私钥无法解析（容器头：${SshKeyGenerator.privateKeyFormat(priv).label}）",
+                "Private key cannot be parsed (container header: ${SshKeyGenerator.privateKeyFormat(priv).label})",
             )
             return out
         }
@@ -74,8 +74,8 @@ object VaultKeyHealth {
             out += Issue(
                 Code.KEY_MISMATCH,
                 Severity.ERROR,
-                "私钥推导出的公钥（${derivedType} ${fingerprintOf(derivedType, derivedBlob)}）" +
-                    "与条目存的公钥（${storedType} ${fingerprintOf(storedType, storedBlob!!)}）不是同一把",
+                "Public key derived from the private key (${derivedType} ${fingerprintOf(derivedType, derivedBlob)})" +
+                    "is not the same key as the public key stored in the entry (${storedType} ${fingerprintOf(storedType, storedBlob!!)})",
             )
         }
         return out
@@ -91,7 +91,7 @@ object VaultKeyHealth {
             out += Issue(
                 Code.PUBLIC_FORMAT,
                 Severity.ERROR,
-                "不是公钥行：期望「<类型> <base64> [注释]」，实际 ${parts.size} 段",
+                "Not a public key line: expected \"<type> <base64> [comment]\", found ${parts.size} segments",
             )
             return out
         }
@@ -101,9 +101,9 @@ object VaultKeyHealth {
             val pad = b64.length - b64.trimEnd('=').length
             // 长度 %4==1 是 base64 里**不存在**的形状：必然是少字符或被插了字符，连补正都无从下手。
             val reason = if (pad == 0 && b64.length % 4 == 1) {
-                "base64 长度 ${b64.length}（%4=1）无法成组解码：内容被截断或插入了字符"
+                "base64 length ${b64.length} (%4=1) cannot be decoded in groups: content truncated or extra characters inserted"
             } else {
-                "base64 段无法按标准解码（长度 ${b64.length}）：非规范编码或内容被截断"
+                "base64 segment cannot be decoded per the standard (length ${b64.length}): non-standard encoding or truncated content"
             }
             out += Issue(Code.PUBLIC_FORMAT, Severity.ERROR, reason)
             return out
@@ -116,8 +116,8 @@ object VaultKeyHealth {
             out += Issue(
                 Code.PUBLIC_FORMAT,
                 Severity.WARN,
-                "base64 写法非标准（多余的填充符 `=` 或非规范末组）：公钥行的标准写法不带多余填充，" +
-                    "可规范化修复（仍可解析成功，故不判错）",
+                "Non-standard base64 (extra padding `=` or non-standard trailing group): the standard public key line has no extra padding," +
+                    "can be fixed by normalization (still parses, so not treated as an error)",
             )
         }
         SshKeyGenerator.blobIssue(parts[0], blob)?.let {
@@ -185,7 +185,7 @@ object VaultKeyHealth {
     }
 
     private fun fingerprintOf(type: String, blob: ByteArray): String =
-        SshKeyGenerator.fingerprint("$type ${b64(blob)}") ?: "(无法计算指纹)"
+        SshKeyGenerator.fingerprint("$type ${b64(blob)}") ?: "(fingerprint cannot be computed)"
 
     private fun b64(b: ByteArray): String = Base64.getEncoder().encodeToString(b)
 }

@@ -733,9 +733,9 @@ class SubAgentEngine(
         val message = buildString {
             appendLine("[Sub-agent ${run.label} — ${run.status.name}]")
             appendLine(
-                "用量: in ${run.tokensIn} (cached ${run.tokensCached}) / out ${run.tokensOut}" +
-                    " · ${run.tripCount} 回合" +
-                    (elapsedSec?.let { " · 耗时 ${it}s" } ?: ""),
+                "Usage: in ${run.tokensIn} (cached ${run.tokensCached}) / out ${run.tokensOut}" +
+                    " · ${run.tripCount} rounds" +
+                    (elapsedSec?.let { " · took ${it}s" } ?: ""),
             )
             run.error?.takeIf { it.isNotBlank() }?.let {
                 appendLine("Error: $it")

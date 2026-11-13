@@ -236,15 +236,15 @@ fun WorkspaceFileEditorPage(
     if (showUnsavedDialog) {
         AlertDialog(
             onDismissRequest = { showUnsavedDialog = false },
-            title = { Text("未保存的更改") },
-            text = { Text("此文件有未保存的更改，直接返回将丢失这些更改。") },
+            title = { Text(stringResource(R.string.workspace_file_editor_unsaved_title)) },
+            text = { Text(stringResource(R.string.workspace_file_editor_unsaved_text)) },
             // 保存 / 放弃 / 取消三路：放弃直接返回丢弃改动，保存成功后再返回。
             confirmButton = {
                 TextButton(onClick = {
                     showUnsavedDialog = false
                     navController.popBackStack()
                 }) {
-                    Text("放弃")
+                    Text(stringResource(R.string.workspace_file_editor_discard))
                 }
                 TextButton(onClick = {
                     showUnsavedDialog = false

@@ -118,7 +118,7 @@ class ConfigToolsRevertTest {
             """{"id":1,"action":"set","key":"old","value":"v2","at":1}""" + "\n"
 
         val out = revert(io, "old")
-        assertTrue("legacy set record must not revert, got: $out", out.contains("旧值未知"))
+        assertTrue("legacy set record must not revert, got: $out", out.contains("Old value unknown"))
         assertEquals("\"v2\"", storedSettings(io)["old"].toString())
     }
 
@@ -128,7 +128,7 @@ class ConfigToolsRevertTest {
         io.files["config/settings.json"] = """{"x":1}"""
 
         val out = revert(io, "x")
-        assertTrue("no set history must not revert, got: $out", out.contains("无 set 历史"))
+        assertTrue("no set history must not revert, got: $out", out.contains("No set history"))
         assertEquals("1", storedSettings(io)["x"].toString())
     }
 }

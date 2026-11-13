@@ -36,10 +36,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.MutableState
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.viewinterop.AndroidView
 import me.rerere.rikkahub.BuildConfig
+import me.rerere.rikkahub.R
 import java.io.File
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
@@ -153,6 +156,21 @@ private fun WebViewHost(
     // 对话框的是下面的 Compose AlertDialog——回调里直接弹系统对话框拿不到
     // Compose 的主题，也容易在重组时丢状态。
     val sslErrorState = remember { mutableStateOf<SslErrorRequest?>(null) }
+    // Error-page copy resolved in the Composable scope and handed to the
+    // WebViewClient via rememberUpdatedState: the client callbacks are not
+    // Composable, so they cannot call stringResource themselves, and reading
+    // them through context.getString there would go stale on config change.
+    // The State object is stable; callbacks read .value at error time, so a
+    // locale change that recomposes this scope is picked up by the next error.
+    val errorPageStringsState = rememberUpdatedState(
+        ErrorPageStrings(
+            title = stringResource(R.string.browser_error_page_title),
+            cannotOpenTemplate = stringResource(R.string.browser_error_page_cannot_open),
+            reasonTemplate = stringResource(R.string.browser_error_page_reason),
+            reload = stringResource(R.string.browser_error_page_reload),
+            errorCodeTemplate = stringResource(R.string.browser_error_code),
+        ),
+    )
     // Construct the WebView ONCE — `remember` survives recomp + (with key=Unit) survives
     // configuration changes (the Activity declares `configChanges` so the system never
     // recreates us). Recreating per-recomp would reset history, scroll, and JS state.
@@ -277,7 +295,7 @@ private fun WebViewHost(
                         "RikkaWebView",
                         "onReceivedError mainFrame=$isMainFrame url=${request?.url} code=${error?.errorCode} desc=${error?.description}",
                     )
-                    // 主页面加载失败（断网、DNS、超时）时给一张中文错误页，写明失败原因
+                    // 主页面加载失败（断网、DNS、超时）时给一张错误页，写明失败原因
                     // 和当前 URL，附重新加载按钮——之前只记日志、页面留白，用户不知道
                     // 发生了什么。子 frame（图片、脚本）失败不处理，只记日志，
                     // 否则一个坏资源就会把整页换成错误页。
@@ -287,8 +305,17 @@ private fun WebViewHost(
                         // 日志行在 if 外、request 仍可空，那里保持 request?.url。
                         val failedUrl = request.url.toString().orEmpty()
                         val reason = error?.description?.toString().orEmpty()
-                            .ifBlank { "错误码 ${error?.errorCode}" }
-                        showLoadErrorPage(view, failedUrl, reason)
+                            .ifBlank {
+                                errorPageStringsState.value.errorCodeTemplate.format(
+                                    error?.errorCode ?: 0,
+                                )
+                            }
+                        showLoadErrorPage(
+                            view,
+                            failedUrl,
+                            reason,
+                            errorPageStringsState.value,
+                        )
                     }
                 }
 
@@ -452,26 +479,27 @@ private fun WebViewHost(
                     req.handler.cancel()
                     sslErrorState.value = null
                 },
-                title = { Text("证书有问题，是否继续访问？") },
+                title = { Text(stringResource(R.string.browser_ssl_title)) },
                 text = {
                     Text(
-                        "该网站的证书存在问题：${sslErrorReason(req.error.primaryError)}。\n" +
-                            "网址：${req.error.url}\n\n" +
-                            "自签证书在局域网/自建服务上很常见，但继续访问可能有风险，" +
-                            "请确认这是你要访问的网站。",
+                        stringResource(
+                            R.string.browser_ssl_body,
+                            stringResource(sslErrorReasonRes(req.error.primaryError)),
+                            req.error.url,
+                        ),
                     )
                 },
                 confirmButton = {
                     TextButton(onClick = {
                         req.handler.proceed()
                         sslErrorState.value = null
-                    }) { Text("继续访问") }
+                    }) { Text(stringResource(R.string.browser_ssl_continue)) }
                 },
                 dismissButton = {
                     TextButton(onClick = {
                         req.handler.cancel()
                         sslErrorState.value = null
-                    }) { Text("取消") }
+                    }) { Text(stringResource(R.string.cancel)) }
                 },
             )
         }
@@ -481,14 +509,14 @@ private fun WebViewHost(
 /** 待用户确认的 SSL 证书错误：handler 与 error 成对保存，确认后 proceed、取消后 cancel。 */
 private data class SslErrorRequest(val handler: SslErrorHandler, val error: SslError)
 
-/** `SslError.primaryError` 对应的中文原因。 */
-private fun sslErrorReason(primaryError: Int): String = when (primaryError) {
-    SslError.SSL_NOTYETVALID -> "证书尚未生效"
-    SslError.SSL_EXPIRED -> "证书已过期"
-    SslError.SSL_IDMISMATCH -> "证书域名与网址不匹配"
-    SslError.SSL_UNTRUSTED -> "证书颁发机构不受信任（可能是自签证书）"
-    SslError.SSL_DATE_INVALID -> "证书日期无效"
-    else -> "证书无效"
+/** `SslError.primaryError` 对应的原因字符串资源。 */
+private fun sslErrorReasonRes(primaryError: Int): Int = when (primaryError) {
+    SslError.SSL_NOTYETVALID -> R.string.browser_ssl_reason_not_yet_valid
+    SslError.SSL_EXPIRED -> R.string.browser_ssl_reason_expired
+    SslError.SSL_IDMISMATCH -> R.string.browser_ssl_reason_mismatch
+    SslError.SSL_UNTRUSTED -> R.string.browser_ssl_reason_untrusted
+    SslError.SSL_DATE_INVALID -> R.string.browser_ssl_reason_date_invalid
+    else -> R.string.browser_ssl_reason_invalid
 }
 
 /** HTML 转义：错误页里要原样显示 URL 与失败原因，不能把页面可控内容当标记渲染。 */
@@ -496,24 +524,38 @@ private fun escapeHtml(s: String): String =
     s.replace("&", "&amp;").replace("<", "&lt;").replace(">", "&gt;").replace("\"", "&quot;")
 
 /**
- * 主页面加载失败时的中文错误页：写明失败原因和当前 URL，附「重新加载」按钮。
+ * 主页面加载失败时的错误页：写明失败原因和当前 URL，附「重新加载」按钮。
  * 用 `loadDataWithBaseURL` 以失败 URL 为基准载入——文档地址就是原 URL，
  * 点「重新加载」会重新请求原页面，不是重载这张错误页本身。
- * 文案直接写中文在代码里：浏览器是工具页，不走七语言。
+ * 文案由调用方在 Composable 作用域取好传入；`view` 为空时无法加载，直接返回。
  */
-private fun showLoadErrorPage(view: WebView?, failedUrl: String, reason: String) {
+private data class ErrorPageStrings(
+    val title: String,
+    val cannotOpenTemplate: String,
+    val reasonTemplate: String,
+    val reload: String,
+    val errorCodeTemplate: String,
+)
+
+private fun showLoadErrorPage(
+    view: WebView?,
+    failedUrl: String,
+    reason: String,
+    strings: ErrorPageStrings,
+) {
+    view ?: return
     val safeUrl = escapeHtml(failedUrl)
     val safeReason = escapeHtml(reason)
     val html =
         "<!doctype html><html><head><meta charset=\"utf-8\">" +
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">" +
-            "<title>页面加载失败</title></head>" +
+            "<title>${strings.title}</title></head>" +
             "<body style=\"font:16px/1.6 sans-serif;padding:24px 16px;color:#222\">" +
-            "<h2>页面加载失败</h2>" +
-            "<p>无法打开：$safeUrl</p>" +
-            "<p>原因：$safeReason</p>" +
+            "<h2>${strings.title}</h2>" +
+            "<p>${strings.cannotOpenTemplate.format(safeUrl)}</p>" +
+            "<p>${strings.reasonTemplate.format(safeReason)}</p>" +
             "<button onclick=\"window.location.reload()\" " +
-            "style=\"font-size:16px;padding:10px 20px\">重新加载</button>" +
+            "style=\"font-size:16px;padding:10px 20px\">${strings.reload}</button>" +
             "</body></html>"
-    view?.loadDataWithBaseURL(failedUrl, html, "text/html", "UTF-8", null)
+    view.loadDataWithBaseURL(failedUrl, html, "text/html", "UTF-8", null)
 }

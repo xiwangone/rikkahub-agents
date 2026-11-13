@@ -4382,4 +4382,54 @@
   <string name="workspace_ssh_jump_host_desc">先經哪台已保存 SSH 主機中轉（ProxyJump），留空為直連</string>
   <string name="workspace_ssh_jump_host_key_trusted">已信任的跳板機金鑰：%1$s %2$s</string>
   <string name="workspace_ssh_jump_host_key_missing">跳板機金鑰尚未確認，首次連線時核對指紋</string>
+  <string name="setting_model_prompt_reset_confirm_text">目前的提示詞將被預設提示詞取代</string>
+  <string name="setting_model_prompt_unsaved_title">未儲存的變更</string>
+  <string name="setting_model_prompt_discard">放棄修改</string>
+  <string name="setting_model_prompt_continue_editing">繼續編輯</string>
+  <string name="setting_model_prompt_unsaved_text">提示詞已修改但未儲存，離開將遺失變更。</string>
+  <string name="setting_provider_delete_selected_message">將刪除已選取的 %1$d 個模型，此操作無法復原</string>
+  <string name="setting_provider_remove_override_message">將移除供應商覆寫，模型改用父級供應商設定，此操作無法復原</string>
+  <string name="setting_provider_delete_model_message">將刪除模型「%1$s」，此操作無法復原</string>
+  <string name="browser_error_code">錯誤碼 %1$d</string>
+  <string name="browser_ssl_title">憑證有問題，是否繼續存取？</string>
+  <string name="browser_ssl_body">該網站的憑證存在問題：%1$s。\n網址：%2$s\n\n自簽憑證在區域網路／自架服務上很常見，但繼續存取可能有風險，請確認這是你想存取的網站。</string>
+  <string name="browser_ssl_continue">繼續存取</string>
+  <string name="browser_ssl_reason_not_yet_valid">憑證尚未生效</string>
+  <string name="browser_ssl_reason_expired">憑證已過期</string>
+  <string name="browser_ssl_reason_mismatch">憑證網域與網址不符</string>
+  <string name="browser_ssl_reason_untrusted">憑證頒發機構不受信任（可能是自簽憑證）</string>
+  <string name="browser_ssl_reason_date_invalid">憑證日期無效</string>
+  <string name="browser_ssl_reason_invalid">憑證無效</string>
+  <string name="browser_error_page_title">頁面載入失敗</string>
+  <string name="browser_error_page_cannot_open">無法開啟：%1$s</string>
+  <string name="browser_error_page_reason">原因：%1$s</string>
+  <string name="browser_error_page_reload">重新載入</string>
+  <string name="dev_mode_badge">[開發模式]</string>
+  <string name="workspace_detail_mirror_current_unset">目前：未設定</string>
+  <string name="workspace_detail_mirror_current">目前：%1$s</string>
+  <string name="workspace_detail_mirror_custom_address">自訂映像位址</string>
+  <string name="workspace_detail_new_folder_name">新資料夾名稱</string>
+  <string name="workspace_detail_create_failed">建立失敗</string>
+  <string name="workspace_detail_create_folder_and_move">新建資料夾並移入</string>
+  <string name="workspace_detail_folder_exists_title">「%1$s」已存在</string>
+  <string name="workspace_detail_folder_exists_body">目標位置已有同名資料夾，請選擇處理方式：</string>
+  <string name="workspace_detail_export_overwrite">覆寫（先刪除現有資料夾再匯出）</string>
+  <string name="workspace_detail_export_merge">合併到現有資料夾</string>
+  <string name="workspace_detail_selection_cleared_other_dirs">已清除其他目錄的選取</string>
+  <string name="workspace_file_readonly_cannot_action">系統檔案唯讀，無法%1$s</string>
+  <string name="workspace_file_editor_unsaved_title">未儲存的變更</string>
+  <string name="workspace_file_editor_unsaved_text">此檔案有未儲存的變更，直接返回將遺失這些變更。</string>
+  <string name="workspace_file_editor_discard">放棄</string>
+  <string name="workspace_files_search_placeholder">搜尋檔案名稱</string>
+  <string name="workspace_files_truncated">僅顯示前 %1$d 筆，共 %2$d 筆</string>
+  <string name="workspace_terminal_reopen">重新開啟</string>
+  <string name="common_apply">套用</string>
+  <string name="common_move">移動</string>
+  <string name="doctor_cred_decrypt_bad_value">憑證解密失敗已觸發異常值保護（原始密文保留於磁碟未覆寫）：%1$s</string>
+  <string name="doctor_default_model">預設模型=%1$s (%2$s)</string>
+  <string name="doctor_default_model_broken">預設模型=%1$s (%2$s)；懸空／未啟用的模型繫結：%3$s</string>
+  <string name="doctor_broken_assistants">助手=%1$s</string>
+  <string name="doctor_global_model_dangling">全域預設模型懸空</string>
+  <string name="doctor_model_unresolved">未解析</string>
+  <string name="doctor_model_unconfigured">未設定</string>
 </resources>

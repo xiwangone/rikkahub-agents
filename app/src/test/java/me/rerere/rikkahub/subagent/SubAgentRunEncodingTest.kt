@@ -38,8 +38,8 @@ class SubAgentRunEncodingTest {
         assertEquals(true, encoded["workspace_shared_with_parent"]?.jsonPrimitive?.boolean)
         val note = encoded["workspace_note"]?.jsonPrimitive?.contentOrNull
         assertTrue(
-            "提示必须说明同区影响与处置建议，不能只是重复布尔值",
-            !note.isNullOrBlank() && note.contains("工作区") && note.contains("覆盖"),
+            "The note must explain the shared-workspace impact and what to do, not just repeat the boolean",
+            !note.isNullOrBlank() && note.contains("workspace") && note.contains("overwrite"),
         )
     }
 

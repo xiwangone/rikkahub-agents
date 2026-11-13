@@ -72,12 +72,12 @@ sealed interface CredentialResolution {
 val CredentialResolution.message: String
     get() = when (this) {
         is CredentialResolution.Granted -> ""
-        is CredentialResolution.Missing -> "凭证不存在: $name（用 vault_credential_names 查看可用名称）"
-        is CredentialResolution.NotAuthorized -> "凭证 $name 需要会话授权：请先完成凭证库授权（30 分钟或一直有效）"
-        is CredentialResolution.Undecryptable -> "凭证解密失败: $name"
+        is CredentialResolution.Missing -> "Credential does not exist: $name (use vault_credential_names to list available names)"
+        is CredentialResolution.NotAuthorized -> "Credential $name needs session authorization: complete vault authorization first (30 minutes or always valid)"
+        is CredentialResolution.Undecryptable -> "Credential decryption failed: $name"
         is CredentialResolution.MissingField ->
-            "凭证 $name 没有可引用的明文字段「$field」：" +
-                "\$\$名字 取主值，\$\$名字.字段 只支持明文元数据键（endpoint/access_key_id/region/custom.* 等）"
+            "Credential $name has no referable plaintext field \"$field\":" +
+                "\$\$name takes the main value; \$\$name.field only supports plaintext metadata keys (endpoint/access_key_id/region/custom.* etc.)"
     }
 
 /**

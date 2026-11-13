@@ -35,7 +35,7 @@ object McpApprovalRenderer {
     }
 
     private fun renderAdd(args: JsonObject): String {
-        val name = args["name"]?.jsonPrimitive?.contentOrNull ?: "（未命名）"
+        val name = args["name"]?.jsonPrimitive?.contentOrNull ?: "(Unnamed)"
         val transport = args["transport"]?.jsonPrimitive?.contentOrNull ?: "(unknown)"
         val url = args["url"]?.jsonPrimitive?.contentOrNull ?: "(no url)"
         val enabled = args["enabled"]?.jsonPrimitive?.booleanOrNull ?: true
@@ -50,7 +50,7 @@ object McpApprovalRenderer {
     }
 
     private fun renderUpdate(args: JsonObject): String {
-        val name = args["name"]?.jsonPrimitive?.contentOrNull ?: "（未命名）"
+        val name = args["name"]?.jsonPrimitive?.contentOrNull ?: "(Unnamed)"
         val transport = args["transport"]?.jsonPrimitive?.contentOrNull ?: "(unknown)"
         val url = args["url"]?.jsonPrimitive?.contentOrNull ?: "(no url)"
         val enabled = args["enabled"]?.jsonPrimitive?.booleanOrNull ?: true

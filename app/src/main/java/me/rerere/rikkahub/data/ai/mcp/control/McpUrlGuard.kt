@@ -54,7 +54,7 @@ object McpUrlGuard {
         if (scheme != "http" && scheme != "https") {
             return Result.Reject(
                 "unsupported_url_scheme",
-                "only http and https are accepted; got '${scheme ?: "（无）"}'"
+                "only http and https are accepted; got '${scheme ?: "(none)"}'"
             )
         }
         val host = parsed.host?.lowercase()

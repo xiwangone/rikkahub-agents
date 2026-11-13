@@ -296,7 +296,7 @@ fun SettingProviderDetailPage(
     RikkaDeleteConfirmDialog(
         show = showDeleteSelectedDialog,
         title = stringResource(R.string.confirm_delete),
-        message = "将删除已选的 ${selectedIds.size} 个模型，此操作不可恢复",
+        message = stringResource(R.string.setting_provider_delete_selected_message, selectedIds.size),
         onConfirm = {
             showDeleteSelectedDialog = false
             val toDelete = provider.models.filter { it.id in selectedIds }
@@ -739,7 +739,7 @@ internal fun ProviderOverrideSettings(
     RikkaDeleteConfirmDialog(
         show = showRemoveOverrideDialog,
         title = stringResource(R.string.confirm_delete),
-        message = "将移除供应商覆盖，模型改用父级供应商配置，此操作不可恢复",
+        message = stringResource(R.string.setting_provider_remove_override_message),
         onConfirm = {
             showRemoveOverrideDialog = false
             onUpdateProviderOverride(null)
