@@ -57,6 +57,19 @@ class SettingValidationTest {
         assertFalse(canTestProxyUrl("not a url"))
     }
 
+    @Test
+    fun `proxy urls with user info or path are not testable`() {
+        assertFalse(canTestProxyUrl("http://user:pass@127.0.0.1:7890"))
+        assertFalse(canTestProxyUrl("http://127.0.0.1:7890/path"))
+        assertFalse(canTestProxyUrl("127.0.0.1:99999"))
+    }
+
+    @Test
+    fun `proxy urls with trailing slash or https scheme are testable`() {
+        assertTrue(canTestProxyUrl("127.0.0.1:7890/"))
+        assertTrue(canTestProxyUrl("https://proxy.example.com:443"))
+    }
+
     // ---- dohUrlValid ----
 
     @Test
@@ -72,6 +85,13 @@ class SettingValidationTest {
         assertFalse(dohUrlValid(""))
         assertFalse(dohUrlValid("not a url"))
         assertFalse(dohUrlValid("dns.example.com/dns-query"))
+    }
+
+    @Test
+    fun `doh url scheme is case-insensitive and ports are allowed`() {
+        assertTrue(dohUrlValid("HTTPS://dns.example.com/dns-query"))
+        assertTrue(dohUrlValid("https://dns.example.com:8443/dns-query"))
+        assertTrue(dohUrlValid("https://dns.example.com/dns-query?x=1"))
     }
 
     // ---- cleanDeleteButtonEnabled ----

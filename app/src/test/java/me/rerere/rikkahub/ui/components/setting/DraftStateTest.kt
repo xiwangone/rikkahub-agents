@@ -78,4 +78,22 @@ class DraftStateTest {
         assertEquals("v2", state.draft)
         assertEquals("v2", state.saved)
     }
+
+    @Test
+    fun `save when clean returns saved and stays clean`() {
+        val state = DraftState("v1")
+        assertEquals("v1", state.save())
+        assertEquals("v1", state.saved)
+        assertEquals("v1", state.draft)
+        assertFalse(state.isDirty)
+    }
+
+    @Test
+    fun `edit to the same value is not dirty`() {
+        val state = DraftState("v1")
+        state.edit("v1")
+        assertFalse(state.isDirty)
+        state.edit { it }
+        assertFalse(state.isDirty)
+    }
 }
