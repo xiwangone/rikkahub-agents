@@ -56,6 +56,16 @@ fun vaultExportEnvTool(
                             put("items", buildJsonObject { put("type", "string") })
                         },
                     )
+                    // 目标工作区：不传 = 第一个工作区（旧行为）；传了 = 指定区。
+                    // 工具执行上下文拿不到调用方工作区，不传时会写到第一个区，
+                    // 调用方在别的区既 source 不到也删不掉（明文会滞留）。
+                    put(
+                        "workspace",
+                        buildJsonObject {
+                            put("type", "string")
+                            put("description", "Target workspace name or id; default = first workspace")
+                        },
+                    )
                 },
             required = emptyList(),
         )
@@ -99,8 +109,10 @@ private suspend fun runVaultExportEnv(
     val wsRepository =
         runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
             ?: return fail("Workspace unavailable")
-    val ws = wsRepository.getAll().firstOrNull() ?: return fail("No workspace")
-    runCatching { wsRepository.writeText(ws.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
+    val target =
+        resolveVaultWorkspace(wsRepository, o["workspace"]?.jsonPrimitive?.contentOrNull)
+            .getOrElse { return fail(it.message ?: "Cannot resolve target workspace") }
+    runCatching { wsRepository.writeText(target.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
         .onFailure { AppLog.w("VaultTools", "Failed to write vault-env.sh", it) }
         .getOrNull()
         ?: return fail("Failed to write the sandbox env file")
@@ -109,8 +121,11 @@ private suspend fun runVaultExportEnv(
         UIMessagePart.Text(
             buildJsonObject {
                 put("exported", JsonArray(exported.map { JsonPrimitive(it) }))
+                put("workspace", target.name)
+                put("workspaceId", target.id)
                 put("path", "/workspace/tmp/vault-env.sh")
-                put("hint", "⚠ This file is **fully plaintext** (${exported.size} entries in total): use it with source /workspace/tmp/vault-env.sh; **delete it immediately** with rm -f /workspace/tmp/vault-env.sh when done. When reporting, the AI must **explicitly tell the user** about this deletion reminder.")
+                put("target", vaultTargetNote(target, "/workspace/tmp/vault-env.sh"))
+                put("hint", "⚠ This file is **fully plaintext** (${exported.size} entries in total) and lives in workspace '${target.name}'. source it there (source /workspace/tmp/vault-env.sh) and **delete it immediately** with rm -f /workspace/tmp/vault-env.sh when done. When reporting, the AI must **explicitly tell the user** which workspace holds the plaintext file and that it must be deleted.")
             }.toString(),
         ),
     )

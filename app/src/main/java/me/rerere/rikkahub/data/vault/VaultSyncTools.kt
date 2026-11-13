@@ -35,7 +35,22 @@ fun vaultExportLoadCredsTool(
             "script and importing it back loses nothing (value / description / group / public key). " +
             "Requires active vault authorization. Plaintext secrets appear ONLY inside the generated file " +
             "on the workspace; delete it after use.",
-    parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = emptyList()) },
+    parameters = {
+        InputSchema.Obj(
+            properties =
+                buildJsonObject {
+                    // 目标工作区：不传 = 第一个工作区（旧行为）；传了 = 指定区（名字或 id）。
+                    put(
+                        "workspace",
+                        buildJsonObject {
+                            put("type", "string")
+                            put("description", "Target workspace name or id; default = first workspace")
+                        },
+                    )
+                },
+            required = emptyList(),
+        )
+    },
     needsApproval = { true },
     execute = { params ->
         val sessionManager = VaultSessionManager(context)
@@ -54,8 +69,10 @@ fun vaultExportLoadCredsTool(
                 val wsRepository =
                     runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                         ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
-                val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
-                runCatching { wsRepository.writeText(ws.id, "tmp/load-creds-export.sh", script, overwrite = true) }
+                val target =
+                    resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                        .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
+                runCatching { wsRepository.writeText(target.id, "tmp/load-creds-export.sh", script, overwrite = true) }
                     .onFailure { AppLog.w("VaultTools", "Failed to write load-creds-export.sh", it) }
                     .getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ Failed to write the workspace file"))
@@ -63,6 +80,7 @@ fun vaultExportLoadCredsTool(
                 listOf(
                     UIMessagePart.Text(
                         "✅ Exported ${quads.size} credentials to /workspace/tmp/load-creds-export.sh\n" +
+                            "Target: ${vaultTargetNote(target, "/workspace/tmp/load-creds-export.sh")}\n" +
                             "Includes group/description/SSH公钥 comments. After editing, sync it back with vault_import_loadcreds or the UI import.\n" +
                             "⚠️ This file contains plaintext secrets; delete it when done.",
                     ),
@@ -320,6 +338,7 @@ fun vaultImportLoadCredsTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds-export.sh") })
+                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first workspace") })
             },
             required = emptyList(),
         )
@@ -334,11 +353,13 @@ fun vaultImportLoadCredsTool(
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
-            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
+            val target =
+                resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                    .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
+                    wsRepository.exportAbsoluteFile(target.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
@@ -386,6 +407,7 @@ fun vaultCompareLoadCredsTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string"); put("description", "Workspace path of the script, default /workspace/tmp/load-creds.sh") })
+                put("workspace", buildJsonObject { put("type", "string"); put("description", "Target workspace name or id; default = first workspace") })
             },
             required = emptyList(),
         )
@@ -399,11 +421,13 @@ fun vaultCompareLoadCredsTool(
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
-            val ws = wsRepository.getAll().firstOrNull() ?: return@Tool listOf(UIMessagePart.Text("❌ No workspace"))
+            val target =
+                resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                    .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
             val content =
                 runCatching {
                     val buf = java.io.ByteArrayOutputStream()
-                    wsRepository.exportAbsoluteFile(ws.id, path, buf)
+                    wsRepository.exportAbsoluteFile(target.id, path, buf)
                     buf.toString(Charsets.UTF_8.name())
                 }.getOrNull()
             if (content == null) {
