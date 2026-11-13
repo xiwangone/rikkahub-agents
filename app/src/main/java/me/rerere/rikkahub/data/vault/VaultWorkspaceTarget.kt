@@ -25,7 +25,7 @@ internal data class VaultWorkspaceTarget(
  * @param requested 用户/调用方显式指定的工作区（名字或 id）；null / 空白 = 用第一个
  * @return 成功时给出目标工作区；失败时 message 里带上可选工作区名，便于调用方纠正参数
  */
-internal fun resolveVaultWorkspace(
+internal suspend fun resolveVaultWorkspace(
     wsRepository: WorkspaceRepository,
     requested: String?,
 ): Result<VaultWorkspaceTarget> {
