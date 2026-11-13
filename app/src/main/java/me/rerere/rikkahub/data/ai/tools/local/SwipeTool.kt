@@ -46,6 +46,7 @@ fun swipeTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val sx = numOrNull(input, "start_x")

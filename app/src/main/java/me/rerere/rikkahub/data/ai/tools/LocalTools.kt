@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.serialization.json.add
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.ai.tools.local.BiometricResultBuffer
+import me.rerere.rikkahub.data.ai.tools.local.buildPhoneUseTool
 import me.rerere.rikkahub.data.ai.tools.local.CameraResultBuffer
 import me.rerere.rikkahub.data.ai.tools.local.InteractiveToolStreamer
 import me.rerere.rikkahub.data.ai.tools.local.buildChartDisplayTool
@@ -100,6 +101,10 @@ import me.rerere.rikkahub.data.ai.tools.local.batchMoveTool
 import me.rerere.rikkahub.data.ai.tools.local.batchDeleteTool
 import me.rerere.rikkahub.data.ai.tools.local.webFetchTool
 import me.rerere.rikkahub.data.event.AppEventBus
+import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.phoneuse.PhoneUseManager
+import me.rerere.rikkahub.phoneuse.isFloatingChatWindowOn
+import org.koin.core.context.GlobalContext
 
 
 class LocalTools(
@@ -163,6 +168,23 @@ class LocalTools(
     val clipboardTool by lazy { buildClipboardTool(context) }
     val ttsTool by lazy { buildTtsTool(eventBus) }
     val askUserTool by lazy { buildAskUserTool() }
+
+    val phoneUseTool by lazy {
+        buildPhoneUseTool(
+            ownPackageName = context.packageName,
+            manager = PhoneUseManager,
+            isFloatingWindowOn = { isFloatingChatWindowOn(context, settingsStore.settingsFlow.value) },
+            saveScreenshot = { bytes ->
+                // FilesManager 不在构造函数里注入：参数表已由 detekt 基线按完整签名登记，
+                // 加参数会失配；工具首次使用时再从 Koin 取单例。
+                GlobalContext.get().get<FilesManager>().createChatFilesByByteArrays(
+                    byteArrays = listOf(bytes),
+                    displayName = "screenshot.jpg",
+                    mimeType = "image/jpeg",
+                ).first().toString()
+            },
+        )
+    }
 
     // 拆分为域分组函数，拼接顺序与原来完全一致，仅为满足行数限制。
     private fun toolRegistry(): List<ToolEntry> =
@@ -340,6 +362,12 @@ class LocalTools(
         tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
         tools.add(takeScreenshotTool(context)) // take_screenshot IS the screenshot; skip auto-stream
         tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
+    },
+    ToolEntry(LocalToolOption.PhoneUse) { tools, _ ->
+        // 不支持的系统版本上，之前在别处开过（比如导入的备份）也不提供
+        if (PhoneUseManager.isSupported) {
+            tools.add(phoneUseTool)
+        }
     },
     ToolEntry(LocalToolOption.AppLauncher) { tools, invocationContext ->
         tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))

@@ -47,6 +47,9 @@ def main():
     keys = sorted((set(english) - set(old)) | REQUIRED)
     errors = [f'values: missing required {key}' for key in keys if key not in english]
     keys = [key for key in keys if key in english]
+    # translatable="false" 的键按约定不参与翻译（品牌名、占位符示例等）。
+    # 不剔除的话，每加一个这类键 CI 都会报 missing，逼人在 7 个语言里各抄一份同样的英文。
+    keys = [key for key in keys if (english[key].get('translatable') or '').lower() != 'false']
     checked = {}
     for locale in LOCALES:
         try:

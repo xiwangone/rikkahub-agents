@@ -1,7 +1,9 @@
 package me.rerere.ai.util
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.provider.CustomBody
@@ -162,5 +164,147 @@ class JsonTest {
         val redacted = redactSecrets(body) as JsonObject
 
         assertEquals(body, redacted)
+    }
+
+    @Test
+    fun `redactSecrets should mask bare secret keys`() {
+        // 旧版只认 `(?:^|_)...$`，裸键 token / privateKey / authorization 全漏
+        val body = buildJsonObject {
+            put("token", "tok-123")
+            put("privateKey", "-----BEGIN KEY-----")
+            put("authorization", "Bearer <redacted>")
+            put("key", "some-key")
+            put("password", "hunter2")
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+
+        for ((k, _) in body) {
+            assertEquals("\"***\"", redacted[k].toString())
+        }
+    }
+
+    @Test
+    fun `redactSecrets should mask camelCase suffix keys`() {
+        // 驼峰后缀键：旧版要求 ^ 或 _ 开头，accessToken / clientSecret 全漏
+        val body = buildJsonObject {
+            put("accessToken", "ya29.token")
+            put("refreshToken", "1//refresh")
+            put("clientSecret", "oauth-secret")
+            put("apiKey", "sk-live")
+            put("myApiKey", "tavily-key")
+            put("x-api-key", "hdr-key")
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+
+        for ((k, _) in body) {
+            assertEquals("\"***\"", redacted[k].toString())
+        }
+    }
+
+    @Test
+    fun `redactSecrets should redact pair arrays by name`() {
+        // MCP 请求头序列化成 [{"first": ..., "second": ...}]：name 本身不是敏感键，
+        // 只按 key 脱敏会把整对原样放过
+        val body = buildJsonObject {
+            put("headers", buildJsonArray {
+                add(buildJsonObject {
+                    put("first", "Authorization")
+                    put("second", "Bearer <redacted>")
+                })
+                add(buildJsonObject {
+                    put("first", "Content-Type")
+                    put("second", "application/json")
+                })
+                add(buildJsonObject {
+                    put("first", "Cookie")
+                    put("second", "session=abc")
+                })
+            })
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+        val headers = redacted["headers"] as JsonArray
+
+        assertEquals("\"***\"", (headers[0] as JsonObject)["second"].toString())
+        assertEquals("\"Authorization\"", (headers[0] as JsonObject)["first"].toString())
+        assertEquals("\"application/json\"", (headers[1] as JsonObject)["second"].toString())
+        assertEquals("\"***\"", (headers[2] as JsonObject)["second"].toString())
+    }
+
+    @Test
+    fun `redactSecrets should redact name-value objects by name`() {
+        // Provider 自定义头序列化成 [{"name": ..., "value": ...}]
+        val body = buildJsonObject {
+            put("customHeaders", buildJsonArray {
+                add(buildJsonObject {
+                    put("name", "x-api-key")
+                    put("value", "hdr-secret")
+                })
+                add(buildJsonObject {
+                    put("name", "Content-Type")
+                    put("value", "application/json")
+                })
+            })
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+        val headers = redacted["customHeaders"] as JsonArray
+
+        assertEquals("\"***\"", (headers[0] as JsonObject)["value"].toString())
+        assertEquals("\"x-api-key\"", (headers[0] as JsonObject)["name"].toString())
+        assertEquals("\"application/json\"", (headers[1] as JsonObject)["value"].toString())
+    }
+
+    @Test
+    fun `redactSecrets should redact key-value objects when the key names a secret`() {
+        // CustomBody 形态 {"key": ..., "value": ...}：key 是字段名时 value 原样保留，
+        // key 本身是敏感词时 value 是凭证
+        val body = buildJsonObject {
+            put("customBody", buildJsonArray {
+                add(buildJsonObject {
+                    put("key", "apiKey")
+                    put("value", JsonPrimitive("sk-secret"))
+                })
+                add(buildJsonObject {
+                    put("key", "model")
+                    put("value", JsonPrimitive("gpt-5"))
+                })
+            })
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+        val entries = redacted["customBody"] as JsonArray
+
+        assertEquals("\"***\"", (entries[0] as JsonObject)["value"].toString())
+        assertEquals("\"gpt-5\"", (entries[1] as JsonObject)["value"].toString())
+    }
+
+    @Test
+    fun `redactSecrets should not over-mask lookalike keys`() {
+        // "design" / "assign" 以 sign 结尾，但 sign 不是敏感词（词表只收 signature）
+        val body = buildJsonObject {
+            put("design", "blue")
+            put("assign", "task-1")
+            put("token_count", 42)
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+
+        assertEquals(body, redacted)
+    }
+
+    @Test
+    fun `redactSecrets masks keys ending in key even when the word is incidental`() {
+        // 后缀匹配的已知代价：monkey 以 key 结尾，会被掩 —— 与 LogRedactor 的
+        // URL query 后缀词表同一取舍（宁可误掩，不可漏掩），这里把行为钉死
+        val body = buildJsonObject {
+            put("monkey", "banana")
+        }
+
+        val redacted = redactSecrets(body) as JsonObject
+
+        assertEquals("\"***\"", redacted["monkey"].toString())
     }
 }

@@ -31,14 +31,18 @@ object LogRedactor {
         )
 
     /**
-     * 自由文本中「敏感键名 = 值」形态的键名集合（大小写不敏感，见 [KEYED_SECRET_REGEX]） */
+     * 自由文本中「敏感键名 = 值」形态的键名集合（大小写不敏感，见 [KEYED_SECRET_REGEX]）。
+     * 与 ai 侧 JSON 脱敏（`me.rerere.ai.util.isSecretKey`）共用同一张敏感词表：
+     * `passphrase` / `credentials?` / `signature` 是本次补齐的缺口 —— 此前
+     * `passphrase=…` / `"credentials": "…"` 形态的值会随自由文本日志原样落盘，
+     * 而同一值走 JSON 结构日志时已被脱敏。 */
     /** 文本脱敏的字符上限：超大文本直接跳过，避免连续正则替换在堆上复制数份等大字符串。 */
     private const val MAX_REDACT_CHARS = 1024 * 1024
 
     private const val KEYED_SECRET_KEYS =
         "authorization|proxy-authorization|x-api-key|api[-_]?key|apikey|x-auth-token|x-access-token|" +
             "access[-_]?token|auth[-_]?token|refresh[-_]?token|client[-_]?secret|secret|password|passwd|pwd|" +
-            "private[-_]?key|bearer"
+            "passphrase|credentials?|signature|private[-_]?key|bearer"
 
     /**
      * 自由文本里 URL query 形态的敏感参数名（`?key=…` / `&token=…`）。

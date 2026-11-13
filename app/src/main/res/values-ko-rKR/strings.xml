@@ -1377,6 +1377,12 @@
   <string name="assistant_page_local_tools_reliability_desc">어시스턴트가 GitHub에서 새 릴리스를 확인하고 민감 정보를 가린 버그 보고서 ZIP을 필요 시 생성할 수 있습니다. 버그 보고서에는 최근 수천 줄의 logcat(비밀은 가려짐)과 앱 버전 + 기기 정보가 포함되며, 대화, 토큰, 저장된 호스트는 명시적으로 제외됩니다.</string>
   <string name="assistant_page_local_tools_reliability_title">신뢰성</string>
   <string name="assistant_page_local_tools_screen_automation_desc">LLM이 Android 접근성 서비스를 통해 탭, 스와이프, 스크롤, 화면 내용 읽기, 스크린샷 촬영을 할 수 있도록 합니다.</string>
+  <string name="assistant_page_local_tools_phone_use_title">휴대폰 사용</string>
+  <string name="assistant_page_local_tools_phone_use_desc">AI가 화면을 읽고 이 휴대전화의 다른 앱을 조작하도록 허용</string>
+  <string name="assistant_page_local_tools_phone_use_service_off">접근성 서비스가 꺼져 있습니다. 설정을 열려면 이 스위치를 껐다가 다시 켜세요. 시스템에서 해당 옵션이 회색으로 비활성화되어 있으면 먼저 앱 정보에서 이 앱의 제한된 설정을 허용하세요.</string>
+  <string name="assistant_page_local_tools_phone_use_enable_service">접근성 설정에서 \"RikkaHub Phone Use\"를 켜세요</string>
+  <string name="assistant_page_local_tools_phone_use_floating_window_required">먼저 백그라운드 플로팅 창을 켜세요</string>
+  <string name="phone_use_accessibility_description">Phone Use 도구를 활성화하면 AI 어시스턴트가 화면을 읽고 사용자를 대신해 탭, 스와이프, 텍스트 입력을 수행할 수 있습니다. 어시스턴트가 요청한 작업을 실행 중인 경우가 아니면 아무 작업도 수행되지 않습니다.</string>
   <string name="assistant_page_local_tools_screen_automation_title">화면 자동화</string>
   <string name="assistant_page_local_tools_section_automation">자동화</string>
   <string name="assistant_page_local_tools_section_existing">기본 제공 도구</string>
@@ -2521,6 +2527,7 @@
   <string name="doctor_svc_04">Telegram 설정 열기</string>
   <string name="doctor_svc_05">Telegram 봇 포그라운드 서비스</string>
   <string name="doctor_svc_09">접근성 서비스 연결됨</string>
+  <string name="doctor_svc_phone_use">Phone Use 서비스</string>
   <string name="doctor_svc_13">알림 리스너 연결됨</string>
   <string name="doctor_assistant_01">기본 어시스턴트</string>
   <string name="doctor_assistant_05">어시스턴트 열기</string>
@@ -2764,6 +2771,7 @@
   <string name="mcp_tool_shizuku">Shizuku</string>
   <string name="mcp_tool_telegram_bot">Telegram 봇</string>
   <string name="mcp_tool_screen_automation">화면 자동화</string>
+  <string name="mcp_tool_phone_use">휴대폰 사용</string>
   <string name="mcp_tool_app_launcher">앱 실행</string>
   <string name="mcp_tool_termux">Termux</string>
   <string name="mcp_tool_notification_listener">알림 리스너</string>
@@ -3457,6 +3465,7 @@
   <string name="doctor_tool_device_info">기기 정보</string>
   <string name="doctor_tool_nl">알림 리스너</string>
   <string name="doctor_tool_screen">화면 자동화</string>
+  <string name="doctor_tool_phone_use">휴대폰 사용</string>
   <string name="doctor_tool_stt">음성 텍스트 변환</string>
   <string name="doctor_tool_telegram">Telegram 봇</string>
   <string name="doctor_tool_cron">예약 작업</string>

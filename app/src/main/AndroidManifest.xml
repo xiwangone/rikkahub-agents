@@ -353,6 +353,21 @@
         android:resource="@xml/accessibility_service_config" />
     </service>
 
+    <!-- Phone Use：只在 Android 11 及以上启用，系统的无障碍设置里才会出现这一项 -->
+    <service
+      android:name=".phoneuse.PhoneUseAccessibilityService"
+      android:enabled="@bool/phone_use_supported"
+      android:exported="true"
+      android:label="@string/phone_use_accessibility_label"
+      android:permission="android.permission.BIND_ACCESSIBILITY_SERVICE">
+      <intent-filter>
+        <action android:name="android.accessibilityservice.AccessibilityService" />
+      </intent-filter>
+      <meta-data
+        android:name="android.accessibilityservice"
+        android:resource="@xml/phone_use_accessibility" />
+    </service>
+
     <service
       android:name=".service.RikkaNotificationListenerService"
       android:permission="android.permission.BIND_NOTIFICATION_LISTENER_SERVICE"

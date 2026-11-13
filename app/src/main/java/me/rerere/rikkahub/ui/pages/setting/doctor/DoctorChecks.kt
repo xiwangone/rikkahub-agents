@@ -15,6 +15,8 @@ import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
 import me.rerere.rikkahub.data.ai.tools.local.NotificationListenerHandle
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
+import me.rerere.rikkahub.phoneuse.PhoneUseManager
+import me.rerere.rikkahub.phoneuse.isPhoneUseServiceEnabledInSettings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.data.db.AppDatabase
@@ -96,6 +98,7 @@ internal object Capability {
     val Overlay: Set<LocalToolOption> =
         setOf(
             LocalToolOption.ScreenAutomation, // "agent is working" overlay during automation
+            LocalToolOption.PhoneUse, // background floating window must be on to watch / stop it
         )
     val WriteSettings: Set<LocalToolOption> =
         setOf(
@@ -121,6 +124,7 @@ private val DOCTOR_TOOL_STRING_RES =
         LocalToolOption.DeviceInfo to R.string.doctor_tool_device_info,
         LocalToolOption.NotificationListener to R.string.doctor_tool_nl,
         LocalToolOption.ScreenAutomation to R.string.doctor_tool_screen,
+        LocalToolOption.PhoneUse to R.string.doctor_tool_phone_use,
         LocalToolOption.SpeechToText to R.string.doctor_tool_stt,
         LocalToolOption.TelegramBot to R.string.doctor_tool_telegram,
         LocalToolOption.CronJobs to R.string.doctor_tool_cron,
@@ -618,6 +622,7 @@ class DoctorChecks(
                     ),
                 )
             }
+            phoneUseCheck(enabled)?.let { add(it) }
             // NotificationListener binding — same logic.
             val nlNeeders = requirersOf(Capability.NotificationListener, enabled)
             if (nlNeeders.isNotEmpty()) {
@@ -652,6 +657,46 @@ class DoctorChecks(
                 )
             }
         }
+
+    /**
+     * Phone Use service binding — only flagged if Phone Use is enabled on some assistant.
+     * Unlike the accessibility row above, this one tracks the Phone Use service itself,
+     * not the screen-automation service.
+     */
+    private fun phoneUseCheck(enabled: Set<LocalToolOption>): DoctorCheck? {
+        if (LocalToolOption.PhoneUse !in enabled) return null
+        val phoneUseName = LocalToolOption.PhoneUse.shortName(context)
+        val phoneUseBound = PhoneUseManager.controller.value != null
+        val phoneUseEnabled = isPhoneUseServiceEnabledInSettings(context)
+        return DoctorCheck(
+            id = "service.phone_use_bound",
+            category = DoctorCategory.Services,
+            labelRes = R.string.doctor_svc_phone_use,
+            detail =
+                // str() reads via Resources, same values as Context.getString():
+                // the direct calls trip lint's LocalContextGetResourceValueCall
+                // and this file has no baseline entries for that rule.
+                when {
+                    phoneUseBound -> str(R.string.doctor_msg_acc_live, phoneUseName)
+                    phoneUseEnabled -> str(R.string.doctor_msg_acc_enabled_unbound)
+                    else -> str(R.string.doctor_msg_acc_needed, phoneUseName)
+                },
+            severity =
+                when {
+                    phoneUseBound -> Severity.OK
+                    else -> Severity.WARN
+                },
+            fix =
+                if (!phoneUseBound) {
+                    FixAction.OpenIntent(
+                        labelRes = R.string.doctor_perm_14,
+                        intent = PermissionHelper.accessibilitySettingsIntent(),
+                    )
+                } else {
+                    null
+                },
+        )
+    }
 
     // ----- Active assistant ------------------------------------------------------------
 

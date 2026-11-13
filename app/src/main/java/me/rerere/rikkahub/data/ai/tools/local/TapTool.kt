@@ -31,6 +31,7 @@ fun tapTool(
         Tap at absolute screen coordinates (pixels). Requires the AccessibilityService to be enabled.
         Returns {success: true} if the gesture completed, or {success: false, reason} if cancelled.
         If the AccessibilityService is not active, returns {error, recovery} so you can ask the user to enable it.
+        Prefer phone_use for everyday phone operation; use this only when you need pixel-precise coordinates.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -48,6 +49,7 @@ fun tapTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         // Wake screen so gestures land on a visible surface, not a dark screen.
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
@@ -113,6 +115,7 @@ fun longPressTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val x = coordOrError(input, "x")

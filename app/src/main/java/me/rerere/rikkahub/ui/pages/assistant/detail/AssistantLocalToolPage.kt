@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.LargeFlexibleTopAppBar
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
@@ -35,16 +37,22 @@ import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.FilterHorizontal
 import me.rerere.hugeicons.stroke.Snow
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
+import me.rerere.rikkahub.phoneuse.PhoneUseManager
+import me.rerere.rikkahub.phoneuse.isFloatingChatWindowOn
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.hasUsageStatsPermission
+import me.rerere.rikkahub.utils.openAccessibilitySettings
 import me.rerere.rikkahub.utils.openUsageAccessSettings
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
@@ -111,13 +119,32 @@ private fun AssistantLocalToolContent(
 ) {
     val ctx = LocalContext.current
     val toaster = LocalToaster.current
+    val navController = LocalNavController.current
+    val settingsStore: SettingsStore = koinInject()
+    val phoneUseServiceOn = PhoneUseManager.controller.collectAsStateWithLifecycle().value != null
     val screenTimePermissionRequiredText =
         stringResource(R.string.assistant_page_local_tools_screen_time_permission_required)
+    val floatingWindowRequiredText =
+        stringResource(R.string.assistant_page_local_tools_phone_use_floating_window_required)
+    val enableServiceText = stringResource(R.string.assistant_page_local_tools_phone_use_enable_service)
 
     fun toggleLocalTool(
         option: LocalToolOption,
         enabled: Boolean,
     ) {
+        // 没有悬浮窗就看不到 AI 在做什么、也不方便随时停下，先去把它打开，这次不开启工具
+        if (enabled && option == LocalToolOption.PhoneUse &&
+            !isFloatingChatWindowOn(ctx, settingsStore.settingsFlow.value)
+        ) {
+            toaster.show(message = floatingWindowRequiredText, type = ToastType.Warning)
+            navController.navigate(Screen.SettingPreferencesNotification)
+            return
+        }
+        // 无障碍服务还没开时带用户去系统设置，开关照常打开，开完服务就能用
+        if (enabled && option == LocalToolOption.PhoneUse && !phoneUseServiceOn) {
+            toaster.show(message = enableServiceText, type = ToastType.Warning)
+            ctx.openAccessibilitySettings()
+        }
         if (enabled && option == LocalToolOption.ScreenTime && !ctx.hasUsageStatsPermission()) {
             toaster.show(message = screenTimePermissionRequiredText, type = ToastType.Warning)
             ctx.openUsageAccessSettings()
@@ -679,6 +706,33 @@ private fun AssistantLocalToolContent(
                     )
                 },
             )
+            if (PhoneUseManager.isSupported) {
+                val phoneUseChecked = assistant.localTools.contains(LocalToolOption.PhoneUse)
+                item(
+                    leadingContent = { ToolOptionGroupIcon(LocalToolOption.PhoneUse, phoneUseChecked) },
+                    headlineContent = {
+                        Text(stringResource(R.string.assistant_page_local_tools_phone_use_title))
+                    },
+                    supportingContent = {
+                        Column {
+                            Text(stringResource(R.string.assistant_page_local_tools_phone_use_desc))
+                            // 开了工具但服务没开时模型调用会直接报错，在这里说明原因
+                            if (phoneUseChecked && !phoneUseServiceOn) {
+                                Text(
+                                    text = stringResource(R.string.assistant_page_local_tools_phone_use_service_off),
+                                    color = MaterialTheme.colorScheme.error,
+                                )
+                            }
+                        }
+                    },
+                    trailingContent = {
+                        Switch(
+                            checked = phoneUseChecked,
+                            onCheckedChange = { toggleLocalTool(LocalToolOption.PhoneUse, it) },
+                        )
+                    },
+                )
+            }
             toolSwitchItem(R.string.assistant_page_local_tools_app_launcher_title, R.string.assistant_page_local_tools_app_launcher_desc, assistant.localTools.contains(LocalToolOption.AppLauncher), option = LocalToolOption.AppLauncher) { toggleLocalTool(LocalToolOption.AppLauncher, it) }
             val termuxChecked = assistant.localTools.contains(LocalToolOption.Termux)
             item(

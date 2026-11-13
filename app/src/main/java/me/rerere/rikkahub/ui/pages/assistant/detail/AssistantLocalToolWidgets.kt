@@ -581,6 +581,7 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.Reliability -> HugeIcons.SecurityCheck
         LocalToolOption.CostGuards -> HugeIcons.CoinsDollar
         LocalToolOption.ScreenAutomation -> HugeIcons.CursorPointer01
+        LocalToolOption.PhoneUse -> HugeIcons.SmartPhone01
         LocalToolOption.AppLauncher -> HugeIcons.Rocket01
         LocalToolOption.Termux -> HugeIcons.ComputerTerminal01
         LocalToolOption.KeyboardControl -> HugeIcons.Keyboard

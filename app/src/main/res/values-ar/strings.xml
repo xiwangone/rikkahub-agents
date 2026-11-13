@@ -1346,6 +1346,12 @@
   <string name="assistant_page_local_tools_section_screen_automation">الشاشة والطرفية</string>
   <string name="assistant_page_local_tools_screen_automation_title">أتمتة الشاشة</string>
   <string name="assistant_page_local_tools_screen_automation_desc">السماح للنموذج اللغوي بالنقر والسحب والتمرير وقراءة المحتوى المعروض على الشاشة والتقاط لقطات شاشة عبر خدمة إمكانية الوصول في Android.</string>
+  <string name="assistant_page_local_tools_phone_use_title">استخدام الهاتف</string>
+  <string name="assistant_page_local_tools_phone_use_desc">اسمح للذكاء الاصطناعي بقراءة الشاشة والتحكم في التطبيقات الأخرى على هذا الهاتف</string>
+  <string name="assistant_page_local_tools_phone_use_service_off">خدمة إمكانية الوصول متوقفة. أطفئ هذا المفتاح ثم أعد تشغيله لفتح الإعدادات. إذا جعل النظام هذا الخيار باهتًا، فاسمح بالإعدادات المقيّدة لهذا التطبيق من معلومات التطبيق أولًا.</string>
+  <string name="assistant_page_local_tools_phone_use_enable_service">فعّل \"RikkaHub Phone Use\" في إعدادات إمكانية الوصول</string>
+  <string name="assistant_page_local_tools_phone_use_floating_window_required">فعّل النافذة العائمة في الخلفية أولًا</string>
+  <string name="phone_use_accessibility_description">يتيح مساعد الذكاء الاصطناعي قراءة الشاشة وتنفيذ النقرات والسحب وإدخال النص نيابةً عنك عند تمكين أداة استخدام الهاتف. لن يُنفَّذ أي شيء ما لم يكن المساعد ينفّذ مهمة طلبتها.</string>
   <string name="assistant_page_local_tools_app_launcher_title">مشغّل التطبيقات</string>
   <string name="assistant_page_local_tools_app_launcher_desc">فتح التطبيقات المثبتة باسم الحزمة (مثل Termux، الإعدادات) وسرد التطبيقات المتاحة. يقترن بأتمتة الشاشة للتحكم الكامل في الواجهة.</string>
   <string name="assistant_page_local_tools_notifications_title">إدراك الإشعارات</string>
@@ -2070,6 +2076,7 @@
   <string name="doctor_svc_04">فتح إعدادات Telegram</string>
   <string name="doctor_svc_05">خدمة أمامية لروبوت Telegram</string>
   <string name="doctor_svc_09">خدمة إمكانية الوصول مرتبطة</string>
+  <string name="doctor_svc_phone_use">خدمة استخدام الهاتف</string>
   <string name="doctor_svc_13">مستمع الإشعارات مرتبط</string>
   <string name="doctor_assistant_01">المساعد الافتراضي</string>
   <string name="doctor_assistant_05">فتح المساعد</string>
@@ -2313,6 +2320,7 @@
   <string name="mcp_tool_shizuku">Shizuku</string>
   <string name="mcp_tool_telegram_bot">بوت تلغرام</string>
   <string name="mcp_tool_screen_automation">أتمتة الشاشة</string>
+  <string name="mcp_tool_phone_use">استخدام الهاتف</string>
   <string name="mcp_tool_app_launcher">تشغيل التطبيقات</string>
   <string name="mcp_tool_termux">أوامر Termux</string>
   <string name="mcp_tool_notification_listener">مراقبة الإشعارات</string>
@@ -3010,6 +3018,7 @@
   <string name="doctor_tool_device_info">معلومات الجهاز</string>
   <string name="doctor_tool_nl">مستمع الإشعارات</string>
   <string name="doctor_tool_screen">أتمتة الشاشة</string>
+  <string name="doctor_tool_phone_use">استخدام الهاتف</string>
   <string name="doctor_tool_stt">تحويل الكلام إلى نص</string>
   <string name="doctor_tool_telegram">روبوت Telegram</string>
   <string name="doctor_tool_cron">المهام المجدولة</string>

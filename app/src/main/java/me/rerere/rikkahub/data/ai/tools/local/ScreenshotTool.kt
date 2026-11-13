@@ -39,7 +39,7 @@ internal fun pruneOldCacheScreenshots(dir: File) {
 
 fun takeScreenshotTool(context: Context): Tool = Tool(
     name = "take_screenshot",
-    description = "Capture the current display via AccessibilityService and return it as a vision attachment. PNG also saved to Pictures/RikkaHub Agents/Screenshots/ — gallery_path in the result is the on-device absolute path. Secure surfaces (banking, DRM, password fields) error gracefully. OS-rate-limited to ~1/sec.",
+    description = "Capture the current display via AccessibilityService and return it as a vision attachment. PNG also saved to Pictures/RikkaHub Agents/Screenshots/ — gallery_path in the result is the on-device absolute path. Secure surfaces (banking, DRM, password fields) error gracefully. OS-rate-limited to ~1/sec. Prefer phone_use for everyday phone operation.",
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -51,6 +51,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         val displayId = input.jsonObject["display_id"]?.jsonPrimitive?.intOrNull ?: 0
 
         val outcome = AccessibilityServiceHandle.withService { svc ->

@@ -77,6 +77,11 @@ internal class ChatFloatingOverlayController(
             screenWidthPx = { overlayContext.resources.displayMetrics.widthPixels },
         )
     private var windowLifecycleOwner: FloatingWindowLifecycleOwner? = null
+    private val phoneUseGate = PhoneUseOverlayGate(
+        scope, chat,
+        collapsePanel = { policy = policy.collapse(); applyExpanded(false) },
+        windowState = { Triple(root, params, windowManager) },
+    )
     private val replyDrafts = androidx.compose.runtime.mutableStateMapOf<String, String>()
     private val uiState =
         androidx.compose.runtime.mutableStateOf(
@@ -153,6 +158,7 @@ internal class ChatFloatingOverlayController(
                 ) { inputs, permission -> inputs to permission }
                     .collect { (inputs, permission) -> refresh(inputs.first, inputs.second, inputs.third, permission) }
             }
+        observerJobs += phoneUseGate.start()
     }
 
     fun close() {
@@ -177,6 +183,8 @@ internal class ChatFloatingOverlayController(
         if (enabled != priorEnabled) policy = policy.updateEnabled(enabled)
         if (isForeground != priorForeground) policy = policy.updateForeground(isForeground)
         policy = policy.updatePermission(permission).updateRunning(running)
+        // 目标会话这一轮刚结束（之前在跑，现在不在了），留待窗口确认显示后再看要不要展开。
+        val finishedTarget = targetId?.takeIf { it.toString() !in running && it.toString() in previousJobs }
         priorEnabled = enabled
         priorForeground = isForeground
         previousJobs = running
@@ -194,6 +202,12 @@ internal class ChatFloatingOverlayController(
             snapshotJob = null
             releaseReference()
             return
+        }
+        // 用了 Phone Use 的一轮结束时自动展开面板：用户正看着别的应用，结果直接展开给他看。
+        // 普通聊天不展开，切出去做别的事时不被打断。
+        if (finishedTarget != null && phoneUseGate.usedPhoneUse(finishedTarget)) {
+            policy = policy.expand()
+            applyExpanded(true)
         }
         targetId?.let(::trackTarget)
         latestSnapshot?.let(::render)

@@ -1375,6 +1375,12 @@
   <string name="assistant_page_local_tools_reliability_desc">Позволяет ассистенту проверять GitHub на наличие новых выпусков и по запросу создавать ZIP-отчёт об ошибках с удалёнными конфиденциальными данными. Отчёт об ошибках включает последние несколько тысяч строк logcat (с удалёнными секретами) и версию приложения + сведения об устройстве — и явно исключает ваши разговоры, токены и сохранённые хосты.</string>
   <string name="assistant_page_local_tools_reliability_title">Надёжность</string>
   <string name="assistant_page_local_tools_screen_automation_desc">Позволяет LLM нажимать, проводить, прокручивать, читать содержимое экрана и делать снимки экрана через службу специальных возможностей Android.</string>
+  <string name="assistant_page_local_tools_phone_use_title">Использование телефона</string>
+  <string name="assistant_page_local_tools_phone_use_desc">Разрешить ИИ читать экран и управлять другими приложениями на этом телефоне</string>
+  <string name="assistant_page_local_tools_phone_use_service_off">Служба доступности выключена. Выключите и снова включите этот переключатель, чтобы открыть настройки. Если система сделает этот пункт серым, сначала разрешите ограниченные настройки для этого приложения в разделе «Информация о приложении».</string>
+  <string name="assistant_page_local_tools_phone_use_enable_service">Включите \"RikkaHub Phone Use\" в настройках специальных возможностей</string>
+  <string name="assistant_page_local_tools_phone_use_floating_window_required">Сначала включите фоновое плавающее окно</string>
+  <string name="phone_use_accessibility_description">Позволяет ИИ-ассистенту читать экран и выполнять за вас нажатия, свайпы и ввод текста, когда вы включаете инструмент Phone Use. Ничего не выполняется, если ассистент не выполняет задачу, которую вы запросили.</string>
   <string name="assistant_page_local_tools_screen_automation_title">Автоматизация экрана</string>
   <string name="assistant_page_local_tools_section_automation">Автоматизация</string>
   <string name="assistant_page_local_tools_section_existing">Встроенные инструменты</string>
@@ -2516,6 +2522,7 @@
   <string name="doctor_svc_04">Открыть настройки Telegram</string>
   <string name="doctor_svc_05">Foreground-служба бота Telegram</string>
   <string name="doctor_svc_09">Служба спец. возможностей подключена</string>
+  <string name="doctor_svc_phone_use">Служба Phone Use</string>
   <string name="doctor_svc_13">Прослушиватель уведомлений подключён</string>
   <string name="doctor_assistant_01">Ассистент по умолчанию</string>
   <string name="doctor_assistant_05">Открыть ассистента</string>
@@ -2759,6 +2766,7 @@
   <string name="mcp_tool_shizuku">Shizuku</string>
   <string name="mcp_tool_telegram_bot">Telegram-бот</string>
   <string name="mcp_tool_screen_automation">Автоматизация экрана</string>
+  <string name="mcp_tool_phone_use">Использование телефона</string>
   <string name="mcp_tool_app_launcher">Запуск приложений</string>
   <string name="mcp_tool_termux">Termux</string>
   <string name="mcp_tool_notification_listener">Прослушивание уведомлений</string>
@@ -3454,6 +3462,7 @@
   <string name="doctor_tool_device_info">Сведения об устройстве</string>
   <string name="doctor_tool_nl">Прослушиватель уведомлений</string>
   <string name="doctor_tool_screen">Автоматизация экрана</string>
+  <string name="doctor_tool_phone_use">Использование телефона</string>
   <string name="doctor_tool_stt">Распознавание речи</string>
   <string name="doctor_tool_telegram">Бот Telegram</string>
   <string name="doctor_tool_cron">Задачи по расписанию</string>

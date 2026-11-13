@@ -52,6 +52,7 @@ object LocalToolCatalog {
                     LocalToolOption.AppLauncher,
                     LocalToolOption.SystemIntents,
                     LocalToolOption.ScreenAutomation,
+                    LocalToolOption.PhoneUse,
                     LocalToolOption.Notification,
                     LocalToolOption.NotificationListener,
                 ),
@@ -188,6 +189,7 @@ object LocalToolCatalog {
             LocalToolOption.Shizuku -> R.string.mcp_tool_shizuku
             LocalToolOption.TelegramBot -> R.string.mcp_tool_telegram_bot
             LocalToolOption.ScreenAutomation -> R.string.mcp_tool_screen_automation
+            LocalToolOption.PhoneUse -> R.string.mcp_tool_phone_use
             LocalToolOption.AppLauncher -> R.string.mcp_tool_app_launcher
             LocalToolOption.Termux -> R.string.mcp_tool_termux
             LocalToolOption.NotificationListener -> R.string.mcp_tool_notification_listener

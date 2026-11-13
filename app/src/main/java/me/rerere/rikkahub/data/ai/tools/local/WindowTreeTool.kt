@@ -80,6 +80,7 @@ fun readWindowTreeTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val verbose = input.jsonObject["verbose"]?.jsonPrimitive?.booleanOrNull ?: false
         val maxNodesRaw = input.jsonObject["max_nodes"]?.jsonPrimitive?.intOrNull ?: DEFAULT_MAX_NODES

@@ -60,7 +60,7 @@ fun findNodeTool(
         Find accessibility nodes in the active window matching a selector. by: text |
         content_description | view_id_resource_name. Returns {matches: [...]} with at most 50
         node summaries. Use read_window_tree first to see what's available, then this for
-        targeted lookups.
+        targeted lookups. Prefer phone_use for everyday phone operation.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -83,6 +83,7 @@ fun findNodeTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
         if (by == null || by !in ALLOWED_BY || value == null) {
@@ -154,6 +155,7 @@ fun clickNodeTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
@@ -267,6 +269,7 @@ fun setTextTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)

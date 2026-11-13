@@ -95,6 +95,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("browser")             data object Browser            : LocalToolOption()
     @Serializable @SerialName("web_fetch")           data object WebFetch           : LocalToolOption()
     @Serializable @SerialName("chart_display")       data object ChartDisplay       : LocalToolOption()
+    @Serializable @SerialName("phone_use")           data object PhoneUse           : LocalToolOption()
 
     // Phase 25 — Phase 3 second cut + ExternalStorage + Archive.
     @Serializable @SerialName("sms_send")             data object SmsSend             : LocalToolOption()

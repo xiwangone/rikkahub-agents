@@ -59,6 +59,7 @@ fun clickAndReadTool(
     """.trimIndent().replace("\n", " "),
     parameters = { clickAndReadParameters() },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         AgentTurnTracker.recordAutomationAction()
         RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
@@ -288,6 +289,7 @@ fun waitForTool(
         )
     },
     execute = { input ->
+        blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         val (by, value, pkgFilter) = parseSelector(input)
         val timeoutMs = input.jsonObject["timeout_ms"]?.jsonPrimitive?.longOrNull ?: WAIT_FOR_DEFAULT_TIMEOUT_MS
         val intervalMs = input.jsonObject["interval_ms"]?.jsonPrimitive?.longOrNull ?: WAIT_FOR_DEFAULT_INTERVAL_MS

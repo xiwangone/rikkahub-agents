@@ -139,4 +139,20 @@ class LogRedactorTest {
         assertFalse(summary.contains("user prompt verbatim"))
         assertTrue(summary.contains("len=${data.length}"))
     }
+
+    @Test
+    fun `newly aligned keyed names are masked`() {
+        // P0-2：与 ai 侧 JSON 脱敏同一张敏感词表补齐的三个缺口 —— 此前 passphrase /
+        // credentials / signature 形态的值走自由文本日志原样落盘
+        val cases = listOf(
+            "passphrase=AbCdEf1234567890",
+            "\"credentials\": \"AbCdEf1234567890\"",
+            "\"signature\": \"AbCdEf1234567890\"",
+        )
+        for (sample in cases) {
+            val out = LogRedactor.maskText(sample)
+            assertFalse("should mask $sample -> $out", out.contains("AbCdEf1234567890"))
+            assertTrue("should keep marker for $sample -> $out", out.contains("***"))
+        }
+    }
 }

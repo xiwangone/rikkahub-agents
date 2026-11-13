@@ -1620,6 +1620,12 @@
   <string name="assistant_page_local_tools_reliability_desc">让助手检查 GitHub 上的新版本，并按需生成已脱敏的错误报告 ZIP。错误报告包含最近的数千行 logcat 日志（敏感信息已脱敏）以及应用版本 + 设备信息 — 并明确排除你的对话、token 和已保存的主机。</string>
   <string name="assistant_page_local_tools_reliability_title">可靠性</string>
   <string name="assistant_page_local_tools_screen_automation_desc">让大模型通过 Android 无障碍服务点击、滑动、滚动、读取屏幕内容和截图。</string>
+  <string name="assistant_page_local_tools_phone_use_title">Phone Use</string>
+  <string name="assistant_page_local_tools_phone_use_desc">允许 AI 读取屏幕并操作此手机上的其他应用</string>
+  <string name="assistant_page_local_tools_phone_use_service_off">无障碍服务已关闭。请将此开关关闭再打开，以进入设置。若该选项在系统中呈灰色不可用，请先在\"应用信息\"中为此应用允许受限设置。</string>
+  <string name="assistant_page_local_tools_phone_use_enable_service">在无障碍设置中开启 \"RikkaHub Phone Use\"</string>
+  <string name="assistant_page_local_tools_phone_use_floating_window_required">请先开启后台悬浮窗</string>
+  <string name="phone_use_accessibility_description">启用 Phone Use 工具后，允许 AI 助手读取屏幕并为您执行点按、滑动和文本输入。除非助手正在运行您请求的任务，否则不会执行任何操作。</string>
   <string name="assistant_page_local_tools_screen_automation_title">屏幕自动化</string>
   <string name="assistant_page_local_tools_section_automation">自动化</string>
   <string name="assistant_page_extra_cold_section">工具详略（高级）</string>
@@ -2860,6 +2866,7 @@
   <string name="doctor_svc_04">打开 Telegram 设置</string>
   <string name="doctor_svc_05">Telegram 机器人前台服务</string>
   <string name="doctor_svc_09">无障碍服务已绑定</string>
+  <string name="doctor_svc_phone_use">Phone Use 服务</string>
   <string name="doctor_svc_13">通知监听器已绑定</string>
   <string name="doctor_assistant_01">默认助手</string>
   <string name="doctor_assistant_05">打开助手</string>
@@ -3337,6 +3344,7 @@
   <string name="doctor_tool_device_info">设备信息</string>
   <string name="doctor_tool_nl">通知监听</string>
   <string name="doctor_tool_screen">屏幕自动化</string>
+  <string name="doctor_tool_phone_use">Phone Use</string>
   <string name="doctor_tool_stt">语音转文字</string>
   <string name="doctor_tool_telegram">Telegram 机器人</string>
   <string name="doctor_tool_cron">定时任务</string>
@@ -3440,6 +3448,7 @@
   <string name="mcp_tool_shizuku">Shizuku 提权</string>
   <string name="mcp_tool_telegram_bot">Telegram 机器人</string>
   <string name="mcp_tool_screen_automation">屏幕自动化</string>
+  <string name="mcp_tool_phone_use">Phone Use</string>
   <string name="mcp_tool_app_launcher">启动应用</string>
   <string name="mcp_tool_termux">Termux 命令</string>
   <string name="mcp_tool_notification_listener">通知监听</string>

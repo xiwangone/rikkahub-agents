@@ -77,6 +77,7 @@ object ToolApprovalDefaults {
         "click_node",
         "click_and_read",  // click + post-click tree read: same side effect as click_node
         "global_action",
+        "phone_use",       // operates other apps through its own accessibility service; same trust footprint as tap
         "launch_app",
         "launch_activity",   // launches a specific activity, same trust footprint as launch_app
         "open_url",          // can dial tel:, draft mailto:, hand a URI to any app

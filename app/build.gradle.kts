@@ -437,6 +437,8 @@ dependencies {
 
     // tests
     testImplementation(libs.junit)
+    // runTest with virtual time for suspending tool tests (PhoneUseToolTest).
+    testImplementation(libs.kotlinx.coroutines.test)
     // Robolectric：在 host JVM（PC）上跑 Android framework 相关逻辑——WebView 回调、文件落盘、Log，
     // 不必连设备或模拟器。用 @Config(sdk = [34]) 钉住 android-all 镜像版本。
     testImplementation(libs.robolectric)

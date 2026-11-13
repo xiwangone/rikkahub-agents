@@ -174,6 +174,7 @@ Entry("browser_back", "browser/BrowserToolDefaults.kt#ALL_TOOLS", "LocalToolOpti
         Entry("open_wifi_settings", "local/SystemIntentTools.kt#openWifiSettingsTool", "LocalToolOption.SystemIntents", "DEVICE_CONTROL", "OpenWifiSettingsToolUI", InvocationKind.STANDARD),
         Entry("pause_job", "local/CronJobTool.kt#pauseJobTool", "LocalToolOption.CronJobs", "AUTOMATION", null, InvocationKind.STANDARD),
         Entry("pause_media", "local/MediaPlayerTool.kt#pauseMediaTool", "LocalToolOption.MediaPlayer", "MEDIA", null, InvocationKind.STANDARD),
+        Entry("phone_use", "local/PhoneUseTool.kt#buildPhoneUseTool", "LocalToolOption.PhoneUse", "DEVICE_CONTROL", null, InvocationKind.STANDARD),
         Entry("play_media", "local/MediaPlayerTool.kt#playMediaTool", "LocalToolOption.MediaPlayer", "MEDIA", null, InvocationKind.STANDARD),
         Entry("post_notification", "local/NotificationTool.kt#notificationTool", "LocalToolOption.Notification", "DEVICE_CONTROL", null, InvocationKind.STANDARD),
         Entry("read_file", "local/FileManagerTool.kt#readFileTool", "LocalToolOption.Files", "FILES", "LocalReadFileToolUI", InvocationKind.STANDARD),
