@@ -142,17 +142,47 @@ fixowner_quick() {
     return 0
 }
 
+# 本 rootfs 名下是否已有挂载（上一会话被 SIGKILL 留下的残留）。
+# 同一目录在 mountinfo 里会出现三种写法（/data/user/0、/data/data、
+# /data_mirror/data_ce/null/0），取决于挂载当时用的是哪个路径；按前缀同时匹配
+# 三种变体，避免单一字面量漏判（漏判的后果是 mount -t proc 直接 EBUSY、工作区不可用）。
+has_residual_mounts() {
+    local sub alt1 alt2 alt3
+    case "$ROOTFS" in
+        /data/user/0/*) sub="${ROOTFS#/data/user/0/}" ;;
+        /data/data/*) sub="${ROOTFS#/data/data/}" ;;
+        /data_mirror/data_ce/null/0/*) sub="${ROOTFS#/data_mirror/data_ce/null/0/}" ;;
+        *) sub="" ;;
+    esac
+    if [ -n "$sub" ]; then
+        alt1="/data/user/0/$sub"
+        alt2="/data/data/$sub"
+        alt3="/data_mirror/data_ce/null/0/$sub"
+    else
+        alt1="$ROOTFS"
+        alt2="$ROOTFS"
+        alt3="$ROOTFS"
+    fi
+    [ -r /proc/self/mountinfo ] || return 1
+    awk -v a="$ROOTFS" -v b="$alt1" -v c="$alt2" -v d="$alt3" '
+        { p = $5 }
+        p == a || p == b || p == c || p == d { found = 1; exit }
+        index(p, a "/") == 1 || index(p, b "/") == 1 || index(p, c "/") == 1 || index(p, d "/") == 1 { found = 1; exit }
+        END { exit(found ? 0 : 1) }
+    ' /proc/self/mountinfo 2>/dev/null
+}
+
 do_mounts() {
     mkdir -p "$ROOTFS/proc" "$ROOTFS/sys" "$ROOTFS/dev/pts" "$ROOTFS/tmp" "$ROOTFS/workspace"
     # 幂等自愈：上一会话被 SIGKILL 时 trap 不执行，残留挂载会被新会话的 unshare 复制进来，
     # 随后 mount -t proc 会因 EBUSY 退出，该工作区将无法再用，只能手工清理挂载后恢复。
-    # 开挂前先看本 rootfs 名下是否已有挂载，有就先摘干净。
-    if [ -r /proc/self/mountinfo ]; then
-        case "$(cat /proc/self/mountinfo 2>/dev/null)" in
-            *"$ROOTFS"*) do_unmount_quiet ;;
-        esac
-    fi
-    mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
+    # 开挂前先看本 rootfs 名下是否已有挂载，有就先摘干净（路径写法不唯一，见 has_residual_mounts）。
+    has_residual_mounts && do_unmount_quiet
+    mount -t proc proc "$ROOTFS/proc" 2>/dev/null || {
+        # 兜底自愈：路径别名或检测遗漏时，挂载失败也要先清残留再重试一次，别直接放弃。
+        do_unmount_quiet
+        mount -t proc proc "$ROOTFS/proc" || { echo "ERR: mount $ROOTFS/proc failed" >&2; return 1; }
+    }
     mount -t sysfs sysfs "$ROOTFS/sys" 2>/dev/null \
         || mount -t sysfs sys "$ROOTFS/sys" \
         || { echo "ERR: mount $ROOTFS/sys failed" >&2; return 1; }
