@@ -893,6 +893,8 @@
   <string name="setting_display_page_chat_font_family_serif">衬线体</string>
   <string name="ai_wrap_up_notice">【时间预算提醒】本轮可用时间即将耗尽。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
   <string name="ai_token_budget_notice">【token 预算提醒】本轮已达该助手的预算上限。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
+  <string name="ai_final_summary_notice">【最终总结提醒】本轮即将结束。请停止发起新的工具调用，结束正在进行的工作，并简要总结已完成的内容与剩余事项。</string>
+  <string name="ai_wrap_up_empty_fallback">本轮未能生成总结。请查看上方的工具输出，了解已完成和未完成的工作。</string>
   <string name="assistant_page_token_budget">token 预算（按每次请求算）</string>
   <string name="assistant_page_token_budget_desc">量的是「每次发给模型的那一整包有多大」（系统提示词 + 记忆 + 全部历史 + 工具输出）—— 也就是上下文窗口被占了多少，不是累计消耗。同一段历史每轮都会重发，按累计算会虚高。越过软上限：助手收到收尾提示；越过硬上限：先给一次收尾机会，下一步仍超才结束本轮。</string>
   <string name="assistant_page_token_budget_soft">软上限 —— 只提醒收尾</string>

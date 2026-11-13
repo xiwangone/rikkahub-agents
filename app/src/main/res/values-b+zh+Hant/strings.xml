@@ -3592,6 +3592,8 @@
   <string name="assistant_page_compact_output_action">編輯</string>
   <string name="assistant_page_compact_output_dialog_desc">每行一個工具名（也可用逗號分隔），請用 list_tools 裡顯示的確切名稱。適合填「回傳內容很大」的工具，例如網頁抓取、全量清單、診斷匯出。名單內的工具按緊湊閾值（設定 → 工具）截斷並把全文存到 /tool_outputs；名單外的仍走全域上限。工具仍可正常呼叫，內容不會被刪除。留空表示不生效。</string>
   <string name="ai_token_budget_notice">TOKEN 預算通知：本回合已達到此助理的 token 預算。請停止發起新的工具呼叫，完成進行中的工作，並簡潔地總結已完成的事項與待辦事項。</string>
+  <string name="ai_final_summary_notice">【最終總結提醒】本輪即將結束。請停止發起新的工具呼叫，結束正在進行的工作，並簡要總結已完成的內容與剩餘事項。</string>
+  <string name="ai_wrap_up_empty_fallback">本輪未能生成總結。請查看上方的工具輸出，瞭解已完成和未完成的工作。</string>
   <string name="assistant_page_token_budget_hard">硬性上限 — 停止本回合</string>
   <string name="assistant_page_token_budget_soft">軟性上限 — 收尾通知</string>
   <string name="assistant_page_digest_output_desc">已設定 %1$d 個。它們的輸出會完整儲存到 /tool_outputs，而進入上下文的是摘要 — 開頭 + 符合您關鍵字的行 + 結尾 — 不是原始的前綴。</string>

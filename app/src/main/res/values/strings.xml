@@ -902,6 +902,8 @@
   <string name="setting_display_page_chat_font_family_serif">Serif</string>
   <string name="ai_wrap_up_notice">TIME BUDGET NOTICE: this turn is about to hit its wall-clock limit. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
   <string name="ai_token_budget_notice">TOKEN BUDGET NOTICE: this turn has reached this assistant\'s token budget. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
+  <string name="ai_final_summary_notice">FINAL SUMMARY NOTICE: this turn is ending. Stop starting new tool calls, finish any in-flight work, and give a concise final summary of what was done and what remains.</string>
+  <string name="ai_wrap_up_empty_fallback">No summary was generated for this turn. See the tool outputs above for what was completed and what remains.</string>
   <string name="assistant_page_token_budget">Token budget (per request)</string>
   <string name="assistant_page_token_budget_desc">Measures the size of each request sent to the model (system prompt + memory + full history + tool output) — i.e. how full the context window is — not the running total. The same history is re-sent every turn, so a running total would be inflated. Past the soft cap the assistant is told to wrap up; past the hard cap it gets one wrap-up chance first, and only stops if it is still over on the next step.</string>
   <string name="assistant_page_token_budget_soft">Soft cap — wrap-up notice</string>

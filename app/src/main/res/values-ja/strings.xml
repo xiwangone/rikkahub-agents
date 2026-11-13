@@ -3593,6 +3593,8 @@
   <string name="assistant_page_compact_output_action">編集</string>
   <string name="assistant_page_compact_output_dialog_desc">1 行に 1 つのツール名（カンマ区切りも可）。list_tools に表示される正確な名前を使ってください。大量の出力を返すツール（ページ取得、全件リスト、診断ダンプなど）に適しています。リストに入れたツールはコンパクト上限（設定 → ツール）で切り詰められ、全文は /tool_outputs に保存されます。リスト外のツールは全体の上限のままです。ツールは引き続き呼び出せ、内容が削除されることもありません。空欄にすると無効になります。何を入れるか分からない場合は、チャットでアシスタントにリストを作らせてください（ただしアシスタントはこの設定を変更できないため、自分で貼り付けて保存してください）。</string>
   <string name="ai_token_budget_notice">トークン予算通知: このターンはこのアシスタントのトークン予算に達しました。新しいツール呼び出しを開始するのをやめ、進行中の作業を完了し、何が行われ、何が残っているかを簡潔にまとめてください。</string>
+  <string name="ai_final_summary_notice">【最終要約の通知】このターンは終了します。新しいツール呼び出しを始めず、進行中の作業を終わらせ、完了した内容と残りの作業を簡潔にまとめてください。</string>
+  <string name="ai_wrap_up_empty_fallback">このターンでは要約を生成できませんでした。完了した作業と残りの作業については、上記のツール出力をご確認ください。</string>
   <string name="assistant_page_token_budget_hard">ハードキャップ — ターンを停止</string>
   <string name="assistant_page_token_budget_soft">ソフトキャップ — 終了通知</string>
   <string name="assistant_page_digest_output_desc">%1$d 設定済み。それらの出力は /tool_outputs に完全に保存され、コンテキストに入るのはダイジェストです — 先頭 + キーワードに一致する行 + 末尾 — 生のプレフィックスではありません。</string>

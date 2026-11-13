@@ -88,8 +88,35 @@ private const val WRAP_UP_STREAM_CAP_MS = 90_000L
  * 收尾窗口 = 轮次预算的 20%，夹在 [MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS] 之间。
  * 20 分钟预算 → 4 分钟；1 分钟预算 → 30 秒（下限）。
  */
-private fun wrapUpGraceMsForBudget(turnBudgetMs: Long): Long =
+internal fun wrapUpGraceMsForBudget(turnBudgetMs: Long): Long =
     (turnBudgetMs / 5).coerceIn(MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS)
+
+/**
+ * 流墙钟上限是否已撞上。
+ *
+ * 收尾轮从首个 chunk 到达起算，不含 prefill/TTFT：长上下文的首包晚到不应直接吃掉
+ * 整个总结窗口；首包未到（firstChunkAtMs == 0）时返回 false，首包阶段只由空闲看门狗兜底。
+ * 普通轮仍从流开始计时。
+ */
+internal fun isStreamCapExceeded(
+    wrapUpTerminalStep: Boolean,
+    nowMs: Long,
+    streamStartedAtMs: Long,
+    firstChunkAtMs: Long,
+): Boolean {
+    if (wrapUpTerminalStep && firstChunkAtMs == 0L) return false
+    val baselineMs = if (wrapUpTerminalStep) firstChunkAtMs else streamStartedAtMs
+    val capMs = if (wrapUpTerminalStep) WRAP_UP_STREAM_CAP_MS else MAX_STREAM_DURATION_MS
+    return nowMs - baselineMs > capMs
+}
+
+/** 收尾总结是否产出了可见文本：只有非空 Text 段才算，纯思考不算。 */
+internal fun wrapUpSummaryHasText(parts: List<UIMessagePart>): Boolean =
+    parts.any { it is UIMessagePart.Text && it.text.isNotBlank() }
+
+/** 收尾提醒的 Append 必须带 terminalSummary=true，否则总结请求越不过 maxSteps。 */
+internal fun terminalSummaryAppend(notice: UIMessage): StepDecision.Append =
+    StepDecision.Append(notice, terminalSummary = true)
 
 /**
  * 一次生成轮回的执行体：把「请求模型 → 审批 → 执行工具 → 回灌」的排序交给 `me.rerere.ai.agent` 的循环，
@@ -163,6 +190,10 @@ internal class GenerationAgentRun(
      * 用户依旧拿不到任何收尾文字。
      */
     private var wrapUpTerminalStep = false
+    /** 收尾总结请求已发出（prepareStep 里置位）：步边界据此判断总结是否已完成。 */
+    private var wrapUpSummaryIssued = false
+    /** 收尾总结本步是否产出了可见文本（finishStep 里按本步新段判定）。 */
+    private var wrapUpSummaryProducedText = false
     private var tokenBudgetWarnInjected = false
     private var autoContinueCount = 0
     private var imageDowngradeApplied = false
@@ -175,6 +206,8 @@ internal class GenerationAgentRun(
     private var streamAttempt = 0
     private val streamProgress = GenerationStreamProgress()
     private var streamStartedAtMs = 0L
+    /** 本次流尝试首个 chunk 到达的时刻（0 = 未到）：收尾轮 90 秒上限的起算点。 */
+    private var firstStreamChunkAtMs = 0L
     private var lastStreamApplyAtMs = 0L
     private val pendingStreamChunks = mutableListOf<StreamChunk>()
     // 早止点已判定，但要等「下一条」增量到手才真的结束流（收尾见 guardStopAfterCurrentChunk）
@@ -471,6 +504,8 @@ internal class GenerationAgentRun(
 
         // 收尾轮不挂工具：预算已耗尽（或进入宽限窗口），这一轮只允许产出一段文字收尾。
         val stepTools = if (wrapUpTerminalStep) emptyList() else tools
+        // 标记总结请求已发出：下一轮步边界据此判断总结是否已完成（供零文本兜底用）。
+        if (wrapUpTerminalStep) wrapUpSummaryIssued = true
 
         // Tool execution can finish after beforeStep has already run. Flush at the
         // final boundary before asking the provider for the next step.
@@ -612,8 +647,9 @@ internal class GenerationAgentRun(
             // 墙钟上限：永不结束的流（无限「思考」）只能在这里掐掉，重复检测对它无感。
             // 收尾轮（预算到点后的纯文本总结）单独收紧：这一段没有任何工具，唯一产出是
             // 一段文字，按 15min 上限等下去只会让界面一直转圈。
-            val streamCapMs = if (wrapUpTerminalStep) WRAP_UP_STREAM_CAP_MS else MAX_STREAM_DURATION_MS
-            if (System.currentTimeMillis() - streamStartedAtMs > streamCapMs) {
+            // 收尾轮的上限从首个 chunk 到达起算，不含 prefill/TTFT（见 isStreamCapExceeded）。
+            if (firstStreamChunkAtMs == 0L) firstStreamChunkAtMs = System.currentTimeMillis()
+            if (isStreamCapExceeded(wrapUpTerminalStep, System.currentTimeMillis(), streamStartedAtMs, firstStreamChunkAtMs)) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
                 guardStopAfterCurrentChunk(GenerationOutcome.TIMEOUT)
                 return@takeWhile true
@@ -694,6 +730,7 @@ internal class GenerationAgentRun(
         streamAttempt = attempt
         streamProgress.reset()
         streamStartedAtMs = System.currentTimeMillis()
+        firstStreamChunkAtMs = 0L
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
         streamGuardStopRequested = false
@@ -913,6 +950,8 @@ internal class GenerationAgentRun(
         runCtx.steps = step.stepIndex + 1
         outputTransformCache.clear()
         flushPendingOutput()
+        // 收尾总结已发出但零文本：补一行兜底，避免用户只看到提醒、看不到总结。
+        appendWrapUpFallbackIfEmpty()
 
         val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
 
@@ -962,7 +1001,9 @@ internal class GenerationAgentRun(
                     (overSoft || overHard) && !tokenBudgetWarnInjected -> {
                         tokenBudgetWarnInjected = true
                         AppLog.w(TAG, "generateText: token budget crossed (overHard=$overHard); injecting wrap-up reminder")
-                        return StepDecision.Append(
+                        // 与时间预算同款：提醒带 terminalSummary，工具禁用，下一边界硬停前
+                        // 模型至少有一次无工具总结机会。
+                        return appendTerminalSummaryNotice(
                             UIMessage.system(context.resources.getString(R.string.ai_token_budget_notice)).copy(isSynthetic = true),
                         )
                     }
@@ -975,6 +1016,13 @@ internal class GenerationAgentRun(
                 }
             }
             if (loopGuardTripCount >= MAX_LOOP_GUARD_TRIPS_PER_TURN) {
+                // 先给一次无工具总结机会，再停；总结已给过时直接停。
+                if (!wrapUpInjected) {
+                    AppLog.w(TAG, "generateText: loop-guard tripped $loopGuardTripCount times this turn; injecting wrap-up reminder for a final reply")
+                    return appendTerminalSummaryNotice(
+                        UIMessage.system(context.resources.getString(R.string.ai_final_summary_notice)).copy(isSynthetic = true),
+                    )
+                }
                 AppLog.w(TAG, "generateText: loop-guard tripped $loopGuardTripCount times this turn; force-ending")
                 runCtx.abortReason = GenerationOutcome.LOOP_GUARD
                 return StepDecision.Stop(AgentFinishReason.BudgetExhausted(AgentFinishReason.Kind.LOOP_GUARD))
@@ -1018,22 +1066,53 @@ internal class GenerationAgentRun(
             )
             return StepDecision.Stop(AgentFinishReason.Completed)
         }
-        // 正常工具步数上限后只保留一次收尾请求额度，且必须由预算软收尾显式开启。
+        // 步数上限后同样先给一次无工具总结机会，再停；收尾已注入时直接停。
         if (step.stepIndex >= maxSteps && !wrapUpTerminalStep) {
+            if (!wrapUpInjected) {
+                AppLog.w(TAG, "generateText: step limit reached at step #${step.stepIndex}; injecting wrap-up reminder for a final reply")
+                return appendTerminalSummaryNotice(
+                    UIMessage.system(context.resources.getString(R.string.ai_final_summary_notice)).copy(isSynthetic = true),
+                )
+            }
             return StepDecision.Stop(AgentFinishReason.StepLimitReached)
         }
         return StepDecision.Continue
     }
 
-    private fun appendWrapUpSystemNotice(): StepDecision.Append {
+    /**
+     * 通用收尾提醒：把提醒同时写进两份历史（AgentLoop 的 Append 只更新它自己的历史；
+     * prepareStep 从本类 messages 构建请求），并标记本轮已进入无工具收尾，
+     * 让这次总结请求越过 maxSteps、且不再挂工具。
+     */
+    private fun appendTerminalSummaryNotice(notice: UIMessage): StepDecision.Append {
         wrapUpInjected = true
         wrapUpTerminalStep = true
-        // AgentLoop 会放行这一次带 terminalSummary 标记的收尾请求。
-        val notice = UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
         // AgentLoop 的 Append 会更新自己的历史；prepareStep 还会从本类 messages 构建请求，
         // 两份历史都同步才能确保 provider 实际收到收尾提醒。
         messages = messages + notice
-        return StepDecision.Append(notice, terminalSummary = true)
+        // AgentLoop 会放行这一次带 terminalSummary 标记的收尾请求。
+        return terminalSummaryAppend(notice)
+    }
+
+    private fun appendWrapUpSystemNotice(): StepDecision.Append {
+        val notice = UIMessage.system(context.resources.getString(R.string.ai_wrap_up_notice)).copy(isSynthetic = true)
+        return appendTerminalSummaryNotice(notice)
+    }
+
+    /**
+     * 收尾总结零文本时的兜底：总结流可能只产出思考、或在首个文本增量前被掐断，
+     * 此时用户只看到提醒、看不到总结。补一行说明，避免静默。
+     * 只看总结本步是否产出文本（[wrapUpSummaryProducedText]），不看整条助手消息。
+     */
+    private suspend fun appendWrapUpFallbackIfEmpty() {
+        if (!wrapUpTerminalStep || !wrapUpSummaryIssued || wrapUpSummaryProducedText) return
+        val index = messages.indexOfLast { it.role == MessageRole.ASSISTANT }
+        if (index < 0) return
+        val last = messages[index]
+        val fallback = UIMessagePart.Text(context.resources.getString(R.string.ai_wrap_up_empty_fallback))
+        messages = messages.subList(0, index) + last.copy(parts = last.parts + fallback) +
+            messages.subList(index + 1, messages.size)
+        emitter.emit(GenerationChunk.Messages(messages))
     }
 
     override suspend fun afterToolExecution(step: StepContext) {
@@ -1087,6 +1166,12 @@ internal class GenerationAgentRun(
     /** 一步生成结束：可视化变换 + 收尾变换 + 断流判定 */
     override suspend fun finishStep(message: UIMessage, newPartsFrom: Int): UIMessage {
         messages = upsertMessage(messages, message)
+        // 记下收尾总结本步是否产出了可见文本：只看本步的新段（newPartsFrom 起），
+        // 不看整条助手消息（前面步骤的工具/文本不能算作总结）。
+        if (wrapUpTerminalStep) {
+            wrapUpSummaryProducedText = message.parts.drop(newPartsFrom)
+                .any { it is UIMessagePart.Text && it.text.isNotBlank() }
+        }
         messages = messages.visualTransformsIncremental(
             transformers = outputTransformers,
             cache = outputTransformCache,
