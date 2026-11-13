@@ -138,6 +138,11 @@ private val FRESHNESS_TTL_MS_BY_TOOL: Map<String, Long> = mapOf(
     "get_time_info" to 5_000L,
     "take_screenshot" to 5_000L,
     "read_window_tree" to 5_000L,
+    "browser_get_text" to 5_000L,
+    "browser_get_dom" to 5_000L,
+    "browser_get_links" to 5_000L,
+    "browser_current_url" to 5_000L,
+    "browser_screenshot" to 5_000L,
     "list_active_notifications" to 5_000L,
     "list_jobs" to 60_000L,
 )
@@ -257,6 +262,17 @@ internal object LoopGuard {
         else -> element
     }
 
+    private fun isObservationCall(
+        toolName: String,
+        signature: String,
+        readOnlyTools: Set<String>,
+    ): Boolean =
+        toolName in readOnlyTools ||
+            (toolName == "phone_use" &&
+                (signature.contains("\"action\":\"observe\"") ||
+                    signature.contains("\"action\":\"screenshot\"") ||
+                    signature.contains("\"action\":\"list_apps\"")))
+
     fun evaluate(
         priorCalls: List<PriorToolCall>,
         toolName: String,
@@ -266,23 +282,35 @@ internal object LoopGuard {
         readOnlyTools: Set<String> = READ_ONLY_OBSERVATION_TOOLS,
         freshnessTtlMs: Map<String, Long> = FRESHNESS_TTL_MS_BY_TOOL,
     ): LoopGuardDecision {
+        val isObs = isObservationCall(toolName, signature, readOnlyTools)
         // For observation tools, only repeats since the most recent ACTION count: acting on
         // the world is progress, so identical observations taken before it are stale for
-        // loop-detection purposes. Side-effecting tools count every identical call in the
-        // turn (re-sending the same message 3x is a loop regardless of what ran between).
-        val relevant = if (toolName in readOnlyTools) {
-            val lastActionIdx = priorCalls.indexOfLast { it.toolName !in readOnlyTools }
-            if (lastActionIdx >= 0) priorCalls.subList(lastActionIdx + 1, priorCalls.size)
-            else priorCalls
-        } else {
-            priorCalls
+        // loop-detection purposes. For phone_use actions (where element indices 0,1,2 are
+        // re-numbered on each screen), any intervening different non-observation action resets
+        // the counter, while 3 consecutive identical actions still trip.
+        val relevant = when {
+            isObs -> {
+                val lastActionIdx = priorCalls.indexOfLast {
+                    !isObservationCall(it.toolName, it.signature, readOnlyTools)
+                }
+                if (lastActionIdx >= 0) priorCalls.subList(lastActionIdx + 1, priorCalls.size)
+                else priorCalls
+            }
+            toolName == "phone_use" -> {
+                val lastDiffActionIdx = priorCalls.indexOfLast {
+                    !isObservationCall(it.toolName, it.signature, readOnlyTools) && it.signature != signature
+                }
+                if (lastDiffActionIdx >= 0) priorCalls.subList(lastDiffActionIdx + 1, priorCalls.size)
+                else priorCalls
+            }
+            else -> priorCalls
         }
         val matching = relevant.filter { it.signature == signature }
         val priorOccurrences = matching.size
         if (priorOccurrences < threshold) return LoopGuardDecision(false, priorOccurrences)
         // Freshness-TTL bypass: a real-time reader re-called after its TTL is a refresh, not
         // a loop; let it through so the model gets a fresh reading instead of a stale one.
-        val ttl = freshnessTtlMs[toolName]
+        val ttl = freshnessTtlMs[toolName] ?: if (isObs && toolName == "phone_use") 5_000L else null
         if (ttl != null && nowMs - matching.maxOf { it.epochMs } >= ttl) {
             return LoopGuardDecision(false, priorOccurrences)
         }

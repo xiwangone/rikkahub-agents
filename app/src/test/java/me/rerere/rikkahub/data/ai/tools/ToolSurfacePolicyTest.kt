@@ -214,4 +214,14 @@ class ToolSurfacePolicyTest {
             ),
         )
     }
+
+    @Test
+    fun `phone_use 为 HOT 档且受 ACCESSIBILITY 能力门禁保护，config_ 工具在 COLD_EXTRAS`() {
+        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("phone_use"))
+        assertEquals(SurfaceTier.WARM, ToolSurfacePolicy.tierOf("phone_use", scene = UiScene.IMAGE_GEN))
+        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_get_all"))
+        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_set"))
+        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_revert"))
+        assertEquals(ToolCapability.ACCESSIBILITY, LocalToolCatalog.capabilityOf(LocalToolOption.PhoneUse))
+    }
 }

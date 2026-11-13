@@ -109,4 +109,38 @@ class LoopGuardTest {
         val decision = evaluate(prior, "device_info", nowMs = 5_000L)
         assertTrue(decision.block)
     }
+
+    @Test
+    fun phoneUse_observeResetsAfterPhoneUseAction_andCrossScreenElementZeroDoesNotFalseTrip() {
+        val obs = "{\"action\":\"observe\"}"
+        val tap0 = "{\"action\":\"tap\",\"element\":0}"
+        val tap2 = "{\"action\":\"tap\",\"element\":2}"
+        val back = "{\"action\":\"press\",\"key\":\"back\"}"
+        val prior = listOf(
+            call("phone_use", obs),
+            call("phone_use", tap0),
+            call("phone_use", obs),
+            call("phone_use", tap2),
+            call("phone_use", obs),
+            call("phone_use", tap0),
+            call("phone_use", back),
+            call("phone_use", tap0),
+        )
+        assertFalse(evaluate(prior, "phone_use", obs).block)
+        assertFalse(evaluate(prior, "phone_use", tap0).block)
+    }
+
+    @Test
+    fun phoneUse_threeConsecutiveIdenticalActionsOnSameScreen_trips() {
+        val obs = "{\"action\":\"observe\"}"
+        val tap0 = "{\"action\":\"tap\",\"element\":0}"
+        val prior = listOf(
+            call("phone_use", tap0),
+            call("phone_use", obs),
+            call("phone_use", tap0),
+            call("phone_use", obs),
+            call("phone_use", tap0),
+        )
+        assertTrue(evaluate(prior, "phone_use", tap0).block)
+    }
 }

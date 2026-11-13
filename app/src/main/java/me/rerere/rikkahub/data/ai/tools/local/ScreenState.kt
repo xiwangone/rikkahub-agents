@@ -185,22 +185,29 @@ internal suspend fun withActionEnvelope(
         null
     }
     val actionStart = SystemClock.uptimeMillis()
+    svc.setListenContentChanges(true)
+    val quiet: Boolean
     val result = try {
-        act(svc)
-    } catch (c: CancellationException) {
-        throw c
-    } catch (t: Throwable) {
-        AppLog.w("ScreenState", "action threw: ${t.message}", t)
-        ToolErrors.envelopeFor(error = "tool_exception", message = "tool_exception", extra = ToolErrors.extraOf("message" to (t.message ?: t::class.java.simpleName)))
+        val r = try {
+            act(svc)
+        } catch (c: CancellationException) {
+            throw c
+        } catch (t: Throwable) {
+            AppLog.w("ScreenState", "action threw: ${t.message}", t)
+            ToolErrors.envelopeFor(error = "tool_exception", message = "tool_exception", extra = ToolErrors.extraOf("message" to (t.message ?: t::class.java.simpleName)))
+        }
+        if (r.containsKey("error")) return r
+        quiet = awaitQuiet(
+            quietMs = SETTLE_QUIET_MS,
+            timeoutMs = SETTLE_TIMEOUT_MS,
+            now = { SystemClock.uptimeMillis() },
+            lastEvent = { svc.lastWindowEventUptime },
+            floor = actionStart,
+        )
+        r
+    } finally {
+        svc.setListenContentChanges(false)
     }
-    if (result.containsKey("error")) return result
-    val quiet = awaitQuiet(
-        quietMs = SETTLE_QUIET_MS,
-        timeoutMs = SETTLE_TIMEOUT_MS,
-        now = { SystemClock.uptimeMillis() },
-        lastEvent = { svc.lastWindowEventUptime },
-        floor = actionStart,
-    )
     val after = try { treeHash(svc) } catch (t: Throwable) {
         AppLog.w("ScreenState", "after-hash failed: ${t.message}")
         null

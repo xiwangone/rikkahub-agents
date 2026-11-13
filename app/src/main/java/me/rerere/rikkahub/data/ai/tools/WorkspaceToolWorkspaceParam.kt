@@ -4,9 +4,9 @@ import me.rerere.rikkahub.data.repository.WorkspaceRepository
 
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -39,7 +39,7 @@ internal suspend fun resolveTargetWorkspaceId(
     args: JsonObject,
     boundId: String,
 ): String {
-    val requested = args["workspace"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val requested = (args["workspace"] as? JsonPrimitive)?.contentOrNull?.trim().orEmpty()
     if (requested.isEmpty() || requested == boundId) return boundId
     if (workspaceRepository.getById(requested) != null) return requested
 
@@ -60,4 +60,3 @@ internal suspend fun resolveTargetWorkspaceId(
         },
     )
 }
-

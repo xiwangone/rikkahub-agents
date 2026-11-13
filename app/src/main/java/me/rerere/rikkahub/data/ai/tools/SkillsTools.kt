@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools
 import java.io.File
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -188,7 +189,7 @@ fun createSkillTools(
                         ).toString()
                     )
                 )
-                val name = it.jsonObject["name"]?.jsonPrimitive?.content
+                val name = (it.jsonObject["name"] as? JsonPrimitive)?.contentOrNull?.takeIf { s -> s.isNotBlank() }
                     ?: return@Tool err(
                         "missing_required_arg",
                         "use_skill requires a 'name' argument identifying which skill to load.",
@@ -199,7 +200,7 @@ fun createSkillTools(
                         "Skill '$name' is not in the enabled-skills set for this assistant.",
                     )
                 }
-                val path = it.jsonObject["path"]?.jsonPrimitive?.content
+                val path = (it.jsonObject["path"] as? JsonPrimitive)?.contentOrNull
                 if (path.isNullOrBlank()) {
                     val skillDir = skillManager?.getSkillDir(name) ?: metaDir(name)
                     val skillMd = skillDir?.let {

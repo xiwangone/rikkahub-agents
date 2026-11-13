@@ -7,7 +7,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -15,7 +14,6 @@ import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.R
-import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
@@ -46,21 +44,23 @@ suspend fun createWorkspaceTools(
     fun needsApproval(name: String) = resolveWorkspaceToolApproval(name, approvalOverrides)
 
     val shellCwd = cwd?.let(layout::relativeToWorkspace)
+    val supportsBackground = workspace.capabilities().backgroundShell
+    val isRemote = !workspace.capabilities().rootfs
 
     return buildList {
         add(createListTool(workspaceRepository))
-        add(createReadFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
-        add(createWriteFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
+        add(createReadFileTool(workspaceId, layout, ::needsApproval, workspaceRepository, isRemote))
+        add(createWriteFileTool(workspaceId, layout, ::needsApproval, workspaceRepository, isRemote))
         add(createEditFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createApplyEditsTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createDiffFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
-        add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd, workspace.capabilities().backgroundShell))
+        add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd, supportsBackground))
         add(createCreateFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createReadFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         // 后台任务跑在本机进程里, 远程工作区没有这个落点, 不提供
         // （backgroundShell 位与原实现同口径：本地 true、远程 false）
-        if (workspace.capabilities().backgroundShell) {
-            add(createRunBackgroundTool(workspaceId, ::needsApproval, workspaceRepository, shellCwd))
+        if (supportsBackground) {
+            add(createRunBackgroundTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd))
             add(createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository))
             add(createBackgroundKillTool(workspaceId, ::needsApproval, workspaceRepository))
         }
@@ -83,17 +83,24 @@ private fun createReadFileTool(
     layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
+    isRemote: Boolean = false,
 ) = Tool(
     name = "workspace_read_file",
-    description = """
-        Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs.
-        Use ${layout.workspaceDir} for the workspace files area. NOTE: use read_file instead for files
-        on the device outside the workspace Rootfs.
-        Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico).
-        Non-text (binary) files are returned as base64 with "binary": true, "size" and "base64" fields.
-        Large text files can be read in slices: pass start_line / end_line (1-based, inclusive).
-        Set with_line_numbers=true to prefix each returned line with its line number.
-    """.trimIndent().replace("\n", " "),
+    description = buildString {
+        if (isRemote) {
+            append("Read a file on the assistant's bound remote SSH workspace host. ")
+            append("Paths must be absolute on the remote machine; use ${layout.workspaceDir} for the workspace files area ")
+            append("(local Rootfs mounts like /workspace, /upload, /skills, and Android /sdcard do not exist on the remote host — use read_file for local device files). ")
+        } else {
+            append("Read a file using the assistant's bound workspace Rootfs. Paths must be absolute inside Rootfs. ")
+            append("Use ${layout.workspaceDir} for the workspace files area. NOTE: use read_file instead for files ")
+            append("on the device outside the workspace Rootfs. ")
+        }
+        append("Supports UTF-8 text files and image files (png, jpg, jpeg, gif, webp, bmp, svg, heic, heif, avif, ico). ")
+        append("Non-text (binary) files are returned as base64 with \"binary\": true, \"size\" and \"base64\" fields. ")
+        append("Large text files can be read in slices: pass start_line / end_line (1-based, inclusive). ")
+        append("Set with_line_numbers=true to prefix each returned line with its line number.")
+    },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -140,58 +147,17 @@ private fun createReadFileTool(
                 )
             }
             val text = bytes.toString(Charsets.UTF_8)
-            val startLine = args["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
-            val endLine = args["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
-            val withLineNumbers =
-                args["with_line_numbers"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-            val defaultMaxLines = 500
-            val lines = text.split("\n")
-            val total = lines.size
-            // 不传范围且行数在安全预算内（<= 500 行），保持原始简单格式（{path, text}）
-            val hasLineWindow = startLine != null || endLine != null || withLineNumbers
-            if (!hasLineWindow && total <= defaultMaxLines) {
-                listOf(
-                    UIMessagePart.Text(
-                        buildJsonObject {
-                            put("path", path)
-                            put("text", text)
-                        }.toString()
-                    )
-                )
-            } else {
-                val from = (startLine ?: 1).coerceIn(1, maxOf(1, total))
-                val to = (endLine ?: if (startLine == null && total > defaultMaxLines) defaultMaxLines else total).coerceIn(from, maxOf(from, total))
-                val actualEnd = minOf(to, total)
-                // 请求的范围越界时静默夹取会让调用方误以为读到了指定行：显式标注夹取。
-                val rangeClamped = (startLine != null && startLine != from) ||
-                    (endLine != null && endLine != actualEnd)
-                val slice = lines.subList(from - 1, actualEnd)
-                val body = if (withLineNumbers) {
-                    slice.mapIndexed { i, line -> "${from + i}| $line" }.joinToString("\n")
-                } else {
-                    slice.joinToString("\n")
-                }
-                listOf(
-                    UIMessagePart.Text(
-                        buildJsonObject {
-                            put("path", path)
-                            put("text", body)
-                            put("start_line", from)
-                            put("end_line", actualEnd)
-                            put("total_lines", total)
-                            put("truncated", from > 1 || to < total)
-                            if (rangeClamped) {
-                                put("range_clamped", true)
-                                startLine?.let { put("requested_start_line", it) }
-                                endLine?.let { put("requested_end_line", it) }
-                            }
-                            if (startLine == null && endLine == null && to < total) {
-                                put("hint", "File has $total lines. Showing first $to lines to prevent context blowout. Pass start_line and end_line to inspect specific sections.")
-                            }
-                        }.toString()
-                    )
-                )
-            }
+            listOf(
+                UIMessagePart.Text(
+                    formatReadFileTextResult(
+                        path = path,
+                        text = text,
+                        startLine = args.int("start_line"),
+                        endLine = args.int("end_line"),
+                        withLineNumbers = args.boolean("with_line_numbers") ?: false,
+                    ).toString(),
+                ),
+            )
         }
     },
 )
@@ -201,12 +167,18 @@ private fun createWriteFileTool(
     layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
+    isRemote: Boolean = false,
 ) = Tool(
     name = "workspace_write_file",
-    description = """
-        Write a UTF-8 text file in the assistant's bound workspace. Paths must be absolute inside the workspace environment.
-        Use ${layout.workspaceDir} for the workspace files area.
-    """.trimIndent().replace("\n", " "),
+    description = buildString {
+        append("Write a UTF-8 text file in the assistant's bound workspace. Paths must be absolute inside the workspace environment. ")
+        append("Use ${layout.workspaceDir} for the workspace files area. ")
+        if (isRemote) {
+            append("This is a remote SSH workspace; use write_text_file for local Android device files.")
+        } else {
+            append("NOTE: use write_text_file instead for files on the Android device outside the workspace Rootfs.")
+        }
+    },
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
@@ -233,9 +205,10 @@ private fun createWriteFileTool(
         val params = it.jsonObject
         val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val path = params.absolutePath("path")
+        validateWorkspaceTargetPath(workspaceRepository, wsId, path)
         val text = params.string("text") ?: error("text is required")
-        val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
-        val mode = sanitizeFileMode(params["mode"]?.jsonPrimitive?.contentOrNull)
+        val overwrite = params.boolean("overwrite") ?: true
+        val mode = sanitizeFileMode(params.string("mode"))
         // 执行前读旧内容（文件不存在 → 视为空）：新建文件 diff 全绿、覆盖写显示红绿改动。
         // 与 edit_file 保持一致：diff 存 metadata，不随工具结果发给模型、不占上下文。
         val originalText = runCatching { workspaceRepository.readAbsoluteText(wsId, path) }.getOrNull()
@@ -308,7 +281,8 @@ private fun createEditFileTool(
         val params = it.jsonObject
         val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
         val path = params.absolutePath("path")
-        val replaceAll = params["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        validateWorkspaceTargetPath(workspaceRepository, wsId, path)
+        val replaceAll = params.boolean("replace_all") ?: false
 
         val original = workspaceRepository.readAbsoluteText(wsId, path)
 
@@ -452,157 +426,16 @@ private fun createDiffFileTool(
 )
 
 
-
-private fun shellToolDescription(
-    layout: WorkspaceLayout,
-    defaultCwd: String?,
-    supportsBackground: Boolean,
-): String {
-    val base = buildString {
-        append("Run a shell command in the assistant's bound workspace. The workspace files area is at ${layout.workspaceDir}. ")
-        append("Use cwd for a path relative to the workspace files root. ")
-        if (!defaultCwd.isNullOrBlank()) {
-            append("Defaults to '$defaultCwd'. ")
-        }
-        append("Requires the workspace environment to be installed and ready.")
-    }
-    return if (supportsBackground) base else base + REMOTE_SHELL_BACKGROUND_NOTE
-}
-
-/**
- * 远程工作区（能力位 backgroundShell=false）的补充说明。
- *
- * 为何写在这里：那三个 background-task 工具在远程工作区**根本不会注册**（见本文件
- * `if (workspace.capabilities().backgroundShell)` 分支），写在它们身上等于不存在；模型拿不到
- * 后台能力时会直接用 workspace_shell 硬跑长命令，结果被工具超时截断、输出丢失。
- *
- * 文案只用 POSIX 标准命令（setsid / nohup / pgrep / tail / pkill），不依赖任何第三方脚本
- * 或本机特定路径 —— 别人的设备上同样成立。
- */
-private const val REMOTE_SHELL_BACKGROUND_NOTE =
-    " This workspace runs commands on a remote host and has NO background-task tools." +
-        " A long or never-ending command blocks until it finishes or the call times out, and its output is lost on timeout." +
-        " To run one detached, do the whole sequence in a SINGLE command and return immediately, e.g." +
-        " `cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=$!\"; tail -n 5 /tmp/task.log`." +
-        " `setsid` detaches it from the session so it survives the channel closing, and `</dev/null` stops it waiting on stdin." +
-        " Later check it with `pgrep -f <pattern>` and `tail -n 50 /tmp/task.log`; stop it with `pkill -f <pattern>`." +
-        " Do NOT append a bare `&` without redirecting output: the log would be lost and failures invisible."
-
-/** 预设模式解析结果：要么给出渲染好的命令，要么给出已经包装好的错误信封。 */
-private sealed interface PresetCommand {
-    data class Ok(val command: String) : PresetCommand
-    data class Error(val envelope: String) : PresetCommand
-}
-
-/**
- * 解析并渲染 `workspace_shell` 的预设命令。
- *
- * 从 `execute` lambda 里抽出来：那个 lambda 原本把预设加载/校验/报错全塞在一起，
- * 让 createShellTool 的圈复杂度顶到 26（阈值 20）。抽出去后两边都干净，语义不变。
- */
-private suspend fun resolveShellPresetCommand(
-    presetName: String,
-    params: JsonObject,
-    presetsPath: String,
-    workspaceId: String,
-    workspaceRepository: WorkspaceRepository,
-): PresetCommand {
-    val presets = try {
-        loadShellPresets(workspaceRepository, workspaceId, presetsPath)
-    } catch (_: ShellPresetsCorruptedException) {
-        return PresetCommand.Error(
-            ToolErrors.envelopeFor(
-                error = "preset_file_corrupted",
-                message = workspaceToolMessage(R.string.workspace_tool_preset_file_corrupted, presetsPath),
-                extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
-            ).toString(),
-        )
-    }
-    val node = presets[presetName]
-        ?: return PresetCommand.Error(
-            ToolErrors.envelopeFor(
-                error = "preset_not_found",
-                message = workspaceToolMessage(R.string.workspace_tool_preset_not_found, presetName, presetsPath),
-                hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.",
-                extra = ToolErrors.extraOf(
-                    "preset" to presetName,
-                    "presetsPath" to presetsPath,
-                    "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } },
-                ),
-            ).toString(),
-        )
-    val template = when (node) {
-        is JsonPrimitive -> node.contentOrNull.orEmpty()
-        is JsonObject -> node["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        else -> ""
-    }
-    if (template.isBlank()) {
-        return PresetCommand.Error(
-            ToolErrors.envelopeFor(
-                error = "preset_empty",
-                message = workspaceToolMessage(R.string.workspace_tool_preset_empty, presetName, presetsPath),
-                extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
-            ).toString(),
-        )
-    }
-    return PresetCommand.Ok(renderShellPreset(presetName, template, params["preset_args"]?.jsonObject))
-}
-
-/** `workspace_shell` 的 timeout 参数解析结果。 */
-private sealed interface ShellTimeout {
-    /** [requested] 是调用方原始传入的字符串（未传为 null），用于回显“你请求的是多少”。 */
-    data class Ok(
-        val seconds: Long,
-        val millis: Long,
-        val clamped: Boolean,
-        val requested: String?,
-    ) : ShellTimeout
-    data class Invalid(val envelope: String) : ShellTimeout
-}
-
-/**
- * 解析 timeout 参数：非法值给错误信封；合法值夹取到上限并标注是否被夹取。
- * 从 `execute` lambda 抽出（与预设解析同理），把 createShellTool 的圈复杂度降到阈值内。
- */
-private fun resolveShellTimeout(timeoutRaw: String?): ShellTimeout {
-    val parsed = timeoutRaw?.toLongOrNull()
-    if (timeoutRaw != null && parsed == null) {
-        return ShellTimeout.Invalid(
-            ToolErrors.envelopeFor(
-                error = "invalid_argument",
-                message = workspaceToolMessage(
-                    R.string.workspace_tool_timeout_invalid,
-                    timeoutRaw,
-                    SHELL_TIMEOUT_MAX_SECONDS.toString(),
-                ),
-                extra = ToolErrors.extraOf(
-                    "timeout" to timeoutRaw,
-                    "maxTimeoutSeconds" to SHELL_TIMEOUT_MAX_SECONDS,
-                ),
-            ).toString(),
-        )
-    }
-    val effective = parsed?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
-        ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
-    return ShellTimeout.Ok(
-        seconds = effective,
-        millis = effective * 1_000L,
-        clamped = parsed != null && parsed != effective,
-        requested = timeoutRaw,
-    )
-}
-
 private fun createShellTool(
     workspaceId: String,
     layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
     defaultCwd: String? = null,
-    /** 本地=true（另有 background-task 工具）；远程=false（本工具要给长命令的脱手做法） */
     supportsBackground: Boolean = true,
 ) = Tool(
     name = "workspace_shell",
-    description = shellToolDescription(layout, defaultCwd, supportsBackground),
+    description = buildShellToolDescription(layout, defaultCwd, supportsBackground),
     parameters = {
         InputSchema.Obj(
             properties = shellToolSchema(defaultCwd, shellPresetsPath(layout)),
@@ -612,20 +445,15 @@ private fun createShellTool(
     needsApproval = { needsApproval("workspace_shell") },
     execute = {
         val params = it.jsonObject
-        val presetsPath = shellPresetsPath(layout)
+        val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
+        val targetLayout = resolveEffectiveLayout(workspaceRepository, workspaceId, targetWorkspaceId, layout)
+        val presetsPath = shellPresetsPath(targetLayout)
         // 预设模式：`preset` 指向工作区内的预设库条目（模板 + ${占位符}），由 preset_args 填值。
-        // 设计意图：把「常用命令」从代码/提示词里挪到**本地工作区文件** —— 模板可通用，
-        // 真实主机名/路径只留在本地实例，公开仓库里永远不出现内部内容；增删改直接用现有文件工具。
-        val presetName = params.string("preset")?.takeIf { it.isNotBlank() }
-        val command =
-            if (presetName != null) {
-                when (val r = resolveShellPresetCommand(presetName, params, presetsPath, workspaceId, workspaceRepository)) {
-                    is PresetCommand.Ok -> r.command
-                    is PresetCommand.Error -> return@Tool listOf(UIMessagePart.Text(r.envelope))
-                }
-            } else {
-                params.string("command") ?: error("command is required (or provide `preset`)")
-            }
+        val (resolvedCommand, presetError) =
+            resolveShellCommandOrError(workspaceRepository, targetWorkspaceId, presetsPath, params)
+        if (presetError != null) return@Tool listOf(UIMessagePart.Text(presetError))
+        val command = resolvedCommand ?: error("command is required (or provide `preset`)")
+        val ignoredCommand = !params.string("preset").isNullOrBlank() && !params.string("command").isNullOrBlank()
         HardlineCommandGuard.checkCommand(command)?.let { blockedReason ->
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -633,35 +461,31 @@ private fun createShellTool(
                 ),
             )
         }
-        val cwd = layout.relativeToWorkspace(params.string("cwd") ?: defaultCwd.orEmpty())
-        // 解析 timeout：非法值直接返回错误信封；合法值夹取到上限并标注是否被夹取。
-        val timeoutSpec = resolveShellTimeout(params.string("timeout"))
-        val timeout = when (timeoutSpec) {
-            is ShellTimeout.Invalid -> return@Tool listOf(UIMessagePart.Text(timeoutSpec.envelope))
-            is ShellTimeout.Ok -> timeoutSpec
+        val rawCwd = params.string("cwd") ?: if (targetWorkspaceId == workspaceId) defaultCwd.orEmpty() else ""
+        val cwd = targetLayout.relativeToWorkspace(rawCwd)
+        val timeoutRaw = params.string("timeout")
+        val timeoutSeconds = timeoutRaw?.toLongOrNull()
+        if (timeoutRaw != null && timeoutSeconds == null) {
+            return@Tool listOf(
+                UIMessagePart.Text(
+                    ToolErrors.envelopeFor(error = "invalid_argument", message = workspaceToolMessage(R.string.workspace_tool_timeout_invalid, timeoutRaw, SHELL_TIMEOUT_MAX_SECONDS.toString()), extra = ToolErrors.extraOf("timeout" to timeoutRaw, "maxTimeoutSeconds" to SHELL_TIMEOUT_MAX_SECONDS)).toString(),
+                ),
+            )
         }
-        val timeoutMillis = timeout.millis
-        val effectiveTimeoutSeconds = timeout.seconds
-        val timeoutClamped = timeout.clamped
-        val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
-
+        // 超上限时夹取到上限，并在结果里注明实际生效值；未传时沿用原默认 30 秒。
+        val effectiveTimeoutSeconds = timeoutSeconds?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
+            ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
+        val timeoutMillis = effectiveTimeoutSeconds * 1_000L
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
-        val (injectedEnv, envError) = resolveInjectedEnv(params.jsonObject)
+        val (injectedEnv, envError) = resolveInjectedEnv(params)
         if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 
-        // 执行前后各取一次快照：让脚本改动的文件也能像写文件那样显示红绿 diff。
-        // 快照有遍历数、缓存上限与时间预算，超限/超时即放弃检测（退回原行为，不影响命令执行）。
-        // 扫描根取命令的 cwd（默认工作区根）：范围越小越快，也越不容易撞上条目上限
-        val diffScanRoot = cwd.orEmpty()
-        val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, diffScanRoot)
-
+        val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, cwd)
         val result = workspaceRepository.executeCommand(
             workspaceId, command, cwd, timeoutMillis,
             targetId = targetWorkspaceId, env = injectedEnv,
         )
-
-        val afterSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, diffScanRoot)
-        // 任一快照超时即跳过 diff：空快照与全量快照对比会谎报全量新增/删除
+        val afterSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, cwd)
         val diffSkipped = beforeSnapshot.skipped || afterSnapshot.skipped
         val changes = if (diffSkipped) emptyList() else WorkspaceChangeDiff.compare(beforeSnapshot, afterSnapshot)
         val changeDiff =
@@ -669,21 +493,15 @@ private fun createShellTool(
 
         listOf(
             UIMessagePart.Text(
-                text = buildJsonObject {
-                    put("exitCode", result.exitCode)
-                    put("stdout", result.stdout)
-                    put("stderr", result.stderr)
-                    put("timedOut", result.timedOut)
-                    if (timeoutClamped) {
-                        put("timeoutClamped", true)
-                        put("requestedTimeoutSeconds", timeout.requested)
-                        put("timeoutSeconds", effectiveTimeoutSeconds)
-                    }
-                    if (result.truncated) put("truncated", true)
-                    if (diffSkipped) put("diffSkipped", true)
-                    if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
-                }.toString(),
-                // diff 存入 metadata 供 UI 渲染（不随工具结果发给模型，不占上下文）
+                text = buildShellOutputJson(
+                    result = result,
+                    effectiveTimeoutSeconds = effectiveTimeoutSeconds,
+                    requestedTimeoutSeconds = timeoutSeconds,
+                    supportsBackground = supportsBackground,
+                    ignoredCommand = ignoredCommand,
+                    diffSkipped = diffSkipped,
+                    changes = changes,
+                ).toString(),
                 metadata = changeDiff.takeIf { it.isNotBlank() }
                     ?.let { d -> DiffMetadata(diff = d).toMetadata() },
             )
@@ -712,6 +530,7 @@ private fun createCreateFolderTool(
     execute = {
         val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val path = it.jsonObject.absolutePath("path")
+        validateWorkspaceTargetPath(workspaceRepository, wsId, path)
         val entry = workspaceRepository.createAbsoluteFolder(wsId, path)
         listOf(UIMessagePart.Text(entry.toJson().toString()))
     },
@@ -738,6 +557,7 @@ private fun createReadFolderTool(
     execute = {
         val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val path = it.jsonObject.absolutePath("path")
+        validateWorkspaceTargetPath(workspaceRepository, wsId, path)
         val result = workspaceRepository.readFolderTree(wsId, path)
         listOf(UIMessagePart.Text(formatWorkspaceTree(path, result)))
     },
@@ -745,6 +565,7 @@ private fun createReadFolderTool(
 
 private fun createRunBackgroundTool(
     workspaceId: String,
+    layout: WorkspaceLayout,
     needsApproval: (String) -> Boolean,
     workspaceRepository: WorkspaceRepository,
     defaultCwd: String? = null,
@@ -786,12 +607,13 @@ private fun createRunBackgroundTool(
     execute = {
         val params = it.jsonObject
         val wsId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
-        val command = params.string("command") ?: error("command is required")
-        // 只剥离 "/workspace/" 前缀或恰好等于 "/workspace"："/workspacefoo/bar" 不是工作区根。
-        val cwd = when (val rawCwd = params.string("cwd") ?: defaultCwd.orEmpty()) {
-            "/workspace" -> ""
-            else -> rawCwd.removePrefix("/workspace/")
-        }
+        val rawCommand = params.string("command") ?: error("command is required")
+        val trimmedCmd = rawCommand.trimEnd()
+        val strippedAmpersand = trimmedCmd.endsWith("&") && !trimmedCmd.endsWith("&&")
+        val command = if (strippedAmpersand) trimmedCmd.dropLast(1).trimEnd() else rawCommand
+        val targetLayout = resolveEffectiveLayout(workspaceRepository, workspaceId, wsId, layout)
+        val rawCwd = params.string("cwd") ?: if (wsId == workspaceId) defaultCwd.orEmpty() else ""
+        val cwd = targetLayout.relativeToWorkspace(rawCwd)
 
         // env: { 环境变量名: vault凭证名 } —— 同 workspace_shell：进程内解密注入，不落盘、AI 不见明文
         val (injectedEnv, envError) = resolveInjectedEnv(params)
@@ -802,9 +624,12 @@ private fun createRunBackgroundTool(
             UIMessagePart.Text(
                 buildJsonObject {
                     put("id", status.id)
-                    // start() 返回的真实状态：命令秒退时这里已是 exited，不用再轮询一轮才知道。
+                    // start() 返回的真实状态：命令秒退时这里就是 exited，不用再轮询一轮才知道。
                     put("status", if (status.running) "running" else "exited")
                     if (!status.running) status.exitCode?.let { put("exitCode", it) }
+                    if (strippedAmpersand) {
+                        put("warning", "Stripped trailing '&': workspace_run_background already runs the command in its own persistent background process.")
+                    }
                 }.toString()
             )
         )
@@ -899,7 +724,7 @@ private fun createListTool(
 ): Tool = Tool(
     name = "workspace_list",
     description = buildString {
-        append("List all available workspaces with their id, name and shell status. ")
+        append("List all available workspaces with their id, name, type (local or ssh), workspaceDir, backgroundShell support, and shell status. ")
         append("Use a workspace name (or id) as the 'workspace' parameter of workspace_shell / workspace_read_file / workspace_write_file / workspace_edit_file ")
         append("to run commands or access files in that workspace instead of the current one. Prefer the name.")
     },
@@ -921,6 +746,9 @@ private fun createListTool(
                                 buildJsonObject {
                                     put("id", w.id)
                                     put("name", w.name)
+                                    put("type", if (w.isSsh()) "ssh" else "local")
+                                    put("workspaceDir", w.workspaceDir() ?: WorkspaceManager.ROOTFS_WORKSPACE_DIR)
+                                    put("backgroundShell", w.capabilities().backgroundShell)
                                     put("shellStatus", w.shellStatus)
                                     w.lastAccessAt?.let { put("lastAccessAt", it) }
                                 }

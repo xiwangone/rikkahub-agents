@@ -552,9 +552,13 @@ private class TunnelInputStream(private val readTimeoutMillis: Long) : InputStre
 // JSch 等服务器回应时会吞掉线程中断, 这类步骤放到这里的线程上执行, 见 awaitInterruptibly
 // 有界线程池：JSch 阻塞步骤（建连/开 channel/等回应）各占一个线程，
 // 无界缓存池在重连风暴时会随请求数无限长线程
-private val blockingSteps: ExecutorService = Executors.newFixedThreadPool(8) { runnable ->
-    Thread(runnable, "ssh-blocking-step").apply { isDaemon = true }
-}
+private val blockingSteps: ExecutorService =
+    (Executors.newFixedThreadPool(8) { runnable ->
+        Thread(runnable, "ssh-blocking-step").apply { isDaemon = true }
+    } as java.util.concurrent.ThreadPoolExecutor).apply {
+        setKeepAliveTime(60L, java.util.concurrent.TimeUnit.SECONDS)
+        allowCoreThreadTimeOut(true)
+    }
 
 /**
  * 在后台线程执行 [step], 当前线程可中断地等待结果。

@@ -258,6 +258,25 @@ object HeadlessBrowserSessionPool {
 
     private val sessions = mutableMapOf<String, Entry>()
     private val lock = Any()
+    private val mainHandler: android.os.Handler? by lazy {
+        runCatching { android.os.Looper.getMainLooper()?.let { android.os.Handler(it) } }.getOrNull()
+    }
+    private val idleSweepRunnable = Runnable {
+        synchronized(lock) {
+            sweepIdleLocked(System.currentTimeMillis(), keep = null)
+            scheduleNextIdleSweepLocked()
+        }
+    }
+
+    private fun scheduleNextIdleSweepLocked() {
+        val h = mainHandler ?: return
+        runCatching {
+            h.removeCallbacks(idleSweepRunnable)
+            if (sessions.isNotEmpty()) {
+                h.postDelayed(idleSweepRunnable, idleTtlMs.coerceAtLeast(5_000L) + 1_000L)
+            }
+        }
+    }
 
     /**
      * Idle TTL: a session untouched for longer than this is swept on the next [getOrCreate].
@@ -282,9 +301,14 @@ object HeadlessBrowserSessionPool {
         synchronized(lock) {
             val now = System.currentTimeMillis()
             sweepIdleLocked(now, keep = callerConvId)
-            sessions[callerConvId]?.let { it.lastUsedAtMs = now; return it.session }
+            sessions[callerConvId]?.let {
+                it.lastUsedAtMs = now
+                scheduleNextIdleSweepLocked()
+                return it.session
+            }
             val s = HeadlessBrowserSession(context.applicationContext ?: context)
             sessions[callerConvId] = Entry(s, now)
+            scheduleNextIdleSweepLocked()
             return s
         }
     }

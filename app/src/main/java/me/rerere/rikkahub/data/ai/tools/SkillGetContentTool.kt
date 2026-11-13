@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.tools
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
@@ -65,7 +66,7 @@ fun skillGetContentTool(
             ).toString())
         )
 
-        val name = json.jsonObject["name"]?.jsonPrimitive?.content?.takeIf { it.isNotBlank() }
+        val name = (json.jsonObject["name"] as? JsonPrimitive)?.contentOrNull?.takeIf { it.isNotBlank() }
             ?: return@Tool listOf(
                 UIMessagePart.Text(ToolErrors.envelopeFor(error = "missing_required_arg", message = "skill_get_content requires a 'name' argument.", extra = ToolErrors.extraOf("available_skills" to buildJsonArray {
                         allSkills.forEach { add(JsonPrimitive(it.name)) }

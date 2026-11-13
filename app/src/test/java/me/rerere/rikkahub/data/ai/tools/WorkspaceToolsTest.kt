@@ -108,4 +108,31 @@ class WorkspaceToolsTest {
 
         assertTrue(text.endsWith("(truncated: more entries omitted)\n"))
     }
+
+    @Test
+    fun `buildShellToolDescription appends remote detached guidance only when background is unsupported`() {
+        val localDesc = buildShellToolDescription(layout, defaultCwd = null, supportsBackground = true)
+        assertFalse(localDesc.contains("NO background-task tools"))
+        assertFalse(localDesc.contains("setsid nohup"))
+
+        val remoteLayout = WorkspaceLayout(workspaceDir = "/home/ubuntu/work", writableRoots = listOf("/home/ubuntu/work", "/tmp"))
+        val remoteDesc = buildShellToolDescription(remoteLayout, defaultCwd = "sub", supportsBackground = false)
+        assertTrue(remoteDesc.contains("/home/ubuntu/work"))
+        assertTrue(remoteDesc.contains("Defaults to 'sub'."))
+        assertTrue(remoteDesc.contains("NO background-task tools"))
+        assertTrue(remoteDesc.contains("setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null &"))
+        assertTrue(remoteDesc.contains("pgrep -f"))
+        assertTrue(remoteDesc.contains("pkill -f"))
+    }
+
+    @Test
+    fun `shellTimeoutHint distinguishes local background tools and remote setsid detach`() {
+        val localHint = shellTimeoutHint(30L, supportsBackground = true)
+        assertTrue(localHint.contains("workspace_run_background"))
+        assertFalse(localHint.contains("setsid nohup"))
+
+        val remoteHint = shellTimeoutHint(30L, supportsBackground = false)
+        assertTrue(remoteHint.contains("no background-task tools"))
+        assertTrue(remoteHint.contains("setsid nohup"))
+    }
 }

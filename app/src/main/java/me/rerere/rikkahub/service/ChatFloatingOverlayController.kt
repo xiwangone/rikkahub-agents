@@ -52,8 +52,6 @@ internal class ChatFloatingOverlayController(
 ) {
     private val overlayContext = context.applicationContext
     private val foreground = MutableStateFlow(true)
-    private val hasOverlayPermission =
-        MutableStateFlow(runCatching { Settings.canDrawOverlays(overlayContext) }.getOrDefault(false))
     private var policy = FloatingOverlayPolicyState()
     private var priorEnabled = false
     private var priorForeground = true
@@ -117,21 +115,6 @@ internal class ChatFloatingOverlayController(
         overlayContext.registerComponentCallbacks(configurationCallbacks)
         observerJobs +=
             scope.launch {
-                settingsStore.settingsFlow
-                    .map { it.displaySetting.enableFloatingChatWindow }
-                    .distinctUntilChanged()
-                    .collectLatest { enabled ->
-                        if (enabled) {
-                            while (true) {
-                                hasOverlayPermission.value =
-                                    runCatching { Settings.canDrawOverlays(overlayContext) }.getOrDefault(false)
-                                delay(750)
-                            }
-                        }
-                    }
-            }
-        observerJobs +=
-            scope.launch {
                 settingsStore.settingsFlow.collect { latest ->
                     uiSettings.value = latest
                     root?.post { bubble?.let(::applyBubbleTheme) }
@@ -140,23 +123,26 @@ internal class ChatFloatingOverlayController(
         observerJobs +=
             scope.launch {
                 combine(
-                    combine(
-                        settingsStore.settingsFlow
-                            .map {
-                                it.displaySetting.enableFloatingChatWindow
-                            }.distinctUntilChanged(),
-                        foreground,
-                        chat.getConversationJobs(),
-                    ) { enabled, isForeground, jobs ->
-                        Triple(
-                            enabled,
-                            isForeground,
-                            jobs.keys.map { it.toString() }.toSet(),
-                        )
-                    },
-                    hasOverlayPermission,
-                ) { inputs, permission -> inputs to permission }
-                    .collect { (inputs, permission) -> refresh(inputs.first, inputs.second, inputs.third, permission) }
+                    settingsStore.settingsFlow
+                        .map { it.displaySetting.enableFloatingChatWindow }
+                        .distinctUntilChanged(),
+                    foreground,
+                    chat.getConversationJobs(),
+                ) { enabled, isForeground, jobs ->
+                    Triple(enabled, isForeground, jobs.keys.map { it.toString() }.toSet())
+                }.collectLatest { (enabled, isForeground, running) ->
+                    while (true) {
+                        val permission = if (enabled) {
+                            runCatching { Settings.canDrawOverlays(overlayContext) }.getOrDefault(false)
+                        } else {
+                            false
+                        }
+                        refresh(enabled, isForeground, running, permission)
+                        val keepPolling = enabled && !isForeground && (running.isNotEmpty() || root != null)
+                        if (!keepPolling) break
+                        delay(2_000)
+                    }
+                }
             }
         observerJobs += phoneUseGate.start()
     }

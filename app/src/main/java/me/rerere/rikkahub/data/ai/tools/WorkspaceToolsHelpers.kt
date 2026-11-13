@@ -1,29 +1,28 @@
-
 package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import androidx.annotation.StringRes
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonObjectBuilder
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
+import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.message
-import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.BackgroundStatus
-import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceStorageArea
+import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.normalizeWorkspacePath
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
@@ -133,7 +132,7 @@ internal fun renderShellPreset(
         SHELL_PRESET_PLACEHOLDER.replace(template) { m ->
             val key = m.groupValues[1]
             val hasDefault = !m.groupValues[2].isNullOrEmpty()
-            val value = args?.get(key)?.jsonPrimitive?.contentOrNull
+            val value = (args?.get(key) as? JsonPrimitive)?.contentOrNull
             if (value != null) {
                 value
             } else if (hasDefault) {
@@ -156,7 +155,7 @@ internal fun renderShellPreset(
  * 错误消息非空时调用方应直接返回它。
  */
 internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
-    val envObj = params["env"]?.jsonObject ?: return emptyMap<String, String>() to null
+    val envObj = params["env"] as? JsonObject ?: return emptyMap<String, String>() to null
     if (envObj.isEmpty()) return emptyMap<String, String>() to null
     val vaultRepository =
         runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
@@ -170,14 +169,109 @@ internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, St
         }
     val resolved = mutableMapOf<String, String>()
     for ((envName, credNameJson) in envObj) {
-        val credName = credNameJson.jsonPrimitive.contentOrNull
-        if (credName.isNullOrBlank()) continue
+        val credName = (credNameJson as? JsonPrimitive)?.contentOrNull?.trim()
+        if (credName.isNullOrEmpty()) {
+            return emptyMap<String, String>() to
+                "❌ env injection failed: credential name for '$envName' must be a non-empty string"
+        }
         when (val r = resolver.resolveRef(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
             is CredentialResolution.Granted -> resolved[envName] = r.value
             else -> return emptyMap<String, String>() to "❌ env injection failed: ${r.message}"
         }
     }
     return resolved to null
+}
+
+/**
+ * 构造 `workspace_shell` 的工具描述：远程工作区不支持 `workspace_run_background` 等后台工具，
+ * 在此显式提供 POSIX 标准命令（`setsid` / `nohup` / `pgrep` / `tail` / `pkill`）的后台脱离范式。
+ */
+internal fun buildShellToolDescription(
+    layout: WorkspaceLayout,
+    defaultCwd: String?,
+    supportsBackground: Boolean = true,
+): String = buildString {
+    append("Run a shell command in the assistant's bound workspace. The workspace files area is at ${layout.workspaceDir}. ")
+    append("Use cwd for a path relative to the workspace files root. ")
+    if (!defaultCwd.isNullOrBlank()) {
+        append("Defaults to '$defaultCwd'. ")
+    }
+    append("Requires the workspace environment to be installed and ready.")
+    if (!supportsBackground) {
+        append(
+            " This workspace runs commands on a remote host and has NO background-task tools. " +
+                "A long or never-ending command blocks until it finishes or the call times out, " +
+                "and its output is lost on timeout. To run one detached, do the whole sequence " +
+                "in a SINGLE command: cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & " +
+                "sleep 2; echo \"pid=\$!\"; tail -n 5 /tmp/task.log — setsid detaches it from the " +
+                "session so it survives the SSH channel closing, and </dev/null stops it waiting on " +
+                "stdin. Later check with pgrep -f + tail, stop with pkill -f. Do NOT append a bare & " +
+                "without redirecting output: the log is lost and failures become invisible.",
+        )
+    }
+}
+
+/** `workspace_shell` 命令超时后的恢复指引（区分本地后台工具与远程 POSIX 脱离运行）。 */
+internal fun shellTimeoutHint(timeoutSeconds: Long, supportsBackground: Boolean): String =
+    if (supportsBackground) {
+        "Command timed out after ${timeoutSeconds}s. Increase 'timeout' (up to ${SHELL_TIMEOUT_MAX_SECONDS}s), or use workspace_run_background for long-running tasks and servers."
+    } else {
+        "Command timed out after ${timeoutSeconds}s. This remote workspace has no background-task tools; increase 'timeout' (up to ${SHELL_TIMEOUT_MAX_SECONDS}s), or run detached in a single command: cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=\$!\"; tail -n 5 /tmp/task.log"
+    }
+
+/** 跨工作区调用时解析目标工作区的真实布局；同工作区直接复用已绑定布局。 */
+internal suspend fun resolveEffectiveLayout(
+    workspaceRepository: WorkspaceRepository,
+    boundWorkspaceId: String,
+    targetWorkspaceId: String,
+    boundLayout: WorkspaceLayout,
+): WorkspaceLayout =
+    if (targetWorkspaceId == boundWorkspaceId) {
+        boundLayout
+    } else {
+        workspaceRepository.layout(targetWorkspaceId) ?: boundLayout
+    }
+
+private val LOCAL_ONLY_ROOTS = listOf("/workspace", "/upload", "/skills")
+private val ANDROID_STORAGE_ROOTS = listOf("/sdcard", "/storage/emulated")
+
+/**
+ * 校验目标工作区与传入路径的环境边界，防止静默跨边界误用：
+ * - 远程 SSH 工作区：拒绝误传设备专属挂载点（`/workspace`、`/upload`、`/skills`）或手机存储（`/sdcard`），
+ *   除非远程工作区目录本身就在该前缀下；
+ * - 本地 Rootfs 工作区：当手机存储挂载（`/sdcard`）未开启时，拒绝把 `/sdcard` 当普通容器目录读写，
+ *   避免文件静默落入容器内部不可见的假 `/sdcard` 目录，并指引改用设备文件工具或开启挂载开关。
+ */
+internal suspend fun validateWorkspaceTargetPath(
+    workspaceRepository: WorkspaceRepository,
+    workspaceId: String,
+    path: String,
+) {
+    val ws = workspaceRepository.getById(workspaceId) ?: return
+    if (ws.isSsh()) {
+        val remoteDir = ws.workspaceDir() ?: "/workspace"
+        val hitsLocalRoot = LOCAL_ONLY_ROOTS.firstOrNull { root ->
+            (path == root || path.startsWith("$root/")) &&
+                remoteDir != root && !remoteDir.startsWith("$root/")
+        }
+        require(hitsLocalRoot == null) {
+            "Path '$path' uses local Rootfs mount '$hitsLocalRoot', but workspace '${ws.name}' is a remote SSH host whose workspace directory is '$remoteDir'. Use '$remoteDir/...' for files in this remote workspace, or use device tools (read_file / write_text_file) for local phone files."
+        }
+        val hitsAndroidStorage = ANDROID_STORAGE_ROOTS.firstOrNull { root ->
+            (path == root || path.startsWith("$root/")) &&
+                remoteDir != root && !remoteDir.startsWith("$root/")
+        }
+        require(hitsAndroidStorage == null) {
+            "Path '$path' is an Android phone storage path, but workspace '${ws.name}' is a remote SSH host ('$remoteDir'). Use device tools (read_file / write_text_file / list_files) to access Android phone storage."
+        }
+    } else if (!workspaceRepository.sdcardEnabledNow()) {
+        val hitsUnmountedSdcard = ANDROID_STORAGE_ROOTS.firstOrNull { root ->
+            path == root || path.startsWith("$root/")
+        }
+        require(hitsUnmountedSdcard == null) {
+            "Path '$path' refers to Android shared storage, which is not mounted in local workspace '${ws.name}' (the /sdcard mount switch is off in Workspace settings). Use device tools (read_file / write_text_file / list_files) to access phone storage directly, or enable the phone storage mount in Extensions > Workspace."
+        }
+    }
 }
 
 /**
@@ -229,7 +323,7 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
         })
         put("workspace", buildJsonObject {
             put("type", "string")
-            put("description", "Optional target workspace name (or id). When set, runs the command in that workspace's rootfs instead of the current one. Prefer the name; use workspace_list to see available workspaces.")
+            put("description", "Optional target workspace name (or id). When set, runs the command in that workspace's environment instead of the current one. Prefer the name; use workspace_list to see available workspaces.")
         })
         put("env", buildJsonObject {
             put("type", "object")
@@ -262,7 +356,17 @@ internal fun BackgroundStatus.toJson() = buildJsonObject {
 
 
 internal fun kotlinx.serialization.json.JsonObject.string(name: String): String? =
-    this[name]?.jsonPrimitive?.contentOrNull
+    (this[name] as? JsonPrimitive)?.contentOrNull
+
+internal fun kotlinx.serialization.json.JsonObject.int(name: String): Int? =
+    (this[name] as? JsonPrimitive)?.contentOrNull?.trim()?.toIntOrNull()
+
+internal fun kotlinx.serialization.json.JsonObject.boolean(name: String): Boolean? =
+    when ((this[name] as? JsonPrimitive)?.contentOrNull?.trim()?.lowercase()) {
+        "true", "1" -> true
+        "false", "0" -> false
+        else -> null
+    }
 
 internal suspend fun WorkspaceRepository.readAbsoluteText(
     workspaceId: String,
@@ -277,6 +381,7 @@ internal suspend fun WorkspaceRepository.readRootfsBuffer(
     workspaceId: String,
     path: String,
 ): ByteArrayOutputStream {
+    validateWorkspaceTargetPath(this, workspaceId, path)
     val size = absoluteFileSize(workspaceId, path)
     require(size <= MAX_READ_FILE_BYTES) {
         "File is too large to read: $path (${size / 1024 / 1024}MB, max ${MAX_READ_FILE_BYTES / 1024 / 1024}MB). Use shell commands like head, tail, or grep to read parts of it."
@@ -329,7 +434,12 @@ internal suspend fun WorkspaceRepository.readImageInRootfs(
 internal fun kotlinx.serialization.json.JsonObject.absolutePath(name: String): String {
     val path = string(name)?.replace('\\', '/')?.trim() ?: error("$name is required")
     require(path.isNotBlank()) { "$name is required" }
-    require(path.startsWith("/")) { "$name must be an absolute path inside Rootfs" }
+    require(!path.startsWith("content://") && !path.startsWith("file://")) {
+        "$name must be an absolute path inside Rootfs (got URI '$path'); use device tool read_file / write_text_file for content:// or file:// URIs"
+    }
+    require(path.startsWith("/")) {
+        "$name must be an absolute path inside Rootfs (e.g. /workspace/${path.removePrefix("./").removePrefix("~/")})"
+    }
     require(!path.contains('\u0000')) { "$name contains invalid character" }
     // 折叠 .. 与重复斜杠, 防止 "/rootfs/../etc" 绕过 isWritable 的前缀检查
     return normalizeWorkspacePath(path)
@@ -394,4 +504,135 @@ internal fun formatWorkspaceTree(rootPath: String, result: WorkspaceTreeResult):
         appendLine()
     }
     if (result.truncated) appendLine("(truncated: more entries omitted)")
+}
+
+private fun renderSlicedBody(slice: List<String>, from: Int, withLineNumbers: Boolean): String =
+    if (withLineNumbers) {
+        slice.mapIndexed { i, line -> "${from + i}| $line" }.joinToString("\n")
+    } else {
+        slice.joinToString("\n")
+    }
+
+/** 格式化 `workspace_read_file` 的文本切片结果（抽离以保持 createReadFileTool 复杂度低于门限）。 */
+internal fun formatReadFileTextResult(
+    path: String,
+    text: String,
+    startLine: Int?,
+    endLine: Int?,
+    withLineNumbers: Boolean,
+): JsonObject {
+    val defaultMaxLines = 500
+    val lines = text.split("\n")
+    val total = lines.size
+    val hasWindow = startLine != null || endLine != null || withLineNumbers
+    if (!hasWindow && total <= defaultMaxLines) {
+        return buildJsonObject {
+            put("path", path)
+            put("text", text)
+        }
+    }
+    val maxLine = maxOf(1, total)
+    val from = (startLine ?: 1).coerceIn(1, maxLine)
+    val defaultTo = if (startLine == null && total > defaultMaxLines) defaultMaxLines else total
+    val actualEnd = (endLine ?: defaultTo).coerceIn(from, maxLine)
+    val body = renderSlicedBody(lines.subList(from - 1, actualEnd), from, withLineNumbers)
+    return buildReadSliceJson(path, body, from, actualEnd, total, startLine, endLine)
+}
+
+private fun buildReadSliceJson(
+    path: String,
+    body: String,
+    from: Int,
+    actualEnd: Int,
+    total: Int,
+    startLine: Int?,
+    endLine: Int?,
+): JsonObject = buildJsonObject {
+    put("path", path)
+    put("text", body)
+    put("start_line", from)
+    put("end_line", actualEnd)
+    put("total_lines", total)
+    put("truncated", from > 1 || actualEnd < total)
+    if ((startLine ?: from) != from || (endLine ?: actualEnd) != actualEnd) {
+        put("range_clamped", true)
+        startLine?.let { put("requested_start_line", it) }
+        endLine?.let { put("requested_end_line", it) }
+    }
+    if (startLine == null && endLine == null && actualEnd < total) {
+        put("hint", "File has $total lines. Showing first $actualEnd lines to prevent context blowout. Pass start_line and end_line to inspect specific sections.")
+    }
+}
+
+internal fun buildShellOutputJson(
+    result: me.rerere.workspace.WorkspaceCommandResult,
+    effectiveTimeoutSeconds: Long,
+    requestedTimeoutSeconds: Long?,
+    supportsBackground: Boolean,
+    ignoredCommand: Boolean,
+    diffSkipped: Boolean,
+    changes: List<FileChange>,
+): JsonObject = buildJsonObject {
+    put("exitCode", result.exitCode)
+    put("stdout", result.stdout)
+    put("stderr", result.stderr)
+    put("timedOut", result.timedOut)
+    if (result.timedOut) {
+        put("hint", shellTimeoutHint(effectiveTimeoutSeconds, supportsBackground))
+    }
+    if (ignoredCommand) put("ignoredCommand", true)
+    if (requestedTimeoutSeconds != null && requestedTimeoutSeconds != effectiveTimeoutSeconds) {
+        put("timeoutClamped", true)
+        put("requestedTimeoutSeconds", requestedTimeoutSeconds)
+        put("timeoutSeconds", effectiveTimeoutSeconds)
+    }
+    if (result.truncated) put("truncated", true)
+    if (diffSkipped) put("diffSkipped", true)
+    if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
+}
+
+/** 解析 `workspace_shell` 的命令或预设模板（返回 `命令 to 错误JSON`）。 */
+internal suspend fun resolveShellCommandOrError(
+    workspaceRepository: WorkspaceRepository,
+    targetWorkspaceId: String,
+    presetsPath: String,
+    params: JsonObject,
+): Pair<String?, String?> {
+    val presetName = params.string("preset")?.takeIf { it.isNotBlank() }
+        ?: return params.string("command") to null
+    val presets = try {
+        loadShellPresets(workspaceRepository, targetWorkspaceId, presetsPath)
+    } catch (_: ShellPresetsCorruptedException) {
+        return null to ToolErrors.envelopeFor(
+            error = "preset_file_corrupted",
+            message = workspaceToolMessage(R.string.workspace_tool_preset_file_corrupted, presetsPath),
+            extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
+        ).toString()
+    }
+    val node = presets[presetName]
+        ?: return null to ToolErrors.envelopeFor(
+            error = "preset_not_found",
+            message = workspaceToolMessage(R.string.workspace_tool_preset_not_found, presetName, presetsPath),
+            hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.",
+            extra = ToolErrors.extraOf(
+                "preset" to presetName,
+                "presetsPath" to presetsPath,
+                "available" to kotlinx.serialization.json.buildJsonArray {
+                    presets.keys.forEach { add(JsonPrimitive(it)) }
+                },
+            ),
+        ).toString()
+    val template = when (node) {
+        is JsonPrimitive -> node.contentOrNull.orEmpty()
+        is JsonObject -> node.string("command").orEmpty()
+        else -> ""
+    }
+    if (template.isBlank()) {
+        return null to ToolErrors.envelopeFor(
+            error = "preset_empty",
+            message = workspaceToolMessage(R.string.workspace_tool_preset_empty, presetName, presetsPath),
+            extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
+        ).toString()
+    }
+    return renderShellPreset(presetName, template, params["preset_args"] as? JsonObject) to null
 }

@@ -1,4 +1,5 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-  <bool name="phone_use_supported">true</bool>
+  <!-- RikkaAccessibilityService 已统一实现 PhoneController，关闭独立第二无障碍入口避免系统设置出现两个重复开关 -->
+  <bool name="phone_use_supported">false</bool>
 </resources>

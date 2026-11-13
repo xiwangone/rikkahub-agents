@@ -132,4 +132,46 @@ class WorkspaceReminderTransformerTest {
         assertEquals("ctx-v2", textOf(result[2]))
         assertEquals("q2", textOf(result[3]))
     }
+
+    @Test
+    fun `remote SSH workspace READY prompt includes detached setsid guidance and path boundary notice`() {
+        val sshWs = WorkspaceEntity(
+            id = "ssh-1",
+            name = "prod-box",
+            root = "ssh-1",
+            type = me.rerere.workspace.WorkspaceType.SSH.name,
+            sshConfig = """{"host":"203.0.113.2","port":22,"username":"ubuntu","remoteDir":"/home/ubuntu/app"}""",
+            shellStatus = WorkspaceShellStatus.READY.name,
+            createdAt = 0L,
+            updatedAt = 0L,
+        )
+        val prompt = buildWorkspaceReminder(
+            workspace = sshWs,
+            hasAnyWorkspace = true,
+            shellPath = "/bin/bash",
+            layout = me.rerere.workspace.WorkspaceLayout("/home/ubuntu/app", listOf("/home/ubuntu/app", "/tmp")),
+        )
+        requireNotNull(prompt)
+        assertTrue(prompt.contains("/home/ubuntu/app"))
+        assertTrue(prompt.contains("setsid nohup"))
+        assertTrue(prompt.contains("do NOT exist on the remote host"))
+    }
+
+    @Test
+    fun `remote SSH workspace DISABLED prompt guides user to verify SSH connection instead of rootfs`() {
+        val sshWs = WorkspaceEntity(
+            id = "ssh-2",
+            name = "staging-box",
+            root = "ssh-2",
+            type = me.rerere.workspace.WorkspaceType.SSH.name,
+            sshConfig = """{"host":"203.0.113.3","port":22,"username":"ubuntu","remoteDir":"/home/ubuntu"}""",
+            shellStatus = WorkspaceShellStatus.DISABLED.name,
+            createdAt = 0L,
+            updatedAt = 0L,
+        )
+        val prompt = buildWorkspaceReminder(workspace = sshWs, hasAnyWorkspace = true)
+        requireNotNull(prompt)
+        assertTrue(prompt.contains("<workspace-setup>"))
+        assertTrue(prompt.contains("remote SSH workspace"))
+    }
 }

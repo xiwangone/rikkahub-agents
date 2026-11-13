@@ -6,10 +6,8 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -128,6 +126,7 @@ private suspend fun runApplyEdits(
     filesJson.forEachIndexed { fileIndex, element ->
         val file = element.jsonObject
         val path = file.absolutePath("path")
+        validateWorkspaceTargetPath(workspaceRepository, workspaceId, path)
         val edits = file["edits"] as? JsonArray
             ?: return ToolErrors.partsFor(ToolErrors.INVALID_ARGUMENT,
                 "files[$fileIndex].edits is required",
@@ -137,7 +136,7 @@ private suspend fun runApplyEdits(
                 "files[$fileIndex].edits must not be empty",
             )
         }
-        val replaceAll = file["replace_all"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val replaceAll = file.boolean("replace_all") ?: false
         var working = staged[path]?.first
             ?: workspaceRepository.readAbsoluteText(workspaceId, path).also { originals[path] = it }
         var count = staged[path]?.second ?: 0

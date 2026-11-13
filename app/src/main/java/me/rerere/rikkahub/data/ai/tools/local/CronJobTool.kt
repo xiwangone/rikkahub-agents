@@ -196,7 +196,7 @@ private suspend fun createScheduledJob(
     obj: JsonObject,
     mode: String,
 ): String {
-    val scheduleType = obj["schedule_type"]!!.jsonPrimitive.content
+    val scheduleType = (obj["schedule_type"] as? JsonPrimitive)?.contentOrNull ?: error("schedule_type is required")
     val assistantId = (obj["assistant_id"] as? JsonPrimitive)?.contentOrNull
         ?: settingsStore.settingsFlow.value.getCurrentAssistant().id.toString()
     val tagsCsv = (obj["tags"] as? kotlinx.serialization.json.JsonArray)
@@ -205,7 +205,7 @@ private suspend fun createScheduledJob(
 
     val job = ScheduledJobEntity(
         id = Uuid.random().toString(),
-        name = obj["name"]!!.jsonPrimitive.content,
+        name = (obj["name"] as? JsonPrimitive)?.contentOrNull ?: error("name is required"),
         description = (obj["description"] as? JsonPrimitive)?.contentOrNull?.take(500),
         assistantId = assistantId,
         scheduleType = scheduleType,
@@ -380,7 +380,7 @@ fun scheduleJobTool(
         ScheduleJobValidator.validate(obj, knownToolNamesProvider())?.let { err ->
             return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
         }
-        val mode = obj["mode"]!!.jsonPrimitive.content
+        val mode = (obj["mode"] as? JsonPrimitive)?.contentOrNull ?: error("mode is required")
         textPart(createScheduledJob(repo, scheduler, settingsStore, obj, mode))
     },
 )

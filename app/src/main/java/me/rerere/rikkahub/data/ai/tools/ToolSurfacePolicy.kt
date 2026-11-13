@@ -111,7 +111,7 @@ object ToolSurfacePolicy {
             // 网络与协作
             "web_fetch", "subagent_dispatch", "memory_search", "memory_tool",
             // 屏幕与特权
-            "shizuku_exec", "read_window_tree",
+            "shizuku_exec", "phone_use", "read_window_tree",
         )
 
     /** 低频家族：整体降到冷档（这些家族的调用在统计中长期接近零）。 */
@@ -134,6 +134,7 @@ object ToolSurfacePolicy {
             "vault_credential_update", "vault_credential_delete", "vault_credential_audit",
             "vault_credential_meta",
             "whisper_status", "check_app_updates", "generate_bug_report",
+            "config_get_all", "config_set", "config_revert",
         )
 
     /**
@@ -175,7 +176,7 @@ object ToolSurfacePolicy {
                     "ssh_job_poll", "ssh_presets", "list_ssh_hosts",
                     "vault_http_exec", "vault_export_env",
                     "vault_credential_names", "vault_ssh_exec",
-                    "shizuku_exec", "read_window_tree",
+                    "shizuku_exec", "phone_use", "read_window_tree",
                     "device_info", "diagnostics",
                 ),
             UiScene.TERMINAL to emptySet(),

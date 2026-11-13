@@ -54,11 +54,23 @@ internal fun fmContext(): Context =
 
 // ---------- Error helpers ----------
 
-internal fun fmErrEnvelope(code: String, detail: String): String =
-    me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
+private val LINUX_WORKSPACE_PREFIXES = listOf("/workspace", "/upload", "/skills")
+
+internal fun fmErrEnvelope(code: String, detail: String): String {
+    val hitsWorkspaceMount = LINUX_WORKSPACE_PREFIXES.any { root ->
+        detail.endsWith(": $root") || detail.contains(": $root/")
+    }
+    val hint = if (hitsWorkspaceMount) {
+        "Paths under /workspace, /upload, or /skills live inside the bound Linux workspace Rootfs, not the Android device filesystem. Use workspace_read_file / workspace_write_file / workspace_read_folder / workspace_shell instead (or '~/...' for the on-device agent scratch directory)."
+    } else {
+        null
+    }
+    return me.rerere.rikkahub.data.ai.tools.ToolErrors.envelopeFor(
         error = code,
         message = detail,
+        hint = hint,
     ).toString()
+}
 
 internal fun fmTextPart(s: String) = listOf(UIMessagePart.Text(s))
 

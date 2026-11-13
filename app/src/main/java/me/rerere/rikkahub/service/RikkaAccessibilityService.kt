@@ -5,8 +5,6 @@ import android.accessibilityservice.GestureDescription
 import android.graphics.Bitmap
 import android.graphics.Path
 import android.os.Build
-import android.os.Handler
-import android.os.HandlerThread
 import android.view.accessibility.AccessibilityEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.coroutines.currentCoroutineContext
@@ -15,10 +13,10 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
-import java.util.concurrent.Executors
+import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.phoneuse.PhoneUseAccessibilityService
 import java.util.concurrent.atomic.AtomicInteger
 import kotlin.coroutines.resume
-import me.rerere.rikkahub.data.log.AppLog
 
 // 类名 RikkaAccessibilityService 26 字符, 超过 23 字符会被 logcat 截断, Service 缩写为 Svc。
 private const val TAG = "RikkaAccessibilitySvc"
@@ -32,13 +30,13 @@ data class ActionLogEntry(
     val timestampMs: Long,
 )
 
-class RikkaAccessibilityService : AccessibilityService() {
-    private val gestureExecutor =
-        Executors.newSingleThreadExecutor { r ->
-            Thread(r, "RikkaAcc-Gesture").apply { isDaemon = true }
-        }
-    private val gestureHandlerThread = HandlerThread("RikkaAcc-Callback").apply { start() }
-    private val gestureHandler = Handler(gestureHandlerThread.looper)
+/**
+ * 统一无障碍服务：同时承担 [PhoneUseAccessibilityService]（[me.rerere.rikkahub.phoneuse.PhoneController]）
+ * 与屏幕自动化 / 前台应用感知能力，用户在系统设置中只需开启一个无障碍开关即可同时驱动
+ * `phone_use` 与屏幕工具族；平时只静态监听窗口切换事件，仅在动作等待静止窗口期间临时打开
+ * 内容变化事件，避免全系统滚动触发跨进程事件风暴，且不额外常驻专用线程。
+ */
+class RikkaAccessibilityService : PhoneUseAccessibilityService() {
 
     private val _running = MutableStateFlow(false)
     val running = _running.asStateFlow()
@@ -48,28 +46,28 @@ class RikkaAccessibilityService : AccessibilityService() {
 
     // Serialise overlapping gesture-dispatch callers. Each caller takes a ticket; the
     // shared current-counter advances when a caller's `finally` runs. Both fields are
-    // INSTANCE-scoped (was a companion-static AtomicInteger pair previously) so a
-    // service-process restart resets them — without this, an aborted caller leaving its
-    // ticket unconsumed would deadlock every subsequent caller in the next bind cycle.
+    // INSTANCE-scoped so a service-process restart resets them.
     private val serializeGate = AtomicInteger(0)
     private val gateCurrent = AtomicInteger(0)
+    private val contentListenCount = AtomicInteger(0)
 
     // Last accessibility event uptime, used by ScreenState to settle
-    // between capture and comparison. Kept on the master baseline service by adding
-    // this single field instead of adopting the whole service variant.
+    // between capture and comparison.
+    @Volatile
     var lastWindowEventUptime: Long = 0L
 
     override fun onServiceConnected() {
         super.onServiceConnected()
         instance = this
         _running.value = true
-        AppLog.i(TAG, "AccessibilityService connected")
+        AppLog.i(TAG, "AccessibilityService connected (unified PhoneController + ScreenAutomation)")
     }
 
     override fun onUnbind(intent: android.content.Intent?): Boolean {
         instance = null
         _running.value = false
         _lastActions.value = emptyList()
+        contentListenCount.set(0)
         AppLog.i(TAG, "AccessibilityService unbound")
         return super.onUnbind(intent)
     }
@@ -77,9 +75,32 @@ class RikkaAccessibilityService : AccessibilityService() {
     override fun onDestroy() {
         instance = null
         _running.value = false
-        gestureHandlerThread.quitSafely()
-        gestureExecutor.shutdownNow()
+        contentListenCount.set(0)
         super.onDestroy()
+    }
+
+    /**
+     * 仅在 `withActionEnvelope` 等待界面静止的短暂窗口内开启 `TYPE_WINDOW_CONTENT_CHANGED`，
+     * 结束后恢复为仅监听 `TYPE_WINDOW_STATE_CHANGED`，避免全天跨进程投递滚动事件。
+     */
+    fun setListenContentChanges(enabled: Boolean) {
+        val active = if (enabled) {
+            contentListenCount.incrementAndGet() > 0
+        } else {
+            contentListenCount.updateAndGet { if (it > 0) it - 1 else 0 } > 0
+        }
+        runCatching {
+            val info = serviceInfo ?: return
+            val targetEvents = if (active) {
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED or AccessibilityEvent.TYPE_WINDOW_CONTENT_CHANGED
+            } else {
+                AccessibilityEvent.TYPE_WINDOW_STATE_CHANGED
+            }
+            if (info.eventTypes != targetEvents) {
+                info.eventTypes = targetEvents
+                serviceInfo = info
+            }
+        }
     }
 
     override fun onAccessibilityEvent(event: AccessibilityEvent?) {
@@ -109,16 +130,11 @@ class RikkaAccessibilityService : AccessibilityService() {
 
     /**
      * Dispatches a gesture and suspends until it completes / cancels / times out (5s).
-     * Serializes through a single-thread executor so concurrent calls queue behind each other
-     * (the OS rejects overlapping dispatchGesture calls).
+     * Serializes overlapping callers via ticket gate and uses the main looper callback handler.
      */
     suspend fun dispatchGestureAsync(gesture: GestureDescription): Boolean {
         val gate = serializeGate.incrementAndGet()
         try {
-            // Wait for our turn in the queue (serializes overlapping callers). The
-            // ensureActive() inside the spin lets `stopGeneration` actually break us out
-            // of a wait — without it, a caller stuck waiting for a never-arriving prior
-            // gate would ignore cancellation and burn power until the service died.
             while (gateCurrent.get() != gate - 1) {
                 currentCoroutineContext().ensureActive()
                 kotlinx.coroutines.delay(10)
@@ -127,7 +143,7 @@ class RikkaAccessibilityService : AccessibilityService() {
                 withTimeoutOrNull(GESTURE_TIMEOUT_MS) {
                     suspendCancellableCoroutine<Boolean> { cont ->
                         val callback =
-                            object : GestureResultCallback() {
+                            object : AccessibilityService.GestureResultCallback() {
                                 override fun onCompleted(d: GestureDescription) {
                                     if (cont.isActive) cont.resume(true)
                                 }
@@ -136,7 +152,7 @@ class RikkaAccessibilityService : AccessibilityService() {
                                     if (cont.isActive) cont.resume(false)
                                 }
                             }
-                        val dispatched = dispatchGesture(gesture, callback, gestureHandler)
+                        val dispatched = dispatchGesture(gesture, callback, null)
                         if (!dispatched && cont.isActive) cont.resume(false)
                     }
                 } ?: false
@@ -233,9 +249,9 @@ class RikkaAccessibilityService : AccessibilityService() {
         return suspendCancellableCoroutine { cont ->
             takeScreenshot(
                 displayId,
-                gestureExecutor,
-                object : TakeScreenshotCallback {
-                    override fun onSuccess(result: ScreenshotResult) {
+                mainExecutor,
+                object : AccessibilityService.TakeScreenshotCallback {
+                    override fun onSuccess(result: AccessibilityService.ScreenshotResult) {
                         try {
                             val bmp =
                                 try {
@@ -287,6 +303,6 @@ class RikkaAccessibilityService : AccessibilityService() {
     companion object {
         @Volatile
         var instance: RikkaAccessibilityService? = null
-            private set
+            internal set
     }
 }

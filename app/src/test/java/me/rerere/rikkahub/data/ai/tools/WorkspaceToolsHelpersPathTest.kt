@@ -50,4 +50,34 @@ class WorkspaceToolsHelpersPathTest {
             // pass
         }
     }
+
+    @Test
+    fun `uri paths fail with guidance to use device file tools`() {
+        for (uri in listOf("content://com.android.providers.downloads/1", "file:///sdcard/a.txt")) {
+            try {
+                obj(uri).absolutePath("path")
+                throw AssertionError("expected IllegalArgumentException for $uri")
+            } catch (expected: IllegalArgumentException) {
+                org.junit.Assert.assertTrue(expected.message.orEmpty().contains("read_file"))
+            }
+        }
+    }
+
+    @Test
+    fun `lenient json helpers accept strings and never throw on objects`() {
+        val sample = buildJsonObject {
+            put("num_str", " 42 ")
+            put("num_int", 7)
+            put("bool_str", "TRUE")
+            put("bool_zero", "0")
+            put("nested", buildJsonObject { put("k", "v") })
+        }
+        assertEquals(42, sample.int("num_str"))
+        assertEquals(7, sample.int("num_int"))
+        assertEquals(null, sample.int("nested"))
+        assertEquals(true, sample.boolean("bool_str"))
+        assertEquals(false, sample.boolean("bool_zero"))
+        assertEquals(null, sample.boolean("nested"))
+        assertEquals(null, sample.string("nested"))
+    }
 }

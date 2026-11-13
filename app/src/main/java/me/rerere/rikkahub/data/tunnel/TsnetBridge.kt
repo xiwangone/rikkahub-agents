@@ -87,9 +87,14 @@ object TsnetBridge {
      * 与 [isRunning] 区分：掉线自动重连需先关闭旧 native 实例再重新建连，
      * 期间 [isRunning] 暂时为 false，但 [desiredRunning] 仍为 true，守护协程才能继续按退避周期重试。
      */
-    @Volatile
-    var desiredRunning: Boolean = false
-        private set
+    private val _desiredRunning = MutableStateFlow(false)
+    val desiredRunningFlow: StateFlow<Boolean> = _desiredRunning
+
+    var desiredRunning: Boolean
+        get() = _desiredRunning.value
+        private set(value) {
+            _desiredRunning.value = value
+        }
 
     /** 本节点在 tailnet 中的 IP（如 100.64.0.5）；未启动时为 null。 */
     @Volatile

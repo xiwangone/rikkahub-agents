@@ -130,7 +130,8 @@ object LocalToolCatalog {
     fun capabilityOf(tool: LocalToolOption): ToolCapability =
         when (tool) {
             LocalToolOption.Shizuku -> ToolCapability.SHIZUKU
-            LocalToolOption.ScreenAutomation -> ToolCapability.ACCESSIBILITY
+            LocalToolOption.ScreenAutomation,
+            LocalToolOption.PhoneUse -> ToolCapability.ACCESSIBILITY
             LocalToolOption.Termux -> ToolCapability.TERMUX
             LocalToolOption.SpeechToText -> ToolCapability.TERMUX
             else -> ToolCapability.NONE

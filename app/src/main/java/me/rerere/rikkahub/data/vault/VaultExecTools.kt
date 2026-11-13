@@ -307,25 +307,21 @@ private suspend fun executeVaultSshSession(
         persistKnownHosts(jsch)
     }
     val isFirstConnect = jsch.hostKeyRepository.getHostKey(host, null).isNullOrEmpty()
-    // 与 SshNetworkSession / SshTerminalPage 保持一致：先问隧道。
-    // tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号，userspace tsnet 只把出口开在
-    // 127.0.0.1:<随机端口>；不解析会表现为 "connection is closed by foreign host"
-    // （TCP 看似建立、包没到对端，对端 sshd 日志无记录）。
-    val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)
-    val session: com.jcraft.jsch.Session = jsch.getSession(user, dialHost, dialPort)
-    // known_hosts 与首连判定仍按用户填的原始 host，代理端口每次不同也不影响信任
-    if (dialHost != host) {
-        session.setHostKeyAlias(host)
-    }
-    if (auth == "key") {
-        jsch.addIdentity("vault-key", secret.ensureTrailingNewline().encodeToByteArray(), null, null)
+    // 统一走 openSshSession：共用 TunnelRouter 隧道解析、IPv4 优先解析、Fake-IP 拦截、
+    // AcceptNewHostKeyRepository 校验、有界 Socket 连接超时与保活参数，消除第二套建连样板。
+    val sshAuth = if (auth == "key") {
+        me.rerere.rikkahub.data.ai.tools.local.SshAuth(privateKey = secret)
     } else {
-        session.setPassword(secret)
+        me.rerere.rikkahub.data.ai.tools.local.SshAuth(password = secret)
     }
-    installHostKeyVerification(jsch, session)
-    session.setConfig("ServerAliveInterval", "30")
-    session.setConfig("ServerAliveCountMax", "3")
-    session.connect(timeout * 1000)
+    val session: com.jcraft.jsch.Session = me.rerere.rikkahub.data.ai.tools.local.openSshSession(
+        jsch = jsch,
+        host = host,
+        port = port,
+        user = user,
+        auth = sshAuth,
+        timeoutMs = timeout * 1000,
+    )
     val outcome =
         try {
             val channel = session.openChannel("exec") as ChannelExec

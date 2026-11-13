@@ -455,4 +455,11 @@ class FileManagerToolTest {
             )
         }
     }
+
+    @Test fun `fmErrEnvelope hints workspace tools when path is under linux workspace mount`() {
+        val raw = fmErrEnvelope("not_found", "File not found: /workspace/notes.md")
+        val obj = Json.parseToJsonElement(raw).jsonObject["data"]!!.jsonObject
+        assertEquals("not_found", obj["error"]!!.jsonPrimitive.content)
+        assertTrue(obj["hint"]!!.jsonPrimitive.content.contains("workspace_read_file"))
+    }
 }

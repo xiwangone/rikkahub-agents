@@ -39,7 +39,7 @@ private const val JPEG_QUALITY = 80
  * Phone Use 的执行端：用户在系统无障碍设置里开启后，把自己登记到 [PhoneUseManager]。
  * 不监听无障碍事件，只在工具调用时读取窗口、派发手势。
  */
-class PhoneUseAccessibilityService : AccessibilityService(), PhoneController {
+open class PhoneUseAccessibilityService : AccessibilityService(), PhoneController {
     private val indicator by lazy { GestureIndicator(this) }
 
     // 和最近一次 captureScreen 返回的元素一一对应，setText 靠它找到节点

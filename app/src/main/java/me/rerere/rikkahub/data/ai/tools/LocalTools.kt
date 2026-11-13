@@ -348,26 +348,32 @@ class LocalTools(
             ),
         )
     },
-    ToolEntry(LocalToolOption.ScreenAutomation) { tools, invocationContext ->
-        tools.add(tapTool(invocationContext, interactiveToolStreamer))
-        tools.add(longPressTool(invocationContext, interactiveToolStreamer))
-        tools.add(swipeTool(invocationContext, interactiveToolStreamer))
-        tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
-        tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
-        tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
-        tools.add(clickAndReadTool(invocationContext, interactiveToolStreamer))
-        tools.add(waitForTool(invocationContext, interactiveToolStreamer))
-        tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
-        tools.add(scrollTool(invocationContext, interactiveToolStreamer))
-        tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
-        tools.add(takeScreenshotTool(context)) // take_screenshot IS the screenshot; skip auto-stream
-        tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
-    },
     ToolEntry(LocalToolOption.PhoneUse) { tools, _ ->
         // 不支持的系统版本上，之前在别处开过（比如导入的备份）也不提供
         if (PhoneUseManager.isSupported) {
             tools.add(phoneUseTool)
         }
+    },
+    ToolEntry(LocalToolOption.ScreenAutomation) { tools, invocationContext ->
+        // PhoneUse 已覆盖 0-1000 归一化坐标下的观察/截图/点击/长按/滑动/滚动/输入/按键；
+        // 两者同时开启时不再重复注入物理像素坐标系的同名动作工具，避免两套坐标系混用打架。
+        val phoneUseActive = PhoneUseManager.isSupported &&
+            tools.any { it.name == "phone_use" }
+        if (!phoneUseActive) {
+            tools.add(tapTool(invocationContext, interactiveToolStreamer))
+            tools.add(longPressTool(invocationContext, interactiveToolStreamer))
+            tools.add(swipeTool(invocationContext, interactiveToolStreamer))
+            tools.add(readWindowTreeTool(invocationContext, interactiveToolStreamer))
+            tools.add(clickNodeTool(invocationContext, interactiveToolStreamer))
+            tools.add(clickAndReadTool(invocationContext, interactiveToolStreamer))
+            tools.add(me.rerere.rikkahub.data.ai.tools.local.setTextTool(invocationContext, interactiveToolStreamer))
+            tools.add(scrollTool(invocationContext, interactiveToolStreamer))
+            tools.add(globalActionTool(invocationContext, interactiveToolStreamer))
+            tools.add(takeScreenshotTool(context)) // take_screenshot IS the screenshot; skip auto-stream
+        }
+        tools.add(findNodeTool(invocationContext, interactiveToolStreamer))
+        tools.add(waitForTool(invocationContext, interactiveToolStreamer))
+        tools.add(me.rerere.rikkahub.data.ai.tools.local.wakeScreenTool(context))
     },
     ToolEntry(LocalToolOption.AppLauncher) { tools, invocationContext ->
         tools.add(me.rerere.rikkahub.data.ai.tools.local.launchAppTool(context, invocationContext, interactiveToolStreamer))
@@ -672,9 +678,15 @@ class LocalTools(
         fun enabled(option: LocalToolOption): Boolean =
             options.contains(option) && capabilities.satisfies(LocalToolCatalog.capabilityOf(option))
 
-        // 注册表驱动：遍历 toolRegistry()，授权门通过即构建。
+        // 注册表驱动：遍历 toolRegistry()，授权门通过即构建；能力未就绪时记一条诊断日志而非完全静默。
         for (entry in toolRegistry()) {
-            if (enabled(entry.option)) {
+            val cap = LocalToolCatalog.capabilityOf(entry.option)
+            if (options.contains(entry.option) && !capabilities.satisfies(cap)) {
+                me.rerere.rikkahub.data.log.AppLog.d(
+                    "LocalTools",
+                    "skipping ${entry.option::class.simpleName}: required capability $cap is not ready",
+                )
+            } else if (options.contains(entry.option)) {
                 entry.addTo(this, tools, invocationContext)
             }
         }

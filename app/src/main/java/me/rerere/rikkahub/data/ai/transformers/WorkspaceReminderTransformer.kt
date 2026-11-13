@@ -189,7 +189,7 @@ private fun buildWorkspacePrompt(
     appendLine("- The workspace files area is mounted at `/workspace`. Use it as your working directory; files written there persist across turns of this conversation.")
     distroName?.takeIf { it.isNotBlank() }?.let { appendLine("- Rootfs distribution: $it.") }
     shellPath?.takeIf { it.isNotBlank() }?.let { appendLine("- The selected shell is `$it`; use POSIX-compatible commands when it is `/bin/sh` and do not assume bash-only syntax.") }
-    appendLine("- All paths passed to workspace tools must be absolute and inside the Rootfs (for example `/workspace/notes.md`).")
+    appendLine("- All paths passed to workspace tools must be absolute and inside the Rootfs (for example `/workspace/notes.md`). For files on the Android device outside Rootfs (such as `/sdcard/...` when phone storage mount is off, or `content://` URIs), use device tools (`read_file`, `write_text_file`, `list_files`) instead.")
     appendLine("- Available tools:")
     appendLine("  - `workspace_read_file`: read file contents.")
     appendLine("  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files.")
@@ -211,7 +211,7 @@ private fun buildWorkspacePrompt(
 
 /**
  * 远程 (SSH) 工作区的提示词：环境是宿主机而非 Rootfs，所以不提挂载点、技能/上传目录，
- * 也不提只跑在本机 Rootfs 进程里的后台任务。
+ * 也不提只跑在本地 Rootfs 进程里的后台任务，并显式提供 POSIX 后台脱离写法。
  */
 private fun buildRemoteWorkspacePrompt(
     workspace: WorkspaceEntity,
@@ -227,7 +227,7 @@ private fun buildRemoteWorkspacePrompt(
     appendLine("<workspace>")
     appendLine("You have access to a persistent workspace named \"${workspace.name}\" on a real machine, reached over SSH as `$address`.")
     appendLine("- The workspace directory is `$filesDir`. Use it as your working directory; files written there persist across turns of this conversation.")
-    appendLine("- All paths passed to workspace tools must be absolute paths on that machine (for example `$filesDir/notes.md`).")
+    appendLine("- All paths passed to workspace tools must be absolute paths on that remote machine (for example `$filesDir/notes.md`). Local Rootfs mount paths (`/workspace`, `/upload`, `/skills`) and Android device paths (`/sdcard`) do NOT exist on the remote host; use device tools (`read_file`, `write_text_file`, `list_files`) for phone local files.")
     appendLine("- This is NOT a sandbox: commands run with the SSH user's real permissions and can affect other data and services on that machine. Do not make destructive or system-wide changes unless the user asks for them.")
     if (shellPath.isNullOrBlank()) {
         appendLine("- The remote machine is not reachable right now, so the workspace tools below will fail. If the user asks you to work in this workspace, tell them it is unreachable instead of retrying.")
@@ -244,7 +244,7 @@ private fun buildRemoteWorkspacePrompt(
     appendLine("  - `workspace_search_code`: search file contents for matching lines.")
     appendLine("  - `workspace_shell`: run shell commands on the remote machine (defaults to the workspace directory).")
     appendLine("- Prefer `workspace_shell` for tasks that standard Unix tools handle well, and prefer `workspace_edit_file` for targeted edits over rewriting whole files.")
-    appendLine("- Background task tools are not available here: they run in the app's own Linux environment, not on the remote machine. Run long commands with `workspace_shell` and a timeout instead.")
+    appendLine("- Background task tools (`workspace_run_background` / `workspace_background_status` / `workspace_background_kill`) are not available here: they run in the app's own Linux environment, not on the remote machine. To run a long or detached command on the remote host, do the whole sequence in a SINGLE `workspace_shell` call: `cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=\$!\"; tail -n 5 /tmp/task.log` (later check with `pgrep -f` + `tail`, stop with `pkill -f`; never append a bare `&` without redirecting output).")
     if (!cwd.isNullOrBlank()) {
         appendLine("- Current working directory: `$cwd`. Use this as the default context for file operations and shell commands.")
     }
@@ -257,10 +257,12 @@ private fun buildRemoteWorkspacePrompt(
 private fun buildWorkspaceNotReadyPrompt(workspace: WorkspaceEntity): String = buildString {
     appendLine("<workspace-setup>")
     appendLine("A workspace named \"${workspace.name}\" is bound to this assistant, but its Linux shell is not ready (status: ${workspace.shellStatus}), so the workspace tools (workspace_read_file, workspace_write_file, workspace_edit_file, workspace_create_folder, workspace_read_folder, workspace_shell, workspace_run_background, workspace_background_status, workspace_background_kill) are NOT available right now.")
-    val howto = when (workspace.shellStatus) {
-        WorkspaceShellStatus.INSTALLING.name ->
+    val howto = when {
+        workspace.isSsh() ->
+            "this is a remote SSH workspace whose connection is not ready; ask them to open Extensions > Workspace, open this SSH workspace, verify the host/credentials, and save/test until the status shows Ready."
+        workspace.shellStatus == WorkspaceShellStatus.INSTALLING.name ->
             "the rootfs is currently installing; ask them to wait for the install to finish, then send a new message."
-        WorkspaceShellStatus.BROKEN.name ->
+        workspace.shellStatus == WorkspaceShellStatus.BROKEN.name ->
             "the rootfs is broken; ask them to open Extensions > Workspace, open this workspace, and reinstall/repair its rootfs until the shell status shows Ready."
         else ->
             "ask them to open Extensions > Workspace, open this workspace, and install its rootfs until the shell status shows Ready."

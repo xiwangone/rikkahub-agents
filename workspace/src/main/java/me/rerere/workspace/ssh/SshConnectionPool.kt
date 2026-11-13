@@ -36,22 +36,26 @@ class SshConnectionPool(
 
     // 关闭与新连接登记共用这把锁: close() 在锁内标记关闭并取走已登记的连接,
     // 登记前在锁内检查 closed, 关闭期间才建好的连接会自行释放, 不会遗留在已关闭的池里
+    private val sweepIntervalMs = sweepIntervalMillis
     private val lifecycleLock = Any()
 
     @Volatile
     private var closed = false
-    private val sweeper = Executors.newSingleThreadScheduledExecutor { runnable ->
-        Thread(runnable, "ssh-idle-sweeper").apply { isDaemon = true }
-    }
+    private var sweeper: java.util.concurrent.ScheduledExecutorService? = null
 
-    init {
-        sweeper.scheduleWithFixedDelay(
+    private fun ensureSweeperLocked() {
+        if (closed || sweeper != null) return
+        val exec = Executors.newSingleThreadScheduledExecutor { runnable ->
+            Thread(runnable, "ssh-idle-sweeper").apply { isDaemon = true }
+        }
+        exec.scheduleWithFixedDelay(
             // 定时任务抛异常后不会再被调度, 这里吞掉异常保证后续还能清理
             { runCatching { closeIdle() } },
-            sweepIntervalMillis,
-            sweepIntervalMillis,
+            sweepIntervalMs,
+            sweepIntervalMs,
             TimeUnit.MILLISECONDS,
         )
+        sweeper = exec
     }
 
     /** 用一条临时连接测试配置, 不进入连接池 */
@@ -68,12 +72,15 @@ class SshConnectionPool(
     /** 停止空闲清理并关闭所有连接, 之后连接池不能再使用 */
     override fun close() {
         // 不等正在建立的连接, 它们登记时会看到 closed
+        var activeSweeper: java.util.concurrent.ScheduledExecutorService? = null
         val remaining = synchronized(lifecycleLock) {
             if (closed) return
             closed = true
+            activeSweeper = sweeper
+            sweeper = null
             connections.values.toList().also { connections.clear() }
         }
-        sweeper.shutdownNow()
+        activeSweeper?.shutdownNow()
         remaining.forEach { it.connection.close() }
         pendingClose.forEach { it.connection.close() }
         pendingClose.clear()
@@ -174,6 +181,7 @@ class SshConnectionPool(
             synchronized(lifecycleLock) {
                 if (!closed) {
                     connections[id] = pooled
+                    ensureSweeperLocked()
                     return pooled
                 }
             }
@@ -229,6 +237,12 @@ class SshConnectionPool(
                 true
             } else {
                 false
+            }
+        }
+        synchronized(lifecycleLock) {
+            if (connections.isEmpty() && pendingClose.isEmpty()) {
+                sweeper?.shutdown()
+                sweeper = null
             }
         }
     }

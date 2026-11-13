@@ -5,6 +5,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.common.log.ThrottleGate
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -102,10 +103,14 @@ object TunnelAutoStart {
                 resetCycle()
             }
             while (true) {
-                // 用户没开（或已关、或启动失败回落）或正在建连握手：静默待机，不打断正在进行中的连接。
-                if (!TsnetBridge.desiredRunning || TsnetBridge.isConnecting) {
+                // 用户没开（或已关、或启动失败回落）：挂起等待期望状态变为 true，平时零定时唤醒。
+                if (!TsnetBridge.desiredRunning) {
                     retryIndex = 0
                     resetCycle()
+                    TsnetBridge.desiredRunningFlow.first { it }
+                    continue
+                }
+                if (TsnetBridge.isConnecting) {
                     delay(HEALTH_POLL_MS)
                     continue
                 }

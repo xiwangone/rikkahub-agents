@@ -82,12 +82,15 @@ fun isFloatingChatWindowOn(context: Context, settings: Settings): Boolean =
 
 /** Phone Use 服务是否在系统无障碍设置里处于开启状态（不代表服务进程已连接）。 */
 fun isPhoneUseServiceEnabledInSettings(context: Context): Boolean {
-    val expected = ComponentName(context, PhoneUseAccessibilityService::class.java).flattenToString()
+    val expectedUnified = ComponentName(context, me.rerere.rikkahub.service.RikkaAccessibilityService::class.java).flattenToString()
+    val expectedLegacy = ComponentName(context, PhoneUseAccessibilityService::class.java).flattenToString()
     val enabled = android.provider.Settings.Secure.getString(
         context.contentResolver,
         android.provider.Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES,
     ) ?: return false
-    return enabled.split(":").any { it.equals(expected, ignoreCase = true) }
+    return enabled.split(":").any {
+        it.equals(expectedUnified, ignoreCase = true) || it.equals(expectedLegacy, ignoreCase = true)
+    }
 }
 
 /**

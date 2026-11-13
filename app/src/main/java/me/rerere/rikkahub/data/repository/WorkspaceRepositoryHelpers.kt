@@ -497,10 +497,12 @@ internal fun WorkspaceRepository.requireLocalRootfs(workspace: WorkspaceEntity, 
         }
     }
 
-/** 后台任务的落点是本机进程表；远程工作区没有这个落点，状态查询也不该静默返回空列表 */
+/** 后台任务的落点是本地进程表；远程工作区没有这个落点，跨区误调时直接给出 POSIX 脱离运行指引 */
 internal fun WorkspaceRepository.requireBackgroundShell(workspace: WorkspaceEntity, feature: String) {
         require(workspace.capabilities().backgroundShell) {
-            "$feature is only available for local workspaces: ${workspace.id}"
+            "$feature is only available for local workspaces: ${workspace.id} (${workspace.name} is a remote SSH workspace with no background-task tools). " +
+                "Use workspace_shell with workspace=\"${workspace.name}\" and run detached in a single command: " +
+                "cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=\$!\"; tail -n 5 /tmp/task.log"
         }
     }
 

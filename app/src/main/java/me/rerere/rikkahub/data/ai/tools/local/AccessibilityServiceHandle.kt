@@ -18,11 +18,14 @@ object AccessibilityServiceHandle {
     /** True iff our component is listed in Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES. */
     fun isEnabledInSettings(ctx: Context): Boolean {
         val expected = ComponentName(ctx, RikkaAccessibilityService::class.java).flattenToString()
+        val expectedPhoneUse = ComponentName(ctx, me.rerere.rikkahub.phoneuse.PhoneUseAccessibilityService::class.java).flattenToString()
         val enabled = Settings.Secure.getString(
             ctx.contentResolver,
             Settings.Secure.ENABLED_ACCESSIBILITY_SERVICES
         ) ?: return false
-        return enabled.split(":").any { it.equals(expected, ignoreCase = true) }
+        return enabled.split(":").any {
+            it.equals(expected, ignoreCase = true) || it.equals(expectedPhoneUse, ignoreCase = true)
+        }
     }
 
     /** True iff the service has connected and the singleton is live. */
