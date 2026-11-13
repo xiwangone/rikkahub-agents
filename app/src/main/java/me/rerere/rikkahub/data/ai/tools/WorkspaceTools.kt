@@ -54,7 +54,7 @@ suspend fun createWorkspaceTools(
         add(createEditFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createApplyEditsTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createDiffFileTool(workspaceId, layout, ::needsApproval, workspaceRepository))
-        add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd))
+        add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd, workspace.capabilities().backgroundShell))
         add(createCreateFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createReadFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         // 后台任务跑在本机进程里, 远程工作区没有这个落点, 不提供
@@ -453,22 +453,149 @@ private fun createDiffFileTool(
 
 
 
-private fun createShellTool(
-    workspaceId: String,
+private fun shellToolDescription(
     layout: WorkspaceLayout,
-    needsApproval: (String) -> Boolean,
-    workspaceRepository: WorkspaceRepository,
-    defaultCwd: String? = null,
-) = Tool(
-    name = "workspace_shell",
-    description = buildString {
+    defaultCwd: String?,
+    supportsBackground: Boolean,
+): String {
+    val base = buildString {
         append("Run a shell command in the assistant's bound workspace. The workspace files area is at ${layout.workspaceDir}. ")
         append("Use cwd for a path relative to the workspace files root. ")
         if (!defaultCwd.isNullOrBlank()) {
             append("Defaults to '$defaultCwd'. ")
         }
         append("Requires the workspace environment to be installed and ready.")
-    },
+    }
+    return if (supportsBackground) base else base + REMOTE_SHELL_BACKGROUND_NOTE
+}
+
+/**
+ * 远程工作区（能力位 backgroundShell=false）的补充说明。
+ *
+ * 为何写在这里：那三个 background-task 工具在远程工作区**根本不会注册**（见本文件
+ * `if (workspace.capabilities().backgroundShell)` 分支），写在它们身上等于不存在；模型拿不到
+ * 后台能力时会直接用 workspace_shell 硬跑长命令，结果被工具超时截断、输出丢失。
+ *
+ * 文案只用 POSIX 标准命令（setsid / nohup / pgrep / tail / pkill），不依赖任何第三方脚本
+ * 或本机特定路径 —— 别人的设备上同样成立。
+ */
+private const val REMOTE_SHELL_BACKGROUND_NOTE =
+    " This workspace runs commands on a remote host and has NO background-task tools." +
+        " A long or never-ending command blocks until it finishes or the call times out, and its output is lost on timeout." +
+        " To run one detached, do the whole sequence in a SINGLE command and return immediately, e.g." +
+        " `cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=$!\"; tail -n 5 /tmp/task.log`." +
+        " `setsid` detaches it from the session so it survives the channel closing, and `</dev/null` stops it waiting on stdin." +
+        " Later check it with `pgrep -f <pattern>` and `tail -n 50 /tmp/task.log`; stop it with `pkill -f <pattern>`." +
+        " Do NOT append a bare `&` without redirecting output: the log would be lost and failures invisible."
+
+/** 预设模式解析结果：要么给出渲染好的命令，要么给出已经包装好的错误信封。 */
+private sealed interface PresetCommand {
+    data class Ok(val command: String) : PresetCommand
+    data class Error(val envelope: String) : PresetCommand
+}
+
+/**
+ * 解析并渲染 `workspace_shell` 的预设命令。
+ *
+ * 从 `execute` lambda 里抽出来：那个 lambda 原本把预设加载/校验/报错全塞在一起，
+ * 让 createShellTool 的圈复杂度顶到 26（阈值 20）。抽出去后两边都干净，语义不变。
+ */
+private suspend fun resolveShellPresetCommand(
+    presetName: String,
+    params: JsonObject,
+    presetsPath: String,
+    workspaceId: String,
+    workspaceRepository: WorkspaceRepository,
+): PresetCommand {
+    val presets = try {
+        loadShellPresets(workspaceRepository, workspaceId, presetsPath)
+    } catch (_: ShellPresetsCorruptedException) {
+        return PresetCommand.Error(
+            ToolErrors.envelopeFor(
+                error = "preset_file_corrupted",
+                message = workspaceToolMessage(R.string.workspace_tool_preset_file_corrupted, presetsPath),
+                extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
+            ).toString(),
+        )
+    }
+    val node = presets[presetName]
+        ?: return PresetCommand.Error(
+            ToolErrors.envelopeFor(
+                error = "preset_not_found",
+                message = workspaceToolMessage(R.string.workspace_tool_preset_not_found, presetName, presetsPath),
+                hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.",
+                extra = ToolErrors.extraOf(
+                    "preset" to presetName,
+                    "presetsPath" to presetsPath,
+                    "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } },
+                ),
+            ).toString(),
+        )
+    val template = when (node) {
+        is JsonPrimitive -> node.contentOrNull.orEmpty()
+        is JsonObject -> node["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        else -> ""
+    }
+    if (template.isBlank()) {
+        return PresetCommand.Error(
+            ToolErrors.envelopeFor(
+                error = "preset_empty",
+                message = workspaceToolMessage(R.string.workspace_tool_preset_empty, presetName, presetsPath),
+                extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath),
+            ).toString(),
+        )
+    }
+    return PresetCommand.Ok(renderShellPreset(presetName, template, params["preset_args"]?.jsonObject))
+}
+
+/** `workspace_shell` 的 timeout 参数解析结果。 */
+private sealed interface ShellTimeout {
+    data class Ok(val seconds: Long, val millis: Long, val clamped: Boolean) : ShellTimeout
+    data class Invalid(val envelope: String) : ShellTimeout
+}
+
+/**
+ * 解析 timeout 参数：非法值给错误信封；合法值夹取到上限并标注是否被夹取。
+ * 从 `execute` lambda 抽出（与预设解析同理），把 createShellTool 的圈复杂度降到阈值内。
+ */
+private fun resolveShellTimeout(timeoutRaw: String?): ShellTimeout {
+    val parsed = timeoutRaw?.toLongOrNull()
+    if (timeoutRaw != null && parsed == null) {
+        return ShellTimeout.Invalid(
+            ToolErrors.envelopeFor(
+                error = "invalid_argument",
+                message = workspaceToolMessage(
+                    R.string.workspace_tool_timeout_invalid,
+                    timeoutRaw,
+                    SHELL_TIMEOUT_MAX_SECONDS.toString(),
+                ),
+                extra = ToolErrors.extraOf(
+                    "timeout" to timeoutRaw,
+                    "maxTimeoutSeconds" to SHELL_TIMEOUT_MAX_SECONDS,
+                ),
+            ).toString(),
+        )
+    }
+    val effective = parsed?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
+        ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
+    return ShellTimeout.Ok(
+        seconds = effective,
+        millis = effective * 1_000L,
+        clamped = parsed != null && parsed != effective,
+    )
+}
+
+private fun createShellTool(
+    workspaceId: String,
+    layout: WorkspaceLayout,
+    needsApproval: (String) -> Boolean,
+    workspaceRepository: WorkspaceRepository,
+    defaultCwd: String? = null,
+    /** 本地=true（另有 background-task 工具）；远程=false（本工具要给长命令的脱手做法） */
+    supportsBackground: Boolean = true,
+) = Tool(
+    name = "workspace_shell",
+    description = shellToolDescription(layout, defaultCwd, supportsBackground),
     parameters = {
         InputSchema.Obj(
             properties = shellToolSchema(defaultCwd, shellPresetsPath(layout)),
@@ -485,36 +612,10 @@ private fun createShellTool(
         val presetName = params.string("preset")?.takeIf { it.isNotBlank() }
         val command =
             if (presetName != null) {
-                val presets = try {
-                    loadShellPresets(workspaceRepository, workspaceId, presetsPath)
-                } catch (_: ShellPresetsCorruptedException) {
-                    return@Tool listOf(
-                        UIMessagePart.Text(
-                            ToolErrors.envelopeFor(error = "preset_file_corrupted", message = workspaceToolMessage(R.string.workspace_tool_preset_file_corrupted, presetsPath), extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath)).toString(),
-                        ),
-                    )
+                when (val r = resolveShellPresetCommand(presetName, params, presetsPath, workspaceId, workspaceRepository)) {
+                    is PresetCommand.Ok -> r.command
+                    is PresetCommand.Error -> return@Tool listOf(UIMessagePart.Text(r.envelope))
                 }
-                val node =
-                    presets[presetName]
-                        ?: return@Tool listOf(
-                            UIMessagePart.Text(
-                                ToolErrors.envelopeFor(error = "preset_not_found", message = workspaceToolMessage(R.string.workspace_tool_preset_not_found, presetName, presetsPath), hint = "Add it to $presetsPath as {\"$presetName\": \"<command>\"}.", extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath, "available" to buildJsonArray { presets.keys.forEach { add(JsonPrimitive(it)) } })).toString(),
-                            ),
-                        )
-                val template =
-                    when (node) {
-                        is JsonPrimitive -> node.contentOrNull.orEmpty()
-                        is JsonObject -> node["command"]?.jsonPrimitive?.contentOrNull.orEmpty()
-                        else -> ""
-                    }
-                if (template.isBlank()) {
-                    return@Tool listOf(
-                        UIMessagePart.Text(
-                            ToolErrors.envelopeFor(error = "preset_empty", message = workspaceToolMessage(R.string.workspace_tool_preset_empty, presetName, presetsPath), extra = ToolErrors.extraOf("preset" to presetName, "presetsPath" to presetsPath)).toString(),
-                        ),
-                    )
-                }
-                renderShellPreset(presetName, template, params["preset_args"]?.jsonObject)
             } else {
                 params.string("command") ?: error("command is required (or provide `preset`)")
             }
@@ -526,20 +627,14 @@ private fun createShellTool(
             )
         }
         val cwd = layout.relativeToWorkspace(params.string("cwd") ?: defaultCwd.orEmpty())
-        val timeoutRaw = params.string("timeout")
-        val timeoutSeconds = timeoutRaw?.toLongOrNull()
-        if (timeoutRaw != null && timeoutSeconds == null) {
-            return@Tool listOf(
-                UIMessagePart.Text(
-                    ToolErrors.envelopeFor(error = "invalid_argument", message = workspaceToolMessage(R.string.workspace_tool_timeout_invalid, timeoutRaw, SHELL_TIMEOUT_MAX_SECONDS.toString()), extra = ToolErrors.extraOf("timeout" to timeoutRaw, "maxTimeoutSeconds" to SHELL_TIMEOUT_MAX_SECONDS)).toString(),
-                ),
-            )
+        val timeoutSpec = resolveShellTimeout(params.string("timeout"))
+        if (timeoutSpec is ShellTimeout.Invalid) {
+            return@Tool listOf(UIMessagePart.Text(timeoutSpec.envelope))
         }
-        // 超上限时夹取到上限，并在结果里注明实际生效值；未传时沿用原默认 30 秒。
-        val effectiveTimeoutSeconds = timeoutSeconds?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
-            ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
-        val timeoutMillis = effectiveTimeoutSeconds * 1_000L
-        val timeoutClamped = timeoutSeconds != null && timeoutSeconds != effectiveTimeoutSeconds
+        timeoutSpec as ShellTimeout.Ok
+        val timeoutMillis = timeoutSpec.millis
+        val effectiveTimeoutSeconds = timeoutSpec.seconds
+        val timeoutClamped = timeoutSpec.clamped
         val targetWorkspaceId = resolveTargetWorkspaceId(workspaceRepository, params, workspaceId)
 
         // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
