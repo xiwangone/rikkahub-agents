@@ -75,7 +75,7 @@ jobs:
           key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
           restore-keys: webui-
 
-      - name: 单元测试（实际执行 11 个模块，不替代 Android 验收）
+      - name: 单元测试（实际执行 14 个模块，不替代 Android 验收）
         run: |
           chmod +x gradlew
           set -o pipefail
@@ -84,10 +84,12 @@ jobs:
           # 2026-09-30 新增 8 个 0 失败模块（Linux 云端现测 237 例全绿）；
           # common 2026-10-07 纳入：此前标注的 1 flaky 经复核是稳定缺陷（Call.await 未把协程
           #   取消传导到底层请求），已修复并补断言覆盖；
-          # local-llm（需 Java 21，CI 为 JDK 17）、oauth（1 本地回环失败）、
-          # workspace（1 需外网）暂不纳入，待各自修复后补充。
+          # 2026-11-14 纳入 workspace（143 例）、agent-tools（12 例）、oauth（2 例）：
+          #   在 df5ad9c71 上全量运行 0 失败（旧的「需外网」「本地回环失败」未复现）；
+          #   local-llm 单开 JDK 21 job（本文件 unit-test-local-llm）：JDK 17 下 LiteRT
+          #   类文件 65.0 报 UnsupportedClassVersionError，JDK 21 下 150 例全过。
           for i in 1 2; do
-            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest --build-cache :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest --parallel --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-attempt-$i.log"
+            ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest --build-cache :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest :workspace:testDebugUnitTest :agent-tools:testDebugUnitTest :oauth:testDebugUnitTest --parallel --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-attempt-$i.log"
             [ "${PIPESTATUS[0]}" = "0" ] && break
             if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
             echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
@@ -118,6 +120,9 @@ jobs:
             speech/build/reports/tests/testDebugUnitTest
             videogen/build/reports/tests/testDebugUnitTest
             web/build/reports/tests/testDebugUnitTest
+            workspace/build/reports/tests/testDebugUnitTest
+            agent-tools/build/reports/tests/testDebugUnitTest
+            oauth/build/reports/tests/testDebugUnitTest
           retention-days: 7
 
       - name: 上传真实 JUnit XML（含失败、跳过与测试数量）
@@ -126,5 +131,125 @@ jobs:
         with:
           name: unit-test-junit-xml
           path: '**/build/test-results/testDebugUnitTest/TEST-*.xml'
+          retention-days: 14
+          if-no-files-found: error
+
+  unit-test-local-llm:
+    name: 单元测试（local-llm，JDK 21）
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      # local-llm 依赖的 LiteRT-LM 库是 Java 21 编译的类文件（65.0），JDK 17 下
+      # LiteRtToolDeclarationTest 报 UnsupportedClassVersionError；JDK 21 下 150 例全过。
+      # setup-build-env 只装 JDK 17，不能复用；这里按同一主源/回退源写法单装 JDK 21。
+      - name: JDK 21（主源）
+        id: jdk-primary
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+
+      - name: JDK 21（回退源）
+        id: jdk-fallback
+        if: steps.jdk-primary.outcome == 'failure'
+        continue-on-error: true
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'zulu'
+
+      - name: 校验 JDK
+        shell: bash
+        run: |
+          set -e
+          if ! command -v java >/dev/null 2>&1; then
+            echo "::error::JDK 不可用（主源与回退源均失败）"
+            exit 1
+          fi
+          java -version 2>&1 | head -2
+          echo "JAVA_HOME=${JAVA_HOME:-（未设置）}"
+
+      - name: Android SDK（预装优先，缺失时多源下载）
+        shell: bash
+        run: bash "$GITHUB_WORKSPACE/.github/scripts/setup-android-sdk.sh"
+
+      - name: 预热 Gradle wrapper（失败重试）
+        shell: bash
+        run: |
+          set -o pipefail
+          if [ ! -x ./gradlew ]; then
+            echo "::warning::未找到 ./gradlew，跳过预热"
+            exit 0
+          fi
+          for i in 1 2 3; do
+            if ./gradlew --version >/dev/null 2>&1; then
+              echo "gradle wrapper 就绪（第 $i 次尝试）"
+              ./gradlew --version 2>&1 | head -3
+              exit 0
+            fi
+            echo "gradle wrapper 预取失败（第 $i 次），清理半成品后重试…"
+            find "$HOME/.gradle/wrapper/dists" -name '*.part' -delete 2>/dev/null || true
+            sleep 15
+          done
+          echo "::error::gradle wrapper 预取失败（重试 3 次仍失败）"
+          exit 1
+
+      - name: 缓存 Gradle 依赖（libs 变化才重建）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-modules-jdk21-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-modules-jdk21-
+
+      - name: 缓存 Gradle 构建缓存（固定 key，不堆积）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-gradle-buildcache-jdk21-${{ hashFiles('gradle/libs.versions.toml', '**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-buildcache-jdk21-
+          save-always: true
+
+      - name: 单元测试 local-llm（JDK 21，不替代 Android 验收）
+        run: |
+          chmod +x gradlew
+          set -o pipefail
+          set +e
+          for i in 1 2; do
+            ./gradlew :local-llm:testDebugUnitTest --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-local-llm-attempt-$i.log"
+            [ "${PIPESTATUS[0]}" = "0" ] && break
+            if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
+            echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
+          done
+
+      - name: 上传测试日志（完整 gradle 输出）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-local-llm-log
+          path: unit-test-local-llm-attempt-*.log
+          retention-days: 14
+
+      - name: 上传测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-local-llm-report
+          path: local-llm/build/reports/tests/testDebugUnitTest
+          retention-days: 7
+
+      - name: 上传真实 JUnit XML（含失败、跳过与测试数量）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: unit-test-local-llm-junit-xml
+          path: 'local-llm/build/test-results/testDebugUnitTest/TEST-*.xml'
           retention-days: 14
           if-no-files-found: error

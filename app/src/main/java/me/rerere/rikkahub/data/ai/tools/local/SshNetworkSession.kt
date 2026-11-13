@@ -341,10 +341,24 @@ internal class JumpTunnelProxy(
         val ch = jumpSession.openChannel("direct-tcpip") as ChannelDirectTCPIP
         ch.setHost(targetHost)
         ch.setPort(targetPort)
-        ch.connect(connectTimeout.coerceAtLeast(10_000))
-        channel = ch
+        // 流必须在 connect 之前取：JSch 的约定是 getInputStream()/getOutputStream()
+        // 在 connect() 之前调用（晚了库内会记 "should be called before connect()"，
+        // 开头的握手字节也可能丢）；同仓 SshConnection.openShell 与 JumpHostProxy
+        // 都是先取流再 connect。
         input = ch.inputStream
         jumpOutStream = ch.outputStream
+        try {
+            ch.connect(connectTimeout.coerceAtLeast(10_000))
+        } catch (e: com.jcraft.jsch.JSchException) {
+            // 建连失败：断开已打开的通道再上抛，否则半开通道留在跳板会话上
+            // （channel 尚未赋值，close() 收不到它）；流引用一并清掉，失败后
+            // 的代理仍报告"未连接"。
+            runCatching { ch.disconnect() }
+            input = null
+            jumpOutStream = null
+            throw e
+        }
+        channel = ch
     }
 
     override fun getInputStream(): java.io.InputStream = input ?: error("jump proxy not connected")

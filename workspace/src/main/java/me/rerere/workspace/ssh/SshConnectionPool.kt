@@ -122,8 +122,10 @@ class SshConnectionPool(
         open: (SshConnection, onClose: () -> Unit) -> SshShell,
     ): SshShell {
         val pooled = acquire(id, config)
+        // onClose 走池级 release(pooled)：退役中的连接在最后一次使用结束时立即关闭；
+        // 直接传 pooled::release 只减引用计数，退役连接要等 sweeper 巡检才关。
         return try {
-            open(pooled.connection, pooled::release)
+            open(pooled.connection) { release(pooled) }
         } catch (e: Exception) {
             pooled.release()
             if (e.isInterruption()) throw e
@@ -136,7 +138,7 @@ class SshConnectionPool(
             AppLogger.w(TAG, "openShell: retrying after channel failure (id=$id)", e)
             val retried = acquire(id, config)
             try {
-                open(retried.connection, retried::release)
+                open(retried.connection) { release(retried) }
             } catch (retryError: Exception) {
                 retried.release()
                 throw retryError
