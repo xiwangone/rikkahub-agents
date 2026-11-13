@@ -255,6 +255,22 @@ object ModelRegistry {
         contextLength(1.m)
     }
 
+    private val CLAUDE_SONNET_5_5 = defineModel {
+        tokens("claude", "sonnet", "5", "5")
+        notTokens("claude", "sonnet", "4")
+        visionInput()
+        toolReasoningAbility()
+        contextLength(1.m)
+    }
+
+    private val CLAUDE_OPUS_5_5 = defineModel {
+        tokens("claude", "opus", "5", "5")
+        notTokens("claude", "opus", "4")
+        visionInput()
+        toolReasoningAbility()
+        contextLength(1.m)
+    }
+
     val CLAUDE_SERIES = defineGroup {
         add(
             CLAUDE_SONNET_3_5,
@@ -266,7 +282,9 @@ object ModelRegistry {
             CLAUDE_OPUS_4_7,
             CLAUDE_OPUS_4_8,
             CLAUDE_SONNET_5,
-            CLAUDE_OPUS_5
+            CLAUDE_OPUS_5,
+            CLAUDE_SONNET_5_5,
+            CLAUDE_OPUS_5_5
         )
     }
 
@@ -534,6 +552,16 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    private val XIAOMI_MIMO_V2 = defineModel {
+        tokens("mimo", "v", "2")
+        toolReasoningAbility()
+    }
+
+    private val XIAOMI_MIMO_V2_PRO = defineModel {
+        tokens("mimo", "v", "2", "pro")
+        toolReasoningAbility()
+    }
+
     private val XIAOMI_MIMO_V2_5 = defineModel {
         tokens("mimo", "v", "2", "5")
         notTokens("mimo", "v", "2", "5", "pro")
@@ -736,6 +764,8 @@ object ModelRegistry {
         CLAUDE_OPUS_4_8,
         CLAUDE_SONNET_5,
         CLAUDE_OPUS_5,
+        CLAUDE_SONNET_5_5,
+        CLAUDE_OPUS_5_5,
         DEEPSEEK_V3_MODEL,
         DEEPSEEK_CHAT,
         DEEPSEEK_R1_MODEL,
@@ -783,6 +813,8 @@ object ModelRegistry {
         MINIMAX_M2_5,
         MINIMAX_M2_7,
         MINIMAX_M3,
+        XIAOMI_MIMO_V2,
+        XIAOMI_MIMO_V2_PRO,
         XIAOMI_MIMO_V2_5,
         XIAOMI_MIMO_V2_5_PRO,
         XIAOMI_MIMO_V2_6,

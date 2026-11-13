@@ -12,6 +12,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.android.SafeRequestLoggingInterceptor
+import me.rerere.rikkahub.utils.KnownSecretPrefixes
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.Request
@@ -60,15 +61,9 @@ object SecretMasker {
         setOf(RegexOption.DOT_MATCHES_ALL, RegexOption.IGNORE_CASE),
     )
 
-    // 通用密钥形态：不依赖凭证表即可命中（未登记凭证 / 临时 token 的兜底）
-    private val GENERIC_SECRET_PATTERNS = listOf(
-        Regex("gh[pousr]_[A-Za-z0-9]{20,}"),
-        Regex("sk-[A-Za-z0-9_-]{20,}"),
-        Regex("xox[baprs]-[A-Za-z0-9-]{10,}"),
-        Regex("AKIA[0-9A-Z]{16}"),
-        Regex("eyJ[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}\\.[A-Za-z0-9_-]{10,}"),
-        Regex("AIza[0-9A-Za-z_-]{30,}"),
-    )
+    // 通用密钥形态：不依赖凭证表即可命中（未登记凭证 / 临时 token 的兜底）。
+    // 口径见 KnownSecretPrefixes：与日志脱敏共用同一张前缀表，阈值取更敏感的一档。
+    private val GENERIC_SECRET_PATTERNS = KnownSecretPrefixes.patternRegexes()
 
     // 公钥值形态：以这些开头的是公钥（可公开，不掩——authorized_keys 本就公开贴）
     private val PUBLIC_KEY_PREFIX = listOf(

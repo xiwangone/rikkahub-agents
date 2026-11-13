@@ -68,7 +68,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.BuiltInTools
 import me.rerere.ai.provider.Model
-import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.supportsBuiltInSearch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.AiSearch02
 import me.rerere.hugeicons.stroke.ArrowLeft01
@@ -375,9 +375,7 @@ private fun SearchPicker(
 ) {
     val navBackStack = LocalNavController.current
     val provider = model?.findProvider(settings.providers)
-    val supportsBuiltInSearch =
-        provider is ProviderSetting.Google ||
-            (provider is ProviderSetting.OpenAI && provider.useResponseApi)
+    val supportsBuiltInSearch = provider?.supportsBuiltInSearch == true
     val currentMode = searchModeOf(enableSearch, model)
     val showModelSearch = model != null && (supportsBuiltInSearch || currentMode == SearchMode.BUILT_IN)
     val modes =

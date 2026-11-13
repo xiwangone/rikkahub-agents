@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.rikkahub.utils.LogRedactor
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
@@ -30,6 +31,40 @@ class SecretMaskerTest {
     fun `JWT 形态被掩`() {
         val jwt = "eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghij1234567890"
         assertEquals("*** x", SecretMasker.mask("$jwt x", emptyList()))
+    }
+
+    @Test
+    fun `短 sk token 也被掩`() {
+        // 旧口径 {20,} 会漏掉 10 字符左右的短 token；与日志脱敏共用前缀表后应掩
+        assertEquals("*** x", SecretMasker.mask("sk-abcdef123456 x", emptyList()))
+    }
+
+    @Test
+    fun `短 GitHub token 也被掩`() {
+        assertEquals("*** x", SecretMasker.mask("ghp_abcdef1234 x", emptyList()))
+    }
+
+    @Test
+    fun `与日志脱敏的掩码口径一致`() {
+        // 同一段凭证在日志与工具输出里都必须被掩（此前两边阈值不同，短 token 只在日志里被掩）
+        val secrets = listOf(
+            "sk-abcdef123456",
+            "sk-ant-abcdef123456",
+            "xai-abcdef123456",
+            "gsk_abcdef1234567890",
+            "ghp_abcdef1234",
+            "AKIAIOSFODNN7EXAMPLE", // ALLOW-FAKE-SECRET: 假样本，不是真凭据
+        )
+        for (secret in secrets) {
+            assertFalse(
+                "SecretMasker should mask $secret",
+                SecretMasker.mask("v=$secret", emptyList()).contains(secret),
+            )
+            assertFalse(
+                "LogRedactor should mask $secret",
+                LogRedactor.maskText("v=$secret").contains(secret),
+            )
+        }
     }
 
     // ---- PEM 私钥结构 ----

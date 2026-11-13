@@ -174,6 +174,18 @@ object VaultProviderKeyRefs {
         signalCacheChanged()
     }
 
+    /**
+     * 清空全部引用缓存（清空凭证库后调用）。
+     *
+     * 缓存是全量 name→明文：不清掉，已删凭证的 `$$引用` 会继续解析出明文，
+     * `canResolve` 也继续报 true，直到重启或下次保存/导入。钩子本身不用动，
+     * 指向空缓存后未命中按原样返回，与“引用已失效”的降级行为一致。
+     */
+    fun clear() {
+        cache = emptyMap()
+        signalCacheChanged()
+    }
+
     /** 当前是否能解析某个引用（`名字` 或 `名字.字段`；只回答存在性，不返回值）。 */
     fun canResolve(name: String): Boolean = cache.containsKey(name)
 

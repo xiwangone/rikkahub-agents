@@ -85,13 +85,27 @@ class ModelRegistryTest {
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-3.5-sonnet"))
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-sonnet-5"))
         assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-opus-5"))
+        assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-sonnet-5-5"))
+        assertTrue(ModelRegistry.CLAUDE_SERIES.match("claude-opus-5-5"))
         assertEquals(
             listOf(Modality.TEXT, Modality.IMAGE),
             ModelRegistry.MODEL_INPUT_MODALITIES.getData("claude-sonnet-5")
         )
         assertEquals(
+            listOf(Modality.TEXT, Modality.IMAGE),
+            ModelRegistry.MODEL_INPUT_MODALITIES.getData("claude-sonnet-5-5")
+        )
+        assertEquals(
             listOf(ModelAbility.TOOL, ModelAbility.REASONING),
             ModelRegistry.MODEL_ABILITIES.getData("claude-opus-5")
+        )
+        assertEquals(
+            listOf(ModelAbility.TOOL, ModelAbility.REASONING),
+            ModelRegistry.MODEL_ABILITIES.getData("claude-opus-5-5")
+        )
+        assertEquals(
+            1_000_000,
+            ModelRegistry.MODEL_CONTEXT_LENGTH.getData("claude-sonnet-5-5")
         )
     }
 
@@ -163,6 +177,11 @@ class ModelRegistryTest {
         assertEquals(textOnly, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.5-pro"))
         assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2.6-flash"))
         assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2.5"))
+        // 裸 v2 / v2-pro：只命中基础版（纯文本 + 工具 + 推理），不得吃掉 v2.5/v2.6 的视觉
+        assertEquals(textOnly, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2"))
+        assertEquals(textOnly, ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2-pro"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2"))
+        assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2-pro"))
     }
 
     /** 把外部目录的来源换成空实现，供用例在 finally 里还原全局单例。 */

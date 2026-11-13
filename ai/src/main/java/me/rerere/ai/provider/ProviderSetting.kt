@@ -37,6 +37,27 @@ enum class ClaudePromptCacheTtl(val apiValue: String?) {
     ONE_HOUR("1h")
 }
 
+/**
+ * 是否支持模型内置联网搜索（[BuiltInTools.Search]）。
+ *
+ * OpenAI 兼容提供商只有 Responses API 有 `web_search` 工具，Chat Completions 没有。
+ * GeminiOAuth 走 Google 的请求实现，同样支持；Codex/Grok 在本仓未实现内置搜索，
+ * AICore 与本地模型是端侧模型、Backend 是自定义后端，均不支持。
+ */
+val ProviderSetting.supportsBuiltInSearch: Boolean
+    get() = when (this) {
+        is ProviderSetting.OpenAI -> useResponseApi
+        is ProviderSetting.Google -> true
+        is ProviderSetting.Claude -> true
+        is ProviderSetting.GeminiOAuth -> true
+        is ProviderSetting.AICore -> false
+        is ProviderSetting.LiteRtLocal -> false
+        is ProviderSetting.LlamaCppLocal -> false
+        is ProviderSetting.Codex -> false
+        is ProviderSetting.Grok -> false
+        is ProviderSetting.Backend -> false
+    }
+
 @Serializable
 sealed class ProviderSetting {
     abstract val id: Uuid

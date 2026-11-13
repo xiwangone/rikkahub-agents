@@ -495,7 +495,11 @@ class CredentialVaultRepository(
         runCatching { VaultProviderKeyRefs.removeOne(entry.name) }
     }
 
-    suspend fun clearAll() = dao.clearAll()
+    suspend fun clearAll() {
+        dao.clearAll()
+        // 缓存是全量 name→明文：不清掉，已删凭证的 `$$引用` 会继续解析出明文
+        runCatching { VaultProviderKeyRefs.clear() }
+    }
 
     suspend fun count(): Int = dao.count()
 

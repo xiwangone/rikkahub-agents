@@ -70,6 +70,7 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.filterByKeywords
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
@@ -460,9 +461,8 @@ private fun ColumnScope.ModelList(
         remember(providers, modelType, searchKeywords) {
             providers.associate { provider ->
                 provider.id to
-                    provider.models.fastFilter {
-                        it.matchesPickerType(modelType) && it.displayName.contains(searchKeywords, true)
-                    }
+                    provider.models.fastFilter { it.matchesPickerType(modelType) }
+                        .filterByKeywords(searchKeywords)
             }
         }
 

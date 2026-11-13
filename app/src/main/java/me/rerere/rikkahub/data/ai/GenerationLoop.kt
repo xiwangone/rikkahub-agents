@@ -189,10 +189,13 @@ internal data class LoopGuardDecision(
  * —— 副作用**可能已发生**（进程在执行中途被杀）。刻意不断言「未执行」：必须告知「状态未知、
  * 先核实再重试」，否则模型重跑同一条 shell/git 命令就是重复计费/重复发送/重复覆盖。
  *
- * 两处消费，必须同文（历史上正是只有一处用对、另一处用错才出的误报）：
+ * 三处消费，必须同文（历史上正是只有一处用对、另一处用错才出的误报）：
  *  1. 本文件 generateText 顶部的 replay 安全通道（请求路径）；
  *  2. ChatService.checkInvalidMessages 的生成前清理（持久化路径，先于 replay 通道执行，
  *     若不在此分叉，replay 的这一句永远轮不到）。
+ *  3. ToolPairingRepairTransformer 的请求路径配对修复（inputTransformers 首位）：它在
+ *     replay 通道之后跑，会合成 output 并覆盖 approvalState；若不用同文，replay 通道的
+ *     定案会被"单纯缺结果"覆盖，模型看到的就是未分叉的理由。
  */
 internal const val INTERRUPTED_UNKNOWN_OUTCOME_REASON =
     "interrupted_unknown_outcome: a previous attempt to execute this tool started " +

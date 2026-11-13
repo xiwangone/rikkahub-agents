@@ -61,6 +61,7 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.filterByKeywords
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Camera01
@@ -112,9 +113,7 @@ internal fun ProviderSetting.matchesProviderQuery(
     if (name.contains(q, ignoreCase = true)) return true
     if (providerKey.contains(q, ignoreCase = true)) return true
     if (typeName.contains(q, ignoreCase = true)) return true
-    return models.any {
-        it.modelId.contains(q, ignoreCase = true) || it.displayName.contains(q, ignoreCase = true)
-    }
+    return models.filterByKeywords(q).isNotEmpty()
 }
 
 @Composable

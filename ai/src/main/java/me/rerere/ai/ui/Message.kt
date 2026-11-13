@@ -350,11 +350,24 @@ fun UIMessage.finishPendingTools(
  *     助手消息的工具项。
  *
  * ⚠ 只用于**构造请求**：调用方不得把结果写回会话，否则等于为「能发出去」而篡改用户历史。
+ *
+ * 理由同样按「执行是否开始过」分叉（见 [abandonUnexecutedTools]）：从未开始的工具写 [reason]
+ * （"未执行"是事实）；开始过但结果没回来的写 [interruptedAttemptReason]（"状态未知、先核实"）。
+ * 默认 [interruptedAttemptReason] = [reason]，不传时行为不变。请求路径的调用方必须传与生成前
+ * 清理同文的中断理由，否则补桩会覆盖重放安全通道的定案、把"可能已执行"说成单纯缺结果，诱导
+ * 模型重跑同一条命令形成重复副作用。
  */
 @Suppress("DEPRECATION")
-fun List<UIMessage>.repairToolPairing(reason: String): List<UIMessage> =
+fun List<UIMessage>.repairToolPairing(
+    reason: String,
+    interruptedAttemptReason: String = reason,
+): List<UIMessage> =
     migrateToolMessages().map { message ->
-        if (message.role == MessageRole.ASSISTANT) message.abandonUnexecutedTools(reason) else message
+        if (message.role == MessageRole.ASSISTANT) {
+            message.abandonUnexecutedTools(reason, interruptedAttemptReason)
+        } else {
+            message
+        }
     }
 
 /**

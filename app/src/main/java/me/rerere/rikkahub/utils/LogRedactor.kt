@@ -56,32 +56,10 @@ object LogRedactor {
         "key|token|secret|password|passwd|pwd|auth|authorization|signature|sign|sig|credential"
 
     /**
-     * 已知凭证前缀的 token（覆盖常见厂商）。分组顺序无关，正则本身按前缀区分。
+     * 已知凭证前缀的 token（覆盖常见厂商），见 [KnownSecretPrefixes]。
      * 注意：**没有固定前缀**的 key（如自建/国内厂商）不在此列，由 [KEYED_SECRET_REGEX] 兜底。
      */
-    private val SECRET_PREFIX_REGEX =
-        Regex(
-            """(?i)(?<![A-Za-z0-9_-])(?:""" +
-                """sk-[A-Za-z0-9_-]{6,}""" +
-                """|sk-ant-[A-Za-z0-9_-]{6,}""" +
-                """|xai-[A-Za-z0-9_-]{6,}""" +
-                """|gsk_[A-Za-z0-9]{6,}""" +
-                """|AIza[A-Za-z0-9_-]{10,}""" +
-                """|(?:ghp|gho|ghu|ghs|ghr)_[A-Za-z0-9]{10,}""" +
-                """|github_pat_[A-Za-z0-9_]{10,}""" +
-                """|(?:AKIA|ASIA)[A-Z0-9]{12,}""" +
-                """|hf_[A-Za-z0-9]{10,}""" +
-                """|r8_[A-Za-z0-9]{10,}""" +
-                """|tvly-[A-Za-z0-9_-]{6,}""" +
-                """|ya29\.[A-Za-z0-9._-]{10,}""" +
-                """|xox[baprs]-[A-Za-z0-9-]{10,}""" +
-                """|Bearer\s+[A-Za-z0-9._~+/=-]{8,}""" +
-                """)""",
-        )
-
-    /** JWT：三段 base64url，整体足够长才判定（避免误掩普通文本） */
-    private val JWT_REGEX =
-        Regex("""eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}""")
+    private val SECRET_PREFIX_REGEX = KnownSecretPrefixes.combinedRegex()
 
     /**
      * 自由文本中「敏感键名 + 分隔符 + 值」形态：`api_key=xxx`、`"token": "xxx"`、`password: xxx`。
@@ -166,9 +144,8 @@ object LogRedactor {
 
     /**
      * 对自由文本脱敏：依次替换
-     *  1. 已知前缀 token（`sk-…` / `AIza…` / `Bearer …` 等）
-     *  2. JWT
-     *  3. 「敏感键名 = 值」形态的值（覆盖**无固定前缀**的 key）
+     *  1. 已知前缀 token（`sk-…` / `AIza…` / `Bearer …` / JWT 等，见 [KnownSecretPrefixes]）
+     *  2. 「敏感键名 = 值」形态的值（覆盖**无固定前缀**的 key）
      * 不改变文本结构，可安全用于 JSON body / 崩溃堆栈 / 日志导出。
      */
     /** 超过该长度不做正则脱敏：多次 replace 会在堆上产生多份等大字符串。 */
@@ -189,7 +166,6 @@ object LogRedactor {
                 maskSecret(raw)
             }
         }
-        out = JWT_REGEX.replace(out) { match -> maskSecret(match.value) }
         out =
             QUERY_SECRET_REGEX.replace(out) { match ->
                 // group(1) = `?key=`（保留），group(2) = 值

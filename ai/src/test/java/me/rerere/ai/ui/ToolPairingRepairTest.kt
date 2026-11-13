@@ -73,6 +73,44 @@ class ToolPairingRepairTest {
     }
 
     @Test
+    fun `开始过的工具在请求副本里写状态未知、从未开始的才写未执行`() {
+        val messages =
+            listOf(
+                UIMessage(role = MessageRole.USER, parts = listOf(UIMessagePart.Text("hi"))),
+                UIMessage(
+                    role = MessageRole.ASSISTANT,
+                    parts = listOf(
+                        UIMessagePart.Tool(
+                            toolCallId = "call-started",
+                            toolName = "shell",
+                            input = "{}",
+                            executionStartedAt = 1_000L,
+                        ),
+                        UIMessagePart.Tool(toolCallId = "call-never", toolName = "shell", input = "{}"),
+                    ),
+                ),
+            )
+
+        val repaired =
+            messages.repairToolPairing(
+                "test reason",
+                "interrupted_unknown_outcome: verify the target state before retrying",
+            )
+
+        val tools = repaired[1].parts.filterIsInstance<UIMessagePart.Tool>()
+        val started = tools.single { it.toolCallId == "call-started" }
+        val never = tools.single { it.toolCallId == "call-never" }
+        val startedText = (started.output.single() as UIMessagePart.Text).text
+        val neverText = (never.output.single() as UIMessagePart.Text).text
+        assertTrue(
+            "开始过的工具必须写状态未知，否则模型会重跑可能已发生的副作用",
+            startedText.contains("interrupted_unknown_outcome"),
+        )
+        assertTrue("从未开始的工具才写未执行", neverText.contains("test reason"))
+        assertFalse("从未开始的工具不能写状态未知", neverText.contains("interrupted_unknown_outcome"))
+    }
+
+    @Test
     fun `已配对的正常历史不会被改动`() {
         val messages =
             listOf(

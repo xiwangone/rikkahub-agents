@@ -1,6 +1,8 @@
 package me.rerere.workspace
 
 import java.io.File
+import java.util.UUID
+import java.util.concurrent.ConcurrentHashMap
 
 data class WorkspaceBindMount(
     val source: File,
@@ -17,6 +19,9 @@ class ProotShellRunner(
     private val nativeLibraryDir: File,
     private val patcher: RootfsPatcher = RootfsPatcher(),
 ) : WorkspaceShellRunner {
+    /** 后台任务 token → pidFile（start() 时登记，cancel() 时消费并删除）。 */
+    private val backgroundPidFiles = ConcurrentHashMap<String, File>()
+
     override fun execute(context: WorkspaceShellContext): WorkspaceCommandResult {
         if (!context.linuxDir.hasUsableRootfs()) {
             return WorkspaceCommandResult(
@@ -45,8 +50,9 @@ class ProotShellRunner(
 
         context.tempDir.mkdirs()
         patcher.patch(context.linuxDir, RootfsPatchOptions(nameservers = context.dnsServers))
+        val pidFile = newPidFile(context, UUID.randomUUID().toString())
         val process =
-            ProcessBuilder(buildCommand(context, proot))
+            ProcessBuilder(buildCommand(context, proot, pidFileGuestPath(pidFile)))
                 .directory(context.filesDir)
                 .redirectErrorStream(false)
                 .apply {
@@ -63,7 +69,12 @@ class ProotShellRunner(
                     }
                 }.start()
 
-        return process.readResult(context.timeoutMillis, context.stdin)
+        return try {
+            // 超时或取消时直接结束, 不留宽限期: 调用方已经不再等这条命令
+            process.readResult(context.timeoutMillis, context.stdin) { terminateProot(this, pidFile) }
+        } finally {
+            pidFile.delete()
+        }
     }
 
     override fun start(context: WorkspaceShellContext): Process {
@@ -82,7 +93,14 @@ class ProotShellRunner(
 
         context.tempDir.mkdirs()
         patcher.patch(context.linuxDir, RootfsPatchOptions(nameservers = context.dnsServers))
-        return ProcessBuilder(buildCommand(context, proot))
+        // 后台任务的 pidFile 以 taskToken 命名, cancel(token) 时据此终止整组进程;
+        // taskToken 为空时不登记, 取消退回调用方的本地 destroyForcibly。
+        val pidFile = newPidFile(context, context.taskToken.ifBlank { UUID.randomUUID().toString() })
+        if (context.taskToken.isNotBlank()) {
+            backgroundPidFiles[context.taskToken] = pidFile
+            pruneBackgroundPidFiles(context.taskToken)
+        }
+        return ProcessBuilder(buildCommand(context, proot, pidFileGuestPath(pidFile)))
             .directory(context.filesDir)
             .redirectErrorStream(false)
             .apply {
@@ -100,9 +118,39 @@ class ProotShellRunner(
             }.start()
     }
 
+    /**
+     * 后台取消：按 pidFile 终止整组 proot 进程。返回 false 表示本后端没登记该 token，
+     * 调用方仍会本地 destroyForcibly 兜底。
+     */
+    override fun cancel(token: String): Boolean {
+        if (token.isBlank()) return false
+        val pidFile = backgroundPidFiles.remove(token) ?: return false
+        val terminated = terminateProotByPidFile(pidFile)
+        pidFile.delete()
+        return terminated
+    }
+
+    /** pidFile 登记表上限：只清“pidFile 可读且 PRoot 已退出”的旧条目，缺文件的一律保留（可能刚启动还没写入）。 */
+    private fun pruneBackgroundPidFiles(exceptToken: String) {
+        if (backgroundPidFiles.size <= MAX_TRACKED_PID_FILES) return
+        backgroundPidFiles.entries.removeIf { (token, pidFile) ->
+            token != exceptToken &&
+                readPidFile(pidFile)?.second?.let { !isPidAlive(it) } == true
+        }
+    }
+
+    private fun newPidFile(context: WorkspaceShellContext, name: String): File {
+        val dir = File(context.linuxDir, EXEC_DIR.trimStart('/'))
+        dir.mkdirs()
+        return File(dir, "$name.pid")
+    }
+
+    private fun pidFileGuestPath(pidFile: File): String = "$EXEC_DIR/${pidFile.name}"
+
     private fun buildCommand(
         context: WorkspaceShellContext,
         proot: File,
+        pidFileGuestPath: String,
     ): List<String> {
         val command =
             mutableListOf(
@@ -173,10 +221,11 @@ class ProotShellRunner(
                 "-l",
                 "-c",
                 // 命令通过位置参数传入, 避免任何转义; eval "$2" 对命令文本只求值一次, 等价于 bash -c "$cmd"
-                "cd -- \"\$1\" && eval \"\$2\"",
+                TRACKED_SCRIPT,
                 "rikkahub",
                 context.prootCwd(),
                 context.command,
+                pidFileGuestPath,
             )
         return command
     }
@@ -211,6 +260,15 @@ class ProotShellRunner(
         private const val PROOT_EXEC = "libproot_exec.so"
         private const val PROOT_LOADER = "libproot_loader.so"
         private val WORKSPACE_DIR = WorkspaceManager.ROOTFS_WORKSPACE_DIR
+
+        // 先把 shell 与 PRoot 的进程号写入 $3, 终止时据此给整组进程发信号, 见 terminateProot
+        private const val TRACKED_SCRIPT = "echo \"\$\$ \$PPID\" > \"\$3\"; cd -- \"\$1\" && eval \"\$2\""
+
+        /** Rootfs 内存放前台/后台命令进程号文件的目录 */
+        private const val EXEC_DIR = "/tmp/rikkahub/exec"
+
+        /** 后台 pidFile 登记表上限（自然退出且未取消的任务会留一条记录，超限时清掉已退出的）。 */
+        private const val MAX_TRACKED_PID_FILES = 64
     }
 }
 

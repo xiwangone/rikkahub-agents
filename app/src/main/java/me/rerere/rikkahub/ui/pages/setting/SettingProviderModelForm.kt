@@ -48,13 +48,13 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.compose.ui.util.fastFilter
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.filterByKeywords
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -460,18 +460,7 @@ internal fun ModelPicker(
                 ),
         ) {
             var filterText by remember { mutableStateOf("") }
-            val filterKeywords = filterText.split(" ").filter { it.isNotBlank() }
-            val filteredModels =
-                models.fastFilter {
-                    if (filterKeywords.isEmpty()) {
-                        true
-                    } else {
-                        filterKeywords.all { keyword ->
-                            it.modelId.contains(keyword, ignoreCase = true) ||
-                                it.displayName.contains(keyword, ignoreCase = true)
-                        }
-                    }
-                }
+            val filteredModels = models.filterByKeywords(filterText)
             Column(
                 modifier =
                     Modifier

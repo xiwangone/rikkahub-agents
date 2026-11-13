@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -29,6 +31,7 @@ import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks
+import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -42,11 +45,50 @@ import java.util.concurrent.ConcurrentHashMap
 
 // ---------- test_model ----------
 
-private val TEST_MODEL_CACHE = ConcurrentHashMap<String, String>()
+/** 探测结果缓存：5 分钟 TTL；key 含端点配置指纹，改 key/地址/自定义头后旧结论不再命中。 */
+private const val TEST_MODEL_CACHE_TTL_MS = 5 * 60 * 1000L
+private const val TEST_MODEL_CACHE_MAX_ENTRIES = 128
+
+private val TEST_MODEL_CACHE = ConcurrentHashMap<String, CachedTestModelResult>()
+
+/** test_model 的一条缓存记录（internal 以便单测断言过期判定）。 */
+internal data class CachedTestModelResult(
+    val payload: String,
+    val expiresAtMillis: Long,
+) {
+    fun isFresh(nowMillis: Long = System.currentTimeMillis()): Boolean = nowMillis < expiresAtMillis
+}
+
+/**
+ * test_model 的缓存 key：provider id + 模型 id + 端点配置指纹。
+ *
+ * 探测结论取决于 apiKey / baseUrl / 自定义头等输入，但这些字段只在各 provider 子类上、
+ * 基类没有统一访问点；把整份配置序列化后取 SHA-256，既覆盖全部子类与模型自定义头/体，
+ * 也不把明文写进 key（只存指纹）。改配置 → 指纹变 → 旧结论不再命中；
+ * TTL 兜住指纹之外的变化（如服务端状态变化）。
+ */
+internal fun testModelCacheKey(providerSetting: ProviderSetting, model: Model): String {
+    val fingerprint = sha256Hex(Json.encodeToString(providerSetting) + "|" + Json.encodeToString(model))
+    return "${providerSetting.id}|${model.modelId}|$fingerprint"
+}
+
+private fun sha256Hex(input: String): String =
+    MessageDigest.getInstance("SHA-256")
+        .digest(input.toByteArray())
+        .joinToString("") { "%02x".format(it) }
+
+/** 淘汰过期条目；仍超上限则整表清空（诊断缓存，重测可恢复）。 */
+private fun evictStaleTestModelResults() {
+    val now = System.currentTimeMillis()
+    TEST_MODEL_CACHE.forEach { (key, value) ->
+        if (!value.isFresh(now)) TEST_MODEL_CACHE.remove(key)
+    }
+    if (TEST_MODEL_CACHE.size > TEST_MODEL_CACHE_MAX_ENTRIES) TEST_MODEL_CACHE.clear()
+}
 
 /**
  * 对指定 provider + model 跑探测（非流式 / 流式 / 工具调用）。
- * 复用「提供商编辑页测试连接」核心逻辑；结果按「端点+模型」缓存，免重复现测。
+ * 复用「提供商编辑页测试连接」核心逻辑；结果按「端点配置+模型」缓存 5 分钟，免重复现测。
  * 并发约束：单请求 max_tokens 50 + 10s 超时。
  */
 fun testModelTool(
@@ -87,10 +129,13 @@ fun testModelTool(
         val settings = settingsStore.settingsFlow.first()
         val (providerSetting, model) = resolveTestModelTarget(settings, providerName, modelId, invocationContext)
 
-        val cacheKey = "${providerSetting.id}|${model.modelId}"
+        val cacheKey = testModelCacheKey(providerSetting, model)
         if (!force) {
             TEST_MODEL_CACHE[cacheKey]?.let { cached ->
-                return@Tool listOf(UIMessagePart.Text(cached))
+                if (cached.isFresh()) {
+                    return@Tool listOf(UIMessagePart.Text(cached.payload))
+                }
+                TEST_MODEL_CACHE.remove(cacheKey)
             }
         }
 
@@ -103,7 +148,9 @@ fun testModelTool(
             put("streaming", probeToJson(results.streaming))
             put("tool_call", probeToJson(results.toolCall))
         }.toString()
-        TEST_MODEL_CACHE[cacheKey] = payload
+        TEST_MODEL_CACHE[cacheKey] =
+            CachedTestModelResult(payload, System.currentTimeMillis() + TEST_MODEL_CACHE_TTL_MS)
+        evictStaleTestModelResults()
         listOf(UIMessagePart.Text(payload))
     },
 )
