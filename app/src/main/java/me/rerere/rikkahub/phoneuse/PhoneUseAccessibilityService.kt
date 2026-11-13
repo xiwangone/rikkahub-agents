@@ -53,11 +53,14 @@ class PhoneUseAccessibilityService : AccessibilityService(), PhoneController {
 
     override fun onUnbind(intent: Intent?): Boolean {
         PhoneUseManager.detach(this)
+        nodes = emptyList()
+        indicator.dismiss()
         return super.onUnbind(intent)
     }
 
     override fun onDestroy() {
         PhoneUseManager.detach(this)
+        nodes = emptyList()
         indicator.dismiss()
         super.onDestroy()
     }
@@ -302,7 +305,13 @@ class PhoneUseAccessibilityService : AccessibilityService(), PhoneController {
                 },
                 null,
             )
-            if (!dispatched && continuation.isActive) continuation.resume(false)
+            continuation.invokeOnCancellation {
+                mainExecutor.execute { indicator.dismiss() }
+            }
+            if (!dispatched) {
+                mainExecutor.execute { indicator.dismiss() }
+                if (continuation.isActive) continuation.resume(false)
+            }
         }
     }
 

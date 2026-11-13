@@ -36,6 +36,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalResources
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.unit.Density
@@ -84,6 +85,7 @@ fun ChatExportSheet(
     selectedMessages: List<UIMessage>,
 ) {
     val context = LocalContext.current
+    val resources = LocalResources.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val density = LocalDensity.current
@@ -277,11 +279,11 @@ fun ChatExportSheet(
                                         }
                                     if (newConversation != null) {
                                         importRepo.insertConversation(newConversation)
-                                        toaster.show(context.getString(R.string.export_import_success), type = ToastType.Success)
+                                        toaster.show(resources.getString(R.string.export_import_success), type = ToastType.Success)
                                         onDismissRequest()
                                     }
                                 } catch (e: Exception) {
-                                    toaster.show(context.getString(R.string.export_import_failed, e.message), type = ToastType.Error)
+                                    toaster.show(resources.getString(R.string.export_import_failed, e.message), type = ToastType.Error)
                                 }
                             }
                         }

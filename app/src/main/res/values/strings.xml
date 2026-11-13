@@ -4385,10 +4385,10 @@
   <string name="workspace_detail_backend_proot_desc">Rootless and ready out of the box. Simulates the filesystem in user space for best compatibility with slightly lower performance.</string>
   <string name="workspace_detail_backend_root_chroot_desc">Requires a rooted device. True root and real mounts for maximum performance, system package installation, and ownership changes; automatically falls back to proot when unauthorized.</string>
   <string name="workspace_detail_backend_disabled_desc">Disables the sandbox shell: workspace commands fail immediately, suitable when only file tools are needed.</string>
-  <string name="workspace_tool_preset_not_found">Shell preset "%1$s" was not found in %2$s.</string>
-  <string name="workspace_tool_preset_empty">Shell preset "%1$s" is empty. Add a non-empty command for it in %2$s.</string>
+  <string name="workspace_tool_preset_not_found">Shell preset \"%1$s\" was not found in %2$s.</string>
+  <string name="workspace_tool_preset_empty">Shell preset \"%1$s\" is empty. Add a non-empty command for it in %2$s.</string>
   <string name="workspace_tool_preset_file_corrupted">The shell presets file %1$s is damaged and could not be read. Fix its JSON content instead of adding a new preset.</string>
-  <string name="workspace_tool_timeout_invalid">Invalid timeout "%1$s": timeout must be an integer number of seconds between 1 and %2$s.</string>
+  <string name="workspace_tool_timeout_invalid">Invalid timeout \"%1$s\": timeout must be an integer number of seconds between 1 and %2$s.</string>
   <string name="setting_model_prompt_reset_confirm_text">The current prompt will be replaced with the default prompt</string>
   <string name="setting_model_prompt_unsaved_title">Unsaved changes</string>
   <string name="setting_model_prompt_discard">Discard changes</string>

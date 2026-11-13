@@ -900,9 +900,8 @@ class WorkspaceRepository(
             AppLog.i("WorkspaceSdcard", "shell: cwd=$cwd cmd=$command")
         }
         val workspace = dao.getById(executeId) ?: error("Workspace not found: $executeId")
-        // env 注入两条路：本地经 Rootfs 的 env -i 参数传入，远程经 exec 通道的
-        // 外层 env 命令参数传入（见 SshWorkspaceBackend.executeCommand）；
-        // 远程的值会出现在远端进程命令行里，调用方不要把高敏感凭据只当作普通 env 传。
+        // env 注入两条路：本地经 Rootfs 的 env -i 参数传入，远程经 SFTP 上传的 0600 临时文件
+        // 传入（见 SshWorkspaceBackend.executeCommand），命令结束后删除；值不进命令行。
         // runInterruptible 让协程取消转化为线程中断，从而打断阻塞的 Process.waitFor 并杀掉进程
         // ⚠ backendOf 是 suspend（可能要解析 SSH 凭证），必须在 runInterruptible 之外先取好；
         //   后端方法本身都是阻塞调用，所以 lambda 里只放非 suspend 的调用。

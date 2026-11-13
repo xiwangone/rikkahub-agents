@@ -63,16 +63,23 @@ class SingleFileCacheStore<K : Any, V : Any>(
     override fun keys(): Set<K> = lock.withLock { safeReadMap().keys }
 
     private fun safeReadMap(): Map<K, CacheEntry<V>> {
-        try {
-            if (!file.exists()) return emptyMap()
-            val text = file.readText()
-            if (text.isBlank()) return emptyMap()
-            return json.decodeFromString(mapEntrySerializer, text)
-        } catch (e: Exception) {
-            return try {
-                val legacyMap = json.decodeFromString(MapSerializer(keySerializer, valueSerializer), file.readText())
+        val text =
+            try {
+                if (!file.exists()) return emptyMap()
+                file.readText()
+            } catch (ioError: java.io.IOException) {
+                AppLogger.w(TAG, "Failed to read cache file, returning empty map: ${file.path}", ioError)
+                return emptyMap()
+            }
+        if (text.isBlank()) return emptyMap()
+        return try {
+            json.decodeFromString(mapEntrySerializer, text)
+        } catch (decodeError: IllegalArgumentException) {
+            try {
+                val legacyMap = json.decodeFromString(MapSerializer(keySerializer, valueSerializer), text)
                 legacyMap.mapValues { CacheEntry(value = it.value, expiresAt = null) }
-            } catch (legacyError: Exception) {
+            } catch (legacyError: IllegalArgumentException) {
+                legacyError.addSuppressed(decodeError)
                 AppLogger.w(TAG, "Cache file is corrupt, returning empty map: ${file.path}", legacyError)
                 emptyMap()
             }

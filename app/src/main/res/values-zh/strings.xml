@@ -1626,6 +1626,7 @@
   <string name="assistant_page_local_tools_phone_use_enable_service">在无障碍设置中开启 \"RikkaHub Phone Use\"</string>
   <string name="assistant_page_local_tools_phone_use_floating_window_required">请先开启后台悬浮窗</string>
   <string name="phone_use_accessibility_description">启用 Phone Use 工具后，允许 AI 助手读取屏幕并为您执行点按、滑动和文本输入。除非助手正在运行您请求的任务，否则不会执行任何操作。</string>
+  <string name="phone_use_accessibility_label" translatable="false">RikkaHub Phone Use</string>
   <string name="assistant_page_local_tools_screen_automation_title">屏幕自动化</string>
   <string name="assistant_page_local_tools_section_automation">自动化</string>
   <string name="assistant_page_extra_cold_section">工具详略（高级）</string>

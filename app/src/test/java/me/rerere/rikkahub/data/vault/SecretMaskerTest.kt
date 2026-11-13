@@ -85,6 +85,22 @@ class SecretMaskerTest {
         assertEquals(pub, SecretMasker.mask(pub, emptyList()))
     }
 
+    @Test
+    fun `FIDO2 公钥前缀不掩`() {
+        val ed25519Sk = "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29t user@host"
+        val ecdsaSk = "sk-ecdsa-sha2-nistp256@openssh.com AAAAInNrLWVjZHNhLXNoYTItbmlzdHAyNTZAb3BlbnNzaC5jb20= user@host"
+        assertEquals(ed25519Sk, SecretMasker.mask(ed25519Sk, emptyList()))
+        assertEquals(ecdsaSk, SecretMasker.mask(ecdsaSk, emptyList()))
+    }
+
+    @Test
+    fun `普通英文散文中的小写 bearer 不被误掩而真实 Bearer 令牌被掩`() {
+        val prose = "Uses standard bearer authentication and bearer credentials."
+        assertEquals(prose, SecretMasker.mask(prose, emptyList()))
+        val authHeader = "Authorization: Bearer AbCdEfGh1234567890"
+        assertFalse(SecretMasker.mask(authHeader, emptyList()).contains("AbCdEfGh1234567890"))
+    }
+
     // ---- 精确值替换 ----
 
     @Test
@@ -97,5 +113,51 @@ class SecretMaskerTest {
     @Test
     fun `空值不会逐字符污染输出`() {
         assertEquals("hello", SecretMasker.mask("hello", listOf(SecretRule("", exact = true))))
+    }
+
+    // ---- P2-9 派生形态（base64 / 倒序 / 逐字符分隔）----
+
+    private val derivedSecret = "s3cret-Value-9876"
+    private val derivedRules = listOf(SecretRule(derivedSecret, exact = true))
+
+    @Test
+    fun `base64 形态被掩`() {
+        val bytes = derivedSecret.toByteArray(Charsets.UTF_8)
+        val std = java.util.Base64.getEncoder().encodeToString(bytes)
+        val url = java.util.Base64.getUrlEncoder().encodeToString(bytes)
+        assertFalse(SecretMasker.mask("v=$std", derivedRules).contains(std))
+        assertFalse(SecretMasker.mask("v=${std.trimEnd('=')}", derivedRules).contains(std.trimEnd('=')))
+        assertFalse(SecretMasker.mask("v=$url", derivedRules).contains(url))
+    }
+
+    @Test
+    fun `倒序形态被掩`() {
+        val reversed = derivedSecret.reversed()
+        assertEquals("v=***", SecretMasker.mask("v=$reversed", derivedRules))
+    }
+
+    @Test
+    fun `逐字符分隔形态被掩`() {
+        val spaced = derivedSecret.map { it.toString() }.joinToString(" ")
+        assertEquals("***", SecretMasker.mask(spaced, derivedRules))
+        val dashed = derivedSecret.map { it.toString() }.joinToString("-")
+        assertEquals("***", SecretMasker.mask(dashed, derivedRules))
+    }
+
+    @Test
+    fun `短秘密不做派生`() {
+        // 倒序 / base64 派生只对 ≥8 字符的秘密做：短值的派生形态（如倒序 "ba"）误掩面太大
+        val shortRules = listOf(SecretRule("ab12", exact = true))
+        assertEquals("21ba", SecretMasker.mask("21ba", shortRules))
+        assertEquals("YWIxMg==", SecretMasker.mask("YWIxMg==", shortRules))
+        // 但短秘密本身仍精确掩码
+        assertEquals("v=***", SecretMasker.mask("v=ab12", shortRules))
+    }
+
+    @Test
+    fun `分隔形态要求完整字符序列`() {
+        // 只出秘密的前半段（带分隔符）不应被掩——分隔容忍要求完整字符序列按序出现
+        val partial = derivedSecret.take(6).map { it.toString() }.joinToString(" ")
+        assertEquals(partial, SecretMasker.mask(partial, derivedRules))
     }
 }

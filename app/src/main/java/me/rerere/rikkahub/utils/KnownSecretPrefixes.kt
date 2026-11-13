@@ -11,8 +11,9 @@ package me.rerere.rikkahub.utils
 object KnownSecretPrefixes {
     /** 各条目的原始正则片段（不含 `(?i)` 与前置边界，由消费方按需组合）。 */
     val patterns: List<String> = listOf(
-        """sk-[A-Za-z0-9_-]{6,}""",
         """sk-ant-[A-Za-z0-9_-]{6,}""",
+        // 排除 OpenSSH FIDO2 硬件密钥公钥类型前缀（sk-ssh-ed25519 / sk-ecdsa-...），与 SecretMasker.PUBLIC_KEY_PREFIX 对齐
+        """sk-(?!ssh-|ecdsa-)[A-Za-z0-9_-]{6,}""",
         """xai-[A-Za-z0-9_-]{6,}""",
         """gsk_[A-Za-z0-9]{6,}""",
         """AIza[A-Za-z0-9_-]{10,}""",
@@ -24,7 +25,8 @@ object KnownSecretPrefixes {
         """tvly-[A-Za-z0-9_-]{6,}""",
         """ya29\.[A-Za-z0-9._-]{10,}""",
         """xox[baprs]-[A-Za-z0-9-]{10,}""",
-        """Bearer\s+[A-Za-z0-9._~+/=-]{8,}""",
+        // 仅匹配首字母大写的 Bearer <token> 或跟在 Authorization: 后的 bearer，避免把英文散文里的 "bearer authentication" 误掩
+        """(?:(?-i:Bearer)|(?<=Authorization:\s{0,4})bearer)\s+[A-Za-z0-9._~+/=-]{8,}""",
         // JWT：三段 base64url，整体足够长才判定（避免误掩普通文本）
         """eyJ[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}\.[A-Za-z0-9_-]{8,}""",
     )

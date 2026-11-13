@@ -81,6 +81,14 @@ class LogRedactorTest {
     }
 
     @Test
+    fun `fido2 ssh public key and lowercase bearer prose are not over-masked`() {
+        val fidoKey = "sk-ssh-ed25519@openssh.com AAAAGnNrLXNzaC1lZDI1NTE5QG9wZW5zc2guY29t user@host"
+        assertEquals(fidoKey, LogRedactor.maskText(fidoKey))
+        val prose = "error: server requires bearer authentication header"
+        assertEquals(prose, LogRedactor.maskText(prose))
+    }
+
+    @Test
     fun `short secret is fully hidden`() {
         assertEquals("***", LogRedactor.maskSecret("abc123"))
         assertEquals("abc***xyz", LogRedactor.maskSecret("abcdefxyz"))

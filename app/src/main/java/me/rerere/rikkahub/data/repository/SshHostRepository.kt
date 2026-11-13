@@ -21,15 +21,35 @@ private const val ENC_PREFIX = "enc:v1:"
  *
  * 兼容与失败语义：
  * - 历史明文（无前缀）读取时原样返回，不需要迁移；
- * - 密钥丢失（卸载重装、跨设备恢复备份）导致解密失败时**回退原值**，不丢数据，
- *   由连接层报错让用户重填。
+ * - 密钥丢失（卸载重装、跨设备恢复备份）导致解密失败时**绝不把密文原文当密码发出**：
+ *   单主机读取（[getByName]/[getByHost]，连接路径）抛 [UndecryptableCredentialException]，
+ *   调用方须向用户明示「凭证无法解密」并请其重填；
+ *   列表读取（[getAll]，仅供展示/备份/引用扫描，不作认证材料）逐主机宽容：
+ *   解不开的字段保留密文原文（保盘上数据与备份可还原性），并记一条警告日志。
+ *   宽容只适用于列表路径——任何连接用途必须走单主机读取，解不开时抛错。
+ *   此分层与 providers 字段级加密的 degraded 口径一致：用时快速失败，盘上原密文不丢。
  */
+/**
+ * 已加密字段解不开：Keystore 密钥丢失（卸载重装、跨设备恢复备份）或密文损坏。
+ * 密文原文绝不能作为密码/私钥发出——调用方须向用户明示「凭证无法解密」，请其重填。
+ */
+class UndecryptableCredentialException(
+    val hostName: String,
+    val field: String,
+) : IllegalStateException("凭证无法解密：主机 $hostName 的 $field 无法解密（密钥可能已丢失），请重新填写该主机的凭据")
+
 class SshHostRepository(private val dao: SshHostDao) {
-    suspend fun getAll(): List<SshHostEntity> = dao.getAll().map { it.withSecretsDecrypted() }
+    /**
+     * 列表读取：仅供展示/备份/引用扫描。解不开的字段保留密文原文（见类注释分层口径），
+     * 绝不能把返回实体的 secret 字段当作认证材料——连接一律走 [getByName]/[getByHost]。
+     */
+    suspend fun getAll(): List<SshHostEntity> = dao.getAll().map { it.withSecretsDecrypted(lenient = true) }
 
-    suspend fun getByName(name: String): SshHostEntity? = dao.getByName(name)?.withSecretsDecrypted()
+    /** 单主机读取（连接路径）：任一加密字段解不开即抛 [UndecryptableCredentialException]。 */
+    suspend fun getByName(name: String): SshHostEntity? = dao.getByName(name)?.withSecretsDecrypted(lenient = false)
 
-    suspend fun getByHost(host: String): SshHostEntity? = dao.getByHost(host)?.withSecretsDecrypted()
+    /** 单主机读取（连接路径）：任一加密字段解不开即抛 [UndecryptableCredentialException]。 */
+    suspend fun getByHost(host: String): SshHostEntity? = dao.getByHost(host)?.withSecretsDecrypted(lenient = false)
 
     suspend fun upsert(host: SshHostEntity) {
         AppLog.i("SshHostRepo", "upsert: ${host.name} (${host.host}:${host.port})")
@@ -48,18 +68,30 @@ private fun SshHostEntity.withSecretsEncrypted(): SshHostEntity = copy(
     passphrase = passphrase?.encryptSecret(),
 )
 
-private fun SshHostEntity.withSecretsDecrypted(): SshHostEntity = copy(
-    password = password?.decryptSecret(),
-    privateKey = privateKey?.decryptSecret(),
-    passphrase = passphrase?.decryptSecret(),
+private fun SshHostEntity.withSecretsDecrypted(lenient: Boolean): SshHostEntity = copy(
+    password = password?.decryptSecret(name, "password", lenient),
+    privateKey = privateKey?.decryptSecret(name, "privateKey", lenient),
+    passphrase = passphrase?.decryptSecret(name, "passphrase", lenient),
 )
 
 private fun String.encryptSecret(): String =
     if (startsWith(ENC_PREFIX)) this else ENC_PREFIX + ProviderCredentialCipher.encrypt(this)
 
-private fun String.decryptSecret(): String =
+/**
+ * 解密单个字段。解不开时绝不回退密文原文：
+ * - 严格模式（连接路径）：抛 [UndecryptableCredentialException]，调用方明示用户；
+ * - 宽容模式（列表路径）：记警告日志并保留密文原文，仅供展示/备份/引用扫描。
+ */
+private fun String.decryptSecret(hostName: String, field: String, lenient: Boolean): String =
     if (!startsWith(ENC_PREFIX)) {
         this
     } else {
-        ProviderCredentialCipher.decrypt(removePrefix(ENC_PREFIX)) ?: this
+        ProviderCredentialCipher.decrypt(removePrefix(ENC_PREFIX)) ?: run {
+            if (lenient) {
+                AppLog.w("SshHostRepo", "主机 $hostName 的 $field 无法解密（密钥可能已丢失），列表中保留密文原文；连接时将明确报错")
+                this
+            } else {
+                throw UndecryptableCredentialException(hostName, field)
+            }
+        }
     }

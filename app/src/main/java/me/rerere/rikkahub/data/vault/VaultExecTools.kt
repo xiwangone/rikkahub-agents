@@ -2,6 +2,8 @@ package me.rerere.rikkahub.data.vault
 
 import com.jcraft.jsch.ChannelExec
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.jsonArray
 import me.rerere.rikkahub.data.log.AppLog
@@ -39,7 +41,7 @@ import me.rerere.rikkahub.data.datastore.SshPlatform
  *   basic-auth 类型），否则拒绝（P0-2）。
  */
 
-/** vault_export_env — 工具桥：把密钥库凭证解密值导出为沙箱环境变量文件（AI 不见明文）。 */
+/** vault_export_env — 工具桥：把密钥库凭证解密值导出为沙箱环境变量文件（工具返回值不含明文；但导出文件本身在工作区内，可被工作区文件工具读回——值一旦导出即视为模型可见，用完立即删除）。 */
 fun vaultExportEnvTool(
     context: android.content.Context,
     repository: CredentialVaultRepository,
@@ -48,7 +50,9 @@ fun vaultExportEnvTool(
     description =
         "Export decrypted vault credentials into a sandbox env file (/workspace/tmp/vault-env.sh) " +
             "so sandbox CLI scripts can source them. Requires an active vault authorization (30min or forever). " +
-            "The AI never sees plaintext values — only exported credential names are returned. " +
+            "The tool's return value contains no plaintext values — only exported credential names are returned. " +
+            "But the exported file itself lives in the workspace and can be read back by workspace file tools, " +
+            "so treat the values as visible to the model once exported. " +
             "Usage: vault_export_env(names=[...]) or no args to export all. After use, delete the file.",
     parameters = {
         InputSchema.Obj(
@@ -384,7 +388,14 @@ private data class ChannelExecOutcome(
     val timedOut: Boolean,
 )
 
-private fun drainChannelStreams(
+/**
+ * 排空 exec channel 的 stdout/stderr，直到 channel 关闭或到 deadline。
+ *
+ * 取消语义（P2-10）：用 delay 代替 Thread.sleep 轮询，每轮检查取消——工具调用被取消
+ * （如回合预算到期）时立即抛 CancellationException，不再等到 300s 超时才退出；
+ * channel 的关闭由调用方 finally 的 disconnect 兜底。internal 供单测用假 channel 验证取消时效。
+ */
+internal suspend fun drainChannelStreams(
     channel: ChannelExec,
     deadline: Long,
 ): Triple<java.io.ByteArrayOutputStream, java.io.ByteArrayOutputStream, Boolean> {
@@ -394,6 +405,7 @@ private fun drainChannelStreams(
     val errInput = channel.errStream
     val buf = ByteArray(4096)
     while (System.currentTimeMillis() < deadline) {
+        currentCoroutineContext().ensureActive()
         while (input.available() > 0) {
             val n = input.read(buf)
             if (n > 0) outBuf.write(buf, 0, n)
@@ -403,7 +415,7 @@ private fun drainChannelStreams(
             if (n > 0) errBuf.write(buf, 0, n)
         }
         if (channel.isClosed && input.available() <= 0 && errInput.available() <= 0) break
-        Thread.sleep(100)
+        kotlinx.coroutines.delay(100)
     }
     val timedOut = !channel.isClosed
     return Triple(outBuf, errBuf, timedOut)

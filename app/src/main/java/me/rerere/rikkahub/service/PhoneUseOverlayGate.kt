@@ -47,9 +47,11 @@ internal class PhoneUseOverlayGate(
         if (frame == null || lp == null) return
         if (yielding) {
             frame.alpha = 0f
+            lp.alpha = 0f
             lp.flags = lp.flags or WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE
         } else {
             frame.alpha = 1f
+            lp.alpha = 1f
             lp.flags = lp.flags and WindowManager.LayoutParams.FLAG_NOT_TOUCHABLE.inv()
         }
         runCatching { windowManager?.updateViewLayout(frame, lp) }

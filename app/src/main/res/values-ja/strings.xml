@@ -1386,6 +1386,7 @@
   <string name="assistant_page_local_tools_phone_use_enable_service">ユーザー補助設定で\"RikkaHub Phone Use\"をオンにしてください</string>
   <string name="assistant_page_local_tools_phone_use_floating_window_required">先にバックグラウンドのフローティングウィンドウを有効にしてください</string>
   <string name="phone_use_accessibility_description">Phone Useツールを有効にすると、AIアシスタントが画面を読み取り、タップ、スワイプ、テキスト入力を代行できるようになります。アシスタントがあなたの依頼したタスクを実行している場合にのみ動作し、それ以外は何も行われません。</string>
+  <string name="phone_use_accessibility_label" translatable="false">RikkaHub Phone Use</string>
   <string name="assistant_page_local_tools_screen_automation_title">画面自動化</string>
   <string name="assistant_page_local_tools_section_automation">自動化</string>
   <string name="assistant_page_local_tools_section_existing">組み込みツール</string>

@@ -32,7 +32,7 @@ ALLOWLIST_TOKENS = (
 )
 
 UI_TRIGGER_RE = re.compile(
-    r"(?<![A-Za-z0-9_])"
+    r"(?<![A-Za-z0-9_.])"
     r"(Text\(|title =|description =|label =|contentDescription =|toaster\.show\()"
 )
 # Skip literals that are clearly not UI prose: URLs, absolute paths, home
@@ -50,7 +50,13 @@ def git_diff(base, head, paths):
 
 
 def check_resource_zh(diff):
-    keys = set(re.findall(r'^\+.*?<string name="([^"]+)"', diff, re.M))
+    keys = {
+        m.group(1)
+        for line in diff.splitlines()
+        if line.startswith("+") and 'translatable="false"' not in line
+        for m in [re.search(r'<string name="([^"]+)"', line)]
+        if m
+    }
     zh = "\n".join(
         p.read_text(errors="ignore")
         for p in (list(Path(".").glob("*/src/main/res/values-zh/strings.xml"))
@@ -74,6 +80,7 @@ def check_ui_literals(diff):
 
 
 def extract_string_literals(added_lines):
+    added_lines = [ln for ln in added_lines if not re.match(r"^\s*\*(\s|$)", ln)]
     '''Yield the contents of string literals in added-line text.
 
     Mini tokenizer: skips // and /* */ comments and char literals, handles
@@ -165,7 +172,7 @@ def main():
     missing = []
     missing += check_resource_zh(
         git_diff(base, head, ["*/src/main/res/values/strings.xml"]))
-    kd = git_diff(base, head, ["*.kt"])
+    kd = git_diff(base, head, ["*.kt", ":!*/src/test/*", ":!stale-tests/*"])
     missing += check_ui_literals(kd)
     missing += check_cjk_literals(kd)
     if missing:

@@ -290,13 +290,19 @@ class VaultSessionManager(private val context: Context) {
                 .getOrDefault(emptyList())
         val now = System.currentTimeMillis()
         // 自动清理已过期会话（当场有效 ttlMs=Long.MAX_VALUE 不过期）
-        val valid = all.filter { it.ttlMs == Long.MAX_VALUE || now < it.createdAt + it.ttlMs }
+        val valid = all.filter { it.isValidAt(now) }
         if (valid.size != all.size) {
-            // 惰性清理：移除过期会话，避免 SESSIONS 无限增长
-            updateSessions { valid }
+            // 惰性清理：写时按当前列表重新过滤，不用读时快照整体覆盖——
+            // 否则读与写之间并发签发的会话会被快照冲掉（P2-13）。
+            // 用读时同一 now 判定：写时窗口内刚过期的会话最多晚一轮再清，绝不误删有效会话。
+            updateSessions { current -> current.filter { it.isValidAt(now) } }
         }
         return valid
     }
+
+    /** 会话在 now 时是否仍有效（当场有效 ttlMs=Long.MAX_VALUE 不过期）。 */
+    private fun VaultSessionRecord.isValidAt(now: Long): Boolean =
+        ttlMs == Long.MAX_VALUE || now < createdAt + ttlMs
 
     private suspend fun updateSessions(transform: (List<VaultSessionRecord>) -> List<VaultSessionRecord>) {
         context.vaultSessionStore.edit { prefs ->

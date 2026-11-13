@@ -1381,6 +1381,7 @@
   <string name="assistant_page_local_tools_phone_use_enable_service">Включите \"RikkaHub Phone Use\" в настройках специальных возможностей</string>
   <string name="assistant_page_local_tools_phone_use_floating_window_required">Сначала включите фоновое плавающее окно</string>
   <string name="phone_use_accessibility_description">Позволяет ИИ-ассистенту читать экран и выполнять за вас нажатия, свайпы и ввод текста, когда вы включаете инструмент Phone Use. Ничего не выполняется, если ассистент не выполняет задачу, которую вы запросили.</string>
+  <string name="phone_use_accessibility_label" translatable="false">RikkaHub Phone Use</string>
   <string name="assistant_page_local_tools_screen_automation_title">Автоматизация экрана</string>
   <string name="assistant_page_local_tools_section_automation">Автоматизация</string>
   <string name="assistant_page_local_tools_section_existing">Встроенные инструменты</string>

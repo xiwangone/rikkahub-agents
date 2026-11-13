@@ -262,44 +262,9 @@ class SshWorkspaceBackend(
             pool.use(id, config, retry = false) { connection ->
             connection.ensureDir(workspaceDir)
             if (config.platform == "WINDOWS") {
-                // Windows 远端：跳过 POSIX shell 包装，直接拼 PowerShell 脚本；
-                // UTF-8 前缀与 pwsh -EncodedCommand 包装由 SshConnection.exec 统一处理。
-                // env 由 $env: 赋值传入（单引号内 ' 写成 ''，与 Set-Location 同口径）；
-                // 值会出现在远端命令文本里，见 POSIX 分支的注释。
-                val envAssignments = buildEnvAssignments(env).joinToString("") { assignment ->
-                    val key = assignment.substringBefore('=')
-                    val value = assignment.substringAfter('=', "")
-                    "\$env:$key='${value.replace("'", "''")}'; "
-                }
-                val script = "\$env:CI='true'; \$env:NO_COLOR='1'; \$env:PAGER='cat'; " +
-                    envAssignments +
-                    "Set-Location -LiteralPath '${workingDir.replace("'", "''")}'; $command"
-                connection.exec(script, timeoutMillis, stdin)
+                connection.exec(buildWindowsCommand(workingDir, command, env), timeoutMillis, stdin)
             } else {
-                // 非登录 shell：远程登录 shell 会 source /etc/profile、~/.profile，
-                // 里面的 echo/欢迎信息直接打到 stdout，机器解析的输出（搜索、
-                // stat 元数据）会被污染；本机 Rootfs 的 profile 由应用控制且静默，
-                // 所以本地仍用 -l，远程这里只用 -c。
-                // 命令通过位置参数传入, eval "$2" 对命令文本只求值一次。
-                // env 由外层 env 命令的参数传入（与本地 buildEnvAssignments 同口径，
-                // 键非法或含 NUL 的直接丢弃）；值会出现在远端进程的命令行里，
-                // 同台机器的其他用户 ps 可见——不要把高敏感凭据只当作普通 env 传。
-                val remoteCommand = (
-                    listOf(
-                        "env",
-                        "CI=true",
-                        "NO_COLOR=1",
-                        "PAGER=cat",
-                    ) + buildEnvAssignments(env) + listOf(
-                        connection.shell,
-                        "-c",
-                        "cd -- \"\$1\" && eval \"\$2\"",
-                        "rikkahub",
-                        workingDir,
-                        command,
-                    )
-                ).joinToString(" ") { it.shellQuote() }
-                connection.exec(remoteCommand, timeoutMillis, stdin)
+                executePosixCommand(connection, workingDir, command, timeoutMillis, stdin, env)
             }
         }
         } catch (caught: CancellationException) {
@@ -309,6 +274,73 @@ class SshWorkspaceBackend(
             AppLogger.e(TAG, "executeCommand failed: cwd=$cwd timeoutMs=$timeoutMillis", ignored)
             throw ignored
         }
+    }
+
+    // Windows 远端：跳过 POSIX shell 包装，直接拼 PowerShell 脚本；
+    // UTF-8 前缀与 pwsh -EncodedCommand 包装由 SshConnection.exec 统一处理。
+    // env 由 $env: 赋值传入（单引号内 ' 写成 ''，与 Set-Location 同口径）；
+    // 脚本经 -EncodedCommand base64 编码后才上命令行，ps 上看不到明文值，
+    // 但 base64 一解即得——同机用户可解码，残余风险见 P2-11 说明，未改此分支。
+    private fun buildWindowsCommand(workingDir: String, command: String, env: Map<String, String>): String {
+        val envAssignments = buildEnvAssignments(env).joinToString("") { assignment ->
+            val key = assignment.substringBefore('=')
+            val value = assignment.substringAfter('=', "")
+            "\$env:$key='${value.replace("'", "''")}'; "
+        }
+        return "\$env:CI='true'; \$env:NO_COLOR='1'; \$env:PAGER='cat'; " +
+            envAssignments +
+            "Set-Location -LiteralPath '${workingDir.replace("'", "''")}'; $command"
+    }
+
+    // 非登录 shell：远程登录 shell 会 source /etc/profile、~/.profile，
+    // 里面的 echo/欢迎信息直接打到 stdout，机器解析的输出（搜索、
+    // stat 元数据）会被污染；Rootfs 的 profile 由应用控制且静默，
+    // 所以本地仍用 -l，远程这里只用 -c。
+    // 命令通过位置参数传入, eval "$3" 对命令文本只求值一次。
+    // env 改走远端 0600 临时文件（P2-11）：旧形态把值放在外层 env 命令参数里，
+    // 同台机器的其他用户 ps 可见。文件由 SFTP 上传（写后 chmod 600 再改名，
+    // 见 writeSftpBytes），命令结束时 shell 的 EXIT trap 删除；上传失败直接
+    // 报错，绝不回退到命令行传值。
+    private fun executePosixCommand(
+        connection: SshConnection,
+        workingDir: String,
+        command: String,
+        timeoutMillis: Long,
+        stdin: ByteArray?,
+        env: Map<String, String>,
+    ): WorkspaceCommandResult {
+        val envFile = uploadRemoteEnvFile(connection, env)
+        try {
+            return connection.exec(
+                buildRemotePosixCommand(connection.shell, workingDir, command, envFile),
+                timeoutMillis,
+                stdin,
+            )
+        } finally {
+            // trap 已删文件；此处是兜底（exec 未启动等 trap 没跑到的情况），删不到也无妨。
+            if (envFile != null) deleteRemoteEnvFile(connection, envFile)
+        }
+    }
+
+    /** env 非空时上传 0600 临时文件并返回远端路径；为空返回 null（保持旧形态不变）。上传失败直接抛错，绝不回退到命令行传值。 */
+    private fun uploadRemoteEnvFile(connection: SshConnection, env: Map<String, String>): String? {
+        if (env.isEmpty()) return null
+        val path = workspaceDir.joinChild(remoteEnvFileName())
+        connection.sftp { sftp ->
+            sftp.writeSftpBytes(
+                path,
+                buildEnvFileContent(env).toByteArray(Charsets.UTF_8),
+                overwrite = true,
+                displayPath = path,
+                mode = "600",
+            )
+        }
+        return path
+    }
+
+    /** 删 env 临时文件（兜底清理），删不到也无妨。 */
+    private fun deleteRemoteEnvFile(connection: SshConnection, path: String) {
+        runCatching { connection.sftp { it.rm(path.sftpQuote()) } }
     }
 
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
@@ -811,3 +843,64 @@ private fun String.joinChild(name: String): String = if (this == "/") "/$name" e
 private fun String.parentPath(): String = substringBeforeLast('/').ifEmpty { "/" }
 
 private fun String.fileName(): String = substringAfterLast('/').ifEmpty { "/" }
+
+/** 远程 env 临时文件名（工作区内隐藏文件，0600，命令结束后删除）。 */
+internal fun remoteEnvFileName(): String = ".rikkahub-env-${System.nanoTime()}"
+
+/**
+ * 渲染远程 env 文件内容：`KEY='value'` 行（单引号转义），供远端 shell `set -a; . file` 读入。
+ * 与 [buildEnvAssignments] 同口径（非法键丢弃、值去 NUL），只是值多一层 shell 单引号，
+ * 因为文件是被 source 而不是被当作 execve 参数。
+ */
+internal fun buildEnvFileContent(env: Map<String, String>): String =
+    buildEnvAssignments(env).joinToString("\n") { assignment ->
+        val key = assignment.substringBefore('=')
+        val value = assignment.substringAfter('=', "")
+        "$key=${value.shellQuote()}"
+    }
+
+/**
+ * 远端 POSIX 命令（纯函数，供单测断言 env 值不出现在命令行里）。
+ *
+ * env 为空时保持旧形态（`env CI=true ... shell -c 'cd -- "$1" && eval "$2"'`）；
+ * env 非空时 [envFile] 为已上传的 0600 临时文件路径，命令改为
+ * `shell -c 'trap ... EXIT; set -a; . "$1"; set +a; cd -- "$2" && eval "$3"'`，
+ * env 值只进文件、不进命令行（同台机器的其他用户 ps 不可见）。
+ * trap 在 shell 退出时删文件；调用方另有 SFTP 兜底删除。
+ */
+internal fun buildRemotePosixCommand(
+    shell: String,
+    workingDir: String,
+    command: String,
+    envFile: String?,
+): String {
+    return if (envFile == null) {
+        (
+            listOf(
+                "env",
+                "CI=true",
+                "NO_COLOR=1",
+                "PAGER=cat",
+            ) + listOf(
+                shell,
+                "-c",
+                "cd -- \"\$1\" && eval \"\$2\"",
+                "rikkahub",
+                workingDir,
+                command,
+            )
+        ).joinToString(" ") { it.shellQuote() }
+    } else {
+        (
+            listOf(
+                shell,
+                "-c",
+                "trap 'rm -f -- \"\$1\"' EXIT; set -a; . \"\$1\"; set +a; cd -- \"\$2\" && eval \"\$3\"",
+                "rikkahub",
+                envFile,
+                workingDir,
+                command,
+            )
+        ).joinToString(" ") { it.shellQuote() }
+    }
+}
