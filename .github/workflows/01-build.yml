@@ -84,6 +84,8 @@ jobs:
         run: |
           curl -sSLO https://github.com/pinterest/ktlint/releases/download/1.5.0/ktlint
           chmod +x ktlint
+          # 校验下载的二进制未被篡改（ktlint 1.5.0 官方发布包 sha256）
+          echo "a16be01dcc480aab2f55f444b620142152f66e31564b3b9376506d624c28a2ad  ktlint" | sha256sum -c -
           ./ktlint app/src/main/java 2>&1 | tail -30 || true
 
       - name: 未使用 import 守卫（零容忍门禁）

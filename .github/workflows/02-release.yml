@@ -22,6 +22,12 @@ on:
 permissions:
   contents: write
 
+# 两个发版同时触发会同时 bump versionCode、同时推 master，必然冲突；
+# 后到的取消前面的，只留一个发版继续。
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   release:
     runs-on: ubuntu-latest
@@ -87,11 +93,13 @@ jobs:
           sed -i "s/versionCode = $OLD_CODE/versionCode = $NEW_CODE/" app/build.gradle.kts
           echo "bump: versionName → $TAG, versionCode $OLD_CODE → $NEW_CODE"
           # 提交版本号推进（发版即改版本，push 触发 build-apk 仅编译验证）
+          # push 失败必须报错退出：静默吞掉（|| true）会导致仓库里还是旧版本号、
+          # APK 里是新版本号，两边对不上。
           git config user.name "Release Bot"
           git config user.email "release@rikkahub-agents.local"
           git add app/build.gradle.kts
           git commit -m "chore: bump versionName=$TAG versionCode=$NEW_CODE（02-release.yml 发版）[skip ci]"
-          git push origin master || true
+          git push origin master
 
       - name: 固定签名构建 (overwrite-install)
         env:
