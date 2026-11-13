@@ -82,7 +82,14 @@ fun vaultCredentialUpdateTool(
                     val desc = o["description"]?.jsonPrimitive?.contentOrNull
                     val group = o["group"]?.jsonPrimitive?.contentOrNull
                     val typeParam = o["type"]?.jsonPrimitive?.contentOrNull
-                    val metaParam = o["meta"]?.let { runCatching { it.jsonObject }.getOrNull() }
+                    // meta 三态显式区分：未传（保留原值）/ 传了但格式错（报错）/ 合法对象（按 key 合并）
+                    val metaRaw = o["meta"]
+                    val metaParam =
+                        when {
+                            metaRaw == null -> null
+                            metaRaw is kotlinx.serialization.json.JsonObject -> metaRaw
+                            else -> return@Tool listOf(UIMessagePart.Text("❌ meta must be a JSON object"))
+                        }
                     // meta 按 key 合并：给的键覆盖；值为空串 → 删除该键；未给 meta 则保留原值
                     val mergedMetaJson =
                         if (metaParam != null) {

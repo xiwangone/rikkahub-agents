@@ -264,7 +264,14 @@ private suspend fun runVaultHttpExec(
     }.getOrElse { return fail("extra_headers must be a valid JSON object") }
 
     // 取值统一走单点解析器：存在性 / 解密 / 审计一处实现，失败文案一致
-    val resolved = CredentialResolver(repository).resolve(credName, CredentialPurpose.HTTP_HEADER, caller = "ai-tool")
+    // HTTP_HEADER 现需会话授权：不传 isAuthorized 会直接被拒（AI 能借此代用户对任意服务发请求）。
+    val sessionManager = VaultSessionManager(context)
+    if (!sessionManager.hasActiveAuthorization()) {
+        return fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
+    }
+    val resolved =
+        CredentialResolver(repository) { sessionManager.hasActiveAuthorization() }
+            .resolve(credName, CredentialPurpose.HTTP_HEADER, caller = "ai-tool")
     val secret = (resolved as? CredentialResolution.Granted)?.value ?: return fail(resolved.message)
 
     return try {

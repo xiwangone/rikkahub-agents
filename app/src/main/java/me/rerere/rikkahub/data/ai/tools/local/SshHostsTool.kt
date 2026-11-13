@@ -720,6 +720,12 @@ fun vaultDeployKeyTool(
                 )
             )
         }
+        // 部署公钥 = 给远端增加一个可登录身份（授权变更）→ 需要 vault 会话授权，
+        // 不只靠 needsApproval（审批只管“这一次”，授权门管“凭据能否被动用”）。
+        val sessionManager = me.rerere.rikkahub.data.vault.VaultSessionManager(context)
+        if (!sessionManager.hasActiveAuthorization()) {
+            return@Tool fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
+        }
         val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
         val hostName = p["host_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("host_name is required")
         val remoteUser = p["remote_user"]?.jsonPrimitive?.contentOrNull

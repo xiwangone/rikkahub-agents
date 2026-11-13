@@ -47,6 +47,13 @@ fun vaultExportLoadCredsTool(
                             put("description", "Target workspace name or id; default = first workspace")
                         },
                     )
+                    put(
+                        "ttl_hours",
+                        buildJsonObject {
+                            put("type", "integer")
+                            put("description", "Lifetime hint written into the file header as expires_at (hours; 0 or omitted = never expire)")
+                        },
+                    )
                 },
             required = emptyList(),
         )
@@ -65,7 +72,10 @@ fun vaultExportLoadCredsTool(
             if (quads.isEmpty()) {
                 listOf(UIMessagePart.Text("❌ The vault is empty, nothing to export"))
             } else {
-                val script = VaultExporter.toLoadCreds(quads)
+                val ttlHours = (params.jsonObject["ttl_hours"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, 24 * 365)
+                val expiresAtMs = if (ttlHours > 0) System.currentTimeMillis() + ttlHours * 3_600_000L else null
+                val expiresLabel = expiresAtMs?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "never"
+                val script = "# expires_at: $expiresLabel\n" + VaultExporter.toLoadCreds(quads)
                 val wsRepository =
                     runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                         ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
@@ -81,6 +91,7 @@ fun vaultExportLoadCredsTool(
                     UIMessagePart.Text(
                         "✅ Exported ${quads.size} credentials to /workspace/tmp/load-creds-export.sh\n" +
                             "Target: ${vaultTargetNote(target, "/workspace/tmp/load-creds-export.sh")}\n" +
+                            "expires_at: $expiresLabel\n" +
                             "Includes group/description/SSH公钥 comments. After editing, sync it back with vault_import_loadcreds or the UI import.\n" +
                             "⚠️ This file contains plaintext secrets; delete it when done.",
                     ),

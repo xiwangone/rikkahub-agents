@@ -14,14 +14,18 @@ enum class CredentialPurpose(val action: String, val requiresAuthorization: Bool
     /** 注入子进程环境变量（值会进入沙箱进程环境） */
     ENV_INJECT("env_inject", requiresAuthorization = true),
 
-    /** 仅作 HTTP 请求头，AI 只见响应（值不出 App 进程） */
-    HTTP_HEADER("http_exec", requiresAuthorization = false),
+    /** 仅作 HTTP 请求头，AI 只见响应（值不出 App 进程）
+     *  ⚠ 仍需会话授权：值不出进程不等于“不要紧”——AI 能借此代用户对任意服务发起请求，
+     *  风险面在“凭据会被怎么用”，不在“值会不会被读走”。 */
+    HTTP_HEADER("http_exec", requiresAuthorization = true),
 
-    /** SSH 认证（握手在 App 进程内完成） */
-    SSH_AUTH("ssh_exec", requiresAuthorization = false),
+    /** SSH 认证（握手在 App 进程内完成）
+     *  ⚠ 仍需会话授权：同理，可通过 vault_ssh_exec 在任意已配置主机上执行命令。 */
+    SSH_AUTH("ssh_exec", requiresAuthorization = true),
 
-    /** 部署 SSH 公钥到远端 */
-    SSH_DEPLOY_KEY("deploy_key", requiresAuthorization = false),
+    /** 部署 SSH 公钥到远端
+     *  ⚠ 仍需会话授权：往远端 authorized_keys 追加公钥 = 授予一个新登录身份，属授权变更。 */
+    SSH_DEPLOY_KEY("deploy_key", requiresAuthorization = true),
 
     /** 本地 MCP 服务的鉴权令牌 */
     MCP_AUTH("mcp_auth", requiresAuthorization = false),
@@ -32,8 +36,10 @@ enum class CredentialPurpose(val action: String, val requiresAuthorization: Bool
     /** 后端通道桥接取用（SSH 隧道等），无 UI 会话授权门 */
     WEB_BRIDGE("web_bridge", requiresAuthorization = false),
 
-    /** 本地签名/加解密取用（GPG 等，值只在 App 进程内使用，不出进程、无授权门） */
-    LOCAL_USE("local_use", requiresAuthorization = false),
+    /** 本地签名/加解密取用（GPG 等，值只在 App 进程内使用）
+     *  ⚠ 仍需会话授权：不解锁就能无限次用私钥签名/解密 = 一个“签名预言机”，
+     *  值虽不出进程，但签名/解密结果会交给 AI。 */
+    LOCAL_USE("local_use", requiresAuthorization = true),
 }
 
 /**

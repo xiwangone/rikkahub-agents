@@ -189,11 +189,14 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
                 // meta：非敏感元数据（白名单见 CredentialMeta）—— AI 可在建占位时就写好账号/AK/region 等正位字段
                 val metaJson =
                     o["meta"]?.let { meta ->
-                        runCatching { meta.jsonObject }.getOrNull()?.let { obj ->
-                            CredentialMeta.encode(
-                                obj.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { c -> k to c } }.toMap(),
-                            )
-                        }
+                        val obj =
+                            runCatching { meta.jsonObject }.getOrElse {
+                                // 解析失败不能静默当“没传 meta”：否则占位建好、meta 丢了没人知道
+                                return@Tool listOf(UIMessagePart.Text("❌ meta must be a JSON object"))
+                            }
+                        CredentialMeta.encode(
+                            obj.mapNotNull { (k, v) -> (v as? JsonPrimitive)?.contentOrNull?.let { c -> k to c } }.toMap(),
+                        )
                     } ?: ""
                 repository.save(
                     name = finalName,
