@@ -57,7 +57,8 @@ fun createConfigTools(
 }
 
 private class ConfigStore(private val io: AgentWorkspaceIO) {
-    // 串行化审计追加: 避免并发 set 在读-改-写窗口互相覆盖丢条目.
+    // 串行化配置读-改-写与审计追加: set/revert 的 load→save 若无互斥,
+    // 并发调用会在窗口内互相覆盖（后写覆盖前写丢更新）.
     private val auditMutex = Mutex()
     /**
      * 读当前配置.
@@ -153,15 +154,18 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
                 e,
             )
         }
-        val current = load().toMutableMap()
-        val prior = current[key] ?: JsonNull
-        current[key] = parsed
-        save(current)
-        appendAudit("set", key, parsed, prior, note)
-        return jsonFor(key, current[key])
+        return auditMutex.withLock {
+            val current = load().toMutableMap()
+            val prior = current[key] ?: JsonNull
+            current[key] = parsed
+            save(current)
+            appendAuditLocked("set", key, parsed, prior, note)
+            jsonFor(key, current[key])
+        }
     }
 
     suspend fun revert(key: String): JsonObject {
+        auditMutex.withLock {
         val lastSet = readAudit().asReversed().firstOrNull {
             it.optString("key") == key &&
                 it.optString("action") == "set"
@@ -198,11 +202,12 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             result = "restored prior value from audit log"
         }
         save(current)
-        appendAudit("revert", key, restored, before, null)
+        appendAuditLocked("revert", key, restored, before, null)
         return buildJsonObject {
             put("key", key)
             put("existed", existed)
             put("result", result)
+        }
         }
     }
 
@@ -257,7 +262,8 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         io.writeText(SETTINGS_PATH, configJson.encodeToString(JsonElement.serializer(), objOf(map)), true)
     }
 
-    private suspend fun appendAudit(action: String, key: String, value: JsonElement, prior: JsonElement, note: String?) {
+    // 调用方必须已持有 auditMutex（set/revert 全程持锁），此函数不加锁防重入挂死。
+    private suspend fun appendAuditLocked(action: String, key: String, value: JsonElement, prior: JsonElement, note: String?) {
         val entry = buildJsonObject {
             put("id", UUID.randomUUID().toString())
             put("action", action)
@@ -267,7 +273,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             put("at", System.currentTimeMillis())
             if (note != null) put("note", note)
         }
-        auditMutex.withLock {
+        run {
             // 审计文件存在但读不出来时不直接覆盖: 否则一次追加会丢掉整段历史
             val existing = try {
                 io.readText(AUDIT_PATH)

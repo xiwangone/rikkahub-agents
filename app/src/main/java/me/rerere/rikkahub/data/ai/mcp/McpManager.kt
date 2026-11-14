@@ -223,7 +223,13 @@ class McpManager(
         // 参数可能含敏感内容，且每次调用都会打：降为详单级并去掉参数正文。
         AppLog.d(TAG, "callTool: $toolName (server: ${config.commonOptions.name})")
 
-        if (client.transport == null) client.connect(getTransport(config))
+        if (client.transport == null) {
+            // connect 与 removeClient/reconnect 共用 per-id 锁：否则 close 进行中
+            // 会往已关 client 上 connect，或产生双连接。
+            lockFor(config.id).withLock {
+                if (client.transport == null) client.connect(getTransport(config))
+            }
+        }
         val result = client.callTool(
             request = CallToolRequest(
                 params = CallToolRequestParams(

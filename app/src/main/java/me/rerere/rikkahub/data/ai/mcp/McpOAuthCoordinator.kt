@@ -53,7 +53,10 @@ internal class McpOAuthCoordinator(
 
     fun startAuthorization(config: McpServerConfig, context: Context) {
         authorizationJobs.remove(config.id)?.cancel()
-        val job = appScope.launch {
+        // 关闭「launch 已跑、job 未入 map」的取消窗口：launch 本身同步返回 Job，
+        // 把「注册进 map」放在同一个同步段里完成——cancelAuthorization 从任何线程
+        // 读 map 时要么看到旧 job（已 remove+cancel），要么看到新 job，不会空窗。
+        val job = appScope.launch(start = kotlinx.coroutines.CoroutineStart.LAZY) {
             updateStatus(config.id, McpStatus.Authorizing)
             try {
                 authorize(config, context.applicationContext)
@@ -65,6 +68,7 @@ internal class McpOAuthCoordinator(
             }
         }
         authorizationJobs[config.id] = job
+        job.start()
         job.invokeOnCompletion { authorizationJobs.remove(config.id, job) }
     }
 

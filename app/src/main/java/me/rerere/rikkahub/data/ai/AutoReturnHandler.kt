@@ -21,14 +21,15 @@ internal class AutoReturnHandler(
     private val context: Context,
 ) {
     @Suppress("TooGenericExceptionCaught")   // 有意 catch Exception：startActivity 抛 ActivityNotFoundException / SecurityException，均属 Exception；catch Throwable 会连 OOM 一起吞
-    fun handleAutoReturnAfterTurn() {
-        if (!AgentTurnTracker.didNavigateAway()) return
+    fun handleAutoReturnAfterTurn(snapshot: AgentTurnTracker.TurnSnapshot? = null) {
+        val snap = snapshot ?: AgentTurnTracker.snapshot(null)
+        if (!snap.navigatedAway) return
         // Only auto-return when the agent actually drove the destination app via screen
         // automation (tap, click_node, set_text, swipe, scroll, global_action). A pure
         // "open Chrome and stay there" request is just launch_app + a text reply — yanking
         // the user back to RikkaHub Agents in that case defeats the purpose of the request.
-        if (!AgentTurnTracker.didAutomate()) return
-        val destination = AgentTurnTracker.lastDestination()
+        if (!snap.didAutomate) return
+        val destination = snap.destination
         val currentForeground = RikkaAccessibilityService.instance
             ?.rootInActiveWindow?.packageName?.toString()
 

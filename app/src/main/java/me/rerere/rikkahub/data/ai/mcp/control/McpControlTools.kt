@@ -475,7 +475,9 @@ fun mcpAddTool(
             )
         }
         if (enabled) {
-            manager.addClient(config)
+            // 连接统一由 McpManager 的 settings collector 发起（这里显式 addClient 会与
+            // collector 对同一新配置并发双连：remove-first 互踩造成 Connected→Connecting 抖动）。
+            // 本工具只等终态：collector 落库后 status 自然出现。
             awaitTerminal(manager, newId, timeoutSec * 1000L)
         }
         val finalStatus = manager.syncingStatus.value[newId]
@@ -594,11 +596,31 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
             s.copy(mcpServers = s.mcpServers.map { if (it.id == serverId) newConfig else it })
         }
         if (enabled) {
-            manager.addClient(newConfig)
+            // 连接统一由 collector 发起（与 mcp_add 同口径，避免双连抖动）
             awaitTerminal(manager, serverId, timeoutSec * 1000L)
         }
-        val finalConfig = settingsStore.settingsFlow.value.mcpServers.firstOrNull { it.id == serverId } ?: newConfig
         val finalStatus = manager.syncingStatus.value[serverId]
+        // 与 mcp_add 对称：终态 Error 时回滚到旧配置并重建连接，不留坏配置在 settings。
+        if (finalStatus is McpStatus.Error) {
+            settingsStore.update { st ->
+                st.copy(mcpServers = st.mcpServers.map { if (it.id == serverId) old else it })
+            }
+            manager.removeClient(newConfig)
+            if (old.commonOptions.enable) {
+                manager.addClient(old)
+            }
+            val (kind, hint) = classifyMcpError(finalStatus.message)
+            return@Tool errEnv(
+                kind,
+                "MCP update failed: ${finalStatus.message}. $hint Previous config restored; the server is back to its pre-update state.",
+                extra = mapOf(
+                    "raw_error" to kotlinx.serialization.json.JsonPrimitive(finalStatus.message),
+                    "id" to kotlinx.serialization.json.JsonPrimitive(serverId.toString()),
+                    "name" to kotlinx.serialization.json.JsonPrimitive(name),
+                ),
+            )
+        }
+        val finalConfig = settingsStore.settingsFlow.value.mcpServers.firstOrNull { it.id == serverId } ?: newConfig
         listOf(UIMessagePart.Text(serverViewEnvelope(finalConfig, finalStatus).toString()))
     },
 )

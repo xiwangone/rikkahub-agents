@@ -82,6 +82,8 @@ fun createSkillTools(
             description = """
                 Load and apply a skill to get specialized instructions or capabilities.
                 Call this tool when the user's request matches one of the available skills.
+                The loaded content stays in this conversation's context; do not re-call for
+                a skill already loaded in this conversation.
             """.trimIndent(),
             systemPrompt = { _, _ ->
                 buildString {

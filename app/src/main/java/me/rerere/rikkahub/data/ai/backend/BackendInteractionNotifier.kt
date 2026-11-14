@@ -82,7 +82,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
         _pendingIds.value = synchronized(lock) { pendingApprovals.keys.toSet() + pendingAsks.keys.toSet() }
     }
     private val ioScope = CoroutineScope(Dispatchers.IO)
-    private var receiverRegistered = false
+    @Volatile private var receiverRegistered = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {

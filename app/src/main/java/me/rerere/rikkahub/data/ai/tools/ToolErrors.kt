@@ -117,6 +117,10 @@ object ToolErrors {
         "invalid_count" to INVALID_PARAMS,
         "invalid_pos" to INVALID_PARAMS,
         "invalid_range" to INVALID_PARAMS,
+        // 历史别名（旧 UPPER_CASE 产出方已迁移到 snake_case，键保留小写归一）：
+        "invalid_chart" to INVALID_PARAMS,
+        "invalid_range" to INVALID_PARAMS,
+        "invalid_time" to INVALID_PARAMS,
         "INVALID_CHART" to INVALID_PARAMS,
         "INVALID_RANGE" to INVALID_PARAMS,
         "INVALID_TIME" to INVALID_PARAMS,

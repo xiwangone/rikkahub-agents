@@ -10,9 +10,27 @@ package me.rerere.rikkahub.data.ai
  * foreground against [lastDestination] and skips the auto-return for safety.
  */
 object AgentTurnTracker {
-    @Volatile private var navigatedAway: Boolean = false
-    @Volatile private var destination: String? = null
-    @Volatile private var didAutomate: Boolean = false
+    /**
+     * Per-conversation state slot. Automation tools have no conversationId, so their
+     * writes/reads land on [activeSlot] — the conversation currently generating. Two
+     * concurrent generations therefore never overwrite each other's navigation facts.
+     */
+    private class TurnState {
+        @Volatile var navigatedAway: Boolean = false
+        @Volatile var destination: String? = null
+        @Volatile var didAutomate: Boolean = false
+    }
+
+    private val states = java.util.concurrent.ConcurrentHashMap<String, TurnState>()
+    @Volatile private var activeSlot: String = ""
+
+    /** Switch the active slot before a generation turn starts (called with conversationId). */
+    fun setActive(conversationId: String?) {
+        activeSlot = conversationId ?: ""
+    }
+
+    private fun stateFor(conversationId: String?): TurnState =
+        states.computeIfAbsent(conversationId ?: "") { TurnState() }
 
     /**
      * Per-package timestamp recording the last time the agent itself interacted with a
@@ -23,17 +41,19 @@ object AgentTurnTracker {
      */
     private val touchedPackages = java.util.concurrent.ConcurrentHashMap<String, Long>()
 
-    fun reset() {
-        navigatedAway = false
-        destination = null
-        didAutomate = false
+    fun reset(conversationId: String? = null) {
+        val st = stateFor(conversationId)
+        st.navigatedAway = false
+        st.destination = null
+        st.didAutomate = false
         // Don't clear touchedPackages — the suppression window outlives the turn so the
         // last few flaps after the turn ends also get filtered.
     }
 
     fun recordNavigatedAway(packageName: String?) {
-        navigatedAway = true
-        if (!packageName.isNullOrBlank()) destination = packageName
+        val st = stateFor(activeSlot)
+        st.navigatedAway = true
+        if (!packageName.isNullOrBlank()) st.destination = packageName
     }
 
     /**
@@ -43,12 +63,17 @@ object AgentTurnTracker {
      * (auto-return would yank the user out of where they want to be).
      */
     fun recordAutomationAction() {
-        didAutomate = true
+        stateFor(activeSlot).didAutomate = true
     }
 
-    fun didNavigateAway(): Boolean = navigatedAway
-    fun didAutomate(): Boolean = didAutomate
-    fun lastDestination(): String? = destination
+
+    /** Snapshot-based decision inputs for a finished conversation (auto-return judgment). */
+    fun snapshot(conversationId: String?): TurnSnapshot =
+        stateFor(conversationId).let {
+            TurnSnapshot(it.navigatedAway, it.destination, it.didAutomate)
+        }
+
+    data class TurnSnapshot(val navigatedAway: Boolean, val destination: String?, val didAutomate: Boolean)
 
     /** Marks [packageName] (and any pkg in [extras]) as freshly touched by the agent. */
     fun touchPackage(packageName: String, vararg extras: String) {

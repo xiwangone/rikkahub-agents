@@ -44,7 +44,7 @@ class LocalApprovalBridge(private val context: Context) {
 
     private val lock = Any()
     private val pending = mutableMapOf<String, CompletableDeferred<Boolean>>()
-    private var receiverRegistered = false
+    @Volatile private var receiverRegistered = false
 
     private val receiver = object : BroadcastReceiver() {
         override fun onReceive(ctx: Context?, intent: Intent?) {
@@ -52,8 +52,8 @@ class LocalApprovalBridge(private val context: Context) {
             val approved = intent.getBooleanExtra(EXTRA_APPROVED, false)
             val deferred = synchronized(lock) { pending.remove(requestId) }
             deferred?.complete(approved)
-            intent?.getStringExtra(EXTRA_TOOL_NAME)?.let { toolName ->
-                NotificationManagerCompat.from(context).cancel(toolName.hashCode())
+            requestId.hashCode().let { notificationId ->
+                NotificationManagerCompat.from(context).cancel(notificationId)
             }
         }
     }
@@ -153,7 +153,9 @@ class LocalApprovalBridge(private val context: Context) {
             .addAction(0, context.getString(R.string.deny), denyPi)
             .build()
         runCatching {
-            NotificationManagerCompat.from(context).notify(tool.name.hashCode(), notification)
+            // 通知 id 按 requestId：同工具并发审批各占一条通知，互不覆盖；
+            // onReceive 取消时按同一 id 对齐。
+            NotificationManagerCompat.from(context).notify(requestId.hashCode(), notification)
         }.onFailure {
             AppLog.w(TAG, "Failed to post approval notification", it)
         }

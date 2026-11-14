@@ -71,6 +71,7 @@ internal class ToolOutputProcessor(
 
         val summary = buildString {
             appendLine("[Tool output truncated: $totalChars characters total]")
+            appendLine("Do not re-run the tool for the full text; read the saved file instead.")
             if (writeError == null) {
                 appendLine("Full output saved to: /tool_outputs/$fileName")
                 appendLine("Use shell to read: `cat /tool_outputs/$fileName`")

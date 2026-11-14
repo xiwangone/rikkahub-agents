@@ -499,6 +499,10 @@ internal class GenerationAgentRun(
                     messages = messages.dropLast(1) + settleGenerationFailedTools(lastMsg, t)
                     emitter.emit(GenerationChunk.Messages(messages))
                 }
+                // 失败信封已是终态：清掉合并窗口里的旧 pending 快照，否则 finally 的
+                // 补齐投递会把比失败信封更旧的消息再发一遍（skipFinalDelivery 只覆盖
+                // emitter 已失败/取消/Error 的情况，普通 5xx 不触发）。
+                pendingOutputFlush.clear()
                 // 本轮重试汇总：只在真重试过时记 1 条（含次数 + 最后错误），
                 // 替代原来每 attempt 1 条 w；未重试过的单次失败不另记（调用方
                 // ChatServiceSendOps 的 msg-fail 行已留痕）。

@@ -63,7 +63,8 @@ const val DEFAULT_STREAM_FIRST_CHUNK_HINT_MS = 60_000L
 fun <T> Flow<T>.withIdleWatchdog(
     idleMs: Long = DEFAULT_STREAM_IDLE_MS,
     firstChunkMs: Long = DEFAULT_STREAM_FIRST_CHUNK_MS,
-    clock: () -> Long = System::currentTimeMillis,
+    // 默认用单调时钟：NTP 校时回跳时 wall clock 会让健康流被瞬间判 idle 超时。
+    clock: () -> Long = { android.os.SystemClock.elapsedRealtime() },
     pollMs: Long = IDLE_POLL_INTERVAL_MS,
     firstChunkWaitHintMs: Long = DEFAULT_STREAM_FIRST_CHUNK_HINT_MS,
     onWaitingFirstChunk: ((elapsedMs: Long) -> Unit)? = null,

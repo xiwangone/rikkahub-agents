@@ -120,6 +120,9 @@ internal const val MAX_AUTO_CONTINUE = 1
  */
 internal const val MAX_STREAM_DURATION_MS = 15 * 60 * 1000L
 
+/** 同时进行中的生成会话数：只用于决定 overlay 何时收尾（纯 UI），不参与业务判定。 */
+private val ACTIVE_GENERATIONS = java.util.concurrent.atomic.AtomicInteger()
+
 /**
  * Some read-only tools measure a real-time signal where re-calling after a TTL is
  * legitimate (battery drains, screens change, sensors update). For these, the loop guard
@@ -511,12 +514,23 @@ class GenerationLoop(
         .onStart {
             // Reset per-turn navigation tracking and surface the overlay so the user
             // sees that automation is happening even when the agent runs from Telegram.
+            // 多会话并发生成：Tracker 按 conversationId 分槽，各会话导航事实互不覆盖；
+            // 工具层（无 conversationId）读写落到当前活跃 slot。活跃计数只用于 overlay
+            // 收尾（纯 UI）——不再拿它决定 auto-return，否则先结束的会话会永远不触发。
+            ACTIVE_GENERATIONS.incrementAndGet()
+            AgentTurnTracker.setActive(conversationId?.toString())
             AgentTurnTracker.reset()
             AgentOverlay.show(context)
         }
         .onCompletion { cause ->
-            AgentOverlay.hide(context)
-            autoReturnHandler.handleAutoReturnAfterTurn()
+            // auto-return 判定每个会话都做，用「本会话 slot」的快照——并发下先结束的
+            // 会话不再被后结束会话的状态顶掉。
+            val mySnapshot = AgentTurnTracker.snapshot(conversationId?.toString())
+            if (ACTIVE_GENERATIONS.decrementAndGet() <= 0) {
+                ACTIVE_GENERATIONS.set(0)
+                AgentOverlay.hide(context)
+            }
+            autoReturnHandler.handleAutoReturnAfterTurn(mySnapshot)
             // 运行归因：唯一收尾点（正常结束 / 异常 / 取消都会到这里）。只采数据，不做结论。
             runCatching {
                 val outcome =
