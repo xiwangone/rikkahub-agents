@@ -111,6 +111,52 @@ internal fun isStreamCapExceeded(
     return nowMs - baselineMs > capMs
 }
 
+/**
+ * 单步流式时钟：15 分钟墙钟上限按步计量，不按每次重试计量（矛盾核查 1-1）。
+ *
+ * 旧行为：每次重试（[AgentHooks.onStreamAttemptReset]）都把流开始时刻重置，
+ * 于是每 attempt 各拿满 [MAX_STREAM_DURATION_MS]；默认 5 次重试 = 6 attempt × 15 分钟，
+ * 再加 5 次服务端 Retry-After（单次上限 5 分钟）= 单步最长约 115 分钟。
+ * 新行为：开始时刻只在步内首次 attempt（attempt == 0）记一次，之后重试不再重置；
+ * 收尾轮首 chunk 时刻同样只记步内首次到达的那个。重试判定与退避等待也以同一
+ * 步预算为准（[isBudgetExhausted] / [clampDelayMs]）。
+ *
+ * 时钟用注入的 nowMs 驱动（生产传 System.currentTimeMillis），便于 JVM 单测。
+ */
+internal class StepStreamClock {
+    /** 步内首次流尝试开始的时刻（0 = 本步尚未开始流式请求，如非流式路径）。 */
+    var streamStartedAtMs: Long = 0L
+        private set
+
+    /** 步内首个 chunk 到达的时刻（0 = 未到）：收尾轮 90 秒上限的起算点。 */
+    var firstChunkAtMs: Long = 0L
+        private set
+
+    /** 每 attempt 开始时调一次；只有步内首次 attempt 记开始时刻、清首 chunk 时刻。 */
+    fun onAttemptStart(attempt: Int, nowMs: Long) {
+        if (attempt == 0) {
+            streamStartedAtMs = nowMs
+            firstChunkAtMs = 0L
+        }
+    }
+
+    /** 首个 chunk 到达时记下时刻；步内只记首次到达的那个，重试不再重置。 */
+    fun onFirstChunk(nowMs: Long) {
+        if (firstChunkAtMs == 0L) firstChunkAtMs = nowMs
+    }
+
+    /** 步级流预算是否已耗尽：流时钟未启动时（0）永不耗尽，非流式路径不受影响。 */
+    fun isBudgetExhausted(nowMs: Long): Boolean =
+        streamStartedAtMs != 0L && nowMs - streamStartedAtMs >= MAX_STREAM_DURATION_MS
+
+    /** 把一次重试等待钳制在步预算剩余量内；流时钟未启动时原样返回。 */
+    fun clampDelayMs(delayMs: Long, nowMs: Long): Long {
+        if (streamStartedAtMs == 0L) return delayMs
+        val remainingMs = MAX_STREAM_DURATION_MS - (nowMs - streamStartedAtMs)
+        return delayMs.coerceAtMost(remainingMs.coerceAtLeast(0L))
+    }
+}
+
 /** 收尾总结是否产出了可见文本：只有非空 Text 段才算，纯思考不算。 */
 internal fun wrapUpSummaryHasText(parts: List<UIMessagePart>): Boolean =
     parts.any { it is UIMessagePart.Text && it.text.isNotBlank() }
@@ -304,9 +350,8 @@ internal class GenerationAgentRun(
     // 本次（重）订阅的状态：与逐块投递判定一一对应
     private var streamAttempt = 0
     private val streamProgress = GenerationStreamProgress()
-    private var streamStartedAtMs = 0L
-    /** 本次流尝试首个 chunk 到达的时刻（0 = 未到）：收尾轮 90 秒上限的起算点。 */
-    private var firstStreamChunkAtMs = 0L
+    /** 单步流式时钟：上限按步计量，重试不再重置（见 [StepStreamClock]）。 */
+    private val stepStreamClock = StepStreamClock()
     private var lastStreamApplyAtMs = 0L
     private val pendingStreamChunks = mutableListOf<StreamChunk>()
     // 早止点已判定，但要等「下一条」增量到手才真的结束流（收尾见 guardStopAfterCurrentChunk）
@@ -326,12 +371,21 @@ internal class GenerationAgentRun(
                 retryAttempt = streamAttempt.toLong(),
                 maxRetries = maxStreamRetries,
                 receivedMeaningfulOutput = streamProgress.receivedMeaningfulOutput,
-            )
+            ) && !stepStreamClock.isBudgetExhausted(System.currentTimeMillis())
         },
-        delayFor = { retry -> generationStreamRetryDelayMs((retry - 1).toLong()).milliseconds },
+        // 重试等待不得把单步总时长推过 15 分钟步预算（服务端 Retry-After 同样钳制）。
+        delayFor = { retry ->
+            stepStreamClock.clampDelayMs(
+                generationStreamRetryDelayMs((retry - 1).toLong()),
+                System.currentTimeMillis(),
+            ).milliseconds
+        },
         // 服务端 Retry-After 优先：失败里带了就按它等，而不是固定退避。
         delayForFailure = { retry, failure ->
-            generationStreamRetryDelayMs((retry - 1).toLong(), failure).milliseconds
+            stepStreamClock.clampDelayMs(
+                generationStreamRetryDelayMs((retry - 1).toLong(), failure),
+                System.currentTimeMillis(),
+            ).milliseconds
         },
     )
 
@@ -734,8 +788,10 @@ internal class GenerationAgentRun(
             // 收尾轮（预算到点后的纯文本总结）单独收紧：这一段没有任何工具，唯一产出是
             // 一段文字，按 15min 上限等下去只会让界面一直转圈。
             // 收尾轮的上限从首个 chunk 到达起算，不含 prefill/TTFT（见 isStreamCapExceeded）。
-            if (firstStreamChunkAtMs == 0L) firstStreamChunkAtMs = System.currentTimeMillis()
-            if (isStreamCapExceeded(wrapUpTerminalStep, System.currentTimeMillis(), streamStartedAtMs, firstStreamChunkAtMs)) {
+            // 两个起算时刻都按步计量：重试不再重置（见 StepStreamClock）。
+            val nowMs = System.currentTimeMillis()
+            stepStreamClock.onFirstChunk(nowMs)
+            if (isStreamCapExceeded(wrapUpTerminalStep, nowMs, stepStreamClock.streamStartedAtMs, stepStreamClock.firstChunkAtMs)) {
                 AppLog.w(TAG, "streamText: stream exceeded max duration; ending this turn's stream early")
                 guardStopAfterCurrentChunk(GenerationOutcome.TIMEOUT)
                 return@takeWhile true
@@ -815,8 +871,9 @@ internal class GenerationAgentRun(
         }
         streamAttempt = attempt
         streamProgress.reset()
-        streamStartedAtMs = System.currentTimeMillis()
-        firstStreamChunkAtMs = 0L
+        // 步级流时钟只在步内首次 attempt 记时：重试不再重置开始时刻与首 chunk 时刻
+        // （见 StepStreamClock），否则每 attempt 各拿满 15 分钟。
+        stepStreamClock.onAttemptStart(attempt, System.currentTimeMillis())
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
         streamGuardStopRequested = false

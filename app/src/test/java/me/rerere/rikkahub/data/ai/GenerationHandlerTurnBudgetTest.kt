@@ -133,4 +133,90 @@ class GenerationHandlerTurnBudgetTest {
         assertTrue(decision.terminalSummary)
         assertEquals(notice, decision.message)
     }
+
+    // ── 单步流时钟（矛盾核查 1-1：重试不再重置时钟）─────────────────────
+    //
+    // 旧逻辑：每次重试都重置流开始时刻，每 attempt 各拿满 15 分钟；默认 5 次重试 =
+    // 6 attempt × 15 分钟，再加 5 次服务端 Retry-After（单次上限 5 分钟），
+    // 单步最长 6×15 + 5×5 = 115 分钟。新逻辑：15 分钟上限按步计量。
+
+    @Test
+    fun stepStreamClock_retryDoesNotResetStart() {
+        val clock = StepStreamClock()
+        val start = 1_000_000L
+        clock.onAttemptStart(0, start)
+        assertEquals(start, clock.streamStartedAtMs)
+        // 第 2 次 attempt 在步开始 14 分钟后启动：开始时刻不变，只剩 1 分钟预算
+        clock.onAttemptStart(1, start + 14 * 60_000L)
+        assertEquals(start, clock.streamStartedAtMs)
+        assertFalse(clock.isBudgetExhausted(start + 14 * 60_000L))
+        // 第 3 次 attempt 在步开始 15 分钟后启动：预算已耗尽
+        clock.onAttemptStart(2, start + 15 * 60_000L)
+        assertEquals(start, clock.streamStartedAtMs)
+        assertTrue(clock.isBudgetExhausted(start + 15 * 60_000L))
+    }
+
+    @Test
+    fun stepStreamClock_firstChunkPersistsAcrossRetries() {
+        val clock = StepStreamClock()
+        val start = 1_000_000L
+        clock.onAttemptStart(0, start)
+        clock.onFirstChunk(start + 5_000L)
+        assertEquals(start + 5_000L, clock.firstChunkAtMs)
+        // 重试的首 chunk 不覆盖步内首次到达的时刻：收尾 90 秒窗口按步计量
+        clock.onAttemptStart(1, start + 60_000L)
+        clock.onFirstChunk(start + 65_000L)
+        assertEquals(start + 5_000L, clock.firstChunkAtMs)
+    }
+
+    @Test
+    fun stepStreamClock_nextStepResetsClock() {
+        val clock = StepStreamClock()
+        val start = 1_000_000L
+        clock.onAttemptStart(0, start)
+        clock.onFirstChunk(start + 5_000L)
+        // 下一步的首次 attempt 重新记时、清首 chunk 时刻
+        val nextStart = start + 20 * 60_000L
+        clock.onAttemptStart(0, nextStart)
+        assertEquals(nextStart, clock.streamStartedAtMs)
+        assertEquals(0L, clock.firstChunkAtMs)
+        assertFalse(clock.isBudgetExhausted(nextStart))
+    }
+
+    @Test
+    fun stepStreamClock_budgetNeverExhaustedBeforeStreamStarts() {
+        // 非流式路径不走 onStreamAttemptReset：时钟未启动时永不耗尽、不钳制等待
+        val clock = StepStreamClock()
+        assertFalse(clock.isBudgetExhausted(1_000_000L))
+        assertEquals(4_000L, clock.clampDelayMs(4_000L, 1_000_000L))
+        assertEquals(300_000L, clock.clampDelayMs(300_000L, 1_000_000L))
+    }
+
+    @Test
+    fun stepStreamClock_clampsRetryDelayToRemainingBudget() {
+        val clock = StepStreamClock()
+        val start = 1_000_000L
+        clock.onAttemptStart(0, start)
+        // 剩余 60 秒时，300 秒 Retry-After 钳制到 60 秒
+        assertEquals(60_000L, clock.clampDelayMs(300_000L, start + 14 * 60_000L))
+        // 剩余充足时原样返回
+        assertEquals(4_000L, clock.clampDelayMs(4_000L, start + 60_000L))
+        // 预算耗尽时等待为 0（retryOn 已拒重试，此处只是钳制底线）
+        assertEquals(0L, clock.clampDelayMs(4_000L, start + 15 * 60_000L))
+    }
+
+    @Test
+    fun stepStreamClock_sixAttemptsShareOne15MinuteBudget() {
+        // 旧算式 6×15 + 5×5 = 115 分钟；新逻辑 6 次 attempt 共用同一个 15 分钟步预算，
+        // 步开始 15 分钟后无论第几次 attempt 都已耗尽，不会再有新的重试。
+        val clock = StepStreamClock()
+        val start = 1_000_000L
+        clock.onAttemptStart(0, start)
+        repeat(6) { attempt ->
+            clock.onAttemptStart(attempt, start + attempt * 60_000L)
+            assertEquals(start, clock.streamStartedAtMs)
+        }
+        assertTrue(clock.isBudgetExhausted(start + 15 * 60_000L))
+        assertEquals(0L, clock.clampDelayMs(300_000L, start + 15 * 60_000L))
+    }
 }
