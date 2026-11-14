@@ -317,6 +317,7 @@ private fun createGetAllTool(store: ConfigStore, needsApproval: (String) -> Bool
     name = "config_get_all",
     description = """
         Read the full session-level configuration as a JSON object (config/settings.json).
+        Workspace sandbox only: this is the workspace's own key-value file, not the app's settings.
         Use this to inspect current config before deciding to set.
     """.trimIndent().replace("\n", " "),
     parameters = { InputSchema.Obj(properties = buildJsonObject {}, required = listOf()) },
@@ -329,6 +330,7 @@ private fun createSetTool(store: ConfigStore, needsApproval: (String) -> Boolean
     description = """
         Set a session-level config key to a JSON value. Writes config/settings.json and appends
         an audit entry. Every set is logged and revertable via config_revert.
+        Workspace sandbox only: this is the workspace's own key-value file, not the app's settings.
         Provide `value` as a JSON-encoded value (string "x", number 1, bool true, object {...}, array [...]).
     """.trimIndent().replace("\n", " "),
     parameters = {
@@ -357,6 +359,7 @@ private fun createRevertTool(store: ConfigStore, needsApproval: (String) -> Bool
     description = """
         Remove the current value of a config key, restoring the most recent prior value.
         Writes an audit entry. Use when a configured value turns out wrong.
+        Workspace sandbox only: this is the workspace's own key-value file, not the app's settings.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
