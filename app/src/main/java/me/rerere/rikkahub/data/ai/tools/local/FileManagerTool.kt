@@ -22,6 +22,8 @@ import me.rerere.common.http.optBoolean
 import me.rerere.common.http.optInt
 import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.ai.tools.isSensitiveCredentialPath
+import me.rerere.rikkahub.data.ai.tools.redactCredentialFileText
 
 // ---------- content:// support (Phase 25) ----------
 
@@ -490,7 +492,10 @@ fun readFileTool(): Tool = Tool(
             }.toString())
         } else {
             val startOffset = if (isBom) 3 else 0
-            val text = String(bytes, startOffset, bytes.size - startOffset, charset)
+            val rawText = String(bytes, startOffset, bytes.size - startOffset, charset)
+            // 设备侧读凭证类文件同样要掩：不然 read_file 读手机上的 .env / 私钥，
+            // 原文一样直进模型上下文（与 workspace_read_file 的口径保持一致）。
+            val text = if (isSensitiveCredentialPath(rawPath)) redactCredentialFileText(rawText) else rawText
             val defaultMaxLines = 500
             val lines = text.split("\n")
             val total = lines.size
