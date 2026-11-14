@@ -142,9 +142,16 @@ fun clickNodeTool(
                 put("by", buildJsonObject {
                     put("type", "string")
                     put("enum", buildJsonArray { add("text"); add("content_description"); add("view_id_resource_name") })
+                    put("description", "Selector axis: visible text, contentDescription, or Android view id")
                 })
-                put("value", buildJsonObject { put("type", "string") })
-                put("package_name", buildJsonObject { put("type", "string") })
+                put("value", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Exact value to match on the chosen axis")
+                })
+                put("package_name", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional: fail unless the foreground package equals this")
+                })
                 put("nth", buildJsonObject {
                     put("type", "integer")
                     put("description", "Zero-based index when multiple nodes match (default 0)")

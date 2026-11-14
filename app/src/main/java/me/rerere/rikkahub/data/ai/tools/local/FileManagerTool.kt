@@ -331,11 +331,21 @@ fun listFilesTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("path", buildJsonObject { put("type", "string") })
-                put("pattern", buildJsonObject { put("type", "string") })
-                put("recursive", buildJsonObject { put("type", "boolean") })
+                put("path", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Directory to list/search (absolute, or content:// URI)")
+                })
+                put("pattern", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional glob filter (e.g. *.mp3, **/*.pdf); omit to list everything")
+                })
+                put("recursive", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Recurse into subdirectories; defaults to false")
+                })
                 put("limit", buildJsonObject {
                     put("type", "integer"); put("minimum", 1); put("maximum", 500)
+                    put("description", "Max entries returned; defaults to 50")
                 })
             },
             required = listOf("path"),
@@ -406,6 +416,10 @@ private fun collectFilesForList(
 private const val DEFAULT_READ_BYTES = 65536
 private const val MAX_READ_BYTES = 1048576
 
+/** 设备侧读凭证类文件同样要掩，与 workspace_read_file 同口径（抽成函数也避开 LongMethod）。 */
+private fun redactSensitiveIfNeeded(path: String, text: String): String =
+    if (isSensitiveCredentialPath(path)) redactCredentialFileText(text) else text
+
 fun readFileTool(): Tool = Tool(
     name = "read_file",
     description = """
@@ -419,9 +433,13 @@ fun readFileTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("path", buildJsonObject { put("type", "string") })
+                put("path", buildJsonObject {
+                    put("type", "string")
+                    put("description", "File to read (absolute, or content:// URI)")
+                })
                 put("max_bytes", buildJsonObject {
                     put("type", "integer"); put("minimum", 1); put("maximum", MAX_READ_BYTES)
+                    put("description", "Cap on bytes returned; larger files are truncated (response carries truncated=true)")
                 })
                 put("start_line", buildJsonObject {
                     put("type", "integer"); put("description", "Optional 1-based first line to return (inclusive). Omit to start at line 1.")
@@ -432,7 +450,10 @@ fun readFileTool(): Tool = Tool(
                 put("with_line_numbers", buildJsonObject {
                     put("type", "boolean"); put("description", "Prefix each returned line with its line number (e.g. \"12| ...\"). Defaults to false.")
                 })
-                put("encoding", buildJsonObject { put("type", "string") })
+                put("encoding", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Charset name (e.g. UTF-8, GBK); defaults to UTF-8")
+                })
             },
             required = listOf("path"),
         )
@@ -472,11 +493,8 @@ fun readFileTool(): Tool = Tool(
         // BOM detection + binary sniff
         val isBom = bytes.size >= 3 &&
             bytes[0] == 0xEF.toByte() && bytes[1] == 0xBB.toByte() && bytes[2] == 0xBF.toByte()
-        val charset = when {
-            encodingHint != null -> runCatching { charset(encodingHint) }.getOrNull()
-            isBom -> Charsets.UTF_8
-            else -> Charsets.UTF_8
-        } ?: Charsets.UTF_8
+        // isBom 分支与 else 同为 UTF-8，三者可合并：解析失败的 encodingHint 也回落 UTF-8。
+        val charset = encodingHint?.let { runCatching { charset(it) }.getOrNull() } ?: Charsets.UTF_8
 
         // Heuristic binary check: if >15% of the first 512 bytes are non-printable, treat as binary
         val sample = bytes.take(minOf(512, bytes.size))
@@ -492,10 +510,7 @@ fun readFileTool(): Tool = Tool(
             }.toString())
         } else {
             val startOffset = if (isBom) 3 else 0
-            val rawText = String(bytes, startOffset, bytes.size - startOffset, charset)
-            // 设备侧读凭证类文件同样要掩：不然 read_file 读手机上的 .env / 私钥，
-            // 原文一样直进模型上下文（与 workspace_read_file 的口径保持一致）。
-            val text = if (isSensitiveCredentialPath(rawPath)) redactCredentialFileText(rawText) else rawText
+            val text = redactSensitiveIfNeeded(rawPath, String(bytes, startOffset, bytes.size - startOffset, charset))
             val defaultMaxLines = 500
             val lines = text.split("\n")
             val total = lines.size
@@ -545,8 +560,14 @@ fun writeBinaryFileTool(): Tool = Tool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string") })
-                put("base64_content", buildJsonObject { put("type", "string") })
-                put("overwrite", buildJsonObject { put("type", "boolean") })
+                put("base64_content", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Raw file bytes, base64-encoded")
+                })
+                put("overwrite", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Replace the target if it exists; defaults to false (refuses on existing file)")
+                })
             },
             required = listOf("path", "base64_content"),
         )
@@ -601,7 +622,10 @@ fun deleteFileTool(): Tool = Tool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string") })
-                put("recursive", buildJsonObject { put("type", "boolean") })
+                put("recursive", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Delete directories recursively; required true for non-empty directories")
+                })
             },
             required = listOf("path"),
         )
@@ -667,9 +691,18 @@ fun moveFileTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("src", buildJsonObject { put("type", "string") })
-                put("dst", buildJsonObject { put("type", "string") })
-                put("overwrite", buildJsonObject { put("type", "boolean") })
+                put("src", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Source path (file or directory)")
+                })
+                put("dst", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Destination path; must not exist unless overwrite=true")
+                })
+                put("overwrite", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Replace an existing destination; defaults to false")
+                })
             },
             required = listOf("src", "dst"),
         )
@@ -779,9 +812,18 @@ fun copyFileTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("src", buildJsonObject { put("type", "string") })
-                put("dst", buildJsonObject { put("type", "string") })
-                put("overwrite", buildJsonObject { put("type", "boolean") })
+                put("src", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Source path (file or directory)")
+                })
+                put("dst", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Destination path; must not exist unless overwrite=true")
+                })
+                put("overwrite", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Replace an existing destination; defaults to false")
+                })
             },
             required = listOf("src", "dst"),
         )
@@ -898,7 +940,10 @@ fun fileInfoTool(): Tool = Tool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("path", buildJsonObject { put("type", "string") })
-                put("include_hash", buildJsonObject { put("type", "boolean") })
+                put("include_hash", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Compute SHA-256 of the file (slow for large files); defaults to false")
+                })
             },
             required = listOf("path"),
         )
@@ -959,9 +1004,18 @@ fun findFilesTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("root", buildJsonObject { put("type", "string") })
-                put("query", buildJsonObject { put("type", "string") })
-                put("recursive", buildJsonObject { put("type", "boolean") })
+                put("root", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Directory to search under")
+                })
+                put("query", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Filename substring or glob; matched against the file name only, not the full path")
+                })
+                put("recursive", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Search subdirectories too; defaults to true")
+                })
                 put("limit", buildJsonObject {
                     put("type", "integer"); put("minimum", 1); put("maximum", 500)
                 })

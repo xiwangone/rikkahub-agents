@@ -289,7 +289,7 @@ internal fun buildClipboardTool(context: Context): Tool = run {
                         context.writeClipboardText(text)
                         val payload = buildJsonObject {
                             put("success", true)
-                            put("text", text)
+                            put("length", text.length)
                         }
                         listOf(UIMessagePart.Text(payload.toString()))
                     }

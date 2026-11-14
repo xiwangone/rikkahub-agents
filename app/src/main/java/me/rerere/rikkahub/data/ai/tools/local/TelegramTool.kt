@@ -396,8 +396,14 @@ fun telegramSetCommandsTool(prefs: TelegramBotPreferences, client: TelegramBotCl
                     put("items", buildJsonObject {
                         put("type", "object")
                         put("properties", buildJsonObject {
-                            put("command", buildJsonObject { put("type", "string") })
-                            put("description", buildJsonObject { put("type", "string") })
+                            put("command", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Command word without leading slash, lowercase, 1-32 chars (a-z0-9_)")
+                            })
+                            put("description", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Short label shown to the user in the bot command menu")
+                            })
                         })
                         put("required", buildJsonArray { add("command"); add("description") })
                     })

@@ -229,21 +229,57 @@ private suspend fun createScheduledJob(
 }
 
 private fun scheduleTimingProperties(): JsonObject = buildJsonObject {
-    put("schedule_type", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("once"); add("cron") }) })
-    put("at_unix_ms", buildJsonObject { put("type","integer") })
-    put("cron_expression", buildJsonObject { put("type","string") })
-    put("timezone", buildJsonObject { put("type","string") })
-    put("start_at_unix_ms", buildJsonObject { put("type","integer") })
-    put("end_at_unix_ms", buildJsonObject { put("type","integer") })
-    put("max_runs", buildJsonObject { put("type","integer"); put("minimum", 1); put("maximum", MAX_HISTORY_RETENTION) })
-    put("catchup", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("skip"); add("fire_once"); add("fire_all") }) })
+    put("schedule_type", buildJsonObject {
+        put("type","string"); put("enum", buildJsonArray { add("once"); add("cron") })
+        put("description", "once = fire a single time at at_unix_ms; cron = recur per cron_expression")
+    })
+    put("at_unix_ms", buildJsonObject {
+        put("type","integer")
+        put("description", "Absolute fire time in epoch milliseconds (required for schedule_type=once)")
+    })
+    put("cron_expression", buildJsonObject {
+        put("type","string")
+        put("description", "5-field UNIX cron (min hour dom mon dow); aliases @hourly/@daily/@weekly/@monthly/@yearly and @every 30m are accepted (required for schedule_type=cron)")
+    })
+    put("timezone", buildJsonObject {
+        put("type","string")
+        put("description", "IANA zone id (e.g. Asia/Shanghai) used for cron evaluation; defaults to the device zone")
+    })
+    put("start_at_unix_ms", buildJsonObject {
+        put("type","integer")
+        put("description", "Optional earliest fire time (epoch ms); cron fires before this are suppressed")
+    })
+    put("end_at_unix_ms", buildJsonObject {
+        put("type","integer")
+        put("description", "Optional latest fire time (epoch ms); the job is disabled after it")
+    })
+    put("max_runs", buildJsonObject {
+        put("type","integer"); put("minimum", 1); put("maximum", MAX_HISTORY_RETENTION)
+        put("description", "Optional cap on total executions; the job auto-disables after reaching it")
+    })
+    put("catchup", buildJsonObject {
+        put("type","string"); put("enum", buildJsonArray { add("skip"); add("fire_once"); add("fire_all") })
+        put("description", "What to do about missed fire windows after reboot/process kill: skip them, fire once collapsed, or fire every missed window")
+    })
 }
 
 private fun scheduleMetaProperties(): JsonObject = buildJsonObject {
-    put("name", buildJsonObject { put("type","string") })
-    put("description", buildJsonObject { put("type","string") })
-    put("tags", buildJsonObject { put("type","array"); put("items", buildJsonObject { put("type","string") }) })
-    put("assistant_id", buildJsonObject { put("type","string") })
+    put("name", buildJsonObject {
+        put("type","string")
+        put("description", "Unique human-readable job name used for listing and updates")
+    })
+    put("description", buildJsonObject {
+        put("type","string")
+        put("description", "Optional free-text note about what this job does (not shown to the fired run)")
+    })
+    put("tags", buildJsonObject {
+        put("type","array"); put("items", buildJsonObject { put("type","string") })
+        put("description", "Optional labels for grouping/filtering jobs")
+    })
+    put("assistant_id", buildJsonObject {
+        put("type","string")
+        put("description", "Assistant the job runs as; defaults to the current assistant")
+    })
 }
 
 /**
@@ -273,8 +309,14 @@ fun scheduleJobDirectTool(
                     put("items", buildJsonObject {
                         put("type","object")
                         put("properties", buildJsonObject {
-                            put("tool", buildJsonObject { put("type","string") })
-                            put("args", buildJsonObject { put("type","object") })
+                            put("tool", buildJsonObject {
+                                put("type","string")
+                                put("description", "Tool name to invoke; must be registered for the assistant")
+                            })
+                            put("args", buildJsonObject {
+                                put("type","object")
+                                put("description", "Arguments object matching that tool's input schema")
+                            })
                         })
                         put("required", buildJsonArray { add("tool"); add("args") })
                     })
@@ -315,7 +357,10 @@ fun scheduleJobLlmTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 scheduleMetaProperties().forEach { (k, v) -> put(k, v) }
-                put("prompt", buildJsonObject { put("type","string") })
+                put("prompt", buildJsonObject {
+                    put("type","string")
+                    put("description", "Prompt sent to the assistant when the job fires")
+                })
                 scheduleTimingProperties().forEach { (k, v) -> put(k, v) }
             },
             required = listOf("name","prompt","schedule_type"),
@@ -358,14 +403,23 @@ fun scheduleJobTool(
                 put("tags", buildJsonObject { put("type","array"); put("items", buildJsonObject { put("type","string") }) })
                 put("assistant_id", buildJsonObject { put("type","string") })
                 put("mode", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("llm"); add("direct") }) })
-                put("prompt", buildJsonObject { put("type","string") })
+                put("prompt", buildJsonObject {
+                    put("type","string")
+                    put("description", "Prompt sent to the assistant when the job fires")
+                })
                 put("actions", buildJsonObject {
                     put("type","array")
                     put("items", buildJsonObject {
                         put("type","object")
                         put("properties", buildJsonObject {
-                            put("tool", buildJsonObject { put("type","string") })
-                            put("args", buildJsonObject { put("type","object") })
+                            put("tool", buildJsonObject {
+                                put("type","string")
+                                put("description", "Tool name to invoke; must be registered for the assistant")
+                            })
+                            put("args", buildJsonObject {
+                                put("type","object")
+                                put("description", "Arguments object matching that tool's input schema")
+                            })
                         })
                         put("required", buildJsonArray { add("tool"); add("args") })
                     })
@@ -390,9 +444,15 @@ fun listJobsTool(repo: ScheduledJobRepository): Tool = Tool(
     description = "List scheduled jobs. Optional filters: tag, mode, enabled.".trimIndent(),
     parameters = {
         InputSchema.Obj(properties = buildJsonObject {
-            put("tag", buildJsonObject { put("type","string") })
+            put("tag", buildJsonObject {
+                put("type","string")
+                put("description", "Optional: only list jobs carrying this tag")
+            })
             put("mode", buildJsonObject { put("type","string"); put("enum", buildJsonArray { add("llm"); add("direct") }) })
-            put("enabled", buildJsonObject { put("type","boolean") })
+            put("enabled", buildJsonObject {
+                put("type","boolean")
+                put("description", "Optional filter: true = only enabled jobs, false = only paused jobs")
+            })
         })
     },
     execute = { input ->
@@ -417,7 +477,7 @@ fun deleteJobTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("id", buildJsonObject { put("type","string") })
+                put("id", buildJsonObject { put("type","string"); put("description","Job id from list_jobs / create response") })
             },
             required = listOf("id"),
         )
@@ -437,7 +497,7 @@ fun pauseJobTool(repo: ScheduledJobRepository, scheduler: CronJobScheduler): Too
     description = "Pause a job — keeps the row but stops future fires until resume_job.".trimIndent(),
     parameters = {
         InputSchema.Obj(
-            properties = buildJsonObject { put("id", buildJsonObject { put("type","string") }) },
+            properties = buildJsonObject { put("id", buildJsonObject { put("type","string"); put("description","Job id from list_jobs / create response") }) },
             required = listOf("id"),
         )
     },
@@ -457,7 +517,7 @@ fun resumeJobTool(repo: ScheduledJobRepository, scheduler: CronJobScheduler): To
     description = "Resume a paused job — re-enables future fires.".trimIndent(),
     parameters = {
         InputSchema.Obj(
-            properties = buildJsonObject { put("id", buildJsonObject { put("type","string") }) },
+            properties = buildJsonObject { put("id", buildJsonObject { put("type","string"); put("description","Job id from list_jobs / create response") }) },
             required = listOf("id"),
         )
     },
@@ -481,7 +541,7 @@ fun triggerJobNowTool(
     description = "Manually fire a scheduled job immediately. Goes through the normal worker (HARDLINE checks, history row, concurrent-skip semantics). Does NOT affect the regular schedule.".trimIndent(),
     parameters = {
         InputSchema.Obj(
-            properties = buildJsonObject { put("id", buildJsonObject { put("type","string") }) },
+            properties = buildJsonObject { put("id", buildJsonObject { put("type","string"); put("description","Job id from list_jobs / create response") }) },
             required = listOf("id"),
         )
     },
@@ -512,7 +572,7 @@ fun getJobHistoryTool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("id", buildJsonObject { put("type","string") })
+                put("id", buildJsonObject { put("type","string"); put("description","Job id from list_jobs / create response") })
                 put("limit", buildJsonObject { put("type","integer"); put("minimum", 1); put("maximum", 100) })
             },
             required = listOf("id"),

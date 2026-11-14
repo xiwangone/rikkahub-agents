@@ -180,6 +180,7 @@ fun browserScrollTool(): Tool = Tool(
             put("direction", buildJsonObject {
                 put("type","string")
                 put("enum", buildJsonArray { add("up"); add("down"); add("top"); add("bottom") })
+                put("description", "Scroll one screen in this direction, or jump to top/bottom")
             })
             put("amount", buildJsonObject { put("type","integer"); put("description","Scroll distance in px (default 600)") })
         }, required = listOf("direction"))

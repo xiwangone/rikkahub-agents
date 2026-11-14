@@ -214,4 +214,26 @@ class EnvelopeUnifyTest {
             env["data"]!!.jsonObject["exception"]!!.jsonPrimitive.content,
         )
     }
+
+    @Test
+    fun `argument validation failures get invalid_argument with fix_param`() {
+        // 工具参数校验惯用 error("x is required")（IllegalArgumentException）：
+        // 模型改参后重调即可自纠，不能归到 tool_failed/abort。
+        val out = toolFailureParts(IllegalArgumentException("text is required"))
+        val env = envelopeOfParts(out)
+        assertEnvelope(env, ToolErrors.INVALID_PARAMS, "invalid_argument", "fix_param")
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("text is required"))
+        assertEquals(
+            "IllegalArgumentException",
+            env["data"]!!.jsonObject["exception"]!!.jsonPrimitive.content,
+        )
+    }
+
+    @Test
+    fun `state validation failures also get fix_param`() {
+        val out = toolFailureParts(IllegalStateException("unknown action: x, must be one of [read, write]"))
+        val env = envelopeOfParts(out)
+        assertEnvelope(env, ToolErrors.INVALID_PARAMS, "invalid_argument", "fix_param")
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("unknown action"))
+    }
 }

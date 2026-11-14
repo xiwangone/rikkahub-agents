@@ -2,6 +2,8 @@ package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.encodeToJsonElement
 import kotlinx.serialization.json.jsonArray
@@ -18,6 +20,8 @@ import java.time.LocalDate
 import kotlin.time.Clock
 import kotlin.uuid.Uuid
 
+private const val SEARCH_ITEM_TEXT_MAX_CHARS = 4_000
+
 fun createSearchTools(settings: Settings): Set<Tool> {
     return buildSet {
         add(
@@ -30,7 +34,6 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                     Use the optional publication-date and domain filters only when they match the question.
                     If sources conflict or data is missing, run another focused search
                     or use scrape_web to verify before answering.
-                    Today is ${LocalDate.now().toLocalString(true)}.
 
                     Response format:
                     - retrievedAt is the local retrieval time, never a publication date
@@ -63,11 +66,24 @@ fun createSearchTools(settings: Settings): Set<Tool> {
                                     JsonObject(item.jsonObject.toMutableMap().apply {
                                         put("id", JsonPrimitive(Uuid.random().toString().take(6)))
                                         put("index", JsonPrimitive(index + 1))
+                                        // 单条 text 截断：大结果集一次灌满上下文的护栏；
+                                        // 全文可用 scrape_web/web_fetch 按 url 取回。
+                                        val t = this["text"] as? JsonPrimitive
+                                        if (t?.content != null && t.content.length > SEARCH_ITEM_TEXT_MAX_CHARS) {
+                                            val cut = t.content.take(SEARCH_ITEM_TEXT_MAX_CHARS)
+                                            put("text", JsonPrimitive(cut + "… [truncated ${t.content.length - SEARCH_ITEM_TEXT_MAX_CHARS} chars; use scrape_web with this item's url for full text]"))
+                                        }
                                     })
                                 })
                             JsonObject(map)
                         }
-                    listOf(UIMessagePart.Text(results.toString()))
+                    // 今日日期放执行结果而非 description：description 每天变化会打爆
+                    // provider 的工具列表缓存前缀；结果里每次返回则天然新鲜。
+                    val resultsWithToday = buildJsonObject {
+                        put("today", JsonPrimitive(LocalDate.now().toLocalString(true)))
+                        results.jsonObject.forEach { (k, v) -> put(k, v) }
+                    }
+                    listOf(UIMessagePart.Text(resultsWithToday.toString()))
                 }
             )
         )

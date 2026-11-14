@@ -145,6 +145,7 @@ fun scrollTool(
                     put("enum", buildJsonArray {
                         add("up"); add("down"); add("left"); add("right")
                     })
+                    put("description", "Swipe direction relative to the screen")
                 })
                 put("x", buildJsonObject { put("type", "number"); put("description", "Optional anchor px") })
                 put("y", buildJsonObject { put("type", "number"); put("description", "Optional anchor px") })

@@ -41,7 +41,9 @@ class SystemPromptBuilderTest {
         )
         assertTrue(stable.contains("You are helpful."))
         assertTrue(stable.contains("tool_a docs"))
-        assertTrue(stable.contains("Tool cost guidance"))
+        // 行为指导（含 Tool cost guidance）属可迭代文案，放 volatile：调整不会使 stable 缓存前缀失效。
+        assertFalse(stable.contains("Tool cost guidance"))
+        assertTrue(volatile.contains("Tool cost guidance"))
         assertFalse(stable.contains("Memories"))
         assertTrue(volatile.contains("**Memories** m1"))
         assertTrue(volatile.contains("**Recent Chats** c1"))

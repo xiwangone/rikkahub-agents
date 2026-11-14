@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
@@ -98,7 +99,16 @@ fun buildMemoryTools(
                 "get" -> {
                     val id = params.optInt("id") ?: error("id is required")
                     val memory = onListAll().firstOrNull { it.id == id }
-                        ?: error("memory record not found in current scope: $id")
+                        ?: return@Tool listOf(
+                            UIMessagePart.Text(
+                                ToolErrors.envelopeFor(
+                                    error = "memory_record_not_found",
+                                    message = "Memory record $id does not exist in current scope",
+                                    hint = "Call memory_tool with action=list to see valid record ids in this scope",
+                                    extra = mapOf("id" to JsonPrimitive(id)),
+                                ).toString(),
+                            ),
+                        )
                     memoryPayload(memory, scopeId, memory.content)
                 }
                 "delete" -> {

@@ -111,11 +111,18 @@ fun keystoreGenerateKeyTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
-                put("type", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Unique key name in the Android Keystore; later operations reference it")
+                })
+                put("type", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Key algorithm: rsa or aes")
+                })
                 put("purposes", buildJsonObject {
                     put("type", "array")
                     put("items", buildJsonObject { put("type", "string") })
+                    put("description", "RSA key usages, e.g. [\"sign\",\"verify\"] or [\"encrypt\",\"decrypt\"]")
                 })
             },
             required = listOf("alias", "type", "purposes"),
@@ -204,8 +211,14 @@ fun keystoreSignTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
-                put("data_b64", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "RSA key alias created via keystore_generate_key")
+                })
+                put("data_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Data to sign, base64-encoded")
+                })
             },
             required = listOf("alias", "data_b64"),
         )
@@ -244,9 +257,18 @@ fun keystoreVerifyTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
-                put("data_b64", buildJsonObject { put("type", "string") })
-                put("signature_b64", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "RSA key alias used when signing")
+                })
+                put("data_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Original signed data, base64-encoded")
+                })
+                put("signature_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Signature to verify, base64-encoded")
+                })
             },
             required = listOf("alias", "data_b64", "signature_b64"),
         )
@@ -288,8 +310,14 @@ fun keystoreEncryptTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
-                put("plaintext_b64", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "AES key alias created via keystore_generate_key")
+                })
+                put("plaintext_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Plaintext to encrypt, base64-encoded")
+                })
             },
             required = listOf("alias", "plaintext_b64"),
         )
@@ -328,9 +356,18 @@ fun keystoreDecryptTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
-                put("ciphertext_b64", buildJsonObject { put("type", "string") })
-                put("iv_b64", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "AES key alias used when encrypting")
+                })
+                put("ciphertext_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Ciphertext from keystore_encrypt, base64-encoded")
+                })
+                put("iv_b64", buildJsonObject {
+                    put("type", "string")
+                    put("description", "IV returned by keystore_encrypt, base64-encoded")
+                })
             },
             required = listOf("alias", "ciphertext_b64", "iv_b64"),
         )
@@ -374,7 +411,10 @@ fun keystoreDeleteKeyTool(): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("alias", buildJsonObject { put("type", "string") })
+                put("alias", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Key alias to delete")
+                })
             },
             required = listOf("alias"),
         )

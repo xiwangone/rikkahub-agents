@@ -261,6 +261,14 @@ internal fun toolFailureParts(error: Throwable): List<UIMessagePart> =
             "Tool cancelled: wall-clock budget exceeded.",
             extra = mapOf("exception" to JsonPrimitive(error.javaClass.simpleName)),
         )
+        // IllegalArgumentException/IllegalStateException 是工具参数校验的惯用抛出（"x is required" /
+        // "unknown action"）：按 invalid_argument + fix_param 回灌，模型改参后重调即可自纠；
+        // 归到 tool_failed/abort 会把「少传参数」说成「工具内部错误」，误导 recovery 决策。
+        is IllegalArgumentException, is IllegalStateException -> ToolErrors.partsFor(
+            ToolErrors.INVALID_ARGUMENT,
+            (error.message ?: error.javaClass.simpleName).take(500),
+            extra = mapOf("exception" to JsonPrimitive(error.javaClass.simpleName)),
+        )
         else -> ToolErrors.partsFor(
             ToolErrors.TOOL_FAILED,
             (error.message ?: error.javaClass.simpleName).take(500),
@@ -276,6 +284,8 @@ internal fun toolFailureParts(error: Throwable): List<UIMessagePart> =
  */
 // 装配类：参数随执行上下文增长（模型/会话/工具/钩子），拆构造只会把装配关系割裂到多处（同 ChatToolFactory 口径）。
 @Suppress("LargeClass", "LongParameterList")
+private const val LOOP_HEADLESS_WINDOW = 30
+
 internal class GenerationAgentRun(
     private val context: Context,
     private val json: Json,
@@ -933,7 +943,14 @@ internal class GenerationAgentRun(
         // 用户/硬线拒绝的包络在循环之外已成型（Denied/Answered 分支），这里只处理要执行的那些
         val signature = LoopGuard.signature(toolName = tool.toolName, input = tool.input, parsedArgs = parsedArgs)
         val turnStartIndex = messages.indexOfLast { it.role == MessageRole.USER && !it.isSynthetic }
-        val turnSlice = messages.subList((turnStartIndex + 1).coerceAtLeast(0), messages.size)
+        // 无真实 user 消息（headless/自动任务，历史里只有 synthetic 注入）时 turnStartIndex=-1，
+        // subList(0,size) 会把全部历史算进「本轮」→ 3 次即误报 loop_detected。
+        // 改为只取最近 LOOP_HEADLESS_WINDOW 条：保留近程死循环保护，又不受全历史污染。
+        val turnSlice = if (turnStartIndex < 0) {
+            messages.takeLast(LOOP_HEADLESS_WINDOW)
+        } else {
+            messages.subList(turnStartIndex + 1, messages.size)
+        }
         val priorCalls = turnSlice.flatMap { msg ->
             val epochMs = (msg.finishedAt ?: msg.createdAt)
                 .toInstant(TimeZone.currentSystemDefault()).toEpochMilliseconds()

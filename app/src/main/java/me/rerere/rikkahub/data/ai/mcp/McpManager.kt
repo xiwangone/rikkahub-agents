@@ -65,7 +65,6 @@ private const val BASE_RECONNECT_DELAY_MS = 1000L
 private const val MAX_RECONNECT_DELAY_MS = 30000L
 
 // OAuth 相关常量
-private const val TOKEN_REFRESH_LEEWAY_MS = 60_000L // 令牌到期前 60s 视为需要刷新
 private val OAUTH_CALLBACK_TIMEOUT = 5.minutes
 
 class McpManager(
@@ -211,7 +210,7 @@ class McpManager(
         var config = entry.key
 
         // 调用前确保 OAuth 令牌新鲜。若发生刷新，已连接的 transport 仍携带过期令牌
-        val freshConfig = ensureFreshToken(config)
+        val freshConfig = oauthCoordinator.ensureFreshToken(config)
         if (freshConfig.commonOptions.oauth?.accessToken != config.commonOptions.oauth?.accessToken) {
             AppLog.i(TAG, "callTool: token refreshed, reconnecting ${config.commonOptions.name}")
             addClient(freshConfig)
@@ -303,7 +302,7 @@ class McpManager(
     }
 
     suspend fun addClient(configInput: McpServerConfig) = withContext(Dispatchers.IO) {
-        val config = ensureFreshToken(configInput)
+        val config = oauthCoordinator.ensureFreshToken(configInput)
         lockFor(config.id).withLock {
             addClientLocked(config)
         }
@@ -567,7 +566,7 @@ class McpManager(
     }
 
     private suspend fun reconnectClient(configInput: McpServerConfig) = withContext(Dispatchers.IO) {
-        val config = ensureFreshToken(configInput)
+        val config = oauthCoordinator.ensureFreshToken(configInput)
         // Serialize against add/remove for the same id so a reconnect can't race a user edit
         // and leave two live Clients registered.
         lockFor(config.id).withLock {
@@ -658,42 +657,6 @@ class McpManager(
     }
 
     /** 若令牌即将过期且存在 refresh_token，则提前刷新并持久化，返回更新后的配置。 */
-    private suspend fun ensureFreshToken(config: McpServerConfig): McpServerConfig {
-        val oauth = config.commonOptions.oauth ?: return config
-        if (!oauth.enabled || oauth.refreshToken.isNullOrBlank()) return config
-        val expired = oauth.expiresAt > 0 &&
-            System.currentTimeMillis() >= oauth.expiresAt - TOKEN_REFRESH_LEEWAY_MS
-        val needsRefresh = oauth.accessToken.isNullOrBlank() || expired
-        if (!needsRefresh) return config
-
-        val tokenEndpoint = oauth.tokenEndpoint ?: return config
-        val clientId = oauth.clientId ?: return config
-        return try {
-            val token = oauthHttpClient.refreshToken(
-                OAuthHttpClient.RefreshTokenRequest(
-                    tokenEndpoint = tokenEndpoint,
-                    clientId = clientId,
-                    clientSecret = oauth.clientSecret,
-                    refreshToken = oauth.refreshToken,
-                    scope = oauth.scope,
-                    resources = listOf(McpOAuthDiscoveryClient.canonicalResource(config.serverUrl)),
-                ),
-            )
-            val updated = oauth.copy(
-                accessToken = token.accessToken,
-                refreshToken = token.refreshToken ?: oauth.refreshToken,
-                expiresAt = computeExpiry(token.expiresIn),
-                scope = token.scope ?: oauth.scope,
-            )
-            persistOAuthState(config.id, updated)
-            config.clone(commonOptions = config.commonOptions.copy(oauth = updated))
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (failure: Exception) {
-            AppLog.w(TAG, "Token refresh failed for ${config.commonOptions.name}: ${failure.message}")
-            config // 刷新失败仍用旧令牌尝试，失败会转为 NeedsAuthorization
-        }
-    }
 
     private suspend fun persistOAuthState(configId: Uuid, oauth: McpOAuthState?) {
         settingsStore.update { old ->

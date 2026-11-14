@@ -153,11 +153,19 @@ fun zipFilesTool(context: Context): Tool = Tool(
                 put("sources", buildJsonObject {
                     put("type", "array")
                     put("items", buildJsonObject { put("type", "string") })
+                    put("description", "Files and/or directories to archive (absolute paths or content:// URIs); directories are included recursively")
                 })
-                put("destination", buildJsonObject { put("type", "string") })
-                put("base_dir", buildJsonObject { put("type", "string") })
+                put("destination", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Target .zip path (created; parent dir must exist)")
+                })
+                put("base_dir", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Optional: entries are stored relative to this prefix; omit to store names as given")
+                })
                 put("compression_level", buildJsonObject {
                     put("type", "integer"); put("minimum", 0); put("maximum", 9)
+                    put("description", "Deflate level 0 (store) to 9 (best); defaults to 6")
                 })
             },
             required = listOf("sources", "destination"),
@@ -336,9 +344,18 @@ fun unzipFileTool(context: Context): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("source", buildJsonObject { put("type", "string") })
-                put("destination_dir", buildJsonObject { put("type", "string") })
-                put("overwrite", buildJsonObject { put("type", "boolean") })
+                put("source", buildJsonObject {
+                    put("type", "string")
+                    put("description", ".zip path to extract (file or content:// URI)")
+                })
+                put("destination_dir", buildJsonObject {
+                    put("type", "string")
+                    put("description", "Directory to extract into (created if missing)")
+                })
+                put("overwrite", buildJsonObject {
+                    put("type", "boolean")
+                    put("description", "Replace existing files; defaults to false (conflicting entries are skipped)")
+                })
             },
             required = listOf("source", "destination_dir"),
         )
@@ -513,7 +530,10 @@ fun listZipContentsTool(context: Context): Tool = Tool(
     parameters = {
         InputSchema.Obj(
             properties = buildJsonObject {
-                put("source", buildJsonObject { put("type", "string") })
+                put("source", buildJsonObject {
+                    put("type", "string")
+                    put("description", ".zip path to inspect (file or content:// URI)")
+                })
             },
             required = listOf("source"),
         )

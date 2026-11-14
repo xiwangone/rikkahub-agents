@@ -73,6 +73,7 @@ fun nfcReadTagTool(
             properties = buildJsonObject {
                 put("timeout_seconds", buildJsonObject {
                     put("type", "integer"); put("minimum", 5); put("maximum", 120)
+                    put("description", "How long to keep listening for a tag before giving up; defaults to the middle of the allowed range")
                 })
             },
         )
@@ -136,15 +137,28 @@ fun nfcWriteTagTool(
                     put("items", buildJsonObject {
                         put("type", "object")
                         put("properties", buildJsonObject {
-                            put("kind", buildJsonObject { put("type", "string") })
-                            put("value", buildJsonObject { put("type", "string") })
-                            put("tnf", buildJsonObject { put("type", "integer") })
-                            put("type_b64", buildJsonObject { put("type", "string") })
+                            put("kind", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Record type: text, uri, or raw")
+                            })
+                            put("value", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Payload: decoded text (kind=text) or the URI string (kind=uri); base64 body for raw")
+                            })
+                            put("tnf", buildJsonObject {
+                                put("type", "integer")
+                                put("description", "NFC TNF byte (raw records only)")
+                            })
+                            put("type_b64", buildJsonObject {
+                                put("type", "string")
+                                put("description", "Record type field as base64 (raw records only)")
+                            })
                         })
                     })
                 })
                 put("timeout_seconds", buildJsonObject {
                     put("type", "integer"); put("minimum", 5); put("maximum", 120)
+                    put("description", "How long to wait for the user to tap a tag before giving up")
                 })
             },
             required = listOf("records"),

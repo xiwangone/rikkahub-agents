@@ -131,6 +131,7 @@ internal fun buildPhoneUseTool(
                     put("key", buildJsonObject {
                         put("type", "string")
                         put("enum", buildJsonArray { PhoneKey.entries.forEach { add(it.name.lowercase(Locale.ROOT)) } })
+                        put("description", "Hardware/ Nav key to press, e.g. back, home, enter, volume_up")
                     })
                     put("app", buildJsonObject {
                         put("type", "string")
