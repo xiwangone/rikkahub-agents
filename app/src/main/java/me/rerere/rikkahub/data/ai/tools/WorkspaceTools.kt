@@ -461,7 +461,13 @@ private fun createShellTool(
                 ),
             )
         }
-        val rawCwd = params.string("cwd") ?: if (targetWorkspaceId == workspaceId) defaultCwd.orEmpty() else ""
+        val cwdParam = params.string("cwd")
+        val rawCwd = cwdParam ?: if (targetWorkspaceId == workspaceId) defaultCwd.orEmpty() else ""
+        // 显式传入的绝对 cwd 也要过路径边界校验：远程工作区误传 /workspace、/sdcard 时
+        // 直接给指路提示，而不是被 relativeToWorkspace 拼成 <remoteDir>/workspace 后报 cd 失败。
+        if (cwdParam != null && cwdParam.startsWith("/")) {
+            validateWorkspaceTargetPath(workspaceRepository, targetWorkspaceId, cwdParam)
+        }
         val cwd = targetLayout.relativeToWorkspace(rawCwd)
         val timeoutRaw = params.string("timeout")
         val timeoutSeconds = timeoutRaw?.toLongOrNull()
@@ -612,7 +618,12 @@ private fun createRunBackgroundTool(
         val strippedAmpersand = trimmedCmd.endsWith("&") && !trimmedCmd.endsWith("&&")
         val command = if (strippedAmpersand) trimmedCmd.dropLast(1).trimEnd() else rawCommand
         val targetLayout = resolveEffectiveLayout(workspaceRepository, workspaceId, wsId, layout)
-        val rawCwd = params.string("cwd") ?: if (wsId == workspaceId) defaultCwd.orEmpty() else ""
+        val cwdParam = params.string("cwd")
+        val rawCwd = cwdParam ?: if (wsId == workspaceId) defaultCwd.orEmpty() else ""
+        // 同 workspace_shell：显式绝对 cwd 先过路径边界校验，避免拼成 <remoteDir>/workspace 后 cd 失败。
+        if (cwdParam != null && cwdParam.startsWith("/")) {
+            validateWorkspaceTargetPath(workspaceRepository, wsId, cwdParam)
+        }
         val cwd = targetLayout.relativeToWorkspace(rawCwd)
 
         // env: { 环境变量名: vault凭证名 } —— 同 workspace_shell：进程内解密注入，不落盘、AI 不见明文
