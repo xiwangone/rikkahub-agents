@@ -71,7 +71,7 @@ class SshHostRepositoryTest {
             repo.getByName("bad-host")
             fail("expected UndecryptableCredentialException")
         } catch (e: UndecryptableCredentialException) {
-            assertTrue(e.message!!.contains("凭证无法解密"))
+            assertTrue(e.message!!.contains("cannot be decrypted"))
             assertFalse(e.message!!.contains(badCipher))
             assertEquals("bad-host", e.hostName)
             assertEquals("password", e.field)
@@ -81,7 +81,7 @@ class SshHostRepositoryTest {
             repo.getByHost("203.0.113.2")
             fail("expected UndecryptableCredentialException")
         } catch (e: UndecryptableCredentialException) {
-            assertTrue(e.message!!.contains("凭证无法解密"))
+            assertTrue(e.message!!.contains("cannot be decrypted"))
         }
     }
 
@@ -106,7 +106,7 @@ class SshHostRepositoryTest {
             repo.getByName("kl-host")
             fail("expected UndecryptableCredentialException after key loss")
         } catch (e: UndecryptableCredentialException) {
-            assertTrue(e.message!!.contains("凭证无法解密"))
+            assertTrue(e.message!!.contains("cannot be decrypted"))
             assertFalse(e.message!!.contains("enc:v1:"))
         }
     }
@@ -128,7 +128,7 @@ class SshHostRepositoryTest {
             repo.getByName("broken-host")
             fail("expected UndecryptableCredentialException")
         } catch (e: UndecryptableCredentialException) {
-            assertTrue(e.message!!.contains("凭证无法解密"))
+            assertTrue(e.message!!.contains("cannot be decrypted"))
         }
     }
 

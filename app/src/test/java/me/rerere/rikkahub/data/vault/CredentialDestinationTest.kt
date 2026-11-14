@@ -55,7 +55,7 @@ class CredentialDestinationTest {
             bound, sshKeyValue, CredentialUse.SSH_KEY,
             CredentialDestination.Ssh("evil.example.com", 22, "root"),
         )
-        assertTrue(reason!!.contains("该凭证未授权用于此目的地"))
+        assertTrue(reason!!.contains("not authorized for this destination"))
     }
 
     @Test fun `ssh endpoint port and user constrain the match`() {
@@ -74,14 +74,14 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 bound, sshKeyValue, CredentialUse.SSH_KEY,
                 CredentialDestination.Ssh("db.example.com", 22, "deploy"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
         // 用户不对
         assertTrue(
             CredentialBinding.check(
                 bound, sshKeyValue, CredentialUse.SSH_KEY,
                 CredentialDestination.Ssh("db.example.com", 2222, "root"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
     }
 
@@ -100,7 +100,7 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 bound, sshKeyValue, CredentialUse.SSH_KEY,
                 CredentialDestination.Ssh("c.example.com", 22, "root"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
     }
 
@@ -138,13 +138,13 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 bound, "tok", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("https://api.example.com/v10/users"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
         assertTrue(
             CredentialBinding.check(
                 bound, "tok", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("https://evil.example.com/v1/users"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
     }
 
@@ -163,7 +163,7 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 bound, "tok", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("http://api.example.com/x"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
         val withPort = entry(
             type = CredentialType.API_KEY,
@@ -179,7 +179,7 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 withPort, "tok", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("https://api.example.com/x"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
     }
 
@@ -198,7 +198,7 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 bound, "tok", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("http://127.0.0.1:8080/x"),
-            )!!.contains("该凭证未授权用于此目的地"),
+            )!!.contains("not authorized for this destination"),
         )
     }
 
@@ -212,7 +212,7 @@ class CredentialDestinationTest {
         val apiKey = entry(type = CredentialType.API_KEY)
         assertTrue(
             CredentialBinding.check(apiKey, "tok", CredentialUse.SSH_KEY, CredentialDestination.Ssh("h", 22, "u"))
-                !!.contains("凭证类型与用途不匹配"),
+                !!.contains("Credential type mismatch"),
         )
     }
 
@@ -226,7 +226,7 @@ class CredentialDestinationTest {
         val reason = CredentialBinding.check(
             apiKey, "sk-xxx", CredentialUse.SSH_PASSWORD, CredentialDestination.Ssh("h", 22, "u"),
         )
-        assertTrue(reason!!.contains("凭证类型与用途不匹配"))
+        assertTrue(reason!!.contains("Credential type mismatch"))
     }
 
     @Test fun `http header accepts api-key and cloud-ak, rejects ssh-key and totp`() {
@@ -246,13 +246,13 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 entry(type = CredentialType.SSH_KEY), sshKeyValue, CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("https://api.example.com/"),
-            )!!.contains("凭证类型与用途不匹配"),
+            )!!.contains("Credential type mismatch"),
         )
         assertTrue(
             CredentialBinding.check(
                 entry(type = CredentialType.TOTP), "seed", CredentialUse.HTTP_HEADER,
                 CredentialDestination.Http("https://api.example.com/"),
-            )!!.contains("凭证类型与用途不匹配"),
+            )!!.contains("Credential type mismatch"),
         )
     }
 
@@ -260,15 +260,15 @@ class CredentialDestinationTest {
         val custom = entry(type = CredentialType.CUSTOM)
         assertTrue(
             CredentialBinding.check(custom, "v", CredentialUse.SSH_KEY, CredentialDestination.Ssh("h", 22, "u"))
-                !!.contains("凭证类型与用途不匹配"),
+                !!.contains("Credential type mismatch"),
         )
         assertTrue(
             CredentialBinding.check(custom, "v", CredentialUse.SSH_PASSWORD, CredentialDestination.Ssh("h", 22, "u"))
-                !!.contains("凭证类型与用途不匹配"),
+                !!.contains("Credential type mismatch"),
         )
         assertTrue(
             CredentialBinding.check(custom, "v", CredentialUse.HTTP_HEADER, CredentialDestination.Http("https://h/"))
-                !!.contains("凭证类型与用途不匹配"),
+                !!.contains("Credential type mismatch"),
         )
     }
 
@@ -286,7 +286,7 @@ class CredentialDestinationTest {
             CredentialBinding.check(
                 entry(type = ""), "s3cret", CredentialUse.SSH_PASSWORD,
                 CredentialDestination.Ssh("h", 22, "u"),
-            )!!.contains("凭证类型与用途不匹配"),
+            )!!.contains("Credential type mismatch"),
         )
     }
 
@@ -300,7 +300,7 @@ class CredentialDestinationTest {
             boundApiKey, "tok", CredentialUse.SSH_PASSWORD,
             CredentialDestination.Ssh("b.example.com", 22, "u"),
         )
-        assertTrue(reason!!.contains("该凭证未授权用于此目的地"))
+        assertTrue(reason!!.contains("not authorized for this destination"))
     }
 
     @Test fun `effectiveType prefers stored type over inference`() {

@@ -8,6 +8,8 @@ import android.graphics.Path
 import android.graphics.Point
 import android.graphics.Rect
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.os.Bundle
 import android.util.Log
 import android.view.Display
@@ -50,6 +52,20 @@ private fun String.clean() = replace('\n', ' ').trim().let {
  * 不监听无障碍事件，只在工具调用时读取窗口、派发手势。
  */
 open class PhoneUseAccessibilityService : AccessibilityService(), PhoneController {
+
+    /**
+     * `Context.getMainExecutor()` 需 API 28，而本项目 minSdk 是 26：
+     * Android 8.0/8.1 上直接调用会在运行时抛 NoSuchMethodError。这里在低版本回落到
+     * 主线程 Handler（与 getMainExecutor 语义一致：串行、主线程）。
+     */
+    private val mainExecutorCompat: java.util.concurrent.Executor by lazy {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.P) {
+            mainExecutor
+        } else {
+            val handler = Handler(Looper.getMainLooper())
+            java.util.concurrent.Executor { command -> handler.post(command) }
+        }
+    }
     private val indicator by lazy { GestureIndicator(this) }
 
     // 和最近一次 captureScreen 返回的元素一一对应，setText 靠它找到节点
@@ -312,10 +328,10 @@ open class PhoneUseAccessibilityService : AccessibilityService(), PhoneControlle
                 null,
             )
             continuation.invokeOnCancellation {
-                mainExecutor.execute { indicator.dismiss() }
+                mainExecutorCompat.execute { indicator.dismiss() }
             }
             if (!dispatched) {
-                mainExecutor.execute { indicator.dismiss() }
+                mainExecutorCompat.execute { indicator.dismiss() }
                 if (continuation.isActive) continuation.resume(false)
             }
         }
