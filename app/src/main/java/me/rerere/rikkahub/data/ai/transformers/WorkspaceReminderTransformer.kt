@@ -39,6 +39,14 @@ private val absentInstructionsNotified: MutableSet<String> =
  */
 class WorkspaceReminderTransformer(
     private val workspaceRepository: WorkspaceRepository,
+    /**
+     * App 私有目录（通常是 `context.filesDir`）。远程工作区的工作目录在远端，读不到手机上
+     * Rootfs 里的 `/workspace/AGENTS.md`；这里额外接受 App 私有目录下的 AGENTS.md，
+     * 让「只维护一份通用指令」也能对远程工作区生效。传 null 表示不启用该来源（测试用）。
+     *
+     * 该文件**可选**：不存在就跳过，不报错、不提示（与其它 AGENTS.md 同口径）。
+     */
+    private val appFilesDir: java.io.File? = null,
 ) : InputMessageTransformer {
     override suspend fun transform(
         ctx: TransformerContext,
@@ -96,7 +104,7 @@ class WorkspaceReminderTransformer(
             add("${layout.workspaceDir}/AGENTS.md")
             add(workingDirectory.resolve("AGENTS.md").toString())
         }.distinct()
-        val instructions = paths.mapNotNull { path ->
+        val fromWorkspace = paths.mapNotNull { path ->
             try {
                 val size = workspaceRepository.absoluteFileSize(workspaceId, path)
                 require(size <= MAX_AGENTS_BYTES) { "AGENTS.md exceeds $MAX_AGENTS_BYTES bytes" }
@@ -126,6 +134,26 @@ class WorkspaceReminderTransformer(
                 null
             }
         }
+        // App 侧通用指令：走本机文件 IO（不经工作区后端），远程工作区同样生效。
+        val appSide = appFilesDir?.let { dir ->
+            val file = java.io.File(dir, AGENTS_FILE_NAME)
+            if (!file.isFile) {
+                null
+            } else {
+                runCatching {
+                    require(file.length() <= MAX_AGENTS_BYTES) { "AGENTS.md exceeds $MAX_AGENTS_BYTES bytes" }
+                    file.readText().takeIf { it.isNotBlank() }?.let { file.absolutePath to it }
+                }.getOrElse { e ->
+                    AppLog.w("WorkspaceReminder", "failed reading app-side instructions: ${file.absolutePath}", e)
+                    null
+                }
+            }
+        }
+        // 内容去重：同一份指令若既在工作区、又在 App 私有目录，只注入一次（保留先出现的来源标注）
+        val seenContents = mutableSetOf<String>()
+        val instructions = (fromWorkspace + listOfNotNull(appSide)).filter { (_, content) ->
+            seenContents.add(content)
+        }
         if (instructions.isEmpty()) return ""
         return buildString {
             appendLine()
@@ -143,6 +171,7 @@ class WorkspaceReminderTransformer(
 
     private companion object {
         const val MAX_AGENTS_BYTES = 64L * 1024
+        const val AGENTS_FILE_NAME = "AGENTS.md"
     }
 }
 

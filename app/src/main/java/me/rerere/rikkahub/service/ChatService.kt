@@ -261,7 +261,7 @@ class ChatService(
     internal val compressedArchiveDao: me.rerere.rikkahub.data.db.dao.CompressedArchiveDao,
 ) {
     // workspace 系统提示注入 (依赖 workspaceRepository, 故在类内构造)
-    internal val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository)
+    internal val workspaceReminderTransformer = WorkspaceReminderTransformer(workspaceRepository, context.filesDir)
 
     // 统一会话管理
     internal val sessions = ConcurrentHashMap<Uuid, ConversationSession>()
