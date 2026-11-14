@@ -15,13 +15,13 @@ enum class CredentialUse(
     val acceptedTypes: Set<String>,
 ) {
     /** vault_ssh_exec auth=key：SSH 私钥握手。 */
-    SSH_KEY("SSH 密钥认证", setOf(CredentialType.SSH_KEY)),
+    SSH_KEY("SSH key auth", setOf(CredentialType.SSH_KEY)),
 
     /** vault_ssh_exec auth=password：SSH 口令认证。 */
-    SSH_PASSWORD("SSH 口令认证", setOf(CredentialType.BASIC_AUTH)),
+    SSH_PASSWORD("SSH password auth", setOf(CredentialType.BASIC_AUTH)),
 
     /** vault_http_exec：凭证值注入 HTTP 请求头。云 AK 的密文与 API Key 同为"头部令牌"形态，一并接受。 */
-    HTTP_HEADER("HTTP 请求头注入", setOf(CredentialType.API_KEY, CredentialType.CLOUD_AK)),
+    HTTP_HEADER("HTTP header injection", setOf(CredentialType.API_KEY, CredentialType.CLOUD_AK)),
 }
 
 /** 凭证本次要去的目的地（P0-2：目的地绑定只认这两种形状）。 */
@@ -60,12 +60,12 @@ object CredentialBinding {
         val meta = CredentialMeta.decode(entry.metaJson)
         val endpoint = meta["endpoint"]?.trim().orEmpty()
         if (endpoint.isNotEmpty() && !destinationMatches(endpoint, destination)) {
-            return "该凭证未授权用于此目的地（凭证绑定 endpoint 为 $endpoint，本次请求为 ${destination.describe()}）"
+            return "Credential is not authorized for this destination (bound endpoint $endpoint, request ${destination.describe()})"
         }
         val actual = effectiveType(entry, value)
         if (actual !in use.acceptedTypes) {
-            return "凭证类型与用途不匹配：本次${use.label}需要 ${use.acceptedTypes.joinToString("/")} 类型凭证，" +
-                "该凭证类型为 $actual（请在凭证编辑页更正类型，或换一枚对应类型的凭证）"
+            return "Credential type mismatch: ${use.label} requires ${use.acceptedTypes.joinToString("/")}, " +
+                "but this credential is $actual (fix the type in the credential editor, or pick one of the expected types)"
         }
         return null
     }

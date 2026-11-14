@@ -36,7 +36,7 @@ private const val ENC_PREFIX = "enc:v1:"
 class UndecryptableCredentialException(
     val hostName: String,
     val field: String,
-) : IllegalStateException("凭证无法解密：主机 $hostName 的 $field 无法解密（密钥可能已丢失），请重新填写该主机的凭据")
+) : IllegalStateException("Credential cannot be decrypted: $field for host $hostName (the key may be lost). Re-enter the credentials for this host.")
 
 class SshHostRepository(private val dao: SshHostDao) {
     /**
@@ -88,7 +88,7 @@ private fun String.decryptSecret(hostName: String, field: String, lenient: Boole
     } else {
         ProviderCredentialCipher.decrypt(removePrefix(ENC_PREFIX)) ?: run {
             if (lenient) {
-                AppLog.w("SshHostRepo", "主机 $hostName 的 $field 无法解密（密钥可能已丢失），列表中保留密文原文；连接时将明确报错")
+                AppLog.w("SshHostRepo", "$field for host $hostName cannot be decrypted (the key may be lost); keeping the ciphertext in the list, the connection will report a clear error")
                 this
             } else {
                 throw UndecryptableCredentialException(hostName, field)
