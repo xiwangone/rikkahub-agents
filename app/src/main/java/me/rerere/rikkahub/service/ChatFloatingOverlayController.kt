@@ -294,7 +294,7 @@ internal class ChatFloatingOverlayController(
                         @Suppress("DEPRECATION")
                         WindowManager.LayoutParams.TYPE_PHONE
                     },
-                    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL,
+                    COLLAPSED_BUBBLE_WINDOW_FLAGS,
                     PixelFormat.TRANSLUCENT,
                 ).apply {
                     gravity = Gravity.TOP or Gravity.END
@@ -558,7 +558,7 @@ internal class ChatFloatingOverlayController(
         } else {
             lp.width = dp(BUBBLE_SIZE_DP)
             lp.height = dp(BUBBLE_SIZE_DP)
-            lp.flags = WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL
+            lp.flags = COLLAPSED_BUBBLE_WINDOW_FLAGS
         }
         val metrics = overlayContext.resources.displayMetrics
         lp.x = lp.x.coerceIn(0, (metrics.widthPixels - lp.width).coerceAtLeast(0))
@@ -653,8 +653,8 @@ internal class ChatFloatingOverlayController(
                     }
                     true
                 }
-                MotionEvent.ACTION_UP -> {
-                    if (!dragged) {
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    if (!dragged && event.action == MotionEvent.ACTION_UP) {
                         if (startedHidden) {
                             // 点按细条：滑出完整气泡，不打开面板。
                             edgeHide.restore()

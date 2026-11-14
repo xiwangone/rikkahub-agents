@@ -4,17 +4,23 @@ import android.animation.Animator
 import android.animation.AnimatorListenerAdapter
 import android.animation.ValueAnimator
 import android.view.WindowManager
-/** 浮窗气泡边长：72dp，图标资产本身已是圆形，图案占满圆 */
-internal const val BUBBLE_SIZE_DP = 72
+/** 浮窗气泡边长：46dp，与桌面图标视觉面积对齐，图标资产本身已是去蓝边圆形 */
+internal const val BUBBLE_SIZE_DP = 46
 
-/** 贴边隐藏后留在屏幕内的可见宽度：20dp，点按或拖动可恢复 */
-internal const val EDGE_HIDE_VISIBLE_DP = 20
+/** 贴边隐藏后留在屏幕内的可见宽度：15dp，点按或拖动可恢复 */
+internal const val EDGE_HIDE_VISIBLE_DP = 15
 
 /** 松手时判定为“停在边缘”的距离：气泡边距屏幕边缘 ≤ 24dp 即贴边隐藏 */
 internal const val EDGE_SNAP_THRESHOLD_DP = 24
 
 /** 贴边隐藏/恢复的滑动画时长 */
 internal const val EDGE_ANIM_DURATION_MS = 180L
+
+/** 收起态气泡窗口标志：必须带 FLAG_LAYOUT_NO_LIMITS，允许贴边隐藏滑向屏幕边界外。 */
+internal const val COLLAPSED_BUBBLE_WINDOW_FLAGS =
+    WindowManager.LayoutParams.FLAG_NOT_FOCUSABLE or
+        WindowManager.LayoutParams.FLAG_NOT_TOUCH_MODAL or
+        WindowManager.LayoutParams.FLAG_LAYOUT_NO_LIMITS
 
 internal enum class FloatingBubbleEdge { LEFT, RIGHT }
 
@@ -117,8 +123,22 @@ internal class FloatingBubbleEdgeHideState(
                 }
                 addListener(
                     object : AnimatorListenerAdapter() {
+                        private var cancelled = false
+
+                        override fun onAnimationCancel(animation: Animator) {
+                            cancelled = true
+                        }
+
                         override fun onAnimationEnd(animation: Animator) {
                             if (edgeAnimator === animation) edgeAnimator = null
+                            if (!cancelled) {
+                                params()?.let { p ->
+                                    if (p.x != targetX) {
+                                        p.x = targetX
+                                        updateLayout(p)
+                                    }
+                                }
+                            }
                         }
                     },
                 )
