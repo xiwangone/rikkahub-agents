@@ -534,9 +534,16 @@ private val SENSITIVE_FILE_SUFFIXES = listOf(".pem", ".key", ".p12", ".pfx", ".j
 internal fun isSensitiveCredentialPath(path: String): Boolean {
     val normalized = path.replace('\\', '/')
     val name = normalized.substringAfterLast('/')
+    // 公钥先判：`id_ed25519.pub` 会被下面的 `id_ed25519` 前缀规则误命中。
+    if (name.endsWith(".pub")) return false
     if (SENSITIVE_FILE_NAMES.any { name == it || name.startsWith("$it.") }) return true
     if (SENSITIVE_FILE_SUFFIXES.any { name.endsWith(it, ignoreCase = true) }) return true
-    if (normalized.contains("/.ssh/")) return true
+    // `.ssh/` 下区分对待：**公钥与主机指纹本就是公开贴的**（authorized_keys / known_hosts / *.pub），
+    // 掩了反而不便（用户想看一眼自己贴的公钥）；其余（私钥、ssh config）一律掩。
+    if (normalized.contains("/.ssh/")) {
+        val publicByDesign = name == "authorized_keys" || name == "known_hosts" || name.endsWith(".pub")
+        return !publicByDesign
+    }
     if (normalized.endsWith("/.kube/config") || normalized.endsWith("/.docker/config.json")) return true
     return false
 }
@@ -568,19 +575,31 @@ internal fun redactCredentialFileText(text: String): String {
     return out.toString().trimEnd('\n')
 }
 
-/** `KEY = value` / `KEY: value`（含 `export KEY=value`）→ 保留键、掩值；不像配置键的行原样。 */
+/** 长 base64/hex 形态的不透明串（无 `=`/`:` 分隔的行也要掩，如裸密钥串）。 */
+private val LONG_OPAQUE_TOKEN = Regex("""[A-Za-z0-9+/=_\-]{20,}""")
+
+/** `KEY = value` / `KEY: value`（含 `export KEY=value`）→ 保留键、掩值；没分隔符则掩长 token。 */
 private fun redactValueInLine(line: String): String {
+    val byKeyValue = redactKeyValue(line)
+    if (byKeyValue != null) return byKeyValue
+    // 兜底：没有分隔符的行（ssh 公钥的 base64 段、裸密钥串）按长 token 掩。
+    // 注意：只处理 KEY=VALUE 时，`.ssh/` 下的行会被标 redacted 却一字未掩。
+    return LONG_OPAQUE_TOKEN.replace(line) { if (it.value.length >= 20) "***" else it.value }
+}
+
+/** 命中 `KEY=VALUE` / `KEY: VALUE` 形态则返回掩码结果；否则返回 null 交给 token 兜底。 */
+private fun redactKeyValue(line: String): String? {
     // 剥掉 shell 前缀（export / set 之类），键名仍按裸键判
-    val m = Regex("""^(\s*(?:export\s+)?)(.*)$""").find(line) ?: return line
+    val m = Regex("""^(\s*(?:export\s+)?)(.*)$""").find(line) ?: return null
     val prefix = m.groupValues[1]
     val body = m.groupValues[2]
-    val sepIdx = listOf(body.indexOf('='), body.indexOf(':')).filter { it > 0 }.minOrNull() ?: return line
+    val sepIdx = listOf(body.indexOf('='), body.indexOf(':')).filter { it > 0 }.minOrNull() ?: return null
     val key = body.substring(0, sepIdx).trim()
-    if (!key.matches(Regex("""[A-Za-z_][A-Za-z0-9_.-]*"""))) return line
+    if (!key.matches(Regex("""[A-Za-z_][A-Za-z0-9_.-]*"""))) return null
     val rawValue = body.substring(sepIdx + 1)
-    if (rawValue.isBlank()) return line
+    if (rawValue.isBlank()) return null
     // URL 的 `https://…` / `redis://…` 不是配置值，别掩（否则文档里的链接全变 ***）
-    if (rawValue.trimStart().startsWith("//")) return line
+    if (rawValue.trimStart().startsWith("//")) return null
     return "$prefix$key=***"
 }
 

@@ -19,11 +19,32 @@ class SensitivePathRedactionTest {
         assertTrue(isSensitiveCredentialPath("/root/proj/.env"))
         assertTrue(isSensitiveCredentialPath("/root/proj/.env.local"))
         assertTrue(isSensitiveCredentialPath("/root/.ssh/id_ed25519"))
-        assertTrue(isSensitiveCredentialPath("/root/.ssh/authorized_keys"))
+        assertTrue(isSensitiveCredentialPath("/root/.ssh/id_rsa"))
+        assertTrue(isSensitiveCredentialPath("/root/.ssh/config"))
         assertTrue(isSensitiveCredentialPath("/etc/ssl/private/site.key"))
         assertTrue(isSensitiveCredentialPath("/root/cert.pem"))
         assertTrue(isSensitiveCredentialPath("/root/.git-credentials"))
         assertTrue(isSensitiveCredentialPath("/root/.kube/config"))
+    }
+
+    /**
+     * `.ssh/` 下不是全部都要掩：公钥与主机指纹本就是公开贴的，掩了反而不便（用户想看一眼
+     * 自己贴的公钥）。注意：一刀切把 authorized_keys 标成 redacted 但它本就无 = 分隔符，
+     * 结果是“标了却没掩”，两头不对。
+     */
+    @Test
+    fun `ssh public material stays readable`() {
+        assertFalse(isSensitiveCredentialPath("/root/.ssh/authorized_keys"))
+        assertFalse(isSensitiveCredentialPath("/root/.ssh/known_hosts"))
+        assertFalse(isSensitiveCredentialPath("/root/.ssh/id_ed25519.pub"))
+    }
+
+    @Test
+    fun `opaque tokens without a separator are still masked`() {
+        val base64 = "AAAAC3NzaC1lZDI1NTE5AAAAIA4KqNtYQUJdiZgMHHrrvHV4sGBRaO0RhqKTah5L16nY"
+        val out = redactCredentialFileText("ssh-ed25519 $base64 generated@host")
+        assertFalse(out.contains(base64))
+        assertTrue(out.contains("***"))
     }
 
     @Test

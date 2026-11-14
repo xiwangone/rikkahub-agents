@@ -149,9 +149,14 @@ private fun parseGrepHitLine(line: String): JsonObject? {
     if (secondColon <= 0) return null
     val file = line.substring(0, firstColon)
     val lineNo = line.substring(firstColon + 1, secondColon).toIntOrNull() ?: return null
+    // 敏感路径的匹配行同样要掩：read 已掩、search 不掩 = 一条绕过路径
+    // （grep `PASSWORD` 就能把 .env 的值原样带进模型上下文）。
+    val rawText = line.substring(secondColon + 1)
+    val safeText = if (isSensitiveCredentialPath(file)) redactCredentialFileText(rawText) else rawText
     return buildJsonObject {
         put("file", file)
         put("line", lineNo)
-        put("text", line.substring(secondColon + 1).take(500))
+        put("text", safeText.take(500))
+        if (safeText != rawText) put("redacted", true)
     }
 }
