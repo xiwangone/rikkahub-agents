@@ -145,16 +145,24 @@ private fun createReadFileTool(
                     )
                 )
             }
-            val text = bytes.toString(Charsets.UTF_8)
+            val rawText = bytes.toString(Charsets.UTF_8)
+            // 凭证类文件（.env / 私钥 / .ssh 下等）只掩「值」，见 isSensitiveCredentialPath。
+            val sensitive = isSensitiveCredentialPath(path)
+            val text = if (sensitive) redactCredentialFileText(rawText) else rawText
+            val result = formatReadFileTextResult(
+                path = path,
+                text = text,
+                startLine = args.int("start_line"),
+                endLine = args.int("end_line"),
+                withLineNumbers = args.boolean("with_line_numbers") ?: false,
+            )
             listOf(
                 UIMessagePart.Text(
-                    formatReadFileTextResult(
-                        path = path,
-                        text = text,
-                        startLine = args.int("start_line"),
-                        endLine = args.int("end_line"),
-                        withLineNumbers = args.boolean("with_line_numbers") ?: false,
-                    ).toString(),
+                    if (sensitive) {
+                        JsonObject(result + mapOf("redacted" to JsonPrimitive(true))).toString()
+                    } else {
+                        result.toString()
+                    },
                 ),
             )
         }

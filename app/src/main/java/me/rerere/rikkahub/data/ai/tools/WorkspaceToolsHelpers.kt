@@ -515,6 +515,75 @@ private fun renderSlicedBody(slice: List<String>, from: Int, withLineNumbers: Bo
     }
 
 /** 格式化 `workspace_read_file` 的文本切片结果（抽离以保持 createReadFileTool 复杂度低于门限）。 */
+/**
+ * 敏感凭证文件的判定（**只按路径**）。
+ *
+ * 为什么按路径而不是「读类输出统一过掩码」：后者会改变工具返回语义 —— AI 拿到掩码后无法
+ * 引用原文，「读配置 → 改配置」的常规工作流会断（改完写回把掩码写成真值）。所以只覆盖
+ * 「几乎必然是机密」的一小撮路径，边界清晰、代价可控；其余文件原样返回。
+ *
+ * 背景：编辑/差异路径都过了 SecretMasker，只有 read 没过 —— 远程工作区还能用绝对路径读
+ * 整台机器的文件，`.env`、`~/.ssh/id_ed25519` 原文会直接进模型上下文。
+ */
+private val SENSITIVE_FILE_NAMES = listOf(
+    ".env", ".git-credentials", ".netrc", ".pgpass", ".npmrc", ".pypirc",
+    "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa",
+)
+private val SENSITIVE_FILE_SUFFIXES = listOf(".pem", ".key", ".p12", ".pfx", ".jks", ".keystore")
+
+internal fun isSensitiveCredentialPath(path: String): Boolean {
+    val normalized = path.replace('\\', '/')
+    val name = normalized.substringAfterLast('/')
+    if (SENSITIVE_FILE_NAMES.any { name == it || name.startsWith("$it.") }) return true
+    if (SENSITIVE_FILE_SUFFIXES.any { name.endsWith(it, ignoreCase = true) }) return true
+    if (normalized.contains("/.ssh/")) return true
+    if (normalized.endsWith("/.kube/config") || normalized.endsWith("/.docker/config.json")) return true
+    return false
+}
+
+/**
+ * 把凭证类文件里的**值**掩掉，保留键名/注释/行结构，让 AI 仍能理解文件在配什么。
+ * 私钥块（BEGIN..END）整段丢弃正文。
+ */
+internal fun redactCredentialFileText(text: String): String {
+    val out = StringBuilder(text.length)
+    var inPemBlock = false
+    text.lineSequence().forEach { line ->
+        val trimmed = line.trim()
+        when {
+            trimmed.startsWith("-----BEGIN") -> {
+                inPemBlock = true
+                out.append(trimmed.replace(Regex("""-----BEGIN (.+?)-----"""), "-----BEGIN $1-----"))
+                out.append(" [body redacted]")
+            }
+            inPemBlock && trimmed.startsWith("-----END") -> {
+                inPemBlock = false
+                out.append('\n').append(trimmed)
+            }
+            inPemBlock -> Unit
+            else -> out.append(redactValueInLine(line))
+        }
+        out.append('\n')
+    }
+    return out.toString().trimEnd('\n')
+}
+
+/** `KEY = value` / `KEY: value`（含 `export KEY=value`）→ 保留键、掩值；不像配置键的行原样。 */
+private fun redactValueInLine(line: String): String {
+    // 剥掉 shell 前缀（export / set 之类），键名仍按裸键判
+    val m = Regex("""^(\s*(?:export\s+)?)(.*)$""").find(line) ?: return line
+    val prefix = m.groupValues[1]
+    val body = m.groupValues[2]
+    val sepIdx = listOf(body.indexOf('='), body.indexOf(':')).filter { it > 0 }.minOrNull() ?: return line
+    val key = body.substring(0, sepIdx).trim()
+    if (!key.matches(Regex("""[A-Za-z_][A-Za-z0-9_.-]*"""))) return line
+    val rawValue = body.substring(sepIdx + 1)
+    if (rawValue.isBlank()) return line
+    // URL 的 `https://…` / `redis://…` 不是配置值，别掩（否则文档里的链接全变 ***）
+    if (rawValue.trimStart().startsWith("//")) return line
+    return "$prefix$key=***"
+}
+
 internal fun formatReadFileTextResult(
     path: String,
     text: String,
