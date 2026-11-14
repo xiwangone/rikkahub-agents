@@ -435,7 +435,18 @@ class WorkspaceRepository(
         }
     }
 
-    suspend fun getById(id: String): WorkspaceEntity? = dao.getById(id)
+    /**
+     * 工作区行缓存：一次文件类工具调用会多次读同一条记录（validateWorkspaceTargetPath 取
+     * 类型/remoteDir、layout() 取布局、读写路径各一次），而 sshConfig 每次还要再做一次 JSON
+     * 解析。工作区记录只经本类的 upsert / deleteById 修改，故用「写时失效」的进程内缓存，
+     * 把一次调用里的 N 次 Room 查询压成 1 次。
+     *
+     * 只缓存对外接口；本类内部的读改写（如 setName / setToolApproval）仍直连 dao，保证读最新值。
+     */
+    private val workspaceRowCache = ConcurrentHashMap<String, WorkspaceEntity>()
+
+    suspend fun getById(id: String): WorkspaceEntity? =
+        workspaceRowCache[id] ?: dao.getById(id)?.also { workspaceRowCache[id] = it }
 
     /** 所有工作区（按创建顺序）。授权写沙箱 token 时取第一个（主工作区）。 */
     suspend fun getAll(): List<WorkspaceEntity> = dao.getAll()
@@ -483,6 +494,7 @@ class WorkspaceRepository(
         )
         manager.ensureWorkspace(workspace.root)
         dao.upsert(workspace)
+        workspaceRowCache.remove(workspace.id)
         return workspace
     }
 
@@ -502,6 +514,7 @@ class WorkspaceRepository(
                 updatedAt = System.currentTimeMillis(),
             )
         )
+        workspaceRowCache.remove(id)
         return true
     }
 
@@ -524,6 +537,7 @@ class WorkspaceRepository(
                 updatedAt = System.currentTimeMillis(),
             )
         )
+        workspaceRowCache.remove(id)
         return true
     }
 
@@ -999,6 +1013,7 @@ class WorkspaceRepository(
             if (!fileDeleted) return false
         }
         dao.deleteById(id)
+        workspaceRowCache.remove(id)
         cleanupAssistantReferences(id)
         return true
     }

@@ -56,9 +56,20 @@ internal fun fmContext(): Context =
 
 private val LINUX_WORKSPACE_PREFIXES = listOf("/workspace", "/upload", "/skills")
 
+/**
+ * 从错误文案里提取绝对路径 token。
+ *
+ * 旧实现靠 `detail.endsWith(": $root") || detail.contains(": $root/")` 判越界，绑定了
+ * 「路径一定跟在冒号后面」这一文案形状 —— 错误措辞一改，指路 hint 就静默失效。
+ * 改为先抽路径再比前缀，与文案格式解耦。
+ */
+private val ABSOLUTE_PATH_IN_MESSAGE =
+    Regex("""(?<![A-Za-z0-9._-])/(?:[A-Za-z0-9._-]+/?)+""")
+
 internal fun fmErrEnvelope(code: String, detail: String): String {
-    val hitsWorkspaceMount = LINUX_WORKSPACE_PREFIXES.any { root ->
-        detail.endsWith(": $root") || detail.contains(": $root/")
+    val hitsWorkspaceMount = ABSOLUTE_PATH_IN_MESSAGE.findAll(detail).any { match ->
+        val path = match.value.trimEnd('/')
+        LINUX_WORKSPACE_PREFIXES.any { root -> path == root || path.startsWith("$root/") }
     }
     val hint = if (hitsWorkspaceMount) {
         "Paths under /workspace, /upload, or /skills live inside the bound Linux workspace Rootfs, not the Android device filesystem. Use workspace_read_file / workspace_write_file / workspace_read_folder / workspace_shell instead (or '~/...' for the on-device agent scratch directory)."
