@@ -1,15 +1,14 @@
 package me.rerere.agenttools
 
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.workspace.WorkspaceFileEntry
 import java.io.IOException
 
@@ -73,9 +72,9 @@ private fun createWriteOffloadTool(
     needsApproval = { needsApproval("workspace_offload") },
     execute = {
         val params = it.jsonObject
-        val name = sanitizeName(params["name"]?.jsonPrimitive?.contentOrNull)
-        val text = params["text"]?.jsonPrimitive?.contentOrNull ?: error("text is required")
-        val overwrite = params["overwrite"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val name = sanitizeName(params.optString("name"))
+        val text = params.optString("text") ?: error("text is required")
+        val overwrite = params.optString("overwrite")?.toBooleanStrictOrNull() ?: false
         val path = "$OFFLOAD_DIR$name.md"
         val bytes = text.toByteArray(Charsets.UTF_8).size
         io.writeText(path, text, overwrite)

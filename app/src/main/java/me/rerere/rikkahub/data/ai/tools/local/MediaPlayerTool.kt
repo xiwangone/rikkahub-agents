@@ -3,13 +3,12 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import androidx.core.content.ContextCompat
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.MediaPlaybackService
@@ -52,12 +51,12 @@ fun playMediaTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val source = params["source"]?.jsonPrimitive?.contentOrNull
+        val source = params.optString("source")
             ?: error("source is required")
-        val title = params["title"]?.jsonPrimitive?.contentOrNull
-        val artist = params["artist"]?.jsonPrimitive?.contentOrNull
-        val album = params["album"]?.jsonPrimitive?.contentOrNull
-        val artworkUri = params["artwork_uri"]?.jsonPrimitive?.contentOrNull
+        val title = params.optString("title")
+        val artist = params.optString("artist")
+        val album = params.optString("album")
+        val artworkUri = params.optString("artwork_uri")
 
         val payload = try {
             val intent = MediaPlaybackService.buildPlayIntent(
@@ -196,7 +195,7 @@ fun seekMediaTool(context: Context): Tool = Tool(
         )
     },
     execute = {
-        val posMs = it.jsonObject["position_ms"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+        val posMs = it.jsonObject.optString("position_ms")?.toLongOrNull()
             ?: error("position_ms is required")
         val svc = MediaPlaybackService.instance
         if (svc == null) {

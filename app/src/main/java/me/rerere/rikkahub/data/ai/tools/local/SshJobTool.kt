@@ -2,14 +2,13 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.repository.SshHostRepository
@@ -47,10 +46,10 @@ fun sshJobPollTool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val logPath = p["log_path"]?.jsonPrimitive?.contentOrNull
-        val lines = p["lines"]?.jsonPrimitive?.intOrNull ?: 20
-        val procHint = p["process_hint"]?.jsonPrimitive?.contentOrNull
+        val name = p.optString("name") ?: error("name is required")
+        val logPath = p.optString("log_path")
+        val lines = p.optInt("lines") ?: 20
+        val procHint = p.optString("process_hint")
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()

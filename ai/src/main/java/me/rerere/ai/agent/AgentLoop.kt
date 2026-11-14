@@ -333,12 +333,13 @@ internal class AgentLoop(
 
     private suspend fun execute(tool: UIMessagePart.Tool): List<UIMessagePart> =
         when (val state = tool.approvalState) {
-            is ToolApprovalState.Denied -> errorOutput(
-                error = "permission_denied",
-                message = "Tool execution denied by user. Reason: ${state.reason.ifBlank { "No reason provided" }}",
-                code = ToolErrorEnvelope.SERVER_ERROR,
-                recovery = ToolErrorEnvelope.RECOVERY_ABORT,
-            )
+            is ToolApprovalState.Denied -> hooks.deniedToolOutput(tool, state.reason)
+                ?: errorOutput(
+                    error = "permission_denied",
+                    message = "Tool execution denied by user. Reason: ${state.reason.ifBlank { "No reason provided" }}",
+                    code = ToolErrorEnvelope.SERVER_ERROR,
+                    recovery = ToolErrorEnvelope.RECOVERY_ABORT,
+                )
 
             is ToolApprovalState.Answered -> listOf(UIMessagePart.Text(state.answer))
             ToolApprovalState.Auto, ToolApprovalState.Approved -> guardedRun(tool)

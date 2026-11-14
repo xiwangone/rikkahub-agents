@@ -8,15 +8,14 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optDouble
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -61,7 +60,7 @@ private suspend fun runScroll(
 ): List<UIMessagePart> {
     AgentTurnTracker.recordAutomationAction()
     me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
-    val direction = input.jsonObject["direction"]?.jsonPrimitive?.contentOrNull
+    val direction = input.jsonObject.optString("direction")
     if (direction == null || direction !in ALLOWED_DIRECTIONS) {
         return listOf(
             UIMessagePart.Text(
@@ -69,8 +68,8 @@ private suspend fun runScroll(
             )
         )
     }
-    val anchorX = input.jsonObject["x"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() }
-    val anchorY = input.jsonObject["y"]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() }
+    val anchorX = input.jsonObject.optDouble("x")?.takeIf { it.isFinite() }
+    val anchorY = input.jsonObject.optDouble("y")?.takeIf { it.isFinite() }
 
     val payload = AccessibilityServiceHandle.withService { svc ->
         val root = svc.rootInActiveWindow

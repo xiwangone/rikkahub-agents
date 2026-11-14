@@ -3,11 +3,11 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.media.MediaScannerConnection
 import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -39,7 +39,7 @@ fun mediaScannerTool(context: Context): Tool = Tool(
         val pathsArray: JsonArray = (params["paths"] as? JsonArray)
             ?: params["paths"]?.jsonArray
             ?: error("paths is required")
-        val paths = pathsArray.mapNotNull { entry -> entry.jsonPrimitive.contentOrNull }
+        val paths = pathsArray.mapNotNull { entry -> (entry as? JsonPrimitive)?.contentOrNull }
             .filter { p -> p.isNotEmpty() }
 
         if (paths.isEmpty()) {

@@ -7,7 +7,7 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.common.http.optString
 
 /**
  * The "hardline" tier — unconditional command blocklist.
@@ -228,10 +228,10 @@ object HardlineCommandGuard {
     )
 
     private fun checkSingleOrBatchCommands(input: JsonObject): String? {
-        val single = input["command"]?.jsonPrimitive?.contentOrNull
+        val single = input.optString("command")
         single?.let { checkCommand(it) }?.let { return it }
         return input["commands"]?.jsonArray
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
             ?.firstNotNullOfOrNull { checkCommand(it) }
     }
 
@@ -250,11 +250,11 @@ object HardlineCommandGuard {
     fun checkToolParsed(toolName: String, input: JsonObject): String? {
         return when {
             toolName == "termux_run_command" -> {
-                val cmd = input["command"]?.jsonPrimitive?.contentOrNull
+                val cmd = input.optString("command")
                 checkCommand(cmd)?.let { return it }
-                val exe = input["executable"]?.jsonPrimitive?.contentOrNull
+                val exe = input.optString("executable")
                 val args = input["arguments"]?.jsonArray
-                    ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                    ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                     ?.joinToString(" ")
                 if (exe != null || args != null) {
                     checkCommand("${exe.orEmpty()} ${args.orEmpty()}")
@@ -263,21 +263,21 @@ object HardlineCommandGuard {
             // 设备侧 shell、SSH 与沙箱工作区 shell 同构（单命令或 commands 批量），统一检查 command 与 commands[]。
             toolName in SHELL_COMMAND_TOOLS -> checkSingleOrBatchCommands(input)
             toolName == "termux_session_send" ->
-                checkCommand(input["input"]?.jsonPrimitive?.contentOrNull)
+                checkCommand(input.optString("input"))
             toolName == "app_force_stop" || toolName == "app_disable" || toolName == "app_enable" || toolName == "app_uninstall" -> {
-                val pkg = input["package"]?.jsonPrimitive?.contentOrNull
+                val pkg = input.optString("package")
                 checkCommand("am force-stop $pkg") // 复用 checkCommand 的 shell 注入防护；包名本身由工具内 PACKAGE_REGEX 兜底
             }
             toolName == "appops_set" -> {
-                val pkg = input["package"]?.jsonPrimitive?.contentOrNull
-                val op = input["op"]?.jsonPrimitive?.contentOrNull
-                val mode = input["mode"]?.jsonPrimitive?.contentOrNull
+                val pkg = input.optString("package")
+                val op = input.optString("op")
+                val mode = input.optString("mode")
                 checkCommand("appops set $pkg $op $mode")
             }
             toolName == "settings_put" -> {
-                val ns = input["namespace"]?.jsonPrimitive?.contentOrNull
-                val key = input["key"]?.jsonPrimitive?.contentOrNull
-                val value = input["value"]?.jsonPrimitive?.contentOrNull
+                val ns = input.optString("namespace")
+                val key = input.optString("key")
+                val value = input.optString("value")
                 checkCommand("settings put $ns $key $value")
             }
             // Sub-agent dispatch — the spawned LLM gets the parent's full tool surface
@@ -299,7 +299,7 @@ object HardlineCommandGuard {
             //   (b) JS-specific exfiltration / privilege patterns (cookie writes, eval,
             //       Function constructor, string-form setTimeout, data: script injection).
             toolName == "browser_eval_js" -> {
-                val code = input["code"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                val code = input.optString("code").orEmpty()
                 checkCommand(code)?.let { return it }
                 val matched = JS_HARDLINE_PATTERNS.firstOrNull { (rx, _) -> rx.containsMatchIn(code) }
                 matched?.second

@@ -2,16 +2,15 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.view.KeyEvent
 import kotlinx.coroutines.delay
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.keyboard.KeyboardApiClient
 
 /**
@@ -130,12 +129,12 @@ fun keyboardTypeTool(client: KeyboardApiClient): Tool = Tool(
     },
     needsApproval = { true },
     execute = { args ->
-        val text = args.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+        val text = args.jsonObject.optString("text")
             ?: return@Tool errEnvelope(
                 "missing_text", "text is required",
                 "Provide the text to type.",
             )
-        val submit = args.jsonObject["submit"]?.jsonPrimitive?.booleanOrNull ?: false
+        val submit = args.jsonObject.optBoolean("submit") ?: false
         when (val typed = client.typeText(text)) {
             is KeyboardApiClient.Result.Err -> failureEnvelope(typed.failure)
             is KeyboardApiClient.Result.Ok -> {
@@ -196,7 +195,7 @@ fun keyboardPressKeyTool(client: KeyboardApiClient): Tool = Tool(
     },
     needsApproval = { true },
     execute = { args ->
-        val raw = args.jsonObject["key"]?.jsonPrimitive?.contentOrNull
+        val raw = args.jsonObject.optString("key")
         val keyCode = resolveKeyCode(raw)
             ?: return@Tool errEnvelope(
                 "invalid_key", "could not resolve key '$raw' to a keycode",
@@ -223,7 +222,7 @@ fun keyboardDeleteTool(client: KeyboardApiClient): Tool = Tool(
     },
     needsApproval = { true },
     execute = { args ->
-        val count = args.jsonObject["count"]?.jsonPrimitive?.intOrNull
+        val count = args.jsonObject.optInt("count")
             ?: return@Tool errEnvelope(
                 "missing_count", "count is required and must be an integer",
                 "Provide a positive integer count.",
@@ -291,7 +290,7 @@ fun keyboardSetCursorTool(client: KeyboardApiClient): Tool = Tool(
     },
     needsApproval = { true },
     execute = { args ->
-        val pos = args.jsonObject["pos"]?.jsonPrimitive?.intOrNull
+        val pos = args.jsonObject.optInt("pos")
             ?: return@Tool errEnvelope(
                 "missing_pos", "pos is required and must be an integer",
                 "Provide a non-negative integer position.",
@@ -326,12 +325,12 @@ fun keyboardSelectRangeTool(client: KeyboardApiClient): Tool = Tool(
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val start = params["start"]?.jsonPrimitive?.intOrNull
+        val start = params.optInt("start")
             ?: return@Tool errEnvelope(
                 "missing_start", "start is required and must be an integer",
                 "Provide non-negative integer start and end offsets.",
             )
-        val end = params["end"]?.jsonPrimitive?.intOrNull
+        val end = params.optInt("end")
             ?: return@Tool errEnvelope(
                 "missing_end", "end is required and must be an integer",
                 "Provide non-negative integer start and end offsets.",

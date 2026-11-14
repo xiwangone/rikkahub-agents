@@ -10,10 +10,9 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.datastore.Settings
@@ -129,9 +128,9 @@ internal suspend fun assistantsPayload(
 ): String {
     val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
         ?: return "{\"error\":\"settings_unavailable\"}"
-    val onlyId = params["assistant_id"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
-    val full = params["full"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
-    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 200)
+    val onlyId = params.optString("assistant_id").orEmpty().trim()
+    val full = params.optString("full")?.equals("true", ignoreCase = true) == true
+    val limit = (params.optInt("limit") ?: 200).coerceIn(1, 200)
     val current = settings.resolveAssistantFor(invocationContext.callerAssistantUuid).id
     val modelIndex = settings.providers.flatMap { p -> p.models.map { p to it } }.associateBy { it.second.id }
     val selected = settings.assistants
@@ -269,7 +268,7 @@ private suspend fun recentConversationsJson(
 ): String {
     val settings = settingsStore.settingsFlow.first()
     val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
-    val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 50) ?: 20
+    val limit = params.optInt("limit")?.coerceIn(1, 50) ?: 20
     val list = conversationRepo.getRecentConversations(assistant.id, limit)
     return buildJsonObject {
         put("assistantId", assistant.id.toString())
@@ -307,7 +306,7 @@ internal suspend fun conversationsPayload(
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val idRaw = params.optString("id")?.trim().orEmpty()
     // 无 id = 列最近会话（抽成独立函数：[conversationsPayload] 的圈复杂度已逼近 detekt 阈值 20）
     if (idRaw.isEmpty()) return recentConversationsJson(conversationRepo, settingsStore, params, invocationContext)
     val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrElse {
@@ -318,7 +317,7 @@ internal suspend fun conversationsPayload(
     // compact=true：只回**结构**（role / finishReason / 部件数 / 工具名与审批状态），不带正文。
     // 用于「某条消息在不在、那个工具是什么状态」这类核对——否则只能拉整段正文（上万 token）。
     val compact =
-        params["compact"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+        params.optString("compact")?.equals("true", ignoreCase = true) == true
     var totalChars = 0
     val messagesJson = buildJsonArray {
         loop@ for ((index, node) in conversation.messageNodes.withIndex()) {
@@ -408,7 +407,7 @@ internal suspend fun generationPayload(
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
     val settings = settingsStore.settingsFlow.first()
-    val idRaw = params["id"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val idRaw = params.optString("id")?.trim().orEmpty()
     val conversation =
         resolveGenerationConversation(conversationRepo, settings, idRaw, invocationContext)
             ?: return ToolErrors.envelopeFor(error = "conversation_not_found", message = "conversation_not_found").toString()
@@ -535,12 +534,12 @@ private fun turnCountsJson(messages: List<UIMessage>): JsonObject =
  * （见 `VaultAuditDefaults.ROLLUP_ACTIONS`），所以默认看到的就是降噪后的视图。
  */
 internal suspend fun auditPayload(params: JsonObject): String {
-    val credential = params["credential"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
-    val action = params["action"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
-    val windowMinutes = params["window_minutes"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 43_200) ?: 1_440
-    val limit = params["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 200) ?: 50
+    val credential = params.optString("credential").orEmpty().trim()
+    val action = params.optString("action").orEmpty().trim()
+    val windowMinutes = params.optInt("window_minutes")?.coerceIn(1, 43_200) ?: 1_440
+    val limit = params.optInt("limit")?.coerceIn(1, 200) ?: 50
     // min_count：过滤“只发生过一次”的长尾（聚合行 count = 窗口内次数），默认 1 = 不过滤
-    val minCount = params["min_count"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 10_000) ?: 1
+    val minCount = params.optInt("min_count")?.coerceIn(1, 10_000) ?: 1
     val repository =
         runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
             ?: return ToolErrors.envelopeFor(error = "invalid_argument", message = "vault repository unavailable", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -613,12 +612,12 @@ internal suspend fun modelsPayload(
     val bound = assistant.chatModelId
     // 过滤：默认只回**启用**的 provider（全量 37 个 ≈ 59KB，会把上下文吃掉）；
     // 禁用的仅在 include_disabled=true 时给，或用 provider=名称/uuid 精确取。
-    val providerFilter = params["provider"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+    val providerFilter = params.optString("provider").orEmpty().trim()
     val includeDisabled =
-        params["include_disabled"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+        params.optString("include_disabled")?.equals("true", ignoreCase = true) == true
     // 每个 provider 的模型条目上限（默认 30）：有的 provider 挂几百个模型，整段回会吃掉上下文。
     // 与 logs/usage 的 limit 同一套语义：默认摘要、按需展开；需要全量带 models_limit=0。
-    val modelsLimit = (params["models_limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(0, 1000)
+    val modelsLimit = (params.optInt("models_limit") ?: 30).coerceIn(0, 1000)
     val shown = settings.providers.filter { p ->
         (providerFilter.isEmpty() || p.name.equals(providerFilter, ignoreCase = true) || p.id.toString() == providerFilter) &&
             (includeDisabled || p.enabled)

@@ -3,20 +3,21 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.preferences.TermuxRuntime
 import java.util.UUID
 
@@ -171,7 +172,7 @@ private suspend fun ensureTmux(context: Context): String? {
 }
 
 private fun resolveTimeoutMs(input: JsonElement): Long {
-    val raw = input.jsonObject["timeout_seconds"]?.jsonPrimitive?.intOrNull
+    val raw = input.jsonObject.optInt("timeout_seconds")
     val secs = when {
         raw == null || raw == 0 -> DEFAULT_TIMEOUT_S
         else -> raw.coerceIn(1, MAX_TIMEOUT_S)
@@ -368,10 +369,10 @@ fun termuxSessionStartTool(context: Context): Tool = Tool(
         if (live.size >= MAX_SESSIONS) {
             return@Tool sessionErrorEnvelope("too_many_sessions", "Max $MAX_SESSIONS sessions. Kill one with termux_session_kill first. Live: ${live.joinToString { it.name }}")
         }
-        val name = TmuxOps.sessionName(input.jsonObject["name"]?.jsonPrimitive?.contentOrNull)
-        val cols = input.jsonObject["cols"]?.jsonPrimitive?.intOrNull ?: DEFAULT_COLS
-        val rows = input.jsonObject["rows"]?.jsonPrimitive?.intOrNull ?: DEFAULT_ROWS
-        val initial = input.jsonObject["command"]?.jsonPrimitive?.contentOrNull
+        val name = TmuxOps.sessionName(input.jsonObject.optString("name"))
+        val cols = input.jsonObject.optInt("cols") ?: DEFAULT_COLS
+        val rows = input.jsonObject.optInt("rows") ?: DEFAULT_ROWS
+        val initial = input.jsonObject.optString("command")
         if (!initial.isNullOrBlank()) {
             // 先校验初始命令再创建 tmux 会话，避免被拦截的命令白白泄漏一个会话槽位
             HardlineCommandGuard.checkCommand(initial)?.let {
@@ -413,12 +414,12 @@ fun termuxSessionSendTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         preflight(context)?.let { return@Tool it }
-        val session = input.jsonObject["session_id"]?.jsonPrimitive?.contentOrNull
+        val session = input.jsonObject.optString("session_id")
             ?: return@Tool sessionErrorEnvelope("missing_session_id", "Pass session_id from termux_session_start.")
-        val text = input.jsonObject["input"]?.jsonPrimitive?.contentOrNull
-        val enter = input.jsonObject["enter"]?.jsonPrimitive?.booleanOrNull ?: true
-        val keys = input.jsonObject["keys"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull } ?: emptyList()
-        val waitFor = input.jsonObject["wait_for"]?.jsonPrimitive?.contentOrNull
+        val text = input.jsonObject.optString("input")
+        val enter = input.jsonObject.optBoolean("enter") ?: true
+        val keys = input.jsonObject["keys"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } ?: emptyList()
+        val waitFor = input.jsonObject.optString("wait_for")
         val timeoutMs = resolveTimeoutMs(input)
         if (!text.isNullOrEmpty()) {
             HardlineCommandGuard.checkCommand(text)?.let {
@@ -472,10 +473,10 @@ fun termuxSessionReadTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         preflight(context)?.let { return@Tool it }
-        val session = input.jsonObject["session_id"]?.jsonPrimitive?.contentOrNull
+        val session = input.jsonObject.optString("session_id")
             ?: return@Tool sessionErrorEnvelope("missing_session_id", "Pass session_id from termux_session_start.")
-        val waitFor = input.jsonObject["wait_for"]?.jsonPrimitive?.contentOrNull
-        val lines = input.jsonObject["lines"]?.jsonPrimitive?.intOrNull ?: DEFAULT_READ_LINES
+        val waitFor = input.jsonObject.optString("wait_for")
+        val lines = input.jsonObject.optInt("lines") ?: DEFAULT_READ_LINES
         val read = if (waitFor.isNullOrEmpty()) {
             tmux(context, TmuxOps.capturePaneArgv(session, lines))
         } else {
@@ -502,7 +503,7 @@ fun termuxSessionKillTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         preflight(context)?.let { return@Tool it }
-        val session = input.jsonObject["session_id"]?.jsonPrimitive?.contentOrNull
+        val session = input.jsonObject.optString("session_id")
             ?: return@Tool sessionErrorEnvelope("missing_session_id", "Pass session_id.")
         tmux(context, TmuxOps.killArgv(session))
         listOf(UIMessagePart.Text(buildJsonObject { put("success", true); put("killed", session) }.toString()))

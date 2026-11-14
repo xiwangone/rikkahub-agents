@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.skills.js
 
+import me.rerere.common.http.optString
 import android.content.Context
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
@@ -21,7 +22,6 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import org.json.JSONObject
 import java.io.File
 import java.util.UUID
@@ -261,11 +261,11 @@ class JsSkillRunner(private val context: Context) {
     private fun parseResultJson(json: String): ParsedResult {
         val obj = runCatching { Json.parseToJsonElement(json).jsonObject }.getOrNull()
             ?: return ParsedResult(error = "JS skill returned non-JSON: $json")
-        val errorRaw = obj["error"]?.jsonPrimitive?.contentOrNull
-        val text = obj["result"]?.jsonPrimitive?.contentOrNull
-        val imageBase64 = (obj["image"] as? JsonObject)?.get("base64")?.jsonPrimitive?.contentOrNull
+        val errorRaw = obj.optString("error")
+        val text = obj.optString("result")
+        val imageBase64 = (obj["image"] as? JsonObject)?.optString("base64")
         val webview = obj["webview"] as? JsonObject
-        val webviewUrl = webview?.get("url")?.jsonPrimitive?.contentOrNull
+        val webviewUrl = webview?.optString("url")
         val webviewIframe = (webview?.get("iframe") as? JsonPrimitive)?.contentOrNull?.toBoolean() ?: true
         val aspectRatio = webview?.get("aspectRatio")?.let {
             runCatching { it.toString().toFloat() }.getOrNull()

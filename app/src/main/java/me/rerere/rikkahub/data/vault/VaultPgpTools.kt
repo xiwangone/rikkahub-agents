@@ -1,9 +1,8 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optString
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -79,8 +78,8 @@ private suspend fun resolvePgpKey(
 
 /** 载荷读取：`data`（文本）与 `file`（路径读入）必填其一，互斥。 */
 private fun readPgpPayload(o: kotlinx.serialization.json.JsonObject): Result<ByteArray> {
-    val dataRaw = o["data"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-    val fileRaw = o["file"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+    val dataRaw = o.optString("data")?.ifBlank { null }
+    val fileRaw = o.optString("file")?.ifBlank { null }
     return when {
         dataRaw != null && fileRaw != null ->
             Result.failure(IllegalArgumentException("Only one of data and file may be passed"))
@@ -117,7 +116,7 @@ private suspend fun resolvePgpPassphrase(
     caller: String,
     context: android.content.Context? = null,
 ): CharArray? = resolveLiteralOrReference(
-    o["passphrase"]?.jsonPrimitive?.contentOrNull,
+    o.optString("passphrase"),
     CredentialPurpose.LOCAL_USE,
     repository,
     caller = caller,
@@ -148,7 +147,7 @@ fun vaultPgpSignTool(repository: CredentialVaultRepository, context: android.con
     },
     execute = { params ->
         val o = params.jsonObject
-        val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-sign", context = context)
+        val keyRes = resolvePgpKey(repository, o.optString("key"), caller = "pgp-sign", context = context)
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
         val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
@@ -186,12 +185,12 @@ fun vaultPgpVerifyTool(repository: CredentialVaultRepository): Tool = Tool(
     },
     execute = { params ->
         val o = params.jsonObject
-        val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-verify")
+        val keyRes = resolvePgpKey(repository, o.optString("key"), caller = "pgp-verify")
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
         val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
-        val signatureRaw = o["signature"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val signatureFile = o["signature_file"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val signatureRaw = o.optString("signature")?.ifBlank { null }
+        val signatureFile = o.optString("signature_file")?.ifBlank { null }
         val signature: ByteArray =
             when {
                 signatureRaw != null && signatureFile != null ->
@@ -238,7 +237,7 @@ fun vaultPgpEncryptTool(repository: CredentialVaultRepository): Tool = Tool(
     },
     execute = { params ->
         val o = params.jsonObject
-        val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-encrypt")
+        val keyRes = resolvePgpKey(repository, o.optString("key"), caller = "pgp-encrypt")
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
         val payload = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }
@@ -276,7 +275,7 @@ fun vaultPgpDecryptTool(repository: CredentialVaultRepository, context: android.
     },
     execute = { params ->
         val o = params.jsonObject
-        val keyRes = resolvePgpKey(repository, o["key"]?.jsonPrimitive?.contentOrNull, caller = "pgp-decrypt", context = context)
+        val keyRes = resolvePgpKey(repository, o.optString("key"), caller = "pgp-decrypt", context = context)
         if (keyRes is PgpKeyResolution.Err) return@Tool pgpFail(keyRes.message)
         val material = (keyRes as PgpKeyResolution.Ok).material
         val ciphertext = readPgpPayload(o).getOrElse { return@Tool pgpFail(it.message ?: "Failed to read payload") }

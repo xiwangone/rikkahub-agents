@@ -7,13 +7,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.rikkahub.data.ai.ContextLedger
 import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.TierSource
 import me.rerere.rikkahub.data.ai.tools.ToolCapabilities
@@ -21,7 +21,6 @@ import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.datastore.resolveAssistantFor
-import kotlinx.serialization.json.booleanOrNull
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
 
@@ -83,8 +82,8 @@ internal fun runsPayload(
     context: Context,
     params: JsonObject,
 ): String {
-    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 200)
-    val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
+    val limit = (params.optInt("limit") ?: 20).coerceIn(1, 200)
+    val reset = params.optBoolean("reset") ?: false
     if (reset) GenerationRunTracker.clear(context)
     val state = GenerationRunTracker.snapshot(context)
     val total = state.totals.values.sum()
@@ -211,15 +210,15 @@ internal suspend fun usageStatsPayload(
     params: JsonObject,
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
-            val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 200)
-            val reset = params["reset"]?.jsonPrimitive?.booleanOrNull ?: false
+            val limit = (params.optInt("limit") ?: 30).coerceIn(1, 200)
+            val reset = params.optBoolean("reset") ?: false
             if (reset) ToolUsageTracker.clear(context)
             val snapshot = ToolUsageTracker.snapshot(context)
             val injected = ToolUsageTracker.injectedNames(context)
             val settings = settingsStore.settingsFlow.first()
             val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
             val extraCold = assistant.extraColdTools.toSet()
-            val minCalls = (params["min_calls"]?.jsonPrimitive?.intOrNull ?: 10).coerceIn(1, 100_000)
+            val minCalls = (params.optInt("min_calls") ?: 10).coerceIn(1, 100_000)
             val payload =
                 buildJsonObject {
                     put("assistant", assistant.name)
@@ -380,8 +379,8 @@ internal suspend fun toolScopePayload(
     val extraCold = assistant.extraColdTools.toSet()
     val injected = ToolUsageTracker.injectedNames(context)
     val trimEnabled = settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED
-    val tierFilter = params["tier"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
-    val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 500)
+    val tierFilter = params.optString("tier")?.trim()?.uppercase()?.takeIf { it.isNotEmpty() }
+    val limit = (params.optInt("limit") ?: 200).coerceIn(1, 500)
 
     data class Row(val name: String, val tier: SurfaceTier, val source: String, val alwaysKept: Boolean)
 

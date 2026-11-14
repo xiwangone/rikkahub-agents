@@ -7,15 +7,14 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+import me.rerere.common.http.optInt
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import java.util.UUID
 import kotlin.uuid.ExperimentalUuidApi
@@ -82,7 +81,7 @@ fun nfcReadTagTool(
         if (isHeadless(invocationContext)) {
             return@Tool nfcErr("feature unavailable in headless mode")
         }
-        val timeoutSeconds = input.jsonObject["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30
+        val timeoutSeconds = input.jsonObject.optInt("timeout_seconds") ?: 30
         validateNfcTimeout(timeoutSeconds)?.let { return@Tool nfcErr(it) }
         nfcAvailability(context)?.let { return@Tool nfcErr(it) }
 
@@ -162,7 +161,7 @@ fun nfcWriteTagTool(
         // Structural pre-validation so a bad record fails fast before opening the Activity.
         runCatching { NfcNdefCodec.encode(records) }
             .onFailure { return@Tool nfcErr("invalid records: ${it.message}") }
-        val timeoutSeconds = obj["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30
+        val timeoutSeconds = obj.optInt("timeout_seconds") ?: 30
         validateNfcTimeout(timeoutSeconds)?.let { return@Tool nfcErr(it) }
         nfcAvailability(context)?.let { return@Tool nfcErr(it) }
 

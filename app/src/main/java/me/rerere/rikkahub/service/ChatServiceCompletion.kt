@@ -21,7 +21,7 @@ import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.abandonUnexecutedTools
 import me.rerere.rikkahub.data.ai.INTERRUPTED_UNKNOWN_OUTCOME_REASON
-import me.rerere.ai.ui.canResumeToolExecution
+import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
 import me.rerere.ai.ui.finishPendingTools
 import me.rerere.ai.ui.finishReasoning
 import me.rerere.common.android.Logging
@@ -719,6 +719,23 @@ internal suspend fun ChatService.grantAlwaysScope(conversationId: Uuid, toolName
 
     // ---- 检查无效消息 ----
 
+/**
+ * 节点是否含「真正能产出执行」的未执行工具：只有 Approved / Answered 才算。
+ *
+ * 刻意不认 Denied：[canResumeToolExecution] 对 Denied 返回 true，是因为循环里要给它
+ * 补一条拒绝输出（"产出结果"），不是因为它会执行。清理侧若也认 Denied，`[Denied(未执行)
+ * + Pending(未执行)]` 的节点会被整条保留，Pending 兄弟永远得不到定案——请求副本里它
+ * 已被写成「已中断、终态」，持久化状态却还是「等用户审批」，审批按钮与模型认知脱节。
+ * Denied 的工具由 [abandonUnexecutedTools] 以拒绝信封定案（保留原理由），不需要节点
+ * 为它续命。
+ */
+internal fun hasResumableTool(message: UIMessage): Boolean =
+    message.getTools().any {
+        !it.isExecuted &&
+            (it.approvalState is ToolApprovalState.Approved ||
+                it.approvalState is ToolApprovalState.Answered)
+    }
+
 internal fun ChatService.checkInvalidMessages(conversationId: Uuid) {
         val conversation = getConversationFlow(conversationId).value
         var messagesNodes = conversation.messageNodes
@@ -734,17 +751,17 @@ internal fun ChatService.checkInvalidMessages(conversationId: Uuid) {
                     return@mapIndexed node
                 }
 
-                // Keep messages that are ready to resume, such as approved/denied/answered tools.
-                val hasResumableTool =
-                    node.currentMessage.getTools().any {
-                        !it.isExecuted && it.approvalState.canResumeToolExecution()
-                    }
-                if (hasResumableTool) {
+                // Keep messages that are ready to resume: only tools that will actually
+                // execute (Approved / Answered). A terminal Denied must not keep the node
+                // alive for its Pending siblings (see hasResumableTool).
+                if (hasResumableTool(node.currentMessage)) {
                     return@mapIndexed node
                 }
 
-                // 到这里只剩「未执行且不可续跑」的工具：Pending（等审批却没被处理）或 Auto
-                // （自动批准后在执行前被打断）。**不再整条删除该消息**——那会连带丢掉本轮已生成的
+                // 到这里只剩「未执行且不可续跑」的工具：Pending（等审批却没被处理）、Auto
+                // （自动批准后在执行前被打断），或仅剩终态 Denied 的节点（Denied 本身由
+                // abandonUnexecutedTools 以拒绝信封定案、保留原理由，不再为同节点 Pending 挡清理）。
+                // **不再整条删除该消息**——那会连带丢掉本轮已生成的
                 // AI 文本与工具调用记录，表现为「用户两条消息之间的 AI 回复凭空消失」，且模型从此
                 // 不知道发生过什么（可能重复执行同一副作用）。改为补一个合成的结果后保留消息，
                 // 使其成为合法终态（isExecuted=true）并可安全进入后续上下文。
@@ -760,6 +777,7 @@ internal fun ChatService.checkInvalidMessages(conversationId: Uuid) {
                         "interrupted_before_execution: " +
                             str(R.string.chat_tool_interrupted_before_execution_detail),
                         INTERRUPTED_UNKNOWN_OUTCOME_REASON,
+                        deniedReasonForModel = HardlineCommandGuard::modelFacingReason,
                     )
                 if (abandoned !== node.currentMessage) {
                     abandonedMessageIds += abandoned.id

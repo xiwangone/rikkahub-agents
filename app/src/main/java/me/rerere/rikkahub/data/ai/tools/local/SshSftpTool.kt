@@ -7,14 +7,13 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.runInterruptible
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -62,21 +61,34 @@ private suspend fun withSavedHostSession(
     if (outcome.winningNetwork == null && outcome.failures.isNotEmpty()) {
         return unreachableEnvelope(h.host, h.port, outcome)
     }
-    return runInterruptible(Dispatchers.IO) {
-        val jsch = newJSch(context)
-        val session = try {
-            openSshSession(jsch, h.host, h.port, h.user, auth, timeoutMs, network = outcome.winningNetwork)
-        } catch (e: Throwable) {
-            AppLog.w(TAG_SFTP, "ssh handshake failed", e)
-            return@runInterruptible wrapConnectError(h.host, e)
+    // Stage 2: 建连。短时会话复用（B-2）：同一主机连续传文件不再每调用一次就
+    // newJSch + 完整握手；握手失败不进缓存（acquire 只在 connect() 返回后才存条目）。
+    val cacheKey = SshSessionKey(h.host, h.port, h.user, auth.cacheFingerprint(), jump = null)
+    val leased = try {
+        sharedSshSessionCache.acquire(cacheKey, outcome.winningLabel) {
+            runInterruptible(Dispatchers.IO) {
+                val jsch = newJSch(context)
+                val session = openSshSession(jsch, h.host, h.port, h.user, auth, timeoutMs, network = outcome.winningNetwork)
+                SshConnection(session, null)
+            }
         }
-        sessionRef.set(session)
-        try {
-            block(session)
-        } finally {
-            sessionRef.set(null)
-            try { session.disconnect() } catch (_: Throwable) {}
-        }
+    } catch (e: Throwable) {
+        AppLog.w(TAG_SFTP, "ssh handshake failed", e)
+        return wrapConnectError(h.host, e)
+    }
+    val session = leased.session
+    sessionRef.set(session)
+    // Stage 3: SFTP 操作（阻塞 IO）。正常完成归还会话；块抛错/取消或会话已断则失效，
+    // 下次调用重建。
+    var blockFailed = false
+    return try {
+        runInterruptible(Dispatchers.IO) { block(session) }
+    } catch (e: Throwable) {
+        blockFailed = true
+        throw e
+    } finally {
+        sessionRef.set(null)
+        if (blockFailed || !session.isConnected) sharedSshSessionCache.invalidate(cacheKey, session) else sharedSshSessionCache.release(cacheKey)
     }
 }
 
@@ -105,21 +117,25 @@ fun sshUploadTool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val rawLocalPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val name = p.optString("name") ?: error("name is required")
+        val rawLocalPath = p.optString("local_path") ?: error("local_path is required")
         val localPath = AgentWorkspace.expand(rawLocalPath)
         PathSafetyGuard.check(localPath)?.let { v ->
             return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
         }
-        val remotePath = p["remote_path"]?.jsonPrimitive?.contentOrNull ?: error("remote_path is required")
-        val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 600)
+        val remotePath = p.optString("remote_path") ?: error("remote_path is required")
+        val timeoutSec = (p.optInt("timeout_seconds") ?: 60).coerceIn(1, 600)
         val localFile = File(localPath)
         if (!localFile.exists() || !localFile.isFile) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "not_found", message = "local file not found: $localPath", hint = "Verify the name or id and retry.").toString()
             ))
         }
-        val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
+        val payload = runCancellableSshOp(
+            timeoutSec * 1000L,
+            // 超时/取消时缓存条目随会话一起失效（B-2）。
+            onForceDisconnect = { sharedSshSessionCache.invalidateSession(it) },
+        ) { sessionRef ->
             withSavedHostSession(context, repo, vaultRepository, name, timeoutSec * 1000, sessionRef) { session ->
                 val sftp = openSftp(session)
                 try {
@@ -129,7 +145,7 @@ fun sshUploadTool(
                         put("remote_path", remotePath)
                         put("bytes", localFile.length())
                         // 上传内容的指纹：便于与对端 `sha256sum` / `md5sum` 对比，确认落盘字节一致
-                        appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
+                        appendHashes(this, localFile, p.optString("hash"))
                     }
                 } catch (e: Throwable) {
                     // Mirror the download path: a failed put leaves a partial remote file
@@ -188,18 +204,22 @@ fun sshDownloadTool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val remotePath = p["remote_path"]?.jsonPrimitive?.contentOrNull ?: error("remote_path is required")
-        val rawLocalPath = p["local_path"]?.jsonPrimitive?.contentOrNull ?: error("local_path is required")
+        val name = p.optString("name") ?: error("name is required")
+        val remotePath = p.optString("remote_path") ?: error("remote_path is required")
+        val rawLocalPath = p.optString("local_path") ?: error("local_path is required")
         val localPath = AgentWorkspace.expand(rawLocalPath)
         PathSafetyGuard.check(localPath)?.let { v ->
             return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
         }
-        val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 600)
+        val timeoutSec = (p.optInt("timeout_seconds") ?: 60).coerceIn(1, 600)
         val localFile = File(localPath)
         // Ensure the local parent directory exists.
         try { localFile.parentFile?.mkdirs() } catch (_: Throwable) {}
-        val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
+        val payload = runCancellableSshOp(
+            timeoutSec * 1000L,
+            // 超时/取消时缓存条目随会话一起失效（B-2）。
+            onForceDisconnect = { sharedSshSessionCache.invalidateSession(it) },
+        ) { sessionRef ->
             withSavedHostSession(context, repo, vaultRepository, name, timeoutSec * 1000, sessionRef) { session ->
                 val sftp = openSftp(session)
                 var ok = false
@@ -211,7 +231,7 @@ fun sshDownloadTool(
                         put("local_path", localFile.absolutePath)
                         put("bytes", localFile.length())
                         // 就地给出摘要：交付/校验不必再跑一次 file_info + 对端 Get-FileHash
-                        appendHashes(this, localFile, p["hash"]?.jsonPrimitive?.contentOrNull)
+                        appendHashes(this, localFile, p.optString("hash"))
                     }
                 } catch (e: Throwable) {
                     // 失败已随 error 信封返回给调用方；再记一条 w，否则

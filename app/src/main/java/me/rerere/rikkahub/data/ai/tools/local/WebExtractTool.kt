@@ -3,14 +3,13 @@ package me.rerere.rikkahub.data.ai.tools.local
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.net.withEgressGuard
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -26,7 +25,7 @@ private const val WEB_EXTRACT_TIMEOUT_MS = 30_000L
  */
 /** URL 校验：空值 / 协议 / 私有地址字面量。返回 (url, 错误 JSON)，二者恰有一个非空。 */
 private fun resolveExtractTarget(obj: JsonObject): Pair<String?, String?> {
-    val url = obj["url"]?.jsonPrimitive?.contentOrNull?.trim()
+    val url = obj.optString("url")?.trim()
     if (url.isNullOrBlank()) return null to fmErrEnvelope("missing_url", "url is required")
     if (!url.startsWith("http://", true) && !url.startsWith("https://", true)) {
         return null to fmErrEnvelope("bad_url", "url must start with http:// or https://")
@@ -47,7 +46,7 @@ private fun resolveExtractTarget(obj: JsonObject): Pair<String?, String?> {
 
 /** mode 校验：非法值 / 不支持的 raw。 */
 private fun resolveExtractMode(obj: JsonObject): Pair<FetchExtract?, String?> {
-    val mode = parseExtractModeOrNull(obj["mode"]?.jsonPrimitive?.contentOrNull ?: "article")
+    val mode = parseExtractModeOrNull(obj.optString("mode") ?: "article")
         ?: return null to fmErrEnvelope("bad_mode", "mode must be one of article, text, links, metadata")
     if (mode == FetchExtract.RAW) {
         return null to fmErrEnvelope(
@@ -95,8 +94,8 @@ fun webExtractTool(client: OkHttpClient): Tool = Tool(
         val (mode, modeError) = resolveExtractMode(obj)
         if (mode == null) return@Tool fmTextPart(modeError.orEmpty())
 
-        val startIndex = obj["start_index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
-        val maxChars = obj["max_chars"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        val startIndex = obj.optString("start_index")?.toIntOrNull() ?: 0
+        val maxChars = obj.optString("max_chars")?.toIntOrNull()
             ?.coerceIn(1, WEB_FETCH_EXTRACT_CAP) ?: WEB_FETCH_EXTRACT_CAP
 
         val guarded = client.withEgressGuard()

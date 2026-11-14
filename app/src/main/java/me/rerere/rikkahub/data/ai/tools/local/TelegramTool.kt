@@ -6,14 +6,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
+import me.rerere.common.http.optLong
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.telegram.TelegramApiException
 import me.rerere.rikkahub.data.telegram.TelegramBotClient
@@ -69,7 +68,7 @@ fun telegramSetTokenTool(prefs: TelegramBotPreferences, client: TelegramBotClien
         )
     },
     execute = { input ->
-        val token = input.jsonObject["token"]?.jsonPrimitive?.contentOrNull
+        val token = input.jsonObject.optString("token")
             ?: error("token is required")
         // Provisionally persist; the client uses tokenProvider() lazily so getMe will use it.
         val previousToken = prefs.current().token
@@ -178,7 +177,7 @@ fun telegramAddWhitelistTool(prefs: TelegramBotPreferences): Tool = Tool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.longOrNull
+        val id = input.jsonObject.optLong("id")
             ?: error("id is required")
         prefs.update { it.copy(whitelist = it.whitelist + id) }
         textPart(buildJsonObject { put("success", true); put("whitelist", buildJsonArray { prefs.current().whitelist.sorted().forEach { add(it) } }) })
@@ -198,7 +197,7 @@ fun telegramRemoveWhitelistTool(prefs: TelegramBotPreferences): Tool = Tool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.longOrNull
+        val id = input.jsonObject.optLong("id")
             ?: error("id is required")
         prefs.update { it.copy(whitelist = it.whitelist - id) }
         textPart(buildJsonObject { put("success", true); put("whitelist", buildJsonArray { prefs.current().whitelist.sorted().forEach { add(it) } }) })
@@ -218,7 +217,7 @@ fun telegramSetDefaultChatTool(prefs: TelegramBotPreferences): Tool = Tool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["chat_id"]?.jsonPrimitive?.longOrNull
+        val id = input.jsonObject.optLong("chat_id")
             ?: error("chat_id is required")
         prefs.update { it.copy(defaultChatId = if (id == 0L) null else id) }
         textPart(buildJsonObject { put("success", true); put("default_chat_id", prefs.current().defaultChatId ?: 0L) })
@@ -238,7 +237,7 @@ fun telegramSetAssistantTool(prefs: TelegramBotPreferences): Tool = Tool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["assistant_id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("assistant_id")
             ?: error("assistant_id is required")
         prefs.update { it.copy(assistantId = id.ifBlank { null }) }
         textPart(buildJsonObject { put("success", true); put("assistant_id", prefs.current().assistantId ?: "") })
@@ -261,10 +260,10 @@ fun telegramSendMessageTool(prefs: TelegramBotPreferences, client: TelegramBotCl
     },
     execute = { input ->
         val p = input.jsonObject
-        val text = p["text"]?.jsonPrimitive?.contentOrNull ?: error("text is required")
-        val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
+        val text = p.optString("text") ?: error("text is required")
+        val chatId = p.optLong("chat_id") ?: prefs.current().defaultChatId
             ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
-        val parseMode = p["parse_mode"]?.jsonPrimitive?.contentOrNull
+        val parseMode = p.optString("parse_mode")
         textPart(safeApi { buildJsonObject {
             put("success", true)
             put("result", client.sendMessage(chatId, text, parseMode))
@@ -309,14 +308,14 @@ fun telegramSendPhotoTool(prefs: TelegramBotPreferences, client: TelegramBotClie
     },
     execute = { input ->
         val p = input.jsonObject
-        val rawPath = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val rawPath = p.optString("path") ?: error("path is required")
         val path = AgentWorkspace.expand(rawPath)
         PathSafetyGuard.check(path)?.let { v ->
             return@Tool textPart(ToolErrors.envelopeFor(error = v.code, message = v.detail))
         }
-        val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
+        val chatId = p.optLong("chat_id") ?: prefs.current().defaultChatId
             ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
-        val caption = p["caption"]?.jsonPrimitive?.contentOrNull
+        val caption = p.optString("caption")
         val file = File(path)
         if (!file.exists() || !file.isFile) {
             return@Tool textPart(ToolErrors.envelopeFor(error = "not_found", message = "file not found: $path", hint = "Verify the name or id and retry."))
@@ -355,14 +354,14 @@ fun telegramSendDocumentTool(prefs: TelegramBotPreferences, client: TelegramBotC
     },
     execute = { input ->
         val p = input.jsonObject
-        val rawPath = p["path"]?.jsonPrimitive?.contentOrNull ?: error("path is required")
+        val rawPath = p.optString("path") ?: error("path is required")
         val path = AgentWorkspace.expand(rawPath)
         PathSafetyGuard.check(path)?.let { v ->
             return@Tool textPart(ToolErrors.envelopeFor(error = v.code, message = v.detail))
         }
-        val chatId = p["chat_id"]?.jsonPrimitive?.longOrNull ?: prefs.current().defaultChatId
+        val chatId = p.optLong("chat_id") ?: prefs.current().defaultChatId
             ?: return@Tool textPart(ToolErrors.envelopeFor(error = "invalid_argument", message = "no chat_id and no default_chat_id set", hint = "Check the parameter values and retry with corrected arguments."))
-        val caption = p["caption"]?.jsonPrimitive?.contentOrNull
+        val caption = p.optString("caption")
         val file = File(path)
         if (!file.exists() || !file.isFile) {
             return@Tool textPart(ToolErrors.envelopeFor(error = "not_found", message = "file not found: $path", hint = "Verify the name or id and retry."))
@@ -410,8 +409,8 @@ fun telegramSetCommandsTool(prefs: TelegramBotPreferences, client: TelegramBotCl
     execute = { input ->
         val arr = input.jsonObject["commands"]?.jsonArray ?: error("commands is required")
         val userList = arr.map { it.jsonObject }.mapNotNull { o ->
-            val c = o["command"]?.jsonPrimitive?.contentOrNull?.removePrefix("/")
-            val d = o["description"]?.jsonPrimitive?.contentOrNull
+            val c = o.optString("command")?.removePrefix("/")
+            val d = o.optString("description")
             if (c.isNullOrBlank() || d.isNullOrBlank()) null else c to d
         }
         // Built-ins are reserved — strip any user entry that collides on name. Then

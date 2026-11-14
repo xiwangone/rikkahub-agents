@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optString
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -75,10 +75,10 @@ fun vaultCredentialNamesTool(repository: CredentialVaultRepository): Tool = Tool
     execute = { params ->
         // 存量条目类型回填（幂等、便宜）：保证 AI 首次调用就能读到类型，而不是等用户逐条重存
         runCatching { repository.backfillMissingTypes() }
-        val group = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull
-        val keyword = params.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
-        val sort = params.jsonObject["sort"]?.jsonPrimitive?.contentOrNull
-        val showDupes = params.jsonObject["duplicates"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val group = params.jsonObject.optString("group")
+        val keyword = params.jsonObject.optString("keyword")?.trim()?.lowercase()
+        val sort = params.jsonObject.optString("sort")
+        val showDupes = params.jsonObject.optString("duplicates")?.toBooleanStrictOrNull() ?: false
         val all = repository.getAll()
         val filtered =
             all
@@ -175,7 +175,7 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
     },
     execute = { params ->
         val o = params.jsonObject
-        val rawName = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val rawName = o.optString("name")?.ifBlank { null }
         val finalName = rawName?.let { CredentialVaultRepository.normalizeName(it) }.orEmpty()
         when {
             rawName == null -> listOf(UIMessagePart.Text("❌ name is required"))
@@ -184,9 +184,9 @@ fun vaultCredentialPrepareTool(repository: CredentialVaultRepository): Tool = To
             repository.getByName(finalName) != null ->
                 listOf(UIMessagePart.Text("❌ Credential already exists: $finalName (placeholder creation refused to avoid overwriting existing credential metadata and public key; use vault_credential_update to change metadata)"))
             else -> {
-                val desc = o["description"]?.jsonPrimitive?.contentOrNull ?: ""
-                val group = o["group"]?.jsonPrimitive?.contentOrNull ?: "Other"
-                val pub = o["public_key"]?.jsonPrimitive?.contentOrNull ?: ""
+                val desc = o.optString("description") ?: ""
+                val group = o.optString("group") ?: "Other"
+                val pub = o.optString("public_key") ?: ""
                 // meta：非敏感元数据（白名单见 CredentialMeta）—— AI 可在建占位时就写好账号/AK/region 等正位字段
                 val metaJson =
                     o["meta"]?.let { meta ->
@@ -293,11 +293,11 @@ fun vaultGenKeyTool(
         if (!VaultSessionManager(context).hasActiveAuthorization()) {
             return@Tool listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         }
-        val rawName = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val rawGroup = params.jsonObject["group"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val rawComment = params.jsonObject["comment"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val typeStr = params.jsonObject["type"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val uidStr = params.jsonObject["uid"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val rawName = params.jsonObject.optString("name")?.ifBlank { null }
+        val rawGroup = params.jsonObject.optString("group")?.ifBlank { null }
+        val rawComment = params.jsonObject.optString("comment")?.ifBlank { null }
+        val typeStr = params.jsonObject.optString("type")?.ifBlank { null }
+        val uidStr = params.jsonObject.optString("uid")?.ifBlank { null }
         val keyType = parseVaultKeyType(typeStr)
             ?: return@Tool listOf(
                 UIMessagePart.Text(

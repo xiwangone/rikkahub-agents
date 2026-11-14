@@ -4,6 +4,7 @@ import android.content.Context
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.takeWhile
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlin.time.Clock
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -117,6 +118,104 @@ internal fun wrapUpSummaryHasText(parts: List<UIMessagePart>): Boolean =
 /** 收尾提醒的 Append 必须带 terminalSummary=true，否则总结请求越不过 maxSteps。 */
 internal fun terminalSummaryAppend(notice: UIMessage): StepDecision.Append =
     StepDecision.Append(notice, terminalSummary = true)
+
+/**
+ * 生成失败时把一条消息里仍 Auto/Pending 的工具落成确定性终态。
+ *
+ * 系统失败（5xx / 解析失败，与用户无关）不再借用 [ToolApprovalState.Denied] 装——
+ * 那会把一次与用户无关的失败持久化成「用户拒绝」，续跑时模型还会据此调整后续行为。
+ * 改为保留原审批态、补一个 `generation_failed` 信封：工具根本没跑，失败在生成环节，
+ * 模型可在下一轮自行决定是否重发同一调用。已有输出的工具不动（它已经执行完了，
+ * 再翻成失败是把成功误标成失败）。
+ */
+internal fun settleGenerationFailedTools(message: UIMessage, cause: Throwable): UIMessage {
+    val newParts = message.parts.map { part ->
+        if (part is UIMessagePart.Tool && !part.isExecuted) {
+            when (part.approvalState) {
+                ToolApprovalState.Auto, ToolApprovalState.Pending -> part.copy(
+                    output = ToolErrors.partsFor(
+                        ToolErrors.GENERATION_FAILED,
+                        "Generation failed before this tool could run " +
+                            "(${cause.javaClass.simpleName}: ${cause.message.orEmpty()}); " +
+                            "the tool was not executed.",
+                        hint = "The tool itself did not fail; retry the call in a later turn if still needed.",
+                    ),
+                )
+                else -> part
+            }
+        } else {
+            part
+        }
+    }
+    return if (newParts == message.parts) message else message.copy(parts = newParts)
+}
+
+/**
+ * 拒绝输出的分流：只有硬线拦截（安全底线）才返回信封，其余拒绝返回 null 走默认
+ * `permission_denied`。
+ *
+ * 硬线 Denied 的理由里带 UI 用的内部标记（`hardline-ui:v1:<code>|…`）：直接发给模型
+ * 会泄漏内部标记、还会被说成「用户拒绝」。此处先过
+ * [HardlineCommandGuard.modelFacingReason] 去标记，再以 `hardline_blocked` / abort
+ * 成信封，并把稳定分类码放进 `data` 供 UI 识别；无有效标记时原样返回 null。
+ */
+internal fun deniedToolOutputFor(reason: String): List<UIMessagePart>? {
+    val modelReason = HardlineCommandGuard.modelFacingReason(reason)
+    if (modelReason == reason) return null
+    val code = HardlineCommandGuard.uiReasonCodeFromEncoded(reason)
+    return ToolErrors.partsFor(
+        ToolErrors.HARDLINE_BLOCKED,
+        modelReason,
+        extra = code?.let {
+            ToolErrors.extraOf(HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD to it)
+        }.orEmpty(),
+    )
+}
+
+/**
+ * 续跑路径的硬线重查拒绝：与新发起路径（[deniedToolOutputFor]）同一结论。
+ *
+ * 错误码必须是 `hardline_blocked`（任何授权都越不过的安全底线），不能是
+ * `invalid_argument`——后者会教模型「改改参数再试」，而这条命令永远跑不了。
+ * hint 同样不能写「改参重试」，改写「不要经 agent 重试、真有需要去终端外跑」。
+ */
+internal fun hardlineRejectOutput(reason: String): List<UIMessagePart> {
+    val reasonCode = HardlineCommandGuard.reasonCodeForMessage(reason)
+    return listOf(
+        UIMessagePart.Text(
+            ToolErrors.textFor(
+                error = ToolErrors.HARDLINE_BLOCKED,
+                message = "blocked by safety floor (hardline): $reason. " +
+                    "This command cannot run via the agent under any circumstances.",
+                hint = "Do not retry this command via the agent. " +
+                    "If genuinely needed, run it in a terminal outside the agent.",
+                extra = reasonCode?.let {
+                    ToolErrors.extraOf(HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD to it)
+                }.orEmpty(),
+            ),
+        ),
+    )
+}
+
+/**
+ * 工具失败输出按异常类型分流：墙钟超时（[TimeoutCancellationException]，预算掐掉）
+ * 走 `tool_cancelled_wall_clock` / REQUEST_CANCELLED / abort；其余异常走
+ * `tool_failed` / INTERNAL_ERROR / abort。两者 recovery 碰巧都是 abort，
+ * 区别在归因：预算掐掉的工具被说成「工具内部出错」会误导模型与排障。
+ */
+internal fun toolFailureParts(error: Throwable): List<UIMessagePart> =
+    when (error) {
+        is TimeoutCancellationException -> ToolErrors.partsFor(
+            ToolErrors.TOOL_CANCELLED_WALL_CLOCK,
+            "Tool cancelled: wall-clock budget exceeded.",
+            extra = mapOf("exception" to JsonPrimitive(error.javaClass.simpleName)),
+        )
+        else -> ToolErrors.partsFor(
+            ToolErrors.TOOL_FAILED,
+            (error.message ?: error.javaClass.simpleName).take(500),
+            extra = mapOf("exception" to JsonPrimitive(error.javaClass.simpleName)),
+        )
+    }
 
 /**
  * 一次生成轮回的执行体：把「请求模型 → 审批 → 执行工具 → 回灌」的排序交给 `me.rerere.ai.agent` 的循环，
@@ -324,24 +423,11 @@ internal class GenerationAgentRun(
                     continue
                 }
                 // 服务 5xx、JSON 解析失败、分块合并期异常等：把仍处在 Auto/Pending 的工具落成确定性
-                // 的 generation_failed 包络，否则下一轮回放会拿到半截状态的工具 part
+                // 的 generation_failed 包络，否则下一轮回放会拿到半截状态的工具 part。审批态保留、
+                // 只补输出——借用 Denied 会把系统失败说成「用户拒绝」（见 settleGenerationFailedTools）。
                 val lastMsg = messages.lastOrNull()
                 if (lastMsg != null) {
-                    val newParts = lastMsg.parts.map { part ->
-                        if (part is UIMessagePart.Tool &&
-                            (part.approvalState is ToolApprovalState.Auto ||
-                                part.approvalState is ToolApprovalState.Pending)
-                        ) {
-                            part.copy(
-                                approvalState = ToolApprovalState.Denied(
-                                    "generation_failed: ${t.javaClass.simpleName}: ${t.message.orEmpty()}",
-                                ),
-                            )
-                        } else {
-                            part
-                        }
-                    }
-                    messages = messages.dropLast(1) + lastMsg.copy(parts = newParts)
+                    messages = messages.dropLast(1) + settleGenerationFailedTools(lastMsg, t)
                     emitter.emit(GenerationChunk.Messages(messages))
                 }
                 // 本轮重试汇总：只在真重试过时记 1 条（含次数 + 最后错误），
@@ -780,24 +866,7 @@ internal class GenerationAgentRun(
         val resumeHardlineReason = HardlineCommandGuard.checkTool(tool.toolName, tool.input)
         if (resumeHardlineReason != null) {
             AppLog.w(TAG, "generateText: resume-path hardline re-check blocked ${tool.toolName}: $resumeHardlineReason")
-            val reasonCode = HardlineCommandGuard.reasonCodeForMessage(resumeHardlineReason)
-            return ToolCallOutcome.Reject(
-                listOf(
-                    UIMessagePart.Text(
-                        json.encodeToString(
-                            ToolErrors.envelopeFor(
-                                error = "invalid_argument",
-                                message = "blocked by safety floor (hardline): $resumeHardlineReason. " +
-                                    "This command cannot run via the agent under any circumstances.",
-                                hint = "Check the parameter values and retry with corrected arguments.",
-                                extra = reasonCode?.let {
-                                    ToolErrors.extraOf(HardlineCommandGuard.HARDLINE_REASON_CODE_FIELD to it)
-                                }.orEmpty(),
-                            ),
-                        ),
-                    ),
-                ),
-            )
+            return ToolCallOutcome.Reject(hardlineRejectOutput(resumeHardlineReason))
         }
         // 用户/硬线拒绝的包络在循环之外已成型（Denied/Answered 分支），这里只处理要执行的那些
         val signature = LoopGuard.signature(toolName = tool.toolName, input = tool.input, parsedArgs = parsedArgs)
@@ -904,12 +973,15 @@ internal class GenerationAgentRun(
     /** 工具失败/被墙钟掐掉的包络：错误码 + 截断后的简述，不把整段栈回灌给模型 */
     override suspend fun toolFailureOutput(tool: UIMessagePart.Tool, error: Throwable): List<UIMessagePart> {
         AppLog.w(TAG, "tool ${tool.toolName} threw", error)
-        return ToolErrors.partsFor(
-            ToolErrors.TOOL_FAILED,
-            (error.message ?: error.javaClass.simpleName).take(500),
-            extra = mapOf("exception" to JsonPrimitive(error.javaClass.simpleName)),
-        )
+        return toolFailureParts(error)
     }
+
+    /**
+     * 拒绝输出的分流：硬线拦截（安全底线）走 `hardline_blocked` 信封（去 UI 内部标记），
+     * 其余拒绝返回 null、由循环落默认 `permission_denied` 信封。
+     */
+    override suspend fun deniedToolOutput(tool: UIMessagePart.Tool, reason: String): List<UIMessagePart>? =
+        deniedToolOutputFor(reason)
 
     /** 执行成功、写回之前：脱敏 → 审批出处 → 超限落盘 + 预览/摘要 */
     override suspend fun processToolOutput(

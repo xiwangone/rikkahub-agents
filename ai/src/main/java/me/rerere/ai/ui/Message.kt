@@ -6,7 +6,7 @@ import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.Transient
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.buildJsonObject
+import me.rerere.ai.agent.ToolErrorEnvelope
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.util.json
@@ -353,6 +353,8 @@ fun UIMessage.finishPendingTools(
  *
  * 理由同样按「执行是否开始过」分叉（见 [abandonUnexecutedTools]）：从未开始的工具写 [reason]
  * （"未执行"是事实）；开始过但结果没回来的写 [interruptedAttemptReason]（"状态未知、先核实"）。
+ * 已是终态 Denied 的工具保留原理由、只补一个与拒绝口径一致的信封（硬线拦截经
+ * [deniedReasonForModel] 去标记后走 `hardline_blocked`，其余走 `permission_denied`）。
  * 默认 [interruptedAttemptReason] = [reason]，不传时行为不变。请求路径的调用方必须传与生成前
  * 清理同文的中断理由，否则补桩会覆盖重放安全通道的定案、把"可能已执行"说成单纯缺结果，诱导
  * 模型重跑同一条命令形成重复副作用。
@@ -361,18 +363,19 @@ fun UIMessage.finishPendingTools(
 fun List<UIMessage>.repairToolPairing(
     reason: String,
     interruptedAttemptReason: String = reason,
+    deniedReasonForModel: (String) -> String = { it },
 ): List<UIMessage> =
     migrateToolMessages().map { message ->
         if (message.role == MessageRole.ASSISTANT) {
-            message.abandonUnexecutedTools(reason, interruptedAttemptReason)
+            message.abandonUnexecutedTools(reason, interruptedAttemptReason, deniedReasonForModel)
         } else {
             message
         }
     }
 
 /**
- * 把消息里「尚未执行」的工具定案为「未执行的中断」：[UIMessagePart.Tool.output] 补一个合成的
- * envelope，审批态置为 [ToolApprovalState.Denied]，其余 part 与消息本体保留。
+ * 把消息里「尚未执行」的工具定案为合法终态：[UIMessagePart.Tool.output] 补一个合成的
+ * v2 信封（[ToolErrorEnvelope]，JSON-RPC 2.0 形状），其余 part 与消息本体保留。
  *
  * 与 [finishPendingTools] 的分工：后者只改写「用户已表态」的 `Pending`/`Approved`，并刻意放过
  * `Auto`（Auto 可能只是过期快照回退，写成 Denied 会把「从未被问到」冤判成「用户拒绝」）。本函数
@@ -383,39 +386,70 @@ fun List<UIMessage>.repairToolPairing(
  * 模型都失去这段上下文（模型以为什么都没发生，可能重复执行同一副作用）。补一个确定的 envelope
  * 后，消息成为合法终态（`isExecuted == true`），可安全进入后续上下文。
  *
- * 理由按「执行是否开始过」分叉（[UIMessagePart.Tool.executionStartedAt] 有值即开始过）：
- *  - 从未开始 → [reason]（"未执行"是事实）；
- *  - 开始过但结果没回来 → [interruptedAttemptReason]（"状态未知、先核实"）。此时副作用可能
- *    已发生（shell 跑完才被杀、进程回收前结果没落库），告知"未执行"会诱导模型重跑同一条
- *    命令形成重复副作用。默认 [interruptedAttemptReason] = [reason]，调用方不传时行为不变。
+ * 定案按工具状态三路分叉（[UIMessagePart.Tool.executionStartedAt] 有值即开始过）：
+ *  - 已是 [ToolApprovalState.Denied] 且从未开始 → 保留原理由（终态理由不能被覆盖，与
+ *    [finishPendingTools] 同款原则），只补一个与拒绝口径一致的信封：[deniedReasonForModel]
+ *    去标记后仍有变化的是硬线拦截（`hardline_blocked` / abort），其余走 `permission_denied` /
+ *    abort。审批态本身不动；
+ *  - 开始过但结果没回来 → [interruptedAttemptReason]（"状态未知、先核实"），信封
+ *    `interrupted` / REQUEST_CANCELLED / abort。此时副作用可能已发生（shell 跑完才被杀、
+ *    进程回收前结果没落库），告知"未执行"会诱导模型重跑同一条命令形成重复副作用。
+ *    默认 [interruptedAttemptReason] = [reason]，调用方不传时行为不变；
+ *  - 从未开始 → [reason]（"未执行"是事实），信封 `interrupted` / REQUEST_CANCELLED / retry
+ *    （什么都没发生，重试安全）。
+ *  中断两路的信封在 `data` 里保留 `status: "interrupted"`，供按旧扁平形状
+ *  `{"status":"interrupted",...}` 读状态的消费方过渡。
  *
  * 无未执行工具时返回自身（保持引用相等，避免无谓重组与落盘）。
  */
 fun UIMessage.abandonUnexecutedTools(
     reason: String,
     interruptedAttemptReason: String = reason,
+    deniedReasonForModel: (String) -> String = { it },
 ): UIMessage {
     var changed = false
     val newParts =
         parts.map { part ->
             if (part is UIMessagePart.Tool && !part.isExecuted) {
                 changed = true
-                val partReason =
-                    if (part.executionStartedAt != null) interruptedAttemptReason else reason
-                part.copy(
-                    output =
-                        listOf(
-                            UIMessagePart.Text(
-                                json.encodeToString(
-                                    buildJsonObject {
-                                        put("status", JsonPrimitive("interrupted"))
-                                        put("error", JsonPrimitive(partReason))
+                val existingDenied = part.approvalState as? ToolApprovalState.Denied
+                if (existingDenied != null && part.executionStartedAt == null) {
+                    // 已是终态 Denied：只补结果，不改写审批态与理由。
+                    val modelReason = deniedReasonForModel(existingDenied.reason)
+                    val isHardline = modelReason != existingDenied.reason
+                    part.copy(
+                        output =
+                            ToolErrorEnvelope.partsFor(
+                                error = if (isHardline) "hardline_blocked" else "permission_denied",
+                                message =
+                                    if (isHardline) {
+                                        modelReason
+                                    } else {
+                                        "Tool execution denied by user. Reason: " +
+                                            existingDenied.reason.ifBlank { "No reason provided" }
                                     },
-                                ),
+                                code = ToolErrorEnvelope.SERVER_ERROR,
+                                recovery = ToolErrorEnvelope.RECOVERY_ABORT,
                             ),
-                        ),
-                    approvalState = ToolApprovalState.Denied(partReason),
-                )
+                    )
+                } else {
+                    val partReason =
+                        if (part.executionStartedAt != null) interruptedAttemptReason else reason
+                    val recovery =
+                        if (part.executionStartedAt != null) ToolErrorEnvelope.RECOVERY_ABORT
+                        else ToolErrorEnvelope.RECOVERY_RETRY
+                    part.copy(
+                        output =
+                            ToolErrorEnvelope.partsFor(
+                                error = "interrupted",
+                                message = partReason,
+                                code = ToolErrorEnvelope.REQUEST_CANCELLED,
+                                recovery = recovery,
+                                extra = mapOf("status" to JsonPrimitive("interrupted")),
+                            ),
+                        approvalState = ToolApprovalState.Denied(partReason),
+                    )
+                }
             } else {
                 part
             }

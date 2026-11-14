@@ -8,8 +8,8 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
 import me.rerere.rikkahub.data.sync.S3Sync
@@ -94,11 +94,11 @@ private suspend fun executeAppBackup(
 ): List<UIMessagePart> {
                 val requested =
                     params["items"]?.jsonArray
-                        ?.mapNotNull { e -> e.jsonPrimitive.contentOrNull }
+                        ?.mapNotNull { e -> (e as? JsonPrimitive)?.contentOrNull }
                         ?.mapNotNull { n -> runCatching { S3Config.BackupItem.valueOf(n.uppercase()) }.getOrNull() }
                         .orEmpty()
                 val items = requested.ifEmpty { DEFAULT_APP_BACKUP_ITEMS }
-                val target = params["target"]?.jsonPrimitive?.contentOrNull?.lowercase()?.takeIf { s -> s.isNotBlank() } ?: "local"
+                val target = params.optString("target")?.lowercase()?.takeIf { s -> s.isNotBlank() } ?: "local"
                 val settings = settingsStore.settingsFlow.value
                 val encryptedBySettings = settings.backupEncryptionEnabled
 
@@ -261,7 +261,7 @@ internal fun buildClipboardTool(context: Context): Tool = run {
             },
             execute = {
                 val params = it.jsonObject
-                val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
+                val action = params.optString("action") ?: error("action is required")
                 when (action) {
                     "read" -> {
                         val text = context.readClipboardText()
@@ -285,7 +285,7 @@ internal fun buildClipboardTool(context: Context): Tool = run {
                     }
 
                     "write" -> {
-                        val text = params["text"]?.jsonPrimitive?.contentOrNull ?: error("text is required")
+                        val text = params.optString("text") ?: error("text is required")
                         context.writeClipboardText(text)
                         val payload = buildJsonObject {
                             put("success", true)
@@ -321,7 +321,7 @@ internal fun buildTtsTool(eventBus: AppEventBus): Tool = run {
                 )
             },
             execute = {
-                val text = it.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+                val text = it.jsonObject.optString("text")
                     ?: error("text is required")
                 eventBus.emit(AppEvent.Speak(text))
                 val payload = buildJsonObject {

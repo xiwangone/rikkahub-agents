@@ -6,12 +6,11 @@ import android.webkit.MimeTypeMap
 import androidx.core.content.FileProvider
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import java.io.File
@@ -55,13 +54,13 @@ fun openFileTool(
     execute = { input ->
         wakeScreenIfNeeded(context)
         val params = input.jsonObject
-        val rawPath = params["path"]?.jsonPrimitive?.contentOrNull
+        val rawPath = params.optString("path")
         if (rawPath.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "missing_path", message = "path is required").toString()
             ))
         }
-        val mimeOverrideEarly = params["mime_type"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val mimeOverrideEarly = params.optString("mime_type")?.takeIf { it.isNotBlank() }
 
         // content:// URI — fire ACTION_VIEW directly on the URI (no FileProvider needed;
         // the DocumentsProvider already exposes a readable content:// URI).
@@ -103,7 +102,7 @@ fun openFileTool(
         if (!file.exists() || !file.isFile) {
             return@Tool listOf(UIMessagePart.Text(fmErrEnvelope("not_found", "File not found: $rawPath")))
         }
-        val mimeOverride = params["mime_type"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val mimeOverride = params.optString("mime_type")?.takeIf { it.isNotBlank() }
         val mime = mimeOverride
             ?: MimeTypeMap.getSingleton().getMimeTypeFromExtension(file.extension.lowercase())
             ?: "*/*"

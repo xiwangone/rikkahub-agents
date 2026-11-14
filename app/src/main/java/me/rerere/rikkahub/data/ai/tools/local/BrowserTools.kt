@@ -8,13 +8,10 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -27,6 +24,9 @@ import me.rerere.rikkahub.browser.ReadabilityRunner.runReadability
 import me.rerere.rikkahub.browser.awaitReadyState
 import me.rerere.rikkahub.browser.evaluateJavascriptAsync
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import kotlin.uuid.ExperimentalUuidApi
@@ -133,7 +133,7 @@ fun browserDoneTool(invocationContext: ToolInvocationContext? = null): Tool = To
         }, required = listOf("summary"))
     },
     execute = { input ->
-        val summary = input.jsonObject["summary"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val summary = input.jsonObject.optString("summary")?.takeIf { it.isNotBlank() }
         val out = if (summary == null) {
             missingArgEnvelope("summary", "summary is required")
         } else {
@@ -228,7 +228,7 @@ internal suspend fun BrowserControllerHandle.WithControllerScope.captureBodyText
     return runCatching {
         val outer = Json.parseToJsonElement(raw)
         val inner = if (outer is JsonPrimitive && outer.isString) outer.contentOrNull.orEmpty() else outer.toString()
-        Json.parseToJsonElement(inner).jsonPrimitive.contentOrNull.orEmpty()
+        (Json.parseToJsonElement(inner) as? JsonPrimitive)?.contentOrNull.orEmpty()
     }.getOrElse { "" }
 }
 
@@ -265,7 +265,7 @@ internal suspend fun BrowserControllerHandle.WithControllerScope.withDiff(
  * name matches the spec verbatim so the LLM has one concept to learn.
  */
 internal fun parseFullArg(input: kotlinx.serialization.json.JsonElement): Boolean =
-    input.jsonObject["full"]?.jsonPrimitive?.booleanOrNull == true
+    input.jsonObject.optBoolean("full") == true
 
 /**
  * Parse the raw string evaluateJavascript returned. Our JS helpers always return a
@@ -298,11 +298,11 @@ internal suspend fun runReadHelper(
     defaultMax: Int,
     jsBuilder: (selector: String, maxChars: Int) -> String,
 ): JsonObject {
-    val selector = (input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull
+    val selector = (input.jsonObject.optString("selector")
         ?.takeIf { it.isNotBlank() }) ?: "body"
     // Clamp max_chars at 100 (anything smaller is unhelpful) and 64 KB (so a runaway
     // model can't tell us to grab a megabyte of HTML).
-    val maxChars = (input.jsonObject["max_chars"]?.jsonPrimitive?.intOrNull ?: defaultMax)
+    val maxChars = (input.jsonObject.optInt("max_chars") ?: defaultMax)
         .coerceIn(100, 64 * 1024)
     return withTimeoutOrNull(toolTimeoutMs) {
         BrowserControllerHandle.withController {
@@ -327,11 +327,11 @@ internal suspend fun runReadHelper(
 internal const val READABILITY_MIN_CHARS = 200
 
 internal suspend fun runGetText(input: kotlinx.serialization.json.JsonElement): JsonObject {
-    val explicitSelector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull
+    val explicitSelector = input.jsonObject.optString("selector")
         ?.takeIf { it.isNotBlank() }
-    val maxChars = (input.jsonObject["max_chars"]?.jsonPrimitive?.intOrNull ?: 8000)
+    val maxChars = (input.jsonObject.optInt("max_chars") ?: 8000)
         .coerceIn(100, 64 * 1024)
-    val mode = input.jsonObject["extract_mode"]?.jsonPrimitive?.contentOrNull?.lowercase()
+    val mode = input.jsonObject.optString("extract_mode")?.lowercase()
         ?.takeIf { it in setOf("auto", "readability", "raw") } ?: "auto"
 
     return withTimeoutOrNull(toolTimeoutMs) {

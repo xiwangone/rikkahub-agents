@@ -1,13 +1,12 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import android.content.Context
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.booleanOrNull
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -64,11 +63,11 @@ fun writeTextFileTool(context: Context): Tool = Tool(
     execute = { input ->
         val params: JsonObject = input.jsonObject
 
-        val rawPath = params["path"]?.jsonPrimitive?.contentOrNull
+        val rawPath = params.optString("path")
         if (rawPath.isNullOrBlank()) {
             return@Tool errEnvelope("missing_path", "path is required (absolute path or ~/...)")
         }
-        val content = params["content"]?.jsonPrimitive?.contentOrNull
+        val content = params.optString("content")
             ?: return@Tool errEnvelope("missing_content", "content is required")
 
         // content:// path — route through the SAF resolver. append is unsupported on
@@ -77,7 +76,7 @@ fun writeTextFileTool(context: Context): Tool = Tool(
             ContentUriSafetyGuard.check(rawPath)?.let { v ->
                 return@Tool errEnvelope(v.code, v.detail)
             }
-            if (params["append"]?.jsonPrimitive?.booleanOrNull == true) {
+            if (params.optBoolean("append") == true) {
                 return@Tool errEnvelope("append_unsupported", "append is not supported on content:// URIs")
             }
             return@Tool try {
@@ -100,8 +99,8 @@ fun writeTextFileTool(context: Context): Tool = Tool(
 
         val path = AgentWorkspace.expand(rawPath)
 
-        val append = params["append"]?.jsonPrimitive?.booleanOrNull == true
-        val overwrite = params["overwrite"]?.jsonPrimitive?.booleanOrNull == true
+        val append = params.optBoolean("append") == true
+        val overwrite = params.optBoolean("overwrite") == true
 
         PathSafetyGuard.check(path)?.let { v ->
             return@Tool errEnvelope(v.code, v.detail)

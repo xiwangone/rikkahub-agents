@@ -1,13 +1,12 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -90,7 +89,7 @@ fun vaultExportLoadCredsTool(
                     listOf(UIMessagePart.Text("❌ No credentials exported: session is not authorized for any entry in the vault"))
                 }
             } else {
-                val ttlHours = (params.jsonObject["ttl_hours"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, 24 * 365)
+                val ttlHours = (params.jsonObject.optInt("ttl_hours") ?: 0).coerceIn(0, 24 * 365)
                 val expiresAtMs = if (ttlHours > 0) System.currentTimeMillis() + ttlHours * 3_600_000L else null
                 val expiresLabel = expiresAtMs?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "never"
                 val script = "# expires_at: $expiresLabel\n" + VaultExporter.toLoadCreds(quads)
@@ -98,10 +97,10 @@ fun vaultExportLoadCredsTool(
                     runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                         ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
                 val target =
-                    resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                    resolveVaultWorkspace(wsRepository, params.jsonObject.optString("workspace"))
                         .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
                 // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
-                remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+                remoteTargetNeedsConfirm(target, params.jsonObject.optBoolean("confirm") ?: false)
                     ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
                 runCatching { wsRepository.writeText(target.id, "tmp/load-creds-export.sh", script, overwrite = true) }
                     .onFailure { AppLog.w("VaultTools", "Failed to write load-creds-export.sh", it) }
@@ -159,8 +158,8 @@ fun vaultCredentialMergeTool(
         if (context != null && !VaultSessionManager(context).hasActiveAuthorization()) {
             return@Tool listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         }
-        val source = params.jsonObject["source"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
-        val target = params.jsonObject["target"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+        val source = params.jsonObject.optString("source")?.trim().orEmpty()
+        val target = params.jsonObject.optString("target")?.trim().orEmpty()
         if (source.isEmpty() || target.isEmpty()) {
             return@Tool listOf(UIMessagePart.Text("❌ Both source and target are required"))
         }
@@ -304,7 +303,7 @@ fun vaultCredentialNormalizeTool(
         )
     },
     execute = { params ->
-        val dryRun = params.jsonObject["dry_run"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: true
+        val dryRun = params.jsonObject.optString("dry_run")?.toBooleanStrictOrNull() ?: true
         val entries = repository.getAll()
         val taken = entries.map { it.name }.toMutableSet()
 
@@ -411,15 +410,15 @@ fun vaultImportLoadCredsTool(
         if (!sessionManager.hasActiveAuthorization()) {
             listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
-            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds-export.sh"
+            val path = params.jsonObject.optString("path")?.ifBlank { null } ?: "/workspace/tmp/load-creds-export.sh"
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
             val target =
-                resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                resolveVaultWorkspace(wsRepository, params.jsonObject.optString("workspace"))
                     .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
             // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
-            remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+            remoteTargetNeedsConfirm(target, params.jsonObject.optBoolean("confirm") ?: false)
                 ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
             val content =
                 runCatching {
@@ -483,15 +482,15 @@ fun vaultCompareLoadCredsTool(
         if (!sessionManager.hasActiveAuthorization()) {
             listOf(UIMessagePart.Text("❌ Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool"))
         } else {
-            val path = params.jsonObject["path"]?.jsonPrimitive?.contentOrNull?.ifBlank { null } ?: "/workspace/tmp/load-creds.sh"
+            val path = params.jsonObject.optString("path")?.ifBlank { null } ?: "/workspace/tmp/load-creds.sh"
             val wsRepository =
                 runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
                     ?: return@Tool listOf(UIMessagePart.Text("❌ Workspace unavailable"))
             val target =
-                resolveVaultWorkspace(wsRepository, params.jsonObject["workspace"]?.jsonPrimitive?.contentOrNull)
+                resolveVaultWorkspace(wsRepository, params.jsonObject.optString("workspace"))
                     .getOrElse { e -> return@Tool listOf(UIMessagePart.Text("❌ ${e.message ?: "Cannot resolve workspace"}")) }
             // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
-            remoteTargetNeedsConfirm(target, params.jsonObject["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+            remoteTargetNeedsConfirm(target, params.jsonObject.optBoolean("confirm") ?: false)
                 ?.let { reason -> return@Tool listOf(UIMessagePart.Text("❌ $reason")) }
             val content =
                 runCatching {

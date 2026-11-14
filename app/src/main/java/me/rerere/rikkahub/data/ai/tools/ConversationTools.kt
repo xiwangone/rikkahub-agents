@@ -2,14 +2,13 @@ package me.rerere.rikkahub.data.ai.tools
 
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.db.fts.MessageSearchSort
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.utils.JsonInstantPretty
@@ -44,7 +43,7 @@ fun createConversationTools(
             )
         },
         execute = {
-            val limit = (it.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 10).coerceIn(1, 30)
+            val limit = (it.jsonObject.optInt("limit") ?: 10).coerceIn(1, 30)
             val recent = conversationRepo.getRecentConversations(
                 assistantId = assistantId,
                 limit = limit,
@@ -87,9 +86,9 @@ fun createConversationTools(
             )
         },
         execute = {
-            val query = it.jsonObject["query"]?.jsonPrimitive?.contentOrNull
+            val query = it.jsonObject.optString("query")
                 ?: error("query is required")
-            val limit = (it.jsonObject["limit"]?.jsonPrimitive?.intOrNull ?: 15).coerceIn(1, 50)
+            val limit = (it.jsonObject.optInt("limit") ?: 15).coerceIn(1, 50)
             val results = conversationRepo
                 .searchMessages(query, MessageSearchSort.RELEVANCE)
                 .take(limit)

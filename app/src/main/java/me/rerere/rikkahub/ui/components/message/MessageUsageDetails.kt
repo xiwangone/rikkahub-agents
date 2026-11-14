@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.annotation.VisibleForTesting
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
@@ -381,8 +382,14 @@ private fun ContextUsageBar(
         } else {
             stringResource(R.string.chat_nerd_context_only, contextTokens.formatK())
         }
-    val capacity = maxOf(window ?: 0L, contextTokens, 1L)
-    val remaining = (capacity - contextTokens).coerceAtLeast(0L)
+    // 容量必须覆盖三段之和（缓存 + 未命中输入 + 输出），否则三段与剩余段的
+    // 权重之和大于 1，Row 按权重归一化后各段比例全部失真，剩余量也被高估。
+    val (capacity, remaining) =
+        contextUsageCapacity(
+            windowTokens = window,
+            promptTokens = contextTokens,
+            outputTokens = outputTokens.toLong(),
+        )
     val colors = MaterialTheme.colorScheme
 
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -514,6 +521,21 @@ private fun UsageDetailRow(
             )
         }
     }
+}
+
+/**
+ * 用量条容量与剩余量：容量取窗口、prompt + 输出、1 三者最大值；
+ * 剩余量 = 容量 − prompt − 输出，使三段 + 剩余段的权重之和恒等于容量。
+ */
+@VisibleForTesting
+internal fun contextUsageCapacity(
+    windowTokens: Long?,
+    promptTokens: Long,
+    outputTokens: Long,
+): Pair<Long, Long> {
+    val capacity = maxOf(windowTokens ?: 0L, promptTokens + outputTokens, 1L)
+    val remaining = (capacity - promptTokens - outputTokens).coerceAtLeast(0L)
+    return capacity to remaining
 }
 
 private fun cacheHitRate(

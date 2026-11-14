@@ -8,15 +8,14 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optLong
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.log.AppLog
@@ -63,8 +62,8 @@ fun clickAndReadTool(
         AgentTurnTracker.recordAutomationAction()
         RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
-        val nth = input.jsonObject["nth"]?.jsonPrimitive?.intOrNull ?: 0
-        val maxNodes = (input.jsonObject["max_nodes"]?.jsonPrimitive?.intOrNull ?: CLICK_AND_READ_DEFAULT_MAX_NODES)
+        val nth = input.jsonObject.optInt("nth") ?: 0
+        val maxNodes = (input.jsonObject.optInt("max_nodes") ?: CLICK_AND_READ_DEFAULT_MAX_NODES)
             .coerceIn(1, MAX_NODES_HARD_CEILING)
         if (by == null || by !in ALLOWED_BY || value == null) {
             return@Tool listOf(
@@ -299,8 +298,8 @@ fun waitForTool(
     execute = { input ->
         blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         val (by, value, pkgFilter) = parseSelector(input)
-        val timeoutMs = input.jsonObject["timeout_ms"]?.jsonPrimitive?.longOrNull ?: WAIT_FOR_DEFAULT_TIMEOUT_MS
-        val intervalMs = input.jsonObject["interval_ms"]?.jsonPrimitive?.longOrNull ?: WAIT_FOR_DEFAULT_INTERVAL_MS
+        val timeoutMs = input.jsonObject.optLong("timeout_ms") ?: WAIT_FOR_DEFAULT_TIMEOUT_MS
+        val intervalMs = input.jsonObject.optLong("interval_ms") ?: WAIT_FOR_DEFAULT_INTERVAL_MS
         if (by == null || by !in ALLOWED_BY || value == null) {
             return@Tool listOf(
                 UIMessagePart.Text(

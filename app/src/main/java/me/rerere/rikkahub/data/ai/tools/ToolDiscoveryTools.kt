@@ -5,13 +5,12 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 
 /**
  * 按需检索工具说明的元工具（渐进式披露）。
@@ -84,7 +83,7 @@ private fun listToolsTool(
             )
         },
         execute = { input ->
-            val keyword = input.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val keyword = input.jsonObject.optString("keyword")?.trim().orEmpty()
             val matched =
                 allTools.filter { tool ->
                     keyword.isBlank() ||
@@ -154,7 +153,7 @@ private fun getToolSchemaTool(
             )
         },
         execute = { input ->
-            val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+            val name = input.jsonObject.optString("name")?.trim().orEmpty()
             val tool = allTools.firstOrNull { it.name == name }
             if (tool != null && effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold, uiScene) == SurfaceTier.COLD) {
                 ToolSurfaceSession.markLoaded(conversationId, tool.name)

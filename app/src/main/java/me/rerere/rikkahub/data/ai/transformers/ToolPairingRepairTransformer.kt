@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.ai.transformers
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.repairToolPairing
 import me.rerere.rikkahub.data.ai.INTERRUPTED_UNKNOWN_OUTCOME_REASON
+import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
 
 /**
  * 发送前修复「未执行工具」造成的协议破损。
@@ -17,7 +18,8 @@ import me.rerere.rikkahub.data.ai.INTERRUPTED_UNKNOWN_OUTCOME_REASON
  *
  * 理由按「执行是否开始过」分叉：从未开始的工具写 [REASON]（"未执行"是事实）；开始过但结果没
  * 回来的写与重放安全通道、生成前清理同文的 [INTERRUPTED_UNKNOWN_OUTCOME_REASON]（"状态未知、
- * 先核实"）。三处必须同文：本 transformer 在请求装配时跑在重放通道之后，补桩会合成 output 并
+ * 先核实"）。已是终态 Denied 的工具保留原理由、只补拒绝信封（硬线拦截去标记后走
+ * `hardline_blocked`，其余走 `permission_denied`）。三处必须同文：本 transformer 在请求装配时跑在重放通道之后，补桩会合成 output 并
  * 覆盖 approvalState —— 若此处不分叉，重放通道的定案会被"单纯缺结果"覆盖，模型读到后可能
  * 重跑副作用已发生的工具（重复发送、重复提交、重复计费）。
  *
@@ -30,7 +32,11 @@ object ToolPairingRepairTransformer : InputMessageTransformer {
     override suspend fun transform(
         ctx: TransformerContext,
         messages: List<UIMessage>,
-    ): List<UIMessage> = messages.repairToolPairing(REASON, INTERRUPTED_UNKNOWN_OUTCOME_REASON)
+    ): List<UIMessage> = messages.repairToolPairing(
+        REASON,
+        INTERRUPTED_UNKNOWN_OUTCOME_REASON,
+        deniedReasonForModel = HardlineCommandGuard::modelFacingReason,
+    )
 
     private const val REASON = "tool result missing at request time"
 }

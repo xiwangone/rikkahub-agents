@@ -9,11 +9,11 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun vibrateTool(context: Context): Tool = Tool(
@@ -39,7 +39,7 @@ fun vibrateTool(context: Context): Tool = Tool(
     },
     execute = {
         val params = it.jsonObject
-        val durationParam = params["duration_ms"]?.jsonPrimitive?.intOrNull
+        val durationParam = params.optInt("duration_ms")
         val patternParam: JsonArray? = (params["pattern"] as? JsonArray)
             ?: params["pattern"]?.let { el -> runCatching { el.jsonArray }.getOrNull() }
 

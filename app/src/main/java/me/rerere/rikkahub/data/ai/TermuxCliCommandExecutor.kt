@@ -1,8 +1,7 @@
 package me.rerere.rikkahub.data.ai
 
+import me.rerere.common.http.optString
 import android.content.Context
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.providers.backend.CliCommandExecutor
 import me.rerere.rikkahub.data.ai.tools.local.CaptureResult
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
@@ -74,10 +73,10 @@ class TermuxCliCommandExecutor(
             runCancellableSshOp(SSH_TIMEOUT_MS) { sessionRef ->
                 execOneShot(context, host.host, host.port, host.user, auth, effectiveCommand, SSH_TIMEOUT_MS.toInt(), sessionRef, allowHostKeyRotation = host.allowHostKeyRotation)
             }
-        val stdout = payload["stdout"]?.jsonPrimitive?.contentOrNull?.trim()
+        val stdout = payload.optString("stdout")?.trim()
         if (!stdout.isNullOrBlank()) return stdout
-        val stderr = payload["stderr"]?.jsonPrimitive?.contentOrNull?.trim()
+        val stderr = payload.optString("stderr")?.trim()
         if (!stderr.isNullOrBlank()) return stderr
-        return payload["error"]?.jsonPrimitive?.contentOrNull ?: "SSH execution produced no output"
+        return payload.optString("error") ?: "SSH execution produced no output"
     }
 }

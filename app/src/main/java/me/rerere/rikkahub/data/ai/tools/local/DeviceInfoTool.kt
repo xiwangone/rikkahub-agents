@@ -5,14 +5,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
@@ -65,9 +64,9 @@ fun deviceInfoTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val params = input.jsonObject
-        val kind = params["kind"]?.jsonPrimitive?.contentOrNull.orEmpty().trim().lowercase()
-        val sensor = params["sensor"]?.jsonPrimitive?.contentOrNull
-        val durationMs = params["duration_ms"]?.jsonPrimitive?.intOrNull
+        val kind = params.optString("kind").orEmpty().trim().lowercase()
+        val sensor = params.optString("sensor")
+        val durationMs = params.optInt("duration_ms")
         listOf(UIMessagePart.Text(readDeviceInfo(context, kind, sensor, durationMs).toString()))
     }
 )

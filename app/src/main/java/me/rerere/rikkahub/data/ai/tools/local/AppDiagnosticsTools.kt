@@ -9,10 +9,9 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.repository.ConversationRepository
@@ -122,9 +121,9 @@ fun testModelTool(
     },
     execute = {
         val params = it.jsonObject
-        val providerName = params["provider"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { s -> s.isNotEmpty() }
-        val modelId = params["model_id"]?.jsonPrimitive?.contentOrNull?.trim()?.takeIf { s -> s.isNotEmpty() }
-        val force = params["force"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val providerName = params.optString("provider")?.trim()?.takeIf { s -> s.isNotEmpty() }
+        val modelId = params.optString("model_id")?.trim()?.takeIf { s -> s.isNotEmpty() }
+        val force = params.optString("force")?.toBooleanStrictOrNull() ?: false
 
         val settings = settingsStore.settingsFlow.first()
         val (providerSetting, model) = resolveTestModelTarget(settings, providerName, modelId, invocationContext)
@@ -432,7 +431,7 @@ fun diagnosticsTool(
     parameters = { diagnosticsParameters() },
     execute = { input ->
         val params = input.jsonObject
-        val kind = params["kind"]?.jsonPrimitive?.contentOrNull.orEmpty().trim().lowercase()
+        val kind = params.optString("kind").orEmpty().trim().lowercase()
         val text = when (kind) {
             "health" -> appHealthPayload(doctorChecks, context)
             "build" -> buildInfoPayload(context)

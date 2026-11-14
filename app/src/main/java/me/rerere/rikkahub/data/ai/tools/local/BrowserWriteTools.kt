@@ -4,13 +4,9 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -22,6 +18,9 @@ import me.rerere.rikkahub.browser.BrowserToolDefaults
 import me.rerere.rikkahub.browser.ReadabilityRunner.runReadability
 import me.rerere.rikkahub.browser.awaitReadyState
 import me.rerere.rikkahub.browser.evaluateJavascriptAsync
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
@@ -45,7 +44,7 @@ fun browserClickTool(): Tool = Tool(
     description = "Click an element matching a CSS selector. Returns the diff between the page before and after the action by default ({added, removed, added_chars, removed_chars, truncated} truncated to 4000 chars total). Pass full:true to skip the diff and get post_click_url only — use when the click navigates to an entirely new page. Waits up to 8 s for readyState=complete.$TELEGRAM_HEADLESS_CUE",
     parameters = { selectorWithFullSchema("CSS selector to click") },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
         val full = parseFullArg(input)
         val out = if (selector == null) {
             missingArgEnvelope("selector", "selector is required and must be a non-empty CSS selector")
@@ -142,9 +141,9 @@ fun browserTypeTool(): Tool = Tool(
         }, required = listOf("selector","text"))
     },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-        val text = input.jsonObject["text"]?.jsonPrimitive?.contentOrNull
-        val clear = input.jsonObject["clear"]?.jsonPrimitive?.booleanOrNull ?: true
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
+        val text = input.jsonObject.optString("text")
+        val clear = input.jsonObject.optBoolean("clear") ?: true
         val full = parseFullArg(input)
         val out = when {
             selector == null -> missingArgEnvelope("selector", "selector is required")
@@ -186,8 +185,8 @@ fun browserScrollTool(): Tool = Tool(
         }, required = listOf("direction"))
     },
     execute = { input ->
-        val direction = input.jsonObject["direction"]?.jsonPrimitive?.contentOrNull
-        val amount = input.jsonObject["amount"]?.jsonPrimitive?.intOrNull ?: 600
+        val direction = input.jsonObject.optString("direction")
+        val amount = input.jsonObject.optInt("amount") ?: 600
         val out = if (direction == null || direction !in setOf("up", "down", "top", "bottom")) {
             missingArgEnvelope("direction", "direction must be one of [up, down, top, bottom]")
         } else {
@@ -210,7 +209,7 @@ fun browserScrollTool(): Tool = Tool(
                     BrowserAudit.action(BrowserToolDefaults.SCROLL, webView.url, "direction=$direction")
                     buildJsonObject {
                         put("success", true)
-                        put("scroll_y", res["scroll_y"]?.jsonPrimitive?.intOrNull ?: 0)
+                        put("scroll_y", res.optInt("scroll_y") ?: 0)
                     }
                 }
             } ?: timeoutEnvelope(BrowserToolDefaults.SCROLL)
@@ -220,7 +219,7 @@ fun browserScrollTool(): Tool = Tool(
         // the Telegram user can see the new viewport position (scroll is purely viewport movement
         // — the diff helper won't capture it since body.innerText doesn't change).
         if (out["success"]?.toString() == "true") {
-            val scrollY = out["scroll_y"]?.jsonPrimitive?.intOrNull
+            val scrollY = out.optInt("scroll_y")
             BrowserController.streamScreenshotIfHeadless(
                 if (scrollY != null) "Scrolled to y=$scrollY" else "Scrolled"
             )
@@ -234,7 +233,7 @@ fun browserSubmitTool(): Tool = Tool(
     description = "Submit a form. If the selector is a <button type=submit> click it; otherwise locates the enclosing <form> and calls .submit(). Awaits the post-navigation readyState. Returns the diff between the page before and after by default; pass full:true to skip the diff (recommended when submission navigates to a brand-new page). {success, post_submit_url, [diff]}.$TELEGRAM_HEADLESS_CUE",
     parameters = { selectorWithFullSchema("CSS selector of a submit button or any element inside the target form") },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
         val full = parseFullArg(input)
         val out = if (selector == null) {
             missingArgEnvelope("selector", "selector is required")
@@ -288,8 +287,8 @@ fun browserSelectTool(): Tool = Tool(
         }, required = listOf("selector","value"))
     },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-        val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
+        val value = input.jsonObject.optString("value")
         val full = parseFullArg(input)
         val out = when {
             selector == null -> missingArgEnvelope("selector", "selector is required")
@@ -339,7 +338,7 @@ fun browserPressKeyTool(): Tool = Tool(
     execute = { input ->
         // Cap at 32 chars — KeyboardEvent.key values like "ArrowDown" are short. A multi-KB
         // string here suggests model misuse; clamp before splicing into the JS payload.
-        val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.take(32)
+        val key = input.jsonObject.optString("key")?.takeIf { it.isNotBlank() }?.take(32)
         val full = parseFullArg(input)
         val out = if (key == null) {
             missingArgEnvelope("key", "key is required (e.g. 'Enter', 'Escape')")
@@ -388,7 +387,7 @@ fun browserEvalJsTool(): Tool = Tool(
         // HARDLINE has already run via GenerationLoop before we get here. The execute
         // body just dispatches the JS and forwards whatever the WebView returns. Any
         // pattern HARDLINE missed is a bug to fix in HardlineCommandGuard, not here.
-        val code = input.jsonObject["code"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val code = input.jsonObject.optString("code")?.takeIf { it.isNotBlank() }
         val out = if (code == null) {
             missingArgEnvelope("code", "code is required")
         } else {
@@ -457,10 +456,10 @@ fun browserClickAndReadTool(): Tool = Tool(
         }, required = listOf("selector"))
     },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-        val mode = input.jsonObject["extract_mode"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
+        val mode = input.jsonObject.optString("extract_mode")?.lowercase()
             ?.takeIf { it in setOf("diff", "auto", "readability", "raw") } ?: "diff"
-        val maxChars = (input.jsonObject["max_chars"]?.jsonPrimitive?.intOrNull ?: 4000)
+        val maxChars = (input.jsonObject.optInt("max_chars") ?: 4000)
             .coerceIn(100, 64 * 1024)
         val out = if (selector == null) {
             missingArgEnvelope("selector", "selector is required")
@@ -517,7 +516,7 @@ fun browserClickAndReadTool(): Tool = Tool(
                                     } catch(e) { return JSON.stringify({error:'js_failed', detail:String(e)}); }
                                 })()"""
                                 val rawRes = parseJsResult(webView.evaluateJavascriptAsync(rawJs))
-                                val rawText = rawRes["text"]?.jsonPrimitive?.contentOrNull.orEmpty()
+                                val rawText = rawRes.optString("text").orEmpty()
                                 rawText to (if (mode == "auto") "raw_fallback" else "raw")
                             }
                             val (clipped, truncated) = clipText(resolved, maxChars)

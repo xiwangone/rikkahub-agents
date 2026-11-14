@@ -21,6 +21,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
+import me.rerere.rikkahub.data.ai.tools.local.ScreenWaker
 import java.io.ByteArrayOutputStream
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -34,6 +35,15 @@ private const val MAX_LABEL_CHARS = 80
 private const val MAX_LABEL_PARTS = 3
 private const val SCREENSHOT_RETRY_DELAY_MS = 1000L
 private const val JPEG_QUALITY = 80
+
+// 唤醒锁只是让系统点亮屏幕，亮起需要一点时间，等它亮再返回
+private const val WAKE_WAIT_MS = 5000L
+private const val WAKE_POLL_MS = 200L
+
+// 纯字符串处理，不依赖服务状态，放文件级
+private fun String.clean() = replace('\n', ' ').trim().let {
+    if (it.length > MAX_LABEL_CHARS) it.take(MAX_LABEL_CHARS) + "…" else it
+}
 
 /**
  * Phone Use 的执行端：用户在系统无障碍设置里开启后，把自己登记到 [PhoneUseManager]。
@@ -184,10 +194,6 @@ open class PhoneUseAccessibilityService : AccessibilityService(), PhoneControlle
         }
         collect(this)
         return labels
-    }
-
-    private fun String.clean() = replace('\n', ' ').trim().let {
-        if (it.length > MAX_LABEL_CHARS) it.take(MAX_LABEL_CHARS) + "…" else it
     }
 
     private fun screenSize(): Point {
@@ -352,6 +358,27 @@ open class PhoneUseAccessibilityService : AccessibilityService(), PhoneControlle
             }
             focusedInput()?.performAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_IME_ENTER.id) == true
         }
+    }
+
+    override suspend fun wakeUp(): WakeResult {
+        // 唤醒原语与 wake_screen 散工具共用 ScreenWaker，不重复写唤醒锁的逻辑
+        val wasOff = !ScreenWaker.isInteractive(this)
+        var woke = false
+        if (wasOff) {
+            woke = ScreenWaker.wakeIfOff(this)
+            var waitedMs = 0L
+            while (waitedMs < WAKE_WAIT_MS && !ScreenWaker.isInteractive(this)) {
+                delay(WAKE_POLL_MS)
+                waitedMs += WAKE_POLL_MS
+            }
+            woke = ScreenWaker.isInteractive(this)
+        }
+        return WakeResult(
+            wasOff = wasOff,
+            woke = woke,
+            keyguardLocked = ScreenWaker.isKeyguardLocked(this),
+            keyguardSecure = ScreenWaker.isKeyguardSecure(this),
+        )
     }
 
     // ---- 应用 ----

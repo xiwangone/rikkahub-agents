@@ -4,14 +4,13 @@ import android.content.Context
 import android.hardware.camera2.CameraAccessException
 import android.hardware.camera2.CameraCharacteristics
 import android.hardware.camera2.CameraManager
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optBoolean
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun torchTool(context: Context): Tool = Tool(
@@ -30,7 +29,7 @@ fun torchTool(context: Context): Tool = Tool(
     },
     execute = {
         val params = it.jsonObject
-        val on = params["on"]?.jsonPrimitive?.booleanOrNull
+        val on = params.optBoolean("on")
             ?: error("on is required")
         val cm = context.getSystemService(CameraManager::class.java)
             ?: return@Tool listOf(

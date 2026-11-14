@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.data.ai.mcp.control
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.withTimeoutOrNull
@@ -7,14 +10,10 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.core.InputSchema
@@ -119,8 +118,8 @@ private fun parseHeaders(raw: JsonElement?): List<Pair<String, String>> {
     val arr = raw?.let { runCatching { it.jsonArray }.getOrNull() } ?: return emptyList()
     return arr.mapNotNull { entry ->
         val obj = runCatching { entry.jsonObject }.getOrNull() ?: return@mapNotNull null
-        val name = obj["name"]?.jsonPrimitive?.contentOrNull ?: return@mapNotNull null
-        val value = obj["value"]?.jsonPrimitive?.contentOrNull ?: ""
+        val name = obj.optString("name") ?: return@mapNotNull null
+        val value = obj.optString("value") ?: ""
         name to value
     }
 }
@@ -326,7 +325,7 @@ fun mcpGetTool(
     },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val serverId = parseUuid(rawId)
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
         val settings = settingsStore.settingsFlow.value
@@ -425,7 +424,7 @@ fun mcpAddTool(
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val transport = params["transport"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
+        val transport = params.optString("transport")?.trim()?.lowercase()
             ?: return@Tool errEnv("invalid_transport", "transport is required and must be 'sse' or 'streamable_http'")
         if (transport != "sse" && transport != "streamable_http") {
             return@Tool errEnv(
@@ -433,11 +432,11 @@ fun mcpAddTool(
                 "unsupported transport: $transport. Supported: sse, streamable_http"
             )
         }
-        val rawName = params["name"]?.jsonPrimitive?.contentOrNull ?: ""
-        val rawUrl = params["url"]?.jsonPrimitive?.contentOrNull ?: ""
-        val enabled = params["enabled"]?.jsonPrimitive?.booleanOrNull ?: true
+        val rawName = params.optString("name") ?: ""
+        val rawUrl = params.optString("url") ?: ""
+        val enabled = params.optBoolean("enabled") ?: true
         val headers = parseHeaders(params["headers"])
-        val timeoutSec = (params["connect_timeout_seconds"]?.jsonPrimitive?.intOrNull ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
+        val timeoutSec = (params.optInt("connect_timeout_seconds") ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
             .coerceIn(1, MAX_CONNECT_TIMEOUT_SECONDS)
 
         val urlCheck = McpUrlGuard.check(rawUrl, headless = McpUrlGuard.currentlyHeadless())
@@ -550,19 +549,19 @@ fun mcpUpdateTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val serverId = parseUuid(rawId)
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
-        val transport = params["transport"]?.jsonPrimitive?.contentOrNull?.trim()?.lowercase()
+        val transport = params.optString("transport")?.trim()?.lowercase()
             ?: return@Tool errEnv("invalid_transport", "transport is required")
         if (transport != "sse" && transport != "streamable_http") {
             return@Tool errEnv("unsupported_transport", "unsupported transport: $transport")
         }
-        val rawName = params["name"]?.jsonPrimitive?.contentOrNull ?: ""
-        val rawUrl = params["url"]?.jsonPrimitive?.contentOrNull ?: ""
-        val enabled = params["enabled"]?.jsonPrimitive?.booleanOrNull ?: true
+        val rawName = params.optString("name") ?: ""
+        val rawUrl = params.optString("url") ?: ""
+        val enabled = params.optBoolean("enabled") ?: true
         val headers = parseHeaders(params["headers"])
-        val timeoutSec = (params["connect_timeout_seconds"]?.jsonPrimitive?.intOrNull ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
+        val timeoutSec = (params.optInt("connect_timeout_seconds") ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
             .coerceIn(1, MAX_CONNECT_TIMEOUT_SECONDS)
 
         val all = settingsStore.settingsFlow.value.mcpServers
@@ -620,7 +619,7 @@ fun mcpDeleteTool(settingsStore: SettingsStore, manager: McpManager): Tool = Too
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val serverId = parseUuid(rawId)
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
         val all = settingsStore.settingsFlow.value.mcpServers
@@ -662,10 +661,10 @@ fun mcpSetEnabledTool(settingsStore: SettingsStore, manager: McpManager): Tool =
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val serverId = parseUuid(rawId)
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
-        val enabled = params["enabled"]?.jsonPrimitive?.booleanOrNull
+        val enabled = params.optBoolean("enabled")
             ?: return@Tool errEnv("invalid_enabled", "enabled is required and must be true/false")
         val all = settingsStore.settingsFlow.value.mcpServers
         val old = all.firstOrNull { it.id == serverId }
@@ -712,10 +711,10 @@ fun mcpTestTool(settingsStore: SettingsStore, manager: McpManager): Tool = Tool(
     },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val serverId = parseUuid(rawId)
             ?: return@Tool errEnv("invalid_id", "id is required and must be a valid UUID; got '$rawId'")
-        val timeoutSec = (params["wait_seconds"]?.jsonPrimitive?.intOrNull ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
+        val timeoutSec = (params.optInt("wait_seconds") ?: DEFAULT_CONNECT_TIMEOUT_SECONDS)
             .coerceIn(1, MAX_CONNECT_TIMEOUT_SECONDS)
         val current = settingsStore.settingsFlow.value.mcpServers.firstOrNull { it.id == serverId }
             ?: return@Tool errEnv("unknown_mcp_server_id", "no MCP server registered with id $serverId")
@@ -755,7 +754,7 @@ fun mcpListToolsTool(
     },
     execute = { args ->
         val params = args.jsonObject
-        val rawId = params["id"]?.jsonPrimitive?.contentOrNull
+        val rawId = params.optString("id")
         val settings = settingsStore.settingsFlow.value
         val all = settings.mcpServers
         val targets = if (rawId.isNullOrBlank()) {
@@ -819,12 +818,12 @@ fun mcpSetToolApprovalTool(settingsStore: SettingsStore): Tool = Tool(
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val rawServerId = params["server_id"]?.jsonPrimitive?.contentOrNull
+        val rawServerId = params.optString("server_id")
         val serverId = parseUuid(rawServerId)
             ?: return@Tool errEnv("invalid_id", "server_id is required and must be a valid UUID; got '$rawServerId'")
-        val toolName = params["tool_name"]?.jsonPrimitive?.contentOrNull
+        val toolName = params.optString("tool_name")
             ?: return@Tool errEnv("invalid_tool_name", "tool_name is required")
-        val needs = params["needs_approval"]?.jsonPrimitive?.booleanOrNull
+        val needs = params.optBoolean("needs_approval")
             ?: return@Tool errEnv("invalid_needs_approval", "needs_approval is required (true/false)")
         val all = settingsStore.settingsFlow.value.mcpServers
         val server = all.firstOrNull { it.id == serverId }

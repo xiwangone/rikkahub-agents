@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
@@ -8,11 +10,10 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -268,18 +269,18 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val host = p["host"]?.jsonPrimitive?.contentOrNull ?: error("host is required")
-        val user = p["user"]?.jsonPrimitive?.contentOrNull ?: error("user is required")
-        val port = p["port"]?.jsonPrimitive?.intOrNull ?: 22
-        val password = p["password"]?.jsonPrimitive?.contentOrNull
-        val privateKey = p["private_key"]?.jsonPrimitive?.contentOrNull
-        val passphrase = p["passphrase"]?.jsonPrimitive?.contentOrNull
-        val vaultCredential = p["vault_credential"]?.jsonPrimitive?.contentOrNull
-        val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
-        val jumpHost = p["jump_host"]?.jsonPrimitive?.contentOrNull
-        val platformParam = p["platform"]?.jsonPrimitive?.contentOrNull
-        val sshOptions = p["ssh_options"]?.jsonPrimitive?.contentOrNull
+        val name = p.optString("name") ?: error("name is required")
+        val host = p.optString("host") ?: error("host is required")
+        val user = p.optString("user") ?: error("user is required")
+        val port = p.optInt("port") ?: 22
+        val password = p.optString("password")
+        val privateKey = p.optString("private_key")
+        val passphrase = p.optString("passphrase")
+        val vaultCredential = p.optString("vault_credential")
+        val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
+        val jumpHost = p.optString("jump_host")
+        val platformParam = p.optString("platform")
+        val sshOptions = p.optString("ssh_options")
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password, private_key or vault_credential", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -345,7 +346,7 @@ fun deleteSshHostTool(repo: SshHostRepository): Tool = Tool(
         )
     },
     execute = { input ->
-        val name = input.jsonObject["name"]?.jsonPrimitive?.contentOrNull
+        val name = input.jsonObject.optString("name")
             ?: error("name is required")
         repo.deleteByName(name)
         listOf(UIMessagePart.Text(buildJsonObject {
@@ -381,7 +382,7 @@ fun forgetSshHostKeyTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val host = input.jsonObject["host"]?.jsonPrimitive?.contentOrNull
+        val host = input.jsonObject.optString("host")
             ?: error("host is required")
             val removed =
             try {
@@ -478,9 +479,9 @@ fun sshExecSavedTool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p["name"]?.jsonPrimitive?.contentOrNull ?: error("name is required")
-        val command = p["command"]?.jsonPrimitive?.contentOrNull
-        val presetKey = p["preset"]?.jsonPrimitive?.contentOrNull
+        val name = p.optString("name") ?: error("name is required")
+        val command = p.optString("command")
+        val presetKey = p.optString("preset")
         val batch: List<String> =
             (p["commands"] as? kotlinx.serialization.json.JsonArray)
                 ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
@@ -492,7 +493,7 @@ fun sshExecSavedTool(
             ))
         }
         // preset 展开：按 saved host 名匹配预设集（显式平台优先 → 名字关键字归类）
-        val explicitPlatform = p["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
+        val explicitPlatform = p.optString("platform")?.let { SshPlatform.fromPreference(it) }
         var finalCommand = if (presetKey != null) {
             val presets = SshPresets.forHost(name, explicitPlatform)
             val expanded = presets[presetKey]
@@ -507,9 +508,9 @@ fun sshExecSavedTool(
             require(joined.isNotBlank()) { "command or commands is required" }
             joined
         }
-        val stdin = p["stdin"]?.jsonPrimitive?.contentOrNull
-        val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-        val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 300)
+        val stdin = p.optString("stdin")
+        val background = p.optString("background")?.toBooleanStrictOrNull() ?: false
+        val timeoutSec = (p.optInt("timeout_seconds") ?: 30).coerceIn(1, 300)
         // env：以「同会话前置赋值语句」注入（background 走 detached 双层包装，不支持 env）
         // 两道拒绝与 ssh_exec 共用 [invalidEnvKeys]：非法键此前被 envPrelude 静默丢弃、
         // background+env 此前被静默忽略，调用方都收不到任何告知。
@@ -544,7 +545,7 @@ fun sshExecSavedTool(
             val mainExplicit = RemotePlatform.explicitOrStored(explicitPlatform, RemotePlatform.platformFromStored(h.platform))
             val mainCached = probePreferredWindows(context, h.host, h.port, h.user)
             val mainWindows = RemotePlatform.resolveWindows(mainExplicit, mainCached, globalDefault)
-            val envStyle = p["env_style"]?.jsonPrimitive?.contentOrNull
+            val envStyle = p.optString("env_style")
             val envWindows = when {
                 envStyle.equals("posix", ignoreCase = true) -> false
                 envStyle.equals("windows", ignoreCase = true) -> true
@@ -558,7 +559,7 @@ fun sshExecSavedTool(
         val candidates = buildList {
             add(h)
             val fb = h.fallbackHostsJson?.let { raw ->
-                try { kotlinx.serialization.json.Json.parseToJsonElement(raw).jsonArray.mapNotNull { it.jsonPrimitive.contentOrNull } }
+                try { kotlinx.serialization.json.Json.parseToJsonElement(raw).jsonArray.mapNotNull { (it as? JsonPrimitive)?.contentOrNull } }
                 catch (_: Throwable) { emptyList() }
             }.orEmpty()
             fb.forEach { fname ->
@@ -618,11 +619,16 @@ fun sshExecSavedTool(
             val candWindows = RemotePlatform.resolveWindows(candExplicit, candCached, globalDefault)
             val (detachedCmd, candBgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand, windows = candWindows) else (withUtf8ConsoleEncoding(finalCommand, candWindows) to null)
             val effectiveCommand = detachedCmd
-            val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
-                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation)
+            val payload = runCancellableSshOp(
+                timeoutSec * 1000L,
+                // 超时/取消时缓存条目随会话一起失效（B-2）：否则缓存里留死会话，
+                // 下次调用先命中它、命令失败才重建。
+                onForceDisconnect = { sharedSshSessionCache.invalidateSession(it) },
+            ) { sessionRef ->
+                execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation, useSessionCache = true)
             }
             tried.add(cand.name to classifySshPayload(payload))
-            val err = payload["error"]?.jsonPrimitive?.contentOrNull
+            val err = payload.optString("error")
             if (err == null) { result = payload; usedHost = cand.name; usedBgLogPath = candBgLogPath; break }
             lastError = err
             // 连接类错误才继续试 fallback；认证/密钥类直接停（换 host 无意义）
@@ -677,7 +683,7 @@ fun sshPresetsTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val hostFilter = input.jsonObject["host"]?.jsonPrimitive?.contentOrNull
+        val hostFilter = input.jsonObject.optString("host")
         val out = buildJsonObject {
             put("platform_templates", SshPresets.byHost.keys.sorted().toString())
             if (hostFilter != null) {
@@ -739,13 +745,13 @@ fun vaultDeployKeyTool(
         // 部署公钥 = 给远端增加一个可登录身份（授权变更）→ 需要 vault 会话授权，
         // 不只靠 needsApproval（审批只管“这一次”，授权门管“凭据能否被动用”）。
         // 先读凭证名再过门：受限会话只能部署白名单内的凭证。
-        val credName = p["credential_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("credential_name is required")
+        val credName = p.optString("credential_name") ?: return@Tool fail("credential_name is required")
         val sessionManager = me.rerere.rikkahub.data.vault.VaultSessionManager(context)
         if (!sessionManager.hasActiveAuthorization(credName)) {
             return@Tool fail("Not authorized: complete Vault authorization first (30 minutes or always valid), then call this tool")
         }
-        val hostName = p["host_name"]?.jsonPrimitive?.contentOrNull ?: return@Tool fail("host_name is required")
-        val remoteUser = p["remote_user"]?.jsonPrimitive?.contentOrNull
+        val hostName = p.optString("host_name") ?: return@Tool fail("host_name is required")
+        val remoteUser = p.optString("remote_user")
 
         // 1. 读 vault 条目的公钥（明文；私钥不解密）
         val entry = vaultRepository.getByName(credName)
@@ -772,10 +778,10 @@ fun vaultDeployKeyTool(
         } else {
             deployAuthorizedKey(context, h, targetUser, pubKey, deployAuth)
         }
-        val deployErr = deployResult["error"]?.jsonPrimitive?.contentOrNull
+        val deployErr = deployResult.optString("error")
         if (deployErr != null) return@Tool fail(deployErr)
-        val deployOut = deployResult["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty() +
-            deployResult["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val deployOut = deployResult.optString("stdout").orEmpty() +
+            deployResult.optString("stderr").orEmpty()
 
         // 3. 验证：用刚部署的公钥（私钥在 vault）试连执行 whoami（连与跑见 verifyVaultKeyLogin）
         val verifyAuth = vaultPrivateKeyAuth(vaultRepository, credName, context)
@@ -784,8 +790,8 @@ fun vaultDeployKeyTool(
         } else {
             verifyVaultKeyLogin(context, h, targetUser, verifyAuth)
         }
-        val verifyErr = verify["error"]?.jsonPrimitive?.contentOrNull
-        val verifyOut = verify["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty().trim()
+        val verifyErr = verify.optString("error")
+        val verifyOut = verify.optString("stdout").orEmpty().trim()
 
         listOf(UIMessagePart.Text(buildJsonObject {
             put("credential", credName)
@@ -873,8 +879,8 @@ private suspend fun deployAuthorizedKey(
     for (windows in order) {
         val out = runOnHostOnce(context, h, targetUser, auth, deployCommandFor(pubKey, windows), 30_000)
         last = out
-        val text = out["stdout"]?.jsonPrimitive?.contentOrNull.orEmpty() +
-            out["stderr"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val text = out.optString("stdout").orEmpty() +
+            out.optString("stderr").orEmpty()
         if (text.contains("ADDED") || text.contains("EXISTS")) {
             store.put(h.host, h.port, windows)
             return out
@@ -965,11 +971,11 @@ internal fun classifySshError(err: String): String = when {
  * (ECONNREFUSED 曾落进 "other")。故把底层 raw 与逐网络 attempts 一并纳入判定。
  */
 internal fun classifySshPayload(payload: JsonObject): String {
-    val err = payload["error"]?.jsonPrimitive?.contentOrNull ?: return "ok"
+    val err = payload.optString("error") ?: return "ok"
     val detail =
         buildString {
             append(err)
-            payload["raw"]?.jsonPrimitive?.contentOrNull?.let { append(' ').append(it) }
+            payload.optString("raw")?.let { append(' ').append(it) }
             payload["attempts"]?.let { append(' ').append(it.toString()) }
         }
     return classifySshError(detail)

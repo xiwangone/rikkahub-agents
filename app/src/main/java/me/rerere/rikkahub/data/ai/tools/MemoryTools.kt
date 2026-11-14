@@ -3,14 +3,13 @@ package me.rerere.rikkahub.data.ai.tools
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.model.AssistantMemory
 
 private fun memoryPayload(
@@ -71,8 +70,8 @@ fun buildMemoryTools(
         parameters = { memoryToolSchema() },
         execute = {
             val params = it.jsonObject
-            val action = params["action"]?.jsonPrimitive?.contentOrNull ?: error("action is required")
-            val tier = params["tier"]?.jsonPrimitive?.contentOrNull
+            val action = params.optString("action") ?: error("action is required")
+            val tier = params.optString("tier")
             val payload = when (action) {
                 "list" -> {
                     val memories = onListAll()
@@ -88,22 +87,22 @@ fun buildMemoryTools(
                     }
                 }
                 "create" -> {
-                    val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
+                    val content = params.optString("content") ?: error("content is required")
                     memoryPayload(onCreation(content, tier ?: "core"), scopeId)
                 }
                 "edit" -> {
-                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
-                    val content = params["content"]?.jsonPrimitive?.contentOrNull ?: error("content is required")
+                    val id = params.optInt("id") ?: error("id is required")
+                    val content = params.optString("content") ?: error("content is required")
                     memoryPayload(onUpdate(id, content, tier), scopeId)
                 }
                 "get" -> {
-                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
+                    val id = params.optInt("id") ?: error("id is required")
                     val memory = onListAll().firstOrNull { it.id == id }
                         ?: error("memory record not found in current scope: $id")
                     memoryPayload(memory, scopeId, memory.content)
                 }
                 "delete" -> {
-                    val id = params["id"]?.jsonPrimitive?.intOrNull ?: error("id is required")
+                    val id = params.optInt("id") ?: error("id is required")
                     onDelete(id)
                     buildJsonObject {
                         put("success", true)
@@ -133,7 +132,7 @@ fun buildMemoryTools(
             )
         },
         execute = {
-            val keyword = it.jsonObject["keyword"]?.jsonPrimitive?.contentOrNull ?: error("keyword is required")
+            val keyword = it.jsonObject.optString("keyword") ?: error("keyword is required")
             val results = onSearch(keyword)
             val payload = buildJsonObject {
                 put("keyword", keyword)

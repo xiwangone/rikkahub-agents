@@ -3,13 +3,12 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.content.Intent
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -44,9 +43,9 @@ fun shareTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val text = params["text"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotEmpty() }
-        val url = params["url"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotEmpty() }
-        val subject = params["subject"]?.jsonPrimitive?.contentOrNull
+        val text = params.optString("text")?.takeIf { s -> s.isNotEmpty() }
+        val url = params.optString("url")?.takeIf { s -> s.isNotEmpty() }
+        val subject = params.optString("subject")
 
         if (text == null && url == null) {
             return@Tool listOf(

@@ -66,11 +66,12 @@ class BrowserActivity : ComponentActivity() {
     /**
      * 供 BrowserView 的 WebChromeClient 调用：调起系统文件选择器。
      * [mimeType] 取自页面的 accept 属性（如 image），空则为通配。
+     * 先过 [normalizeChooserMimeType] 归一化再交给选择器。
      */
     fun requestFileChooser(callback: ValueCallback<Array<Uri>>, mimeType: String): Boolean {
         fileChooserCallback?.onReceiveValue(null)
         fileChooserCallback = callback
-        filePickerLauncher.launch(mimeType.ifBlank { "*/*" })
+        filePickerLauncher.launch(normalizeChooserMimeType(mimeType))
         return true
     }
 
@@ -172,6 +173,76 @@ class BrowserActivity : ComponentActivity() {
     companion object {
         /** Optional extra: initial URL to navigate to on launch. Defaults to about:blank. */
         const val EXTRA_INITIAL_URL = "me.rerere.rikkahub.browser.EXTRA_INITIAL_URL"
+
+        /**
+         * 规范化文件选择器的 MIME 类型。页面 `<input accept>` 的值经 WebView 的
+         * `acceptTypes` 传进来，可能是裸扩展名（`.pdf`）、裸大类（`image`）、
+         * 带参数的类型（`text/html; charset=utf-8`），甚至是页面伪造的非法串。
+         * 不规范的值直接交给 `GetMultipleContents` 会让系统选择器行为异常
+         * （不过滤或直接报错）；这里统一归一化，无法识别的一律回退为通配。
+         * 纯函数，不碰 Android API，可在纯 JVM 单测里跑。
+         */
+        internal fun normalizeChooserMimeType(raw: String): String {
+            val trimmed = raw.trim()
+            if (trimmed.isEmpty()) return "*/*"
+            if (trimmed.startsWith(".")) {
+                val ext = trimmed.substring(1).lowercase()
+                    .substringBefore(".").substringBefore(" ")
+                return CHOOSER_EXTENSION_MIME[ext] ?: "*/*"
+            }
+            if (!trimmed.contains("/")) {
+                return if (MIME_TOKEN_REGEX.matches(trimmed)) {
+                    "${trimmed.lowercase()}/*"
+                } else {
+                    "*/*"
+                }
+            }
+            val base = trimmed.substringBefore(";").trim()
+            val slash = base.indexOf("/")
+            if (slash <= 0 || slash == base.length - 1 || base.indexOf("/", slash + 1) != -1) {
+                return "*/*"
+            }
+            val type = base.substring(0, slash).lowercase()
+            val subtype = base.substring(slash + 1).lowercase()
+            if (!MIME_TOKEN_REGEX.matches(type) || !MIME_TOKEN_REGEX.matches(subtype)) return "*/*"
+            return "$type/$subtype"
+        }
+
+        /** 文件选择器 accept 里的裸扩展名到 MIME 类型的映射（不在表里的回退为通配）。 */
+        private val CHOOSER_EXTENSION_MIME = mapOf(
+            "jpg" to "image/jpeg",
+            "jpeg" to "image/jpeg",
+            "png" to "image/png",
+            "gif" to "image/gif",
+            "webp" to "image/webp",
+            "bmp" to "image/bmp",
+            "svg" to "image/svg+xml",
+            "heic" to "image/heic",
+            "heif" to "image/heif",
+            "avif" to "image/avif",
+            "pdf" to "application/pdf",
+            "txt" to "text/plain",
+            "html" to "text/html",
+            "htm" to "text/html",
+            "csv" to "text/csv",
+            "json" to "application/json",
+            "mp3" to "audio/mpeg",
+            "wav" to "audio/wav",
+            "ogg" to "audio/ogg",
+            "mp4" to "video/mp4",
+            "mov" to "video/quicktime",
+            "webm" to "video/webm",
+            "zip" to "application/zip",
+            "doc" to "application/msword",
+            "docx" to "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            "xls" to "application/vnd.ms-excel",
+            "xlsx" to "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            "ppt" to "application/vnd.ms-powerpoint",
+            "pptx" to "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        )
+
+        /** MIME 类型 token（允许通配星号）；不含斜杠与分号。 */
+        private val MIME_TOKEN_REGEX = Regex("[A-Za-z0-9!#\$&^_.+*-]+")
 
         /**
          * Optional extra: companion conversation id (Uuid string). When set, the mini-chat

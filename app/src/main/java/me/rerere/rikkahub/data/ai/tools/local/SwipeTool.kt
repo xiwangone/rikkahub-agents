@@ -2,15 +2,14 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import android.accessibilityservice.GestureDescription
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optDouble
+import me.rerere.common.http.optLong
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -18,7 +17,7 @@ import me.rerere.rikkahub.service.ActionLogEntry
 private const val DEFAULT_SWIPE_MS = 300L
 
 private fun numOrNull(input: kotlinx.serialization.json.JsonElement, key: String): Double? =
-    input.jsonObject[key]?.jsonPrimitive?.doubleOrNull?.takeIf { it.isFinite() && it >= 0.0 }
+    input.jsonObject.optDouble(key)?.takeIf { it.isFinite() && it >= 0.0 }
 
 fun swipeTool(
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
@@ -60,7 +59,7 @@ fun swipeTool(
                 )
             )
         }
-        val duration = input.jsonObject["duration_ms"]?.jsonPrimitive?.longOrNull ?: DEFAULT_SWIPE_MS
+        val duration = input.jsonObject.optLong("duration_ms") ?: DEFAULT_SWIPE_MS
         if (duration < 50L || duration > 5000L) {
             return@Tool listOf(
                 UIMessagePart.Text(

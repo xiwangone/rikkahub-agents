@@ -13,14 +13,13 @@ import android.widget.Toast
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.R
 import java.util.Locale
 import kotlin.coroutines.resume
@@ -69,8 +68,8 @@ fun speechToTextTool(context: Context): Tool = Tool(
         }
 
         val params = it.jsonObject
-        val languageParam = params["language"]?.jsonPrimitive?.contentOrNull
-        val timeoutMs = (params["timeout_ms"]?.jsonPrimitive?.intOrNull ?: 30_000)
+        val languageParam = params.optString("language")
+        val timeoutMs = (params.optInt("timeout_ms") ?: 30_000)
             .coerceIn(1_000, 60_000)
         val lang = languageParam ?: Locale.getDefault().toLanguageTag()
 

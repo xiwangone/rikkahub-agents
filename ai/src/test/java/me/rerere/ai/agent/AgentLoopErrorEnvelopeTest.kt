@@ -21,6 +21,7 @@ import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -42,6 +43,7 @@ class AgentLoopErrorEnvelopeTest {
     private fun runLoopAndCaptureToolOutput(
         toolPart: UIMessagePart.Tool,
         tools: List<Tool>,
+        denyHook: (suspend (UIMessagePart.Tool, String) -> List<UIMessagePart>?)? = null,
     ): JsonObject = runBlocking {
         var providerCalls = 0
         var captured: JsonObject? = null
@@ -95,6 +97,11 @@ class AgentLoopErrorEnvelopeTest {
         val hooks = object : AgentHooks {
             override suspend fun prepareStep(messages: List<UIMessage>) =
                 StepRequest(messages, TextGenerationParams(model))
+
+            override suspend fun deniedToolOutput(
+                tool: UIMessagePart.Tool,
+                reason: String,
+            ): List<UIMessagePart>? = denyHook?.invoke(tool, reason)
         }
 
         runAgent(
@@ -141,6 +148,34 @@ class AgentLoopErrorEnvelopeTest {
         )
         assertEnvelope(env, ToolErrorEnvelope.SERVER_ERROR, "permission_denied", "abort")
         assertTrue(env["message"]!!.jsonPrimitive.content.contains("denied by user"))
+    }
+
+    @Test
+    fun `denied tool with hook override produces hook envelope instead of permission_denied`() {
+        // 钩子返回非空即取代默认拒绝信封：硬线拦截等「拒绝但不是用户拒绝」的情形靠它分流。
+        val env = runLoopAndCaptureToolOutput(
+            toolPart = UIMessagePart.Tool(
+                toolCallId = "hardline-call",
+                toolName = "termux_run_command",
+                input = "{}",
+                approvalState = ToolApprovalState.Denied(
+                    "hardline-ui:v1:root_filesystem_delete|blocked by safety floor",
+                ),
+            ),
+            tools = listOf(Tool("termux_run_command", "no-op", execute = { emptyList() })),
+            denyHook = { _, reason ->
+                val modelReason = reason.substringAfter('|', reason)
+                ToolErrorEnvelope.partsFor(
+                    error = "hardline_blocked",
+                    message = modelReason,
+                    code = ToolErrorEnvelope.SERVER_ERROR,
+                    recovery = ToolErrorEnvelope.RECOVERY_ABORT,
+                )
+            },
+        )
+        assertEnvelope(env, ToolErrorEnvelope.SERVER_ERROR, "hardline_blocked", "abort")
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("blocked by safety floor"))
+        assertFalse(env["message"]!!.jsonPrimitive.content.contains("hardline-ui:v1:"))
     }
 
     @Test

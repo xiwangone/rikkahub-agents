@@ -4,13 +4,12 @@ import android.app.KeyguardManager
 import android.content.Context
 import android.os.PowerManager
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
 
 /**
  * Reusable helpers so launch_app and any other tool that needs the screen on can opt in
@@ -66,7 +65,7 @@ fun wakeScreenTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val holdMs = input.jsonObject["hold_ms"]?.jsonPrimitive?.intOrNull
+        val holdMs = input.jsonObject.optInt("hold_ms")
             ?.coerceIn(500, 30_000)?.toLong() ?: 3_000L
         val wasOff = !ScreenWaker.isInteractive(context)
         val woke = if (wasOff) ScreenWaker.wakeIfOff(context, holdMs) else false

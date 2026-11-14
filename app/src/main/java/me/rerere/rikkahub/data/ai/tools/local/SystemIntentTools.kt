@@ -9,13 +9,12 @@ import android.provider.Settings
 import androidx.core.net.toUri
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -85,24 +84,24 @@ fun createCalendarEventTool(
     execute = { args ->
         wakeScreenIfNeeded(context)
         val params = args.jsonObject
-        val title = params["title"]?.jsonPrimitive?.contentOrNull
+        val title = params.optString("title")
             ?: return@Tool err("missing_title", "title is required")
         val intent = Intent(Intent.ACTION_INSERT).apply {
             data = CalendarContract.Events.CONTENT_URI
             putExtra(CalendarContract.Events.TITLE, title)
-            params["description"]?.jsonPrimitive?.contentOrNull?.let {
+            params.optString("description")?.let {
                 putExtra(CalendarContract.Events.DESCRIPTION, it)
             }
-            params["location"]?.jsonPrimitive?.contentOrNull?.let {
+            params.optString("location")?.let {
                 putExtra(CalendarContract.Events.EVENT_LOCATION, it)
             }
-            params["start_time_unix_ms"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()?.let {
+            params.optString("start_time_unix_ms")?.toLongOrNull()?.let {
                 putExtra(CalendarContract.EXTRA_EVENT_BEGIN_TIME, it)
             }
-            params["end_time_unix_ms"]?.jsonPrimitive?.contentOrNull?.toLongOrNull()?.let {
+            params.optString("end_time_unix_ms")?.toLongOrNull()?.let {
                 putExtra(CalendarContract.EXTRA_EVENT_END_TIME, it)
             }
-            params["all_day"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull()?.let {
+            params.optString("all_day")?.toBooleanStrictOrNull()?.let {
                 putExtra(CalendarContract.EXTRA_EVENT_ALL_DAY, it)
             }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -153,19 +152,19 @@ fun createContactTool(
     execute = { args ->
         wakeScreenIfNeeded(context)
         val params = args.jsonObject
-        val firstName = params["first_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val lastName = params["last_name"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val firstName = params.optString("first_name").orEmpty()
+        val lastName = params.optString("last_name").orEmpty()
         val displayName = listOf(firstName, lastName).filter { it.isNotBlank() }.joinToString(" ")
         val intent = Intent(ContactsContract.Intents.Insert.ACTION).apply {
             type = ContactsContract.RawContacts.CONTENT_TYPE
             if (displayName.isNotBlank()) putExtra(ContactsContract.Intents.Insert.NAME, displayName)
-            params["phone_number"]?.jsonPrimitive?.contentOrNull?.let {
+            params.optString("phone_number")?.let {
                 putExtra(ContactsContract.Intents.Insert.PHONE, it)
             }
-            params["email"]?.jsonPrimitive?.contentOrNull?.let {
+            params.optString("email")?.let {
                 putExtra(ContactsContract.Intents.Insert.EMAIL, it)
             }
-            params["organization"]?.jsonPrimitive?.contentOrNull?.let {
+            params.optString("organization")?.let {
                 putExtra(ContactsContract.Intents.Insert.COMPANY, it)
             }
             addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
@@ -213,10 +212,10 @@ fun sendEmailIntentTool(
     execute = { args ->
         wakeScreenIfNeeded(context)
         val params = args.jsonObject
-        val to = params["to"]?.jsonPrimitive?.contentOrNull
+        val to = params.optString("to")
             ?: return@Tool err("missing_to", "to is required")
-        val subject = params["subject"]?.jsonPrimitive?.contentOrNull.orEmpty()
-        val body = params["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val subject = params.optString("subject").orEmpty()
+        val body = params.optString("body").orEmpty()
         val intent = Intent(Intent.ACTION_SENDTO).apply {
             data = "mailto:".toUri()
             putExtra(Intent.EXTRA_EMAIL, arrayOf(to))
@@ -262,9 +261,9 @@ fun sendSmsIntentTool(
     execute = { args ->
         wakeScreenIfNeeded(context)
         val params = args.jsonObject
-        val phone = params["phone_number"]?.jsonPrimitive?.contentOrNull
+        val phone = params.optString("phone_number")
             ?: return@Tool err("missing_phone_number", "phone_number is required")
-        val body = params["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val body = params.optString("body").orEmpty()
         val intent = Intent(Intent.ACTION_SENDTO).apply {
             data = "smsto:$phone".toUri()
             if (body.isNotEmpty()) putExtra("sms_body", body)
@@ -327,7 +326,7 @@ fun showLocationOnMapTool(
     needsApproval = { true },
     execute = { args ->
         wakeScreenIfNeeded(context)
-        val query = args.jsonObject["query"]?.jsonPrimitive?.contentOrNull
+        val query = args.jsonObject.optString("query")
             ?: return@Tool err("missing_query", "query is required")
         val intent = Intent(Intent.ACTION_VIEW).apply {
             data = "geo:0,0?q=${Uri.encode(query)}".toUri()

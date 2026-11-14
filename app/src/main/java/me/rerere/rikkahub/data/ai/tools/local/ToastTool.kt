@@ -4,15 +4,14 @@ import android.content.Context
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
 fun toastTool(
@@ -43,9 +42,9 @@ fun toastTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val text = params["text"]?.jsonPrimitive?.contentOrNull
+        val text = params.optString("text")
             ?: error("text is required")
-        val long = params["long"]?.jsonPrimitive?.booleanOrNull ?: false
+        val long = params.optBoolean("long") ?: false
         Handler(Looper.getMainLooper()).post {
             Toast.makeText(
                 context,

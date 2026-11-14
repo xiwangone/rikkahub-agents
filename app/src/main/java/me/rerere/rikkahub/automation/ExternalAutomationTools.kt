@@ -1,14 +1,13 @@
 package me.rerere.rikkahub.automation
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.core.InputSchema
@@ -91,7 +90,7 @@ fun externalAutomationSetEnabledTool(config: ExternalAutomationConfig): Tool = T
     },
     needsApproval = { true },
     execute = { args ->
-        val enabled = args.jsonObject["enabled"]?.jsonPrimitive?.booleanOrNull
+        val enabled = args.jsonObject.optBoolean("enabled")
             ?: return@Tool errEnv("invalid_enabled", "enabled is required (true or false)")
         config.setEnabled(enabled)
         okEnv {
@@ -119,7 +118,7 @@ fun externalAutomationAddTrustedPackageTool(config: ExternalAutomationConfig): T
     },
     needsApproval = { true },
     execute = { args ->
-        val pkg = args.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull?.trim()
+        val pkg = args.jsonObject.optString("package_name")?.trim()
             ?: return@Tool errEnv("invalid_package_name", "package_name is required")
         if (pkg.isEmpty()) {
             return@Tool errEnv("invalid_package_name", "package_name may not be blank")
@@ -157,7 +156,7 @@ fun externalAutomationRemoveTrustedPackageTool(config: ExternalAutomationConfig)
     },
     needsApproval = { true },
     execute = { args ->
-        val pkg = args.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull?.trim()
+        val pkg = args.jsonObject.optString("package_name")?.trim()
             ?: return@Tool errEnv("invalid_package_name", "package_name is required")
         if (pkg.isEmpty()) {
             return@Tool errEnv("invalid_package_name", "package_name may not be blank")

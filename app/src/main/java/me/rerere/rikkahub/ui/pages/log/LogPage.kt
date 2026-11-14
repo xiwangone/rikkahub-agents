@@ -336,7 +336,7 @@ private fun RequestLogCard(
             }
 
             Text(
-                text = log.url,
+                text = LogRedactor.maskUrl(log.url),
                 style = MaterialTheme.typography.bodySmall,
                 fontFamily = JetbrainsMono,
                 maxLines = 2,
@@ -368,7 +368,7 @@ private fun RequestLogCard(
 
             log.error?.let { error ->
                 Text(
-                    text = stringResource(R.string.log_page_error, error),
+                    text = stringResource(R.string.log_page_error, LogRedactor.maskText(error)),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
                 )
@@ -421,7 +421,7 @@ private fun RequestLogDetail(log: LogEntry.RequestLog) {
 
             log.error?.let { error ->
                 item {
-                    DetailSection(stringResource(R.string.log_page_label_error), error)
+                    DetailSection(stringResource(R.string.log_page_label_error), LogRedactor.maskText(error))
                 }
             }
 
@@ -562,7 +562,7 @@ private fun TextLogCard(
                     )
                 }
                 Text(
-                    text = log.message,
+                    text = LogRedactor.maskText(log.message),
                     style = MaterialTheme.typography.bodySmall,
                     fontFamily = JetbrainsMono,
                 )

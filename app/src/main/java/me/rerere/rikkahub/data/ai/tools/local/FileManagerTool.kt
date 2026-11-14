@@ -8,13 +8,9 @@ import androidx.documentfile.provider.DocumentFile
 import me.rerere.rikkahub.BuildConfig
 import java.util.Base64 as JBase64
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -22,6 +18,9 @@ import me.rerere.ai.ui.UIMessagePart
 import java.io.File
 import java.io.IOException
 import java.security.MessageDigest
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 // ---------- content:// support (Phase 25) ----------
@@ -342,7 +341,7 @@ fun listFilesTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawArg = obj["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = obj.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool listFilesContent(fmContext(), rawArg!!, obj)
         }
@@ -355,12 +354,12 @@ fun listFilesTool(): Tool = Tool(
         if (!dir.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Path does not exist: $rawPath"))
         if (!dir.isDirectory) return@Tool fmTextPart(fmErrEnvelope("not_a_directory", "Path is not a directory: $rawPath"))
 
-        val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull
+        val pattern = obj.optString("pattern")
         val patternRegex = pattern?.let { globToRegex(it) }
-        val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
-        val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
+        val recursive = obj.optBoolean("recursive") ?: false
+        val limit = (obj.optInt("limit") ?: 50).coerceIn(1, 500)
 
-        val maxDepth = (obj["max_depth"]?.jsonPrimitive?.intOrNull ?: 32).coerceIn(1, 64)
+        val maxDepth = (obj.optInt("max_depth") ?: 32).coerceIn(1, 64)
         val (collected, truncated) = collectFilesForList(dir, limit, maxDepth, patternRegex, recursive)
 
         fmTextPart(buildJsonObject {
@@ -438,7 +437,7 @@ fun readFileTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawArg = obj["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = obj.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool readFileContent(fmContext(), rawArg!!, obj)
         }
@@ -451,12 +450,12 @@ fun readFileTool(): Tool = Tool(
         if (!file.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "File not found: $rawPath"))
         if (file.isDirectory) return@Tool fmTextPart(fmErrEnvelope("is_directory", "Path is a directory, not a file."))
 
-        val maxBytes = (obj["max_bytes"]?.jsonPrimitive?.intOrNull ?: DEFAULT_READ_BYTES)
+        val maxBytes = (obj.optInt("max_bytes") ?: DEFAULT_READ_BYTES)
             .coerceIn(1, MAX_READ_BYTES)
-        val startLine = obj["start_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
-        val endLine = obj["end_line"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
-        val withLineNumbers = obj["with_line_numbers"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
-        val encodingHint = obj["encoding"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val startLine = obj.optString("start_line")?.toIntOrNull()
+        val endLine = obj.optString("end_line")?.toIntOrNull()
+        val withLineNumbers = obj.optString("with_line_numbers")?.toBooleanStrictOrNull() ?: false
+        val encodingHint = obj.optString("encoding")?.ifBlank { null }
 
         val bytes = try {
             file.inputStream().use { readUpTo(it, maxBytes) }
@@ -549,7 +548,7 @@ fun writeBinaryFileTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawArg = obj["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = obj.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool writeBinaryFileContent(fmContext(), rawArg!!, obj)
         }
@@ -558,11 +557,11 @@ fun writeBinaryFileTool(): Tool = Tool(
             return@Tool fmTextPart(fmErrEnvelope(v.code, v.detail))
         }
         val file = File(rawPath!!)
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
         if (file.exists() && !overwrite) {
             return@Tool fmTextPart(fmErrEnvelope("file_exists", "File already exists. Pass overwrite=true to replace it."))
         }
-        val b64 = obj["base64_content"]?.jsonPrimitive?.contentOrNull
+        val b64 = obj.optString("base64_content")
             ?: return@Tool fmTextPart(fmErrEnvelope("missing_content", "base64_content is required"))
         val bytes = try {
             JBase64.getDecoder().decode(b64)
@@ -604,7 +603,7 @@ fun deleteFileTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawArg = obj["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = obj.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool deleteFileContent(fmContext(), rawArg!!, obj)
         }
@@ -615,7 +614,7 @@ fun deleteFileTool(): Tool = Tool(
         val file = File(rawPath!!)
         if (!file.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Path does not exist: $rawPath"))
 
-        val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
+        val recursive = obj.optBoolean("recursive") ?: false
         if (file.isDirectory && !file.listFiles().isNullOrEmpty() && !recursive) {
             return@Tool fmTextPart(fmErrEnvelope("not_empty", "Directory is not empty. Pass recursive=true to delete it and its contents."))
         }
@@ -672,8 +671,8 @@ fun moveFileTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawSrcArg = obj["src"]?.jsonPrimitive?.contentOrNull
-        val rawDstArg = obj["dst"]?.jsonPrimitive?.contentOrNull
+        val rawSrcArg = obj.optString("src")
+        val rawDstArg = obj.optString("dst")
         if (ContentUriSafetyGuard.isContentUri(rawSrcArg) || ContentUriSafetyGuard.isContentUri(rawDstArg)) {
             return@Tool moveOrCopyContent(fmContext(), rawSrcArg, rawDstArg, obj, deleteSrc = true)
         }
@@ -684,7 +683,7 @@ fun moveFileTool(): Tool = Tool(
         val src = File(rawSrc!!)
         val dst = File(rawDst!!)
         if (!src.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Source does not exist: $rawSrc"))
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
         if (dst.exists() && !overwrite) {
             return@Tool fmTextPart(fmErrEnvelope("destination_exists", "Destination already exists. Pass overwrite=true to replace it."))
         }
@@ -784,8 +783,8 @@ fun copyFileTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawSrcArg = obj["src"]?.jsonPrimitive?.contentOrNull
-        val rawDstArg = obj["dst"]?.jsonPrimitive?.contentOrNull
+        val rawSrcArg = obj.optString("src")
+        val rawDstArg = obj.optString("dst")
         if (ContentUriSafetyGuard.isContentUri(rawSrcArg) || ContentUriSafetyGuard.isContentUri(rawDstArg)) {
             return@Tool moveOrCopyContent(fmContext(), rawSrcArg, rawDstArg, obj, deleteSrc = false)
         }
@@ -796,7 +795,7 @@ fun copyFileTool(): Tool = Tool(
         val src = File(rawSrc!!)
         val dst = File(rawDst!!)
         if (!src.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Source does not exist: $rawSrc"))
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
         if (dst.exists() && !overwrite) {
             return@Tool fmTextPart(fmErrEnvelope("destination_exists", "Destination already exists. Pass overwrite=true to replace it."))
         }
@@ -854,7 +853,7 @@ fun createDirectoryTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val rawArg = input.jsonObject["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = input.jsonObject.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool createDirectoryContent(fmContext(), rawArg!!, input.jsonObject)
         }
@@ -901,7 +900,7 @@ fun fileInfoTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawArg = obj["path"]?.jsonPrimitive?.contentOrNull
+        val rawArg = obj.optString("path")
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool fileInfoContent(fmContext(), rawArg!!, obj)
         }
@@ -916,7 +915,7 @@ fun fileInfoTool(): Tool = Tool(
                 put("exists", false)
             }.toString())
         }
-        val includeHash = obj["include_hash"]?.jsonPrimitive?.booleanOrNull ?: false
+        val includeHash = obj.optBoolean("include_hash") ?: false
         fmTextPart(buildJsonObject {
             put("path", file.absolutePath)
             put("exists", true)
@@ -967,7 +966,7 @@ fun findFilesTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val rawRootArg = obj["root"]?.jsonPrimitive?.contentOrNull
+        val rawRootArg = obj.optString("root")
         if (ContentUriSafetyGuard.isContentUri(rawRootArg)) {
             return@Tool findFilesContent(fmContext(), rawRootArg!!, obj)
         }
@@ -980,10 +979,10 @@ fun findFilesTool(): Tool = Tool(
         if (!rootDir.exists()) return@Tool fmTextPart(fmErrEnvelope("not_found", "Root does not exist: $rawRoot"))
         if (!rootDir.isDirectory) return@Tool fmTextPart(fmErrEnvelope("not_a_directory", "Root is not a directory."))
 
-        val query = obj["query"]?.jsonPrimitive?.contentOrNull
+        val query = obj.optString("query")
             ?: return@Tool fmTextPart(fmErrEnvelope("missing_query", "query is required"))
-        val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: true
-        val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
+        val recursive = obj.optBoolean("recursive") ?: true
+        val limit = (obj.optInt("limit") ?: 50).coerceIn(1, 500)
 
         // Determine match mode: if query contains glob chars, use glob; otherwise substring
         val isGlob = query.contains('*') || query.contains('?')

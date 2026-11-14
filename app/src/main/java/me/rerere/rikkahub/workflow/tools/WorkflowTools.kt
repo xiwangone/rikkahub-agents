@@ -1,11 +1,10 @@
 package me.rerere.rikkahub.workflow.tools
 
+import me.rerere.common.http.optString
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.core.InputSchema
@@ -185,9 +184,7 @@ fun workflowListTool(repository: WorkflowRepository): Tool =
         },
         execute = { json ->
             val enabledOnly =
-                json.jsonObject["enabled_only"]
-                    ?.jsonPrimitive
-                    ?.contentOrNull
+                json.jsonObject.optString("enabled_only")
                     ?.toBooleanStrictOrNull() ?: false
             val all = if (enabledOnly) repository.listEnabled() else repository.listAll()
             val payload =
@@ -242,7 +239,7 @@ fun workflowGetTool(repository: WorkflowRepository): Tool =
         },
         execute = { json ->
             val id =
-                json.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                json.jsonObject.optString("id")
                     ?: return@Tool errorResponse("missing_id", "id is required")
             val loaded =
                 repository.getById(id)
@@ -388,7 +385,7 @@ fun workflowDeleteTool(repository: WorkflowRepository): Tool =
         needsApproval = { true },
         execute = { json ->
             val id =
-                json.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                json.jsonObject.optString("id")
                     ?: return@Tool errorResponse("missing_id", "id is required")
             val ok = repository.deleteCascading(id)
             if (ok) {
@@ -440,10 +437,10 @@ fun workflowSetEnabledTool(repository: WorkflowRepository): Tool =
         execute = { json ->
             val obj = json.jsonObject
             val id =
-                obj["id"]?.jsonPrimitive?.contentOrNull
+                obj.optString("id")
                     ?: return@Tool errorResponse("missing_id", "id is required")
             val enabledStr =
-                obj["enabled"]?.jsonPrimitive?.contentOrNull
+                obj.optString("enabled")
                     ?: return@Tool errorResponse("missing_enabled", "enabled is required")
             val enabled =
                 enabledStr.toBooleanStrictOrNull()
@@ -495,7 +492,7 @@ fun workflowRunTool(
         needsApproval = { true },
         execute = { json ->
             val id =
-                json.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+                json.jsonObject.optString("id")
                     ?: return@Tool errorResponse("missing_id", "id is required")
             if (repository.getById(id) == null) {
                 return@Tool errorResponse("not_found", "no workflow with id=$id")
@@ -521,9 +518,7 @@ private fun triggerTypeKey(def: WorkflowDefinition): String {
             .parseToJsonElement(flat)
             .jsonObject["trigger"]
             ?.jsonObject
-            ?.get("type")
-            ?.jsonPrimitive
-            ?.contentOrNull
+            ?.optString("type")
     }.getOrNull() ?: "unknown"
 }
 

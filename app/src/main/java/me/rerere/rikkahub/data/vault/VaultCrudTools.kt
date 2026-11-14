@@ -1,12 +1,13 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -66,7 +67,7 @@ fun vaultCredentialUpdateTool(
     needsApproval = { true },
     execute = { params ->
         val o = params.jsonObject
-        val name = o["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val name = o.optString("name")?.ifBlank { null }
         if (name == null) {
             listOf(UIMessagePart.Text("❌ name is required"))
         } else {
@@ -78,10 +79,10 @@ fun vaultCredentialUpdateTool(
                 if (existing == null) {
                     listOf(UIMessagePart.Text("❌ Credential does not exist: $name (use vault_credential_names to list available names)"))
                 } else {
-                    val newName = o["new_name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-                    val desc = o["description"]?.jsonPrimitive?.contentOrNull
-                    val group = o["group"]?.jsonPrimitive?.contentOrNull
-                    val typeParam = o["type"]?.jsonPrimitive?.contentOrNull
+                    val newName = o.optString("new_name")?.ifBlank { null }
+                    val desc = o.optString("description")
+                    val group = o.optString("group")
+                    val typeParam = o.optString("type")
                     // meta 三态显式区分：未传（保留原值）/ 传了但格式错（报错）/ 合法对象（按 key 合并）
                     val metaRaw = o["meta"]
                     val metaParam =
@@ -102,7 +103,7 @@ fun vaultCredentialUpdateTool(
                         } else {
                             existing.metaJson
                         }
-                    val pubParam = o["public_key"]?.jsonPrimitive?.contentOrNull
+                    val pubParam = o.optString("public_key")
                     val newPub: String? = pubParam?.trim()
                     val changed = mutableListOf<String>()
                     val targetName = newName ?: name
@@ -489,7 +490,7 @@ fun vaultCredentialDeleteTool(
     },
     needsApproval = { true },
     execute = { params ->
-        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val name = params.jsonObject.optString("name")?.ifBlank { null }
         if (name == null) {
             listOf(UIMessagePart.Text("❌ name is required"))
         } else {
@@ -528,7 +529,7 @@ fun vaultCredentialMetaTool(repository: CredentialVaultRepository): Tool = Tool(
         )
     },
     execute = { params ->
-        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
+        val name = params.jsonObject.optString("name")?.ifBlank { null }
         if (name == null) {
             listOf(UIMessagePart.Text("❌ name is required"))
         } else {
@@ -586,8 +587,8 @@ fun vaultCredentialAuditTool(repository: CredentialVaultRepository): Tool = Tool
         )
     },
     execute = { params ->
-        val name = params.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.ifBlank { null }
-        val limit = (params.jsonObject["limit"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 50).coerceIn(1, 200)
+        val name = params.jsonObject.optString("name")?.ifBlank { null }
+        val limit = (params.jsonObject.optInt("limit") ?: 50).coerceIn(1, 200)
         val logs = repository.recentAudit(limit)
             .filter { name == null || it.credentialName == name }
             .sortedByDescending { it.tsMs }

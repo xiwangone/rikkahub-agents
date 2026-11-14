@@ -2,16 +2,17 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
 import me.rerere.rikkahub.data.ai.net.withEgressGuard
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.search.extract.ExtractMode
 import me.rerere.search.extract.WebExtractor
@@ -177,7 +178,7 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val url = obj["url"]?.jsonPrimitive?.contentOrNull?.trim()
+        val url = obj.optString("url")?.trim()
         if (url.isNullOrBlank()) {
             return@Tool fmTextPart(fmErrEnvelope("missing_url", "url is required"))
         }
@@ -196,15 +197,15 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
                 )
             }
         }
-        val method = obj["method"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase() ?: "GET"
+        val method = obj.optString("method")?.trim()?.uppercase() ?: "GET"
         if (method != "GET" && method != "POST") {
             return@Tool fmTextPart(
                 ToolErrors.envelopeFor(error = "bad_method", message = "method must be GET or POST, got $method", hint = "Use method=GET or method=POST.").toString()
             )
         }
-        val bodyStr = obj["body"]?.jsonPrimitive?.contentOrNull
+        val bodyStr = obj.optString("body")
 
-        val modeRaw = obj["extract_mode"]?.jsonPrimitive?.contentOrNull
+        val modeRaw = obj.optString("extract_mode")
         val mode = parseExtractModeOrNull(modeRaw)
             ?: return@Tool fmTextPart(
                 fmErrEnvelope(
@@ -212,16 +213,16 @@ fun webFetchTool(client: OkHttpClient): Tool = Tool(
                     "extract_mode must be one of raw, article, text, links, metadata",
                 ),
             )
-        val includeHeaders = obj["include_headers"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
-        val startIndex = obj["start_index"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+        val includeHeaders = obj.optString("include_headers")?.toBoolean() ?: false
+        val startIndex = obj.optString("start_index")?.toIntOrNull() ?: 0
         val defaultCap = if (mode == FetchExtract.RAW) WEB_FETCH_BODY_CAP else WEB_FETCH_EXTRACT_CAP
-        val maxChars = obj["max_chars"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()
+        val maxChars = obj.optString("max_chars")?.toIntOrNull()
             ?.coerceIn(1, defaultCap) ?: defaultCap
 
         val request = try {
             val builder = Request.Builder().url(url)
             (obj["headers"] as? kotlinx.serialization.json.JsonObject)?.forEach { (name, value) ->
-                value.jsonPrimitive.contentOrNull?.let { builder.header(name, it) }
+                (value as? JsonPrimitive)?.contentOrNull?.let { builder.header(name, it) }
             }
             if (method == "POST") {
                 builder.post((bodyStr ?: "").toRequestBody())

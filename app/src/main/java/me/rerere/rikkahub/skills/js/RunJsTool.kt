@@ -1,11 +1,10 @@
 package me.rerere.rikkahub.skills.js
 
+import me.rerere.common.http.optString
 import android.content.Context
 import androidx.core.net.toUri
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -72,15 +71,15 @@ fun runJsTool(
     needsApproval = { true },
     execute = { args ->
         val params = args.jsonObject
-        val skillName = params["skill_name"]?.jsonPrimitive?.contentOrNull
+        val skillName = params.optString("skill_name")
             ?: return@Tool err("missing_skill_name", "skill_name is required")
-        val scriptName = params["script"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val scriptName = params.optString("script")?.takeIf { it.isNotBlank() }
             ?: "index.html"
-        val data = params["data"]?.jsonPrimitive?.contentOrNull.orEmpty()
+        val data = params.optString("data").orEmpty()
         if (data.length > JsSkillRunner.MAX_DATA_LENGTH) {
             return@Tool err("data_too_large", "data exceeds 64KB cap")
         }
-        val secretKey = params["secret_key"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val secretKey = params.optString("secret_key")?.takeIf { it.isNotBlank() }
         val secret = secretKey?.let { secretsStore.get(skillName, it) }.orEmpty()
 
         val skillDir = skillManager.getSkillDir(skillName)

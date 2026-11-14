@@ -3,19 +3,19 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.shizuku.ShizukuManager
 
@@ -68,10 +68,10 @@ fun shizukuExecTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val single = input.jsonObject["command"]?.jsonPrimitive?.contentOrNull
+        val single = input.jsonObject.optString("command")
         val batch =
             input.jsonObject["commands"]?.jsonArray
-                ?.mapNotNull { it.jsonPrimitive.contentOrNull }
+                ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                 ?.take(MAX_BATCH_COMMANDS)
                 ?: emptyList()
         val combined =
@@ -93,9 +93,9 @@ fun shizukuExecTool(context: Context): Tool = Tool(
         }
         val commands = combined
         val timeoutMs =
-            (input.jsonObject["timeout_ms"]?.jsonPrimitive?.intOrNull ?: DEFAULT_TIMEOUT_MS)
+            (input.jsonObject.optInt("timeout_ms") ?: DEFAULT_TIMEOUT_MS)
                 .coerceIn(MIN_TIMEOUT_MS, MAX_TIMEOUT_MS)
-        val probeRoot = input.jsonObject["probe_root"]?.jsonPrimitive?.booleanOrNull ?: false
+        val probeRoot = input.jsonObject.optBoolean("probe_root") ?: false
 
         val results = buildJsonArray {
             commands.forEach { cmd ->

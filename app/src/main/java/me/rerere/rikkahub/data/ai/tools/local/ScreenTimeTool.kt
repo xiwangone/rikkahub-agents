@@ -8,13 +8,12 @@ import android.content.pm.PackageManager
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.event.AppEvent
 import me.rerere.rikkahub.data.event.AppEventBus
@@ -47,13 +46,13 @@ internal fun buildScreenTimeTool(context: Context, eventBus: AppEventBus): Tool 
         }
 
         val params = it.jsonObject
-        val top = params["top"]?.jsonPrimitive?.contentOrNull?.toIntOrNull()?.coerceIn(1, 50) ?: 10
+        val top = params.optString("top")?.toIntOrNull()?.coerceIn(1, 50) ?: 10
 
         val now = ZonedDateTime.now()
         val zone = now.zone
-        val beginRaw = params["begin"]?.jsonPrimitive?.contentOrNull
-        val endRaw = params["end"]?.jsonPrimitive?.contentOrNull
-        val rangePreset = params["range"]?.jsonPrimitive?.contentOrNull ?: "today"
+        val beginRaw = params.optString("begin")
+        val endRaw = params.optString("end")
+        val rangePreset = params.optString("range") ?: "today"
 
         val startTime: ZonedDateTime
         val endTime: ZonedDateTime

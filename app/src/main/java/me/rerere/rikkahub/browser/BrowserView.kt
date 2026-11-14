@@ -9,6 +9,7 @@ import android.os.Environment
 import android.util.Log
 import android.view.ViewGroup
 import android.webkit.ConsoleMessage
+import android.webkit.CookieManager
 import android.webkit.GeolocationPermissions
 import android.webkit.PermissionRequest
 import android.webkit.SslErrorHandler
@@ -204,10 +205,28 @@ private fun WebViewHost(
             // DownloadManager 发起下载（通知栏可见、保存到公开 Downloads 目录），
             // 不自己写文件 IO。
             setDownloadListener { url, _, contentDisposition, mimetype, _ ->
-                val fileName = URLUtil.guessFileName(url, contentDisposition, mimetype)
+                // 只接受 http(s) 下载：下载 URL 由页面控制，可能混进 file://、
+                // intent://、javascript: 等 scheme，交给 DownloadManager 既无
+                // 意义也可能被利用来探测本地路径；非 http(s) 直接丢弃，只记
+                // 一条 WARN，不弹任何提示。
+                if (!isHttpOrHttpsUrl(url)) {
+                    AppLog.w("RikkaWebView", "download dropped: non-http(s) scheme")
+                    return@setDownloadListener
+                }
+                val fileName = sanitizeDownloadFileName(
+                    URLUtil.guessFileName(url, contentDisposition, mimetype),
+                )
                 val request = DownloadManager.Request(Uri.parse(url)).apply {
                     setNotificationVisibility(DownloadManager.Request.VISIBILITY_VISIBLE_NOTIFY_COMPLETED)
                     setDestinationInExternalPublicDir(Environment.DIRECTORY_DOWNLOADS, fileName)
+                    // 下载走系统 DownloadManager，与 WebView 不是同一个 HTTP
+                    // 栈：不带 UA 和 Cookie 时需要登录态的资源会 401，站方按
+                    // UA 分流的也会拿到错误版本。把当前 WebView 的 UA 与该
+                    // URL 的 Cookie 带上。
+                    addRequestHeader("User-Agent", settings.userAgentString)
+                    CookieManager.getInstance().getCookie(url)?.let { cookie ->
+                        addRequestHeader("Cookie", cookie)
+                    }
                 }
                 val dm = ctx.getSystemService(android.content.Context.DOWNLOAD_SERVICE) as? DownloadManager
                 dm?.enqueue(request)
@@ -384,21 +403,21 @@ private fun WebViewHost(
                 }
 
                 override fun onPermissionRequest(request: PermissionRequest?) {
-                    // 页面要摄像头/麦克风时直接授权。理由：这是用户自己主动打开的
-                    // 内置浏览器、自己点的页面，不是后台静默授权——用户点开页面的
-                    // 动作本身就是授权意图，拒绝反而让视频通话、录音这类页面没法用。
-                    // 注意这只是 WebView 层的放行，系统层仍受应用自身的相机/麦克风
-                    // 权限约束，没拿到系统权限时采集照样打不开。
-                    request?.grant(request.resources)
+                    // 一律拒绝，不静默授权。内置浏览器常由 AI 自动驱动访问第三
+                    // 方页面，页面请求的摄像头/麦克风绝不能在用户不知情时放行；
+                    // 需要音视频的页面请在系统浏览器里打开。注意这只是 WebView
+                    // 层的拒绝，系统层权限不受影响。
+                    request?.deny()
                 }
 
                 override fun onGeolocationPermissionsShowPrompt(
                     origin: String?,
                     callback: GeolocationPermissions.Callback?,
                 ) {
-                    // 定位只当次生效（第三个参数 false = 不记住），下次打开同一页面
-                    // 还会再问。同样是用户主动打开的页面，不是后台静默授权。
-                    callback?.invoke(origin, true, false)
+                    // 定位一律拒绝（第二个参数 false = 不授权，第三个 false =
+                    // 不记住）。内置浏览器常由 AI 自动驱动访问第三方页面，位置
+                    // 是敏感信息，绝不能在用户不知情时静默放行。
+                    callback?.invoke(origin, false, false)
                 }
 
                 override fun onCreateWindow(
@@ -427,8 +446,15 @@ private fun WebViewHost(
                             private fun handToMain(url: String, tempView: WebView?): Boolean {
                                 if (handled) return true
                                 handled = true
-                                if (url.isNotBlank() && !url.equals("about:blank", ignoreCase = true)) {
+                                // 只把 http(s) 交给主 WebView：window.open() 的 URL
+                                // 由页面控制，file://、intent://、javascript:、
+                                // data: 等 scheme 一旦载入主 WebView，轻则顶掉当前
+                                // 页，重则触发外部应用或读取本地文件；about:blank
+                                // 弹窗本来就没有真实 URL，同样不导航。
+                                if (isHandToMainUrlAllowed(url)) {
                                     mainWebView.loadUrl(url)
+                                } else {
+                                    AppLog.d("RikkaWebView", "handToMain dropped non-http(s) url")
                                 }
                                 // 销毁推迟到回调结束之后，避免在 WebView 自身回调里
                                 // 同步 destroy 撞上正在进行的导航。
@@ -558,4 +584,65 @@ private fun showLoadErrorPage(
             "style=\"font-size:16px;padding:10px 20px\">${strings.reload}</button>" +
             "</body></html>"
     view.loadDataWithBaseURL(failedUrl, html, "text/html", "UTF-8", null)
+}
+
+private val URL_SCHEME_REGEX = Regex("^([A-Za-z][A-Za-z0-9+.-]*):")
+
+/** 下载文件名按 UTF-8 字节数封顶（ext4/f2fs 单文件名 255 字节，留余量）。 */
+private const val MAX_DOWNLOAD_FILE_NAME_BYTES = 200
+
+/** 超长文件名截断时保留的扩展名最长字符数。 */
+private const val MAX_DOWNLOAD_FILE_EXTENSION_LENGTH = 10
+
+/**
+ * 下载与新窗口共用的 scheme 门：只放行 http/https。页面可控的 URL 里
+ * 可能混进 file://、intent://、javascript:、data: 等 scheme，交给
+ * DownloadManager 既无意义也可能被利用来探测本地路径；载入主 WebView
+ * 则可能顶掉当前页或触发外部应用。纯字符串解析，不依赖 android.net.Uri，
+ * 可在纯 JVM 单测里跑。
+ */
+internal fun isHttpOrHttpsUrl(url: String): Boolean {
+    val scheme = URL_SCHEME_REGEX.find(url.trim())?.groupValues?.get(1)?.lowercase()
+    return scheme == "http" || scheme == "https"
+}
+
+/**
+ * 新窗口交给主 WebView 的放行条件：非空、不是 about:blank、且 scheme 是
+ * http/https（见 [isHttpOrHttpsUrl]）。
+ */
+internal fun isHandToMainUrlAllowed(url: String): Boolean {
+    val trimmed = url.trim()
+    if (trimmed.isEmpty()) return false
+    if (trimmed.equals("about:blank", ignoreCase = true)) return false
+    return isHttpOrHttpsUrl(trimmed)
+}
+
+/**
+ * 清理下载文件名：`URLUtil.guessFileName` 的结果来自页面可控的 URL 与
+ * Content-Disposition，可能带目录穿越（`../../evil.apk`）或非法字符，
+ * 直接交给 `setDestinationInExternalPublicDir` 会写出 Downloads 目录。
+ * 只保留最后一段路径、替换非法字符、超长时按字节截断并保留扩展名，
+ * 拿不到合法名字时回退到 `download`。
+ */
+internal fun sanitizeDownloadFileName(raw: String): String {
+    val base = raw.substringAfterLast('/').substringAfterLast('\\').trim()
+    val cleaned = base.map { ch ->
+        if (ch.code < 0x20 || ch in "\"*:<>?|") '_' else ch
+    }.joinToString("").trim(' ', '.')
+    if (cleaned.isEmpty()) return "download"
+    if (cleaned.toByteArray(Charsets.UTF_8).size <= MAX_DOWNLOAD_FILE_NAME_BYTES) return cleaned
+    val dot = cleaned.lastIndexOf('.')
+    val ext = if (dot > 0 && cleaned.length - dot <= MAX_DOWNLOAD_FILE_EXTENSION_LENGTH) {
+        cleaned.substring(dot)
+    } else {
+        ""
+    }
+    val stem = cleaned.dropLast(ext.length)
+    var end = stem.length
+    while (end > 0) {
+        val candidate = stem.take(end) + ext
+        if (candidate.toByteArray(Charsets.UTF_8).size <= MAX_DOWNLOAD_FILE_NAME_BYTES) return candidate
+        end--
+    }
+    return "download"
 }

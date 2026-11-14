@@ -6,14 +6,13 @@ import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
@@ -63,10 +62,10 @@ fun notificationTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val title = params["title"]?.jsonPrimitive?.contentOrNull
+        val title = params.optString("title")
             ?: error("title is required")
-        val body = params["body"]?.jsonPrimitive?.contentOrNull
-        val idParam = params["id"]?.jsonPrimitive?.intOrNull
+        val body = params.optString("body")
+        val idParam = params.optInt("id")
         val id = idParam?.coerceIn(0, Int.MAX_VALUE)
             ?: (System.currentTimeMillis() / 1000).toInt()
 

@@ -2,15 +2,14 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import android.accessibilityservice.GestureDescription
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.doubleOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optDouble
+import me.rerere.common.http.optLong
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -18,7 +17,7 @@ import me.rerere.rikkahub.service.ActionLogEntry
 private const val DEFAULT_LONG_PRESS_MS = 600L
 
 private fun coordOrError(jsonObj: kotlinx.serialization.json.JsonElement, key: String): Double? {
-    val v = jsonObj.jsonObject[key]?.jsonPrimitive?.doubleOrNull
+    val v = jsonObj.jsonObject.optDouble(key)
     return if (v != null && v.isFinite() && v >= 0.0) v else null
 }
 
@@ -127,7 +126,7 @@ fun longPressTool(
                 )
             )
         }
-        val durationRaw = input.jsonObject["duration_ms"]?.jsonPrimitive?.longOrNull
+        val durationRaw = input.jsonObject.optLong("duration_ms")
             ?: DEFAULT_LONG_PRESS_MS
         if (durationRaw < 100L || durationRaw > 5000L) {
             return@Tool listOf(

@@ -457,10 +457,14 @@ fun ChatMessageNerdLine(
                                                 // （原先用"同色 25% 透明"，导致剩余量几乎看不出）
                                                 .background(MaterialTheme.colorScheme.surfaceVariant),
                                     ) {
-                                        // 三段构成：缓存 / 未命中输入 / 输出（与图例同色）
-                                        val cachedSeg = contextUsage.cachedTokens.toLong().coerceAtLeast(0L)
-                                        val uncachedSeg = (ctxTokens - cachedSeg).coerceAtLeast(0L)
-                                        val outputSeg = contextUsage.completionTokens.toLong().coerceAtLeast(0L)
+                                        // 两段构成：缓存 / 未命中输入（与图例同色）。
+                                        // 输出不计入本条：条宽 barRatio 只按 promptTokens/窗口算，
+                                        // 输出段会按权重挤占两段宽度，使缓存/未命中比例失真。
+                                        val (cachedSeg, uncachedSeg) =
+                                            contextBarSegments(
+                                                cachedTokens = contextUsage.cachedTokens.toLong(),
+                                                promptTokens = ctxTokens,
+                                            )
                                         Row(
                                             horizontalArrangement = Arrangement.spacedBy(1.dp),
                                             modifier =
@@ -485,15 +489,7 @@ fun ChatMessageNerdLine(
                                                         .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.45f)),
                                                 )
                                             }
-                                            if (outputSeg > 0L) {
-                                                Box(
-                                                    Modifier
-                                                        .weight(outputSeg.toFloat())
-                                                        .fillMaxHeight()
-                                                        .background(MaterialTheme.colorScheme.tertiary),
-                                                )
-                                            }
-                                            if (cachedSeg + uncachedSeg + outputSeg == 0L) {
+                                            if (cachedSeg + uncachedSeg == 0L) {
                                                 Box(Modifier.fillMaxSize().background(contextColor))
                                             }
                                         }
@@ -556,6 +552,21 @@ fun ChatMessageNerdLine(
         }
     }
 }
+}
+
+/**
+ * 上下文占用条的两段切分：缓存 / 未命中输入。
+ * 两段之和等于 promptTokens，与条宽 barRatio（promptTokens/窗口）的口径一致；
+ * 输出不参与切分（见调用处注释）。
+ */
+@VisibleForTesting
+internal fun contextBarSegments(
+    cachedTokens: Long,
+    promptTokens: Long,
+): Pair<Long, Long> {
+    val cachedSeg = cachedTokens.coerceAtLeast(0L)
+    val uncachedSeg = (promptTokens - cachedSeg).coerceAtLeast(0L)
+    return cachedSeg to uncachedSeg
 }
 
 // Generation cost is often a tiny fraction of a cent, so a fixed decimal count would show

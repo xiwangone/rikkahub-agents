@@ -5,13 +5,13 @@ import android.security.keystore.KeyInfo
 import android.security.keystore.KeyProperties
 import android.security.keystore.StrongBoxUnavailableException
 import kotlinx.serialization.json.add
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -27,6 +27,7 @@ import javax.crypto.Cipher
 import javax.crypto.KeyGenerator
 import javax.crypto.SecretKey
 import javax.crypto.spec.GCMParameterSpec
+import me.rerere.common.http.optString
 
 /**
  * `keystore_*` — seven LLM-callable tools over the Android Keystore. RSA-2048 keys cover
@@ -122,10 +123,10 @@ fun keystoreGenerateKeyTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val alias = obj["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = obj.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
-        val type = obj["type"]?.jsonPrimitive?.contentOrNull
-        val purposes = obj["purposes"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        val type = obj.optString("type")
+        val purposes = obj["purposes"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
             ?: emptyList()
         if (purposes.isEmpty()) return@Tool ksErr("purposes is required")
         validateKeystoreType(type, purposes)?.let { return@Tool ksErr(it) }
@@ -211,9 +212,9 @@ fun keystoreSignTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val alias = obj["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = obj.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
-        val dataB64 = obj["data_b64"]?.jsonPrimitive?.contentOrNull
+        val dataB64 = obj.optString("data_b64")
             ?: return@Tool ksErr("data_b64 is required")
         return@Tool try {
             val ks = loadKeyStore()
@@ -252,11 +253,11 @@ fun keystoreVerifyTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val alias = obj["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = obj.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
-        val dataB64 = obj["data_b64"]?.jsonPrimitive?.contentOrNull
+        val dataB64 = obj.optString("data_b64")
             ?: return@Tool ksErr("data_b64 is required")
-        val sigB64 = obj["signature_b64"]?.jsonPrimitive?.contentOrNull
+        val sigB64 = obj.optString("signature_b64")
             ?: return@Tool ksErr("signature_b64 is required")
         return@Tool try {
             val ks = loadKeyStore()
@@ -295,9 +296,9 @@ fun keystoreEncryptTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val alias = obj["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = obj.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
-        val plaintextB64 = obj["plaintext_b64"]?.jsonPrimitive?.contentOrNull
+        val plaintextB64 = obj.optString("plaintext_b64")
             ?: return@Tool ksErr("plaintext_b64 is required")
         return@Tool try {
             val ks = loadKeyStore()
@@ -336,11 +337,11 @@ fun keystoreDecryptTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val alias = obj["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = obj.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
-        val ciphertextB64 = obj["ciphertext_b64"]?.jsonPrimitive?.contentOrNull
+        val ciphertextB64 = obj.optString("ciphertext_b64")
             ?: return@Tool ksErr("ciphertext_b64 is required")
-        val ivB64 = obj["iv_b64"]?.jsonPrimitive?.contentOrNull
+        val ivB64 = obj.optString("iv_b64")
             ?: return@Tool ksErr("iv_b64 is required")
         return@Tool try {
             val ks = loadKeyStore()
@@ -379,7 +380,7 @@ fun keystoreDeleteKeyTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val alias = input.jsonObject["alias"]?.jsonPrimitive?.contentOrNull
+        val alias = input.jsonObject.optString("alias")
         validateKeystoreAlias(alias)?.let { return@Tool ksErr(it) }
         return@Tool try {
             val ks = loadKeyStore()

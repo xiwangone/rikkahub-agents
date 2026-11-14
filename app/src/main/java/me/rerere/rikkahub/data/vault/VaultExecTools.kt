@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import com.jcraft.jsch.ChannelExec
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.currentCoroutineContext
@@ -9,18 +12,21 @@ import kotlinx.serialization.json.jsonArray
 import me.rerere.rikkahub.data.log.AppLog
 import org.koin.java.KoinJavaComponent.getKoin
 import kotlinx.serialization.json.JsonPrimitive
-import kotlinx.serialization.json.booleanOrNull
+import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.SshConnection
+import me.rerere.rikkahub.data.ai.tools.local.SshSessionKey
+import me.rerere.rikkahub.data.ai.tools.local.cacheFingerprint
+import me.rerere.rikkahub.data.ai.tools.local.openSshSession
+import me.rerere.rikkahub.data.ai.tools.local.sharedSshSessionCache
 import me.rerere.rikkahub.data.ai.tools.local.importLegacyVaultKnownHosts
 import me.rerere.rikkahub.data.ai.tools.local.installHostKeyVerification
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
@@ -109,12 +115,12 @@ private suspend fun runVaultExportEnv(
     if (!sessionManager.hasActiveAuthorization()) {
         return fail("Not authorized: complete Vault authorization first (next to the session input box, 30 minutes or always valid), then call this tool")
     }
-    val requested = o["names"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+    val requested = o["names"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
     val entries = repository.getAll()
     val selected = if (requested.isNullOrEmpty()) entries else entries.filter { it.name in requested }
     if (selected.isEmpty()) return fail("No credentials to export (use vault_credential_names to list available names)")
 
-    val ttlHours = (o["ttl_hours"]?.jsonPrimitive?.intOrNull ?: 0).coerceIn(0, 24 * 365)
+    val ttlHours = (o.optInt("ttl_hours") ?: 0).coerceIn(0, 24 * 365)
     val expiresAtMs = if (ttlHours > 0) System.currentTimeMillis() + ttlHours * 3_600_000L else null
     val expiresLabel = expiresAtMs?.let { java.time.Instant.ofEpochMilli(it).toString() } ?: "never"
     val lines =
@@ -143,10 +149,10 @@ private suspend fun runVaultExportEnv(
         runCatching { getKoin().get<me.rerere.rikkahub.data.repository.WorkspaceRepository>() }.getOrNull()
             ?: return fail("Workspace unavailable")
     val target =
-        resolveVaultWorkspace(wsRepository, o["workspace"]?.jsonPrimitive?.contentOrNull)
+        resolveVaultWorkspace(wsRepository, o.optString("workspace"))
             .getOrElse { return fail(it.message ?: "Cannot resolve target workspace") }
     // 远程目标二次确认：显式指向 SSH 工作区时必须传 confirm=true。
-    remoteTargetNeedsConfirm(target, o["confirm"]?.jsonPrimitive?.booleanOrNull ?: false)
+    remoteTargetNeedsConfirm(target, o.optBoolean("confirm") ?: false)
         ?.let { reason -> return fail(reason) }
     runCatching { wsRepository.writeText(target.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
         .onFailure { AppLog.w("VaultTools", "Failed to write vault-env.sh", it) }
@@ -214,14 +220,14 @@ private suspend fun runVaultSshExec(
     o: kotlinx.serialization.json.JsonObject,
 ): List<UIMessagePart> {
     val fail: (String) -> List<UIMessagePart> = { msg -> listOf(UIMessagePart.Text("❌ $msg")) }
-    val host = o["host"]?.jsonPrimitive?.contentOrNull ?: return fail("host is required")
-    val port = o["port"]?.jsonPrimitive?.intOrNull ?: 22
-    val user = o["user"]?.jsonPrimitive?.contentOrNull ?: return fail("user is required")
-    val auth = o["auth"]?.jsonPrimitive?.contentOrNull ?: return fail("auth is required (key/password)")
-    val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name is required")
-    val command = o["command"]?.jsonPrimitive?.contentOrNull ?: return fail("command is required")
-    val platform = o["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
-    val timeout = (o["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(5, 300)
+    val host = o.optString("host") ?: return fail("host is required")
+    val port = o.optInt("port") ?: 22
+    val user = o.optString("user") ?: return fail("user is required")
+    val auth = o.optString("auth") ?: return fail("auth is required (key/password)")
+    val credName = o.optString("credential_name") ?: return fail("credential_name is required")
+    val command = o.optString("command") ?: return fail("command is required")
+    val platform = o.optString("platform")?.let { SshPlatform.fromPreference(it) }
+    val timeout = (o.optInt("timeout_seconds") ?: 30).coerceIn(5, 300)
 
     // SSH_AUTH 现需会话授权：不传 isAuthorized 会直接被拒（值不出进程 ≠ 不要紧，
     // AI 能借此在任意已配主机上执行命令）；且按凭证名过滤——受限会话只能用白名单内的凭证。
@@ -301,27 +307,39 @@ private suspend fun executeVaultSshSession(
     // 首次信任、变更拒绝，一处拒绝、处处拒绝。旧 vault_known_hosts 的条目
     // 一次性并入共用文件（共用侧已有记录时以共用为准），此后不再读写旧文件
     // （旧文件留盘，ssh_forget_host_key 仍会清理它）。
-    val jsch = newJSch(context)
-    val legacyVaultFile = java.io.File(context.filesDir, "vault_known_hosts")
-    if (importLegacyVaultKnownHosts(jsch.hostKeyRepository, legacyVaultFile) > 0) {
-        persistKnownHosts(jsch)
-    }
-    val isFirstConnect = jsch.hostKeyRepository.getHostKey(host, null).isNullOrEmpty()
-    // 统一走 openSshSession：共用 TunnelRouter 隧道解析、IPv4 优先解析、Fake-IP 拦截、
-    // AcceptNewHostKeyRepository 校验、有界 Socket 连接超时与保活参数，消除第二套建连样板。
+    // 短时会话复用（B-2）：同一 (host, port, user, 凭证) 在 90 秒内连续调用不再
+    // newJSch + 完整握手；vault 无网络探测，networkLabel 传 null 跳过校验。
+    // isFirstConnect 只在真正新建会话时才计算——缓存命中时必为 false。
     val sshAuth = if (auth == "key") {
         me.rerere.rikkahub.data.ai.tools.local.SshAuth(privateKey = secret)
     } else {
         me.rerere.rikkahub.data.ai.tools.local.SshAuth(password = secret)
     }
-    val session: com.jcraft.jsch.Session = me.rerere.rikkahub.data.ai.tools.local.openSshSession(
-        jsch = jsch,
-        host = host,
-        port = port,
-        user = user,
-        auth = sshAuth,
-        timeoutMs = timeout * 1000,
-    )
+    val cacheKey = SshSessionKey(host, port, user, sshAuth.cacheFingerprint(), jump = null)
+    var isFirstConnect = false
+    val leased = sharedSshSessionCache.acquire(cacheKey, networkLabel = null) {
+        val jsch = newJSch(context)
+        val legacyVaultFile = java.io.File(context.filesDir, "vault_known_hosts")
+        if (importLegacyVaultKnownHosts(jsch.hostKeyRepository, legacyVaultFile) > 0) {
+            persistKnownHosts(jsch)
+        }
+        isFirstConnect = jsch.hostKeyRepository.getHostKey(host, null).isNullOrEmpty()
+        // 统一走 openSshSession：共用 TunnelRouter 隧道解析、IPv4 优先解析、Fake-IP 拦截、
+        // AcceptNewHostKeyRepository 校验、有界 Socket 连接超时与保活参数，消除第二套建连样板。
+        val session = openSshSession(
+            jsch = jsch,
+            host = host,
+            port = port,
+            user = user,
+            auth = sshAuth,
+            timeoutMs = timeout * 1000,
+        )
+        SshConnection(session, null)
+    }
+    val session: com.jcraft.jsch.Session = leased.session
+    // 通道打不开/执行中抛错（含取消）都视为会话不可再用：标志位保持 false，finally 里
+    // 失效，下次调用重建——不用 catch (e: Throwable)，避免 TooGenericExceptionCaught。
+    var execSucceeded = false
     val outcome =
         try {
             val channel = session.openChannel("exec") as ChannelExec
@@ -338,12 +356,14 @@ private suspend fun executeVaultSshSession(
                 if (timedOut) {
                     runCatching { channel.sendSignal("KILL") }
                 }
-                ChannelExecOutcome(oBuf, eBuf, if (timedOut) -1 else channel.exitStatus, timedOut)
+                val result = ChannelExecOutcome(oBuf, eBuf, if (timedOut) -1 else channel.exitStatus, timedOut)
+                execSucceeded = true
+                result
             } finally {
                 runCatching { channel.disconnect() }
             }
         } finally {
-            runCatching { session.disconnect() }
+            if (!execSucceeded || !session.isConnected) sharedSshSessionCache.invalidate(cacheKey, session) else sharedSshSessionCache.release(cacheKey)
         }
     val (outBuf, errBuf, exit, timedOut) = outcome
     val allSecrets = allVaultSecrets(repository)
@@ -363,17 +383,31 @@ private suspend fun executeVaultSshSession(
             ),
         )
     }
-    val fingerprintNote = if (isFirstConnect) "\n(First connection; this host fingerprint was recorded and will be verified on later connections)" else ""
-    return listOf(
-        UIMessagePart.Text(
-            buildString {
-                append("exit=$exit")
-                if (stdout.isNotEmpty()) append("\n--- stdout ---\n$stdout")
-                if (stderr.isNotEmpty()) append("\n--- stderr ---\n$stderr")
-                if (fingerprintNote.isNotEmpty()) append(fingerprintNote)
-            },
-        ),
-    )
+    // 输出对齐（B-2 / T6）：成功分支原来是纯文本拼接（exit=0\n--- stdout ---\n...），
+    // 与超时分支的 JSON 信封、以及 ssh_exec_saved 的结构化 JSON
+    //（success/exit_code/stdout/stderr）不一致。统一为结构化 JSON 信封，字段与
+    // ssh_exec_saved 相同；首次连接提示改放 note 字段（原文案不变）。
+    return listOf(UIMessagePart.Text(buildVaultSshExecResult(exit, stdout, stderr, isFirstConnect).toString()))
+}
+
+/**
+ * vault_ssh_exec 成功时的结构化结果，与 ssh_exec_saved 的字段结构一致：
+ * success（exit==0）/ exit_code / stdout / stderr；首次连接时多一个 note
+ * （指纹已记录、下次起校验）。internal 供单测钉住字段。
+ */
+internal fun buildVaultSshExecResult(
+    exitCode: Int,
+    stdout: String,
+    stderr: String,
+    isFirstConnect: Boolean,
+): JsonObject = buildJsonObject {
+    put("success", exitCode == 0)
+    put("exit_code", exitCode)
+    put("stdout", stdout)
+    put("stderr", stderr)
+    if (isFirstConnect) {
+        put("note", "First connection; this host fingerprint was recorded and will be verified on later connections")
+    }
 }
 
 /** One exec channel run: captured streams, exit code, and whether the deadline hit first. */

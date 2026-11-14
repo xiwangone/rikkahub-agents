@@ -8,13 +8,12 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import android.content.pm.PackageManager
 import me.rerere.rikkahub.BuildConfig
 import java.security.MessageDigest
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.RikkaHubApp
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.common.android.Logging
@@ -74,7 +73,7 @@ internal suspend fun appHealthPayload(
  * 几条链路（如 `ChatService,GenerationLoop`），分开调用既费往返又容易丢时间线。
  */
 private fun parseKeywords(params: JsonObject): List<String> =
-    params["keyword"]?.jsonPrimitive?.contentOrNull
+    params.optString("keyword")
         ?.split(',', '，', ';', ' ', '\t')
         ?.map { it.trim().lowercase(Locale.getDefault()) }
         ?.filter { it.isNotEmpty() }
@@ -89,14 +88,14 @@ private fun parseKeywords(params: JsonObject): List<String> =
 internal fun appLogsPayload(context: Context, params: JsonObject): String {
         // 默认**排除 D 级**：逐 token / 流式分片是噪音大户（已单独缓冲），抓错误时会把有效行冲走；
         // 要看详细仍可显式 `level=D`。I/W/E 是诊断主线（消息收发 / 落库 / 取消 / 审批），默认可见。
-        val level = params["level"]?.jsonPrimitive?.contentOrNull
+        val level = params.optString("level")
             ?.trim()?.uppercase(Locale.US)?.take(1)
         val keywords = parseKeywords(params)
-        val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
+        val limit = params.optInt("limit") ?: 50
         // summary=true：只回统计（level 分布 / Top tag / 时间范围 / 总数），不给原始行——
         // 让 AI 先看摘要再按 keyword 精准取行，避免一上来拉原始日志把上下文淹掉。
         val summaryOnly =
-            params["summary"]?.jsonPrimitive?.contentOrNull?.equals("true", ignoreCase = true) == true
+            params.optString("summary")?.equals("true", ignoreCase = true) == true
 
         val matched = AppLog.getLogs()
             .filter { e ->
@@ -168,7 +167,7 @@ internal fun appLogsPayload(context: Context, params: JsonObject): String {
  */
 internal fun requestLogsPayload(context: Context, params: JsonObject): String {
         val keywords = parseKeywords(params)
-        val limit = params["limit"]?.jsonPrimitive?.intOrNull ?: 50
+        val limit = params.optInt("limit") ?: 50
 
         val fmt = DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.getDefault()).withZone(ZoneId.systemDefault())
         val entries = Logging.getRequestLogs()
@@ -195,7 +194,7 @@ internal fun requestLogsPayload(context: Context, params: JsonObject): String {
  * CrashHandler 在崩溃时同步写出，因此即使进程随即退出也可读。
  */
 internal fun crashSnapshotPayload(context: Context, params: JsonObject): String {
-        val which = params["which"]?.jsonPrimitive?.contentOrNull
+        val which = params.optString("which")
             ?.trim()?.lowercase(Locale.US)?.takeIf { s -> s.isNotEmpty() } ?: "latest"
         val dir = context.getDir("crash", Context.MODE_PRIVATE)
         // 快照按时间归档（crash-<时间戳>.txt），取修改时间最新的几份；which=latest/1/2 依次新→旧
@@ -242,7 +241,7 @@ internal fun perfPayload(context: Context): String {
  * PROCESS_START 且原因为「疑似被系统杀死」，说明是进程级回收而非界面问题。
  */
 internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String {
-        val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 60).coerceIn(1, 500)
+        val lines = (params.optInt("lines") ?: 60).coerceIn(1, 500)
         val raw =
             me.rerere.rikkahub.data.log.FileLogSink.recentLines(
                 me.rerere.rikkahub.data.log.FileLogSink.KIND_LIFECYCLE,
@@ -256,7 +255,7 @@ internal fun lifecycleLogsPayload(context: Context, params: JsonObject): String 
  * 只含 I/W/E 级（D 级按设计不落盘）。支持 `lines`（尾部行数，默认 200，最大 2000）与 `keyword` 过滤。
  */
 internal fun fileLogsPayload(context: Context, params: JsonObject): String {
-    val level = params["level"]?.jsonPrimitive?.contentOrNull?.trim()?.uppercase(Locale.US)?.take(1)
+    val level = params.optString("level")?.trim()?.uppercase(Locale.US)?.take(1)
     val kind =
         if (level == "D") {
             me.rerere.rikkahub.data.log.FileLogSink.KIND_SSE
@@ -264,9 +263,9 @@ internal fun fileLogsPayload(context: Context, params: JsonObject): String {
             me.rerere.rikkahub.data.log.FileLogSink.KIND_APP
         }
     val maxDays = if (kind == me.rerere.rikkahub.data.log.FileLogSink.KIND_SSE) 1 else 7
-    val lines = (params["lines"]?.jsonPrimitive?.intOrNull ?: 200).coerceIn(1, 2000)
-    val days = (params["days"]?.jsonPrimitive?.intOrNull ?: maxDays).coerceIn(1, maxDays)
-    val keyword = params["keyword"]?.jsonPrimitive?.contentOrNull?.trim().orEmpty()
+    val lines = (params.optInt("lines") ?: 200).coerceIn(1, 2000)
+    val days = (params.optInt("days") ?: maxDays).coerceIn(1, maxDays)
+    val keyword = params.optString("keyword")?.trim().orEmpty()
     val raw =
         me.rerere.rikkahub.data.log.FileLogSink.recentLines(
             kind,

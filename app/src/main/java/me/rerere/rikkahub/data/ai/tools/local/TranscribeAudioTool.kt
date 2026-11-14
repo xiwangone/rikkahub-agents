@@ -4,14 +4,13 @@ import android.content.Context
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
@@ -81,8 +80,8 @@ fun transcribeAudioFileTool(context: Context): Tool = Tool(
     needsApproval = { true },
     execute = { input ->
         val params = input.jsonObject
-        val rawPath = params["path"]?.jsonPrimitive?.contentOrNull
-        val language = params["language"]?.jsonPrimitive?.contentOrNull
+        val rawPath = params.optString("path")
+        val language = params.optString("language")
             ?.takeIf { it.isNotBlank() && it != "auto" }
 
         // --- 1. Path required ---

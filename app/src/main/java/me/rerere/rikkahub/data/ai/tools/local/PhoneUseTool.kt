@@ -15,11 +15,11 @@ import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.phoneuse.PhoneController
 import me.rerere.rikkahub.phoneuse.PhoneElement
 import me.rerere.rikkahub.phoneuse.PhoneKey
@@ -43,13 +43,21 @@ private const val LONG_PRESS_MS = 700L
 private const val SWIPE_MS = 350L
 private const val SCREENSHOT_MAX_SIDE = 1568
 
+// wait_for 轮询间隔：captureScreen 要遍历整棵无障碍树，500ms 兼顾响应速度和开销
+private const val WAIT_FOR_POLL_MS = 500L
+// wait_for 默认等 10 秒：冷启动/页面加载一般 2–5 秒，留有余量；单次调用不宜拖太久，模型可重复调用
+private const val WAIT_FOR_DEFAULT_SECONDS = 10.0
+// wait_for 单次上限 60 秒：再长就该由模型分多次调用，免得一次调用占住整个会话
+private const val WAIT_FOR_MAX_SECONDS = 60.0
+
 private val ACTIONS = listOf(
     "observe", "screenshot", "tap", "long_press", "swipe", "scroll", "type", "press", "open_app", "list_apps", "wait",
+    "wake", "wait_for",
 )
 
 /** 悬浮窗和通知里显示当前在做哪个动作；参数还在流式输出时解析不出来，返回 null */
 fun phoneUseActionOf(input: String): String? = runCatching {
-    Json.parseToJsonElement(input).jsonObject["action"]?.jsonPrimitive?.contentOrNull
+    Json.parseToJsonElement(input).jsonObject.optString("action")
 }.getOrNull()
 
 /**
@@ -68,6 +76,7 @@ internal fun buildPhoneUseTool(
         description = """
             Operate the user's Android phone: read the screen, tap, swipe, type and open apps.
             Workflow: open_app (or press home) first, then observe to get the on-screen elements, then act.
+            If the screen is off, wake it first. Use wait_for to wait for specific text to appear instead of polling with observe.
             Every action that changes the screen returns the new element list, so you rarely need to call observe again.
             Prefer targeting elements by their index from the latest element list; indexes are only valid for that list.
             Coordinates are on a $GRID x $GRID grid: (0,0) is the top-left of the screen and ($GRID,$GRID) the bottom-right,
@@ -95,7 +104,10 @@ internal fun buildPhoneUseTool(
                                 "scroll: scroll the content in 'direction', optionally inside 'element'. " +
                                 "type: replace the text of an input field ('element', or the focused field) with 'text'. " +
                                 "press: press 'key'. open_app: launch an app by 'app' (name or package). " +
-                                "list_apps: list installed apps. wait: wait 'seconds' for loading."
+                                "list_apps: list installed apps. wait: wait 'seconds' for loading. " +
+                                "wake: turn the screen on and wait until it lights up (unlocking with PIN/biometrics is up to the user). " +
+                                "wait_for: wait until 'text' appears on screen ('seconds' timeout, default 10, up to 60); " +
+                                "returns found=true/false with elapsed_ms, then the current screen."
                         )
                     })
                     put("element", buildJsonObject {
@@ -111,7 +123,7 @@ internal fun buildPhoneUseTool(
                         put("enum", buildJsonArray { listOf("up", "down", "left", "right").forEach { add(it) } })
                         put("description", "For scroll: 'down' reveals content further down the page")
                     })
-                    put("text", buildJsonObject { put("type", "string"); put("description", "Text for type") })
+                    put("text", buildJsonObject { put("type", "string"); put("description", "Text for type, or the text to wait for with wait_for") })
                     put("submit", buildJsonObject {
                         put("type", "boolean")
                         put("description", "For type: press enter afterwards (search, send)")
@@ -124,7 +136,7 @@ internal fun buildPhoneUseTool(
                         put("type", "string")
                         put("description", "App name or package name for open_app")
                     })
-                    put("seconds", buildJsonObject { put("type", "number"); put("description", "For wait, up to 10") })
+                    put("seconds", buildJsonObject { put("type", "number"); put("description", "For wait (up to 10) and wait_for (default 10, up to 60)") })
                 },
                 required = listOf("action"),
             )
@@ -165,6 +177,10 @@ private class PhoneUseSession(
             "open_app" -> openApp(controller, params)
 
             "wait" -> waitAndDescribe(controller, params)
+
+            "wake" -> wake(controller)
+
+            "wait_for" -> waitForText(controller, params)
 
             "press" -> press(controller, params)
 
@@ -207,6 +223,50 @@ private class PhoneUseSession(
     private suspend fun waitAndDescribe(controller: PhoneController, params: JsonObject): List<UIMessagePart> {
         delay(((params.number("seconds") ?: 2.0).coerceIn(0.5, 10.0) * 1000).toLong())
         return text(describeCurrent(controller))
+    }
+
+    /** 亮屏：屏幕关着时没有界面可读，不走 ensureOperable；唤醒后才读界面 */
+    private suspend fun wake(controller: PhoneController): List<UIMessagePart> {
+        val result = controller.wakeUp()
+        if (result.wasOff && !result.woke) {
+            return text(
+                "wake failed: the screen stayed off after 5 seconds. " +
+                    "Ask the user to press the power button."
+            )
+        }
+        val state = if (result.wasOff) "Screen woken." else "Screen is already on."
+        val keyguard = when {
+            result.keyguardLocked && result.keyguardSecure ->
+                " Keyguard is PIN/biometric-protected; the user must unlock the device before anything on screen can be operated."
+            result.keyguardLocked ->
+                " Keyguard is locked; ask the user to unlock it first."
+            else -> ""
+        }
+        return text("$state$keyguard\n" + describeCurrent(controller))
+    }
+
+    /**
+     * 轮询无障碍树等指定文本出现；首行是结构化结果，模型可以直接拿 found/elapsed_ms 做判断。
+     * elapsed_ms 按轮询步数计（500ms 一步），与虚拟时钟的单测一致，也免得墙钟抖动。
+     */
+    private suspend fun waitForText(controller: PhoneController, params: JsonObject): List<UIMessagePart> {
+        ensureOperable(controller)
+        val wanted = params.string("text")?.takeIf { it.isNotBlank() } ?: error("text is required")
+        val timeoutMs = ((params.number("seconds") ?: WAIT_FOR_DEFAULT_SECONDS)
+            .coerceIn(1.0, WAIT_FOR_MAX_SECONDS) * 1000).toLong()
+        var elapsedMs = 0L
+        while (true) {
+            val screen = capture(controller)
+            screen.packages.blocked()?.let { error(blockedMessage(it)) }
+            if (screen.elements.any { it.label.contains(wanted, ignoreCase = true) }) {
+                return text("wait_for \"$wanted\": found=true, elapsed_ms=$elapsedMs\n" + describe(screen))
+            }
+            if (elapsedMs >= timeoutMs) {
+                return text("wait_for \"$wanted\": found=false, elapsed_ms=$elapsedMs (timeout)\n" + describe(screen))
+            }
+            delay(WAIT_FOR_POLL_MS)
+            elapsedMs = (elapsedMs + WAIT_FOR_POLL_MS).coerceAtMost(timeoutMs)
+        }
     }
 
     private suspend fun press(controller: PhoneController, params: JsonObject): List<UIMessagePart> {

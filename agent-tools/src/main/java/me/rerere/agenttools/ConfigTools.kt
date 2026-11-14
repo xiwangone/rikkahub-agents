@@ -5,9 +5,7 @@ import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import kotlinx.coroutines.sync.Mutex
@@ -15,6 +13,7 @@ import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.common.log.AppLogger
 import java.io.IOException
 import java.util.UUID
@@ -164,8 +163,8 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
 
     suspend fun revert(key: String): JsonObject {
         val lastSet = readAudit().asReversed().firstOrNull {
-            it["key"]?.jsonPrimitive?.contentOrNull == key &&
-                it["action"]?.jsonPrimitive?.contentOrNull == "set"
+            it.optString("key") == key &&
+                it.optString("action") == "set"
         }
         val current = load().toMutableMap()
         val existed = current.containsKey(key)
@@ -346,10 +345,10 @@ private fun createSetTool(store: ConfigStore, needsApproval: (String) -> Boolean
     needsApproval = { needsApproval("config_set") },
     execute = {
         val params = it.jsonObject
-        val key = params["key"]?.jsonPrimitive?.contentOrNull ?: error("key is required")
+        val key = params.optString("key") ?: error("key is required")
         require(key.isNotBlank()) { "key must not be blank" }
-        val valueJson = params["value"]?.jsonPrimitive?.contentOrNull ?: error("value is required")
-        val note = params["note"]?.jsonPrimitive?.contentOrNull
+        val valueJson = params.optString("value") ?: error("value is required")
+        val note = params.optString("note")
         listOf(UIMessagePart.Text(store.set(key, valueJson, note).toString()))
     },
 )
@@ -371,7 +370,7 @@ private fun createRevertTool(store: ConfigStore, needsApproval: (String) -> Bool
     },
     needsApproval = { needsApproval("config_revert") },
     execute = {
-        val key = it.jsonObject["key"]?.jsonPrimitive?.contentOrNull ?: error("key is required")
+        val key = it.jsonObject.optString("key") ?: error("key is required")
         listOf(UIMessagePart.Text(store.revert(key).toString()))
     },
 )

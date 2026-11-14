@@ -4,14 +4,13 @@ import android.accessibilityservice.AccessibilityService
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -51,7 +50,7 @@ fun globalActionTool(
     execute = { input ->
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
-        val action = input.jsonObject["action"]?.jsonPrimitive?.contentOrNull
+        val action = input.jsonObject.optString("action")
         val code = action?.let { ACTION_MAP[it] }
         if (action == null || code == null) {
             return@Tool listOf(

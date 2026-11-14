@@ -1,10 +1,9 @@
 package me.rerere.rikkahub.skills
 
+import me.rerere.common.http.optString
 import kotlinx.coroutines.flow.first
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.core.InputSchema
@@ -164,9 +163,9 @@ fun skillInstallFromUrlTool(
     },
     needsApproval = { true },
     execute = { json ->
-        val url = json.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+        val url = json.jsonObject.optString("url")
             ?: return@Tool err("missing_url", "url is required")
-        val override = json.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val override = json.jsonObject.optString("name")?.takeIf { it.isNotBlank() }
         val namesBeforeInstall = existingSkillNames(skillManager)
         when (val r = importer.importFromUrl(url, override)) {
             is SkillUrlImporter.Result.Err -> err(r.code, r.detail)
@@ -240,10 +239,10 @@ fun skillInstallFromTextTool(
     },
     needsApproval = { true },
     execute = { json ->
-        val content = json.jsonObject["content"]?.jsonPrimitive?.contentOrNull
+        val content = json.jsonObject.optString("content")
             ?: return@Tool err("missing_content", "content is required")
-        val sourceLabel = json.jsonObject["source_label"]?.jsonPrimitive?.contentOrNull
-        val override = json.jsonObject["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val sourceLabel = json.jsonObject.optString("source_label")
+        val override = json.jsonObject.optString("name")?.takeIf { it.isNotBlank() }
         val namesBeforeInstall = existingSkillNames(skillManager)
         when (val r = importer.importFromText(content, sourceLabel, override)) {
             is SkillUrlImporter.Result.Err -> err(r.code, r.detail)

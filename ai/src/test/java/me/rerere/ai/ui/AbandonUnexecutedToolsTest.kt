@@ -1,7 +1,13 @@
 package me.rerere.ai.ui
 
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.agent.ToolErrorEnvelope
 import me.rerere.ai.core.MessageRole
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -150,5 +156,107 @@ class AbandonUnexecutedToolsTest {
         assertEquals(2, tools.size)
         assertEquals(ToolApprovalState.Denied(unknownReason), tools[0].approvalState)
         assertEquals(ToolApprovalState.Denied(reason), tools[1].approvalState)
+    }
+
+    // ===== v2 信封形状：合成输出必须走 ToolErrorEnvelope，不再产扁平形状 =====
+
+    private fun envelopeOf(tool: UIMessagePart.Tool): JsonObject {
+        val text = (tool.output.single() as UIMessagePart.Text).text
+        return Json.parseToJsonElement(text).jsonObject
+    }
+
+    private fun assertInterruptedEnvelope(
+        env: JsonObject,
+        recovery: String,
+        messageContains: String,
+    ) {
+        assertEquals(ToolErrorEnvelope.REQUEST_CANCELLED, env["code"]!!.jsonPrimitive.content.toInt())
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains(messageContains))
+        val data = env["data"]!!.jsonObject
+        assertEquals("interrupted", data["error"]!!.jsonPrimitive.content)
+        assertEquals(recovery, data["recovery"]!!.jsonPrimitive.content)
+        assertEquals("interrupted", data["status"]!!.jsonPrimitive.content)
+        assertFalse("must not fall back to the flat shape", "error" in env)
+    }
+
+    @Test
+    fun `unstarted tool output is interrupted envelope with retry recovery`() {
+        val out = after(tool(ToolApprovalState.Auto))
+        assertInterruptedEnvelope(envelopeOf(out), ToolErrorEnvelope.RECOVERY_RETRY, "interrupted_before_execution")
+    }
+
+    @Test
+    fun `interrupted attempt output is interrupted envelope with abort recovery`() {
+        val out = after(tool(ToolApprovalState.Approved, startedAt = 1_700_000_000_000L), unknownReason)
+        assertInterruptedEnvelope(envelopeOf(out), ToolErrorEnvelope.RECOVERY_ABORT, "interrupted_unknown_outcome")
+    }
+
+    // ===== 已是终态 Denied：保留原理由，只补拒绝信封 =====
+
+    @Test
+    fun `already denied tool keeps its reason and gets permission_denied envelope`() {
+        val out = after(tool(ToolApprovalState.Denied("user said no")))
+        assertEquals(ToolApprovalState.Denied("user said no"), out.approvalState)
+        assertTrue(out.isExecuted)
+        val env = envelopeOf(out)
+        assertEquals(ToolErrorEnvelope.SERVER_ERROR, env["code"]!!.jsonPrimitive.content.toInt())
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("denied by user"))
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("user said no"))
+        val data = env["data"]!!.jsonObject
+        assertEquals("permission_denied", data["error"]!!.jsonPrimitive.content)
+        assertEquals(ToolErrorEnvelope.RECOVERY_ABORT, data["recovery"]!!.jsonPrimitive.content)
+        assertFalse("denied fork must not carry the interrupted status", "status" in data)
+    }
+
+    @Test
+    fun `already denied tool with blank reason gets default reason text`() {
+        val out = after(tool(ToolApprovalState.Denied("")))
+        assertEquals(ToolApprovalState.Denied(""), out.approvalState)
+        val env = envelopeOf(out)
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("No reason provided"))
+    }
+
+    @Test
+    fun `already denied interrupted attempt keeps unknown-outcome envelope`() {
+        val out = after(tool(ToolApprovalState.Denied(unknownReason), startedAt = 1_700_000_000_000L), unknownReason)
+        assertEquals(ToolApprovalState.Denied(unknownReason), out.approvalState)
+        assertInterruptedEnvelope(envelopeOf(out), ToolErrorEnvelope.RECOVERY_ABORT, "interrupted_unknown_outcome")
+    }
+
+    @Test
+    fun `already denied hardline tool gets hardline_blocked envelope without marker`() {
+        // 去标记变换由调用方（app 侧）传入；此处用与 HardlineCommandGuard.modelFacingReason
+        // 同契约的 lambda：只去认得的标记，其余原样返回。
+        val stripMarker: (String) -> String = { text ->
+            if (text.startsWith("hardline-ui:v1:")) text.substringAfter('|') else text
+        }
+        val message = UIMessage(
+            role = MessageRole.ASSISTANT,
+            parts = listOf(
+                tool(ToolApprovalState.Denied("hardline-ui:v1:root_filesystem_delete|blocked by safety floor")),
+            ),
+        )
+        val updated = message.abandonUnexecutedTools(reason, unknownReason, stripMarker)
+        val out = updated.parts.filterIsInstance<UIMessagePart.Tool>().single()
+        assertEquals(
+            ToolApprovalState.Denied("hardline-ui:v1:root_filesystem_delete|blocked by safety floor"),
+            out.approvalState,
+        )
+        val env = envelopeOf(out)
+        assertEquals(ToolErrorEnvelope.SERVER_ERROR, env["code"]!!.jsonPrimitive.content.toInt())
+        assertEquals("blocked by safety floor", env["message"]!!.jsonPrimitive.content)
+        assertFalse(env["message"]!!.jsonPrimitive.content.contains("hardline-ui:v1:"))
+        val data = env["data"]!!.jsonObject
+        assertEquals("hardline_blocked", data["error"]!!.jsonPrimitive.content)
+        assertEquals(ToolErrorEnvelope.RECOVERY_ABORT, data["recovery"]!!.jsonPrimitive.content)
+    }
+
+    @Test
+    fun `hardline marker stays a plain denial without the transform`() {
+        // 默认变换是 identity：ai 侧不知道标记格式，不去也不认，退回 permission_denied。
+        val out = after(tool(ToolApprovalState.Denied("hardline-ui:v1:root_filesystem_delete|blocked by safety floor")))
+        val env = envelopeOf(out)
+        assertEquals("permission_denied", env["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
+        assertTrue(env["message"]!!.jsonPrimitive.content.contains("hardline-ui:v1:"))
     }
 }

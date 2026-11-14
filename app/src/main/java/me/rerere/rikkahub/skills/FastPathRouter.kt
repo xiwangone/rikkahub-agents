@@ -1,9 +1,11 @@
 package me.rerere.rikkahub.skills
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optLong
+import me.rerere.common.http.optString
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
 /**
@@ -74,8 +76,8 @@ object FastPathRouter {
                     args = buildJsonObject { put("kind", "battery") },
                     format = { result ->
                         // device_info(kind = battery) emits "percent" + "charging".
-                        val pct = result["percent"]?.jsonPrimitive?.contentOrNull ?: "?"
-                        val charging = result["charging"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
+                        val pct = result.optString("percent") ?: "?"
+                        val charging = result.optBoolean("charging") ?: false
                         if (charging) "Battery is at $pct% and charging."
                         else "Battery is at $pct%."
                     },
@@ -92,9 +94,9 @@ object FastPathRouter {
                     toolName = "get_time_info",
                     args = buildJsonObject { },
                     format = { result ->
-                        val t = result["time"]?.jsonPrimitive?.contentOrNull ?: "?"
-                        val d = result["date"]?.jsonPrimitive?.contentOrNull ?: ""
-                        val wd = result["weekday"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val t = result.optString("time") ?: "?"
+                        val d = result.optString("date") ?: ""
+                        val wd = result.optString("weekday") ?: ""
                         if (d.isNotBlank() && wd.isNotBlank()) "It's $t on $wd, $d."
                         else "It's $t."
                     },
@@ -110,8 +112,8 @@ object FastPathRouter {
                     toolName = "get_time_info",
                     args = buildJsonObject { },
                     format = { result ->
-                        val d = result["date"]?.jsonPrimitive?.contentOrNull ?: "?"
-                        val wd = result["weekday"]?.jsonPrimitive?.contentOrNull ?: ""
+                        val d = result.optString("date") ?: "?"
+                        val wd = result.optString("weekday") ?: ""
                         if (wd.isNotBlank()) "Today is $wd, $d." else "Today is $d."
                     },
                 )
@@ -129,8 +131,8 @@ object FastPathRouter {
                     format = { result ->
                         // device_info(kind = storage) nests under "internal": { total_bytes, free_bytes }.
                         val internal = result["internal"] as? JsonObject
-                        val freeBytes = internal?.get("free_bytes")?.jsonPrimitive?.contentOrNull?.toLongOrNull()
-                        val totalBytes = internal?.get("total_bytes")?.jsonPrimitive?.contentOrNull?.toLongOrNull()
+                        val freeBytes = internal?.optLong("free_bytes")
+                        val totalBytes = internal?.optLong("total_bytes")
                         val gb = 1024.0 * 1024 * 1024
                         val freeGb = freeBytes?.let { it / gb } ?: 0.0
                         val totalGb = totalBytes?.let { it / gb } ?: 0.0
@@ -155,9 +157,9 @@ object FastPathRouter {
                     format = { result ->
                         // device_info(kind = wifi) emits "connected" + (when connected) "ssid".
                         // The "error" branch (no permission / no service) returns just an error key.
-                        val err = result["error"]?.jsonPrimitive?.contentOrNull
-                        val ssid = result["ssid"]?.jsonPrimitive?.contentOrNull
-                        val connected = result["connected"]?.jsonPrimitive?.contentOrNull?.toBoolean() ?: false
+                        val err = result.optString("error")
+                        val ssid = result.optString("ssid")
+                        val connected = result.optBoolean("connected") ?: false
                         when {
                             err != null -> "WiFi info unavailable: $err."
                             !connected -> "WiFi is off or not connected."
@@ -179,11 +181,11 @@ object FastPathRouter {
                     args = buildJsonObject { },
                     format = { result ->
                         val items = result["items"]
-                        val count = result["count"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0
+                        val count = result.optInt("count") ?: 0
                         if (count == 0) "No workflows configured."
                         else {
                             val arr = (items as? kotlinx.serialization.json.JsonArray)
-                            val names = arr?.mapNotNull { (it as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull }.orEmpty()
+                            val names = arr?.mapNotNull { (it as? JsonObject)?.optString("name") }.orEmpty()
                             if (names.isEmpty()) "$count workflow(s) configured."
                             else "$count workflow(s): " + names.joinToString(", ") + "."
                         }

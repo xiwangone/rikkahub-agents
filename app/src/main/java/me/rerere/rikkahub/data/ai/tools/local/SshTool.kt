@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.SshPlatform
@@ -21,9 +23,7 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -183,12 +183,12 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
     },
     execute = {
         val p = it.jsonObject
-        val host = p["host"]?.jsonPrimitive?.contentOrNull ?: error("host is required")
-        val user = p["user"]?.jsonPrimitive?.contentOrNull ?: error("user is required")
+        val host = p.optString("host") ?: error("host is required")
+        val user = p.optString("user") ?: error("user is required")
         // command / commands 二选一（可同给，commands 追加在 command 之后），合并成一次连接里的单条脚本
         val command =
             run {
-                val single = p["command"]?.jsonPrimitive?.contentOrNull
+                val single = p.optString("command")
                 val batch: List<String> =
                     (p["commands"] as? kotlinx.serialization.json.JsonArray)
                         ?.mapNotNull { (it as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull }
@@ -197,15 +197,15 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
                 if (joined.isBlank()) error("command or commands is required")
                 joined
             }
-        val port = p["port"]?.jsonPrimitive?.intOrNull ?: 22
-        val stdin = p["stdin"]?.jsonPrimitive?.contentOrNull
-        val background = p["background"]?.jsonPrimitive?.contentOrNull?.toBooleanStrictOrNull() ?: false
+        val port = p.optInt("port") ?: 22
+        val stdin = p.optString("stdin")
+        val background = p.optString("background")?.toBooleanStrictOrNull() ?: false
         val auth = SshAuth(
-            password = p["password"]?.jsonPrimitive?.contentOrNull,
-            privateKey = p["private_key"]?.jsonPrimitive?.contentOrNull,
-            passphrase = p["passphrase"]?.jsonPrimitive?.contentOrNull,
+            password = p.optString("password"),
+            privateKey = p.optString("private_key"),
+            passphrase = p.optString("passphrase"),
         )
-        val timeoutSec = (p["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).coerceIn(1, 300)
+        val timeoutSec = (p.optInt("timeout_seconds") ?: 30).coerceIn(1, 300)
         if (!auth.isUsable()) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password or private_key", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -218,7 +218,7 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         }
         // 平台判定：显式参数 > 落盘缓存（探针结论优先于 banner 结论）> 全局默认设置；
         // 都未命中再退回命令特征
-        val explicitPlatform = p["platform"]?.jsonPrimitive?.contentOrNull?.let { SshPlatform.fromPreference(it) }
+        val explicitPlatform = p.optString("platform")?.let { SshPlatform.fromPreference(it) }
         val knownPlatform = probePreferredWindows(context, host, port, user)
         val globalDefault = settingsStore?.settingsFlow?.value?.defaultSshPlatform
         val resolvedWindows = RemotePlatform.resolveWindows(explicitPlatform, knownPlatform, globalDefault)
@@ -234,7 +234,7 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
         // env_style 未显式指定时用已解析的平台（显式参数/缓存/全局默认）决定默认语法，
         // 仍未解析出来时保持旧默认 Windows。
-        val envStyle = p["env_style"]?.jsonPrimitive?.contentOrNull
+        val envStyle = p.optString("env_style")
         val envWindows = when {
             envStyle.equals("posix", ignoreCase = true) -> false
             envStyle.equals("windows", ignoreCase = true) -> true
@@ -267,6 +267,12 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
  */
 internal suspend fun runCancellableSshOp(
     timeoutMs: Long,
+    /**
+     * 超时/取消时强制关闭会话的钩子：缓存调用方传
+     * `{ sharedSshSessionCache.invalidateSession(it) }`，让缓存条目随会话一起失效；
+     * 不传则原地断开会话（一次性调用方）。
+     */
+    onForceDisconnect: ((Session) -> Unit)? = null,
     block: suspend (sessionRef: AtomicReference<Session?>) -> JsonObject,
 ): JsonObject {
     val sessionRef = AtomicReference<Session?>(null)
@@ -277,7 +283,7 @@ internal suspend fun runCancellableSshOp(
         // Forcibly disconnect the session if it's still open. Safe to call on an already-
         // disconnected session — JSch's Session.disconnect is idempotent.
         sessionRef.getAndSet(null)?.let { s ->
-            try { s.disconnect() } catch (_: Throwable) {}
+            if (onForceDisconnect != null) onForceDisconnect(s) else runCatching { s.disconnect() }
         }
     }
 }
@@ -309,6 +315,13 @@ internal suspend fun execOneShot(
      * 默认关——关时保持原有行为（结构化 host_key_changed 信封，不自动清 key）。
      */
     allowHostKeyRotation: Boolean = false,
+    /**
+     * 短时会话复用开关（B-2）：true 时按 (host, port, user, authHash, jump) 键复用
+     * [SSH_SESSION_CACHE_TTL_MS] 内的已连会话，不再每调用一次就 newJSch + 完整密钥
+     * 交换握手。只给 ssh_exec_saved 开；ssh_exec / ssh_job_poll 等一次性调用方保持
+     * 默认 false。
+     */
+    useSessionCache: Boolean = false,
 ): JsonObject {
     // Stage 1 (suspend): low-level reachability probe in parallel across every transport.
     // JSch's connect timeout fires at the END of the SSH handshake, so when the network is
@@ -330,9 +343,31 @@ internal suspend fun execOneShot(
     // 不能包在 runInterruptible 的非 suspend 块里，故握手先在 suspend 上下文完成。
     // 主机密钥轮换：开关开且报错是 host key 变更时，先清旧 key 再单次重连；
     // 清 key 失败（写不回）则不再重试，直接返回原错误——重连必然同样失败。
+    // 短时会话复用（B-2）：useSessionCache=true 时每次建连都先查缓存，命中直接用，
+    // miss 才握手；host-key 轮换的重试也走同一入口（首连失败不进缓存，重试仍是新握手）。
+    // 返回（连接，建连时用的缓存键）：键只在建连时算一次，未开缓存时为 null。
+    suspend fun connectOnce(): Pair<SshConnection, SshSessionKey?> {
+        val key = if (useSessionCache) {
+            SshSessionKey(host, port, user, auth.cacheFingerprint(), jump?.cacheKeyPart())
+        } else {
+            null
+        }
+        val connection = if (key == null) {
+            connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+        } else {
+            val leased = sharedSshSessionCache.acquire(key, outcome.winningLabel) {
+                connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+            }
+            if (leased.fromCache) {
+                AppLog.i(TAG_SSH, "ssh session reused for $host:$port (cached)")
+            }
+            SshConnection(leased.session, leased.tunnel)
+        }
+        return connection to key
+    }
     val handshakeStart = System.currentTimeMillis()
-    val connection = try {
-        connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+    val (connection, cacheKey) = try {
+        connectOnce()
     } catch (error: Throwable) {
         if (!allowHostKeyRotation || !isHostKeyChange(error.message)) {
             AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", error)
@@ -345,7 +380,7 @@ internal suspend fun execOneShot(
         }
         AppLog.i(TAG_SSH, "host key changed for $host, forgot ${forgotten.totalRemoved} stored key(s), retrying once")
         try {
-            connectSshWithRetry(context, host, port, user, auth, timeoutMs, outcome.winningNetwork, jump, extraOptions)
+            connectOnce()
         } catch (retryError: Throwable) {
             AppLog.w(TAG_SSH, "ssh handshake retry after host key rotation failed in ${System.currentTimeMillis() - handshakeStart}ms", retryError)
             return wrapConnectError(host, retryError)
@@ -379,24 +414,38 @@ internal suspend fun execOneShot(
                 ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
             } finally {
                 sessionRef.set(null)
-                try { session.disconnect() } catch (_: Throwable) {}
-                tunnel?.close()
+                finishSshSession(cacheKey, session, tunnel, keepIfAlive = true)
             }
         }
     } catch (e: Throwable) {
-        // runInterruptible 在块执行前被取消时，块内 finally 没跑：这里断开，避免会话泄漏。
-        // （块已执行时 finally 已断开，重复断开无害。）
+        // runInterruptible 在块执行前被取消时，块内 finally 没跑：这里处理，避免会话泄漏。
+        // 缓存路径一律失效（取消时通道状态未知，丢弃比复用半死会话安全）。
         sessionRef.set(null)
-        runCatching { session.disconnect() }
-        runCatching { tunnel?.close() }
+        finishSshSession(cacheKey, session, tunnel, keepIfAlive = false)
         throw e
     }
 }
 
-private data class SshConnectionResources(
-    val session: com.jcraft.jsch.Session,
-    val tunnel: JumpTunnelProxy?,
-)
+/**
+ * SSH 会话用完的收尾（B-2，缓存与一次性两种路径共用，execOneShot 的 finally 与
+ * 外层 catch 都走这里——把分支收敛到一处，避免 execOneShot 圈复杂度超 20）：
+ * - 开了缓存：keepIfAlive 且会话还活着就归还（滑动 TTL），否则失效，下次调用重建；
+ * - 未开缓存：断开会话并关闭跳板隧道（原地行为不变，close 也包进 runCatching，
+ *   避免关闭失败掩盖执行结果）。
+ */
+private fun finishSshSession(
+    cacheKey: SshSessionKey?,
+    session: Session,
+    tunnel: JumpTunnelProxy?,
+    keepIfAlive: Boolean,
+) {
+    if (cacheKey == null) {
+        runCatching { session.disconnect() }
+        runCatching { tunnel?.close() }
+        return
+    }
+    if (keepIfAlive && session.isConnected) sharedSshSessionCache.release(cacheKey) else sharedSshSessionCache.invalidate(cacheKey, session)
+}
 
 @Suppress("TooGenericExceptionCaught") // JSch and network APIs cross several unchecked/checked failure types; preserve retries without catching cancellation.
 private suspend fun connectSshWithRetry(
@@ -409,7 +458,7 @@ private suspend fun connectSshWithRetry(
     initialNetwork: android.net.Network?,
     jump: JumpSpec?,
     extraOptions: String?,
-): SshConnectionResources {
+): SshConnection {
     val jsch = newJSch(context)
     var attempt = 0
     while (attempt < 2) {
@@ -455,7 +504,7 @@ private fun connectSingleSshAttempt(
     network: android.net.Network?,
     jump: JumpSpec?,
     extraOptions: String?,
-): SshConnectionResources {
+): SshConnection {
     var tunnel: JumpTunnelProxy? = null
     var session: com.jcraft.jsch.Session? = null
     var keepResources = false
@@ -489,7 +538,7 @@ private fun connectSingleSshAttempt(
         session = connected
         // 跳板目标的握手在重试循环里单独做（suspend 看门狗），这里只建会话、不连接。
         keepResources = true
-        return SshConnectionResources(connected, tunnel)
+        return SshConnection(connected, tunnel)
     } finally {
         if (!keepResources) {
             runCatching { session?.disconnect() }

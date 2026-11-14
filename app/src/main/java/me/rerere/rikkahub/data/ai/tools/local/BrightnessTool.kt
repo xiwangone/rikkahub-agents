@@ -3,13 +3,12 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.provider.Settings
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -68,7 +67,7 @@ fun setBrightnessTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val raw = params["value"]?.jsonPrimitive?.intOrNull
+        val raw = params.optInt("value")
             ?: error("value is required")
         if (!PermissionHelper.hasWriteSettings(context)) {
             return@Tool listOf(

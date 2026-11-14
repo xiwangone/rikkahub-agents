@@ -13,14 +13,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG_LOC = "LocationTool"
@@ -67,14 +66,14 @@ fun locationTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val params = input.jsonObject
-        val accuracyStr = params["accuracy"]?.jsonPrimitive?.contentOrNull ?: "balanced"
+        val accuracyStr = params.optString("accuracy") ?: "balanced"
         val priority = when (accuracyStr) {
             "high" -> Priority.PRIORITY_HIGH_ACCURACY
             "balanced" -> Priority.PRIORITY_BALANCED_POWER_ACCURACY
             "low" -> Priority.PRIORITY_LOW_POWER
             else -> null
         }
-        val timeoutMs = (params["timeout_ms"]?.jsonPrimitive?.intOrNull ?: 30000)
+        val timeoutMs = (params.optInt("timeout_ms") ?: 30000)
             .coerceIn(1000, 60000)
 
         val payload: JsonObject = when {

@@ -2,6 +2,7 @@
 #include <android/log.h>
 #include <errno.h>
 #include <fcntl.h>
+#include <signal.h>
 #include <stdlib.h>
 #include <string.h>
 #include <sys/ioctl.h>
@@ -117,6 +118,14 @@ Java_com_termux_terminal_JNI_createSubprocess(
             chdir(working_dir);
         }
 
+        // execve 不重置 fork 继承来的信号掩码：父进程阻塞的信号在子进程
+        // 里同样收不到，子进程启动的 shell 及其后代都会受影响。
+        // 恢复空掩码，让子进程按默认掩码启动；sigprocmask 是
+        // async-signal-safe，fork 后 exec 前调用安全。
+        sigset_t empty_mask;
+        sigemptyset(&empty_mask);
+        sigprocmask(SIG_SETMASK, &empty_mask, nullptr);
+
         execve(command, argv.data(), java_env.data());
         _exit(127);
     }
@@ -144,7 +153,14 @@ Java_com_termux_terminal_JNI_setPtyWindowSize(JNIEnv *, jclass, jint fd, jint ro
 extern "C" JNIEXPORT jint JNICALL
 Java_com_termux_terminal_JNI_waitFor(JNIEnv *, jclass, jint pid) {
     int status = 0;
-    if (waitpid(pid, &status, 0) < 0) return -1;
+    // waitpid 可能被信号打断（EINTR），此时子进程未必已退出：
+    // 直接返回 -1 会让调用方误判子进程已死。只在 EINTR 时重试，
+    // 其他错误仍返回 -1。
+    int result;
+    do {
+        result = waitpid(pid, &status, 0);
+    } while (result < 0 && errno == EINTR);
+    if (result < 0) return -1;
     if (WIFEXITED(status)) return WEXITSTATUS(status);
     if (WIFSIGNALED(status)) return 128 + WTERMSIG(status);
     return status;

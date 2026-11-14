@@ -6,9 +6,7 @@ import android.media.MediaRecorder
 import android.os.Build
 import kotlinx.coroutines.delay
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -16,6 +14,7 @@ import me.rerere.ai.ui.UIMessagePart
 import java.io.File
 import java.io.IOException
 import java.util.UUID
+import me.rerere.common.http.optInt
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun micRecorderTool(context: Context): Tool = Tool(
@@ -44,7 +43,7 @@ fun micRecorderTool(context: Context): Tool = Tool(
         }
 
         val params = it.jsonObject
-        val durationMs = (params["duration_ms"]?.jsonPrimitive?.intOrNull ?: 10_000)
+        val durationMs = (params.optInt("duration_ms") ?: 10_000)
             .coerceIn(1_000, 300_000)
 
         val recordingsDir = File(context.cacheDir, "recordings").apply { mkdirs() }

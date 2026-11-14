@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlin.uuid.Uuid
 import kotlinx.serialization.json.JsonObject
@@ -11,7 +12,6 @@ import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
@@ -423,7 +423,7 @@ fun deleteJobTool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("id")
             ?: return@Tool textPart(errEnvelope("missing_id", "id is required"))
         scheduler.cancel(id)
         runRepo.deleteAllForJob(id)
@@ -442,7 +442,7 @@ fun pauseJobTool(repo: ScheduledJobRepository, scheduler: CronJobScheduler): Too
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("id")
             ?: return@Tool textPart(errEnvelope("missing_id", "id is required"))
         val job = repo.getById(id)
             ?: return@Tool textPart(errEnvelope("not_found", "no job with id '$id'"))
@@ -462,7 +462,7 @@ fun resumeJobTool(repo: ScheduledJobRepository, scheduler: CronJobScheduler): To
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("id")
             ?: return@Tool textPart(errEnvelope("missing_id", "id is required"))
         val job = repo.getById(id)
             ?: return@Tool textPart(errEnvelope("not_found", "no job with id '$id'"))
@@ -486,7 +486,7 @@ fun triggerJobNowTool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("id")
             ?: return@Tool textPart(errEnvelope("missing_id", "id is required"))
         val job = repo.getById(id)
             ?: return@Tool textPart(errEnvelope("not_found", "no job with id '$id'"))
@@ -519,7 +519,7 @@ fun getJobHistoryTool(
         )
     },
     execute = { input ->
-        val id = input.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = input.jsonObject.optString("id")
             ?: return@Tool textPart(errEnvelope("missing_id", "id is required"))
         repo.getById(id)
             ?: return@Tool textPart(errEnvelope("not_found", "no job with id '$id'"))

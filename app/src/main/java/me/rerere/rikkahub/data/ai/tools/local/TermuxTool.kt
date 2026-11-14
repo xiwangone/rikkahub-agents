@@ -10,16 +10,17 @@ import android.os.Bundle
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.preferences.TermuxDefaults
 import me.rerere.rikkahub.data.preferences.TermuxRuntime
@@ -407,20 +408,20 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val rawCommand = input.jsonObject["command"]?.jsonPrimitive?.contentOrNull
-        val executable = input.jsonObject["executable"]?.jsonPrimitive?.contentOrNull
+        val rawCommand = input.jsonObject.optString("command")
+        val executable = input.jsonObject.optString("executable")
         val argumentsArr = input.jsonObject["arguments"]?.jsonArray
-        val workingDir = input.jsonObject["working_dir"]?.jsonPrimitive?.contentOrNull
+        val workingDir = input.jsonObject.optString("working_dir")
             ?: TermuxRuntime.defaultWorkingDir
-        val interactive = input.jsonObject["interactive"]?.jsonPrimitive?.contentOrNull
+        val interactive = input.jsonObject.optString("interactive")
             ?.toBooleanStrictOrNull() ?: false
-        val background = input.jsonObject["background"]?.jsonPrimitive?.contentOrNull
+        val background = input.jsonObject.optString("background")
             ?.toBooleanStrictOrNull() ?: false
         // Read the user-configured default command timeout at call time. The LLM can override
         // per-call with timeout_seconds (0 = use runtime default, otherwise capped at
         // MAX_COMMAND_TIMEOUT_SECONDS = 600 s, raised from the old 300 s ceiling).
         val configuredTimeoutMs = TermuxRuntime.commandTimeoutMs
-        val rawTimeout = input.jsonObject["timeout_seconds"]?.jsonPrimitive?.intOrNull
+        val rawTimeout = input.jsonObject.optInt("timeout_seconds")
         val timeoutMs = when {
             rawTimeout == null || rawTimeout == 0 -> configuredTimeoutMs
             else -> rawTimeout.coerceIn(1, TermuxDefaults.MAX_COMMAND_TIMEOUT_SECONDS).toLong() * 1000
@@ -486,7 +487,7 @@ fun termuxRunCommandTool(context: Context): Tool = Tool(
             val body = if (background) wrapDetachedCommand(rawCommand) else rawCommand
             "$TERMUX_BIN_DIR/bash" to arrayOf("-c", preamble + body)
         } else {
-            val args = argumentsArr?.mapNotNull { it.jsonPrimitive.contentOrNull }
+            val args = argumentsArr?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
                 ?.toTypedArray()
                 ?: emptyArray()
             executable!! to args

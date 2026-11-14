@@ -2,13 +2,12 @@ package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.shizuku.ShizukuManager
 
@@ -71,7 +70,7 @@ fun appForceStopTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package")
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -97,7 +96,7 @@ fun appDisableTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package")
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -121,7 +120,7 @@ fun appEnableTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package")
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -147,7 +146,7 @@ fun appUninstallTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package")
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -173,7 +172,7 @@ fun appOpsGetTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package")
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -207,9 +206,9 @@ fun appOpsSetTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package"]?.jsonPrimitive?.contentOrNull
-        val op = input.jsonObject["op"]?.jsonPrimitive?.contentOrNull?.uppercase()
-        val mode = input.jsonObject["mode"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        val pkg = input.jsonObject.optString("package")
+        val op = input.jsonObject.optString("op")?.uppercase()
+        val mode = input.jsonObject.optString("mode")?.lowercase()
         if (!validPackage(pkg)) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_package", message = "invalid_package").toString())
         }
@@ -269,8 +268,8 @@ fun settingsGetTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val ns = input.jsonObject["namespace"]?.jsonPrimitive?.contentOrNull?.lowercase()
-        val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
+        val ns = input.jsonObject.optString("namespace")?.lowercase()
+        val key = input.jsonObject.optString("key")
         if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_namespace", message = "invalid_namespace").toString())
         }
@@ -305,9 +304,9 @@ fun settingsPutTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val ns = input.jsonObject["namespace"]?.jsonPrimitive?.contentOrNull?.lowercase()
-        val key = input.jsonObject["key"]?.jsonPrimitive?.contentOrNull
-        val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
+        val ns = input.jsonObject.optString("namespace")?.lowercase()
+        val key = input.jsonObject.optString("key")
+        val value = input.jsonObject.optString("value")
         if (ns == null || ns !in SETTINGS_NS_WHITELIST) {
             return@Tool toolResult(ToolErrors.envelopeFor(error = "invalid_namespace", message = "invalid_namespace").toString())
         }

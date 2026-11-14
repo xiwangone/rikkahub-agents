@@ -4,13 +4,12 @@ import android.Manifest
 import android.content.Context
 import android.telephony.SmsManager
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SmsSendTool"
@@ -66,8 +65,8 @@ fun smsSendTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val recipient = obj["recipient"]?.jsonPrimitive?.contentOrNull
-        val body = obj["body"]?.jsonPrimitive?.contentOrNull
+        val recipient = obj.optString("recipient")
+        val body = obj.optString("body")
         validateSmsArgs(recipient, body)?.let { return@Tool smsErr(it) }
 
         if (!PermissionHelper.hasRuntime(context, listOf(Manifest.permission.SEND_SMS))) {

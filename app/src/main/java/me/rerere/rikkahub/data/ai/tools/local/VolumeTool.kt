@@ -3,14 +3,13 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import android.media.AudioManager
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -43,7 +42,7 @@ fun getVolumeTool(context: Context): Tool = Tool(
     },
     execute = {
         val params = it.jsonObject
-        val name = params["stream"]?.jsonPrimitive?.contentOrNull ?: "media"
+        val name = params.optString("stream") ?: "media"
         val streamInt = streamFor(name)
         if (streamInt == null) {
             return@Tool listOf(
@@ -99,9 +98,9 @@ fun setVolumeTool(
     execute = {
         wakeScreenIfNeeded(context)
         val params = it.jsonObject
-        val name = params["stream"]?.jsonPrimitive?.contentOrNull
+        val name = params.optString("stream")
             ?: error("stream is required")
-        val percentRaw = params["percent"]?.jsonPrimitive?.intOrNull
+        val percentRaw = params.optInt("percent")
             ?: error("percent is required")
         val streamInt = streamFor(name)
         if (streamInt == null) {

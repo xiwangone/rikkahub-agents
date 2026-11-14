@@ -8,14 +8,13 @@ import android.os.Build
 import android.os.Environment
 import android.provider.MediaStore
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.service.ActionLogEntry
 import me.rerere.rikkahub.service.RikkaAccessibilityService
@@ -52,7 +51,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
-        val displayId = input.jsonObject["display_id"]?.jsonPrimitive?.intOrNull ?: 0
+        val displayId = input.jsonObject.optInt("display_id") ?: 0
 
         val outcome = AccessibilityServiceHandle.withService { svc ->
             val cacheDir = File(context.cacheDir, SCREENSHOT_CACHE_DIR).apply { mkdirs() }
@@ -116,7 +115,7 @@ fun takeScreenshotTool(context: Context): Tool = Tool(
         }
 
         val parts = mutableListOf<UIMessagePart>()
-        outcome.jsonObject["file_path"]?.jsonPrimitive?.contentOrNull?.let { fp ->
+        outcome.jsonObject.optString("file_path")?.let { fp ->
             parts.add(UIMessagePart.Image(url = "file://$fp"))
         }
         parts.add(UIMessagePart.Text(outcome.toString()))

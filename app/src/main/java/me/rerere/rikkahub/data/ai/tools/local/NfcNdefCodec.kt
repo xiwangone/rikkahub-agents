@@ -5,12 +5,11 @@ import android.nfc.NdefRecord
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import java.nio.charset.Charset
 import java.util.Base64
+import me.rerere.common.http.optString
 
 /**
  * Phase 25 — NDEF <-> LLM-friendly record JSON codec. Shared by [ToolHostActivity]'s NFC
@@ -67,23 +66,23 @@ object NfcNdefCodec {
         require(records.isNotEmpty()) { "records must not be empty" }
         val ndefRecords = records.map { element ->
             val obj = element.jsonObject
-            when (val kind = obj["kind"]?.jsonPrimitive?.contentOrNull) {
+            when (val kind = obj.optString("kind")) {
                 "text" -> {
-                    val value = obj["value"]?.jsonPrimitive?.contentOrNull
+                    val value = obj.optString("value")
                         ?: error("text record missing value")
                     NdefRecord.createTextRecord(null, value)
                 }
                 "uri" -> {
-                    val value = obj["value"]?.jsonPrimitive?.contentOrNull
+                    val value = obj.optString("value")
                         ?: error("uri record missing value")
                     NdefRecord.createUri(value)
                 }
                 "raw" -> {
-                    val payload = obj["value"]?.jsonPrimitive?.contentOrNull
+                    val payload = obj.optString("value")
                         ?: error("raw record missing value")
-                    val tnf = obj["tnf"]?.jsonPrimitive?.contentOrNull?.toShortOrNull()
+                    val tnf = obj.optString("tnf")?.toShortOrNull()
                         ?: error("raw record missing tnf")
-                    val typeB64 = obj["type_b64"]?.jsonPrimitive?.contentOrNull
+                    val typeB64 = obj.optString("type_b64")
                         ?: error("raw record missing type_b64")
                     NdefRecord(tnf, unb64(typeB64), ByteArray(0), unb64(payload))
                 }

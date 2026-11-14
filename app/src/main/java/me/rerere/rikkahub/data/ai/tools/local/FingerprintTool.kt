@@ -4,16 +4,15 @@ import android.content.Context
 import android.content.Intent
 import androidx.biometric.BiometricManager
 import kotlinx.coroutines.withTimeoutOrNull
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import java.util.UUID
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun fingerprintTool(context: Context, buffer: BiometricResultBuffer): Tool = Tool(
@@ -43,10 +42,10 @@ fun fingerprintTool(context: Context, buffer: BiometricResultBuffer): Tool = Too
     },
     execute = {
         val params = it.jsonObject
-        val title = params["title"]?.jsonPrimitive?.contentOrNull
+        val title = params.optString("title")
             ?: error("title is required")
-        val subtitle = params["subtitle"]?.jsonPrimitive?.contentOrNull
-        val allowDeviceCredential = params["allow_device_credential"]?.jsonPrimitive?.booleanOrNull ?: false
+        val subtitle = params.optString("subtitle")
+        val allowDeviceCredential = params.optBoolean("allow_device_credential") ?: false
 
         val authenticators = if (allowDeviceCredential) {
             BiometricManager.Authenticators.BIOMETRIC_STRONG or

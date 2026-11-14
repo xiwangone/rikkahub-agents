@@ -10,14 +10,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import kotlin.time.Duration.Companion.milliseconds
+import me.rerere.common.http.optString
 
 internal fun buildJavascriptTool(): Tool = Tool(
     name = "eval_javascript",
@@ -41,7 +40,7 @@ internal fun buildJavascriptTool(): Tool = Tool(
         )
     },
     execute = {
-        val code = requireNotNull(it.jsonObject["code"]?.jsonPrimitive?.contentOrNull) {
+        val code = requireNotNull(it.jsonObject.optString("code")) {
             "JavaScript code is required"
         }
         listOf(UIMessagePart.Text(evaluateJavascript(code)))

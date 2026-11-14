@@ -161,4 +161,36 @@ class FastPathRouterTest {
         val offline = m.format!!(parse("""{"connected":false}"""))
         assertEquals("WiFi is off or not connected.", offline)
     }
+
+    @Test fun `battery format accepts string numbers and string booleans`() {
+        val m = FastPathRouter.route("battery")!!
+        // Model-supplied string forms ("67" / "true") must read the same as native values.
+        val out = m.format!!(parse("""{"percent":"67","charging":"true"}"""))
+        assertEquals("Battery is at 67% and charging.", out)
+    }
+
+    @Test fun `battery format does not throw on a non-primitive percent node`() {
+        val m = FastPathRouter.route("battery")!!
+        val out = m.format!!(parse("""{"percent":{"v":67},"charging":false}"""))
+        assertEquals("Battery is at ?%.", out)
+    }
+
+    @Test fun `storage format accepts string byte counts`() {
+        val m = FastPathRouter.route("storage")!!
+        val raw = """{"internal":{"total_bytes":"${64L * 1024 * 1024 * 1024}","free_bytes":"${16L * 1024 * 1024 * 1024}"}}"""
+        val out = m.format!!(parse(raw))
+        assertTrue("expected '16.0 GB free of 64.0 GB.', got '$out'", out.contains("16.0 GB free") && out.contains("64.0 GB"))
+    }
+
+    @Test fun `wifi format accepts a string connected flag`() {
+        val m = FastPathRouter.route("wifi")!!
+        val out = m.format!!(parse("""{"connected":"true","ssid":"HomeNet"}"""))
+        assertEquals("Connected to HomeNet.", out)
+    }
+
+    @Test fun `list workflows format accepts a string count`() {
+        val m = FastPathRouter.route("list workflows")!!
+        val out = m.format!!(parse("""{"count":"2","items":[{"name":"a"},{"name":"b"}]}"""))
+        assertEquals("2 workflow(s): a, b.", out)
+    }
 }

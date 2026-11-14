@@ -5,13 +5,12 @@ import android.graphics.BitmapFactory
 import android.webkit.MimeTypeMap
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import java.io.File
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
@@ -59,7 +58,7 @@ fun showImageTool(
         )
     },
     execute = { input ->
-        val rawPath = input.jsonObject["path"]?.jsonPrimitive?.contentOrNull
+        val rawPath = input.jsonObject.optString("path")
         if (rawPath.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "missing_path", message = "path is required").toString()

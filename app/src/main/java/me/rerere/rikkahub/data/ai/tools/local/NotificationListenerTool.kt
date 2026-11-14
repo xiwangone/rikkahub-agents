@@ -4,15 +4,14 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
-import kotlinx.serialization.json.longOrNull
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optLong
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.notifications.NotificationEntry
 import me.rerere.rikkahub.data.notifications.NotificationListenerPreferences
@@ -58,9 +57,9 @@ fun listRecentNotificationsTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val limit = input.jsonObject["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 100) ?: 50
-        val pkgNeedle = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull?.lowercase()
-        val sinceMs = input.jsonObject["since_unix_ms"]?.jsonPrimitive?.longOrNull ?: 0L
+        val limit = input.jsonObject.optInt("limit")?.coerceIn(1, 100) ?: 50
+        val pkgNeedle = input.jsonObject.optString("package_name")?.lowercase()
+        val sinceMs = input.jsonObject.optLong("since_unix_ms") ?: 0L
 
         val payload = NotificationListenerHandle.withListener { svc ->
             val all = svc.recent.value
@@ -104,9 +103,9 @@ fun listActiveNotificationsTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val limit = input.jsonObject["limit"]?.jsonPrimitive?.intOrNull?.coerceIn(1, 100) ?: 50
-        val pkgNeedle = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull?.lowercase()
-        val sinceMs = input.jsonObject["since_unix_ms"]?.jsonPrimitive?.longOrNull ?: 0L
+        val limit = input.jsonObject.optInt("limit")?.coerceIn(1, 100) ?: 50
+        val pkgNeedle = input.jsonObject.optString("package_name")?.lowercase()
+        val sinceMs = input.jsonObject.optLong("since_unix_ms") ?: 0L
         val payload = NotificationListenerHandle.withListener { svc ->
             val all = svc.listActive()
             val filtered = all.asSequence()
@@ -146,7 +145,7 @@ fun dismissNotificationTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val key = input.jsonObject["notification_key"]?.jsonPrimitive?.contentOrNull
+        val key = input.jsonObject.optString("notification_key")
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -192,9 +191,9 @@ fun notificationActionClickTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val key = input.jsonObject["notification_key"]?.jsonPrimitive?.contentOrNull
-        val idx = input.jsonObject["action_index"]?.jsonPrimitive?.intOrNull
-        val title = input.jsonObject["action_title"]?.jsonPrimitive?.contentOrNull
+        val key = input.jsonObject.optString("notification_key")
+        val idx = input.jsonObject.optInt("action_index")
+        val title = input.jsonObject.optString("action_title")
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -248,8 +247,8 @@ fun notificationReplyTool(): Tool = Tool(
         )
     },
     execute = { input ->
-        val key = input.jsonObject["notification_key"]?.jsonPrimitive?.contentOrNull
-        val text = input.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+        val key = input.jsonObject.optString("notification_key")
+        val text = input.jsonObject.optString("text")
         if (key.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(

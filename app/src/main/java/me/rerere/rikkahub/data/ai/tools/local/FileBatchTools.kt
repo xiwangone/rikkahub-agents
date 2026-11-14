@@ -1,19 +1,20 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import java.io.File
 import java.io.IOException
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optString
 
 // ============================================================
 //  Batch file operations (Phase enhancement item 5.5)
@@ -34,7 +35,7 @@ private const val BATCH_PATH_CAP = 500
  */
 private fun resolveBatchSources(obj: JsonObject): Result<List<String>> {
     val explicit = obj["paths"]?.jsonArray
-        ?.mapNotNull { it.jsonPrimitive.contentOrNull?.takeIf { s -> s.isNotBlank() } }
+        ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull?.takeIf { s -> s.isNotBlank() } }
     if (!explicit.isNullOrEmpty()) {
         if (explicit.size > BATCH_PATH_CAP) {
             return Result.failure(
@@ -43,9 +44,9 @@ private fun resolveBatchSources(obj: JsonObject): Result<List<String>> {
         }
         return Result.success(explicit.map(AgentWorkspace::expand))
     }
-    val root = obj["root"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    val root = obj.optString("root")?.takeIf { it.isNotBlank() }
         ?.let(AgentWorkspace::expand)
-    val pattern = obj["pattern"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    val pattern = obj.optString("pattern")?.takeIf { it.isNotBlank() }
     if (root == null || pattern == null) {
         return Result.failure(
             IllegalArgumentException("provide either paths (list) or root + pattern (glob)")
@@ -117,11 +118,11 @@ fun batchCopyTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val dstDir = obj["dst_dir"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val dstDir = obj.optString("dst_dir")?.takeIf { it.isNotBlank() }
             ?.let(AgentWorkspace::expand)
             ?: return@Tool batchErr("dst_dir is required")
         PathSafetyGuard.check(dstDir)?.let { v -> return@Tool batchErr(v.detail) }
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
         val sources = resolveBatchSources(obj).getOrElse { return@Tool batchErr(it.message ?: "bad input") }
 
         val destination = File(dstDir)
@@ -177,11 +178,11 @@ fun batchMoveTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val dstDir = obj["dst_dir"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val dstDir = obj.optString("dst_dir")?.takeIf { it.isNotBlank() }
             ?.let(AgentWorkspace::expand)
             ?: return@Tool batchErr("dst_dir is required")
         PathSafetyGuard.check(dstDir)?.let { v -> return@Tool batchErr(v.detail) }
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
         val sources = resolveBatchSources(obj).getOrElse { return@Tool batchErr(it.message ?: "bad input") }
 
         val destination = File(dstDir)
@@ -277,7 +278,7 @@ fun batchDeleteTool(): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
+        val recursive = obj.optBoolean("recursive") ?: false
         val sources = resolveBatchSources(obj).getOrElse { return@Tool batchErr(it.message ?: "bad input") }
 
         var success = 0

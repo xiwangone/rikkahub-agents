@@ -8,14 +8,13 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 private fun phoneTypeName(type: Int): String = when (type) {
@@ -116,9 +115,9 @@ fun searchContactsTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val params = input.jsonObject
-        val query = params["query"]?.jsonPrimitive?.contentOrNull
+        val query = params.optString("query")
             ?: error("query is required")
-        val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 20).coerceIn(1, 100)
+        val limit = (params.optInt("limit") ?: 20).coerceIn(1, 100)
         val payload = contactsErrorOrRun(context) {
             val uri = ContactsContract.Contacts.CONTENT_FILTER_URI.buildUpon()
                 .appendPath(query)
@@ -147,7 +146,7 @@ fun listContactsTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val params = input.jsonObject
-        val limit = (params["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
+        val limit = (params.optInt("limit") ?: 50).coerceIn(1, 500)
         val payload = contactsErrorOrRun(context) {
             val uri = ContactsContract.Contacts.CONTENT_URI.buildUpon()
                 .appendQueryParameter(ContactsContract.LIMIT_PARAM_KEY, limit.toString())

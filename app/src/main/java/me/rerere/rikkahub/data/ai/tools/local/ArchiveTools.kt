@@ -3,13 +3,12 @@ package me.rerere.rikkahub.data.ai.tools.local
 import android.content.Context
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.serialization.json.addJsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -22,6 +21,9 @@ import java.nio.charset.Charset
 import java.util.zip.ZipEntry
 import java.util.zip.ZipInputStream
 import java.util.zip.ZipOutputStream
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 
 private fun arcErr(code: String, vararg extra: Pair<String, String>) =
     listOf(
@@ -165,14 +167,14 @@ fun zipFilesTool(context: Context): Tool = Tool(
         val obj = input.jsonObject
         // `~`-expand every path arg up-front so the guard and the collectors see the same
         // concrete path the streams will open.
-        val sources = obj["sources"]?.jsonArray?.mapNotNull { it.jsonPrimitive.contentOrNull }
+        val sources = obj["sources"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
             ?.map { AgentWorkspace.expand(it) }
             ?: emptyList()
         if (sources.isEmpty()) return@Tool arcErr("sources is required")
-        val destination = (obj["destination"]?.jsonPrimitive?.contentOrNull
+        val destination = (obj.optString("destination")
             ?: return@Tool arcErr("destination is required")).let { AgentWorkspace.expand(it) }
-        val baseDir = obj["base_dir"]?.jsonPrimitive?.contentOrNull?.let { AgentWorkspace.expand(it) }
-        val level = (obj["compression_level"]?.jsonPrimitive?.intOrNull ?: 6).coerceIn(0, 9)
+        val baseDir = obj.optString("base_dir")?.let { AgentWorkspace.expand(it) }
+        val level = (obj.optInt("compression_level") ?: 6).coerceIn(0, 9)
 
         // Path-safety: every source and the destination must clear the guard before any
         // stream is opened (file:// → PathSafetyGuard, content:// → ContentUriSafetyGuard).
@@ -343,13 +345,11 @@ fun unzipFileTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val source = (obj["source"]?.jsonPrimitive?.contentOrNull
+        val source = (obj.optString("source")
             ?: return@Tool arcErr("source is required")).let { AgentWorkspace.expand(it) }
-        val destDir = (obj["destination_dir"]?.jsonPrimitive?.contentOrNull
+        val destDir = (obj.optString("destination_dir")
             ?: return@Tool arcErr("destination_dir is required")).let { AgentWorkspace.expand(it) }
-        val overwrite = obj["overwrite"]?.jsonPrimitive?.let {
-            it.contentOrNull?.toBooleanStrictOrNull()
-        } ?: false
+        val overwrite = obj.optBoolean("overwrite") ?: false
 
         // Guard both the archive source and the extraction destination before opening
         // any stream, so a poisoned source path can't be read and entries can't be
@@ -519,7 +519,7 @@ fun listZipContentsTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val source = input.jsonObject["source"]?.jsonPrimitive?.contentOrNull
+        val source = input.jsonObject.optString("source")
             ?: return@Tool arcErr("source is required")
         return@Tool try {
             if (!isContent(source)) {

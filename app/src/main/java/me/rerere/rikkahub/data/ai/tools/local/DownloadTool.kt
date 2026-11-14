@@ -5,15 +5,14 @@ import android.content.Context
 import android.os.Environment
 import androidx.core.net.toUri
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.net.GuardedDns
 import me.rerere.rikkahub.data.ai.net.hostIsBlockedLiteral
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 fun downloadTool(context: Context): Tool = Tool(
@@ -40,9 +39,9 @@ fun downloadTool(context: Context): Tool = Tool(
     },
     execute = {
         val params = it.jsonObject
-        val url = params["url"]?.jsonPrimitive?.contentOrNull
+        val url = params.optString("url")
             ?: error("url is required")
-        val filenameParam = params["filename"]?.jsonPrimitive?.contentOrNull?.takeIf { s -> s.isNotEmpty() }
+        val filenameParam = params.optString("filename")?.takeIf { s -> s.isNotEmpty() }
 
         try {
             val parsedJavaUri = runCatching { java.net.URI(url.trim()) }.getOrNull()

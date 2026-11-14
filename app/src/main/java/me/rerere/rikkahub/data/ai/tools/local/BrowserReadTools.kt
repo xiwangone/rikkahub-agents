@@ -8,13 +8,9 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -26,6 +22,9 @@ import me.rerere.rikkahub.browser.BrowserToolDefaults
 import me.rerere.rikkahub.browser.HeadlessBrowserSessionPool
 import me.rerere.rikkahub.browser.awaitReadyState
 import me.rerere.rikkahub.browser.evaluateJavascriptAsync
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import java.io.File
@@ -62,7 +61,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
         )
     },
     execute = { input ->
-        val url = input.jsonObject["url"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        val url = input.jsonObject.optString("url")?.takeIf { it.isNotBlank() }
         // Heuristic exfil-shape check: if the URL's QUERY (not path — CDN asset hashes
         // would false-positive) carries something that looks like an opaque blob, JWT,
         // API key, or credit-card-shaped digit run, attach a warning so the LLM treats
@@ -168,7 +167,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
             } ?: timeoutEnvelope(BrowserToolDefaults.OPEN)
         }
         val out = if (exfilHits.isEmpty() ||
-            rawOut["success"]?.jsonPrimitive?.booleanOrNull != true) rawOut
+            rawOut.optBoolean("success") != true) rawOut
         else buildJsonObject {
             rawOut.forEach { (k, v) -> put(k, v) }
             put(
@@ -176,7 +175,7 @@ fun browserOpenTool(context: Context, invocationContext: ToolInvocationContext? 
                 "URL query string carries content shaped like sensitive data " +
                     "(${exfilHits.joinToString { it.name.lowercase() }}). " +
                     "Verify with the user that they intended to send this " +
-                    "to ${rawOut["current_url"]?.jsonPrimitive?.contentOrNull ?: url} " +
+                    "to ${rawOut.optString("current_url") ?: url} " +
                     "before relying on the result, and do NOT echo the value back."
             )
         }
@@ -215,7 +214,7 @@ fun browserScreenshotTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val fullPage = input.jsonObject["full_page"]?.jsonPrimitive?.booleanOrNull == true
+        val fullPage = input.jsonObject.optBoolean("full_page") == true
         val parts = mutableListOf<UIMessagePart>()
         val out = withTimeoutOrNull(toolTimeoutMs) {
             BrowserControllerHandle.withController {
@@ -251,7 +250,7 @@ fun browserScreenshotTool(context: Context): Tool = Tool(
                 }
             }
         } ?: timeoutEnvelope(BrowserToolDefaults.SCREENSHOT)
-        out.jsonObject["file_path"]?.jsonPrimitive?.contentOrNull?.let { fp ->
+        out.jsonObject.optString("file_path")?.let { fp ->
             parts.add(UIMessagePart.Image(url = "file://$fp"))
         }
         parts.add(UIMessagePart.Text(out.toString()))
@@ -298,7 +297,7 @@ fun browserGetLinksTool(): Tool = Tool(
         })
     },
     execute = { input ->
-        val selector = (input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull
+        val selector = (input.jsonObject.optString("selector")
             ?.takeIf { it.isNotBlank() }) ?: "body"
         val out = withTimeoutOrNull(toolTimeoutMs) {
             BrowserControllerHandle.withController {
@@ -418,8 +417,8 @@ fun browserWaitForTool(): Tool = Tool(
         }, required = listOf("selector"))
     },
     execute = { input ->
-        val selector = input.jsonObject["selector"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
-        val rawState = input.jsonObject["state"]?.jsonPrimitive?.contentOrNull?.lowercase()
+        val selector = input.jsonObject.optString("selector")?.takeIf { it.isNotBlank() }
+        val rawState = input.jsonObject.optString("state")?.lowercase()
         val out = when {
             selector == null ->
                 missingArgEnvelope("selector", "selector is required and must be a non-empty CSS selector")
@@ -427,13 +426,13 @@ fun browserWaitForTool(): Tool = Tool(
                 missingArgEnvelope("state", "state must be one of [attached, detached, visible, hidden]")
             else -> {
                 val state = rawState ?: "attached"
-                val containsText = input.jsonObject["contains_text"]?.jsonPrimitive?.contentOrNull
+                val containsText = input.jsonObject.optString("contains_text")
                     ?.takeIf { it.isNotEmpty() }
                 // Cap the user-supplied timeout at our per-tool budget so the LLM can't ask for a
                 // longer wait and starve every other tool call. The withTimeoutOrNull below would
                 // catch this anyway, but capping here gives a clean envelope. The cap tracks the
                 // user-configured per-tool timeout (Settings → Browser).
-                val timeoutMs = (input.jsonObject["timeout_ms"]?.jsonPrimitive?.intOrNull ?: 10_000)
+                val timeoutMs = (input.jsonObject.optInt("timeout_ms") ?: 10_000)
                     .toLong()
                     .coerceIn(200L, toolTimeoutMs)
                 withTimeoutOrNull(toolTimeoutMs) {

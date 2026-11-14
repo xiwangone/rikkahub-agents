@@ -43,6 +43,14 @@ data class PhoneApp(val packageName: String, val label: String)
 
 enum class PhoneKey { BACK, HOME, RECENTS, NOTIFICATIONS, ENTER }
 
+/** 亮屏结果：屏幕之前是否关着、是否成功点亮、锁屏是否还锁着/是否要密码或指纹 */
+data class WakeResult(
+    val wasOff: Boolean,
+    val woke: Boolean,
+    val keyguardLocked: Boolean,
+    val keyguardSecure: Boolean,
+)
+
 /**
  * 操作手机的底层能力，坐标都是屏幕像素。
  * 实现是无障碍服务，用户在系统设置里开启后才存在。
@@ -67,6 +75,9 @@ interface PhoneController {
     suspend fun setText(elementIndex: Int?, text: String): Boolean
 
     suspend fun pressKey(key: PhoneKey): Boolean
+
+    /** 屏幕关着时点亮并等它亮起；锁屏密码/指纹仍需用户自己解，不绕过 */
+    suspend fun wakeUp(): WakeResult
 
     fun listApps(): List<PhoneApp>
 

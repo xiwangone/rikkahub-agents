@@ -39,7 +39,9 @@ import me.rerere.ai.ui.UIMessagePart
  * [categoryFor] / [recoveryFor] 是 snake_case 业务码到（code, recovery）的**唯一映射表**；
  * 迁移脚本从本文件解析该表，保证 Kotlin 与迁移逻辑同源。
  *
- * v2 变更：v1 扁平形状 `{"error","detail","recovery"}` 已整体迁移到本形状。
+ * v2 变更：v1 扁平形状 `{"error","detail","recovery"}` 已整体迁移到本形状——合成输出
+ * 不再产扁平形状；`LocalToolOption.appendHumanErrorToToolResult` 仍保留一条扁平输入分支，
+ * 只做兼容（给工具自产的扁平输出补 `human_error`），不产新扁平形状。
  *
  * 参考：
  * - JSON-RPC 2.0 Specification §5.1：https://www.jsonrpc.org/specification
@@ -84,6 +86,12 @@ object ToolErrors {
 
     /** 执行期抛异常时的统一码。 */
     const val TOOL_FAILED = "tool_failed"
+
+    /** 生成失败：模型生成（5xx / 解析失败）中途失败，工具根本没跑。 */
+    const val GENERATION_FAILED = "generation_failed"
+
+    /** 工具调用被中断：从未开始，或开始过但结果没回来。 */
+    const val INTERRUPTED = "interrupted"
 
     /** 单次工具执行撞上墙钟预算（未开始 / 执行中被取消）。 */
     const val TOOL_CANCELLED_WALL_CLOCK = "tool_cancelled_wall_clock"
@@ -165,11 +173,13 @@ object ToolErrors {
         // -- REQUEST_CANCELLED：取消 --
         "user_cancelled" to REQUEST_CANCELLED,
         "tool_cancelled_wall_clock" to REQUEST_CANCELLED,
+        "interrupted" to REQUEST_CANCELLED,
         // -- CONTENT_TOO_LARGE：内容超限 --
         "file_too_large_for_telegram_bot" to CONTENT_TOO_LARGE,
         "skill_file_too_large" to CONTENT_TOO_LARGE,
         // -- SERVER_ERROR：实现自定义桶（无更具体的标准码） --
         "hardline_blocked" to SERVER_ERROR,
+        "generation_failed" to SERVER_ERROR,
         "preset_file_corrupted" to SERVER_ERROR,
     )
     // CATEGORY_MAP_END
@@ -197,6 +207,7 @@ object ToolErrors {
         "launch_did_not_focus" to RECOVERY_RETRY,
         "browser_launch_failed" to RECOVERY_RETRY,
         "tool_schema_not_loaded" to RECOVERY_RETRY,
+        "generation_failed" to RECOVERY_RETRY,
         // -- abort：重试无意义（gRPC PERMISSION_DENIED / UNIMPLEMENTED / INTERNAL /
         // -- CANCELLED / DATA_LOSS / UNAUTHENTICATED） --
         "permission_denied" to RECOVERY_ABORT,
@@ -214,6 +225,9 @@ object ToolErrors {
         "saved_host_has_no_usable_credentials" to RECOVERY_ABORT,
         "user_cancelled" to RECOVERY_ABORT,
         "tool_cancelled_wall_clock" to RECOVERY_ABORT,
+        // "interrupted" 默认 abort（状态未知时盲目重试危险）；从未开始的一路在调用点
+        // 显式传 retry（什么都没发生，重试安全），见 abandonUnexecutedTools。
+        "interrupted" to RECOVERY_ABORT,
         "loop_detected" to RECOVERY_ABORT,
         "unknown_tool" to RECOVERY_ABORT,
         "no_handler" to RECOVERY_ABORT,

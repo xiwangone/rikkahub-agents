@@ -14,6 +14,7 @@ import me.rerere.rikkahub.phoneuse.PhoneElement
 import me.rerere.rikkahub.phoneuse.PhoneKey
 import me.rerere.rikkahub.phoneuse.PhoneScreen
 import me.rerere.rikkahub.phoneuse.PhoneUseManager
+import me.rerere.rikkahub.phoneuse.WakeResult
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -241,6 +242,127 @@ class PhoneUseToolTest {
     }
 
     @Test
+    fun `wake wakes the screen and returns the new screen`() = runTest {
+        manager.attach(controller)
+        controller.wakeResult = WakeResult(wasOff = true, woke = true, keyguardLocked = false, keyguardSecure = false)
+        val output = call { put("action", "wake") }
+        assertEquals(1, controller.wakeCalls)
+        assertTrue(output.contains("Screen woken."))
+        assertTrue(output.contains("App: Demo (com.demo)"))
+    }
+
+    @Test
+    fun `wake reports the screen is already on`() = runTest {
+        manager.attach(controller)
+        controller.wakeResult = WakeResult(wasOff = false, woke = false, keyguardLocked = false, keyguardSecure = false)
+        val output = call { put("action", "wake") }
+        assertTrue(output.contains("Screen is already on."))
+    }
+
+    @Test
+    fun `wake reports failure when the screen stays off`() = runTest {
+        manager.attach(controller)
+        controller.wakeResult = WakeResult(wasOff = true, woke = false, keyguardLocked = true, keyguardSecure = true)
+        val output = call { put("action", "wake") }
+        assertEquals(1, controller.wakeCalls)
+        assertTrue(output.contains("wake failed"))
+        assertTrue(output.contains("stayed off"))
+        // 屏幕没亮就没有界面可读，不带空的界面描述
+        assertFalse(output.contains("Elements"))
+    }
+
+    @Test
+    fun `wake reports a PIN-protected keyguard`() = runTest {
+        manager.attach(controller)
+        controller.wakeResult = WakeResult(wasOff = true, woke = true, keyguardLocked = true, keyguardSecure = true)
+        val output = call { put("action", "wake") }
+        assertTrue(output.contains("Screen woken."))
+        assertTrue(output.contains("PIN/biometric-protected"))
+        assertTrue(output.contains("must unlock"))
+    }
+
+    @Test
+    fun `wait_for finds text already on screen`() = runTest {
+        manager.attach(controller)
+        val output = call {
+            put("action", "wait_for")
+            put("text", "Send")
+        }
+        assertTrue(output.contains("wait_for \"Send\": found=true, elapsed_ms=0"))
+        assertTrue(output.contains("Elements"))
+    }
+
+    @Test
+    fun `wait_for matches case-insensitively`() = runTest {
+        manager.attach(controller)
+        val output = call {
+            put("action", "wait_for")
+            put("text", "send")
+        }
+        assertTrue(output.contains("found=true"))
+    }
+
+    @Test
+    fun `wait_for waits until text appears`() = runTest {
+        manager.attach(controller)
+        // 第二次读屏时才出现目标文本
+        controller.afterCapture = {
+            if (controller.captureCount == 2) {
+                controller.currentElements += controller.extraElement(3, "TextView", "Welcome")
+            }
+        }
+        val output = call {
+            put("action", "wait_for")
+            put("text", "Welcome")
+        }
+        // 第一次读屏 0ms 未命中，等 500ms 后第二次读屏命中
+        assertTrue(output.contains("wait_for \"Welcome\": found=true, elapsed_ms=500"))
+        assertTrue(output.contains("Welcome"))
+    }
+
+    @Test
+    fun `wait_for times out with a structured result`() = runTest {
+        manager.attach(controller)
+        val output = call {
+            put("action", "wait_for")
+            put("text", "Never")
+            put("seconds", 1)
+        }
+        assertTrue(output.contains("wait_for \"Never\": found=false, elapsed_ms=1000 (timeout)"))
+        // 超时也带回当前界面，模型能看到现在是什么
+        assertTrue(output.contains("App: Demo (com.demo)"))
+    }
+
+    @Test
+    fun `wait_for requires text`() = runTest {
+        manager.attach(controller)
+        val error = runCatching {
+            call { put("action", "wait_for") }
+        }.exceptionOrNull()
+        assertTrue(error!!.message!!.contains("text is required"))
+        val blank = runCatching {
+            call {
+                put("action", "wait_for")
+                put("text", "   ")
+            }
+        }.exceptionOrNull()
+        assertTrue(blank!!.message!!.contains("text is required"))
+    }
+
+    @Test
+    fun `wait_for refuses a blocked app`() = runTest {
+        manager.attach(controller)
+        controller.visible = listOf("com.eg.android.AlipayGphone")
+        val error = runCatching {
+            call {
+                put("action", "wait_for")
+                put("text", "Send")
+            }
+        }.exceptionOrNull()
+        assertTrue(error!!.message!!.contains("blocked"))
+    }
+
+    @Test
     fun `action name is read from complete input only`() {
         assertEquals("tap", phoneUseActionOf("""{"action":"tap","element":3}"""))
         assertNull(phoneUseActionOf("""{"action":"ta"""))
@@ -263,26 +385,35 @@ class PhoneUseToolTest {
         val texts = mutableListOf<Pair<Int?, String>>()
         val opened = mutableListOf<String>()
         var afterGesture: () -> Unit = {}
+        var wakeResult = WakeResult(wasOff = false, woke = false, keyguardLocked = false, keyguardSecure = false)
+        var wakeCalls = 0
+        var captureCount = 0
+        var afterCapture: () -> Unit = {}
+        var currentElements = listOf(
+            element(0, "Button", "Send", 440, 1100, 640, 1300, clickable = true),
+            element(1, "EditText", "Message", 0, 2100, 540, 2220, editable = true, focused = true),
+            element(2, "ImageView", "", 900, 100, 1000, 200, clickable = true, resourceId = "btn_more"),
+        )
 
         // 最上层的在前
         var visible = listOf("com.demo")
 
         override fun visiblePackages() = visible.toSet()
 
-        override suspend fun captureScreen() = PhoneScreen(
-            packageName = visible.first(),
-            packages = visible.toSet(),
-            appLabel = "Demo",
-            width = 1080,
-            height = 2400,
-            keyboardVisible = false,
-            elements = listOf(
-                element(0, "Button", "Send", 440, 1100, 640, 1300, clickable = true),
-                element(1, "EditText", "Message", 0, 2100, 540, 2220, editable = true, focused = true),
-                element(2, "ImageView", "", 900, 100, 1000, 200, clickable = true, resourceId = "btn_more"),
-            ),
-            truncated = false,
-        )
+        override suspend fun captureScreen(): PhoneScreen {
+            captureCount++
+            afterCapture()
+            return PhoneScreen(
+                packageName = visible.first(),
+                packages = visible.toSet(),
+                appLabel = "Demo",
+                width = 1080,
+                height = 2400,
+                keyboardVisible = false,
+                elements = currentElements,
+                truncated = false,
+            )
+        }
 
         override suspend fun screenshot(maxSide: Int) = ByteArray(0)
 
@@ -302,6 +433,15 @@ class PhoneUseToolTest {
             keys += key
             return true
         }
+
+        override suspend fun wakeUp(): WakeResult {
+            wakeCalls++
+            return wakeResult
+        }
+
+        /** wait_for 用例里中途出现的元素 */
+        fun extraElement(index: Int, className: String, label: String) =
+            element(index, className, label, 0, 0, 100, 100)
 
         override fun listApps() = listOf(
             PhoneApp("com.demo", "Demo App"),

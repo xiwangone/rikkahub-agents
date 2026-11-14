@@ -10,14 +10,13 @@ import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.data.storage.StorageVolumeGrantStore
 import java.util.UUID
@@ -168,7 +167,7 @@ fun grantDirectoryAccessTool(
         if (isHeadless(invocationContext)) {
             return@Tool esErr("feature unavailable in headless mode")
         }
-        val initialUri = input.jsonObject["initial_uri"]?.jsonPrimitive?.contentOrNull
+        val initialUri = input.jsonObject.optString("initial_uri")
 
         val requestId = UUID.randomUUID().toString()
         val deferred = buffer.register(requestId)

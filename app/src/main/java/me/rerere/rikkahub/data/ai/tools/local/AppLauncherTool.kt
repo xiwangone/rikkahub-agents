@@ -9,14 +9,13 @@ import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.RikkaAccessibilityService
@@ -67,7 +66,7 @@ fun launchAppTool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package_name")
         if (pkg.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -179,15 +178,15 @@ fun listInstalledAppsTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val filter = input.jsonObject["filter"]?.jsonPrimitive?.contentOrNull
+        val filter = input.jsonObject.optString("filter")
             ?.lowercase()?.takeIf { it.isNotBlank() }
-        val userOnly = input.jsonObject["user_only"]?.jsonPrimitive?.contentOrNull
+        val userOnly = input.jsonObject.optString("user_only")
             ?.toBooleanStrictOrNull() ?: true
-        val limit = input.jsonObject["limit"]?.jsonPrimitive?.contentOrNull
+        val limit = input.jsonObject.optString("limit")
             ?.toIntOrNull()?.coerceIn(1, 1000) ?: 200
-        val includeNoLauncher = (input.jsonObject["include_no_launcher"]?.jsonPrimitive?.contentOrNull
+        val includeNoLauncher = (input.jsonObject.optString("include_no_launcher")
             ?.toBooleanStrictOrNull() ?: false) || filter != null
-        val includePermissions = input.jsonObject["include_permissions"]?.jsonPrimitive?.contentOrNull
+        val includePermissions = input.jsonObject.optString("include_permissions")
             ?.toBooleanStrictOrNull() ?: false
 
         val pm = context.packageManager
@@ -336,7 +335,7 @@ fun openUrlTool(
         )
     },
     execute = { input ->
-        val url = input.jsonObject["url"]?.jsonPrimitive?.contentOrNull
+        val url = input.jsonObject.optString("url")
         if (url.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -344,7 +343,7 @@ fun openUrlTool(
                 )
             )
         }
-        val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package_name")
             ?.takeIf { it.isNotBlank() }
 
         val wasOff = !ScreenWaker.isInteractive(context)
@@ -440,7 +439,7 @@ fun listAppActivitiesTool(context: Context): Tool = Tool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package_name")
         if (pkg.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -448,11 +447,11 @@ fun listAppActivitiesTool(context: Context): Tool = Tool(
                 )
             )
         }
-        val filter = input.jsonObject["filter"]?.jsonPrimitive?.contentOrNull
+        val filter = input.jsonObject.optString("filter")
             ?.lowercase()?.takeIf { it.isNotBlank() }
-        val exportedOnly = input.jsonObject["exported_only"]?.jsonPrimitive?.contentOrNull
+        val exportedOnly = input.jsonObject.optString("exported_only")
             ?.toBooleanStrictOrNull() ?: false
-        val limit = input.jsonObject["limit"]?.jsonPrimitive?.contentOrNull
+        val limit = input.jsonObject.optString("limit")
             ?.toIntOrNull()?.coerceIn(1, 500) ?: 100
 
         val pm = context.packageManager
@@ -545,8 +544,8 @@ fun launchActivityTool(
         )
     },
     execute = { input ->
-        val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
-        val rawActivity = input.jsonObject["activity_name"]?.jsonPrimitive?.contentOrNull
+        val pkg = input.jsonObject.optString("package_name")
+        val rawActivity = input.jsonObject.optString("activity_name")
         if (pkg.isNullOrBlank() || rawActivity.isNullOrBlank()) {
             return@Tool listOf(
                 UIMessagePart.Text(

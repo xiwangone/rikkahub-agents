@@ -1,16 +1,17 @@
 package me.rerere.rikkahub.subagent
 
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
+import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.addJsonObject
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -211,23 +212,23 @@ private suspend fun runSubAgentDispatch(
         )
     }
     val params = args.jsonObject
-    val task = params["task"]?.jsonPrimitive?.contentOrNull
+    val task = params.optString("task")
         ?: return errEnv("invalid_task", "task is required")
     val request = SubAgentRequest(
         task = task,
-        modelId = params["model_id"]?.jsonPrimitive?.contentOrNull,
-        agentName = params["agent"]?.jsonPrimitive?.contentOrNull,
-        systemPrompt = params["system_prompt"]?.jsonPrimitive?.contentOrNull,
+        modelId = params.optString("model_id"),
+        agentName = params.optString("agent"),
+        systemPrompt = params.optString("system_prompt"),
         tools = params["tools"]?.let { runCatching { it.jsonArray }.getOrNull() }
-            ?.mapNotNull { it.jsonPrimitive.contentOrNull },
-        runInBackground = params["run_in_background"]?.jsonPrimitive?.booleanOrNull ?: false,
-        noResult = params["no_result"]?.jsonPrimitive?.booleanOrNull ?: false,
-        timeoutSeconds = params["timeout_seconds"]?.jsonPrimitive?.intOrNull
+            ?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull },
+        runInBackground = params.optBoolean("run_in_background") ?: false,
+        noResult = params.optBoolean("no_result") ?: false,
+        timeoutSeconds = params.optInt("timeout_seconds")
             ?: SubAgentDefaults.DEFAULT_TIMEOUT_SECONDS,
-        maxTrips = params["max_trips"]?.jsonPrimitive?.intOrNull
+        maxTrips = params.optInt("max_trips")
             ?: SubAgentDefaults.DEFAULT_MAX_TRIPS,
-        label = params["label"]?.jsonPrimitive?.contentOrNull,
-        workspaceId = params["workspace"]?.jsonPrimitive?.contentOrNull,
+        label = params.optString("label"),
+        workspaceId = params.optString("workspace"),
     )
     // 调用上下文（callerAssistantId / callerConversationId）由工具构造时注入；
     // 空值是无上下文的哨兵，引擎按「不在 headless run 中」处理（旧注册路径无上下文）。
@@ -255,7 +256,7 @@ fun subagentListTool(registry: SubAgentRegistry): Tool = Tool(
         )
     },
     execute = { args ->
-        val activeOnly = args.jsonObject["active_only"]?.jsonPrimitive?.booleanOrNull ?: false
+        val activeOnly = args.jsonObject.optBoolean("active_only") ?: false
         val list = registry.list(activeOnly)
         val arr = buildJsonArray {
             list.forEach { addJsonObject {
@@ -285,7 +286,7 @@ fun subagentGetTool(registry: SubAgentRegistry): Tool = Tool(
         )
     },
     execute = { args ->
-        val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = args.jsonObject.optString("id")
             ?: return@Tool errEnv("invalid_id", "id is required")
         val run = registry.get(id)
             ?: return@Tool errEnv("unknown_id", "no sub-agent run with id $id")
@@ -309,7 +310,7 @@ fun subagentCancelTool(registry: SubAgentRegistry): Tool = Tool(
         )
     },
     execute = { args ->
-        val id = args.jsonObject["id"]?.jsonPrimitive?.contentOrNull
+        val id = args.jsonObject.optString("id")
             ?: return@Tool errEnv("invalid_id", "id is required")
         val cancelled = registry.requestCancel(id)
         if (cancelled) {

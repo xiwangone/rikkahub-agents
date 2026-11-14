@@ -4,15 +4,14 @@ import android.content.Context
 import androidx.documentfile.provider.DocumentFile
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 import java.util.Base64 as JBase64
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 
 /**
@@ -48,8 +47,8 @@ internal fun listFilesContent(context: Context, raw: String, obj: JsonObject): L
     if (!doc.isDirectory) {
         return fmTextPart(fmErrEnvelope("not_a_directory", "content URI is not a directory: $raw"))
     }
-    val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
-    val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
+    val recursive = obj.optBoolean("recursive") ?: false
+    val limit = (obj.optInt("limit") ?: 50).coerceIn(1, 500)
     val collected = mutableListOf<DocumentFile>()
     var truncated = false
     fun collect(d: DocumentFile) {
@@ -70,7 +69,7 @@ internal fun listFilesContent(context: Context, raw: String, obj: JsonObject): L
 
 internal fun readFileContent(context: Context, raw: String, obj: JsonObject): List<UIMessagePart> {
     guardOrNull(raw)?.let { return it }
-    val maxBytes = (obj["max_bytes"]?.jsonPrimitive?.intOrNull ?: CONTENT_DEFAULT_READ)
+    val maxBytes = (obj.optInt("max_bytes") ?: CONTENT_DEFAULT_READ)
         .coerceIn(1, CONTENT_MAX_READ)
     var overflow = false
     val bytes = try {
@@ -115,7 +114,7 @@ internal fun readFileContent(context: Context, raw: String, obj: JsonObject): Li
 
 internal fun writeBinaryFileContent(context: Context, raw: String, obj: JsonObject): List<UIMessagePart> {
     guardOrNull(raw)?.let { return it }
-    val b64 = obj["base64_content"]?.jsonPrimitive?.contentOrNull
+    val b64 = obj.optString("base64_content")
         ?: return fmTextPart(fmErrEnvelope("missing_content", "base64_content is required"))
     val bytes = try {
         JBase64.getDecoder().decode(b64)
@@ -144,7 +143,7 @@ internal fun deleteFileContent(context: Context, raw: String, obj: JsonObject): 
     guardOrNull(raw)?.let { return it }
     val doc = ContentUriResolver.resolve(context, raw)
         ?: return fmTextPart(ContentUriResolver.notGrantedEnvelope(raw))
-    val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: false
+    val recursive = obj.optBoolean("recursive") ?: false
     if (doc.isDirectory && doc.listFiles().isNotEmpty() && !recursive) {
         return fmTextPart(fmErrEnvelope("not_empty", "Directory is not empty. Pass recursive=true."))
     }
@@ -168,7 +167,7 @@ internal fun deleteFileContent(context: Context, raw: String, obj: JsonObject): 
 
 internal fun createDirectoryContent(context: Context, raw: String, obj: JsonObject): List<UIMessagePart> {
     guardOrNull(raw)?.let { return it }
-    val name = obj["name"]?.jsonPrimitive?.contentOrNull
+    val name = obj.optString("name")
         ?: return fmTextPart(fmErrEnvelope(
             "missing_name",
             "For a content:// parent tree, pass the new directory name in the 'name' argument.",
@@ -228,10 +227,10 @@ internal fun findFilesContent(context: Context, raw: String, obj: JsonObject): L
     if (!root.isDirectory) {
         return fmTextPart(fmErrEnvelope("not_a_directory", "content URI root is not a directory."))
     }
-    val query = obj["query"]?.jsonPrimitive?.contentOrNull
+    val query = obj.optString("query")
         ?: return fmTextPart(fmErrEnvelope("missing_query", "query is required"))
-    val recursive = obj["recursive"]?.jsonPrimitive?.booleanOrNull ?: true
-    val limit = (obj["limit"]?.jsonPrimitive?.intOrNull ?: 50).coerceIn(1, 500)
+    val recursive = obj.optBoolean("recursive") ?: true
+    val limit = (obj.optInt("limit") ?: 50).coerceIn(1, 500)
     val collected = mutableListOf<DocumentFile>()
     var visited = 0
     var truncated = false
@@ -263,7 +262,7 @@ internal fun moveOrCopyContent(
 ): List<UIMessagePart> {
     if (rawSrc.isNullOrBlank()) return fmTextPart(fmErrEnvelope("missing_src", "src is required"))
     if (rawDst.isNullOrBlank()) return fmTextPart(fmErrEnvelope("missing_dst", "dst is required"))
-    val overwrite = obj["overwrite"]?.jsonPrimitive?.booleanOrNull ?: false
+    val overwrite = obj.optBoolean("overwrite") ?: false
 
     // Open the source stream (file:// or content://).
     val srcStream = when {

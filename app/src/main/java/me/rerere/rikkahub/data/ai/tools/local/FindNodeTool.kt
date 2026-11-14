@@ -4,15 +4,14 @@ import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.AgentTurnTracker
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -45,9 +44,9 @@ internal fun findMatches(
 }
 
 internal fun parseSelector(input: kotlinx.serialization.json.JsonElement): Triple<String?, String?, String?> {
-    val by = input.jsonObject["by"]?.jsonPrimitive?.contentOrNull
-    val value = input.jsonObject["value"]?.jsonPrimitive?.contentOrNull
-    val pkg = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
+    val by = input.jsonObject.optString("by")
+    val value = input.jsonObject.optString("value")
+    val pkg = input.jsonObject.optString("package_name")
     return Triple(by, value, pkg)
 }
 
@@ -159,7 +158,7 @@ fun clickNodeTool(
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
-        val nth = input.jsonObject["nth"]?.jsonPrimitive?.intOrNull ?: 0
+        val nth = input.jsonObject.optInt("nth") ?: 0
         if (by == null || by !in ALLOWED_BY || value == null) {
             return@Tool listOf(
                 UIMessagePart.Text(
@@ -273,8 +272,8 @@ fun setTextTool(
         AgentTurnTracker.recordAutomationAction()
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
         val (by, value, pkgFilter) = parseSelector(input)
-        val nth = input.jsonObject["nth"]?.jsonPrimitive?.intOrNull ?: 0
-        val newText = input.jsonObject["text"]?.jsonPrimitive?.contentOrNull
+        val nth = input.jsonObject.optInt("nth") ?: 0
+        val newText = input.jsonObject.optString("text")
         if (by == null || by !in ALLOWED_BY || value == null || newText == null) {
             return@Tool listOf(
                 UIMessagePart.Text(

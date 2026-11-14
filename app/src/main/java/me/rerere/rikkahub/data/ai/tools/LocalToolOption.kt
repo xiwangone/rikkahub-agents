@@ -15,12 +15,11 @@ import kotlinx.serialization.json.JsonDecoder
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.local.AccessibilityServiceHandle
 import java.util.Locale
 
@@ -145,7 +144,7 @@ object LenientLocalToolListSerializer : KSerializer<List<LocalToolOption>> {
             return jsonDecoder.json.decodeFromJsonElement(delegate, element)
         }
         return element.mapNotNull { item ->
-            val typeName = (item as? JsonObject)?.get("type")?.jsonPrimitive?.contentOrNull
+            val typeName = (item as? JsonObject)?.optString("type")
             val mapped = when {
                 typeName in LEGACY_DEVICE_INFO_TYPES -> JsonObject(mapOf("type" to JsonPrimitive("device_info")))
                 typeName in LEGACY_DIAGNOSTICS_TYPES -> JsonObject(mapOf("type" to JsonPrimitive("diagnostics")))
@@ -193,10 +192,10 @@ internal fun appendHumanErrorToToolResult(part: UIMessagePart): UIMessagePart {
     // The message field is already human-readable; mirror it as human_error for
     // consumers that key off that field.
     val data = jsonObject["data"]?.jsonObject
-    val newShapeError = data?.get("error")?.jsonPrimitive?.contentOrNull
+    val newShapeError = data?.optString("error")
     if (newShapeError != null) {
         if (data.containsKey("human_error")) return part
-        val message = jsonObject["message"]?.jsonPrimitive?.contentOrNull
+        val message = jsonObject.optString("message")
             ?: humanizeToolError(data)
         return part.copy(
             text = buildJsonObject {
@@ -216,7 +215,7 @@ internal fun appendHumanErrorToToolResult(part: UIMessagePart): UIMessagePart {
 
     val detail = jsonObject["detail"] ?: jsonObject["reason"]
     val recovery = jsonObject["recovery"]
-    val humanError = jsonObject["human_error"]?.jsonPrimitive?.contentOrNull
+    val humanError = jsonObject.optString("human_error")
         ?: humanizeToolError(jsonObject)
 
     return part.copy(
@@ -241,11 +240,11 @@ internal fun addHumanErrorEnvelopes(tool: Tool): Tool = tool.copy(
 )
 
 private fun humanizeToolError(jsonObject: JsonObject): String {
-    val error = jsonObject["error"]?.jsonPrimitive?.contentOrNull.orEmpty()
-    val detail = jsonObject["detail"]?.jsonPrimitive?.contentOrNull
-        ?: jsonObject["reason"]?.jsonPrimitive?.contentOrNull
-        ?: jsonObject["hint"]?.jsonPrimitive?.contentOrNull
-        ?: jsonObject["recovery"]?.jsonPrimitive?.contentOrNull
+    val error = jsonObject.optString("error").orEmpty()
+    val detail = jsonObject.optString("detail")
+        ?: jsonObject.optString("reason")
+        ?: jsonObject.optString("hint")
+        ?: jsonObject.optString("recovery")
     val readableError = error.replace('_', ' ').ifBlank { "Tool error" }
     return if (detail.isNullOrBlank()) {
         readableError.replaceFirstChar { char ->

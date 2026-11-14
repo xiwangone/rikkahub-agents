@@ -77,6 +77,19 @@ interface AgentHooks {
         error: Throwable,
     ): List<UIMessagePart>? = null
 
+    /**
+     * 工具被拒绝（审批态为 Denied）时调用，返回注入给模型的输出。
+     *
+     * 返回 null 时使用内核的默认拒绝信封（`permission_denied`）。实现方可以借此把
+     * 「拒绝」按真实原因分流：例如硬线拦截（安全底线）的 Denied 携带 UI 用的内部
+     * 标记（`hardline-ui:v1:`），直接发给模型会泄漏内部标记、还会被说成「用户拒绝」——
+     * 此时应返回去标记后的 `hardline_blocked` 信封；普通用户拒绝返回 null 即可。
+     */
+    suspend fun deniedToolOutput(
+        tool: UIMessagePart.Tool,
+        reason: String,
+    ): List<UIMessagePart>? = null
+
     /** 工具执行成功后、结果写回之前调用，例如截断过长的输出。拒绝、回答和执行出错的结果不经过这里。 */
     suspend fun processToolOutput(
         tool: UIMessagePart.Tool,

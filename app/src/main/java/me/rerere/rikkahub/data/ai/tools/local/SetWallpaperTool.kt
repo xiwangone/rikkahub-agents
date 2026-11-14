@@ -4,14 +4,13 @@ import android.app.WallpaperManager
 import android.content.Context
 import android.graphics.BitmapFactory
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import java.io.File
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "SetWallpaperTool"
@@ -64,8 +63,8 @@ fun setWallpaperTool(context: Context): Tool = Tool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        val fileUri = obj["file_uri"]?.jsonPrimitive?.contentOrNull
-        val target = obj["target"]?.jsonPrimitive?.contentOrNull ?: "both"
+        val fileUri = obj.optString("file_uri")
+        val target = obj.optString("target") ?: "both"
         validateWallpaperArgs(fileUri, target)?.let { return@Tool wallpaperErr(it) }
 
         val path = AgentWorkspace.expand(fileUri!!.removePrefix("file://"))

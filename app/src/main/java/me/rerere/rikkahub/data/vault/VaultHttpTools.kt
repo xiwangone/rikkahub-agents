@@ -1,12 +1,13 @@
 package me.rerere.rikkahub.data.vault
 
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import android.content.Context
 import kotlinx.coroutines.CancellationException
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
@@ -96,10 +97,10 @@ private suspend fun runVaultHttpExec(
 ): List<UIMessagePart> {
     val fail: (String) -> List<UIMessagePart> = { msg -> listOf(UIMessagePart.Text("❌ $msg")) }
 
-    val method = (o["method"]?.jsonPrimitive?.contentOrNull ?: "GET").uppercase()
+    val method = (o.optString("method") ?: "GET").uppercase()
         .takeIf { it in setOf("GET", "POST", "PUT", "PATCH", "DELETE") }
         ?: return fail("method only supports GET/POST/PUT/PATCH/DELETE")
-    val url = o["url"]?.jsonPrimitive?.contentOrNull?.trim() ?: return fail("url is required")
+    val url = o.optString("url")?.trim() ?: return fail("url is required")
     if (!url.startsWith("http://") && !url.startsWith("https://")) {
         return fail("url must start with http(s)://")
     }
@@ -113,17 +114,17 @@ private suspend fun runVaultHttpExec(
             return fail("Requests carrying credentials must use https:// (http:// is only allowed for loopback addresses)")
         }
     }
-    val credName = o["credential_name"]?.jsonPrimitive?.contentOrNull ?: return fail("credential_name is required")
-    val scheme = o["auth_scheme"]?.jsonPrimitive?.contentOrNull ?: "Bearer"
-    val headerName = o["header_name"]?.jsonPrimitive?.contentOrNull ?: "Authorization"
-    val body = o["body"]?.jsonPrimitive?.contentOrNull.orEmpty()
-    val timeout = (o["timeout_seconds"]?.jsonPrimitive?.intOrNull ?: 30).toLong().coerceIn(5L, MAX_TIMEOUT_SECONDS)
+    val credName = o.optString("credential_name") ?: return fail("credential_name is required")
+    val scheme = o.optString("auth_scheme") ?: "Bearer"
+    val headerName = o.optString("header_name") ?: "Authorization"
+    val body = o.optString("body").orEmpty()
+    val timeout = (o.optInt("timeout_seconds") ?: 30).toLong().coerceIn(5L, MAX_TIMEOUT_SECONDS)
 
     val extraHeaders = runCatching {
-        val raw = o["extra_headers"]?.jsonPrimitive?.contentOrNull
+        val raw = o.optString("extra_headers")
         if (raw.isNullOrBlank()) emptyMap()
         else kotlinx.serialization.json.Json.parseToJsonElement(raw).jsonObject.entries.mapNotNull { (k, v) ->
-            (k to (v.jsonPrimitive.contentOrNull ?: return@mapNotNull null))
+            (k to ((v as? JsonPrimitive)?.contentOrNull ?: return@mapNotNull null))
         }.toMap()
     }.getOrElse { return fail("extra_headers must be a valid JSON object") }
 

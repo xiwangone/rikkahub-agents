@@ -4,17 +4,16 @@ import android.graphics.Rect
 import android.view.accessibility.AccessibilityNodeInfo
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.add
-import kotlinx.serialization.json.booleanOrNull
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.contentOrNull
-import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonObject
-import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optBoolean
+import me.rerere.common.http.optInt
+import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 import me.rerere.rikkahub.service.ActionLogEntry
@@ -82,10 +81,10 @@ fun readWindowTreeTool(
     execute = { input ->
         blockedForegroundEnvelope()?.let { return@Tool listOf(UIMessagePart.Text(it.toString())) }
         me.rerere.rikkahub.service.RikkaAccessibilityService.instance?.let { wakeScreenIfNeeded(it) }
-        val verbose = input.jsonObject["verbose"]?.jsonPrimitive?.booleanOrNull ?: false
-        val maxNodesRaw = input.jsonObject["max_nodes"]?.jsonPrimitive?.intOrNull ?: DEFAULT_MAX_NODES
+        val verbose = input.jsonObject.optBoolean("verbose") ?: false
+        val maxNodesRaw = input.jsonObject.optInt("max_nodes") ?: DEFAULT_MAX_NODES
         val maxNodes = maxNodesRaw.coerceIn(1, MAX_NODES_HARD_CEILING)
-        val pkgFilter = input.jsonObject["package_name"]?.jsonPrimitive?.contentOrNull
+        val pkgFilter = input.jsonObject.optString("package_name")
 
         val payload = AccessibilityServiceHandle.withService { svc ->
             val root = svc.rootInActiveWindow

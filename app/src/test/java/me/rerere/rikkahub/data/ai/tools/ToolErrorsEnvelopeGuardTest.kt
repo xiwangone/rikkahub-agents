@@ -88,4 +88,26 @@ class ToolErrorsEnvelopeGuardTest {
         )
         assertTrue("hardline refusal is not retryable", data["recovery"].toString().contains("abort"))
     }
+
+    @Test fun `generation failure is a server error with retry recovery`() {
+        val env = ToolErrors.envelopeFor(error = ToolErrors.GENERATION_FAILED, message = "generation failed")
+        val data = env["data"]!!.jsonObject
+        assertTrue(data["error"].toString().contains("generation_failed"))
+        assertTrue(
+            "generation failure is transient and unrelated to the tool call, so retry is honest",
+            data["recovery"].toString().contains("retry"),
+        )
+    }
+
+    @Test fun `interrupted carries request-cancelled code and abort recovery`() {
+        val env = ToolErrors.envelopeFor(error = ToolErrors.INTERRUPTED, message = "interrupted")
+        assertTrue(env["code"].toString().toInt() == ToolErrors.REQUEST_CANCELLED)
+        val data = env["data"]!!.jsonObject
+        assertTrue(data["error"].toString().contains("interrupted"))
+        assertTrue(
+            "map default is abort (unknown outcome must not be blindly retried); " +
+                "the never-started fork passes retry explicitly at its call site",
+            data["recovery"].toString().contains("abort"),
+        )
+    }
 }
