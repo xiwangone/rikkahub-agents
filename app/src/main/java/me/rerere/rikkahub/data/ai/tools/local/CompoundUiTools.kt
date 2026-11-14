@@ -147,13 +147,21 @@ private suspend fun clickAndReadOnce(
             timestampMs = System.currentTimeMillis(),
         )
     )
-    val quiet = awaitQuiet(
-        quietMs = SETTLE_QUIET_MS,
-        timeoutMs = SETTLE_TIMEOUT_MS,
-        now = { SystemClock.uptimeMillis() },
-        lastEvent = { svc.lastWindowEventUptime },
-        floor = actionStart,
-    )
+    // 内容变化事件只在等静止的这几秒内动态挂上（平时不订阅，见 RikkaAccessibilityService.setListenContentChanges）。
+    // click_and_read 不走 withActionEnvelope，这里是全仓唯一还直接调 awaitQuiet 的活路：不挂上，
+    // 应用内变化不会刷新 lastWindowEventUptime，静止判定会在动画/加载中误报“已静止”。
+    svc.setListenContentChanges(true)
+    val quiet = try {
+        awaitQuiet(
+            quietMs = SETTLE_QUIET_MS,
+            timeoutMs = SETTLE_TIMEOUT_MS,
+            now = { SystemClock.uptimeMillis() },
+            lastEvent = { svc.lastWindowEventUptime },
+            floor = actionStart,
+        )
+    } finally {
+        svc.setListenContentChanges(false)
+    }
     return clickAndReadResult(svc, target, clickable, ok, before, quiet, maxNodes)
 }
 
