@@ -43,10 +43,12 @@ PROTOCOL = re.compile(
 
 
 def git_diff(base, head, paths):
-    return subprocess.check_output(
-        ["git", "diff", "--unified=0", base, head, "--", *paths],
-        text=True, errors="ignore",
-    )
+    """head 为 None 时比较 base 与工作区（含未提交改动），供本地提交前自检用。"""
+    args = ["git", "diff", "--unified=0", base]
+    if head is not None:
+        args.append(head)
+    args += ["--", *paths]
+    return subprocess.check_output(args, text=True, errors="ignore")
 
 
 def check_resource_zh(diff):
@@ -168,7 +170,11 @@ def check_cjk_literals(diff):
 
 def main():
     base = sys.argv[1]
-    head = sys.argv[2] if len(sys.argv) > 2 else "HEAD"
+    head: str | None = sys.argv[2] if len(sys.argv) > 2 else "HEAD"
+    # 传 WORKTREE（或 -）表示比较「base 与工作区」，本地提交前自检用：
+    # 这样未提交的改动也能查，不必先 commit 一遍再回滚。
+    if head in ("WORKTREE", "-"):
+        head = None
     missing = []
     missing += check_resource_zh(
         git_diff(base, head, ["*/src/main/res/values/strings.xml"]))
