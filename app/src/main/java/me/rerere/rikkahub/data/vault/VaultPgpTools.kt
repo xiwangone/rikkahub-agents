@@ -13,8 +13,11 @@ import me.rerere.rikkahub.data.ai.tools.local.PathSafetyGuard
 /**
  * Vault 凭证工具（App 内 AI 凭证中枢）。
  *
- * 安全模型：凭证值只在 App 进程内存使用（JSch 字节加载 / 密码对象），
- * 工具返回值不含明文——只返回变量名、公钥、命令输出。
+ * 安全模型：
+ * - `vault_pgp_decrypt`：用私钥解密密文是工具的既定用途，解密出的明文直接返回给 AI；
+ *   私钥本身只在 App 进程内存中使用，不落盘、不返回。
+ * - 其余三工具只在 App 进程内存使用凭证值，工具返回值不含明文：sign 只返回 detached
+ *   签名、verify 只返回校验结果、encrypt 只返回 armored 密文。
  */
 
 // ================= 档位 3b：GPG 操作（sign / verify / encrypt / decrypt） =================

@@ -132,9 +132,14 @@ internal class StepStreamClock {
     var firstChunkAtMs: Long = 0L
         private set
 
-    /** 每 attempt 开始时调一次；只有步内首次 attempt 记开始时刻、清首 chunk 时刻。 */
-    fun onAttemptStart(attempt: Int, nowMs: Long) {
-        if (attempt == 0) {
+    /**
+     * 每 attempt 开始时调一次；只有步内**首次** attempt 记开始时刻、清首 chunk 时刻。
+     *
+     * 用显式 [isStepStart] 而不是判断 `attempt == 0`：后者把「步内计数」这个约定藏在实现里，
+     * 调用方口径一变（如改成全局计数器）就会静默退化成「永不记时 = 上限失效」。
+     */
+    fun onAttemptStart(isStepStart: Boolean, nowMs: Long) {
+        if (isStepStart) {
             streamStartedAtMs = nowMs
             firstChunkAtMs = 0L
         }
@@ -853,7 +858,7 @@ internal class GenerationAgentRun(
         if (runCtx.abortReason == null) runCtx.abortReason = outcome
     }
 
-    override suspend fun onStreamAttemptReset(attempt: Int) {
+    override suspend fun onStreamAttemptReset(attempt: Int, isStepStart: Boolean) {
         // 诊断（只观测）：重试会清空未投递的缓冲 —— 若这里有内容，说明该 attempt 已生成的
         // 内容被丢弃。用户报过「思考开头/正文末尾断掉」，这是最可疑的一处。
         if (pendingStreamChunks.isNotEmpty()) {
@@ -873,7 +878,7 @@ internal class GenerationAgentRun(
         streamProgress.reset()
         // 步级流时钟只在步内首次 attempt 记时：重试不再重置开始时刻与首 chunk 时刻
         // （见 StepStreamClock），否则每 attempt 各拿满 15 分钟。
-        stepStreamClock.onAttemptStart(attempt, System.currentTimeMillis())
+        stepStreamClock.onAttemptStart(isStepStart, System.currentTimeMillis())
         lastStreamApplyAtMs = 0L
         pendingStreamChunks.clear()
         streamGuardStopRequested = false

@@ -5,12 +5,14 @@ import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import kotlin.coroutines.coroutineContext
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.rerere.rikkahub.data.db.entity.VaultAuditDefaults
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * 密钥库凭证仓库（Credential Vault Repository）。
@@ -530,51 +532,62 @@ class CredentialVaultRepository(
     /**
      * 记录一次密钥调用（查看/导出/备份）。
      * 写入后执行双上限清理：超 30 天先删，仍超 500 条则 trim。
+     *
+     * 审计写是尽力而为：审计库 / DataStore 出错不能把一次本已成功的取凭证
+     * 变成失败（解析器只关心解析结果）。失败记一条警告日志，不抛异常；
+     * 取消（[CancellationException]）原样上抛。
      */
     suspend fun logAccess(credentialName: String, caller: String, action: String) {
-        // 归属维度：生成链路经协程上下文透传（AuditContext），零调用方变更；后台任务无会话则为空
-        val ctx = coroutineContext[AuditContext]
-        val now = System.currentTimeMillis()
-        // 聚合：**机械取用**（provider 取 key 等，见 [VaultAuditDefaults.ROLLUP_ACTIONS]）在窗口内重复
-        // 只计次、不插新行 —— 否则每次请求一条，会把审计表刷满并挤掉事件性记录（导出/注入/删除…）。
-        // 事件性动作不聚合：必须能回答“哪一次、什么时候”。
-        val rollupMinutes =
-            if ("$caller/$action" in VaultAuditDefaults.ROLLUP_ACTIONS) vaultPreferences.auditRollupMinutes.first() else 0
-        auditWriteMutex.withLock {
-            val target = if (rollupMinutes > 0) {
-                auditDao.findRollupTarget(
-                    credentialName = credentialName,
-                    caller = caller,
-                    action = action,
-                    conversationId = ctx?.conversationId,
-                    sinceMs = now - rollupMinutes * 60_000L,
-                )
-            } else {
-                null
-            }
-            if (target != null) {
-                auditDao.bumpCount(target.id, now)
-            } else {
-                auditDao.insert(
-                    VaultAuditLogEntity(
+        // 守卫内联在本体里，不另拆函数：本类函数数已到 detekt TooManyFunctions
+        // 阈值（25），拆成包装 + 私有原体会再 +1 顶格触发。
+        runCatching {
+            // 归属维度：生成链路经协程上下文透传（AuditContext），零调用方变更；后台任务无会话则为空
+            val ctx = coroutineContext[AuditContext]
+            val now = System.currentTimeMillis()
+            // 聚合：**机械取用**（provider 取 key 等，见 [VaultAuditDefaults.ROLLUP_ACTIONS]）在窗口内重复
+            // 只计次、不插新行 —— 否则每次请求一条，会把审计表刷满并挤掉事件性记录（导出/注入/删除…）。
+            // 事件性动作不聚合：必须能回答“哪一次、什么时候”。
+            val rollupMinutes =
+                if ("$caller/$action" in VaultAuditDefaults.ROLLUP_ACTIONS) vaultPreferences.auditRollupMinutes.first() else 0
+            auditWriteMutex.withLock {
+                val target = if (rollupMinutes > 0) {
+                    auditDao.findRollupTarget(
                         credentialName = credentialName,
                         caller = caller,
                         action = action,
                         conversationId = ctx?.conversationId,
-                        modelId = ctx?.modelId,
-                        assistantId = ctx?.assistantId,
-                        source = ctx?.source,
-                        tsMs = now,
+                        sinceMs = now - rollupMinutes * 60_000L,
                     )
-                )
+                } else {
+                    null
+                }
+                if (target != null) {
+                    auditDao.bumpCount(target.id, now)
+                } else {
+                    auditDao.insert(
+                        VaultAuditLogEntity(
+                            credentialName = credentialName,
+                            caller = caller,
+                            action = action,
+                            conversationId = ctx?.conversationId,
+                            modelId = ctx?.modelId,
+                            assistantId = ctx?.assistantId,
+                            source = ctx?.source,
+                            tsMs = now,
+                        )
+                    )
+                }
             }
-        }
-        val retentionDays = vaultPreferences.auditRetentionDays.first()
-        val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000
-        auditDao.deleteOlderThan(cutoff, VaultAuditDefaults.PROTECTED_ACTIONS)
-        val cap = vaultPreferences.auditCap.first()
-        if (auditDao.count() > cap) {
-            auditDao.trimTo(cap, VaultAuditDefaults.PROTECTED_ACTIONS)
+            val retentionDays = vaultPreferences.auditRetentionDays.first()
+            val cutoff = System.currentTimeMillis() - retentionDays * 24L * 60 * 60 * 1000
+            auditDao.deleteOlderThan(cutoff, VaultAuditDefaults.PROTECTED_ACTIONS)
+            val cap = vaultPreferences.auditCap.first()
+            if (auditDao.count() > cap) {
+                auditDao.trimTo(cap, VaultAuditDefaults.PROTECTED_ACTIONS)
+            }
+        }.onFailure { e ->
+            if (e is CancellationException) throw e
+            AppLog.w("VaultAudit", "logAccess failed for $credentialName/$action", e)
         }
     }
 

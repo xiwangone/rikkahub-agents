@@ -287,6 +287,9 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
      * SshHostRepository 与 Context 不在 [WorkspaceRepository] 的构造参数里，
      * 沿用工具侧经 Koin 取依赖的做法，取不到时按“无该项输入”回退到下一级，不抛异常；
      * 全局默认直接读 [settingsStore]。AUTO 不是一个明确的平台选择，同样视为无显式值。
+     *
+     * 已保存主机 / 探针缓存读数失败（Room / DataStore 出错、密文解不开）同样按
+     * “无该项输入”处理，不向上传；真实原因记一条警告日志。
      */
     internal suspend fun WorkspaceRepository.resolveSshPlatform(
         host: String,
@@ -294,15 +297,31 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
         workspacePlatform: SshPlatform? = null,
         user: String? = null,
     ): String {
+        // 已保存主机读数（Room + 密钥解密）也在"不抛异常"的承诺内：
+        // 库错 / 密文解不开都按"无该项输入"落到下一级；连接时真正的凭证
+        // 问题由 toConnectionConfig 的凭证解析按口径报出，不在这里提前炸掉。
         val savedHost = runCatching { getKoin().get<SshHostRepository>() }
-            .getOrNull()?.getByHost(host)
+            .getOrNull()?.let { repo ->
+                runCatching { repo.getByHost(host) }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        AppLog.w("WorkspaceRepo", "saved host lookup failed, ignoring", e)
+                    }.getOrNull()
+            }
         val savedHostExplicit = savedHost?.let { SshPlatform.fromPreference(it.platform) }
             ?.takeUnless { it == SshPlatform.AUTO }
         val explicit = workspacePlatform?.takeUnless { it == SshPlatform.AUTO } ?: savedHostExplicit
         // 探针缓存的键含用户名：调用方传了用调用方的，否则用已保存主机的登录用户。
         val probeUser = user ?: savedHost?.user
+        // 探针缓存读数（DataStore）同理：读不到按"无缓存"处理，不抛异常。
         val cached = runCatching { getKoin().get<Context>() }
-            .getOrNull()?.let { probePreferredWindows(it, host, port, probeUser) }
+            .getOrNull()?.let { context ->
+                runCatching { probePreferredWindows(context, host, port, probeUser) }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        AppLog.w("WorkspaceRepo", "probe cache read failed, ignoring", e)
+                    }.getOrNull()
+            }
         val globalDefault = settingsStore.settingsFlow.value.defaultSshPlatform
         return when (RemotePlatform.resolveWindows(explicit, cached, globalDefault)) {
             true -> "WINDOWS"
@@ -402,9 +421,20 @@ internal var launchHostProbeSupplement: (suspend () -> Unit) -> Unit =
         val settings = workspace.sshSettings() ?: return null
         val context = runCatching { getKoin().get<Context>() }.getOrNull() ?: return null
         val store = SshHostProbeStore(context)
-        store.get(settings.host, settings.port, settings.username)?.let { return it.summary() }
+        // 探针缓存读数失败（DataStore 出错）按"无缓存"处理：环境信息读不到
+        // 时返回 null，不把提示词构建的调用链炸掉。
+        runCatching { store.get(settings.host, settings.port, settings.username) }
+            .onFailure { e ->
+                if (e is CancellationException) throw e
+                AppLog.w("WorkspaceRepo", "probe cache read failed, ignoring", e)
+            }.getOrNull()?.let { return it.summary() }
         if (settingsStore.settingsFlow.value.sshHostProbe != SshHostProbeMode.AUTO) return null
-        if (store.isNegativeCached(settings.host, settings.port, settings.username)) return null
+        val negativeCached = runCatching { store.isNegativeCached(settings.host, settings.port, settings.username) }
+            .onFailure { e ->
+                if (e is CancellationException) throw e
+                AppLog.w("WorkspaceRepo", "probe negative-cache read failed, ignoring", e)
+            }.getOrNull() == true
+        if (negativeCached) return null
         supplementHostProbeInBackground(id, workspace)
         return null
     }
@@ -422,10 +452,22 @@ internal var launchHostProbeSupplement: (suspend () -> Unit) -> Unit =
                 ?: return@launchHostProbeSupplement
             val store = SshHostProbeStore(context)
             // 协程启动后重新查一次：测试连接等显式入口可能已在期间写好缓存。
-            if (store.get(settings.host, settings.port, settings.username) != null) {
+            // 读数失败按"无缓存"继续往下走（探针写回本就带守卫）：后台协程里
+            // 的未捕获异常会走到默认异常处理器，不能让一次库读崩掉进程。
+            val cachedProbe = runCatching { store.get(settings.host, settings.port, settings.username) }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    AppLog.w("WorkspaceRepo", "probe cache read failed, ignoring", e)
+                }.getOrNull()
+            if (cachedProbe != null) {
                 return@launchHostProbeSupplement
             }
-            if (store.isNegativeCached(settings.host, settings.port, settings.username)) {
+            val negativeCached = runCatching { store.isNegativeCached(settings.host, settings.port, settings.username) }
+                .onFailure { e ->
+                    if (e is CancellationException) throw e
+                    AppLog.w("WorkspaceRepo", "probe negative-cache read failed, ignoring", e)
+                }.getOrNull() == true
+            if (negativeCached) {
                 return@launchHostProbeSupplement
             }
             val platform = resolveSshPlatform(settings.host, settings.port, user = settings.username)

@@ -215,7 +215,8 @@ internal class AgentLoop(
             }) {
                 // 每次重试都从本步开始时的消息重新合并，不会把重试的响应接在已经展示的半截回复后面；
                 // 各次尝试共用同一个消息 id，调用方直接覆盖即可。
-                hooks.onStreamAttemptReset(subscriptions++)
+                hooks.onStreamAttemptReset(attempt = subscriptions, isStepStart = subscriptions == 0)
+                subscriptions++
                 val handler = StreamChunkHandler(params.model)
                 var attempt = stepStart
                 var lastRequestUsage: TokenUsage? = null

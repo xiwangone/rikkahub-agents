@@ -174,12 +174,12 @@ class GenerationStreamProgressTest {
 
     @Test fun progressResetsOnlyBetweenAttemptsAndMeaningfulOutputClearsRetryStatus() { runBlocking {
         val hooks=ProgressHooks(model,2)
-        hooks.onStreamAttemptReset(0)
+        hooks.onStreamAttemptReset(attempt = 0, isStepStart = true)
         hooks.interceptStream(flowOf(StreamChunk.TextDelta("text","synthetic output"))).toList()
         assertTrue(hooks.progress.receivedAnyChunk)
         assertTrue(hooks.progress.receivedMeaningfulOutput)
         assertNull(hooks.retryStatus)
-        hooks.onStreamAttemptReset(1)
+        hooks.onStreamAttemptReset(attempt = 1, isStepStart = false)
         assertFalse(hooks.progress.receivedAnyChunk)
         assertFalse(hooks.progress.receivedMeaningfulOutput)
     } }
@@ -210,7 +210,7 @@ class GenerationStreamProgressTest {
         private var attempt = 0
         var retryStatus: String? = "synthetic retry status"
         override suspend fun prepareStep(messages: List<UIMessage>) = StepRequest(messages, TextGenerationParams(model=model))
-        override suspend fun onStreamAttemptReset(attempt: Int) {
+        override suspend fun onStreamAttemptReset(attempt: Int, isStepStart: Boolean) {
             this.attempt = attempt
             progress.reset()
         }

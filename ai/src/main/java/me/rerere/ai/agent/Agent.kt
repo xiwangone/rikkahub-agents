@@ -113,10 +113,15 @@ interface AgentHooks {
     fun interceptStream(chunks: Flow<StreamChunk>): Flow<StreamChunk> = chunks
 
     /**
-     * 每次（重新）订阅 [interceptStream] 之前调用，[attempt] 从 0 开始，重试时递增。
-     * 用于复位「本次尝试是否已收到事件」「本次尝试的请求起点」这类每尝试状态。
+     * 每次（重新）订阅 [interceptStream] 之前调用。
+     *
+     * @param attempt 本步内的尝试序号，重试时递增。
+     * @param isStepStart 这是否是**本步的首次**尝试。显式传参而不是让实现方去猜 `attempt == 0`：
+     *   步预算、步级时钟这类「整步只算一次」的状态必须依赖这个事实，一旦调用方的计数口径变了
+     *   （例如改成全局递增），靠 `attempt == 0` 判断会**静默失效**——上限不再生效，
+     *   表现为「跑得比预期久」而不是报错，很难发现。
      */
-    suspend fun onStreamAttemptReset(attempt: Int) {}
+    suspend fun onStreamAttemptReset(attempt: Int, isStepStart: Boolean) {}
 
     /**
      * 未执行工具的状态判定（审批协议的决策点），对同一批工具逐个调用后再统一决定是否收尾。

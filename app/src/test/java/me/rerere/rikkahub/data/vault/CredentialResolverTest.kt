@@ -46,11 +46,15 @@ class CredentialResolverTest {
         return runBlocking { task.await() }
     }
 
-    private fun emptyRepository(): CredentialVaultRepository =
+    private fun emptyRepository(
+        getByNameThrows: Boolean = false,
+        auditThrows: Boolean = false,
+    ): CredentialVaultRepository =
         CredentialVaultRepository(
             dao = object : VaultCredentialDao {
                 override suspend fun getAll(): List<VaultCredentialEntity> = emptyList()
-                override suspend fun getByName(name: String): VaultCredentialEntity? = null
+                override suspend fun getByName(name: String): VaultCredentialEntity? =
+                    if (getByNameThrows) throw IllegalStateException("vault db unavailable") else null
                 override suspend fun upsert(entry: VaultCredentialEntity): Long = 0L
                 override suspend fun insertIfAbsent(entry: VaultCredentialEntity): Long = 0L
                 override suspend fun update(entry: VaultCredentialEntity) = Unit
@@ -68,7 +72,9 @@ class CredentialResolverTest {
                     limit: Int,
                 ): List<VaultAuditLogEntity> = emptyList()
 
-                override suspend fun insert(entry: VaultAuditLogEntity) = Unit
+                override suspend fun insert(entry: VaultAuditLogEntity) {
+                    if (auditThrows) throw IllegalStateException("audit db unavailable")
+                }
                 override suspend fun deleteOlderThan(cutoffMs: Long, protectedActions: List<String>) = Unit
                 override suspend fun trimTo(keep: Int, protectedActions: List<String>) = Unit
                 override suspend fun count(): Int = 0
@@ -78,7 +84,8 @@ class CredentialResolverTest {
                     action: String,
                     conversationId: String?,
                     sinceMs: Long,
-                ): VaultAuditLogEntity? = null
+                ): VaultAuditLogEntity? =
+                    if (auditThrows) throw IllegalStateException("audit db unavailable") else null
 
                 override suspend fun bumpCount(id: Long, nowMs: Long) = Unit
                 override suspend fun clearAll() = Unit
@@ -123,6 +130,65 @@ class CredentialResolverTest {
             val resolver = CredentialResolver(emptyRepository())
             val r = resolver.resolveRef("ANY_CRED", CredentialPurpose.SSH_AUTH, caller = "test", audit = false)
             assertTrue(r is CredentialResolution.NotAuthorized)
+        }
+    }
+
+    /**
+     * 2-13 回归：`resolveLiteralOrReference` 承诺"从不抛异常"，但解析器
+     * 原来把 Room / DataStore 调用裸露在外——库错会变成调用链上的原始异常。
+     * 库读失败按"解析不到"处理（查找失败 → Missing，授权检查失败 → 拒绝，
+     * 审计写失败不影响本次解析结果），真实原因只记警告日志。
+     */
+    @Test
+    fun `vault lookup failure maps to Missing instead of throwing`() {
+        perform {
+            val resolver = CredentialResolver(emptyRepository(getByNameThrows = true))
+            val r = resolver.resolve("ANY_CRED", CredentialPurpose.WEB_BRIDGE, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.Missing)
+        }
+    }
+
+    @Test
+    fun `field reference lookup failure maps to Missing instead of throwing`() {
+        perform {
+            val resolver = CredentialResolver(emptyRepository(getByNameThrows = true))
+            val r = resolver.resolveRef("ANY_CRED.endpoint", CredentialPurpose.WEB_BRIDGE, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.Missing)
+        }
+    }
+
+    @Test
+    fun `authorization check failure denies instead of throwing`() {
+        perform {
+            val resolver = CredentialResolver(emptyRepository()) { throw IllegalStateException("session store unavailable") }
+            val r = resolver.resolve("ANY_CRED", CredentialPurpose.SSH_AUTH, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.NotAuthorized)
+        }
+    }
+
+    @Test
+    fun `audit write failure does not fail the operation`() {
+        perform {
+            val repository = emptyRepository(auditThrows = true)
+            val resolver = CredentialResolver(repository)
+            val r = resolver.resolve("ANY_CRED", CredentialPurpose.WEB_BRIDGE, caller = "test", audit = true)
+            assertTrue(r is CredentialResolution.Missing)
+            // 审计本身也不抛：直接调 logAccess 应正常返回。
+            repository.logAccess("ANY_CRED", "test", "web_bridge")
+        }
+    }
+
+    @Test
+    fun `literal-or-reference never throws on vault failure`() {
+        perform {
+            val repository = emptyRepository(getByNameThrows = true)
+            val value = resolveLiteralOrReference(
+                "\$\$ANY_CRED",
+                CredentialPurpose.WEB_BRIDGE,
+                repository,
+                caller = "test",
+            )
+            assertTrue(value == null)
         }
     }
 }

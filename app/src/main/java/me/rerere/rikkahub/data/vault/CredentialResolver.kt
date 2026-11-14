@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.vault
 
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
+import me.rerere.rikkahub.data.log.AppLog
 
 /**
  * 凭证使用目的。
@@ -105,6 +107,11 @@ val CredentialResolution.message: String
  * - [audit] = false 仅用于"内部分辨"（如连接前探测候选主机是否有可用凭证），
  *   避免探测噪音污染审计；真正取用时必须记。
  * - 返回的明文禁止落盘、禁止进日志。
+ * - 库读失败不向上传：授权检查 / 凭证查找读 Room / DataStore 时抛错，
+ *   按"解析不到"处理（授权失败 → [CredentialResolution.NotAuthorized]，
+ *   查找失败 → [CredentialResolution.Missing]），审计写失败不影响本次
+ *   解析结果；真实原因记一条警告日志。取消（[CancellationException]）
+ *   原样上抛，不当作解析失败。
  */
 class CredentialResolver(
     private val repository: CredentialVaultRepository,
@@ -117,6 +124,18 @@ class CredentialResolver(
      */
     private val isAuthorized: (suspend (String) -> Boolean)? = null,
 ) {
+
+    /**
+     * 库读守卫：Room / DataStore 出错时返回 null（调用方按"解析不到"处理），
+     * 异常只记一条警告日志。取消（[CancellationException]）必须原样上抛，
+     * 不能把协程取消吞成"解析不到"。
+     */
+    private suspend fun <T> safeVaultRead(what: String, block: suspend () -> T): T? =
+        runCatching { block() }
+            .onFailure { e ->
+                if (e is CancellationException) throw e
+                AppLog.w("CredentialResolver", "$what failed: ${e.message}", e)
+            }.getOrNull()
 
     suspend fun resolve(
         name: String,
@@ -134,12 +153,20 @@ class CredentialResolver(
         val trimmed = name.trim()
         if (trimmed.isEmpty()) return CredentialResolution.Missing(name)
 
-        if (purpose.requiresAuthorization && isAuthorized?.invoke(trimmed) != true) {
-            if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_denied")
-            return CredentialResolution.NotAuthorized(trimmed)
+        // 授权门本身读会话 DataStore：查不到授权 = 拒绝（fail-closed），
+        // 授权检查自己抛错同样按拒绝处理，不把库错变成调用链上的原始异常。
+        if (purpose.requiresAuthorization) {
+            val authorized = safeVaultRead("authorization check") { isAuthorized?.invoke(trimmed) } == true
+            if (!authorized) {
+                if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_denied")
+                return CredentialResolution.NotAuthorized(trimmed)
+            }
         }
 
-        val entry = repository.getByName(trimmed)
+        // 库读失败按"解析不到"处理：调用方只按 Granted / 非 Granted 分支，
+        // 库错不该变成调用链上的原始异常（见 [resolveLiteralOrReference] 的
+        // "从不抛异常"约定）。真实原因记一条警告日志，不静默。
+        val entry = safeVaultRead("credential lookup") { repository.getByName(trimmed) }
         if (entry == null) {
             if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_missing")
             return CredentialResolution.Missing(trimmed)
@@ -187,12 +214,17 @@ class CredentialResolver(
         val ref = parseVaultRef(whole)
         if (ref.field == null) return resolve(ref.name, purpose, caller, audit)
         // 整名优先：带点的串若能对上库里某条名字，按老语义取主值
-        if (whole.isNotEmpty() && repository.getByName(whole) != null) {
+        // （库读失败按查不到处理，与 [resolve] 同口径）。
+        if (whole.isNotEmpty() && safeVaultRead("credential lookup") { repository.getByName(whole) } != null) {
             return resolve(whole, purpose, caller, audit)
         }
         if (ref.name.isEmpty()) return CredentialResolution.Missing(whole)
 
-        val resolution = fieldResolution(repository.getByName(ref.name), ref.name, ref.field)
+        val resolution = fieldResolution(
+            safeVaultRead("credential lookup") { repository.getByName(ref.name) },
+            ref.name,
+            ref.field,
+        )
         if (audit) {
             val action = if (resolution is CredentialResolution.Granted) {
                 "${purpose.action}_field"

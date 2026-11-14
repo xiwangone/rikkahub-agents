@@ -144,14 +144,14 @@ class GenerationHandlerTurnBudgetTest {
     fun stepStreamClock_retryDoesNotResetStart() {
         val clock = StepStreamClock()
         val start = 1_000_000L
-        clock.onAttemptStart(0, start)
+        clock.onAttemptStart(true, start)
         assertEquals(start, clock.streamStartedAtMs)
         // 第 2 次 attempt 在步开始 14 分钟后启动：开始时刻不变，只剩 1 分钟预算
-        clock.onAttemptStart(1, start + 14 * 60_000L)
+        clock.onAttemptStart(false, start + 14 * 60_000L)
         assertEquals(start, clock.streamStartedAtMs)
         assertFalse(clock.isBudgetExhausted(start + 14 * 60_000L))
         // 第 3 次 attempt 在步开始 15 分钟后启动：预算已耗尽
-        clock.onAttemptStart(2, start + 15 * 60_000L)
+        clock.onAttemptStart(false, start + 15 * 60_000L)
         assertEquals(start, clock.streamStartedAtMs)
         assertTrue(clock.isBudgetExhausted(start + 15 * 60_000L))
     }
@@ -160,11 +160,11 @@ class GenerationHandlerTurnBudgetTest {
     fun stepStreamClock_firstChunkPersistsAcrossRetries() {
         val clock = StepStreamClock()
         val start = 1_000_000L
-        clock.onAttemptStart(0, start)
+        clock.onAttemptStart(true, start)
         clock.onFirstChunk(start + 5_000L)
         assertEquals(start + 5_000L, clock.firstChunkAtMs)
         // 重试的首 chunk 不覆盖步内首次到达的时刻：收尾 90 秒窗口按步计量
-        clock.onAttemptStart(1, start + 60_000L)
+        clock.onAttemptStart(false, start + 60_000L)
         clock.onFirstChunk(start + 65_000L)
         assertEquals(start + 5_000L, clock.firstChunkAtMs)
     }
@@ -173,11 +173,11 @@ class GenerationHandlerTurnBudgetTest {
     fun stepStreamClock_nextStepResetsClock() {
         val clock = StepStreamClock()
         val start = 1_000_000L
-        clock.onAttemptStart(0, start)
+        clock.onAttemptStart(true, start)
         clock.onFirstChunk(start + 5_000L)
         // 下一步的首次 attempt 重新记时、清首 chunk 时刻
         val nextStart = start + 20 * 60_000L
-        clock.onAttemptStart(0, nextStart)
+        clock.onAttemptStart(true, nextStart)
         assertEquals(nextStart, clock.streamStartedAtMs)
         assertEquals(0L, clock.firstChunkAtMs)
         assertFalse(clock.isBudgetExhausted(nextStart))
@@ -196,7 +196,7 @@ class GenerationHandlerTurnBudgetTest {
     fun stepStreamClock_clampsRetryDelayToRemainingBudget() {
         val clock = StepStreamClock()
         val start = 1_000_000L
-        clock.onAttemptStart(0, start)
+        clock.onAttemptStart(true, start)
         // 剩余 60 秒时，300 秒 Retry-After 钳制到 60 秒
         assertEquals(60_000L, clock.clampDelayMs(300_000L, start + 14 * 60_000L))
         // 剩余充足时原样返回
@@ -211,9 +211,9 @@ class GenerationHandlerTurnBudgetTest {
         // 步开始 15 分钟后无论第几次 attempt 都已耗尽，不会再有新的重试。
         val clock = StepStreamClock()
         val start = 1_000_000L
-        clock.onAttemptStart(0, start)
+        clock.onAttemptStart(true, start)
         repeat(6) { attempt ->
-            clock.onAttemptStart(attempt, start + attempt * 60_000L)
+            clock.onAttemptStart(attempt == 0, start + attempt * 60_000L)
             assertEquals(start, clock.streamStartedAtMs)
         }
         assertTrue(clock.isBudgetExhausted(start + 15 * 60_000L))

@@ -84,11 +84,15 @@ object SecretMasker {
         val entries = repository.getAll()
         val version = entries.maxOfOrNull { it.updatedAt } ?: 0L
         if (version == cachedVersion) return
-        cachedVersion = version
-        cachedRules = entries.mapNotNull { e ->
+        // 先算规则、最后一起写版本：并发场景下先写版本会让其他线程在规则就绪前
+        // 命中缓存直接返回（首次冷启动拿到空规则 = 全部凭证不掩）；解密中途抛异常
+        // 也只让本次刷新无效，下次仍会重算，不会永久卡在旧规则上。
+        val newRules = entries.mapNotNull { e ->
             val v = repository.decryptValue(e)?.trim() ?: return@mapNotNull null
             classify(e.name, v)
         }
+        cachedRules = newRules
+        cachedVersion = version
     }
 
     /**
