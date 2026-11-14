@@ -255,7 +255,8 @@ internal suspend fun validateWorkspaceTargetPath(
                 remoteDir != root && !remoteDir.startsWith("$root/")
         }
         require(hitsLocalRoot == null) {
-            "Path '$path' uses local Rootfs mount '$hitsLocalRoot', but workspace '${ws.name}' is a remote SSH host whose workspace directory is '$remoteDir'. Use '$remoteDir/...' for files in this remote workspace, or use device tools (read_file / write_text_file) for local phone files."
+            "Path '$path' uses local Rootfs mount '$hitsLocalRoot', but workspace '${ws.name}' is a remote SSH host whose workspace directory is '$remoteDir'. Use '$remoteDir/...' for files in this remote workspace, or use device tools (read_file / write_text_file) for local phone files. " +
+                "If '$hitsLocalRoot' really exists on that remote host (e.g. a build machine keeps its repo there), set this workspace's remote directory to it instead — the check only guards against mixing up environments, not against genuine remote paths."
         }
         val hitsAndroidStorage = ANDROID_STORAGE_ROOTS.firstOrNull { root ->
             (path == root || path.startsWith("$root/")) &&
