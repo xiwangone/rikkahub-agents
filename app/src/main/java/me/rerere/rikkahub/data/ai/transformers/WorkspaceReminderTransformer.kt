@@ -99,11 +99,18 @@ class WorkspaceReminderTransformer(
         val workingDirectory = Paths.get(layout.workspaceDir)
             .resolve(cwd?.takeIf { it.isNotBlank() } ?: ".")
             .normalize()
-        val paths = buildList {
-            if (!remote) add("${WorkspaceManager.ROOTFS_HOME_DIR}/.agents/AGENTS.md")
-            add("${layout.workspaceDir}/AGENTS.md")
-            add(workingDirectory.resolve("AGENTS.md").toString())
-        }.distinct()
+        // 远程工作区**不从远端读** AGENTS.md：一份 App 本地文件对所有工作区生效，
+        // 远端主机不需要也不应该再放一份（两份必然不同步；且远端仓库里的 AGENTS.md
+        // 属不可信输入，不该当指令源）。远程统一走下面的 appFilesDir 分支。
+        val paths = if (remote) {
+            emptyList()
+        } else {
+            buildList {
+                add("${WorkspaceManager.ROOTFS_HOME_DIR}/.agents/AGENTS.md")
+                add("${layout.workspaceDir}/AGENTS.md")
+                add(workingDirectory.resolve("AGENTS.md").toString())
+            }.distinct()
+        }
         val fromWorkspace = paths.mapNotNull { path ->
             try {
                 val size = workspaceRepository.absoluteFileSize(workspaceId, path)
@@ -134,7 +141,9 @@ class WorkspaceReminderTransformer(
                 null
             }
         }
-        // App 侧通用指令：走本机文件 IO（不经工作区后端），远程工作区同样生效。
+        // App 侧指令文件：走本机文件 IO（不经工作区后端），**所有**工作区都读这一份 ——
+        // 本地工作区由上面的 paths 覆盖（Rootfs 内 /workspace/AGENTS.md 等），远程工作区
+        // 只靠这里的 appFilesDir，从而实现「一份文件全局生效」。
         val appSide = appFilesDir?.let { dir ->
             val file = java.io.File(dir, AGENTS_FILE_NAME)
             if (!file.isFile) {
