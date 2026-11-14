@@ -30,3 +30,6 @@ fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/re
 1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:64
 1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:72
 1d9af0bd1ab3a41aa6727b9264d10e5cf6820352:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:78
+cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:90
+cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:100
+cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:116
