@@ -489,7 +489,7 @@ private fun createShellTool(
         val effectiveTimeoutSeconds = timeoutSeconds?.coerceIn(1L, SHELL_TIMEOUT_MAX_SECONDS)
             ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
         val timeoutMillis = effectiveTimeoutSeconds * 1_000L
-        // env: { 环境变量名: vault凭证名 } —— 进程内解密注入，不落盘、AI 不见明文
+        // env: { 环境变量名: 值 } —— 值以 `$$` 开头时按凭证名解析，其余按字面值；进程内注入，不落盘、AI 不见明文
         val (injectedEnv, envError) = resolveInjectedEnv(params)
         if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 
@@ -602,14 +602,14 @@ private fun createRunBackgroundTool(
                     put("type", "object")
                     put(
                         "description",
-                        "Optional vault credentials to inject into the background command's environment as variables, " +
-                            "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
-                            "injected ONLY into this command's process environment — never written to disk, " +
-                            "never shown to the AI. Requires an active vault authorization. " +
-                            "A plaintext metadata field can be referenced as `credentialName.<field>` " +
-                            "(e.g. {\"AWS_ACCESS_KEY_ID\": \"MY_S3.access_key_id\"}); plaintext fields are not " +
-                            "gated by authorization because they are stored unencrypted. " +
-                            "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
+                        "Optional environment variables for the background command, mapping envVarName -> value. " +
+                            "A value starting with `\$\$` is resolved from the credential vault (`\$\$NAME` = that credential's value, " +
+                            "`\$\$NAME.field` = one plaintext metadata field, e.g. `\$\$MY_S3.access_key_id`); " +
+                            "every other value is injected literally as-is. " +
+                            "Vault values are decrypted in-process and injected ONLY into this command's process environment — " +
+                            "never written to disk, never shown to the AI; `\$\$` references require an active vault authorization. " +
+                            "Variable names must match [A-Za-z_][A-Za-z0-9_]*. " +
+                            "Example: {\"GITHUB_TOKEN\": \"\$\$GITHUB_TOKEN\", \"NODE_ENV\": \"production\"}.",
                     )
                 })
             },
@@ -633,7 +633,7 @@ private fun createRunBackgroundTool(
         }
         val cwd = targetLayout.relativeToWorkspace(rawCwd)
 
-        // env: { 环境变量名: vault凭证名 } —— 同 workspace_shell：进程内解密注入，不落盘、AI 不见明文
+        // env: { 环境变量名: 值 } —— 同 workspace_shell：`$$` 前缀走凭证库，其余字面值；不落盘、AI 不见明文
         val (injectedEnv, envError) = resolveInjectedEnv(params)
         if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
 

@@ -149,7 +149,14 @@ internal fun renderShellPreset(
 }
 
 /**
- * 解析 `env` 参数（{环境变量名: vault凭证名 或 凭证名.字段}）并进程内解密注入。
+ * 解析 `env` 参数并进程内解密注入。
+ *
+ * **值的语义与 ssh 工具（`readEnvParam`）完全一致**：
+ * - 以 `$$` 开头 → 按名从凭证库解析（`$$NAME` 取主值，`$$NAME.field` 取该条目的明文元数据字段）；
+ * - 其余 → **按字面值注入**（`{"NODE_ENV":"production"}` 直接可用，不必挤进命令里 export）。
+ *
+ * 纯字面量时不碰凭证库（也不需要授权）；只有含 `$$` 引用时才走会话授权 / 解密 / 审计。
+ * 解析失败一律返回错误、**不静默回退字面值**（否则凭证名会被当成值写进环境 —— 那是 ssh 侧修过的坑）。
  *
  * 独立成函数以压低 createShellTool 的圈复杂度；返回（注入映射, 错误消息），
  * 错误消息非空时调用方应直接返回它。
@@ -157,6 +164,37 @@ internal fun renderShellPreset(
 internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
     val envObj = params["env"] as? JsonObject ?: return emptyMap<String, String>() to null
     if (envObj.isEmpty()) return emptyMap<String, String>() to null
+
+    // 键名非法会被注入层静默丢弃（模型以为注入成功）→ 先显式拒绝
+    val invalidKeys =
+        envObj.keys.filterNot { me.rerere.rikkahub.data.ai.tools.local.ENV_KEY_REGEX.matches(it) }
+    if (invalidKeys.isNotEmpty()) {
+        return emptyMap<String, String>() to
+            "❌ env injection failed: invalid variable name(s): ${invalidKeys.joinToString()} " +
+            "(must match [A-Za-z_][A-Za-z0-9_]*)"
+    }
+
+    val literals = LinkedHashMap<String, String>()
+    val references = mutableListOf<Pair<String, String>>()
+    for ((envName, valueJson) in envObj) {
+        val raw = (valueJson as? JsonPrimitive)?.contentOrNull
+            ?: return emptyMap<String, String>() to
+                "❌ env injection failed: value for '$envName' must be a string"
+        if (!me.rerere.rikkahub.data.vault.isVaultReference(raw)) {
+            literals[envName] = raw
+            continue
+        }
+        val credRef =
+            raw.trim().removePrefix(me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX).trim()
+        if (credRef.isEmpty()) {
+            return emptyMap<String, String>() to
+                "❌ env injection failed: '$envName' has an empty vault reference (expected \$\$CRED_NAME)"
+        }
+        references += envName to credRef
+    }
+    // 纯字面量：不需要凭证库，也不需要授权
+    if (references.isEmpty()) return literals to null
+
     val vaultRepository =
         runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
             ?: return emptyMap<String, String>() to "❌ env injection failed: credential vault unavailable"
@@ -167,16 +205,13 @@ internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, St
             context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
                 ?.hasActiveAuthorization(name) == true
         }
-    val resolved = mutableMapOf<String, String>()
-    for ((envName, credNameJson) in envObj) {
-        val credName = (credNameJson as? JsonPrimitive)?.contentOrNull?.trim()
-        if (credName.isNullOrEmpty()) {
-            return emptyMap<String, String>() to
-                "❌ env injection failed: credential name for '$envName' must be a non-empty string"
-        }
-        when (val r = resolver.resolveRef(credName, CredentialPurpose.ENV_INJECT, caller = "ai-tool")) {
-            is CredentialResolution.Granted -> resolved[envName] = r.value
-            else -> return emptyMap<String, String>() to "❌ env injection failed: ${r.message}"
+    val resolved = literals
+    for ((envName, credRef) in references) {
+        val resolution = resolver.resolveRef(credRef, CredentialPurpose.ENV_INJECT, caller = "ai-tool")
+        when (resolution) {
+            is CredentialResolution.Granted -> resolved[envName] = resolution.value
+            else -> return emptyMap<String, String>() to
+                "❌ env injection failed: $envName -> ${resolution.message}"
         }
     }
     return resolved to null
@@ -330,14 +365,14 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
             put("type", "object")
             put(
                 "description",
-                "Optional vault credentials to inject into the command's environment as variables, " +
-                    "mapping envVarName -> vaultCredentialName. Values are decrypted in-process and " +
-                    "injected ONLY into this command's process environment — never written to disk, " +
-                    "never shown to the AI. Requires an active vault authorization. " +
-                    "A plaintext metadata field can be referenced as `credentialName.<field>` " +
-                    "(e.g. {\"AWS_ACCESS_KEY_ID\": \"MY_S3.access_key_id\"}); plaintext fields are not " +
-                    "gated by authorization because they are stored unencrypted. " +
-                    "Example: {\"GITHUB_TOKEN\": \"GITHUB_TOKEN\"} makes the token available as \$GITHUB_TOKEN inside the command.",
+                "Optional environment variables for this command, mapping envVarName -> value. " +
+                    "A value starting with `\$\$` is resolved from the credential vault (`\$\$NAME` = that credential's value, " +
+                    "`\$\$NAME.field` = one plaintext metadata field, e.g. `\$\$MY_S3.access_key_id`); " +
+                    "every other value is injected literally as-is. " +
+                    "Vault values are decrypted in-process and injected ONLY into this command's process environment — " +
+                    "never written to disk, never shown to the AI; `\$\$` references require an active vault authorization. " +
+                    "Variable names must match [A-Za-z_][A-Za-z0-9_]*. " +
+                    "Example: {\"GITHUB_TOKEN\": \"\$\$GITHUB_TOKEN\", \"NODE_ENV\": \"production\"}.",
             )
         })
     }

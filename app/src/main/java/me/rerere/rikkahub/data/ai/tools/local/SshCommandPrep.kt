@@ -271,7 +271,7 @@ internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map
     }.toMap()
 }
 
-private val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
+internal val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
 
 /**
  * 挑出不匹配 [ENV_KEY_REGEX] 的 env 键名。
