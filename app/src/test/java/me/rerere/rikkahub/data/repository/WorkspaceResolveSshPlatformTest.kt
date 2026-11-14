@@ -3,6 +3,9 @@ package me.rerere.rikkahub.data.repository
 import android.app.Application
 import android.content.Context
 import android.os.Looper
+import androidx.datastore.core.DataStore
+import androidx.datastore.preferences.core.PreferenceDataStoreFactory
+import androidx.datastore.preferences.core.Preferences
 import java.io.File
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -12,6 +15,7 @@ import kotlinx.coroutines.runBlocking
 import me.rerere.rikkahub.data.ai.tools.TestWorkspaceRepository
 import me.rerere.rikkahub.data.ai.tools.listBackedWorkspaceDao
 import me.rerere.rikkahub.data.ai.tools.local.SshHostProbeStore
+import me.rerere.rikkahub.data.ai.tools.local.probePreferredWindows
 import me.rerere.rikkahub.data.ai.tools.newTestWorkspaceRepository
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.dao.SshHostDao
@@ -117,11 +121,18 @@ class WorkspaceResolveSshPlatformTest {
     private fun autoHost(host: String = HOST): SshHostEntity =
         SshHostEntity(name = "probe-host", host = host, user = "tester", createdAtMs = 0L)
 
-    /** 把 host_probes 的 DataStore 文件写成非法内容：下一次读数必抛错。 */
-    private fun corruptProbeStore() {
-        val file = File(context.filesDir, "datastore/host_probes.preferences_pb")
-        file.parentFile?.mkdirs()
+    /**
+     * 指向临时目录、内容非法的**独立** DataStore：首读必抛。
+     *
+     * 不用 `context.hostProbeDataStore`（进程级单例）：同测试类里任何用例先读过它之后，
+     * DataStore 已经把数据读进内存，再去写坏磁盘文件也不会重读 —— 断言会随方法顺序时好时坏。
+     */
+    private fun corruptedProbeStore(): DataStore<Preferences> {
+        val file = File(tempFolder.newFolder("probe-store"), "host_probes.preferences_pb")
         file.writeBytes(byteArrayOf(0x00, 0x01, 0x02, 0x03, 0x04, 0x05))
+        return PreferenceDataStoreFactory.create(
+            scope = CoroutineScope(SupervisorJob() + Dispatchers.IO),
+        ) { file }
     }
 
     @Test
@@ -159,15 +170,23 @@ class WorkspaceResolveSshPlatformTest {
     fun `corrupted probe cache falls back to AUTO instead of throwing`() {
         perform {
             val h = openHarness(SshHostRepository(FakeSshHostDao(hostEntity = autoHost())))
-            corruptProbeStore()
-            // 先证明夹具本身真的坏了：无守卫的直读必须抛错。
+            val broken = corruptedProbeStore()
+            // 先证明夹具本身真的坏了：这个独立 store 首读必抛。
+            // （不能用生产 delegate：它是进程级单例，其他用例读过之后内存已有快照，
+            //  再写坏文件也不会重读 —— 这正是本用例原先时好时坏的原因。）
             var directThrew = false
             try {
-                SshHostProbeStore(context).get(HOST, 22)
+                SshHostProbeStore(context, broken).get(HOST, 22)
             } catch (ignored: Exception) {
                 directThrew = true
             }
             assertTrue("corrupted probe store should throw on direct read", directThrew)
+            // 守卫路径：`resolveSshPlatform` 用 runCatching 包住探针读数（见实现），
+            // 这里复刻同一形状，确认异常会被归为“无缓存（null）”而不是向上抛。
+            val guarded = runCatching {
+                probePreferredWindows(context, HOST, 22, null, SshHostProbeStore(context, broken))
+            }.getOrNull()
+            assertEquals(null, guarded)
             assertEquals("AUTO", h.repository.resolveSshPlatform(HOST, 22))
         }
     }

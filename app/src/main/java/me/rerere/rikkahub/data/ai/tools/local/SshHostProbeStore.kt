@@ -43,7 +43,10 @@ import me.rerere.workspace.ssh.SshHostProbeResult
  */
 private val Context.hostProbeDataStore: DataStore<Preferences> by preferencesDataStore(name = "host_probes")
 
-class SshHostProbeStore(private val context: Context) {
+class SshHostProbeStore(
+    context: Context,
+    private val store: DataStore<Preferences> = context.hostProbeDataStore,
+) {
     private val probesKey = stringPreferencesKey("probes")
     private val failuresKey = stringPreferencesKey("probe_failures")
 
@@ -60,7 +63,7 @@ class SshHostProbeStore(private val context: Context) {
 
     suspend fun put(host: String, port: Int, result: SshHostProbeResult, user: String? = null) {
         val key = RemotePlatform.cacheKey(host, port, user)
-        context.hostProbeDataStore.edit { prefs ->
+        store.edit { prefs ->
             val map = readAll().toMutableMap()
             map.remove(key)
             map[key] = result
@@ -89,7 +92,7 @@ class SshHostProbeStore(private val context: Context) {
         failedAtMs: Long = System.currentTimeMillis(),
     ) {
         val key = RemotePlatform.cacheKey(host, port, user)
-        context.hostProbeDataStore.edit { prefs ->
+        store.edit { prefs ->
             val failures = readFailures().toMutableMap()
             failures.remove(key)
             failures[key] = failedAtMs
@@ -114,7 +117,7 @@ class SshHostProbeStore(private val context: Context) {
     /** 清掉指定主机的探针缓存（测试连接每次重跑会直接覆盖，无需先清）。同时清掉否定记录，下次不再跳过。 */
     suspend fun clear(host: String, port: Int, user: String? = null) {
         val keys = probeKeys(host, port, user)
-        context.hostProbeDataStore.edit { prefs ->
+        store.edit { prefs ->
             val map = readAll().toMutableMap()
             keys.forEach { map.remove(it) }
             prefs[probesKey] = JsonInstant.encodeToString(
@@ -143,7 +146,7 @@ class SshHostProbeStore(private val context: Context) {
         result.probedAtMs > 0 && nowMs - result.probedAtMs <= POSITIVE_TTL_MS
 
     private suspend fun readAll(): Map<String, SshHostProbeResult> {
-        val raw = context.hostProbeDataStore.data.map { it[probesKey] }.first() ?: return emptyMap()
+        val raw = store.data.map { it[probesKey] }.first() ?: return emptyMap()
         return runCatching {
             JsonInstant.decodeFromString(
                 MapSerializer(String.serializer(), SshHostProbeResult.serializer()),
@@ -153,7 +156,7 @@ class SshHostProbeStore(private val context: Context) {
     }
 
     private suspend fun readFailures(): Map<String, Long> {
-        val raw = context.hostProbeDataStore.data.map { it[failuresKey] }.first() ?: return emptyMap()
+        val raw = store.data.map { it[failuresKey] }.first() ?: return emptyMap()
         return runCatching {
             JsonInstant.decodeFromString(
                 MapSerializer(String.serializer(), Long.serializer()),
@@ -175,6 +178,12 @@ class SshHostProbeStore(private val context: Context) {
  * 平台决议的缓存读数统一入口（两边共用）：探针结果优先于 banner 缓存。
  * 探针跑出来的平台是真实执行的结果，不一致时以探针为准；无探针结果时回退 banner 缓存。
  */
-internal suspend fun probePreferredWindows(context: Context, host: String, port: Int, user: String? = null): Boolean? =
-    SshHostProbeStore(context).get(host, port, user)?.isWindows
+internal suspend fun probePreferredWindows(
+    context: Context,
+    host: String,
+    port: Int,
+    user: String? = null,
+    probeStore: SshHostProbeStore = SshHostProbeStore(context),
+): Boolean? =
+    probeStore.get(host, port, user)?.isWindows
         ?: RemotePlatformStore(context).get(host, port)
