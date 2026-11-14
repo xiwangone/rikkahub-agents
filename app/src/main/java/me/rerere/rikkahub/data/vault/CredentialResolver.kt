@@ -144,7 +144,8 @@ class CredentialResolver(
         audit: Boolean = true,
         /**
          * 本次使用的目的地 + 用途（P0-2，仅 vault_ssh_exec / vault_http_exec 传）。
-         * 两者都传时才做目的地绑定 + 类型校验；任一为空 = 不做对应检查（其余调用方行为不变）。
+         * 两者都传 = 目的地绑定 + 类型校验；只传 destination = 只校验目的地绑定（已保存 SSH 主机）；
+         * 都不传 = 不做检查（其余调用方行为不变）。
          * 校验在解密之后、放行之前：拒绝时记 `${purpose.action}_denied` 审计，值不出进程。
          */
         destination: CredentialDestination? = null,
@@ -178,8 +179,13 @@ class CredentialResolver(
             return CredentialResolution.Undecryptable(trimmed)
         }
 
-        if (destination != null && use != null) {
-            val rejection = CredentialBinding.check(entry, value, use, destination)
+        if (destination != null) {
+            // use 为空 = 只校验目的地绑定（已保存 SSH 主机路径）；两者都有 = 目的地 + 类型
+            val rejection = if (use != null) {
+                CredentialBinding.check(entry, value, use, destination)
+            } else {
+                CredentialBinding.checkEndpoint(entry, destination)
+            }
             if (rejection != null) {
                 if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_denied")
                 return CredentialResolution.Rejected(trimmed, rejection)
@@ -209,14 +215,16 @@ class CredentialResolver(
         purpose: CredentialPurpose,
         caller: String = "app",
         audit: Boolean = true,
+        /** 只做目的地绑定校验（见 [resolve] 的 destination）；字段路径取的是明文元数据，不受影响。 */
+        destination: CredentialDestination? = null,
     ): CredentialResolution {
         val whole = rawRef.trim()
         val ref = parseVaultRef(whole)
-        if (ref.field == null) return resolve(ref.name, purpose, caller, audit)
+        if (ref.field == null) return resolve(ref.name, purpose, caller, audit, destination = destination)
         // 整名优先：带点的串若能对上库里某条名字，按老语义取主值
         // （库读失败按查不到处理，与 [resolve] 同口径）。
         if (whole.isNotEmpty() && safeVaultRead("credential lookup") { repository.getByName(whole) } != null) {
-            return resolve(whole, purpose, caller, audit)
+            return resolve(whole, purpose, caller, audit, destination = destination)
         }
         if (ref.name.isEmpty()) return CredentialResolution.Missing(whole)
 

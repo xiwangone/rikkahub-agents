@@ -65,6 +65,21 @@ class AcceptNewHostKeyRepositoryTest {
         return out.toByteArray()
     }
 
+    /** ssh-rsa wire blob: string "ssh-rsa" + mpint e + mpint n (JDK generator, no JSch KeyPair). */
+    private fun genRsaKeyBlob(): ByteArray {
+        val gen = KeyPairGenerator.getInstance("RSA")
+        gen.initialize(2048)
+        val pub = gen.generateKeyPair().public as java.security.interfaces.RSAPublicKey
+        val out = ByteArrayOutputStream()
+        DataOutputStream(out).use { w ->
+            for (part in listOf("ssh-rsa".toByteArray(Charsets.US_ASCII), pub.publicExponent.toByteArray(), pub.modulus.toByteArray())) {
+                w.writeInt(part.size)
+                w.write(part)
+            }
+        }
+        return out.toByteArray()
+    }
+
     private fun b64(bytes: ByteArray): String = Base64.getEncoder().encodeToString(bytes)
 
     private fun newKnownHostsFile(name: String = "known_hosts"): File {
@@ -73,10 +88,10 @@ class AcceptNewHostKeyRepositoryTest {
         return file
     }
 
-    private fun newRepo(file: File): Pair<JSch, AcceptNewHostKeyRepository> {
+    private fun newRepo(file: File, port: Int = 22): Pair<JSch, AcceptNewHostKeyRepository> {
         val jsch = JSch()
         jsch.setKnownHosts(file.absolutePath)
-        val repo = AcceptNewHostKeyRepository(jsch.hostKeyRepository) { persistKnownHosts(jsch) }
+        val repo = AcceptNewHostKeyRepository(jsch.hostKeyRepository, port = port) { persistKnownHosts(jsch) }
         return jsch to repo
     }
 
@@ -210,5 +225,97 @@ class AcceptNewHostKeyRepositoryTest {
         assertEquals(b64(first), changed!!.first.key)
         assertEquals(b64(second), changed.second.key)
         assertNull(verifying.unknownKey)
+    }
+
+    // 阴性：JSch 只比较同类型密钥，已知主机换一种类型出示会得到 NOT_INCLUDED。
+    // 2.28.7 的行为：只比较同类型密钥；不拦的话，客户端没记录的算法可被当成"首次连接"。
+    @Test
+    fun `a new key type for a known host is refused, not trusted as first use`() {
+        val file = newKnownHostsFile()
+        val (_, repo) = newRepo(file)
+        val ed = genKeyBlob()
+        assertEquals(HostKeyRepository.OK, repo.check(host, ed))
+        val stored = file.readText(Charsets.UTF_8)
+
+        assertEquals(HostKeyRepository.CHANGED, repo.check(host, genRsaKeyBlob()))
+        assertEquals("a refused key must not be recorded", stored, file.readText(Charsets.UTF_8))
+        // 另一台主机首次出示 RSA 仍按首次信任
+        assertEquals(HostKeyRepository.OK, repo.check(otherHost, genRsaKeyBlob()))
+    }
+
+    @Test
+    fun `known host lookup understands the bracketed non-22 port form`() {
+        val file = newKnownHostsFile()
+        val (jsch, repo) = newRepo(file)
+        assertEquals(HostKeyRepository.OK, repo.check("[$host]:2222", genKeyBlob()))
+
+        assertTrue(hasKnownHostKey(jsch.hostKeyRepository, host, 2222))
+        assertFalse(hasKnownHostKey(jsch.hostKeyRepository, host, 22))
+        assertFalse(hasKnownHostKey(jsch.hostKeyRepository, otherHost, 2222))
+    }
+
+    // 跨形态：同一 host:port 可记在裸 host（别名会话）或 "[host]:port"（直连会话）两种形态下，
+    // DNS 会在会话之间翻转。裸形态查到已记在 "[host]:port" 下的同把密钥时是同一台服务器，
+    // 接受并收敛记录；换类型时仍拒绝；全新 host:port 仍首次信任。
+    @Test
+    fun `same key under bracketed form is accepted on the bare alias path`() {
+        val file = newKnownHostsFile()
+        val (_, repo) = newRepo(file, port = 2222)
+        val ed = genKeyBlob()
+        assertEquals(HostKeyRepository.OK, repo.check("[$host]:2222", ed))
+
+        // DNS 开始解析后走别名（裸 host）路径，出示同一把密钥：接受。
+        assertEquals(HostKeyRepository.OK, repo.check(host, ed))
+        // 记录收敛：文件里现在两种形态都有，下次委托层直接命中。
+        val lines = file.readLines(Charsets.UTF_8).filter { it.isNotBlank() }
+        assertTrue(lines.any { it.startsWith("[$host]:2222 ssh-ed25519") })
+        assertTrue(lines.any { it.startsWith("$host ssh-ed25519") })
+        assertEquals(HostKeyRepository.OK, repo.check(host, ed))
+    }
+
+    @Test
+    fun `new key type under bracketed form is refused on the bare alias path`() {
+        val file = newKnownHostsFile()
+        val (_, repo) = newRepo(file, port = 2222)
+        val ed = genKeyBlob()
+        assertEquals(HostKeyRepository.OK, repo.check("[$host]:2222", ed))
+        val stored = file.readText(Charsets.UTF_8)
+
+        assertEquals(HostKeyRepository.CHANGED, repo.check(host, genRsaKeyBlob()))
+        assertEquals("a refused key must not be recorded", stored, file.readText(Charsets.UTF_8))
+    }
+
+    @Test
+    fun `genuinely new host on a non-22 port is still trusted`() {
+        val file = newKnownHostsFile()
+        val (_, repo) = newRepo(file, port = 2222)
+        assertEquals(HostKeyRepository.OK, repo.check(otherHost, genKeyBlob()))
+    }
+
+    @Test
+    fun `port 22 first use is not blocked by a key known only on port 2222`() {
+        val file = newKnownHostsFile()
+        val ed = genKeyBlob()
+        val (_, repo2222) = newRepo(file, port = 2222)
+        assertEquals(HostKeyRepository.OK, repo2222.check("[$host]:2222", ed))
+
+        // 同一主机名、不同端口是不同条目：22 端口首次出示新密钥仍按首次信任。
+        val (_, repo22) = newRepo(file, port = 22)
+        assertEquals(HostKeyRepository.OK, repo22.check(host, genKeyBlob()))
+    }
+
+    @Test
+    fun `host-key trust options cannot be overridden per host`() {
+        assertTrue(isProtectedSshOption("StrictHostKeyChecking"))
+        assertTrue(isProtectedSshOption(" stricthostkeychecking "))
+        assertTrue(isProtectedSshOption("prefer_known_host_key_types"))
+        assertFalse(isProtectedSshOption("ConnectTimeout"))
+        assertFalse(isProtectedSshOption("ServerAliveInterval"))
+        // HostKeyAlias / UserKnownHostsFile 故意不在受保护集合里：JSch 只在装了
+        // OpenSSH 配置文件仓库（本应用从不装）时才从 session config 读它们，
+        // session.setConfig 的值在 JSch 里没有任何读取方（2.28.7 源码核实），
+        // ssh_options 写它们是无效操作，无需过滤。
+        assertFalse(isProtectedSshOption("HostKeyAlias"))
+        assertFalse(isProtectedSshOption("UserKnownHostsFile"))
     }
 }

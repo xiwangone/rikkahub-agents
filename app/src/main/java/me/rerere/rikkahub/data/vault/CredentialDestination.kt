@@ -70,6 +70,20 @@ object CredentialBinding {
         return null
     }
 
+    /**
+     * 只校验目的地绑定、不校验类型：给已保存 SSH 主机这类"凭证随主机条目发出"的路径用。
+     * 这些路径历史上从不校验类型，补类型校验会让存量条目突然连不上；但目的地绑定必须一致——
+     * 否则模型改一下主机条目的 host，就能把绑定了 endpoint 的口令发到别处（绕开 vault_ssh_exec）。
+     * 返回 null = 通过（未设 endpoint 也视为通过，与 [check] 同口径）。
+     */
+    fun checkEndpoint(entry: VaultCredentialEntity, destination: CredentialDestination): String? {
+        val endpoint = CredentialMeta.decode(entry.metaJson)["endpoint"]?.trim().orEmpty()
+        if (endpoint.isNotEmpty() && !destinationMatches(endpoint, destination)) {
+            return "Credential is not authorized for this destination (bound endpoint $endpoint, request ${destination.describe()})"
+        }
+        return null
+    }
+
     private fun CredentialDestination.describe(): String = when (this) {
         is CredentialDestination.Ssh -> "$host:$port"
         is CredentialDestination.Http -> url.take(200)

@@ -294,9 +294,9 @@ internal fun openSshSession(
     // Trust on first use, refuse changed keys (AcceptNewHostKeyRepository).
     // JSch itself has no "accept-new" value — a session configured with it
     // would silently accept changed keys — so the policy lives in the wrapper
-    // and the session config is "yes". Extra user options below may still
-    // override the config (explicit user choice, unchanged behaviour).
-    installHostKeyVerification(jsch, session)
+    // and the session config is "yes". Extra per-host options below may override
+    // other config, but never the host-key trust keys (PROTECTED_SSH_OPTION_KEYS).
+    installHostKeyVerification(jsch, session, port)
     session.setConfig(Properties().apply {
         setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
         // 自定义选项最后应用，可覆盖默认值（每行 "键 值"，# 开头为注释）
@@ -305,7 +305,13 @@ internal fun openSshSession(
             if (trimmed.isEmpty() || trimmed.startsWith("#")) return@forEach
             val sp = trimmed.indexOf(' ')
             if (sp > 0) {
-                setProperty(trimmed.substring(0, sp), trimmed.substring(sp + 1).trim())
+                val key = trimmed.substring(0, sp)
+                if (isProtectedSshOption(key)) {
+                    // 主机密钥信任策略不接受按主机覆盖（见 PROTECTED_SSH_OPTION_KEYS）
+                    AppLog.w(TAG_SSH, "ssh_options: ignoring protected key $key for $host")
+                    return@forEach
+                }
+                setProperty(key, trimmed.substring(sp + 1).trim())
             }
         }
     })

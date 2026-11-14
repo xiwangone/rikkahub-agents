@@ -326,6 +326,11 @@ object ToolApprovalDefaults {
         // arbitrary hosts. Per-call confirmation every time; see [isAutoApprovable].
         "vault_ssh_exec",
         "vault_http_exec",
+        // save_ssh_host 决定已保存主机的 host/port/user/ssh_options，而 ssh_exec_saved 等会把
+        // 主机条目里引用的 vault 凭证（`$$` 口令、vault_credential 私钥）发往该主机。若保存可被
+        // blanket 放行，一个无人值守的回合就能"先改条目指向别处、再 ssh_exec_saved"，等于绕开
+        // vault_ssh_exec 的逐次确认。保存是低频操作，逐次确认代价很小。
+        "save_ssh_host",
     )
 
     fun allowsAlwaysAllow(toolName: String): Boolean = toolName !in NO_ALWAYS_ALLOW

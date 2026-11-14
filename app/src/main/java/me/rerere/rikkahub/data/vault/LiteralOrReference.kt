@@ -59,6 +59,8 @@ suspend fun resolveLiteralOrReference(
      * 不传检查时，解析器对这些用途一律返回 NotAuthorized，而不是静默放行。
      */
     isAuthorized: (suspend (String) -> Boolean)? = null,
+    /** 本次凭证要发往的目的地；非空时校验凭证的 endpoint 绑定（见 [CredentialBinding.checkEndpoint]）。 */
+    destination: CredentialDestination? = null,
 ): String? {
     val text = raw?.trim().orEmpty()
     if (text.isEmpty()) return null
@@ -66,6 +68,6 @@ suspend fun resolveLiteralOrReference(
     val ref = text.removePrefix(VAULT_REF_PREFIX).trim()
     if (ref.isEmpty()) return null
     val resolution = CredentialResolver(vaultRepository, isAuthorized)
-        .resolveRef(ref, purpose, caller = caller, audit = audit)
+        .resolveRef(ref, purpose, caller = caller, audit = audit, destination = destination)
     return (resolution as? CredentialResolution.Granted)?.value
 }

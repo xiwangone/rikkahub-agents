@@ -519,7 +519,7 @@ private fun connectSingleSshAttempt(
                 if (!auth.password.isNullOrBlank()) target.setPassword(auth.password)
                 // 跳板目标主机的密钥校验与直连同一口径：首次信任、变更拒绝
                 // （AcceptNewHostKeyRepository；JSch 本身没有 "accept-new"）。
-                installHostKeyVerification(jsch, target)
+                installHostKeyVerification(jsch, target, port)
                 target.setConfig(Properties().apply {
                     setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
                 })

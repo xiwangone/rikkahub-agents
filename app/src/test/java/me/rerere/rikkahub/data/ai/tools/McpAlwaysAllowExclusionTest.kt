@@ -72,6 +72,15 @@ class McpAlwaysAllowExclusionTest {
         assertFalse(ToolApprovalDefaults.isAutoApprovable("vault_http_exec"))
     }
 
+    // save_ssh_host decides where ssh_exec_saved sends the host's vault credentials; a blanket
+    // grant would let one unattended turn repoint a host and then exec against it.
+    @Test fun `save_ssh_host is per-call confirmed while ssh_exec_saved stays grantable`() {
+        assertTrue(ToolApprovalDefaults.requiresApproval("save_ssh_host"))
+        assertFalse(ToolApprovalDefaults.allowsAlwaysAllow("save_ssh_host"))
+        assertFalse(ToolApprovalDefaults.isAutoApprovable("save_ssh_host"))
+        assertTrue(ToolApprovalDefaults.isAutoApprovable("ssh_exec_saved"))
+    }
+
     @Test fun `no-always-allow tools are never auto-approvable, others are`() {
         for (name in ToolApprovalDefaults.NO_ALWAYS_ALLOW) {
             assertFalse("$name should never auto-approve", ToolApprovalDefaults.isAutoApprovable(name))

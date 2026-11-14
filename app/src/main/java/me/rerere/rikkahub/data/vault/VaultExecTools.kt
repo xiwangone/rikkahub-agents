@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.ai.tools.local.SshSessionKey
 import me.rerere.rikkahub.data.ai.tools.local.cacheFingerprint
 import me.rerere.rikkahub.data.ai.tools.local.openSshSession
 import me.rerere.rikkahub.data.ai.tools.local.sharedSshSessionCache
+import me.rerere.rikkahub.data.ai.tools.local.hasKnownHostKey
 import me.rerere.rikkahub.data.ai.tools.local.importLegacyVaultKnownHosts
 import me.rerere.rikkahub.data.ai.tools.local.installHostKeyVerification
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
@@ -323,7 +324,7 @@ private suspend fun executeVaultSshSession(
         if (importLegacyVaultKnownHosts(jsch.hostKeyRepository, legacyVaultFile) > 0) {
             persistKnownHosts(jsch)
         }
-        isFirstConnect = jsch.hostKeyRepository.getHostKey(host, null).isNullOrEmpty()
+        isFirstConnect = !hasKnownHostKey(jsch.hostKeyRepository, host, port)
         // 统一走 openSshSession：共用 TunnelRouter 隧道解析、IPv4 优先解析、Fake-IP 拦截、
         // AcceptNewHostKeyRepository 校验、有界 Socket 连接超时与保活参数，消除第二套建连样板。
         val session = openSshSession(

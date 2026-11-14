@@ -34,6 +34,16 @@ private const val TAG_HOST_KEY = "HostKeyRepository"
  *   (return CHANGED; callers pair this with StrictHostKeyChecking=yes so the
  *   session throws instead of connecting).
  *
+ * One host can be recorded under two forms: a direct session records a
+ * non-22 port as `[host]:port`, an aliased session (IPv4-resolved or
+ * tunnelled, where [installHostKeyVerification] sees the bare host) records
+ * the bare host — and DNS can flip a host between the two forms across
+ * sessions. The NOT_INCLUDED branch therefore also consults the alternate
+ * form for this session's [port]: the identical key bytes under the other
+ * form are the same server identity (accept, and converge the record), while
+ * any other key for that host:port is a new-type presentation for a known
+ * host (refuse). A genuinely new host:port still trusts on first use.
+ *
  * [persist] rewrites the backing known_hosts file from the delegate's
  * in-memory keys. A persist failure is logged, never fatal for the check
  * itself: the in-memory record still protects this process, and the next
@@ -42,12 +52,55 @@ private const val TAG_HOST_KEY = "HostKeyRepository"
  */
 internal class AcceptNewHostKeyRepository(
     private val delegate: HostKeyRepository,
+    /**
+     * Logical port of the session this repository guards (the port the user
+     * asked for, not a tunnel's local port). Only used to find the alternate
+     * `[host]:port` record form; defaults to 22 (no alternate form).
+     */
+    private val port: Int = 22,
     private val persist: () -> Unit,
 ) : HostKeyRepository {
     override fun check(host: String, key: ByteArray): Int {
         return when (delegate.check(host, key)) {
             HostKeyRepository.OK -> HostKeyRepository.OK
             HostKeyRepository.NOT_INCLUDED -> {
+                // Cross-form first: the same host:port may already be recorded
+                // under the other form. Ask the delegate about it — its
+                // same-type comparison is the byte-identity check we need.
+                val alt = alternateForm(host)
+                if (alt != null) {
+                    when (delegate.check(alt, key)) {
+                        HostKeyRepository.OK -> {
+                            // Identical key bytes under the other form: same
+                            // server, only the record form differs. Record it
+                            // under the form this session used so the delegate
+                            // finds it next time; a persist failure only leaves
+                            // the on-disk file un-converged, the existing
+                            // record already protects this check.
+                            runCatching {
+                                delegate.add(HostKey(host, key), null)
+                                persist()
+                            }.onFailure {
+                                AppLog.w(TAG_HOST_KEY, "accept-new: could not converge $host key record", it)
+                            }
+                            return HostKeyRepository.OK
+                        }
+                        HostKeyRepository.CHANGED -> {
+                            AppLog.w(TAG_HOST_KEY, "accept-new: $host presented a changed key (recorded under $alt); refusing")
+                            return HostKeyRepository.CHANGED
+                        }
+                        else -> { /* no same-type key under the alternate form; fall through */ }
+                    }
+                }
+                // JSch's KnownHosts.check only compares keys of the SAME type: a known host
+                // presenting a key of another type comes back NOT_INCLUDED, not CHANGED
+                // (verified on 2.28.7 against a live server). Trusting it would let a MITM
+                // that only advertises an algorithm we have no key for pass as "first use".
+                // A host we already hold any key for is therefore not new: refuse.
+                if (hasAnyKeyFor(host)) {
+                    AppLog.w(TAG_HOST_KEY, "accept-new: $host presented a key of a new type while another type is trusted; refusing")
+                    return HostKeyRepository.CHANGED
+                }
                 // Trust on first use: record the presented key before proceeding.
                 val recorded = runCatching {
                     delegate.add(HostKey(host, key), null)
@@ -59,6 +112,29 @@ internal class AcceptNewHostKeyRepository(
             }
             else -> HostKeyRepository.CHANGED
         }
+    }
+
+    /**
+     * The alternate record form for [host] on this session's port, if any.
+     * JSch's `getHostKey("[host]:port")` already falls back to the bare host,
+     * so a bracketed [host] needs no alternate; a bare host on a non-22 port
+     * may also be recorded as `[host]:port` by a direct session.
+     */
+    private fun alternateForm(host: String): String? =
+        if (!host.startsWith("[") && port != 22) "[$host]:$port" else null
+
+    private fun hasAnyKeyFor(host: String): Boolean {
+        // A bare alias/host on a non-22 port misses keys recorded as
+        // "[host]:port" by a direct session. Query the bracketed form: JSch's
+        // getHostKey falls back to the bare form, so one query covers both.
+        val query = alternateForm(host) ?: host
+        return runCatching { !delegate.getHostKey(query, null).isNullOrEmpty() }
+            .getOrElse {
+                // 查不到不等于"没有"：查询本身失败时按"已有密钥"处理（fail-closed），
+                // 否则会静默退化成首次信任 —— 与 A2 的立意相反。
+                AppLog.w(TAG_HOST_KEY, "accept-new: could not query known keys for $query; refusing (fail-closed)", it)
+                true
+            }
     }
 
     override fun add(hostkey: HostKey, ui: UserInfo?) = delegate.add(hostkey, ui)
@@ -75,16 +151,54 @@ internal class AcceptNewHostKeyRepository(
 }
 
 /**
+ * JSch config keys that decide host-key trust. Per-host `ssh_options` must not override them:
+ * `save_ssh_host` exposes ssh_options to the model, and `StrictHostKeyChecking no` applied after
+ * [installHostKeyVerification] makes JSch connect on a CHANGED key (verified on 2.28.7: the
+ * password was sent to the impostor). Rotating a key goes through allowHostKeyRotation /
+ * ssh_forget_host_key instead.
+ *
+ * Deliberately NOT in this set: `HostKeyAlias` and `UserKnownHostsFile`. JSch only honours
+ * them from an OpenSSH config-file repository (`JSch.setConfigRepository`, which this app
+ * never installs): `Session.applyConfig` reads them from `configRepository.getConfig(host)`
+ * and returns early when the repository is null (the JSch default). A `session.setConfig`
+ * value for either key is never read anywhere in JSch, so per-host ssh_options cannot use
+ * them to steer the trust lookup (verified against mwiede/jsch 2.28.7 source).
+ */
+internal val PROTECTED_SSH_OPTION_KEYS: Set<String> = setOf(
+    "StrictHostKeyChecking",
+    "HashKnownHosts",
+    "prefer_known_host_key_types",
+)
+
+/**
+ * Whether [repository] already trusts a key for [host]:[port]. JSch records a non-22 port as
+ * `[host]:port` (and a tunnelled session under the bare host alias), so a plain
+ * `getHostKey(host)` misses them and reports every non-22 connect as first use.
+ */
+internal fun hasKnownHostKey(repository: HostKeyRepository, host: String, port: Int): Boolean {
+    val names = if (port == 22) listOf(host) else listOf("[$host]:$port", host)
+    return names.any { name -> runCatching { !repository.getHostKey(name, null).isNullOrEmpty() }.getOrDefault(false) }
+}
+
+/** True when an `ssh_options` key would override host-key trust (case-insensitive). */
+internal fun isProtectedSshOption(key: String): Boolean =
+    PROTECTED_SSH_OPTION_KEYS.any { it.equals(key.trim(), ignoreCase = true) }
+
+/**
  * Install correct accept-new checking on [session] (call before connect()).
  * The session is set to StrictHostKeyChecking=yes: with the wrapper in place
  * first-use keys are already recorded (check returns OK), so "yes" only ever
- * fires on a genuinely changed key — which must refuse. Caller-supplied
- * extra ssh options applied afterwards may still override the config
- * (explicit user choice, unchanged behaviour).
+ * fires on a genuinely changed key — which must refuse. Per-host ssh_options
+ * applied afterwards skip [PROTECTED_SSH_OPTION_KEYS], so they cannot turn
+ * this back off.
+ *
+ * [port] is the logical port the user asked for (not a tunnel's local port):
+ * the wrapper uses it to find the alternate `[host]:port` record form when
+ * the session checked the bare host alias.
  */
-internal fun installHostKeyVerification(jsch: JSch, session: Session) {
+internal fun installHostKeyVerification(jsch: JSch, session: Session, port: Int = 22) {
     session.setHostKeyRepository(
-        AcceptNewHostKeyRepository(jsch.hostKeyRepository) { persistKnownHosts(jsch) },
+        AcceptNewHostKeyRepository(jsch.hostKeyRepository, port = port) { persistKnownHosts(jsch) },
     )
     session.setConfig("StrictHostKeyChecking", "yes")
 }

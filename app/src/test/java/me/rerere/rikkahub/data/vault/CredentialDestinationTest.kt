@@ -310,4 +310,19 @@ class CredentialDestinationTest {
             CredentialBinding.effectiveType(entry(type = CredentialType.BASIC_AUTH), sshKeyValue),
         )
     }
+
+    // ── 只校验目的地绑定（已保存 SSH 主机 / 远程工作区路径） ─────────────────
+
+    @Test fun `endpoint-only check rejects a bound credential sent to another host`() {
+        val bound = entry(type = CredentialType.BASIC_AUTH, metaJson = """{"endpoint":"db.example.com"}""")
+        assertNull(CredentialBinding.checkEndpoint(bound, CredentialDestination.Ssh("db.example.com", 22, "root")))
+        val reason = CredentialBinding.checkEndpoint(bound, CredentialDestination.Ssh("evil.example.com", 22, "root"))
+        assertTrue(reason!!.contains("not authorized for this destination"))
+    }
+
+    @Test fun `endpoint-only check ignores type so legacy saved hosts keep working`() {
+        // 类型与用途不符（API_KEY 当 SSH 口令）：完整校验会拒，只校验绑定时放行——存量兼容
+        val unbound = entry(type = CredentialType.API_KEY)
+        assertNull(CredentialBinding.checkEndpoint(unbound, CredentialDestination.Ssh("any.example.com", 22, "root")))
+    }
 }

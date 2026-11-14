@@ -22,6 +22,7 @@ import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.vault.CredentialDestination
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialResolution
@@ -143,6 +144,10 @@ internal suspend fun resolveHostAuthDetailed(
         context?.let { ctx ->
             { name: String -> me.rerere.rikkahub.data.vault.VaultSessionManager(ctx).hasActiveAuthorization(name) }
         }
+    // 凭证随主机条目发往 h.host:h.port（h.user）：凭证若绑定了 endpoint，必须与之相符。
+    // 否则改一下主机条目（save_ssh_host 可由模型调用）就能把绑定的口令发去别处，
+    // 绕开 vault_ssh_exec 的逐次确认与目的地绑定。只校验绑定、不校验类型（存量兼容）。
+    val destination = CredentialDestination.Ssh(h.host, h.port, h.user)
     // 三个认证材料都允许是 `$$引用`：否则“私钥走了引用、口令却还是明文”等于白做。
     val passphrase = resolveLiteralOrReference(
         h.passphrase,
@@ -150,16 +155,17 @@ internal suspend fun resolveHostAuthDetailed(
         vaultRepository,
         caller = "ssh-passphrase",
         isAuthorized = isAuthorized,
+        destination = destination,
     )
     val ref = h.vaultCredentialRef?.trim().orEmpty()
     if (ref.isNotEmpty()) {
         // 连接前探测：audit = false，避免候选主机探测写满审计
         val resolver = CredentialResolver(vaultRepository, isAuthorized)
-        var r = resolver.resolve(ref, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false)
+        var r = resolver.resolve(ref, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false, destination = destination)
         if (r is CredentialResolution.Missing) {
             val normalized = CredentialVaultRepository.normalizeName(ref)
             if (normalized != ref) {
-                r = resolver.resolve(normalized, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false)
+                r = resolver.resolve(normalized, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false, destination = destination)
             }
         }
         val secret = (r as? CredentialResolution.Granted)?.value
@@ -178,6 +184,7 @@ internal suspend fun resolveHostAuthDetailed(
         vaultRepository,
         caller = "ssh-password",
         isAuthorized = isAuthorized,
+        destination = destination,
     )
     val privateKey = resolveLiteralOrReference(
         h.privateKey,
@@ -185,6 +192,7 @@ internal suspend fun resolveHostAuthDetailed(
         vaultRepository,
         caller = "ssh-key",
         isAuthorized = isAuthorized,
+        destination = destination,
     )
     val auth = SshAuth(password = password, privateKey = privateKey, passphrase = passphrase)
     return if (auth.isUsable()) HostAuthResolution.Ready(auth)
@@ -262,7 +270,7 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 })
                 put("jump_host", buildJsonObject { put("type", "string"); put("description", "Optional saved-host name used as a jump/bastion host. The connection is established through it (single hop; the jump host itself is not chained further).") })
                 put("platform", buildJsonObject { put("type", "string"); put("description", "Remote platform: 'auto' (default), 'linux' or 'windows'. Stored on the host and used for command wrapping and preset selection on later calls; omit to leave it automatic.") })
-                put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line.") })
+                put("ssh_options", buildJsonObject { put("type", "string"); put("description", "Optional custom ssh config, one 'key value' per line (e.g. ConnectTimeout 5 / Ciphers ...). Applied as JSch config overrides for this host; # starts a comment line. Host-key trust keys (StrictHostKeyChecking, HashKnownHosts, prefer_known_host_key_types) are ignored; use ssh_forget_host_key for a rotated key.") })
             },
             required = listOf("name", "host", "user")
         )
@@ -281,6 +289,24 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
         val jumpHost = p.optString("jump_host")
         val platformParam = p.optString("platform")
         val sshOptions = p.optString("ssh_options")
+        // 主机密钥信任键不接受按主机覆盖（模型可写 ssh_options）→ 显式拒绝，不静默丢弃。
+        // 连接期仍会过滤一次作为历史数据兜底（SshNetworkSession），但那条路径只记日志、模型看不到，
+        // 所以在唯一的写入口把话说清楚。
+        val protectedOptionKeys = sshOptions.orEmpty().lineSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() && !it.startsWith("#") }
+            .map { it.substringBefore(' ').substringBefore('\t') }
+            .filter { isProtectedSshOption(it) }
+            .toList()
+        if (protectedOptionKeys.isNotEmpty()) {
+            return@Tool listOf(UIMessagePart.Text(
+                ToolErrors.envelopeFor(
+                    error = "invalid_argument",
+                    message = "ssh_options cannot override host-key trust keys: ${protectedOptionKeys.joinToString()}",
+                    hint = "These are managed by the app (trust-on-first-use; a changed key is refused). To rotate a host key use ssh_forget_host_key, then reconnect.",
+                ).toString(),
+            ))
+        }
         if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password, private_key or vault_credential", hint = "Check the parameter values and retry with corrected arguments.").toString()

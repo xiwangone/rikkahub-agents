@@ -20,6 +20,7 @@ import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.model.SshWorkspaceDraft
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
+import me.rerere.rikkahub.data.vault.CredentialDestination
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
@@ -230,7 +231,14 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             if (text.isEmpty()) return null
             require(isVaultReference(text)) { "SSH credential must be a vault reference: $text" }
             val name = text.removePrefix(VAULT_REF_PREFIX)
-            val resolution = resolver.resolve(name, CredentialPurpose.SSH_AUTH, caller = "ssh-workspace", audit = audit)
+            // 凭证绑定了 endpoint 时必须与工作区的目标主机一致（与已保存 SSH 主机同口径，只校验绑定）
+            val resolution = resolver.resolve(
+                name,
+                CredentialPurpose.SSH_AUTH,
+                caller = "ssh-workspace",
+                audit = audit,
+                destination = CredentialDestination.Ssh(settings.host, settings.port, settings.username),
+            )
             return (resolution as? CredentialResolution.Granted)?.value
                 ?: throw IOException("SSH credential is unavailable: ${resolution.message}")
         }
