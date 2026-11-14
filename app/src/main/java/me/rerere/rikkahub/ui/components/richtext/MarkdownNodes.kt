@@ -504,15 +504,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeWithEnv(
     when {
         node.type == MarkdownTokenTypes.BLOCK_QUOTE -> {}
 
-        node.type == GFMTokenTypes.GFM_AUTOLINK -> {
-            val rawLink = node.getTextInNode(content)
-            val (link, trailing) = splitAutolink(rawLink)
-            withLink(LinkAnnotation.Url(link)) {
-                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(link) }
-            }
-            // 切掉的尾巴以普通文本重新输出，不丢弃
-            if (trailing.isNotEmpty()) append(trailing)
-        }
+        node.type == GFMTokenTypes.GFM_AUTOLINK -> appendGfmAutolink(node, env)
 
         node is LeafASTNode -> {
             val text = (if (trim) node.getTextInNode(content).trim() else node.getTextInNode(content))
@@ -557,19 +549,7 @@ private fun AnnotatedString.Builder.appendMarkdownNodeWithEnv(
         }
 
         node.type == MarkdownElementTypes.CODE_SPAN -> {
-            val code = node.getTextInNode(content).trim('`')
-            withStyle(
-                SpanStyle(
-                    fontFamily = JetbrainsMono,
-                    fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
-                    fontSize = 0.9.em,
-                    color = env.colorScheme.primary,
-                ),
-            ) {
-                append(' ')
-                append(code)
-                append(' ')
-            }
+            appendCodeSpanStyled(node.getTextInNode(content).trim('`'), env)
         }
 
         node.type == GFMElementTypes.INLINE_MATH -> appendMarkdownInlineMath(node, env)
@@ -581,6 +561,49 @@ private fun AnnotatedString.Builder.appendMarkdownNodeWithEnv(
                 appendMarkdownNodeWithEnv(it, trim = false, env = env)
             }
         }
+    }
+}
+
+/**
+ * 单个 GFM autolink 节点 → 文本。
+ *
+ * 单独成函数：外层的 `appendMarkdownNodeWithEnv` 已接近圈复杂度上限，
+ * 把三分支（代码 / 非链接 / 链接）放进来不抬高外层阈值。
+ */
+private fun AnnotatedString.Builder.appendGfmAutolink(node: ASTNode, env: MarkdownInlineEnv) {
+    val parts = splitAutolinkParts(node.getTextInNode(env.content))
+    when {
+        // 词法器把行内代码当成了 autolink：按代码渲染，不生成链接（否则反引号外露、下划线越界）
+        parts.code != null -> {
+            if (parts.prefix.isNotEmpty()) append(parts.prefix)
+            appendCodeSpanStyled(parts.code, env)
+            if (parts.trailing.isNotEmpty()) append(parts.trailing)
+        }
+        // 不是裸链接：整段当普通文本，不抢样式
+        parts.url.isEmpty() -> append(parts.prefix)
+        else -> {
+            if (parts.prefix.isNotEmpty()) append(parts.prefix)
+            withLink(LinkAnnotation.Url(parts.url)) {
+                withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(parts.url) }
+            }
+            // 切掉的尾巴以普通文本重新输出，不丢弃
+            if (parts.trailing.isNotEmpty()) append(parts.trailing)
+        }
+    }
+}
+
+private fun AnnotatedString.Builder.appendCodeSpanStyled(code: String, env: MarkdownInlineEnv) {
+    withStyle(
+        SpanStyle(
+            fontFamily = JetbrainsMono,
+            fontFeatureSettings = "'calt' 0, 'liga' 0, 'clig' 0",
+            fontSize = 0.9.em,
+            color = env.colorScheme.primary,
+        ),
+    ) {
+        append(' ')
+        append(code)
+        append(' ')
     }
 }
 

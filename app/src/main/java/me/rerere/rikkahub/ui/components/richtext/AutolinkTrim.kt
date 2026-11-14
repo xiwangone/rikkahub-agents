@@ -72,3 +72,46 @@ private fun isBareLink(url: String): Boolean =
     (url.startsWith("https://") && url.length > "https://".length) ||
         (url.startsWith("http://") && url.length > "http://".length) ||
         (url.startsWith("www.") && url.length > "www.".length)
+
+/**
+ * 自动链接节点的完整切分结果（[splitAutolink] 的渲染层扩展）。
+ *
+ * 背景：词法器会把**行内代码里的 URL** 也识别成 GFM autolink（反引号一起进节点），
+ * 也会把链接前的中文/标点吞进来。旧 [splitAutolink] 遇到**首字符不合法**（如反引号）
+ * 就直接放弃切分、整段当链接 → 反引号被显示出来、下划线一路延伸到后面的中文。
+ *
+ * 三种情况：
+ * - [code] 非空：原文是反引号包裹的（code span 被误判）→ 按行内代码渲染，不生成链接；
+ * - [url] 非空：[prefix] / [trailing] 都是普通文本，原样输出（不丢字）；
+ * - [url] 为空：不是裸链接，整段按普通文本输出。
+ */
+internal data class AutolinkParts(
+    val prefix: String = "",
+    val url: String = "",
+    val trailing: String = "",
+    val code: String? = null,
+)
+
+private val URL_SCHEMES = listOf("https://", "http://", "www.")
+
+internal fun splitAutolinkParts(raw: String): AutolinkParts {
+    if (raw.isEmpty()) return AutolinkParts()
+    // 反引号包裹的 code span（可能夹在文本中）→ 剥出 code，两侧原样保留
+    val tickStart = raw.indexOf('`')
+    if (tickStart >= 0) {
+        val tickEnd = raw.indexOf('`', tickStart + 1)
+        if (tickEnd > tickStart + 1) {
+            return AutolinkParts(
+                prefix = raw.substring(0, tickStart),
+                code = raw.substring(tickStart + 1, tickEnd),
+                trailing = raw.substring(tickEnd + 1),
+            )
+        }
+    }
+    // 链接前可能夹着普通文本：从首个 scheme 起切，之前的部分当普通文本
+    val start = URL_SCHEMES.map { raw.indexOf(it) }.filter { it >= 0 }.minOrNull() ?: -1
+    if (start < 0) return AutolinkParts(prefix = raw)
+    val (url, trailing) = splitAutolink(raw.substring(start))
+    if (url.isEmpty()) return AutolinkParts(prefix = raw)
+    return AutolinkParts(prefix = raw.substring(0, start), url = url, trailing = trailing)
+}

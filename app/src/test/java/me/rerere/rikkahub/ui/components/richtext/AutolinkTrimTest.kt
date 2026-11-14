@@ -104,4 +104,39 @@ class AutolinkTrimTest {
         assertEquals("mailto:a@b.com" to "", splitAutolink("mailto:a@b.com"))
         assertEquals("" to "", splitAutolink(""))
     }
+
+    // ── splitAutolinkParts：渲染层用（code span 误判 / 前缀 / 普通文本） ───────
+
+    @Test
+    fun `inline code wrapping a url becomes code, not a link`() {
+        // 词法器把行内代码当 autolink：反引号会被当链接文本显示、下划线越界。
+        assertEquals(
+            AutolinkParts(prefix = "", url = "", trailing = "，输入码", code = "https://example.com/x"),
+            splitAutolinkParts("`https://example.com/x`，输入码"),
+        )
+    }
+
+    @Test
+    fun `text before the url is split off as prefix`() {
+        assertEquals(
+            AutolinkParts(prefix = "打开", url = "https://example.com/x", trailing = "，然后"),
+            splitAutolinkParts("打开https://example.com/x，然后"),
+        )
+    }
+
+    @Test
+    fun `clean url has no prefix and no code`() {
+        assertEquals(
+            AutolinkParts(prefix = "", url = "https://example.com/x", trailing = ""),
+            splitAutolinkParts("https://example.com/x"),
+        )
+    }
+
+    @Test
+    fun `plain text without a url stays plain`() {
+        assertEquals(
+            AutolinkParts(prefix = "没有链接", url = ""),
+            splitAutolinkParts("没有链接"),
+        )
+    }
 }

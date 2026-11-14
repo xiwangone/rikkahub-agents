@@ -219,6 +219,48 @@ internal fun AnnotatedString.Builder.appendHtmlInlineNode(
     }
 }
 
+/**
+ * `<a>` 元素的链接渲染（从 appendHtmlInlineElement 抽出：那里已触发 NestedBlockDepth）。
+ *
+ * 三种情况：行内代码被误判成链接（按代码渲染）/ 自动链接（前后缀切出来当普通文本）/ 普通 `<a>`。
+ */
+private fun AnnotatedString.Builder.appendHtmlLink(
+    href: String,
+    text: String,
+    cssStyle: SpanStyle?,
+    colorScheme: androidx.compose.material3.ColorScheme,
+    /** 递归渲染 `<a>` 的子节点（由调用方传入，那里能访问局部 recurseChildren 闭包）。 */
+    appendChildren: (SpanStyle) -> Unit,
+) {
+    val linkStyle =
+        SpanStyle(
+            color = colorScheme.primary,
+            textDecoration = TextDecoration.Underline,
+        ).merge(cssStyle ?: SpanStyle())
+    val parts = splitAutolinkParts(href)
+    when {
+        // 行内代码被词法器误判成 autolink：按代码渲染，不生成链接
+        parts.code != null -> {
+            if (parts.prefix.isNotEmpty()) append(parts.prefix)
+            appendInlineCodeTag(parts.code, colorScheme.primary, cssStyle)
+            if (parts.trailing.isNotEmpty()) append(parts.trailing)
+        }
+        // 自动链接：显示文本就是 URL，按同一规则切分显示（尾巴/前缀当普通文本）
+        text == href && (parts.prefix.isNotEmpty() || parts.trailing.isNotEmpty()) -> {
+            if (parts.prefix.isNotEmpty()) append(parts.prefix)
+            withLink(LinkAnnotation.Url(parts.url)) {
+                withStyle(linkStyle) { append(parts.url) }
+            }
+            if (parts.trailing.isNotEmpty()) append(parts.trailing)
+        }
+        else -> {
+            withLink(LinkAnnotation.Url(parts.url.ifEmpty { href })) {
+                withStyle(linkStyle) { appendChildren(linkStyle) }
+            }
+        }
+    }
+}
+
 private fun AnnotatedString.Builder.appendInlineCodeTag(
     text: String,
     primaryColor: androidx.compose.ui.graphics.Color,
@@ -307,28 +349,15 @@ private fun AnnotatedString.Builder.appendHtmlInlineElement(
                     )
                 }
 
-                href.isNotEmpty() -> {
-                    val linkStyle =
-                        SpanStyle(
-                            color = colorScheme.primary,
-                            textDecoration = TextDecoration.Underline,
-                        ).merge(cssStyle ?: SpanStyle())
-                    val (cleanHref, trailing) = splitAutolink(href)
-                    if (text == href && trailing.isNotEmpty()) {
-                        // 自动链接生成的 <a>：显示文本与 href 相同，按同一规则切分显示，
-                        // 切掉的尾巴以普通文本输出，不丢弃
-                        withLink(LinkAnnotation.Url(cleanHref)) {
-                            withStyle(linkStyle) { append(cleanHref) }
-                        }
-                        append(trailing)
-                    } else {
-                        withLink(LinkAnnotation.Url(cleanHref)) {
-                            withStyle(linkStyle) {
-                                recurseChildren(element, style.merge(linkStyle.asTextStyle()))
-                            }
-                        }
-                    }
-                }
+                href.isNotEmpty() -> appendHtmlLink(
+                    href = href,
+                    text = text,
+                    cssStyle = cssStyle,
+                    colorScheme = colorScheme,
+                    appendChildren = { inherited ->
+                        recurseChildren(element, style.merge(inherited.asTextStyle()))
+                    },
+                )
 
                 else -> {
                     appendElementChildren()
