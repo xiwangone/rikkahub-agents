@@ -493,7 +493,7 @@ private fun createShellTool(
         // env: { 环境变量名: 值 } —— 值以 `$$` 开头时按凭证名解析，其余按字面值；进程内注入，不落盘、AI 不见明文
         val resolvedEnv = resolveInjectedEnvDetailed(params)
         resolvedEnv.error?.let { return@Tool listOf(UIMessagePart.Text(it)) }
-        val injectedEnv = resolvedEnv.env
+        val injectedEnv = envWithSecretKeyNames(resolvedEnv.env, resolvedEnv.secrets)
 
         val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, cwd)
         val result = workspaceRepository.executeCommand(
@@ -640,7 +640,12 @@ private fun createRunBackgroundTool(
         val resolvedEnv = resolveInjectedEnvDetailed(params)
         resolvedEnv.error?.let { return@Tool listOf(UIMessagePart.Text(it)) }
 
-        val status = workspaceRepository.startBackground(wsId, command, cwd, resolvedEnv.env)
+        val status = workspaceRepository.startBackground(
+            wsId,
+            command,
+            cwd,
+            envWithSecretKeyNames(resolvedEnv.env, resolvedEnv.secrets),
+        )
         // 登记本任务的注入值，后续 workspace_background_status 返回日志尾部前据此脱敏
         BackgroundInjectedSecrets.register(wsId, status.id, resolvedEnv.secrets)
         listOf(

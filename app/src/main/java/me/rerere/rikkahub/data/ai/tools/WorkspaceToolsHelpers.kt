@@ -183,6 +183,26 @@ internal suspend fun resolveInjectedEnvDetailed(
         is InjectionResult.Failed -> ResolvedInjectedEnv(InjectedEnv.EMPTY, "❌ " + r.message)
     }
 
+/** 远端后台任务的脱敏名单变量名（`rk bg` 读它）。 */
+internal const val REMOTE_SECRET_KEYS_VAR = "RIKKA_SECRET_KEYS"
+
+/**
+ * 把本次注入用的**环境变量名**拼进 env，供远端 `rk bg` 在写日志前脱敏（只有名字，不含值）。
+ *
+ * 背景：远程区的后台任务是 `setsid` 起的纯 shell 进程，App 根本不知道它跑过；
+ * 日志一旦落盘，下一次「不带注入」的调用读出来就是明文。把名单交给 `rk bg`
+ * 的过滤器后，值只在那个进程内存里替换，日志文件本身就是干净的。
+ */
+internal fun envWithSecretKeyNames(
+    env: Map<String, String>,
+    secrets: List<InjectedSecret>,
+): Map<String, String> {
+    if (secrets.isEmpty()) return env
+    val names = secrets.map { it.envName }.filter { it.isNotBlank() }.distinct()
+    if (names.isEmpty()) return env
+    return env + (REMOTE_SECRET_KEYS_VAR to names.joinToString(","))
+}
+
 /**
  * 构造 `workspace_shell` 的工具描述：远程工作区不支持 `workspace_run_background` 等后台工具，
  * 在此显式提供 POSIX 标准命令（`setsid` / `nohup` / `pgrep` / `tail` / `pkill`）的后台脱离范式。
