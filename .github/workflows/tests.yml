@@ -92,7 +92,12 @@ jobs:
             ./gradlew :app:testDebugUnitTest :ai:testDebugUnitTest :common:testDebugUnitTest --build-cache :document:testDebugUnitTest :highlight:testDebugUnitTest :llama-cpp:testDebugUnitTest :material3:testDebugUnitTest :search:testDebugUnitTest :speech:testDebugUnitTest :videogen:testDebugUnitTest :web:testDebugUnitTest :workspace:testDebugUnitTest :agent-tools:testDebugUnitTest :oauth:testDebugUnitTest --parallel --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-attempt-$i.log"
             [ "${PIPESTATUS[0]}" = "0" ] && break
             if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
-            echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
+            # 只有日志含下载/网络超时特征才重试：断言或编译失败重跑整轮也是失败，不浪费一次全量
+            if grep -Eq 'Could not (resolve|download|GET|HEAD)|Connection (timed out|reset)|Read timed out|SocketTimeoutException|SocketException|ConnectException|UnknownHostException|Network is unreachable|Unable to tunnel|Received status code (429|5[0-9][0-9])|Transfer failed' "unit-test-attempt-$i.log"; then
+              echo "⚠️ 第 $i 次失败疑似依赖下载/网络超时，10 秒后重试…"; sleep 10
+            else
+              echo "❌ 第 $i 次失败非网络原因（断言/编译失败），不再重试"; exit 1
+            fi
           done
 
       - name: 上传测试日志（完整 gradle 输出）
@@ -226,7 +231,12 @@ jobs:
             ./gradlew :local-llm:testDebugUnitTest --build-cache --configuration-cache --continue 2>&1 | tee -a "unit-test-local-llm-attempt-$i.log"
             [ "${PIPESTATUS[0]}" = "0" ] && break
             if [ "$i" = "2" ]; then echo "❌ 两次均失败"; exit 1; fi
-            echo "⚠️ 第 $i 次失败（可能是依赖下载超时），10 秒后重试…"; sleep 10
+            # 只有日志含下载/网络超时特征才重试：断言或编译失败重跑整轮也是失败，不浪费一次全量
+            if grep -Eq 'Could not (resolve|download|GET|HEAD)|Connection (timed out|reset)|Read timed out|SocketTimeoutException|SocketException|ConnectException|UnknownHostException|Network is unreachable|Unable to tunnel|Received status code (429|5[0-9][0-9])|Transfer failed' "unit-test-local-llm-attempt-$i.log"; then
+              echo "⚠️ 第 $i 次失败疑似依赖下载/网络超时，10 秒后重试…"; sleep 10
+            else
+              echo "❌ 第 $i 次失败非网络原因（断言/编译失败），不再重试"; exit 1
+            fi
           done
 
       - name: 上传测试日志（完整 gradle 输出）

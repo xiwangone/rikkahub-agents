@@ -2,7 +2,7 @@ name: 安全扫描（密钥 / 依赖漏洞 / 依赖变更审查）
 
 # 合并自 secret-scan.yml + dependency-scan.yml + dependency-review.yml：
 # - gitleaks：push / PR 全量扫描密钥泄漏
-# - osv-scanner：push / PR / 每周定时扫描依赖漏洞（4 个锁文件）
+# - osv-scanner：push / PR（仅依赖文件变化时）/ 每周定时扫描依赖漏洞（4 个锁文件）
 # - dependency-review：仅 PR，审查依赖变更（fail-on-severity: high；直推 master 无 PR 上下文，action 必然失败，故跳过）
 
 on:
@@ -23,9 +23,10 @@ on:
     - cron: '0 20 * * 0'
   workflow_dispatch:
 
-# 连续 push 时取消上一次未跑完的扫描，避免多个 40 分钟的 lint job 并行堆积
+# 连续 push 时取消上一次未跑完的扫描，避免多个 40 分钟的 lint job 并行堆积；
+# group 带 event_name：每周定时跑不再与 push 跑同组、互相取消
 concurrency:
-  group: security-${{ github.ref }}
+  group: security-${{ github.ref }}-${{ github.event_name }}
   cancel-in-progress: true
 
 permissions:
@@ -42,15 +43,49 @@ jobs:
         with:
           fetch-depth: 0
 
+      # 版本钉死 v3.0.0：v2 浮动大版本会悄悄换规则集（本次 gitleaks 误报红的来源形态）；
+      # v3 相对 v2 只有 Node 20→24 运行时迁移，无行为变化（上游 v3.0.0 发版说明）。
       - name: Run gitleaks
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           # 仅作为检查门禁；不在 PR 里发评论，避免噪声
           GITLEAKS_ENABLE_COMMENTS: false
 
+  # 依赖文件是否变化：osv-scan 与 maven-runtime-deps 只在变化时跑（见下面两 job 的 if）。
+  # GitHub Actions 没有 job 级 paths，只能用 paths-filter 先算一轮。
+  changes:
+    name: 依赖文件是否变化
+    # 只在 push / PR 时算：定时与手动触发不走这条路（下面两 job 的 if 直接放行）
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    outputs:
+      deps: ${{ steps.filter.outputs.deps }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          # 全量拉取：push 可能一次带多个提交，浅拉取不到 before 那个提交
+          fetch-depth: 0
+      - uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            deps:
+              - 'gradle/**'
+              - '**/build.gradle.kts'
+              - '**/settings.gradle.kts'
+              - '**/gradle.properties'
+              - 'web-ui/pnpm-lock.yaml'
+              - 'web-ui/package.json'
+              - 'osv-scanner.toml'
+              - '.github/scripts/parse-gradle-deps.py'
+              - '.github/scripts/scan-maven-deps.py'
+
   osv-scan:
     name: osv-scanner（依赖漏洞）
+    # 纯代码 push 不重复扫：新 CVE 由每周定时覆盖；定时/手动触发始终跑
+    needs: changes
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.deps == 'true')
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -92,6 +127,9 @@ jobs:
 
   maven-runtime-deps:
     name: 运行时依赖漏洞（Maven）
+    # 与 osv-scan 同款门禁：纯代码 push 不重复导出依赖清单
+    needs: changes
+    if: always() && (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch' || needs.changes.outputs.deps == 'true')
     runs-on: ubuntu-latest
     steps:
       - name: Checkout

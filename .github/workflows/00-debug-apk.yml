@@ -55,6 +55,39 @@ jobs:
       - name: 准备构建环境
         uses: ./.github/actions/setup-build-env
 
+      # Gradle 缓存（与 01-build.yml 同款）：之前没有，每次 push 都冷启动下依赖重编
+      - name: 缓存 Gradle 发行版
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/wrapper/dists
+          key: ${{ runner.os }}-gradle-dist-${{ hashFiles('gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-dist-
+
+      - name: 缓存 Gradle 依赖（libs 变化才重建）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-modules-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-modules-
+
+      - name: 缓存 Gradle 构建缓存（固定 key，不堆积）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-gradle-buildcache-${{ hashFiles('gradle/libs.versions.toml', '**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-buildcache-
+          save-always: true
+
+      - name: 缓存 web-ui 依赖（锁文件 / 依赖清单变化才重建）
+        uses: actions/cache@v4
+        with:
+          path: web-ui/node_modules
+          key: webui-${{ hashFiles('web-ui/pnpm-lock.yaml', 'web-ui/package.json') }}
+          restore-keys: webui-
+
       - name: 构建 Debug APK（日志落盘）
         run: |
           set -o pipefail

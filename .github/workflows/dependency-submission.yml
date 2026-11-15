@@ -9,6 +9,12 @@ name: 依赖图提交（Dependabot 真实解析）
 on:
   push:
     branches: [master]
+    # 依赖图只在依赖文件变化时才变：纯代码改动不重复提交
+    paths:
+      - 'gradle/**'
+      - '**/build.gradle.kts'
+      - '**/settings.gradle.kts'
+      - '**/gradle.properties'
   workflow_dispatch:
 
 permissions:

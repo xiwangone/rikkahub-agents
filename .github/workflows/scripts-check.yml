@@ -1,0 +1,35 @@
+name: 脚本自检（.github/scripts）
+
+# .github/scripts 下的检查脚本（check-port-resources.py、check-new-localization.py、
+# parse-gradle-deps.py、scan-maven-deps.py 等）改动后只跑轻量语法自检，
+# 不触发 tests.yml 的全量单测（tests.yml 的 paths-ignore 仍排除 scripts）。
+
+on:
+  push:
+    branches: [master]
+    paths:
+      - '.github/scripts/**'
+      - '.github/workflows/scripts-check.yml'
+  pull_request:
+    branches: [master]
+    paths:
+      - '.github/scripts/**'
+      - '.github/workflows/scripts-check.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: 脚本语法自检
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Python 脚本编译检查
+        run: python3 -m py_compile .github/scripts/*.py
+
+      - name: Shell 脚本语法检查
+        run: |
+          for f in .github/scripts/*.sh; do [ -e "$f" ] || continue; bash -n "$f"; done
