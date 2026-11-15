@@ -26,6 +26,9 @@ jobs:
       actions: read
       contents: read
 
+    # matrix 只有 1 个语言时 fail-fast 无意义（没有可取消的其他组合，加不加行为一样），
+    # 所以这里故意不写。一旦 matrix 加到 ≥2 个语言（例如给 web-ui 加 javascript-typescript），
+    # 必须显式写 `fail-fast: false`：让每路分析都出结论，而不是一个失败就取消另一个。
     strategy:
       matrix:
         language: ['java-kotlin']
