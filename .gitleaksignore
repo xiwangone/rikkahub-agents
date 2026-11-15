@@ -33,3 +33,8 @@ fcf0b069b5c74c1f92aac12cf5e2e1fdb5739cdb:app/src/test/java/me/rerere/rikkahub/re
 cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:90
 cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:100
 cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:116
+42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:71
+42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:72
+42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:121
+42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:129
+42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:139
