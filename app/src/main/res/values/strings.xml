@@ -86,10 +86,6 @@
   <string name="assistant_extensions_page_empty_skills">No skills available, install one in Extensions</string>
   <string name="assistant_extensions_page_goto_extensions">Go to Extensions</string>
   <string name="assistant_extensions_page_goto_prompts">Go to Prompts</string>
-  <string name="assistant_extensions_page_tab_lorebooks">Lorebooks</string>
-  <string name="assistant_extensions_page_tab_mode_injections">Mode Injections</string>
-  <string name="assistant_extensions_page_tab_quick_messages">Quick Messages</string>
-  <string name="assistant_extensions_page_tab_skills">Skills</string>
   <string name="assistant_extensions_page_title">Extensions</string>
   <string name="assistant_importer_import_failed">Import failed</string>
   <string name="assistant_importer_import_tavern_json">Import Tavern Character Card (JSON)</string>
@@ -116,7 +112,6 @@
   <string name="assistant_page_background_opacity">Background Opacity</string>
   <string name="assistant_page_background_opacity_desc">Adjust chat background image visibility</string>
   <string name="assistant_page_background_opacity_value">Opacity: %1$d%%</string>
-  <string name="assistant_page_background_set">Background image set</string>
   <string name="assistant_page_balanced">Balanced</string>
   <string name="assistant_page_body_key">Body Key</string>
   <string name="assistant_page_body_value">Body Value (JSON)</string>
@@ -164,8 +159,6 @@
   <string name="assistant_page_memory_tier_core">Core (always injected)</string>
   <string name="assistant_page_memory_tier_conditional">Conditional (retrieved on demand)</string>
   <string name="assistant_page_memory_tier_hint">Core memories stay in every conversation; conditional ones load on demand via memory_search.</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="assistant_page_max_tokens">Max Tokens</string>
   <string name="assistant_page_max_tokens_desc">Maximum number of tokens to generate. Leave empty for no limit.</string>
   <string name="assistant_page_max_tokens_limit">Limit: %d tokens</string>
@@ -177,7 +170,6 @@
   <string name="assistant_page_memory_empty">No memories yet</string>
   <string name="assistant_page_memory_empty_hint">The assistant will remember what you tell it as you chat. You can also tap + to add one</string>
   <string name="assistant_page_memory_empty_disabled_hint">Memory is off for this assistant. Turn it on to let it remember what you tell it</string>
-  <string name="assistant_page_memory_enable_action">Turn on memory</string>
   <string name="assistant_page_message_template">Message Content Template</string>
   <string name="assistant_page_message_template_desc">Controls the content format of chat messages before being sent to the LLM, usually no need to modify</string>
   <string name="assistant_page_message_template_missing_message">Template does not contain {{ message }}, user messages will not be sent</string>
@@ -394,8 +386,6 @@
   <string name="backup_page_webdav_backup">WebDAV Backup</string>
   <string name="backup_page_webdav_backup_files">WebDAV Backup Files</string>
   <string name="backup_page_webdav_server_address">WebDAV Server Address</string>
-  <string name="built_in_search_description">Enable model\'s built-in search functionality</string>
-  <string name="built_in_search_title">Built-in Search</string>
   <string name="calculating">Calculating...</string>
   <string name="cancel">Cancel</string>
   <string name="cancel_edit">Cancel Edit</string>
@@ -1095,7 +1085,6 @@
   <string name="setting_model_page_capability_cleared">Local table cleared</string>
   <string name="setting_model_page_capability_clear_failed">Clear failed</string>
   <string name="setting_model_page_compress_prompt_vars">Variables: {content}, {target_tokens}, {additional_context}</string>
-  <string name="setting_model_page_prompt">Prompt</string>
   <string name="setting_model_page_reset_to_default">Reset to default</string>
   <string name="setting_model_page_enable_suggestion">Enable Chat Suggestions</string>
   <string name="setting_model_page_suggestion_model">Chat Suggestion Model</string>
@@ -1453,7 +1442,6 @@
   <string name="skills_page_import_failed">Import failed: %s</string>
   <string name="skills_page_import_from_github">Import from GitHub</string>
   <string name="skills_page_import_success">Skill imported: %s</string>
-  <string name="skills_page_more_actions">More actions</string>
   <string name="skills_page_name_error">Cannot find the name field, please check the frontmatter format</string>
   <string name="skills_page_paste_hint">Paste the full SKILL.md file content</string>
   <string name="skills_page_repo_url_hint">Supports /tree/branch or subdirectory paths</string>
@@ -1595,7 +1583,6 @@
   <string name="setting_tools_section_output">Output limit</string>
   <string name="setting_tools_section_advanced">Advanced</string>
   <string name="setting_tools_apply_budget">Apply turn budget</string>
-  <string name="setting_tools_apply_budget_desc">Save the value entered above (minutes).</string>
   <string name="setting_tools_section_approval">Approvals</string>
   <string name="setting_page_workflows">Workflows</string>
   <string name="setting_page_workflows_desc">Trigger-based automations: when something happens on the device, run a sequence of tools.</string>
@@ -2802,7 +2789,6 @@
   <string name="auto_task_count_label">Trigger count</string>
   <string name="auto_task_count_hint">0 = unlimited; default 1; max 100. Stops after the count or when the task list finishes.</string>
   <string name="auto_task_taskfile_label">Saved lists (tap to reuse)</string>
-  <string name="auto_task_taskfile_use">Use</string>
   <string name="auto_task_taskfile_name_label">New list name</string>
   <string name="auto_task_taskfile_save">Save list</string>
   <string name="auto_task_tasks_label">Tasks (one per line)</string>
@@ -2820,7 +2806,6 @@
   <string name="stats_total_input">Total input</string>
   <string name="stats_copy_total">Copy total stats</string>
   <string name="stats_copy">Copy stats</string>
-  <string name="stats_format">Total ↑%1$s in · cached %2$s ↓%3$s out</string>
   <string name="chat_nerd_context_window">Context usage %1$s / %2$s · %3$s used</string>
   <string name="chat_nerd_context_only">Context usage %1$s</string>
   <string name="chat_nerd_suggest_compact">Suggest compacting</string>
@@ -3921,7 +3906,6 @@
   <string name="usage_stats_by_provider_cost">Cost share by provider</string>
   <string name="usage_stats_by_provider_tokens">Usage share by provider</string>
   <string name="usage_stats_detail">Details</string>
-  <string name="usage_stats_empty">No usage data yet</string>
   <string name="usage_stats_empty_range">%1$s: no usage yet. Try another range.</string>
   <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
   <string name="diff_view_render_capped">… %1$d more lines (content too long to expand)</string>
@@ -4125,7 +4109,6 @@
   <string name="media_provider_type_volcengine">Volcengine Ark</string>
   <string name="setting_media_page_add_model">Add model</string>
   <string name="setting_media_page_add_provider">Add provider</string>
-  <string name="setting_media_page_edit_provider">Edit provider</string>
   <string name="setting_media_page_empty">No media generation providers yet. Tap + at the top to add one.</string>
   <string name="setting_media_page_model_id">Model ID</string>
   <string name="setting_media_page_models">Models</string>
@@ -4247,7 +4230,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (Beta)</string>
   <string name="notification_channel_generation">Reply generation</string>
   <string name="generation_foreground_title">Generating reply</string>
-  <string name="chat_input_tool_surface_badge">Tools %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">Active tool surface: %1$d tools (~%2$s schema tokens per turn)</string>
   <string name="chat_input_agent_quick_actions">Agent quick actions</string>
   <string name="chat_input_agent_action_device_title">Device &amp; system check</string>
@@ -4269,15 +4251,11 @@
   <string name="tunnel_logout_confirm">You will need to authorize again to reconnect. Continue?</string>
   <string name="tunnel_enable_title">Enable tunnel</string>
   <string name="tunnel_enable_desc">Per-app proxy only, does not take over system VPN or DNS</string>
-  <string name="tunnel_status_label">Status: %1$s</string>
   <string name="tunnel_status_connected">Connected %1$s</string>
   <string name="tunnel_status_connecting">Connecting…</string>
   <string name="tunnel_status_offline">Offline (reconnecting…)</string>
   <string name="tunnel_status_failed">Failed: %1$s</string>
   <string name="tunnel_status_disconnected">Disconnected</string>
-  <string name="tunnel_apply_failed">Failed to apply: %1$s</string>
-  <string name="tunnel_logout_failed">Sign out failed: %1$s</string>
-  <string name="tunnel_status_copy_ip_hint">Tap to copy the IP address</string>
   <string name="tunnel_control_url_label">Control plane URL</string>
   <string name="tunnel_auth_key_label">Auth key</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>
@@ -4293,9 +4271,7 @@
   <string name="tunnel_console_hostname">Console name: %1$s</string>
   <string name="tunnel_advertise_routes_label">Advertised routes</string>
   <string name="tunnel_advertise_routes_none">None</string>
-  <string name="tunnel_saved_hint">Saved</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale Tunnel</string>
-  <string name="chat_topbar_tunnel_node_info">Node: %1$s · Control: %2$s</string>
   <string name="chat_topbar_tunnel_default_control">Default Tailscale</string>
   <string name="tool_ui_schedule_job_direct">Schedule direct automation job</string>
   <string name="tool_ui_schedule_job_llm">Schedule AI prompt job</string>

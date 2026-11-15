@@ -23,10 +23,6 @@
   <string name="assistant_extensions_page_empty_skills">利用可能なスキルがありません。Extensionsでインストールしてください</string>
   <string name="assistant_extensions_page_goto_extensions">拡張機能へ移動</string>
   <string name="assistant_extensions_page_goto_prompts">プロンプトへ移動</string>
-  <string name="assistant_extensions_page_tab_lorebooks">Lorebooks</string>
-  <string name="assistant_extensions_page_tab_mode_injections">モードインジェクション</string>
-  <string name="assistant_extensions_page_tab_quick_messages">クイックメッセージ</string>
-  <string name="assistant_extensions_page_tab_skills">スキル</string>
   <string name="assistant_extensions_page_title">拡張機能</string>
   <string name="assistant_importer_import_failed">インポートに失敗しました</string>
   <string name="assistant_importer_import_tavern_json">タバーンキャラクターカードをインポート (JSON)</string>
@@ -50,7 +46,6 @@
   <string name="assistant_page_background_opacity">背景の透明度</string>
   <string name="assistant_page_background_opacity_desc">チャット背景画像の表示透明度を調整します</string>
   <string name="assistant_page_background_opacity_value">透明度: %1$d%%</string>
-  <string name="assistant_page_background_set">背景画像が設定されました</string>
   <string name="assistant_page_balanced">バランス</string>
   <string name="assistant_page_body_key">ボディキー</string>
   <string name="assistant_page_body_value">ボディ値 (JSON)</string>
@@ -105,7 +100,6 @@
   <string name="assistant_page_memory_empty">まだ記憶がありません</string>
   <string name="assistant_page_memory_empty_hint">チャット中に伝えた内容をアシスタントが記憶します。+ をタップして追加することもできます</string>
   <string name="assistant_page_memory_empty_disabled_hint">このアシスタントの記憶はオフになっています。オンにすると、伝えた内容を記憶できるようになります</string>
-  <string name="assistant_page_memory_enable_action">記憶をオンにする</string>
   <string name="assistant_page_message_template">チャットコンテンツテンプレート</string>
   <string name="assistant_page_message_template_desc">チャットメッセージがLLMに送信される前のコンテンツ形式を制御します。通常は変更する必要がありません</string>
   <string name="assistant_page_message_template_missing_message">テンプレートに{{ message }}が含まれていないため、ユーザーのメッセージは送信されません</string>
@@ -250,8 +244,6 @@
   <string name="backup_page_webdav_backup">WebDAVバックアップ</string>
   <string name="backup_page_webdav_backup_files">WebDavバックアップファイル一覧</string>
   <string name="backup_page_webdav_server_address">WebDAV サーバーアドレス</string>
-  <string name="built_in_search_description">モデルの組み込み検索機能を有効にする</string>
-  <string name="built_in_search_title">組み込み検索</string>
   <string name="calculating">計算中...</string>
   <string name="cancel">キャンセル</string>
   <string name="cancel_edit">編集をキャンセル</string>
@@ -899,7 +891,6 @@
   <string name="setting_model_page_capability_cleared">ローカルテーブルを削除しました</string>
   <string name="setting_model_page_capability_clear_failed">削除失敗</string>
   <string name="setting_model_page_compress_prompt_vars">変数: {content}, {target_tokens}, {additional_context}</string>
-  <string name="setting_model_page_prompt">プロンプト</string>
   <string name="setting_model_page_reset_to_default">デフォルトにリセット</string>
   <string name="setting_model_page_suggestion_model">チャット提案モデル</string>
   <string name="setting_model_page_suggestion_model_desc">会話の提案を生成するモデル。設定されていない場合は高速モデルを使用します</string>
@@ -1205,7 +1196,6 @@
   <string name="skills_page_import_failed">インポートに失敗しました: %s</string>
   <string name="skills_page_import_from_github">GitHubからインポート</string>
   <string name="skills_page_import_success">スキルをインポートしました: %s</string>
-  <string name="skills_page_more_actions">その他のアクション</string>
   <string name="skills_page_name_error">名前フィールドが見つかりません。フロントマター形式を確認してください</string>
   <string name="skills_page_paste_hint">SKILL.mdファイルの内容全体を貼り付けてください</string>
   <string name="skills_page_repo_url_hint">/tree/branchまたはサブディレクトリパスをサポート</string>
@@ -1735,7 +1725,6 @@
   <string name="setting_tools_section_output">出力上限</string>
   <string name="setting_tools_section_advanced">詳細設定</string>
   <string name="setting_tools_apply_budget">ターン予算を適用</string>
-  <string name="setting_tools_apply_budget_desc">上に入力した分数を保存します。</string>
   <string name="setting_tools_section_approval">承認</string>
   <string name="setting_page_telegram_no_token_toast">先にボットトークンを設定してください。</string>
   <string name="setting_page_telegram_start">開始</string>
@@ -2239,8 +2228,6 @@
   <string name="assistant_page_memory_tier_core">コア（常時注入）</string>
   <string name="assistant_page_memory_tier_conditional">オンデマンド（検索注入）</string>
   <string name="assistant_page_memory_tier_hint">コアメモリは毎回常駐します。オンデマンドメモリは memory_search で必要時に検索して読み込みます。</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">アバターの保存に失敗しました。ログをご確認ください。</string>
   <string name="backup_page_item_database">データベース</string>
   <string name="backup_page_item_database_desc">チャット、メモリ、資格情報庫、SSH ホスト、スケジュール（鍵は同一端末のみ）。サイズ大（数十 MB 級）、ネットワーク経由のアップロードは制限される場合あり</string>
@@ -2470,7 +2457,6 @@
   <string name="auto_task_count_label">実行回数</string>
   <string name="auto_task_count_hint">0 = 無限、既定 1、上限 100。回数に達するかタスクリストを消化すると自動停止します。</string>
   <string name="auto_task_taskfile_label">保存済みリスト（タップで再利用）</string>
-  <string name="auto_task_taskfile_use">再利用</string>
   <string name="auto_task_taskfile_name_label">新しいリスト名</string>
   <string name="auto_task_taskfile_save">リストを保存</string>
   <string name="auto_task_tasks_label">タスク（1 行に 1 つ）</string>
@@ -2488,7 +2474,6 @@
   <string name="stats_total_input">累計入力</string>
   <string name="stats_copy_total">累計統計をコピー</string>
   <string name="stats_copy">統計をコピー</string>
-  <string name="stats_format">累計 ↑%1$s 入力 · ヒット %2$s ↓%3$s 出力</string>
   <string name="chat_nerd_context_window">コンテキスト使用量 %1$s / %2$s · 使用 %3$s</string>
   <string name="chat_nerd_context_only">コンテキスト使用量 %1$s</string>
   <string name="chat_nerd_suggest_compact">圧縮を推奨</string>
@@ -3817,7 +3802,6 @@
   <string name="usage_stats_by_provider_cost">プロバイダー別費用</string>
   <string name="usage_stats_by_provider_tokens">プロバイダー別使用量</string>
   <string name="usage_stats_detail">詳細</string>
-  <string name="usage_stats_empty">データがありません</string>
   <string name="usage_stats_empty_range">%1$s：まだ利用がありません。別の期間をお試しください。</string>
   <string name="usage_stats_note">生成単位で集計：1回の生成を1件として記録。費用はプロバイダー報告分のみで、未報告分は推定しません。</string>
   <string name="diff_view_expand_all">… +%1$d 行（タップしてすべて展開）</string>
@@ -4038,7 +4022,6 @@
   <string name="media_provider_type_volcengine">Volcengine Ark</string>
   <string name="setting_media_page_add_model">モデルを追加</string>
   <string name="setting_media_page_add_provider">プロバイダーを追加</string>
-  <string name="setting_media_page_edit_provider">プロバイダーを編集</string>
   <string name="setting_media_page_empty">メディア生成プロバイダーはまだありません。上部の+をタップして追加してください。</string>
   <string name="setting_media_page_model_id">モデルID</string>
   <string name="setting_media_page_models">モデル</string>
@@ -4160,7 +4143,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（ベータ版）</string>
   <string name="notification_channel_generation">返信生成</string>
   <string name="generation_foreground_title">返信を生成中</string>
-  <string name="chat_input_tool_surface_badge">ツール %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">有効なツール面: %1$d 個のツール（ターンあたり約 ~%2$s スキーマトークン）</string>
   <string name="chat_input_agent_quick_actions">エージェントクイック操作</string>
   <string name="chat_input_agent_action_device_title">デバイス・システム診断</string>
@@ -4182,15 +4164,11 @@
   <string name="tunnel_logout_confirm">再接続には再認証が必要です。続行しますか？</string>
   <string name="tunnel_enable_title">トンネルを有効化</string>
   <string name="tunnel_enable_desc">このアプリのみプロキシ経由で通信し、システム VPN / DNS には影響しません</string>
-  <string name="tunnel_status_label">状態: %1$s</string>
   <string name="tunnel_status_connected">接続済み %1$s</string>
   <string name="tunnel_status_connecting">接続中…</string>
   <string name="tunnel_status_offline">オフライン（再接続中…）</string>
   <string name="tunnel_status_failed">失敗: %1$s</string>
   <string name="tunnel_status_disconnected">未接続</string>
-  <string name="tunnel_apply_failed">適用に失敗しました：%1$s</string>
-  <string name="tunnel_logout_failed">サインアウトに失敗しました：%1$s</string>
-  <string name="tunnel_status_copy_ip_hint">タップしてトンネルの IP アドレスをコピー</string>
   <string name="tunnel_control_url_label">コントロールプレーン URL</string>
   <string name="tunnel_auth_key_label">認証キー</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... または $$ 認証情報名</string>
@@ -4206,9 +4184,7 @@
   <string name="tunnel_console_hostname">コンソール名：%1$s</string>
   <string name="tunnel_advertise_routes_label">公開するネットワーク</string>
   <string name="tunnel_advertise_routes_none">なし</string>
-  <string name="tunnel_saved_hint">保存しました</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale トンネル</string>
-  <string name="chat_topbar_tunnel_node_info">ノード: %1$s · 制御: %2$s</string>
   <string name="chat_topbar_tunnel_default_control">標準 Tailscale</string>
   <string name="tool_ui_schedule_job_direct">直接アクション定期ジョブを登録</string>
   <string name="tool_ui_schedule_job_llm">AI プロンプト定期ジョブを登録</string>

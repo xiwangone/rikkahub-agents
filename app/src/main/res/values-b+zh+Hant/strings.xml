@@ -23,10 +23,6 @@
   <string name="assistant_extensions_page_empty_skills">沒有可用的技能，請在 Extensions 中安裝一個</string>
   <string name="assistant_extensions_page_goto_extensions">前往擴充功能</string>
   <string name="assistant_extensions_page_goto_prompts">前往提示</string>
-  <string name="assistant_extensions_page_tab_lorebooks">Lorebooks</string>
-  <string name="assistant_extensions_page_tab_mode_injections">模式注入</string>
-  <string name="assistant_extensions_page_tab_quick_messages">快速訊息</string>
-  <string name="assistant_extensions_page_tab_skills">技能</string>
   <string name="assistant_extensions_page_title">擴充功能</string>
   <string name="assistant_importer_import_failed">匯入失敗</string>
   <string name="assistant_importer_import_tavern_json">匯入酒館角色卡 (JSON)</string>
@@ -50,7 +46,6 @@
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">調整聊天背景圖片顯示透明度</string>
   <string name="assistant_page_background_opacity_value">透明度：%1$d%%</string>
-  <string name="assistant_page_background_set">已設定背景圖片</string>
   <string name="assistant_page_balanced">平衡</string>
   <string name="assistant_page_body_key">Body Key</string>
   <string name="assistant_page_body_value">Body 值 (JSON)</string>
@@ -101,7 +96,6 @@
   <string name="assistant_page_memory_empty">尚無記憶</string>
   <string name="assistant_page_memory_empty_hint">聊天時，助理會記住你告訴它的內容。你也可以輕觸 + 新增一則記憶</string>
   <string name="assistant_page_memory_empty_disabled_hint">此助理的記憶功能已關閉。開啟後，它就能記住你告訴它的內容</string>
-  <string name="assistant_page_memory_enable_action">開啟記憶</string>
   <string name="assistant_page_message_template">聊天內容模板</string>
   <string name="assistant_page_message_template_desc">控制聊天訊息在發送給LLM之前的內容格式，通常不需要修改</string>
   <string name="assistant_page_message_template_missing_message">範本未包含 {{ message }}，使用者訊息將不會被傳送</string>
@@ -246,8 +240,6 @@
   <string name="backup_page_webdav_backup">WebDAV備份</string>
   <string name="backup_page_webdav_backup_files">WebDav備份檔案列表</string>
   <string name="backup_page_webdav_server_address">WebDAV 伺服器地址</string>
-  <string name="built_in_search_description">是否啟用模型內建的搜尋功能</string>
-  <string name="built_in_search_title">模型內建搜尋</string>
   <string name="calculating">計算中...</string>
   <string name="cancel">取消</string>
   <string name="cancel_edit">取消編輯</string>
@@ -899,7 +891,6 @@
   <string name="setting_model_page_capability_cleared">已清除本機表</string>
   <string name="setting_model_page_capability_clear_failed">清除失敗</string>
   <string name="setting_model_page_compress_prompt_vars">變數：{content}、{target_tokens}、{additional_context}</string>
-  <string name="setting_model_page_prompt">提示詞</string>
   <string name="setting_model_page_reset_to_default">重置為預設值</string>
   <string name="setting_model_page_suggestion_model">聊天建議模型</string>
   <string name="setting_model_page_suggestion_model_desc">用於生成聊天建議的模型。未設置時使用快速模型</string>
@@ -1205,7 +1196,6 @@
   <string name="skills_page_import_failed">匯入失敗：%s</string>
   <string name="skills_page_import_from_github">從 GitHub 匯入</string>
   <string name="skills_page_import_success">已匯入技能：%s</string>
-  <string name="skills_page_more_actions">更多操作</string>
   <string name="skills_page_name_error">找不到名稱欄位，請檢查 frontmatter 格式</string>
   <string name="skills_page_paste_hint">貼上完整的 SKILL.md 檔案內容</string>
   <string name="skills_page_repo_url_hint">支援 /tree/branch 或子目錄路徑</string>
@@ -1751,7 +1741,6 @@
   <string name="setting_tools_section_output">輸出上限</string>
   <string name="setting_tools_section_advanced">進階</string>
   <string name="setting_tools_apply_budget">套用每輪預算</string>
-  <string name="setting_tools_apply_budget_desc">儲存上方填寫的分鐘數。</string>
   <string name="setting_tools_section_approval">審批</string>
   <string name="setting_page_telegram_no_token_toast">請先設定機器人 Token。</string>
   <string name="setting_page_telegram_start">啟動</string>
@@ -2238,7 +2227,6 @@
   <string name="stats_total_input">累計輸入</string>
   <string name="stats_copy_total">複製累計統計</string>
   <string name="stats_copy">複製統計</string>
-  <string name="stats_format">累計 ↑%1$s 輸入 · 命中 %2$s ↓%3$s 輸出</string>
   <string name="chat_nerd_context_window">上下文佔用 %1$s / %2$s · 已用 %3$s</string>
   <string name="chat_nerd_context_only">上下文佔用 %1$s</string>
   <string name="chat_nerd_suggest_compact">建議壓縮</string>
@@ -2416,8 +2404,6 @@
     <string name="assistant_page_memory_tier_core">核心（常駐注入）</string>
     <string name="assistant_page_memory_tier_conditional">按需（檢索注入）</string>
     <string name="assistant_page_memory_tier_hint">核心記憶每輪常駐；按需記憶由 memory_search 按需檢索載入。</string>
-    <string name="assistant_page_memory_tier_core_short">core</string>
-    <string name="assistant_page_memory_tier_conditional_short">conditional</string>
     <string name="avatar_save_failed">頭像儲存失敗，請檢視日誌。</string>
     <string name="backup_page_item_database">資料庫</string>
     <string name="backup_page_item_database_desc">聊天、記憶、金鑰庫、SSH 主機、排程（密鑰類僅同機可用）。體積較大（數十 MB 級），網路通道上傳受限</string>
@@ -2816,7 +2802,6 @@
     <string name="auto_task_exec_tasklist">任務列表</string>
     <string name="auto_task_count_hint">0 = 無限；預設 1；上限 100。觸發滿次數或任務列表跑完自動停止。</string>
     <string name="auto_task_taskfile_label">已儲存列表（點選複用）</string>
-    <string name="auto_task_taskfile_use">複用</string>
     <string name="auto_task_taskfile_name_label">新列表名稱</string>
     <string name="auto_task_taskfile_save">儲存列表</string>
     <string name="auto_task_tasks_label">任務（每行一個）</string>
@@ -3816,7 +3801,6 @@
   <string name="usage_stats_by_provider_cost">供應商費用佔比</string>
   <string name="usage_stats_by_provider_tokens">供應商用量佔比</string>
   <string name="usage_stats_detail">明細</string>
-  <string name="usage_stats_empty">暫無用量資料</string>
   <string name="usage_stats_empty_range">%1$s：暫無呼叫，可切換其他範圍查看。</string>
   <string name="usage_stats_note">依生成口徑統計：一次生成記一條；費用僅含服務商上報部分，未上報的不估算。</string>
   <string name="diff_view_expand_all">… +%1$d 行（點擊展開全部）</string>
@@ -4037,7 +4021,6 @@
   <string name="media_provider_type_volcengine">火山引擎方舟</string>
   <string name="setting_media_page_add_model">新增模型</string>
   <string name="setting_media_page_add_provider">新增提供者</string>
-  <string name="setting_media_page_edit_provider">編輯提供者</string>
   <string name="setting_media_page_empty">尚未有媒體生成提供者。點擊頂部的 + 以新增一個。</string>
   <string name="setting_media_page_model_id">模型 ID</string>
   <string name="setting_media_page_models">模型</string>
@@ -4159,7 +4142,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（測試版）</string>
   <string name="notification_channel_generation">回覆生成</string>
   <string name="generation_foreground_title">正在生成回覆</string>
-  <string name="chat_input_tool_surface_badge">工具 %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">目前啟用工具面：%1$d 個工具（每輪約佔 ~%2$s Schema Tokens）</string>
   <string name="chat_input_agent_quick_actions">智慧體捷徑動作</string>
   <string name="chat_input_agent_action_device_title">裝置與系統健檢</string>
@@ -4181,15 +4163,11 @@
   <string name="tunnel_logout_confirm">登出後需要重新授權才能連回，確定嗎？</string>
   <string name="tunnel_enable_title">啟用隧道</string>
   <string name="tunnel_enable_desc">僅本應用程式走隧道，不接管系統 VPN / DNS</string>
-  <string name="tunnel_status_label">狀態：%1$s</string>
   <string name="tunnel_status_connected">已連線 %1$s</string>
   <string name="tunnel_status_connecting">正在連線…</string>
   <string name="tunnel_status_offline">後端離線（自動重連中…）</string>
   <string name="tunnel_status_failed">失敗：%1$s</string>
   <string name="tunnel_status_disconnected">未連線</string>
-  <string name="tunnel_apply_failed">套用失敗：%1$s</string>
-  <string name="tunnel_logout_failed">登出失敗：%1$s</string>
-  <string name="tunnel_status_copy_ip_hint">點按複製通道 IP 位址</string>
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">驗證金鑰</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 憑證名稱</string>
@@ -4205,9 +4183,7 @@
   <string name="tunnel_console_hostname">控制台名稱：%1$s</string>
   <string name="tunnel_advertise_routes_label">發佈網段</string>
   <string name="tunnel_advertise_routes_none">未發佈</string>
-  <string name="tunnel_saved_hint">已儲存</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale 私網隧道</string>
-  <string name="chat_topbar_tunnel_node_info">節點：%1$s · 控制面：%2$s</string>
   <string name="chat_topbar_tunnel_default_control">預設 Tailscale</string>
   <string name="tool_ui_schedule_job_direct">建立直接動作排程任務</string>
   <string name="tool_ui_schedule_job_llm">建立 AI 提示詞排程任務</string>

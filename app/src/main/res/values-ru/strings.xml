@@ -23,10 +23,6 @@
   <string name="assistant_extensions_page_empty_skills">Навыки отсутствуют, установите один в Extensions</string>
   <string name="assistant_extensions_page_goto_extensions">Перейти к расширениям</string>
   <string name="assistant_extensions_page_goto_prompts">Перейти к подсказкам</string>
-  <string name="assistant_extensions_page_tab_lorebooks">Лорбуки</string>
-  <string name="assistant_extensions_page_tab_mode_injections">Внедрения режима</string>
-  <string name="assistant_extensions_page_tab_quick_messages">Быстрые сообщения</string>
-  <string name="assistant_extensions_page_tab_skills">Навыки</string>
   <string name="assistant_extensions_page_title">Расширения</string>
   <string name="assistant_importer_import_failed">Импорт не удался</string>
   <string name="assistant_importer_import_tavern_json">Импортировать карточку персонажа Tavern (JSON)</string>
@@ -50,7 +46,6 @@
   <string name="assistant_page_background_opacity">Прозрачность фона</string>
   <string name="assistant_page_background_opacity_desc">Настройте видимость фонового изображения чата</string>
   <string name="assistant_page_background_opacity_value">Прозрачность: %1$d%%</string>
-  <string name="assistant_page_background_set">Фоновое изображение установлено</string>
   <string name="assistant_page_balanced">Сбалансированный</string>
   <string name="assistant_page_body_key">Ключ тела</string>
   <string name="assistant_page_body_value">Значение тела (JSON)</string>
@@ -105,7 +100,6 @@
   <string name="assistant_page_memory_empty">Записей в памяти пока нет</string>
   <string name="assistant_page_memory_empty_hint">Во время общения ассистент запоминает то, что вы ему рассказываете. Можно также нажать +, чтобы добавить запись</string>
   <string name="assistant_page_memory_empty_disabled_hint">Память для этого ассистента выключена. Включите её, чтобы он запоминал то, что вы ему рассказываете</string>
-  <string name="assistant_page_memory_enable_action">Включить память</string>
   <string name="assistant_page_message_template">Шаблон содержимого сообщения</string>
   <string name="assistant_page_message_template_desc">Управляет форматом содержимого сообщений чата перед отправкой в LLM, обычно изменять не требуется</string>
   <string name="assistant_page_message_template_missing_message">Шаблон не содержит {{ message }}, сообщения пользователя не будут отправлены</string>
@@ -250,8 +244,6 @@
   <string name="backup_page_webdav_backup">Резервное копирование WebDAV</string>
   <string name="backup_page_webdav_backup_files">Файлы резервного копирования WebDAV</string>
   <string name="backup_page_webdav_server_address">Адрес сервера WebDAV</string>
-  <string name="built_in_search_description">Включить встроенную функцию поиска модели</string>
-  <string name="built_in_search_title">Встроенный поиск</string>
   <string name="calculating">Вычисление...</string>
   <string name="cancel">Отмена</string>
   <string name="cancel_edit">Отменить редактирование</string>
@@ -894,7 +886,6 @@
   <string name="setting_model_page_capability_cleared">Локальная таблица очищена</string>
   <string name="setting_model_page_capability_clear_failed">Ошибка очистки</string>
   <string name="setting_model_page_compress_prompt_vars">Переменные: {content}, {target_tokens}, {additional_context}</string>
-  <string name="setting_model_page_prompt">Промпт</string>
   <string name="setting_model_page_reset_to_default">Сбросить до значения по умолчанию</string>
   <string name="setting_model_page_suggestion_model">Модель предложений чата</string>
   <string name="setting_model_page_suggestion_model_desc">Модель для генерации предложений в чате. Если не задана, используется быстрая модель</string>
@@ -1200,7 +1191,6 @@
   <string name="skills_page_import_failed">Не удалось импортировать: %s</string>
   <string name="skills_page_import_from_github">Импорт из GitHub</string>
   <string name="skills_page_import_success">Навык импортирован: %s</string>
-  <string name="skills_page_more_actions">Дополнительные действия</string>
   <string name="skills_page_name_error">Не удаётся найти поле name, проверьте формат frontmatter</string>
   <string name="skills_page_paste_hint">Вставьте полное содержимое файла SKILL.md</string>
   <string name="skills_page_repo_url_hint">Поддерживает пути /tree/branch или подкаталоги</string>
@@ -1730,7 +1720,6 @@
   <string name="setting_tools_section_output">Лимит вывода</string>
   <string name="setting_tools_section_advanced">Дополнительно</string>
   <string name="setting_tools_apply_budget">Применить бюджет хода</string>
-  <string name="setting_tools_apply_budget_desc">Сохраняет введённое выше значение в минутах.</string>
   <string name="setting_tools_section_approval">Подтверждения</string>
   <string name="setting_page_telegram_no_token_toast">Сначала задайте токен бота.</string>
   <string name="setting_page_telegram_start">Запустить</string>
@@ -2234,8 +2223,6 @@
   <string name="assistant_page_memory_tier_core">Ядро (постоянная вставка)</string>
   <string name="assistant_page_memory_tier_conditional">По запросу (вставка при поиске)</string>
   <string name="assistant_page_memory_tier_hint">Основная память постоянна в каждом ходе; память по запросу подгружается поиском memory_search.</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">Не удалось сохранить аватар. Проверьте журнал.</string>
   <string name="backup_page_item_database">База данных</string>
   <string name="backup_page_item_database_desc">Чаты, память, хранилище ключей, SSH-хосты, расписания (ключи — только это устройство). Большой объём (десятки МБ и более), загрузка по сети может быть ограничена</string>
@@ -2465,7 +2452,6 @@
   <string name="auto_task_count_label">Число срабатываний</string>
   <string name="auto_task_count_hint">0 = без ограничений; по умолчанию 1; максимум 100. Остановка после исчерпания счётчика или списка задач.</string>
   <string name="auto_task_taskfile_label">Сохранённые списки (нажмите для повторного использования)</string>
-  <string name="auto_task_taskfile_use">Использовать</string>
   <string name="auto_task_taskfile_name_label">Название нового списка</string>
   <string name="auto_task_taskfile_save">Сохранить список</string>
   <string name="auto_task_tasks_label">Задачи (по одной в строке)</string>
@@ -2483,7 +2469,6 @@
   <string name="stats_total_input">Всего ввода</string>
   <string name="stats_copy_total">Копировать итоговую статистику</string>
   <string name="stats_copy">Копировать статистику</string>
-  <string name="stats_format">Всего ↑%1$s ввод · попадание %2$s ↓%3$s вывод</string>
   <string name="chat_nerd_context_window">Занято контекста %1$s / %2$s · использовано %3$s</string>
   <string name="chat_nerd_context_only">Занято контекста %1$s</string>
   <string name="chat_nerd_suggest_compact">Рекомендуется сжать</string>
@@ -3821,7 +3806,6 @@
   <string name="usage_stats_by_provider_cost">Доля расходов по провайдерам</string>
   <string name="usage_stats_by_provider_tokens">Доля использования по провайдерам</string>
   <string name="usage_stats_detail">Детализация</string>
-  <string name="usage_stats_empty">Данных пока нет</string>
   <string name="usage_stats_empty_range">%1$s: использований пока нет. Попробуйте другой период.</string>
   <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
   <string name="diff_view_expand_all">… +%1$d строк (нажмите, чтобы развернуть все)</string>
@@ -4042,7 +4026,6 @@
   <string name="media_provider_type_volcengine">Volcengine Ark</string>
   <string name="setting_media_page_add_model">Добавить модель</string>
   <string name="setting_media_page_add_provider">Добавить провайдера</string>
-  <string name="setting_media_page_edit_provider">Изменить провайдера</string>
   <string name="setting_media_page_empty">Провайдеров генерации медиа пока нет. Нажмите + вверху, чтобы добавить.</string>
   <string name="setting_media_page_model_id">Идентификатор модели</string>
   <string name="setting_media_page_models">Модели</string>
@@ -4164,7 +4147,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (бета)</string>
   <string name="notification_channel_generation">Генерация ответа</string>
   <string name="generation_foreground_title">Генерация ответа…</string>
-  <string name="chat_input_tool_surface_badge">Инструменты %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">Активные инструменты: %1$d (~%2$s токенов схемы за ход)</string>
   <string name="chat_input_agent_quick_actions">Быстрые действия агента</string>
   <string name="chat_input_agent_action_device_title">Проверка устройства и системы</string>
@@ -4186,15 +4168,11 @@
   <string name="tunnel_logout_confirm">Для повторного подключения потребуется авторизация. Продолжить?</string>
   <string name="tunnel_enable_title">Включить туннель</string>
   <string name="tunnel_enable_desc">Прокси только для приложения, не перехватывает системный VPN / DNS</string>
-  <string name="tunnel_status_label">Статус: %1$s</string>
   <string name="tunnel_status_connected">Подключено %1$s</string>
   <string name="tunnel_status_connecting">Подключение…</string>
   <string name="tunnel_status_offline">Не в сети (переподключение…)</string>
   <string name="tunnel_status_failed">Ошибка: %1$s</string>
   <string name="tunnel_status_disconnected">Отключено</string>
-  <string name="tunnel_apply_failed">Не удалось применить: %1$s</string>
-  <string name="tunnel_logout_failed">Не удалось выйти: %1$s</string>
-  <string name="tunnel_status_copy_ip_hint">Нажмите, чтобы скопировать IP-адрес туннеля</string>
   <string name="tunnel_control_url_label">URL плоскости управления</string>
   <string name="tunnel_auth_key_label">Ключ авторизации</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
@@ -4210,9 +4188,7 @@
   <string name="tunnel_console_hostname">Имя в консоли: %1$s</string>
   <string name="tunnel_advertise_routes_label">Публикуемые сети</string>
   <string name="tunnel_advertise_routes_none">Нет</string>
-  <string name="tunnel_saved_hint">Сохранено</string>
   <string name="chat_topbar_tunnel_dialog_title">Туннель Tailscale / Headscale</string>
-  <string name="chat_topbar_tunnel_node_info">Узел: %1$s · Управление: %2$s</string>
   <string name="chat_topbar_tunnel_default_control">Tailscale по умолчанию</string>
   <string name="tool_ui_schedule_job_direct">Запланировать прямое задание автоматизации</string>
   <string name="tool_ui_schedule_job_llm">Запланировать ИИ-задание по промпту</string>

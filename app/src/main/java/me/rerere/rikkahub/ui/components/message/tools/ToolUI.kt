@@ -418,6 +418,8 @@ object ToolUIRegistry {
             ScheduleJobLlmToolUI,
             // 上下文压缩卡片：合成工具，只出现在消息里，不会被注入给模型
             ContextCompactionToolUI,
+            // 无障碍操控手机：输出是纯文本，补上带动作名的标题 + 首行摘要
+            PhoneUseToolUI,
         ).associateBy { it.toolName }
 
     /**

@@ -333,6 +333,23 @@ object ToolApprovalDefaults {
         "save_ssh_host",
     )
 
+    /**
+     * 「本会话允许」(💬) 作用域：**所有工具都接受**，包括 [NO_ALWAYS_ALLOW]。
+     *
+     * 分界只在**授权持久度**上，不在工具种类上：
+     *  · YOLO（全局）/ 持久「总是允许」/ 无界面自动审批 → 对 NO_ALWAYS_ALLOW 一律无效
+     *    （这三条都是长期或无人值守的放行，一次误批会一直生效）；
+     *  · 本会话允许 → 对任何工具都有效：在场点一次，(conversationId, toolName) 粒度、
+     *    内存态、/new 清零、可单条撤销（[ToolApprovalAllowList]）。
+     *
+     * 取舍：**已权衡过风险与便利，这里有意选择可用性优先**（不是疏漏，也不是待办）。
+     * 若强制逐次点击，实际结果往往是把人推向全局 YOLO —— 全覆盖、长期有效、更危险；
+     * 会话级授权把暴露面限制在一次对话内，且 "撤销 / 新建对话" 成本极低。
+     * ⚠ 不要出于"看起来更安全"就改回逐次确认：那样只是把风险挪到 YOLO；
+     *   真要收紧，请连同 YOLO 一起改，并在提交信息里说明权衡。
+     */
+    fun allowsChatScope(@Suppress("UNUSED_PARAMETER") toolName: String): Boolean = true
+
     fun allowsAlwaysAllow(toolName: String): Boolean = toolName !in NO_ALWAYS_ALLOW
 
     /**

@@ -21,10 +21,6 @@
   <string name="assistant_extensions_page_empty_skills">لا توجد مهارات متاحة، ثبّت واحدة في الإضافات</string>
   <string name="assistant_extensions_page_goto_extensions">الانتقال إلى الإضافات</string>
   <string name="assistant_extensions_page_goto_prompts">الانتقال إلى التوجيهات</string>
-  <string name="assistant_extensions_page_tab_lorebooks">كتب المعرفة</string>
-  <string name="assistant_extensions_page_tab_mode_injections">حقن الأوضاع</string>
-  <string name="assistant_extensions_page_tab_quick_messages">الرسائل السريعة</string>
-  <string name="assistant_extensions_page_tab_skills">المهارات</string>
   <string name="assistant_extensions_page_title">الإضافات</string>
   <string name="assistant_importer_import_failed">فشل الاستيراد</string>
   <string name="assistant_importer_import_tavern_json">استيراد بطاقة شخصية Tavern (JSON)</string>
@@ -44,7 +40,6 @@
   <string name="assistant_page_background_opacity">شفافية الخلفية</string>
   <string name="assistant_page_background_opacity_desc">ضبط وضوح صورة خلفية الدردشة</string>
   <string name="assistant_page_background_opacity_value">الشفافية: %1$d%%</string>
-  <string name="assistant_page_background_set">تم تعيين صورة الخلفية</string>
   <string name="assistant_page_balanced">متوازن</string>
   <string name="assistant_page_body_key">مفتاح الجسم</string>
   <string name="assistant_page_body_value">قيمة الجسم (JSON)</string>
@@ -110,7 +105,6 @@
   <string name="setting_tools_section_output">حد الإخراج</string>
   <string name="setting_tools_section_advanced">إعدادات متقدمة</string>
   <string name="setting_tools_apply_budget">تطبيق ميزانية الدور</string>
-  <string name="setting_tools_apply_budget_desc">يحفظ القيمة المُدخلة أعلاه بالدقائق.</string>
   <string name="setting_tools_section_approval">الموافقات</string>
   <string name="setting_page_workflows">سير العمل</string>
   <string name="setting_page_workflows_desc">أتمتة قائمة على المُحفِّزات: عندما يحدث شيء على الجهاز، تُشغَّل سلسلة من الأدوات.</string>
@@ -224,7 +218,6 @@
   <string name="assistant_page_memory_empty">لا توجد ذكريات بعد</string>
   <string name="assistant_page_memory_empty_hint">سيتذكر المساعد ما تخبره به أثناء الدردشة. يمكنك أيضًا الضغط على + لإضافة ذكرى</string>
   <string name="assistant_page_memory_empty_disabled_hint">الذاكرة معطّلة لهذا المساعد. فعّلها ليتمكن من تذكر ما تخبره به</string>
-  <string name="assistant_page_memory_enable_action">تفعيل الذاكرة</string>
   <string name="assistant_page_message_template">قالب محتوى الرسالة</string>
   <string name="assistant_page_message_template_desc">يتحكم في تنسيق محتوى رسائل الدردشة قبل إرسالها إلى النموذج اللغوي، عادةً لا حاجة للتعديل</string>
   <string name="assistant_page_message_template_missing_message">القالب لا يحتوي على {{ message }}، لن تُرسل رسائل المستخدم</string>
@@ -368,8 +361,6 @@
   <string name="backup_page_webdav_backup">نسخ احتياطي WebDAV</string>
   <string name="backup_page_webdav_backup_files">ملفات النسخ الاحتياطي WebDAV</string>
   <string name="backup_page_webdav_server_address">عنوان خادم WebDAV</string>
-  <string name="built_in_search_description">تمكين وظيفة البحث المدمجة في النموذج</string>
-  <string name="built_in_search_title">البحث المدمج</string>
   <string name="calculating">جارٍ الحساب...</string>
   <string name="cancel">إلغاء</string>
   <string name="cancel_edit">إلغاء التعديل</string>
@@ -957,7 +948,6 @@
   <string name="setting_model_page_ocr_model">نموذج التعرف الضوئي على الحروف</string>
   <string name="setting_model_page_ocr_model_desc">النموذج المُستخدم للتعرف الضوئي على الحروف في الصور</string>
   <string name="setting_model_page_ocr_prompt_vars">المتغيرات: بيانات الصورة: {images}</string>
-  <string name="setting_model_page_prompt">التوجيه</string>
   <string name="setting_model_page_reset_to_default">إعادة التعيين إلى الافتراضي</string>
   <string name="setting_model_page_suggestion_model">نموذج اقتراحات الدردشة</string>
   <string name="setting_model_page_suggestion_model_desc">النموذج المُستخدم لتوليد اقتراحات المحادثة، يُنصح باستخدام نماذج سريعة وغير مكلفة</string>
@@ -1252,7 +1242,6 @@
   <string name="skills_page_import_failed">فشل الاستيراد: %s</string>
   <string name="skills_page_import_from_github">استيراد من GitHub</string>
   <string name="skills_page_import_success">تم استيراد المهارة: %s</string>
-  <string name="skills_page_more_actions">المزيد من الإجراءات</string>
   <string name="skills_page_name_error">تعذّر العثور على حقل الاسم، من فضلك تحقق من تنسيق frontmatter</string>
   <string name="skills_page_paste_hint">الصق محتوى ملف SKILL.md كاملًا</string>
   <string name="skills_page_repo_url_hint">يدعم مسارات ‎/tree/branch أو الأدلة الفرعية</string>
@@ -1788,8 +1777,6 @@
   <string name="assistant_page_memory_tier_core">أساسي (حقن دائم)</string>
   <string name="assistant_page_memory_tier_conditional">عند الطلب (حقن بالبحث)</string>
   <string name="assistant_page_memory_tier_hint">الذاكرة الأساسية دائمة في كل دور، والذاكرة عند الطلب تُحمَّل عبر memory_search.</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">فشل حفظ الصورة الرمزية. راجع السجل.</string>
   <string name="backup_page_item_database">قاعدة البيانات</string>
   <string name="backup_page_item_database_desc">المحادثات، الذاكرة، مخزن البيانات السرية، مضيفات SSH، الجدولة (المفاتيح: نفس الجهاز فقط). حجم كبير (عشرات ميغابايت أو أكثر)، وقد يكون الرفع عبر الشبكة محدودًا</string>
@@ -2019,7 +2006,6 @@
   <string name="auto_task_count_label">عدد مرات التشغيل</string>
   <string name="auto_task_count_hint">0 = بلا حد؛ الافتراضي 1؛ الحد 100. يتوقف تلقائيًا عند استيفاء العدد أو انتهاء قائمة المهام.</string>
   <string name="auto_task_taskfile_label">القوائم المحفوظة (اضغط لإعادة الاستخدام)</string>
-  <string name="auto_task_taskfile_use">إعادة استخدام</string>
   <string name="auto_task_taskfile_name_label">اسم القائمة الجديدة</string>
   <string name="auto_task_taskfile_save">حفظ القائمة</string>
   <string name="auto_task_tasks_label">المهام (واحدة في كل سطر)</string>
@@ -2037,7 +2023,6 @@
   <string name="stats_total_input">إجمالي الإدخال</string>
   <string name="stats_copy_total">نسخ الإحصاء التراكمي</string>
   <string name="stats_copy">نسخ الإحصاء</string>
-  <string name="stats_format">الإجمالي ↑%1$s إدخال · إصابة %2$s ↓%3$s إخراج</string>
   <string name="chat_nerd_context_window">استخدام السياق %1$s / %2$s · مستخدم %3$s</string>
   <string name="chat_nerd_context_only">استخدام السياق %1$s</string>
   <string name="chat_nerd_suggest_compact">يُنصح بالضغط</string>
@@ -3824,7 +3809,6 @@
   <string name="usage_stats_by_provider_cost">حصة التكلفة حسب المزوّد</string>
   <string name="usage_stats_by_provider_tokens">حصة الاستخدام حسب المزوّد</string>
   <string name="usage_stats_detail">التفاصيل</string>
-  <string name="usage_stats_empty">لا توجد بيانات بعد</string>
   <string name="usage_stats_empty_range">%1$s: لا يوجد استخدام بعد. جرّب نطاقًا آخر.</string>
   <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
   <string name="diff_view_expand_all">… +%1$d سطرًا (انقر للتوسيع الكامل)</string>
@@ -4045,7 +4029,6 @@
   <string name="media_provider_type_volcengine">فولك إنجين أرك</string>
   <string name="setting_media_page_add_model">إضافة نموذج</string>
   <string name="setting_media_page_add_provider">إضافة مزود</string>
-  <string name="setting_media_page_edit_provider">تعديل المزود</string>
   <string name="setting_media_page_empty">لا توجد مزودات توليد وسائط بعد. اضغط على + في الأعلى لإضافة واحد.</string>
   <string name="setting_media_page_model_id">معرف النموذج</string>
   <string name="setting_media_page_models">النماذج</string>
@@ -4167,7 +4150,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (تجريبي)</string>
   <string name="notification_channel_generation">إنشاء الرد</string>
   <string name="generation_foreground_title">جارٍ إنشاء الرد</string>
-  <string name="chat_input_tool_surface_badge">الأدوات %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">سطح الأدوات النشط: %1$d أداة (~%2$s رمز مخطط لكل جولة)</string>
   <string name="chat_input_agent_quick_actions">إجراءات الوكيل السريعة</string>
   <string name="chat_input_agent_action_device_title">فحص الجهاز والنظام</string>
@@ -4189,15 +4171,11 @@
   <string name="tunnel_logout_confirm">ستحتاج إلى إعادة التفويض للاتصال مرة أخرى. هل تريد المتابعة؟</string>
   <string name="tunnel_enable_title">تمكين النفق</string>
   <string name="tunnel_enable_desc">وكيل خاص بالتطبيق فقط، لا يستحوذ على VPN أو DNS للنظام</string>
-  <string name="tunnel_status_label">الحالة: %1$s</string>
   <string name="tunnel_status_connected">متصل %1$s</string>
   <string name="tunnel_status_connecting">جارٍ الاتصال…</string>
   <string name="tunnel_status_offline">غير متصل (جارٍ إعادة الاتصال…)</string>
   <string name="tunnel_status_failed">فشل: %1$s</string>
   <string name="tunnel_status_disconnected">غير متصل</string>
-  <string name="tunnel_apply_failed">تعذّر التطبيق: %1$s</string>
-  <string name="tunnel_logout_failed">تعذّر تسجيل الخروج: %1$s</string>
-  <string name="tunnel_status_copy_ip_hint">انقر لنسخ عنوان IP الخاص بالنفق</string>
   <string name="tunnel_control_url_label">عنوان URL لمستوى التحكم</string>
   <string name="tunnel_auth_key_label">مفتاح المصادقة</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... أو اسم بيانات الاعتماد $$</string>
@@ -4213,9 +4191,7 @@
   <string name="tunnel_console_hostname">اسم وحدة التحكم: %1$s</string>
   <string name="tunnel_advertise_routes_label">الشبكات المعلنة</string>
   <string name="tunnel_advertise_routes_none">لا شيء</string>
-  <string name="tunnel_saved_hint">تم الحفظ</string>
   <string name="chat_topbar_tunnel_dialog_title">نفق Tailscale / Headscale</string>
-  <string name="chat_topbar_tunnel_node_info">العقدة: %1$s · التحكم: %2$s</string>
   <string name="chat_topbar_tunnel_default_control">Tailscale الافتراضي</string>
   <string name="tool_ui_schedule_job_direct">جدولة مهمة أتمتة مباشرة</string>
   <string name="tool_ui_schedule_job_llm">جدولة مهمة مطالبة ذكاء اصطناعي</string>

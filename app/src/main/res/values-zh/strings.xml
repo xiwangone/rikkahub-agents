@@ -86,10 +86,6 @@
   <string name="assistant_extensions_page_empty_skills">没有可用的 Skill，前往扩展管理安装</string>
   <string name="assistant_extensions_page_goto_extensions">前往扩展管理</string>
   <string name="assistant_extensions_page_goto_prompts">前往提示词管理</string>
-  <string name="assistant_extensions_page_tab_lorebooks">世界书</string>
-  <string name="assistant_extensions_page_tab_mode_injections">模式注入</string>
-  <string name="assistant_extensions_page_tab_quick_messages">快捷消息</string>
-  <string name="assistant_extensions_page_tab_skills">Skills</string>
   <string name="assistant_extensions_page_title">扩展管理</string>
   <string name="assistant_importer_import_failed">导入失败</string>
   <string name="assistant_importer_import_tavern_json">导入酒馆角色卡 (JSON)</string>
@@ -116,7 +112,6 @@
   <string name="assistant_page_background_opacity">背景透明度</string>
   <string name="assistant_page_background_opacity_desc">调整聊天背景图显示透明度</string>
   <string name="assistant_page_background_opacity_value">透明度：%1$d%%</string>
-  <string name="assistant_page_background_set">已设置背景图片</string>
   <string name="assistant_page_balanced">平衡</string>
   <string name="assistant_page_body_key">Body Key</string>
   <string name="assistant_page_body_value">Body 值 (JSON)</string>
@@ -164,8 +159,6 @@
   <string name="assistant_page_memory_tier_core">核心（常驻注入）</string>
   <string name="assistant_page_memory_tier_conditional">按需（检索注入）</string>
   <string name="assistant_page_memory_tier_hint">核心记忆每轮常驻；按需记忆由 memory_search 按需检索加载。</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="assistant_page_max_tokens">最大Token数</string>
   <string name="assistant_page_max_tokens_desc">最大生成Token数量。留空表示无限制。</string>
   <string name="assistant_page_max_tokens_limit">限制：%d 个Token</string>
@@ -177,7 +170,6 @@
   <string name="assistant_page_memory_empty">暂无记忆</string>
   <string name="assistant_page_memory_empty_hint">聊天时，助手会记住你告诉它的内容。你也可以点按 + 添加一条记忆</string>
   <string name="assistant_page_memory_empty_disabled_hint">此助手的记忆功能已关闭。开启后，它就能记住你告诉它的内容</string>
-  <string name="assistant_page_memory_enable_action">开启记忆</string>
   <string name="assistant_page_message_template">聊天内容模板</string>
   <string name="assistant_page_message_template_desc">控制聊天消息在发送给LLM之前的内容格式，通常不需要修改</string>
   <string name="assistant_page_message_template_missing_message">模板不包含 {{ message }}，用户消息将不会被发送</string>
@@ -394,8 +386,6 @@
   <string name="backup_page_webdav_backup">WebDAV备份</string>
   <string name="backup_page_webdav_backup_files">WebDav备份文件列表</string>
   <string name="backup_page_webdav_server_address">WebDAV 服务器地址</string>
-  <string name="built_in_search_description">是否启用模型内置的搜索功能</string>
-  <string name="built_in_search_title">模型内置搜索</string>
   <string name="calculating">计算中...</string>
   <string name="cancel">取消</string>
   <string name="cancel_edit">取消编辑</string>
@@ -1084,7 +1074,6 @@
   <string name="setting_model_page_capability_cleared">已清除本机表</string>
   <string name="setting_model_page_capability_clear_failed">清除失败</string>
   <string name="setting_model_page_compress_prompt_vars">变量：{content}、{target_tokens}、{additional_context}</string>
-  <string name="setting_model_page_prompt">提示词</string>
   <string name="setting_model_page_reset_to_default">重置为默认</string>
   <string name="setting_model_page_suggestion_model">聊天建议模型</string>
   <string name="setting_model_page_suggestion_model_desc">用于生成聊天建议的模型。未设置时使用快速模型</string>
@@ -1407,7 +1396,6 @@
   <string name="skills_page_import_failed">导入失败：%s</string>
   <string name="skills_page_import_from_github">从 GitHub 导入</string>
   <string name="skills_page_import_success">技能已导入：%s</string>
-  <string name="skills_page_more_actions">更多操作</string>
   <string name="skills_page_name_error">找不到名称字段，请检查 frontmatter 格式</string>
   <string name="skills_page_paste_hint">粘贴完整的SKILL.md文件内容</string>
   <string name="skills_page_repo_url_hint">支持 /tree/branch 或子目录路径</string>
@@ -2027,7 +2015,6 @@
   <string name="setting_tools_section_output">输出上限</string>
   <string name="setting_tools_section_advanced">高级</string>
   <string name="setting_tools_apply_budget">应用每轮预算</string>
-  <string name="setting_tools_apply_budget_desc">保存上方填写的分钟数。</string>
   <string name="setting_tools_section_approval">审批</string>
   <string name="setting_page_telegram_no_token_toast">请先设置机器人 Token。</string>
   <string name="setting_page_telegram_start">启动</string>
@@ -2809,7 +2796,6 @@
   <string name="auto_task_count_label">触发次数</string>
   <string name="auto_task_count_hint">0 = 无限；默认 1；上限 100。触发满次数或任务列表跑完自动停止。</string>
   <string name="auto_task_taskfile_label">已保存列表（点击复用）</string>
-  <string name="auto_task_taskfile_use">复用</string>
   <string name="auto_task_taskfile_name_label">新列表名称</string>
   <string name="auto_task_taskfile_save">保存列表</string>
   <string name="auto_task_tasks_label">任务（每行一个）</string>
@@ -2827,7 +2813,6 @@
   <string name="stats_total_input">累计输入</string>
   <string name="stats_copy_total">复制累计统计</string>
   <string name="stats_copy">复制统计</string>
-  <string name="stats_format">累计 ↑%1$s 输入 · 命中 %2$s ↓%3$s 输出</string>
   <string name="chat_nerd_context_window">上下文占用 %1$s / %2$s · 已用 %3$s</string>
   <string name="chat_nerd_context_only">上下文占用 %1$s</string>
   <string name="chat_nerd_suggest_compact">建议压缩</string>
@@ -3909,7 +3894,6 @@
   <string name="usage_stats_by_provider_cost">提供商费用占比</string>
   <string name="usage_stats_by_provider_tokens">提供商用量占比</string>
   <string name="usage_stats_detail">明细</string>
-  <string name="usage_stats_empty">暂无用量数据</string>
   <string name="usage_stats_empty_range">%1$s：暂无调用，可切换其他范围查看。</string>
   <string name="usage_stats_note">按生成口径统计：一次生成记一条；费用仅含服务商上报部分，未上报的不估算。</string>
   <string name="diff_view_expand_all">… +%1$d 行（点击展开全部）</string>
@@ -4125,7 +4109,6 @@
   <string name="media_provider_type_volcengine">火山方舟</string>
   <string name="setting_media_page_add_model">添加模型</string>
   <string name="setting_media_page_add_provider">添加提供商</string>
-  <string name="setting_media_page_edit_provider">编辑提供方</string>
   <string name="setting_media_page_empty">尚无媒体生成提供方。点击顶部的 + 添加一个。</string>
   <string name="setting_media_page_model_id">模型 ID</string>
   <string name="setting_media_page_models">模型</string>
@@ -4247,7 +4230,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（测试版）</string>
   <string name="notification_channel_generation">回复生成</string>
   <string name="generation_foreground_title">正在生成回复</string>
-  <string name="chat_input_tool_surface_badge">工具 %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">当前激活工具面：%1$d 个工具（每轮约占 ~%2$s Schema Tokens）</string>
   <string name="chat_input_agent_quick_actions">智能体快捷动作</string>
   <string name="chat_input_agent_action_device_title">设备与系统体检</string>
@@ -4269,15 +4251,11 @@
   <string name="tunnel_logout_confirm">退出后需要重新授权才能连回，确定吗？</string>
   <string name="tunnel_enable_title">启用隧道</string>
   <string name="tunnel_enable_desc">仅本 App 走隧道，不接管系统 VPN / DNS</string>
-  <string name="tunnel_status_label">状态：%1$s</string>
   <string name="tunnel_status_connected">已连接 %1$s</string>
   <string name="tunnel_status_connecting">正在连接…</string>
   <string name="tunnel_status_offline">后端离线（自动重连中…）</string>
   <string name="tunnel_status_failed">失败：%1$s</string>
   <string name="tunnel_status_disconnected">未连接</string>
-  <string name="tunnel_apply_failed">应用失败：%1$s</string>
-  <string name="tunnel_logout_failed">退出登录失败：%1$s</string>
-  <string name="tunnel_status_copy_ip_hint">点按复制隧道 IP 地址</string>
   <string name="tunnel_control_url_label">控制面 URL</string>
   <string name="tunnel_auth_key_label">认证密钥</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 或 $$ 凭证名</string>
@@ -4293,9 +4271,7 @@
   <string name="tunnel_console_hostname">控制台名称：%1$s</string>
   <string name="tunnel_advertise_routes_label">发布网段</string>
   <string name="tunnel_advertise_routes_none">未发布</string>
-  <string name="tunnel_saved_hint">已保存</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale 私网隧道</string>
-  <string name="chat_topbar_tunnel_node_info">节点：%1$s · 控制面：%2$s</string>
   <string name="chat_topbar_tunnel_default_control">默认 Tailscale</string>
   <string name="tool_ui_schedule_job_direct">创建直接动作定时任务</string>
   <string name="tool_ui_schedule_job_llm">创建 AI 提示词定时任务</string>

@@ -23,10 +23,6 @@
   <string name="assistant_extensions_page_empty_skills">사용 가능한 스킬이 없습니다. Extensions에서 설치하세요.</string>
   <string name="assistant_extensions_page_goto_extensions">확장 프로그램으로 이동</string>
   <string name="assistant_extensions_page_goto_prompts">프롬프트로 이동</string>
-  <string name="assistant_extensions_page_tab_lorebooks">Lorebooks</string>
-  <string name="assistant_extensions_page_tab_mode_injections">모드 주입</string>
-  <string name="assistant_extensions_page_tab_quick_messages">빠른 메시지</string>
-  <string name="assistant_extensions_page_tab_skills">스킬</string>
   <string name="assistant_extensions_page_title">확장 프로그램</string>
   <string name="assistant_importer_import_failed">가져오기 실패</string>
   <string name="assistant_importer_import_tavern_json">타번 캐릭터 카드 가져오기 (JSON)</string>
@@ -50,7 +46,6 @@
   <string name="assistant_page_background_opacity">배경 투명도</string>
   <string name="assistant_page_background_opacity_desc">채팅 배경 이미지의 표시 투명도를 조절합니다</string>
   <string name="assistant_page_background_opacity_value">투명도: %1$d%%</string>
-  <string name="assistant_page_background_set">배경 이미지 설정됨</string>
   <string name="assistant_page_balanced">균형</string>
   <string name="assistant_page_body_key">본문 키</string>
   <string name="assistant_page_body_value">본문 값 (JSON)</string>
@@ -105,7 +100,6 @@
   <string name="assistant_page_memory_empty">아직 기억이 없습니다</string>
   <string name="assistant_page_memory_empty_hint">채팅 중 어시스턴트가 알려 주신 내용을 기억합니다. + 를 눌러 직접 추가할 수도 있습니다</string>
   <string name="assistant_page_memory_empty_disabled_hint">이 어시스턴트의 기억 기능이 꺼져 있습니다. 켜 두시면 알려 주신 내용을 기억합니다</string>
-  <string name="assistant_page_memory_enable_action">기억 기능 켜기</string>
   <string name="assistant_page_message_template">메시지 내용 템플릿</string>
   <string name="assistant_page_message_template_desc">LLM에 전송되기 전 채팅 메시지 형식을 제어. 일반적으로 수정할 필요 없음</string>
   <string name="assistant_page_message_template_missing_message">템플릿에 {{ message }}가 없어 사용자 메시지가 전송되지 않습니다</string>
@@ -250,8 +244,6 @@
   <string name="backup_page_webdav_backup">WebDAV 백업</string>
   <string name="backup_page_webdav_backup_files">WebDAV 백업 파일</string>
   <string name="backup_page_webdav_server_address">WebDAV 서버 주소</string>
-  <string name="built_in_search_description">모델의 내장 검색 기능을 활성화합니다</string>
-  <string name="built_in_search_title">내장 검색</string>
   <string name="calculating">계산 중...</string>
   <string name="cancel">취소</string>
   <string name="cancel_edit">편집 취소</string>
@@ -899,7 +891,6 @@
   <string name="setting_model_page_capability_cleared">로컬 테이블을 지웠습니다</string>
   <string name="setting_model_page_capability_clear_failed">지우기 실패</string>
   <string name="setting_model_page_compress_prompt_vars">변수: {content}, {target_tokens}, {additional_context}</string>
-  <string name="setting_model_page_prompt">프롬프트</string>
   <string name="setting_model_page_reset_to_default">기본값으로 재설정</string>
   <string name="setting_model_page_suggestion_model">채팅 제안 모델</string>
   <string name="setting_model_page_suggestion_model_desc">대화 제안을 생성하는 모델. 설정되지 않으면 빠른 모델을 사용합니다</string>
@@ -1205,7 +1196,6 @@
   <string name="skills_page_import_failed">가져오기 실패: %s</string>
   <string name="skills_page_import_from_github">GitHub에서 가져오기</string>
   <string name="skills_page_import_success">스킬 가져오기 완료: %s</string>
-  <string name="skills_page_more_actions">더 많은 작업</string>
   <string name="skills_page_name_error">이름 필드를 찾을 수 없습니다. 프론트매터 형식을 확인하세요.</string>
   <string name="skills_page_paste_hint">전체 SKILL.md 파일 내용을 붙여넣으세요</string>
   <string name="skills_page_repo_url_hint">/tree/branch 또는 하위 디렉터리 경로를 지원합니다</string>
@@ -1732,7 +1722,6 @@
   <string name="setting_tools_section_output">출력 한도</string>
   <string name="setting_tools_section_advanced">고급</string>
   <string name="setting_tools_apply_budget">턴 예산 적용</string>
-  <string name="setting_tools_apply_budget_desc">위에 입력한 분 값을 저장합니다.</string>
   <string name="setting_tools_section_approval">승인</string>
   <string name="setting_page_telegram_no_token_toast">먼저 봇 토큰을 설정하세요.</string>
   <string name="setting_page_telegram_start">시작</string>
@@ -2239,8 +2228,6 @@
   <string name="assistant_page_memory_tier_core">코어(상시 주입)</string>
   <string name="assistant_page_memory_tier_conditional">필요 시(검색 주입)</string>
   <string name="assistant_page_memory_tier_hint">코어 메모리는 매 턴 상시 유지됩니다. 필요 시 메모리는 memory_search로 검색해 불러옵니다.</string>
-  <string name="assistant_page_memory_tier_core_short">core</string>
-  <string name="assistant_page_memory_tier_conditional_short">conditional</string>
   <string name="avatar_save_failed">아바타 저장에 실패했습니다. 로그를 확인하세요.</string>
   <string name="backup_page_item_database">데이터베이스</string>
   <string name="backup_page_item_database_desc">채팅, 메모리, 자격 증명 저장소, SSH 호스트, 예약 (키는 같은 기기 전용). 용량이 큼(수십 MB 이상), 네트워크 업로드가 제한될 수 있음</string>
@@ -2470,7 +2457,6 @@
   <string name="auto_task_count_label">실행 횟수</string>
   <string name="auto_task_count_hint">0 = 무제한, 기본 1, 최대 100. 횟수를 채우거나 작업 목록을 모두 실행하면 자동 중지됩니다.</string>
   <string name="auto_task_taskfile_label">저장된 목록(눌러서 재사용)</string>
-  <string name="auto_task_taskfile_use">재사용</string>
   <string name="auto_task_taskfile_name_label">새 목록 이름</string>
   <string name="auto_task_taskfile_save">목록 저장</string>
   <string name="auto_task_tasks_label">작업(한 줄에 하나)</string>
@@ -2488,7 +2474,6 @@
   <string name="stats_total_input">누적 입력</string>
   <string name="stats_copy_total">누적 통계 복사</string>
   <string name="stats_copy">통계 복사</string>
-  <string name="stats_format">누적 ↑%1$s 입력 · 적중 %2$s ↓%3$s 출력</string>
   <string name="chat_nerd_context_window">컨텍스트 사용량 %1$s / %2$s · 사용 %3$s</string>
   <string name="chat_nerd_context_only">컨텍스트 사용량 %1$s</string>
   <string name="chat_nerd_suggest_compact">압축 권장</string>
@@ -3817,7 +3802,6 @@
   <string name="usage_stats_by_provider_cost">제공업체별 비용</string>
   <string name="usage_stats_by_provider_tokens">제공업체별 사용량</string>
   <string name="usage_stats_detail">상세</string>
-  <string name="usage_stats_empty">데이터가 없습니다</string>
   <string name="usage_stats_empty_range">%1$s: 아직 사용 기록이 없습니다. 다른 기간을 선택해 보세요.</string>
   <string name="usage_stats_note">생성 단위로 집계: 1회 생성을 1건으로 기록. 비용은 제공업체 보고분만 포함하며 미보고분은 추정하지 않습니다.</string>
   <string name="diff_view_expand_all">… +%1$d줄 (전체 펼치려면 탭)</string>
@@ -4038,7 +4022,6 @@
   <string name="media_provider_type_volcengine">볼크엔진 아크</string>
   <string name="setting_media_page_add_model">모델 추가</string>
   <string name="setting_media_page_add_provider">제공자 추가</string>
-  <string name="setting_media_page_edit_provider">공급자 편집</string>
   <string name="setting_media_page_empty">아직 미디어 생성 공급자가 없습니다. 상단의 +를 눌러 추가하세요.</string>
   <string name="setting_media_page_model_id">모델 ID</string>
   <string name="setting_media_page_models">모델</string>
@@ -4160,7 +4143,6 @@
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API(베타)</string>
   <string name="notification_channel_generation">답변 생성</string>
   <string name="generation_foreground_title">답변 생성 중</string>
-  <string name="chat_input_tool_surface_badge">도구 %1$d · ~%2$s</string>
   <string name="chat_input_tool_surface_summary">활성 도구 표면: 도구 %1$d개(턴당 약 ~%2$s 스키마 토큰)</string>
   <string name="chat_input_agent_quick_actions">에이전트 빠른 작업</string>
   <string name="chat_input_agent_action_device_title">기기 및 시스템 점검</string>
@@ -4182,15 +4164,11 @@
   <string name="tunnel_logout_confirm">다시 연결하려면 재인증이 필요합니다. 계속할까요?</string>
   <string name="tunnel_enable_title">터널 사용</string>
   <string name="tunnel_enable_desc">앱 내부 프록시만 사용하며 시스템 VPN / DNS를 변경하지 않습니다</string>
-  <string name="tunnel_status_label">상태: %1$s</string>
   <string name="tunnel_status_connected">연결됨 %1$s</string>
   <string name="tunnel_status_connecting">연결 중…</string>
   <string name="tunnel_status_offline">오프라인(재연결 중…)</string>
   <string name="tunnel_status_failed">실패: %1$s</string>
   <string name="tunnel_status_disconnected">연결 안 됨</string>
-  <string name="tunnel_apply_failed">적용하지 못했습니다: %1$s</string>
-  <string name="tunnel_logout_failed">로그아웃하지 못했습니다: %1$s</string>
-  <string name="tunnel_status_copy_ip_hint">탭하여 터널 IP 주소 복사</string>
   <string name="tunnel_control_url_label">컨트롤 플레인 URL</string>
   <string name="tunnel_auth_key_label">인증 키</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... 또는 $$ 자격 증명 이름</string>
@@ -4206,9 +4184,7 @@
   <string name="tunnel_console_hostname">콘솔 이름: %1$s</string>
   <string name="tunnel_advertise_routes_label">게시할 네트워크</string>
   <string name="tunnel_advertise_routes_none">없음</string>
-  <string name="tunnel_saved_hint">저장됨</string>
   <string name="chat_topbar_tunnel_dialog_title">Tailscale / Headscale 터널</string>
-  <string name="chat_topbar_tunnel_node_info">노드: %1$s · 제어: %2$s</string>
   <string name="chat_topbar_tunnel_default_control">기본 Tailscale</string>
   <string name="tool_ui_schedule_job_direct">직접 작업 예약 등록</string>
   <string name="tool_ui_schedule_job_llm">AI 프롬프트 작업 예약 등록</string>

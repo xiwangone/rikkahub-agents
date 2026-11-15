@@ -340,12 +340,16 @@ private suspend fun ChatService.isToolAutoApprovedForConversation(
         me.rerere.rikkahub.data.ai.tools.HeadlessConversations
             .shouldAutoApprove(conversationId)
     } else if (!me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.isAutoApprovable(toolName)) {
-        // NO_ALWAYS_ALLOW（P0-2：vault_ssh_exec / vault_http_exec 等）：该集合的契约是
-        // "每次调用都必须单独确认"，任何 blanket 放行（YOLO / 无界面自动审批 / 本会话
-        // 允许 / 持久"总是允许"）都不能覆盖它——否则无界面会话（cron / 子代理 /
-        // workflow）仍会在无人确认的情况下把凭据发往任意目的地。命中时直接返回 false，
-        // 工具落成 Pending、该轮不执行。
-        false
+        // NO_ALWAYS_ALLOW：默认「每次调用都要人工确认」，YOLO / 无界面自动审批 / 持久
+        //「总是允许」一律不能覆盖（否则无人值守会话会把凭据发往任意目的地）。
+        // 唯一例外 = 本会话显式授权（💬）：任何工具都接受，包括上面这些高危工具 ——
+        // 在场点一次后该会话内自动批准；粒度 (conversationId, toolName)、内存态、/new 清零、
+        // 可单条撤销。首次仍必须由人亲手点，因此不会变成「无人值守也能放行」。
+        // 取舍说明：**风险与便利已权衡过，这里有意选择可用性优先**（有意决策，非疏漏）。
+        // 逐次确认的实际后果是把人推向全局 YOLO（全覆盖、长期有效），反而更危险。
+        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.allowsChatScope(toolName) &&
+            me.rerere.rikkahub.data.ai.tools.ToolApprovalAllowList
+                .isAllowedForChat(conversationId, toolName)
     } else {
         toolApprovalPreferences.currentYolo() ||
             me.rerere.rikkahub.data.ai.tools.HeadlessConversations
