@@ -5,6 +5,7 @@ import kotlinx.serialization.json.JsonNull
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.inject.SecretInjector
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -101,5 +102,46 @@ class WorkspaceEnvParamTest {
         )
         assertTrue(map.isEmpty())
         assertNotNull(error)
+    }
+
+    // ---------- 旧写法兼容护栏（名字列表经参数注入，不需要 Koin / 凭证库） ----------
+
+    @Test
+    fun `literal equal to an existing credential name is refused`() = runBlocking {
+        val r = resolveInjectedEnvDetailed(
+            params(env("GH" to "GITHUB_TOKEN")),
+            injector = SecretInjector(credentialNames = { setOf("GITHUB_TOKEN") }, resolverFactory = { null }),
+        )
+        assertTrue(r.env.isEmpty())
+        assertNotNull(r.error)
+        assertTrue(r.error!!.contains("\$\$GITHUB_TOKEN"))
+    }
+
+    @Test
+    fun `literal NAME dot field is refused when NAME exists`() = runBlocking {
+        val r = resolveInjectedEnvDetailed(
+            params(env("AK" to "MY_S3.access_key_id")),
+            injector = SecretInjector(credentialNames = { setOf("MY_S3") }, resolverFactory = { null }),
+        )
+        assertNotNull(r.error)
+    }
+
+    @Test
+    fun `ordinary literals still pass with a populated name list`() = runBlocking {
+        val r = resolveInjectedEnvDetailed(
+            params(env("NODE_ENV" to "production")),
+            injector = SecretInjector(credentialNames = { setOf("GITHUB_TOKEN") }, resolverFactory = { null }),
+        )
+        assertNull(r.error)
+        assertEquals(mapOf("NODE_ENV" to "production"), r.env)
+        assertTrue(r.secrets.isEmpty()) // 字面值不进脱敏表
+    }
+
+    @Test
+    fun `guard is skipped when the vault is unavailable`() = runBlocking {
+        // 无 Koin：默认名字来源返回空集，纯字面量路径不依赖凭证库
+        val (map, error) = resolveInjectedEnv(params(env("GH" to "GITHUB_TOKEN")))
+        assertNull(error)
+        assertEquals(mapOf("GH" to "GITHUB_TOKEN"), map)
     }
 }

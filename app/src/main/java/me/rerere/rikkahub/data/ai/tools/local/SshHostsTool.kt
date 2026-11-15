@@ -552,7 +552,9 @@ fun sshExecSavedTool(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "env key(s) not matching [A-Za-z_][A-Za-z0-9_]*: ${badEnvKeys.joinToString(", ")}", hint = "Rename or drop the offending keys and retry; nothing was executed on the remote host.").toString()
             ))
         }
-        val env = readEnvParam(p)
+        // 统一注入服务：解析 + 旧写法护栏 + 凭证解析；injected 同时用于下方输出脱敏（方案 C）
+        val injected = readInjectedEnv(p)
+        val env = injected.env
         val h = repo.getByName(name)
             ?: return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -645,7 +647,7 @@ fun sshExecSavedTool(
             val candWindows = RemotePlatform.resolveWindows(candExplicit, candCached, globalDefault)
             val (detachedCmd, candBgLogPath) = if (background) wrapDetachedCommandSmart(finalCommand, windows = candWindows) else (withUtf8ConsoleEncoding(finalCommand, candWindows) to null)
             val effectiveCommand = detachedCmd
-            val payload = runCancellableSshOp(
+            val rawPayload = runCancellableSshOp(
                 timeoutSec * 1000L,
                 // 超时/取消时缓存条目随会话一起失效（B-2）：否则缓存里留死会话，
                 // 下次调用先命中它、命令失败才重建。
@@ -653,6 +655,8 @@ fun sshExecSavedTool(
             ) { sessionRef ->
                 execOneShot(context, cand.host, cand.port, cand.user, candAuth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin, jump = jumpSpec, extraOptions = cand.sshOptions, allowHostKeyRotation = cand.allowHostKeyRotation, useSessionCache = true)
             }
+            // 注入值脱敏（方案 C）：在拿去分类 / 取 error / 返回之前统一替换，后续所有引用都是脱敏后的
+            val payload = injected.maskJsonObjectWithNote(rawPayload, noteKey = "mask_note")
             tried.add(cand.name to classifySshPayload(payload))
             val err = payload.optString("error")
             if (err == null) { result = payload; usedHost = cand.name; usedBgLogPath = candBgLogPath; break }

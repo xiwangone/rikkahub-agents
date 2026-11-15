@@ -13,6 +13,7 @@ import me.rerere.ai.ui.DiffMetadata
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.inject.BackgroundInjectedSecrets
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
@@ -490,8 +491,9 @@ private fun createShellTool(
             ?: (WorkspaceManager.DEFAULT_COMMAND_TIMEOUT_MS / 1_000L)
         val timeoutMillis = effectiveTimeoutSeconds * 1_000L
         // env: { 环境变量名: 值 } —— 值以 `$$` 开头时按凭证名解析，其余按字面值；进程内注入，不落盘、AI 不见明文
-        val (injectedEnv, envError) = resolveInjectedEnv(params)
-        if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
+        val resolvedEnv = resolveInjectedEnvDetailed(params)
+        resolvedEnv.error?.let { return@Tool listOf(UIMessagePart.Text(it)) }
+        val injectedEnv = resolvedEnv.env
 
         val beforeSnapshot = takeWorkspaceChangeSnapshot(workspaceRepository, targetWorkspaceId, cwd)
         val result = workspaceRepository.executeCommand(
@@ -514,6 +516,7 @@ private fun createShellTool(
                     ignoredCommand = ignoredCommand,
                     diffSkipped = diffSkipped,
                     changes = changes,
+                    injectedSecrets = resolvedEnv.secrets,
                 ).toString(),
                 metadata = changeDiff.takeIf { it.isNotBlank() }
                     ?.let { d -> DiffMetadata(diff = d).toMetadata() },
@@ -634,10 +637,12 @@ private fun createRunBackgroundTool(
         val cwd = targetLayout.relativeToWorkspace(rawCwd)
 
         // env: { 环境变量名: 值 } —— 同 workspace_shell：`$$` 前缀走凭证库，其余字面值；不落盘、AI 不见明文
-        val (injectedEnv, envError) = resolveInjectedEnv(params)
-        if (envError != null) return@Tool listOf(UIMessagePart.Text(envError))
+        val resolvedEnv = resolveInjectedEnvDetailed(params)
+        resolvedEnv.error?.let { return@Tool listOf(UIMessagePart.Text(it)) }
 
-        val status = workspaceRepository.startBackground(wsId, command, cwd, injectedEnv)
+        val status = workspaceRepository.startBackground(wsId, command, cwd, resolvedEnv.env)
+        // 登记本任务的注入值，后续 workspace_background_status 返回日志尾部前据此脱敏
+        BackgroundInjectedSecrets.register(wsId, status.id, resolvedEnv.secrets)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {
@@ -691,7 +696,9 @@ private fun createBackgroundStatusTool(
                         put("id", taskId)
                     }
                     put("processes", buildJsonArray {
-                        statuses.forEach { status -> add(status.toJson()) }
+                        statuses.forEach { status ->
+                            add(status.toJson(BackgroundInjectedSecrets.get(wsId, status.id)))
+                        }
                     })
                 }.toString()
             )
@@ -723,6 +730,8 @@ private fun createBackgroundKillTool(
         val wsId = resolveTargetWorkspaceId(workspaceRepository, it.jsonObject, workspaceId)
         val taskId = it.jsonObject.string("id") ?: error("id is required")
         val killed = workspaceRepository.killBackground(wsId, taskId)
+        // 任务已从进程表移除：其注入值登记一并丢弃
+        if (killed) BackgroundInjectedSecrets.remove(wsId, taskId)
         listOf(
             UIMessagePart.Text(
                 buildJsonObject {

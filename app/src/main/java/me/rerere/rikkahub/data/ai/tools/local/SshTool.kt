@@ -229,7 +229,9 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         envParamRejection(background, envParam)?.let { msg ->
             return@Tool listOf(UIMessagePart.Text(msg))
         }
-        val env = readEnvParam(p)
+        // 统一注入服务：解析 + 旧写法护栏 + 凭证解析；injected 同时用于下方输出脱敏（方案 C）
+        val injected = readInjectedEnv(p)
+        val env = injected.env
         // 远端平台无法从命令内容可靠推断（验证：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
         // env_style 未显式指定时用已解析的平台（显式参数/缓存/全局默认）决定默认语法，
@@ -247,9 +249,11 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         val payload = runCancellableSshOp(timeoutSec * 1000L) { sessionRef ->
             execOneShot(context, host, port, user, auth, effectiveCommand, timeoutSec * 1000, sessionRef, stdin)
         }
+        // 由 `$$` 解析出的注入值：返回前在所有字符串字段（stdout/stderr/partial_*/error 消息）里替换为占位符
+        val maskedPayload = injected.maskJsonObjectWithNote(payload, noteKey = "mask_note")
         val finalPayload = if (bgLogPath != null) {
-            payload.toString() + "\n[bg_log_path] $bgLogPath"
-        } else payload.toString()
+            maskedPayload.toString() + "\n[bg_log_path] $bgLogPath"
+        } else maskedPayload.toString()
         listOf(UIMessagePart.Text(finalPayload))
     }
 )

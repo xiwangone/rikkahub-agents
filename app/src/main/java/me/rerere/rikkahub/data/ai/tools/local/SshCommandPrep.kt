@@ -1,19 +1,12 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.ai.tools.inject.INJECT_CALLER_SSH
+import me.rerere.rikkahub.data.ai.tools.inject.InjectedEnv
+import me.rerere.rikkahub.data.ai.tools.inject.InjectionResult
+import me.rerere.rikkahub.data.ai.tools.inject.vaultSecretInjector
 
-import me.rerere.rikkahub.data.vault.CredentialPurpose
-import me.rerere.rikkahub.data.vault.CredentialResolution
-import me.rerere.rikkahub.data.vault.CredentialResolver
-import me.rerere.rikkahub.data.vault.message
-import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
-import me.rerere.rikkahub.data.vault.VaultSessionManager
-import me.rerere.rikkahub.data.vault.isVaultReference
-import android.content.Context
-import kotlinx.serialization.json.contentOrNull
 import java.io.ByteArrayOutputStream
-import org.koin.java.KoinJavaComponent.getKoin
 
 private const val TAG_SSH = "SshCommandPrep"
 
@@ -228,48 +221,25 @@ internal fun envPrelude(env: Map<String, String>, windows: Boolean): List<String
         }
 
 /**
- * 读取工具参数里的 `env` 对象（只接受字符串值，其它忽略）。
+ * 读取工具参数里的 `env` 并解析为注入映射 —— 统一走 [SecretInjector]（与 workspace_shell 同一条路径）。
  *
- * 值的语义与 `workspace_shell` 对齐（见 WorkspaceTools 的 `resolveInjectedEnv`）：
- * - 以 `$$` 开头 → 按名从凭证库解析（purpose = `ENV_INJECT`，走会话授权门 + 审计）；
- *   其中 `$$名字` 取主值（密文），`$$名字.字段` 取该条目的明文元数据（如 `$$MY_S3.access_key_id`，
- *   明文字段不过授权门 —— 它本来就是不加密存的，且 `vault_credential_meta` 早已无门可读）；
- * - 其余 → 按字面值，行为与本函数支持引用之前逐字一致。
+ * - 以 `$$` 开头 → 按名从凭证库解析（purpose = `ENV_INJECT`，走会话授权门 + 审计，caller = "ssh-env"）；
+ *   `$$名字` 取主值，`$$名字.字段` 取明文元数据字段；
+ * - 其余 → 按字面值；但字面值恰好是已存在凭证名 / 名字.字段时拒绝（旧写法护栏：
+ *   `env={"ZT_AI_CODE":"ZT_AI_CODE"}` 会在远端变成 10 个字符的字符串）。
  *
- * 解析失败**直接报错**，不回退字面值：静默回退等于把凭证名当值注入远端环境
- * （`env={"ZT_AI_CODE":"ZT_AI_CODE"}` 在远端变成 10 个字符的字符串），正是这次要修的坑。
- *
- * 依赖经 koin 获取（同 `resolveInjectedEnv` 的做法），因此签名不扩参数，
- * `ssh_exec` 与 `ssh_exec_saved` 两个调用点自动获得同一语义。
+ * 失败**直接抛异常**（经工具失败信封回给模型），不回退字面值。行为变化：非字符串值（null/对象/数组）
+ * 此前被静默丢弃，现与 workspace 侧一致显式报错。
  */
-internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map<String, String> {
-    val envObj = (p["env"] as? kotlinx.serialization.json.JsonObject) ?: return emptyMap()
-    val literals = envObj.mapNotNull { (k, v) ->
-        (v as? kotlinx.serialization.json.JsonPrimitive)?.contentOrNull?.let { k to it }
-    }.toMap()
-    val referenced = literals.filter { (_, v) -> isVaultReference(v) }
-    if (referenced.isEmpty()) return literals
-
-    val vaultRepository = runCatching { getKoin().get<CredentialVaultRepository>() }.getOrNull()
-        ?: error("env injection failed: credential vault unavailable")
-    val appContext = runCatching { getKoin().get<Context>() }.getOrNull()
-    // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
-    val resolver = CredentialResolver(vaultRepository) { name ->
-        appContext?.let { VaultSessionManager(it) }?.hasActiveAuthorization(name) == true
+internal suspend fun readInjectedEnv(p: kotlinx.serialization.json.JsonObject): InjectedEnv =
+    when (val r = vaultSecretInjector(INJECT_CALLER_SSH).prepare(p["env"])) {
+        is InjectionResult.Ok -> r.injected
+        is InjectionResult.Failed -> error(r.message)
     }
-    return literals.map { (k, v) ->
-        if (!isVaultReference(v)) return@map k to v
-        // 引用串本体（去前缀后）交给单点解析器：`名字` 取主值、`名字.字段` 取明文元数据字段
-        // （env 注入正是"AK ID 要明文进环境、SK 仍走密文"的主用法）
-        val credRef = v.trim().removePrefix(VAULT_REF_PREFIX).trim()
-        val resolution = resolver.resolveRef(credRef, CredentialPurpose.ENV_INJECT, caller = "ssh-env")
-        when (resolution) {
-            // 只把真值交给 envPrelude；真值不进日志、不进返回给模型的文本
-            is CredentialResolution.Granted -> k to resolution.value
-            else -> error("env injection failed: $k -> ${resolution.message}")
-        }
-    }.toMap()
-}
+
+/** 只要映射的旧入口（保留给既有调用与单测）。 */
+internal suspend fun readEnvParam(p: kotlinx.serialization.json.JsonObject): Map<String, String> =
+    readInjectedEnv(p).env
 
 internal val ENV_KEY_REGEX = Regex("[A-Za-z_][A-Za-z0-9_]*")
 

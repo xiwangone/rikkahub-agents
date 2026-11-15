@@ -12,12 +12,17 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.tools.inject.INJECT_CALLER_WORKSPACE
+import me.rerere.rikkahub.data.ai.tools.inject.InjectedEnv
+import me.rerere.rikkahub.data.ai.tools.inject.InjectedSecret
+import me.rerere.rikkahub.data.ai.tools.inject.InjectionResult
+import me.rerere.rikkahub.data.ai.tools.inject.SecretInjector
+import me.rerere.rikkahub.data.ai.tools.inject.countUnmaskableInjected
+import me.rerere.rikkahub.data.ai.tools.inject.maskInjectedValues
+import me.rerere.rikkahub.data.ai.tools.inject.unmaskableNote
+import me.rerere.rikkahub.data.ai.tools.inject.vaultSecretInjector
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
-import me.rerere.rikkahub.data.vault.CredentialPurpose
-import me.rerere.rikkahub.data.vault.CredentialResolution
-import me.rerere.rikkahub.data.vault.CredentialResolver
-import me.rerere.rikkahub.data.vault.message
 import me.rerere.workspace.BackgroundStatus
 import me.rerere.workspace.WorkspaceFileEntry
 import me.rerere.workspace.WorkspaceLayout
@@ -149,73 +154,34 @@ internal fun renderShellPreset(
 }
 
 /**
- * 解析 `env` 参数并进程内解密注入。
+ * 解析 `env` 参数并进程内解密注入 —— 统一走 [SecretInjector]（与 ssh 工具同一条路径）。
  *
- * **值的语义与 ssh 工具（`readEnvParam`）完全一致**：
- * - 以 `$$` 开头 → 按名从凭证库解析（`$$NAME` 取主值，`$$NAME.field` 取该条目的明文元数据字段）；
- * - 其余 → **按字面值注入**（`{"NODE_ENV":"production"}` 直接可用，不必挤进命令里 export）。
+ * - 以 `$$` 开头 → 按名从凭证库解析（`$$NAME` 取主值，`$$NAME.field` 取明文元数据字段）；
+ * - 其余 → 按字面值注入；但字面值恰好是已存在凭证名 / 名字.字段时拒绝（旧写法护栏）。
  *
- * 纯字面量时不碰凭证库（也不需要授权）；只有含 `$$` 引用时才走会话授权 / 解密 / 审计。
- * 解析失败一律返回错误、**不静默回退字面值**（否则凭证名会被当成值写进环境 —— 那是 ssh 侧修过的坑）。
- *
- * 独立成函数以压低 createShellTool 的圈复杂度；返回（注入映射, 错误消息），
- * 错误消息非空时调用方应直接返回它。
+ * 纯字面量时不碰凭证库（也不需要授权）；解析失败一律返回错误、不静默回退字面值。
+ * 返回（注入映射, 错误消息），错误消息非空时调用方应直接返回它。
  */
 internal suspend fun resolveInjectedEnv(params: JsonObject): Pair<Map<String, String>, String?> {
-    val envObj = params["env"] as? JsonObject ?: return emptyMap<String, String>() to null
-    if (envObj.isEmpty()) return emptyMap<String, String>() to null
-
-    // 键名非法会被注入层静默丢弃（模型以为注入成功）→ 先显式拒绝
-    val invalidKeys =
-        envObj.keys.filterNot { me.rerere.rikkahub.data.ai.tools.local.ENV_KEY_REGEX.matches(it) }
-    if (invalidKeys.isNotEmpty()) {
-        return emptyMap<String, String>() to
-            "❌ env injection failed: invalid variable name(s): ${invalidKeys.joinToString()} " +
-            "(must match [A-Za-z_][A-Za-z0-9_]*)"
-    }
-
-    val literals = LinkedHashMap<String, String>()
-    val references = mutableListOf<Pair<String, String>>()
-    for ((envName, valueJson) in envObj) {
-        val raw = (valueJson as? JsonPrimitive)?.contentOrNull
-            ?: return emptyMap<String, String>() to
-                "❌ env injection failed: value for '$envName' must be a string"
-        if (!me.rerere.rikkahub.data.vault.isVaultReference(raw)) {
-            literals[envName] = raw
-            continue
-        }
-        val credRef =
-            raw.trim().removePrefix(me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX).trim()
-        if (credRef.isEmpty()) {
-            return emptyMap<String, String>() to
-                "❌ env injection failed: '$envName' has an empty vault reference (expected \$\$CRED_NAME)"
-        }
-        references += envName to credRef
-    }
-    // 纯字面量：不需要凭证库，也不需要授权
-    if (references.isEmpty()) return literals to null
-
-    val vaultRepository =
-        runCatching { getKoin().get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>() }.getOrNull()
-            ?: return emptyMap<String, String>() to "❌ env injection failed: credential vault unavailable"
-    val context = runCatching { getKoin().get<android.content.Context>() }.getOrNull()
-    // 单点解析器统一处理：会话授权 / 存在性 / 解密 / 审计（成功与拒绝都记）
-    val resolver =
-        CredentialResolver(vaultRepository) { name ->
-            context?.let { me.rerere.rikkahub.data.vault.VaultSessionManager(it) }
-                ?.hasActiveAuthorization(name) == true
-        }
-    val resolved = literals
-    for ((envName, credRef) in references) {
-        val resolution = resolver.resolveRef(credRef, CredentialPurpose.ENV_INJECT, caller = "ai-tool")
-        when (resolution) {
-            is CredentialResolution.Granted -> resolved[envName] = resolution.value
-            else -> return emptyMap<String, String>() to
-                "❌ env injection failed: $envName -> ${resolution.message}"
-        }
-    }
-    return resolved to null
+    val r = resolveInjectedEnvDetailed(params)
+    return r.env to r.error
 }
+
+/** [resolveInjectedEnv] 的完整结果：带上注入值，供输出脱敏。 */
+internal class ResolvedInjectedEnv(val injected: InjectedEnv, val error: String?) {
+    val env: Map<String, String> get() = injected.env
+    val secrets: List<InjectedSecret> get() = injected.secrets
+    override fun toString(): String = "ResolvedInjectedEnv($injected, error=$error)"
+}
+
+internal suspend fun resolveInjectedEnvDetailed(
+    params: JsonObject,
+    injector: SecretInjector = vaultSecretInjector(INJECT_CALLER_WORKSPACE),
+): ResolvedInjectedEnv =
+    when (val r = injector.prepare(params["env"])) {
+        is InjectionResult.Ok -> ResolvedInjectedEnv(r.injected, null)
+        is InjectionResult.Failed -> ResolvedInjectedEnv(InjectedEnv.EMPTY, "❌ " + r.message)
+    }
 
 /**
  * 构造 `workspace_shell` 的工具描述：远程工作区不支持 `workspace_run_background` 等后台工具，
@@ -378,14 +344,15 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
     }
 
 
-internal fun BackgroundStatus.toJson() = buildJsonObject {
+internal fun BackgroundStatus.toJson(injectedSecrets: List<InjectedSecret> = emptyList()) = buildJsonObject {
     put("id", id)
     put("command", command)
     put("status", if (running) "running" else "exited")
     if (!running) put("exitCode", exitCode)
     put("startedAt", startedAtMillis)
-    put("stdout", stdout)
-    put("stderr", stderr)
+    // 启动时经 `$$` 注入的值：状态/日志尾部返回前替换为占位符
+    put("stdout", maskInjectedValues(stdout, injectedSecrets))
+    put("stderr", maskInjectedValues(stderr, injectedSecrets))
     if (droppedStdout > 0) put("droppedStdout", droppedStdout)
     if (droppedStderr > 0) put("droppedStderr", droppedStderr)
 }
@@ -696,10 +663,12 @@ internal fun buildShellOutputJson(
     ignoredCommand: Boolean,
     diffSkipped: Boolean,
     changes: List<FileChange>,
+    injectedSecrets: List<InjectedSecret> = emptyList(),
 ): JsonObject = buildJsonObject {
     put("exitCode", result.exitCode)
-    put("stdout", result.stdout)
-    put("stderr", result.stderr)
+    // 由 `$$` 解析出的注入值在返回前替换为占位符（字面值不动）；全局 SecretMasker 之后还会再过一遍
+    put("stdout", maskInjectedValues(result.stdout, injectedSecrets))
+    put("stderr", maskInjectedValues(result.stderr, injectedSecrets))
     put("timedOut", result.timedOut)
     if (result.timedOut) {
         put("hint", shellTimeoutHint(effectiveTimeoutSeconds, supportsBackground))
@@ -713,6 +682,10 @@ internal fun buildShellOutputJson(
     if (result.truncated) put("truncated", true)
     if (diffSkipped) put("diffSkipped", true)
     if (changes.isNotEmpty()) putTouchedFilesSummary(changes)
+    val unmaskable = countUnmaskableInjected(injectedSecrets)
+    if (unmaskable > 0) {
+        put("maskNote", unmaskableNote(unmaskable))
+    }
 }
 
 /** 解析 `workspace_shell` 的命令或预设模板（返回 `命令 to 错误JSON`）。 */
