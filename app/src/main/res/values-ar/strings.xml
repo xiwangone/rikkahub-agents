@@ -4050,6 +4050,7 @@
   <string name="setting_media_page_model_id">معرف النموذج</string>
   <string name="setting_media_page_models">النماذج</string>
   <string name="setting_media_page_models_desc">يتم إرسال معرفات النماذج إلى واجهة البرمجة كما هي</string>
+  <string name="setting_media_page_models_fallback">لم يُرجع API قائمة النماذج. النماذج أدناه شائعة وقد لا يدعمها هذا الطرف.</string>
   <string name="setting_media_page_provider_name">الاسم</string>
   <string name="setting_media_page_provider_type">نوع المزود</string>
   <string name="setting_media_page_providers">المزودون</string>

@@ -4047,6 +4047,7 @@
   <string name="setting_media_page_model_id">Идентификатор модели</string>
   <string name="setting_media_page_models">Модели</string>
   <string name="setting_media_page_models_desc">Идентификаторы моделей отправляются в API как есть</string>
+  <string name="setting_media_page_models_fallback">API не вернул список моделей. Ниже приведены распространённые модели; эта конечная точка может их не поддерживать.</string>
   <string name="setting_media_page_provider_name">Название</string>
   <string name="setting_media_page_provider_type">Тип провайдера</string>
   <string name="setting_media_page_providers">Провайдеры</string>

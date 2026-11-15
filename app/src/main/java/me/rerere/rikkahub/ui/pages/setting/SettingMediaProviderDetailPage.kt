@@ -188,7 +188,8 @@ fun SettingMediaProviderDetailPage(
                         MediaProviderDetailTab.MODELS ->
                             MediaGenerationProviderModelsConfigure(
                                 setting = draft,
-                                availableModels = availableModels,
+                                availableModels = availableModels.models,
+                                presetsFallback = availableModels.presetsFallback,
                                 showModelPickerSheet = showModelPickerSheet,
                                 onShowModelPickerSheetChange = { showModelPickerSheet = it },
                                 onValueChange = { draft = it },
@@ -213,7 +214,7 @@ fun SettingMediaProviderDetailPage(
                     leadingContent = {
                         if (currentTab == MediaProviderDetailTab.MODELS) {
                             MediaModelPickerButton(
-                                availableCount = availableModels.size,
+                                availableCount = availableModels.models.size,
                                 onClick = { showModelPickerSheet = true },
                             )
                             if (kinds.isNotEmpty()) {

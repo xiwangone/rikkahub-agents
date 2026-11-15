@@ -206,6 +206,8 @@ fun MediaGenerationProviderBasicConfigure(
 fun MediaGenerationProviderModelsConfigure(
     setting: MediaGenerationProviderSetting,
     availableModels: List<MediaGenerationModel>,
+    /** true = 列表是内置的常见模型回退（接口未返回模型列表），需在界面上标注。 */
+    presetsFallback: Boolean = false,
     showModelPickerSheet: Boolean,
     onShowModelPickerSheetChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
@@ -270,7 +272,15 @@ fun MediaGenerationProviderModelsConfigure(
             item(
                 onClick = { onShowModelPickerSheetChange(true) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_avaliable_models)) },
-                supportingContent = { Text(stringResource(R.string.setting_media_page_models_desc)) },
+                supportingContent = {
+                    // 回退到内置清单时必须标注：否则用户会以为这些模型是接口返回的、一定能用
+                    Text(
+                        stringResource(
+                            if (presetsFallback) R.string.setting_media_page_models_fallback
+                            else R.string.setting_media_page_models_desc,
+                        ),
+                    )
+                },
                 leadingContent = {
                     CardGroupIcon(
                         HugeIcons.Package01,
@@ -515,26 +525,30 @@ private fun MediaModelPickerSheet(
     }
 }
 
+/** 可用模型列表 + 来源标记（true = 以下内容是内置回退，不是接口返回）。 */
+internal class MediaAvailableModels(
+    val models: List<MediaGenerationModel>,
+    val presetsFallback: Boolean,
+)
+
 @Composable
-internal fun rememberMediaAvailableModels(setting: MediaGenerationProviderSetting): List<MediaGenerationModel> {
+internal fun rememberMediaAvailableModels(setting: MediaGenerationProviderSetting): MediaAvailableModels {
     val client = koinInject<OkHttpClient>()
     val presets = remember(setting::class) { presetMediaModelsFor(setting) }
     val remoteModels by produceState(emptyList<MediaGenerationModel>(), setting.baseUrl, setting.apiKey, setting::class) {
         value = fetchRemoteMediaModels(client, setting)
     }
     return remember(presets, remoteModels, setting.supportedKinds) {
-        val merged = LinkedHashMap<String, MediaGenerationModel>()
-        for (m in presets) {
-            if (m.kind in setting.supportedKinds) {
-                merged[m.modelId.lowercase()] = m
-            }
+        val filteredPresets = presets.filter { it.kind in setting.supportedKinds }
+        val filteredRemote = remoteModels.filter { it.kind in setting.supportedKinds }
+        if (filteredRemote.isNotEmpty()) {
+            // 接口返回了模型：只列接口返回的。不再把内置清单混进来（混进来会让用户以为
+            // 那些模型也被该接口支持，实际调用才发现不支持）。
+            MediaAvailableModels(filteredRemote, presetsFallback = false)
+        } else {
+            // 接口没返回（不支持 /v1/models 或请求失败）：回退内置常见模型，并在界面上标注
+            MediaAvailableModels(filteredPresets, presetsFallback = filteredPresets.isNotEmpty())
         }
-        for (m in remoteModels) {
-            if (m.kind in setting.supportedKinds && m.modelId.lowercase() !in merged) {
-                merged[m.modelId.lowercase()] = m
-            }
-        }
-        merged.values.toList()
     }
 }
 

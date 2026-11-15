@@ -4130,6 +4130,7 @@
   <string name="setting_media_page_model_id">Model ID</string>
   <string name="setting_media_page_models">Models</string>
   <string name="setting_media_page_models_desc">Model IDs are sent to the API as-is</string>
+  <string name="setting_media_page_models_fallback">The API returned no model list. The entries below are common models and may not be supported by this endpoint.</string>
   <string name="setting_media_page_provider_name">Name</string>
   <string name="setting_media_page_provider_type">Provider type</string>
   <string name="setting_media_page_providers">Providers</string>

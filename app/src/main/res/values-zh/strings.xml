@@ -4130,6 +4130,7 @@
   <string name="setting_media_page_model_id">模型 ID</string>
   <string name="setting_media_page_models">模型</string>
   <string name="setting_media_page_models_desc">模型 ID 将原样发送到 API</string>
+  <string name="setting_media_page_models_fallback">接口未返回模型列表；以下为常见模型，该接口不一定支持。</string>
   <string name="setting_media_page_provider_name">名称</string>
   <string name="setting_media_page_provider_type">提供方类型</string>
   <string name="setting_media_page_providers">提供方</string>

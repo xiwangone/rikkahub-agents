@@ -4042,6 +4042,7 @@
   <string name="setting_media_page_model_id">模型 ID</string>
   <string name="setting_media_page_models">模型</string>
   <string name="setting_media_page_models_desc">模型 ID 會原樣發送到 API</string>
+  <string name="setting_media_page_models_fallback">介面未回傳模型清單；以下為常見模型，該介面不一定支援。</string>
   <string name="setting_media_page_provider_name">名稱</string>
   <string name="setting_media_page_provider_type">提供者類型</string>
   <string name="setting_media_page_providers">提供者</string>

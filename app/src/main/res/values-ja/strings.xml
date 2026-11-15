@@ -4043,6 +4043,7 @@
   <string name="setting_media_page_model_id">モデルID</string>
   <string name="setting_media_page_models">モデル</string>
   <string name="setting_media_page_models_desc">モデルIDはそのままAPIに送信されます</string>
+  <string name="setting_media_page_models_fallback">API がモデル一覧を返しませんでした。以下は一般的なモデルで、このエンドポイントが対応しているとは限りません。</string>
   <string name="setting_media_page_provider_name">名前</string>
   <string name="setting_media_page_provider_type">プロバイダータイプ</string>
   <string name="setting_media_page_providers">プロバイダー</string>
