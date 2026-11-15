@@ -572,23 +572,55 @@ private fun AnnotatedString.Builder.appendMarkdownNodeWithEnv(
  */
 private fun AnnotatedString.Builder.appendGfmAutolink(node: ASTNode, env: MarkdownInlineEnv) {
     val parts = splitAutolinkParts(node.getTextInNode(env.content))
+    val code = parts.code
     when {
-        // 词法器把行内代码当成了 autolink：按代码渲染，不生成链接（否则反引号外露、下划线越界）
-        parts.code != null -> {
+        // 行内代码里装的是 URL：仍按链接渲染（可点），并让它独占一行，免得被前后中文围住
+        code != null && isBareLink(code) -> appendLinkOnOwnLine(code, parts.prefix, parts.trailing, env)
+        // 不是 URL 的行内代码：按代码渲染（不倒反引号、不下划线）
+        code != null -> {
             if (parts.prefix.isNotEmpty()) append(parts.prefix)
-            appendCodeSpanStyled(parts.code, env)
+            appendCodeSpanStyled(code, env)
             if (parts.trailing.isNotEmpty()) append(parts.trailing)
         }
         // 不是裸链接：整段当普通文本，不抢样式
         parts.url.isEmpty() -> append(parts.prefix)
+        // 普通 autolink：前后有文字时也让链接独占一行
+        parts.prefix.isNotBlank() || parts.trailing.isNotBlank() ->
+            appendLinkOnOwnLine(parts.url, parts.prefix, parts.trailing, env)
         else -> {
-            if (parts.prefix.isNotEmpty()) append(parts.prefix)
             withLink(LinkAnnotation.Url(parts.url)) {
                 withStyle(SpanStyle(fontStyle = FontStyle.Italic)) { append(parts.url) }
             }
-            // 切掉的尾巴以普通文本重新输出，不丢弃
-            if (parts.trailing.isNotEmpty()) append(parts.trailing)
         }
+    }
+}
+
+/**
+ * 渲染一个链接并让它**独占一行**（前后非空的普通文本各成一行）。
+ *
+ * 目的：链接被中文包围时，下划线与点击热区只覆盖 URL 自己；调用方不再需要靠输出格式避坑。
+ */
+private fun AnnotatedString.Builder.appendLinkOnOwnLine(
+    url: String,
+    prefix: String,
+    trailing: String,
+    env: MarkdownInlineEnv,
+) {
+    if (prefix.isNotBlank()) {
+        append(prefix.trimEnd())
+        if (!prefix.endsWith("\n")) append('\n')
+    }
+    withLink(LinkAnnotation.Url(url)) {
+        withStyle(
+            SpanStyle(
+                color = env.colorScheme.primary,
+                textDecoration = TextDecoration.Underline,
+            ),
+        ) { append(url) }
+    }
+    if (trailing.isNotBlank()) {
+        if (!trailing.startsWith("\n")) append('\n')
+        append(trailing.trimStart())
     }
 }
 

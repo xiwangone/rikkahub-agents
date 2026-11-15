@@ -68,7 +68,7 @@ internal fun splitAutolink(raw: String): Pair<String, String> {
     return url to raw.substring(url.length)
 }
 
-private fun isBareLink(url: String): Boolean =
+internal fun isBareLink(url: String): Boolean =
     (url.startsWith("https://") && url.length > "https://".length) ||
         (url.startsWith("http://") && url.length > "http://".length) ||
         (url.startsWith("www.") && url.length > "www.".length)

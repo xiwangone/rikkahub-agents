@@ -238,26 +238,45 @@ private fun AnnotatedString.Builder.appendHtmlLink(
             textDecoration = TextDecoration.Underline,
         ).merge(cssStyle ?: SpanStyle())
     val parts = splitAutolinkParts(href)
+    val code = parts.code
     when {
-        // 行内代码被词法器误判成 autolink：按代码渲染，不生成链接
-        parts.code != null -> {
+        // 行内代码里装的是 URL：仍按链接渲染（可点），并让它独占一行
+        code != null && isBareLink(code) ->
+            appendOwnLineLink(code, parts.prefix, parts.trailing, linkStyle)
+        // 不是 URL 的行内代码：按代码渲染（不显示反引号）
+        code != null -> {
             if (parts.prefix.isNotEmpty()) append(parts.prefix)
-            appendInlineCodeTag(parts.code, colorScheme.primary, cssStyle)
+            appendInlineCodeTag(code, colorScheme.primary, cssStyle)
             if (parts.trailing.isNotEmpty()) append(parts.trailing)
         }
-        // 自动链接：显示文本就是 URL，按同一规则切分显示（尾巴/前缀当普通文本）
-        text == href && (parts.prefix.isNotEmpty() || parts.trailing.isNotEmpty()) -> {
-            if (parts.prefix.isNotEmpty()) append(parts.prefix)
-            withLink(LinkAnnotation.Url(parts.url)) {
-                withStyle(linkStyle) { append(parts.url) }
-            }
-            if (parts.trailing.isNotEmpty()) append(parts.trailing)
-        }
+        // 自动链接且前后有文字：链接独占一行
+        text == href && (parts.prefix.isNotBlank() || parts.trailing.isNotBlank()) ->
+            appendOwnLineLink(parts.url, parts.prefix, parts.trailing, linkStyle)
         else -> {
             withLink(LinkAnnotation.Url(parts.url.ifEmpty { href })) {
                 withStyle(linkStyle) { appendChildren(linkStyle) }
             }
         }
+    }
+}
+
+/** 链接独占一行（前后非空文本各成一行），下划线与点击热区只盖 URL 自己。 */
+private fun AnnotatedString.Builder.appendOwnLineLink(
+    url: String,
+    prefix: String,
+    trailing: String,
+    linkStyle: SpanStyle,
+) {
+    if (prefix.isNotBlank()) {
+        append(prefix.trimEnd())
+        if (!prefix.endsWith("\n")) append('\n')
+    }
+    withLink(LinkAnnotation.Url(url)) {
+        withStyle(linkStyle) { append(url) }
+    }
+    if (trailing.isNotBlank()) {
+        if (!trailing.startsWith("\n")) append('\n')
+        append(trailing.trimStart())
     }
 }
 
