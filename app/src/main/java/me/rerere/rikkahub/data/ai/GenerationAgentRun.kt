@@ -86,6 +86,25 @@ private const val MIN_TOOL_COMPLETION_MS = 90_000L
 private const val WRAP_UP_STREAM_CAP_MS = 90_000L
 
 /**
+ * 收尾阶段仍允许模型调用的**只读**工具。
+ *
+ * 目的：提醒是从工具结果里回到模型的，但如果同时把工具全清空，模型想「再看一眼状态再总结」也无从下手。
+ * 这里只放无副作用的读取类；写类与长任务工具在收尾阶段仍然全部拦掉。
+ */
+private val WRAP_UP_READ_ONLY_TOOLS: Set<String> = setOf(
+    "workspace_read_file",
+    "workspace_read_folder",
+    "workspace_search_code",
+    "read_file",
+    "list_files",
+    "file_info",
+    "diagnostics",
+)
+
+/** 收尾阶段最多再走几步（含总结本身）：超过就结束，避免模型在收尾期无限查下去。 */
+private const val MAX_WRAP_UP_STEPS = 2
+
+/**
  * 收尾窗口 = 轮次预算的 20%，夹在 [MIN_WRAP_UP_GRACE_MS, MAX_WRAP_UP_GRACE_MS] 之间。
  * 20 分钟预算 → 4 分钟；1 分钟预算 → 30 秒（下限）。
  */
@@ -350,6 +369,9 @@ internal class GenerationAgentRun(
      * 用户依旧拿不到任何收尾文字。
      */
     private var wrapUpTerminalStep = false
+
+    /** 收尾阶段已经走过的步数（上限 [MAX_WRAP_UP_STEPS]）。 */
+    private var wrapUpSteps = 0
     /** 收尾总结请求已发出（prepareStep 里置位）：步边界据此判断总结是否已完成。 */
     private var wrapUpSummaryIssued = false
     /** 收尾总结本步是否产出了可见文本（finishStep 里按本步新段判定）。 */
@@ -661,8 +683,12 @@ internal class GenerationAgentRun(
         }
         outputTransformCache.clear()
 
-        // 收尾轮不挂工具：预算已耗尽（或进入宽限窗口），这一轮只允许产出一段文字收尾。
-        val stepTools = if (wrapUpTerminalStep) emptyList() else tools
+        // 收尾轮只挂**只读**工具：让模型还能补一次状态确认再总结；写类/长任务工具一律不挂。
+        val stepTools = if (wrapUpTerminalStep) {
+            tools.filter { it.name in WRAP_UP_READ_ONLY_TOOLS }
+        } else {
+            tools
+        }
         // 标记总结请求已发出：下一轮步边界据此判断总结是否已完成（供零文本兜底用）。
         if (wrapUpTerminalStep) wrapUpSummaryIssued = true
 
@@ -1111,16 +1137,24 @@ internal class GenerationAgentRun(
         val elapsedMs = android.os.SystemClock.elapsedRealtime() - turnStartMs
 
         if (wrapUpFinalRequestInFlight) {
-            // 最终纯文本请求已完成；停止继续消耗预算。
-            runCtx.abortReason = GenerationOutcome.TIMEOUT
-            return StepDecision.Stop(AgentFinishReason.BudgetExhausted(AgentFinishReason.Kind.WALL_CLOCK))
+            // 总结那一步已经产出：正常结束。不再标成「被预算砍断」——
+            // 否则界面会显示超时中断，而用户实际看到的是完整总结。
+            return StepDecision.Stop(AgentFinishReason.Completed)
         }
         if (wrapUpFinalRequestPending) {
             wrapUpFinalRequestPending = false
             wrapUpFinalRequestInFlight = true
-            // 工具结果本身带有提醒；重新发同一步，进入禁用工具的终结总结。
+            // 工具结果本身带有提醒；重新发同一步，进入收尾模式（仅只读工具）。
             // terminalSummary=true：即使已经撞上 maxSteps，也放行这一次总结请求。
             return StepDecision.RetryCurrentStep(terminalSummary = true)
+        }
+        if (wrapUpTerminalStep) {
+            // 收尾阶段步数上限：防止模型借着只读工具一直查下去。
+            wrapUpSteps += 1
+            if (wrapUpSteps > MAX_WRAP_UP_STEPS) {
+                AppLog.w(TAG, "generateText: wrap-up step limit ($MAX_WRAP_UP_STEPS) reached; ending turn")
+                return StepDecision.Stop(AgentFinishReason.Completed)
+            }
         }
 
         if (step.stepIndex > 0) {
