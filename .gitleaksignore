@@ -38,3 +38,7 @@ cea2c92ece155a7e9f2a27533098b0c91dcfaede:app/src/test/java/me/rerere/rikkahub/da
 42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:121
 42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:129
 42352cc9453c44e0c4dee563c32e1020bde5a561:app/src/test/java/me/rerere/rikkahub/data/ai/tools/inject/EnvInjectionSafetyTest.kt:generic-api-key:139
+d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:64
+d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:72
+d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:78
+dbccc68c7b7a28e815a35af634d365db24b1548f:app/src/test/java/me/rerere/rikkahub/web/WebJwtTest.kt:generic-api-key:41
