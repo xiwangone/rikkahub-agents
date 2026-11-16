@@ -4439,7 +4439,11 @@
   <string name="usage_pricing_price_label">السعر لكل مليون رمز</string>
   <string name="usage_pricing_peak_price_label">سعر الذروة</string>
   <string name="usage_pricing_offpeak_price_label">سعر خارج الذروة</string>
-  <string name="usage_pricing_empty_models">لا توجد نماذج بعد — بعد استخدام نموذج يمكنك تعيين سعره هنا.</string>
+  <string name="usage_pricing_empty_models">لا توجد نماذج مستخدمة بعد — أضف نموذجًا أدناه لتعيين سعره.</string>
+  <string name="usage_pricing_add_model">إضافة نموذج</string>
+  <string name="usage_pricing_add_model_search_hint">ابحث باسم النموذج أو المزوّد</string>
+  <string name="usage_pricing_add_model_no_match">لا توجد نماذج مطابقة.</string>
+  <string name="usage_pricing_add_model_all_added">جميع النماذج موجودة في القائمة بالفعل.</string>
   <string name="usage_pricing_providers_title">حصص المزوّدين</string>
   <string name="usage_pricing_quota_label">الحصة</string>
   <string name="usage_pricing_manual_usage_label">الاستخدام (يدوي)</string>

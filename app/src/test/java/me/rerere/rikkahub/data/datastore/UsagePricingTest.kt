@@ -33,6 +33,44 @@ class UsagePricingTest {
     }
 
     @Test
+    fun `visible model keys keep priced, used and newly added models`() {
+        val keys = visibleModelKeys(
+            pricedKeys = setOf("openai/gpt-4"),
+            statsKeys = setOf("deepseek/deepseek-chat", "openai/gpt-4"),
+            addedKeys = setOf("anthropic/claude-x"),
+        )
+        assertEquals(
+            listOf("anthropic/claude-x", "deepseek/deepseek-chat", "openai/gpt-4"),
+            keys,
+        )
+    }
+
+    @Test
+    fun `visible model keys are empty without priced, used or added models`() {
+        assertTrue(visibleModelKeys(emptySet(), emptySet(), emptySet()).isEmpty())
+    }
+
+    @Test
+    fun `visible provider keys cover priced, used and listed-model providers`() {
+        val keys = visibleProviderKeys(
+            pricedKeys = setOf("openai"),
+            statsKeys = setOf("deepseek/deepseek-chat"),
+            modelKeys = listOf("anthropic/claude-x", "openai/gpt-4"),
+        )
+        assertEquals(listOf("anthropic", "deepseek", "openai"), keys)
+    }
+
+    @Test
+    fun `visible provider keys list a provider once even when it appears in all sources`() {
+        val keys = visibleProviderKeys(
+            pricedKeys = setOf("openai"),
+            statsKeys = setOf("openai/gpt-4"),
+            modelKeys = listOf("openai/gpt-4"),
+        )
+        assertEquals(listOf("openai"), keys)
+    }
+
+    @Test
     fun `no price means no estimate`() {
         val pricing = UsagePricingSettings()
         assertNull(

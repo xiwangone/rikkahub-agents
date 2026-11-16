@@ -107,3 +107,26 @@ data class UsagePricingSettings(
 /** 模型价格的 key（"$providerKey/$modelId"），与用量聚合 key 口径一致。 */
 fun usagePricingKey(providerKey: String?, modelId: String): String =
     "${providerKey ?: UNKNOWN_PROVIDER_KEY}/$modelId"
+
+/**
+ * 默认展示的模型行：已有自填价的 + 统计里出现过的 + 本页新加的。
+ * 不枚举全部提供商的全部模型——每行都是带输入框的卡片，模型一多页面就卡。
+ */
+fun visibleModelKeys(
+    pricedKeys: Set<String>,
+    statsKeys: Set<String>,
+    addedKeys: Set<String>,
+): List<String> = (pricedKeys + statsKeys + addedKeys).distinct().sorted()
+
+/**
+ * 默认展示的提供商行：已有额度/用量配置的 + 统计里出现过的 + 已展示模型的提供商。
+ * 同样不枚举全部提供商。
+ */
+fun visibleProviderKeys(
+    pricedKeys: Set<String>,
+    statsKeys: Set<String>,
+    modelKeys: Collection<String>,
+): List<String> =
+    (pricedKeys + statsKeys.map { it.substringBefore("/") } + modelKeys.map { it.substringBefore("/") })
+        .distinct()
+        .sorted()

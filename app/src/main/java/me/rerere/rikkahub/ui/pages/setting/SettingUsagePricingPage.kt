@@ -1,24 +1,38 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.RowScope
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
@@ -26,12 +40,17 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.provider.ProviderSetting
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Add01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.datastore.ModelPrice
 import me.rerere.rikkahub.data.datastore.ProviderPricing
 import me.rerere.rikkahub.data.datastore.UsagePricingSettings
 import me.rerere.rikkahub.data.datastore.usagePricingKey
+import me.rerere.rikkahub.data.datastore.visibleModelKeys
+import me.rerere.rikkahub.data.datastore.visibleProviderKeys
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.ui.CardGroup
@@ -59,22 +78,19 @@ fun SettingUsagePricingPage(vm: SettingVM = koinViewModel()) {
     val revision by GenerationRunTracker.revision.collectAsStateWithLifecycle()
     val statsKeys = remember(revision) { GenerationRunTracker.snapshot(context).byProviderModel.keys }
     val providers = settings.providers
+    var showAddModelDialog by remember { mutableStateOf(false) }
+    // 本页新加的模型：只记页面内状态，不写脏数据；用户填了价才进 modelPrices 持久化。
+    var addedModelKeys by remember { mutableStateOf(setOf<String>()) }
 
-    // 可配价的模型：当前提供商的模型 + 已有自填价的模型 + 统计里出现过的模型（已删提供商的历史项仍可改价）。
+    // 默认只展示有记录的模型：已有自填价 + 统计里出现过 + 本页新加；不再枚举全部提供商的全部模型。
     val modelKeys =
-        remember(providers, pricing.modelPrices, statsKeys) {
-            val current =
-                providers.flatMap { provider ->
-                    provider.models.map { model -> usagePricingKey(provider.providerKey, model.id.toString()) }
-                }
-            (current + pricing.modelPrices.keys + statsKeys).distinct().sorted()
+        remember(pricing.modelPrices, statsKeys, addedModelKeys) {
+            visibleModelKeys(pricing.modelPrices.keys, statsKeys, addedModelKeys)
         }
+    // 提供商行同规则：已有额度/用量配置 + 统计里出现过 + 已展示模型的提供商。
     val providerKeys =
-        remember(providers, pricing.providerPricing, statsKeys) {
-            val current = providers.map { it.providerKey ?: UNKNOWN_PROVIDER_KEY }
-            (current + pricing.providerPricing.keys + statsKeys.map { it.substringBefore("/") })
-                .distinct()
-                .sorted()
+        remember(pricing.providerPricing, statsKeys, modelKeys) {
+            visibleProviderKeys(pricing.providerPricing.keys, statsKeys, modelKeys)
         }
 
     fun updatePricing(transform: (UsagePricingSettings) -> UsagePricingSettings) {
@@ -253,6 +269,24 @@ fun SettingUsagePricingPage(vm: SettingVM = koinViewModel()) {
                             )
                         }
                     }
+                    formItem {
+                        if (modelKeys.isEmpty()) {
+                            // 无记录时按钮用实底样式，更醒目。
+                            Button(
+                                onClick = { showAddModelDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                AddModelButtonContent()
+                            }
+                        } else {
+                            OutlinedButton(
+                                onClick = { showAddModelDialog = true },
+                                modifier = Modifier.fillMaxWidth(),
+                            ) {
+                                AddModelButtonContent()
+                            }
+                        }
+                    }
                 }
             }
             item {
@@ -289,6 +323,18 @@ fun SettingUsagePricingPage(vm: SettingVM = koinViewModel()) {
                 }
             }
         }
+    }
+
+    if (showAddModelDialog) {
+        AddModelDialog(
+            providers = providers,
+            listedKeys = modelKeys.toSet(),
+            onAdd = { key ->
+                addedModelKeys = addedModelKeys + key
+                showAddModelDialog = false
+            },
+            onDismiss = { showAddModelDialog = false },
+        )
     }
 }
 
@@ -417,4 +463,124 @@ private fun CardGroupScope.ProviderPricingRow(
             )
         }
     }
+}
+
+@Composable
+private fun RowScope.AddModelButtonContent() {
+    Icon(HugeIcons.Add01, contentDescription = null)
+    Spacer(Modifier.size(ButtonDefaults.IconSpacing))
+    Text(stringResource(R.string.usage_pricing_add_model))
+}
+
+/**
+ * 添加模型对话框：列出全部可用模型（按提供商分组、可搜索），点一个就加进本页列表。
+ * 只记进页面内状态，不写脏数据；用户填了价才进 modelPrices 持久化。
+ */
+@Composable
+private fun AddModelDialog(
+    providers: List<ProviderSetting>,
+    listedKeys: Set<String>,
+    onAdd: (String) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    var query by remember { mutableStateOf("") }
+    // 按提供商分组的待添加模型：已在列表里的不再列出；搜索按提供商名/显示名/模型 ID 匹配。
+    val groups =
+        remember(providers, listedKeys, query) {
+            val keywords = query.split(" ").filter { it.isNotBlank() }
+            providers.mapNotNull { provider ->
+                val providerName = provider.name.takeIf { it.isNotBlank() } ?: provider.providerKey
+                val models =
+                    provider.models.filter { model ->
+                        val key = usagePricingKey(provider.providerKey, model.id.toString())
+                        if (key in listedKeys) return@filter false
+                        if (keywords.isEmpty()) return@filter true
+                        val haystack = "$providerName ${model.displayName} ${model.modelId}"
+                        keywords.all { haystack.contains(it, ignoreCase = true) }
+                    }
+                if (models.isEmpty()) null else Triple(provider, providerName, models)
+            }
+        }
+
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.usage_pricing_add_model)) },
+        text = {
+            Column(
+                modifier = Modifier.fillMaxWidth(),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                SettingTextField(
+                    value = query,
+                    onValueChange = { query = it },
+                    label = { Text(stringResource(R.string.usage_pricing_add_model_search_hint)) },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                if (groups.isEmpty()) {
+                    Text(
+                        text =
+                            stringResource(
+                                if (query.isBlank()) R.string.usage_pricing_add_model_all_added
+                                else R.string.usage_pricing_add_model_no_match,
+                            ),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    LazyColumn(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .heightIn(max = 420.dp),
+                        verticalArrangement = Arrangement.spacedBy(4.dp),
+                    ) {
+                        groups.forEach { (provider, providerName, models) ->
+                            item(key = "header-${provider.id}") {
+                                Text(
+                                    text = providerName,
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color = MaterialTheme.colorScheme.primary,
+                                    modifier = Modifier.padding(top = 8.dp),
+                                )
+                            }
+                            items(models, key = { it.id }) { model ->
+                                Row(
+                                    modifier =
+                                        Modifier
+                                            .fillMaxWidth()
+                                            .clickable {
+                                                onAdd(usagePricingKey(provider.providerKey, model.id.toString()))
+                                            }
+                                            .padding(vertical = 4.dp),
+                                    verticalAlignment = Alignment.CenterVertically,
+                                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                                ) {
+                                    Column(modifier = Modifier.weight(1f)) {
+                                        Text(
+                                            text = model.displayName.ifBlank { model.modelId },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                        )
+                                        if (model.displayName.isNotBlank() && model.displayName != model.modelId) {
+                                            Text(
+                                                text = model.modelId,
+                                                style = MaterialTheme.typography.bodySmall,
+                                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            )
+                                        }
+                                    }
+                                    Icon(HugeIcons.Add01, contentDescription = null)
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
 }

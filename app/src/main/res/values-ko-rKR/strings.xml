@@ -4432,7 +4432,11 @@
   <string name="usage_pricing_price_label">100만 토큰당 가격</string>
   <string name="usage_pricing_peak_price_label">피크 가격</string>
   <string name="usage_pricing_offpeak_price_label">오프피크 가격</string>
-  <string name="usage_pricing_empty_models">아직 모델이 없습니다—모델을 사용한 뒤 여기서 가격을 설정할 수 있습니다.</string>
+  <string name="usage_pricing_empty_models">사용 기록이 있는 모델이 아직 없습니다—아래 버튼에서 추가해 가격을 설정할 수 있습니다.</string>
+  <string name="usage_pricing_add_model">모델 추가</string>
+  <string name="usage_pricing_add_model_search_hint">모델 또는 제공업체 이름으로 검색</string>
+  <string name="usage_pricing_add_model_no_match">일치하는 모델이 없습니다.</string>
+  <string name="usage_pricing_add_model_all_added">모든 모델이 이미 목록에 있습니다.</string>
   <string name="usage_pricing_providers_title">제공업체 한도</string>
   <string name="usage_pricing_quota_label">한도</string>
   <string name="usage_pricing_manual_usage_label">사용량(수동 입력)</string>

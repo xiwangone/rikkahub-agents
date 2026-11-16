@@ -564,10 +564,11 @@ fun TunnelSettingSection(vm: SettingVM) {
             title = { Text(stringResource(R.string.tunnel_exit_node)) },
             text = {
                 // 限高 420dp + 滚动：设备多时弹窗不再撑满屏（与设备弹窗、提供商弹窗同口径）。
+                // 顺序不能反：heightIn 在 verticalScroll 外层才卡视口高度；写在内层会卡内容高度、滚动范围归零。
                 Column(
                     modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .heightIn(max = 420.dp),
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
                 ) {
                     TextButton(onClick = {
                         showExitPicker = false
@@ -655,11 +656,12 @@ fun TunnelSettingSection(vm: SettingVM) {
             text = {
                 // 设备多时可上下滑，AlertDialog 本身不会替内容滚，行数一多底部会被裁掉；
                 // 再限高 420dp，弹窗不再撑满屏（与出口节点、提供商弹窗同口径）。
+                // 顺序不能反：heightIn 在 verticalScroll 外层才卡视口高度；写在内层会卡内容高度、滚动范围归零。
                 Column(
                     verticalArrangement = Arrangement.spacedBy(6.dp),
                     modifier = Modifier
-                        .verticalScroll(rememberScrollState())
-                        .heightIn(max = 420.dp),
+                        .heightIn(max = 420.dp)
+                        .verticalScroll(rememberScrollState()),
                 ) {
                     if (nodeStatus == null) {
                         // 隧道没连上：peers 为空是“没连上”，不是“尾网没设备”，别显示空列表。

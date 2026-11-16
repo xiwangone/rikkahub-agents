@@ -4431,7 +4431,11 @@
   <string name="usage_pricing_price_label">每 1M token 的價格</string>
   <string name="usage_pricing_peak_price_label">峰時價</string>
   <string name="usage_pricing_offpeak_price_label">谷時價</string>
-  <string name="usage_pricing_empty_models">暫無模型——用過模型後可在此設定價格。</string>
+  <string name="usage_pricing_empty_models">暫無用過的模型——點下方按鈕新增模型並設定價格。</string>
+  <string name="usage_pricing_add_model">新增模型</string>
+  <string name="usage_pricing_add_model_search_hint">依模型或提供商名稱搜尋</string>
+  <string name="usage_pricing_add_model_no_match">沒有相符的模型。</string>
+  <string name="usage_pricing_add_model_all_added">所有模型皆已在清單中。</string>
   <string name="usage_pricing_providers_title">提供商額度</string>
   <string name="usage_pricing_quota_label">額度</string>
   <string name="usage_pricing_manual_usage_label">用量（手填）</string>

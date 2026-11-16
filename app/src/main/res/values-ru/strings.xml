@@ -4436,7 +4436,11 @@
   <string name="usage_pricing_price_label">Цена за 1 млн токенов</string>
   <string name="usage_pricing_peak_price_label">Пиковая цена</string>
   <string name="usage_pricing_offpeak_price_label">Внепиковая цена</string>
-  <string name="usage_pricing_empty_models">Моделей пока нет — после использования модели здесь можно задать цену.</string>
+  <string name="usage_pricing_empty_models">Моделей с историей использования пока нет — добавьте модель ниже, чтобы задать цену.</string>
+  <string name="usage_pricing_add_model">Добавить модель</string>
+  <string name="usage_pricing_add_model_search_hint">Поиск по модели или провайдеру</string>
+  <string name="usage_pricing_add_model_no_match">Подходящих моделей нет.</string>
+  <string name="usage_pricing_add_model_all_added">Все модели уже в списке.</string>
   <string name="usage_pricing_providers_title">Лимиты провайдеров</string>
   <string name="usage_pricing_quota_label">Лимит</string>
   <string name="usage_pricing_manual_usage_label">Использование (вручную)</string>

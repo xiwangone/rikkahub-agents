@@ -4428,7 +4428,11 @@
   <string name="usage_pricing_price_label">Price per 1M tokens</string>
   <string name="usage_pricing_peak_price_label">Peak price</string>
   <string name="usage_pricing_offpeak_price_label">Off-peak price</string>
-  <string name="usage_pricing_empty_models">No models yet — prices can be set once a model has been used.</string>
+  <string name="usage_pricing_empty_models">No models with usage yet — add one below to set its price.</string>
+  <string name="usage_pricing_add_model">Add model</string>
+  <string name="usage_pricing_add_model_search_hint">Search by model or provider name</string>
+  <string name="usage_pricing_add_model_no_match">No matching models.</string>
+  <string name="usage_pricing_add_model_all_added">All models are already listed.</string>
   <string name="usage_pricing_providers_title">Provider quotas</string>
   <string name="usage_pricing_quota_label">Quota</string>
   <string name="usage_pricing_manual_usage_label">Usage (manual)</string>
