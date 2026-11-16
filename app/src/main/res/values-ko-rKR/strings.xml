@@ -1942,6 +1942,7 @@
   <string name="workspace_terminal_loading">워크스페이스 불러오는 중…</string>
   <string name="workspace_terminal_exited">터미널 종료됨</string>
   <string name="workspace_terminal_tab">터미널 %1$d</string>
+  <string name="workspace_terminal_search_hint">출력 검색</string>
   <string name="workspace_terminal_new_tab">새 터미널 탭</string>
   <string name="workspace_terminal_close_tab">터미널 %1$d 닫기</string>
   <string name="workspace_terminal_no_tabs">열린 터미널 탭이 없습니다</string>

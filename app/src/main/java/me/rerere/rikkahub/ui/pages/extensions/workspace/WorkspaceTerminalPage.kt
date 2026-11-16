@@ -25,7 +25,9 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LocalContentColor
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SecondaryScrollableTabRow
 import androidx.compose.material3.Surface
@@ -59,8 +61,11 @@ import com.termux.view.TerminalView
 import kotlinx.coroutines.flow.flowOf
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
@@ -170,6 +175,29 @@ private fun WorkspaceTerminalContent(
             ?: 0
     val selectedTab = state.tabs.getOrNull(selectedIndex)
 
+    // 查找输出：状态按页签记，换页签清空；匹配行号是回滚区的绝对行号（负数），
+    // 查一次读一遍回滚记录（上限 2000 行），输入变化与上下翻时重算。
+    var searchVisible by remember(state.selectedTabId) { mutableStateOf(false) }
+    var searchQuery by remember(state.selectedTabId) { mutableStateOf("") }
+    var searchMatches by remember(state.selectedTabId) { mutableStateOf<List<Int>>(emptyList()) }
+    var searchIndex by remember(state.selectedTabId) { mutableStateOf(0) }
+
+    fun refreshSearchMatches() {
+        val tab = selectedTab ?: return
+        searchMatches = findTerminalMatches(tab, searchQuery)
+        searchIndex = 0
+        searchMatches.firstOrNull()?.let { jumpToTerminalMatch(tab, it) }
+    }
+
+    fun stepSearchMatch(step: Int) {
+        val tab = selectedTab ?: return
+        // 翻页前重算一次：输出一直在涨，旧的匹配表会过期。
+        searchMatches = findTerminalMatches(tab, searchQuery)
+        if (searchMatches.isEmpty()) return
+        searchIndex = ((searchIndex + step) % searchMatches.size + searchMatches.size) % searchMatches.size
+        jumpToTerminalMatch(tab, searchMatches[searchIndex])
+    }
+
     Surface(
         modifier =
             Modifier
@@ -192,18 +220,7 @@ private fun WorkspaceTerminalContent(
                 verticalAlignment = Alignment.CenterVertically,
             ) {
                 BackButton()
-                // 页眉显示工作区名：同时开两个工作区的终端时，两页长得一模一样，
-                // 没名字分不清当前是哪个。
-                workspaceName?.takeIf { it.isNotBlank() }?.let { name ->
-                    Text(
-                        text = name,
-                        modifier = Modifier.widthIn(max = 120.dp),
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
+                // 工作区名不再单独占一格：直接写进页签标题（第一签"<工作区名> 终端"，多签加序号）。
                 Box(modifier = Modifier.weight(1f)) {
                     if (selectedTab != null) {
                         SecondaryScrollableTabRow(
@@ -222,7 +239,12 @@ private fun WorkspaceTerminalContent(
                                         R.string.workspace_terminal_tab,
                                         tab.number,
                                     )
-                                val tabTitle = tab.title?.takeIf { it.isNotBlank() } ?: tabDescription
+                                // 页签标题显示工作区名：第一签"<工作区名> 终端"，多签加序号"<工作区名> 终端 2"；
+                                // 工作区名未加载时回落到 shell 标题或"终端 N"。
+                                val tabTitle = workspaceName?.takeIf { it.isNotBlank() }?.let { name ->
+                                    val terminalWord = stringResource(R.string.workspace_terminal_title)
+                                    if (tab.number > 1) "$name $terminalWord ${tab.number}" else "$name $terminalWord"
+                                } ?: tab.title?.takeIf { it.isNotBlank() } ?: tabDescription
                                 val isSelected = selectedTab.id == tab.id
                                 Tab(
                                     selected = isSelected,
@@ -292,6 +314,23 @@ private fun WorkspaceTerminalContent(
                     }
                 }
                 val newTabDescription = stringResource(R.string.workspace_terminal_new_tab)
+                // 查找输出开关：只在有页签时可用。
+                val searchHint = stringResource(R.string.workspace_terminal_search_hint)
+                IconButton(
+                    onClick = { searchVisible = !searchVisible },
+                    enabled = selectedTab != null,
+                    modifier =
+                        Modifier
+                            .size(44.dp)
+                            .semantics { contentDescription = searchHint },
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Search01,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                        tint = if (searchVisible) MaterialTheme.colorScheme.primary else LocalContentColor.current,
+                    )
+                }
                 IconButton(
                     onClick = onCreateTab,
                     // 未装 rootfs 时新建标签是静默失败（createTab 里准备失败就直接回 NotInstalled），
@@ -308,6 +347,76 @@ private fun WorkspaceTerminalContent(
                         contentDescription = null,
                         modifier = Modifier.size(20.dp),
                     )
+                }
+            }
+            // 查找栏：输入即搜，上下翻在匹配间跳转（循环），关掉即清空。
+            if (searchVisible && selectedTab != null) {
+                Row(
+                    modifier =
+                        Modifier
+                            .fillMaxWidth()
+                            .background(MaterialTheme.colorScheme.surfaceContainerLow)
+                            .padding(horizontal = 8.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { newQuery ->
+                            searchQuery = newQuery
+                            refreshSearchMatches()
+                        },
+                        placeholder = { Text(stringResource(R.string.workspace_terminal_search_hint)) },
+                        singleLine = true,
+                        modifier = Modifier.weight(1f),
+                    )
+                    if (searchQuery.isNotBlank()) {
+                        Text(
+                            text = if (searchMatches.isEmpty()) {
+                                "0/0"
+                            } else {
+                                "${searchIndex + 1}/${searchMatches.size}"
+                            },
+                            style = MaterialTheme.typography.labelMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    IconButton(
+                        onClick = { stepSearchMatch(-1) },
+                        enabled = searchMatches.isNotEmpty(),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.ArrowUp01,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    IconButton(
+                        onClick = { stepSearchMatch(1) },
+                        enabled = searchMatches.isNotEmpty(),
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.ArrowDown01,
+                            contentDescription = null,
+                            modifier = Modifier.size(20.dp),
+                        )
+                    }
+                    IconButton(
+                        onClick = {
+                            searchVisible = false
+                            searchQuery = ""
+                            searchMatches = emptyList()
+                        },
+                        modifier = Modifier.size(40.dp),
+                    ) {
+                        Icon(
+                            imageVector = HugeIcons.Cancel01,
+                            contentDescription = null,
+                            modifier = Modifier.size(18.dp),
+                        )
+                    }
                 }
             }
             HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
@@ -522,4 +631,30 @@ private fun TerminalExtraKey(
 private fun TerminalSession.writeText(text: String) {
     val bytes = text.toByteArray()
     write(bytes, 0, bytes.size)
+}
+
+/**
+ * 在终端回滚记录 + 当前屏里找 query（忽略大小写），返回匹配行的绝对行号（从上到下）：
+ * 负数 = 回滚区，0..屏高 = 当前屏。读整段文本按行切（不拼折行，行号才对得上），
+ * 回滚上限 2000 行，一次全扫在毫秒级。
+ */
+private fun findTerminalMatches(tab: WorkspaceTerminalTab, query: String): List<Int> {
+    if (query.isBlank()) return emptyList()
+    val screen = runCatching { tab.session.emulator.screen }.getOrNull() ?: return emptyList()
+    val transcriptRows = screen.activeTranscriptRows
+    val screenRows = screen.activeRows - transcriptRows
+    val text = runCatching {
+        screen.getSelectedText(0, -transcriptRows, Int.MAX_VALUE, screenRows, false)
+    }.getOrNull() ?: return emptyList()
+    val needle = query.lowercase()
+    return text.split("\n").mapIndexedNotNull { index, line ->
+        if (line.lowercase().contains(needle)) -transcriptRows + index else null
+    }
+}
+
+/** 把视图滚到指定绝对行：setTopRow 与回滚行号同一坐标系（负数 = 回滚区，0 = 当前屏底）。 */
+private fun jumpToTerminalMatch(tab: WorkspaceTerminalTab, row: Int) {
+    val view = tab.client.terminalView ?: return
+    val transcriptRows = runCatching { tab.session.emulator.screen.activeTranscriptRows }.getOrNull() ?: 0
+    view.setTopRow(row.coerceIn(-transcriptRows, 0))
 }

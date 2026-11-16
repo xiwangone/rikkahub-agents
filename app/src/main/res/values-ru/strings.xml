@@ -1940,6 +1940,7 @@
   <string name="workspace_terminal_loading">Загрузка рабочего пространства…</string>
   <string name="workspace_terminal_exited">Терминал завершен</string>
   <string name="workspace_terminal_tab">Терминал %1$d</string>
+  <string name="workspace_terminal_search_hint">Поиск по выводу</string>
   <string name="workspace_terminal_new_tab">Новая вкладка терминала</string>
   <string name="workspace_terminal_close_tab">Закрыть терминал %1$d</string>
   <string name="workspace_terminal_no_tabs">Нет открытых вкладок терминала</string>

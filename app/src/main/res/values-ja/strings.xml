@@ -1945,6 +1945,7 @@
   <string name="workspace_terminal_loading">ワークスペース読み込み中…</string>
   <string name="workspace_terminal_exited">ターミナル終了</string>
   <string name="workspace_terminal_tab">ターミナル %1$d</string>
+  <string name="workspace_terminal_search_hint">出力を検索</string>
   <string name="workspace_terminal_new_tab">新しいターミナルタブ</string>
   <string name="workspace_terminal_close_tab">ターミナル %1$d を閉じる</string>
   <string name="workspace_terminal_no_tabs">開いているターミナルタブはありません</string>
