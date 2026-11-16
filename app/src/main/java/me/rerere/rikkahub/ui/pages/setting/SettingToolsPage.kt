@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.pages.setting.termux.SettingTermuxViewModel
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingToolsPage(
@@ -70,11 +70,11 @@ fun SettingToolsPage(
     var budgetDraft by remember(currentBudgetMinutes) {
         mutableStateOf(currentBudgetMinutes.toString())
     }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_tools)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

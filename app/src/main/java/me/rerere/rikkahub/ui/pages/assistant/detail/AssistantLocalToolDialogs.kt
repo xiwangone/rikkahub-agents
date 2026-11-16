@@ -125,6 +125,7 @@ internal fun AssistantLocalToolDialogs(
             text = {
                 Column(
                     modifier = Modifier
+                        .heightIn(max = 340.dp)
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -137,7 +138,7 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp)
+                                .heightIn(min = 88.dp, max = 160.dp)
                                 .verticalScroll(rememberScrollState()),
                         maxLines = 4,
                     )
@@ -174,6 +175,7 @@ internal fun AssistantLocalToolDialogs(
             text = {
                 Column(
                     modifier = Modifier
+                        .heightIn(max = 340.dp)
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -186,7 +188,7 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp)
+                                .heightIn(min = 88.dp, max = 160.dp)
                                 .verticalScroll(rememberScrollState()),
                         maxLines = 4,
                     )
@@ -223,6 +225,7 @@ internal fun AssistantLocalToolDialogs(
             text = {
                 Column(
                     modifier = Modifier
+                        .heightIn(max = 340.dp)
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -235,7 +238,7 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 100.dp)
+                                .heightIn(min = 80.dp, max = 140.dp)
                                 .verticalScroll(rememberScrollState()),
                         maxLines = 4,
                     )
@@ -247,7 +250,7 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 80.dp)
+                                .heightIn(min = 68.dp, max = 128.dp)
                                 .verticalScroll(rememberScrollState()),
                         maxLines = 4,
                     )
@@ -304,6 +307,7 @@ internal fun AssistantLocalToolDialogs(
             text = {
                 Column(
                     modifier = Modifier
+                        .heightIn(max = 340.dp)
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -316,7 +320,7 @@ internal fun AssistantLocalToolDialogs(
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .heightIn(min = 120.dp)
+                                .heightIn(min = 88.dp, max = 160.dp)
                                 .verticalScroll(rememberScrollState()),
                         maxLines = 4,
                     )

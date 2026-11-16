@@ -227,7 +227,6 @@ data class Settings(
     /** 记住的备份加密口令（AndroidKeyStore AES-GCM 密文，非明文）。空 = 未设置/未记住。 */
     val backupEncryptionPasswordEnc: String = "",
     val launchCount: Int = 0,
-    val sponsorAlertDismissedAt: Int = 0,
 ) {
     /**
      * 当前生效的 WebDAV 配置：

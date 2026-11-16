@@ -424,7 +424,7 @@ private fun SubAgentProfileEditSheet(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .fillMaxHeight(0.9f)
+                .fillMaxHeight(0.75f)
                 .padding(16.dp)
                 .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),

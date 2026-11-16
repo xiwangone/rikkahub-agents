@@ -68,7 +68,6 @@
   <string name="about_page_system">System</string>
   <string name="about_page_title">About</string>
   <string name="about_page_version">Version</string>
-  <string name="about_page_website">RikkaHub website</string>
   <string name="add">Add</string>
   <string name="app_name">Yao</string>
   <string name="asr_button_content_description">Speech Recognition</string>
@@ -1160,8 +1159,6 @@
   <string name="setting_page_preferences_ui_desc">Message display, fonts, code blocks</string>
   <string name="setting_page_documentation">RikkaHub docs</string>
   <string name="setting_page_documentation_desc">View app usage instructions and help documentation</string>
-  <string name="setting_page_donate">Donate</string>
-  <string name="setting_page_donate_desc">If you like it, sponsor the author\'s work</string>
   <string name="setting_page_dynamic_color">Dynamic Color</string>
   <string name="setting_page_dynamic_color_desc">Generate the app theme colors dynamically from your wallpaper</string>
   <string name="setting_page_extensions">Extensions</string>
@@ -2198,7 +2195,6 @@
   <string name="ocr_status_local_recognizing">Recognizing image locally…</string>
   <string name="ocr_status_ai_recognizing">Recognizing image with AI…</string>
   <string name="share_sheet_title">Share your LLM models</string>
-  <string name="setting_provider_page_discount_badge">10% off</string>
   <string name="chat_select_model_first">Please select a model first</string>
   <string name="image_preview_saving">Saving…</string>
   <string name="image_preview_saved">Image saved</string>
@@ -3056,8 +3052,6 @@
   <string name="debug_refresh">Refresh</string>
   <string name="debug_create_huge">Create huge conversation (30MB)</string>
   <string name="debug_create_1024">Create a chat with 1024 messages</string>
-  <string name="about_official">Official (RikkaHub)</string>
-  <string name="about_extv_fork">Original fork (ExTV)</string>
   <string name="about_ai_maintained">This repo (AI-maintained)</string>
   <string name="mcp_oauth_authorize">Authorize OAuth</string>
   <string name="mcp_oauth_cancel">Cancel authorization</string>
@@ -4321,16 +4315,11 @@
   <string name="log_page_clip_label">Yao App Log</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">Get the current date and time.</string>
-    <string name="copied_to_clipboard">Copied to clipboard</string>
     <string name="setting_media_page_asset_storage">Asset Storage</string>
     <string name="setting_page_media_desc">Configure image and video generation services</string>
     <string name="search_picker_off">Off</string>
     <string name="search_picker_status_off">Off</string>
     <string name="search_picker_off_description">Turn off web search</string>
-    <string name="setting_page_qq_group_1">RikkaHub Group 1</string>
-    <string name="setting_page_qq_group_2">RikkaHub Group 2</string>
-    <string name="setting_page_qq_group_3">RikkaHub Group 3</string>
-    <string name="setting_page_douyin_group_1">Douyin Group 1</string>
   <string name="setting_page_preferences_network_dns_title">App-independent DNS</string>
   <string name="setting_page_preferences_network_dns_desc">Bypass system DNS hijacking via DoH, DoT, or direct custom DNS</string>
   <string name="setting_page_preferences_network_dns_mode_system">Follow system DNS</string>

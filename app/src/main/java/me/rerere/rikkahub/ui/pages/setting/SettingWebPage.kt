@@ -10,7 +10,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -38,6 +37,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.rikkahub.web.WebServerManager
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 /**
  * Web 设置二级入口页（Material 3 Expressive 分组卡片样式）。
@@ -49,12 +49,12 @@ fun SettingWebPage() {
     val webBridge: BackendWebBridge = koinInject()
     val serverState by webServerManager.state.collectAsStateWithLifecycle()
     val bridgeState by webBridge.state.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val navController = LocalNavController.current
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_web_capability)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

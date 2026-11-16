@@ -18,7 +18,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -74,6 +73,7 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 import java.io.BufferedReader
 import java.io.InputStreamReader
+import androidx.compose.material3.TopAppBar
 
 /**
  * 安全凭证库（二级设置页，Material 3 Expressive 分组卡片样式）。
@@ -86,7 +86,7 @@ fun VaultPage() {
     val vaultPreferences: VaultPreferences = koinInject()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val passwordRequiredStr = stringResource(R.string.vault_export_password_required)
 
     // null 表示首次加载中：先显示“计算中…”，而不是先闪一个假的 0。
@@ -370,7 +370,7 @@ fun VaultPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_vault_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

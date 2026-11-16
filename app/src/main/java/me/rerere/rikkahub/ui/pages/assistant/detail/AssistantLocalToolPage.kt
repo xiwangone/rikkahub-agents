@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -57,6 +56,7 @@ import me.rerere.rikkahub.utils.openUsageAccessSettings
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
+import androidx.compose.material3.TopAppBar
 
 /**
  * 助手本地工具权限装配页：本地与工作区工具开关、批量权限授权与过滤。
@@ -73,7 +73,7 @@ fun AssistantLocalToolPage(id: String) {
         )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val sourceAssistants =
         remember(settings.assistants, id) {
             settings.assistants.filter { it.id.toString() != id }
@@ -81,7 +81,7 @@ fun AssistantLocalToolPage(id: String) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.assistant_page_tab_local_tools))
                 },

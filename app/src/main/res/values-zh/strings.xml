@@ -68,7 +68,6 @@
   <string name="about_page_system">系统</string>
   <string name="about_page_title">关于</string>
   <string name="about_page_version">版本</string>
-  <string name="about_page_website">RikkaHub 官网</string>
   <string name="add">添加</string>
   <string name="app_name">Yao</string>
   <string name="asr_button_content_description">语音识别</string>
@@ -1121,8 +1120,6 @@
   <string name="setting_page_display_setting_desc">管理显示设置</string>
   <string name="setting_page_documentation">RikkaHub 文档</string>
   <string name="setting_page_documentation_desc">查看应用使用说明和帮助文档</string>
-  <string name="setting_page_donate">赞助</string>
-  <string name="setting_page_donate_desc">如果你喜欢这个应用，请赞助作者的工作</string>
   <string name="setting_page_dynamic_color">动态颜色</string>
   <string name="setting_page_dynamic_color_desc">是否基于壁纸动态生成 app 主题配色</string>
   <string name="setting_page_extensions">扩展管理</string>
@@ -2085,7 +2082,6 @@
   <string name="setting_provider_delete_cancel">取消</string>
   <string name="setting_provider_delete_confirm">移除</string>
   <string name="setting_provider_delete_title">移除服务商？</string>
-  <string name="setting_provider_page_discount_badge">10% 优惠</string>
   <string name="share_sheet_title">分享你的大模型</string>
   <string name="skill_catalog_install">安装</string>
   <string name="skill_catalog_install_failed">安装失败：%s</string>
@@ -3063,8 +3059,6 @@
   <string name="debug_refresh">刷新</string>
   <string name="debug_create_huge">创建超大对话 (30MB)</string>
   <string name="debug_create_1024">创建 1024 个消息的聊天</string>
-  <string name="about_official">官方（RikkaHub）</string>
-  <string name="about_extv_fork">原版 Fork（ExTV）</string>
   <string name="about_ai_maintained">本仓库（AI 维护版）</string>
   <string name="mcp_oauth_authorize">OAuth 授权</string>
   <string name="mcp_oauth_cancel">取消授权</string>
@@ -4321,16 +4315,11 @@
   <string name="log_page_clip_label">Yao 应用日志</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">获取当前日期与时间。</string>
-    <string name="copied_to_clipboard">已复制到剪贴板</string>
     <string name="setting_media_page_asset_storage">素材存储</string>
     <string name="setting_page_media_desc">配置图片与视频生成服务</string>
     <string name="search_picker_off">关闭</string>
     <string name="search_picker_status_off">已关闭</string>
     <string name="search_picker_off_description">不使用联网搜索</string>
-    <string name="setting_page_qq_group_1">RikkaHub 一群</string>
-    <string name="setting_page_qq_group_2">RikkaHub 二群</string>
-    <string name="setting_page_qq_group_3">RikkaHub 三群</string>
-    <string name="setting_page_douyin_group_1">抖音一群</string>
   <string name="setting_page_preferences_network_dns_title">应用内独立 DNS</string>
   <string name="setting_page_preferences_network_dns_desc">支持 DoH、DoT 与自定义直连 DNS，配合引导 IP 绕开手机系统 DNS 劫持</string>
   <string name="setting_page_preferences_network_dns_mode_system">跟随系统 DNS</string>

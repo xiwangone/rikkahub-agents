@@ -218,7 +218,7 @@ private fun AssistantPickerSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.72f)
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {

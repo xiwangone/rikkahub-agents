@@ -30,7 +30,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItem
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -82,6 +81,7 @@ import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import org.koin.androidx.compose.koinViewModel
 import kotlin.uuid.Uuid
+import androidx.compose.material3.TopAppBar
 
 private val themeJson =
     Json {
@@ -93,7 +93,7 @@ private val themeJson =
 @Composable
 fun SettingThemePage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val clipboardManager = LocalClipboard.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
@@ -107,7 +107,7 @@ fun SettingThemePage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_theme_setting)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

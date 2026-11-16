@@ -459,7 +459,7 @@ fun S3Tab(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.8f)
+                        .fillMaxHeight(0.72f)
                         .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,

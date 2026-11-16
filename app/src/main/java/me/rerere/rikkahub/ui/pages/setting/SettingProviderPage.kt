@@ -398,7 +398,7 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
             },
             text = {
                 Column(
-                    verticalArrangement = Arrangement.spacedBy(24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
                 ) {
                     Text(
                         text = stringResource(R.string.setting_provider_page_import_dialog_message),
@@ -408,7 +408,7 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
 
                     Column(
                         modifier = Modifier.fillMaxWidth(),
-                        verticalArrangement = Arrangement.spacedBy(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(10.dp),
                     ) {
                         // 主要操作：扫描二维码
                         Button(
@@ -419,7 +419,7 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(56.dp),
+                                    .height(44.dp),
                             shape = MaterialTheme.shapes.large,
                         ) {
                             Row(
@@ -453,7 +453,7 @@ private fun ImportProviderButton(onAdd: (ProviderSetting) -> Unit) {
                             modifier =
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(56.dp),
+                                    .height(44.dp),
                             shape = MaterialTheme.shapes.large,
                         ) {
                             Row(
@@ -671,13 +671,13 @@ private fun ProviderItem(
             },
     ) {
         Row(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             AutoAIIcon(
                 name = provider.name,
-                modifier = Modifier.size(40.dp),
+                modifier = Modifier.size(36.dp),
             )
             Column(
                 modifier = Modifier.weight(1f),
@@ -712,11 +712,6 @@ private fun ProviderItem(
                                 provider.models.size,
                             ),
                         )
-                    }
-                    if (provider.name == "AiHubMix") {
-                        Tag(type = TagType.INFO) {
-                            Text(stringResource(R.string.setting_provider_page_discount_badge))
-                        }
                     }
                     ProviderRequirement.from(provider).forEach { req ->
                         Tag(type = req.severity) {

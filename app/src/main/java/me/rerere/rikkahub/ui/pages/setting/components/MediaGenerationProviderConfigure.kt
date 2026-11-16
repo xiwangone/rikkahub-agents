@@ -404,7 +404,7 @@ private fun MediaModelPickerSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.9f)
+                    .fillMaxHeight(0.75f)
                     .padding(8.dp)
                     .imePadding(),
             verticalArrangement = Arrangement.spacedBy(4.dp),

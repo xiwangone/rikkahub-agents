@@ -393,7 +393,7 @@ internal fun StoreSourcesSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.9f)
+                    .fillMaxHeight(0.75f)
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

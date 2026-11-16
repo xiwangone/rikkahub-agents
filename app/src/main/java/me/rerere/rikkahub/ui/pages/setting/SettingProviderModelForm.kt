@@ -381,7 +381,7 @@ internal fun AddModelButton(
                     modifier =
                         Modifier
                             .fillMaxWidth()
-                            .fillMaxHeight(0.95f)
+                            .fillMaxHeight(0.78f)
                             .padding(16.dp)
                             .imePadding(),
                     verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -465,7 +465,7 @@ internal fun ModelPicker(
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.9f)
+                        .fillMaxHeight(0.75f)
                         .padding(8.dp)
                         .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(4.dp),

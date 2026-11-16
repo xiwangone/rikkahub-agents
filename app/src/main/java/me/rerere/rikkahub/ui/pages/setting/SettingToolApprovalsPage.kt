@@ -14,7 +14,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Switch
@@ -52,6 +51,7 @@ import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 /**
  * Lists every tool the user has granted "Always Allow" to (across the whole app, persistent
@@ -75,7 +75,7 @@ fun SettingToolApprovalsPage() {
         initialValue = settingsStore.settingsFlow.value,
     )
     val mcpServerEnabled = settings.localMcpServerEnabled
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
 
     var pendingYoloEnable by remember { mutableStateOf(false) }
@@ -144,7 +144,7 @@ fun SettingToolApprovalsPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_tool_approvals)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

@@ -41,7 +41,6 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Code
-import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Github
 import me.rerere.hugeicons.stroke.SmartPhone01
@@ -120,14 +119,14 @@ fun SettingAboutPage() {
                         modifier =
                             Modifier
                                 .fillMaxWidth()
-                                .padding(start = 8.dp, end = 8.dp, bottom = 12.dp),
+                                .padding(start = 8.dp, end = 8.dp, bottom = 6.dp),
                         horizontalAlignment = Alignment.CenterHorizontally,
-                        verticalArrangement = Arrangement.spacedBy(10.dp),
+                        verticalArrangement = Arrangement.spacedBy(6.dp),
                     ) {
                         Box(
                             modifier =
                                 Modifier
-                                    .size(116.dp)
+                                    .size(76.dp)
                                     .semantics { contentDescription = logoContentDescription }
                                     .onGloballyPositioned { coordinates ->
                                         val position = coordinates.positionInParent()
@@ -154,8 +153,8 @@ fun SettingAboutPage() {
                         Text(
                             text = stringResource(R.string.app_name),
                             style =
-                                MaterialTheme.typography.headlineLargeEmphasized.copy(
-                                    fontWeight = FontWeight.Black,
+                                MaterialTheme.typography.titleLarge.copy(
+                                    fontWeight = FontWeight.Bold,
                                 ),
                         )
                     }
@@ -200,27 +199,9 @@ fun SettingAboutPage() {
                             headlineContent = { Text(stringResource(R.string.about_ai_maintained)) },
                         )
                         item(
-                            onClick = { context.openUrl("https://rikka-ai.com/") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Earth, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://rikka-ai.com") },
-                            headlineContent = { Text(stringResource(R.string.about_page_website)) },
-                        )
-                        item(
-                            onClick = { context.openUrl("https://github.com/rikkahub/rikkahub") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/rikkahub/rikkahub") },
-                            headlineContent = { Text(stringResource(R.string.about_official)) },
-                        )
-                        item(
-                            onClick = { context.openUrl("https://github.com/ExTV/rikkahub-agent") },
-                            leadingContent = { CardGroupIcon(HugeIcons.Github, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/ExTV/rikkahub-agent") },
-                            headlineContent = { Text(stringResource(R.string.about_extv_fork)) },
-                        )
-                        item(
-                            onClick = { context.openUrl("https://github.com/rikkahub/rikkahub/blob/master/LICENSE") },
+                            onClick = { context.openUrl("https://github.com/xiwangone/rikkahub-agents/blob/master/LICENSE") },
                             leadingContent = { CardGroupIcon(HugeIcons.File02, containerColor = containerColor, contentColor = contentColor) },
-                            supportingContent = { Text("https://github.com/rikkahub/rikkahub/blob/master/LICENSE") },
+                            supportingContent = { Text("https://github.com/xiwangone/rikkahub-agents/blob/master/LICENSE") },
                             headlineContent = { Text(stringResource(R.string.about_page_license)) },
                         )
                     }

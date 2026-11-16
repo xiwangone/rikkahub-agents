@@ -51,6 +51,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import androidx.compose.foundation.layout.heightIn
 
 /**
  * 自动任务设置弹窗（Material 3 Expressive 分组卡片样式）。
@@ -109,7 +110,7 @@ fun AutoTaskDialog(
         text = {
             Column(
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+                modifier = Modifier.heightIn(max = 420.dp).verticalScroll(rememberScrollState()),
             ) {
                 Text(
                     text = stringResource(R.string.auto_task_desc),

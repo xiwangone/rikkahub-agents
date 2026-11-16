@@ -23,7 +23,6 @@ import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -59,6 +58,7 @@ import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
 import me.rerere.rikkahub.ui.components.vault.vaultGroupLabel
 import me.rerere.rikkahub.ui.components.vault.vaultTypeLabel
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 /** 按排序键给凭证列表排序（"created" 最近添加、"name" 名称、默认 "updated" 最近更新）。 */
 private fun sortVaultEntries(list: List<VaultCredentialEntity>, sortOrder: String): List<VaultCredentialEntity> =
@@ -141,10 +141,10 @@ fun VaultCredentialsPage() {
         )
     }
 
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.vault_list_title, entries.size)) },
                 navigationIcon = { BackButton() },
                 actions = {

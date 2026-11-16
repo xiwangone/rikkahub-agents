@@ -444,7 +444,7 @@ private fun AssistantCreationSheet(state: EditState<Assistant>) {
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .padding(horizontal = 16.dp, vertical = 32.dp),
+                        .padding(horizontal = 16.dp, vertical = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
                 Column(
@@ -519,8 +519,8 @@ private fun AssistantItem(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(16.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    .padding(horizontal = 14.dp, vertical = 10.dp),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             UIAvatar(
@@ -528,7 +528,7 @@ private fun AssistantItem(
                 value = assistant.avatar,
                 modifier =
                     Modifier
-                        .size(48.dp)
+                        .size(40.dp)
                         .heroAnimation("assistant_${assistant.id}"),
             )
 
@@ -608,7 +608,7 @@ private fun AssistantActionSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .padding(bottom = 32.dp),
+                    .padding(bottom = 16.dp),
         ) {
             // 助手信息头部
             Row(

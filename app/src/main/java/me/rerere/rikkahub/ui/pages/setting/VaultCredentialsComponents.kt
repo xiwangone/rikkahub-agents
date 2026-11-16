@@ -75,6 +75,7 @@ import me.rerere.rikkahub.ui.components.vault.vaultGroupLabel
 import me.rerere.rikkahub.ui.components.vault.vaultTypeLabel
 import me.rerere.rikkahub.ui.components.ui.Select
 import org.koin.compose.koinInject
+import androidx.compose.foundation.layout.heightIn
 
 /** 编辑器模式：新建 or 编辑已有 */
 sealed class EditorMode {
@@ -406,6 +407,7 @@ internal fun CredentialEditorDialog(
                 verticalArrangement = Arrangement.spacedBy(8.dp),
                 modifier = Modifier
                     .fillMaxWidth()
+                    .heightIn(max = 420.dp)
                     .verticalScroll(rememberScrollState())
                     .imePadding(),
             ) {
@@ -435,8 +437,8 @@ internal fun CredentialEditorDialog(
                 TextArea(
                     state = valueState,
                     label = if (isEdit) stringResource(R.string.vault_editor_value_edit_label) else stringResource(R.string.vault_editor_value_label),
-                    minLines = 5,
-                    maxLines = 10,
+                    minLines = 3,
+                    maxLines = 6,
                     isError = valueError,
                     modifier = Modifier.then(rememberBringIntoViewModifier()),
                 )

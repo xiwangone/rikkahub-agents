@@ -5,7 +5,6 @@
   <string name="about_page_system">Система</string>
   <string name="about_page_title">О приложении</string>
   <string name="about_page_version">Версия</string>
-  <string name="about_page_website">Сайт RikkaHub</string>
   <string name="add">Добавить</string>
   <string name="app_name">Yao</string>
   <string name="asr_button_content_description">Распознавание речи</string>
@@ -931,8 +930,6 @@
   <string name="setting_page_display_setting_desc">Управление настройками отображения</string>
   <string name="setting_page_documentation">Документация RikkaHub</string>
   <string name="setting_page_documentation_desc">Просмотрите инструкции по использованию приложения и справочную документацию</string>
-  <string name="setting_page_donate">Поддержать</string>
-  <string name="setting_page_donate_desc">Если вам нравится, поддержите автора</string>
   <string name="setting_page_dynamic_color">Динамический цвет</string>
   <string name="setting_page_dynamic_color_desc">Динамически создавать цвета темы приложения на основе обоев</string>
   <string name="setting_page_extensions">Расширения</string>
@@ -1790,7 +1787,6 @@
   <string name="setting_provider_delete_cancel">Отмена</string>
   <string name="setting_provider_delete_confirm">Удалить</string>
   <string name="setting_provider_delete_title">Удалить провайдера?</string>
-  <string name="setting_provider_page_discount_badge">скидка 10%</string>
   <string name="share_sheet_title">Поделиться вашими моделями LLM</string>
   <string name="skill_catalog_install">Установить</string>
   <string name="skill_catalog_install_failed">Ошибка установки: %s</string>
@@ -2550,8 +2546,6 @@
   <string name="debug_refresh">Обновить</string>
   <string name="debug_create_huge">Создать огромный диалог (30 МБ)</string>
   <string name="debug_create_1024">Создать чат из 1024 сообщений</string>
-  <string name="about_official">Официальный (RikkaHub)</string>
-  <string name="about_extv_fork">Оригинальный форк (ExTV)</string>
   <string name="about_ai_maintained">Этот репозиторий (версия с поддержкой ИИ)</string>
   <string name="mcp_oauth_authorize">Авторизация OAuth</string>
   <string name="mcp_oauth_cancel">Отменить авторизацию</string>
@@ -4238,16 +4232,11 @@
   <string name="log_page_clip_label">Журнал приложения Yao</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">Получить текущую дату и время.</string>
-    <string name="copied_to_clipboard">Скопировано в буфер обмена</string>
     <string name="setting_media_page_asset_storage">Хранилище медиафайлов</string>
     <string name="setting_page_media_desc">Настройка сервисов генерации изображений и видео</string>
     <string name="search_picker_off">Выкл.</string>
     <string name="search_picker_status_off">Выключено</string>
     <string name="search_picker_off_description">Не использовать веб-поиск</string>
-    <string name="setting_page_qq_group_1">Группа RikkaHub 1</string>
-    <string name="setting_page_qq_group_2">Группа RikkaHub 2</string>
-    <string name="setting_page_qq_group_3">Группа RikkaHub 3</string>
-    <string name="setting_page_douyin_group_1">Группа Douyin 1</string>
   <string name="setting_page_preferences_network_dns_title">Независимый DNS в приложении</string>
   <string name="setting_page_preferences_network_dns_desc">Обход перехвата системного DNS через DoH, DoT или прямой пользовательский DNS</string>
   <string name="setting_page_preferences_network_dns_mode_system">Системный DNS</string>

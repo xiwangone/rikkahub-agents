@@ -47,7 +47,7 @@ internal fun McpServerConfigModal(state: EditState<McpServerConfig>) {
                 modifier =
                     Modifier
                         .fillMaxWidth()
-                        .fillMaxHeight(0.9f)
+                        .fillMaxHeight(0.75f)
                         .padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {

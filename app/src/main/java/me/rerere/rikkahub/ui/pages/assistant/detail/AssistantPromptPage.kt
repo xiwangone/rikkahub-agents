@@ -23,7 +23,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.LocalTextStyle
 import androidx.compose.material3.MaterialTheme
@@ -104,6 +103,7 @@ import org.koin.compose.koinInject
 import org.koin.core.parameter.parametersOf
 import sh.calvin.reorderable.ReorderableColumn
 import kotlin.uuid.Uuid
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun AssistantPromptPage(id: String) {
@@ -115,11 +115,11 @@ fun AssistantPromptPage(id: String) {
         )
     val assistant by vm.assistant.collectAsStateWithLifecycle()
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.assistant_page_tab_prompt))
                 },

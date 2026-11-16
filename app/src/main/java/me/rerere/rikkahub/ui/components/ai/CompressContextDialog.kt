@@ -46,6 +46,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Remove01
 import me.rerere.rikkahub.ui.components.ui.RabbitLoadingIndicator
 import me.rerere.rikkahub.ui.context.LocalToaster
+import androidx.compose.foundation.layout.heightIn
 
 /**
  * 聚焦时把字段滚进可视范围（键盘弹出后不被遮挡）。
@@ -101,6 +102,7 @@ fun CompressContextDialog(
         text = {
             Column(
                 modifier = Modifier
+                    .heightIn(max = 380.dp)
                     .verticalScroll(rememberScrollState())
                     .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),

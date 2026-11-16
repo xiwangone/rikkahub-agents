@@ -388,7 +388,7 @@ fun ModelListSheet(
             modifier =
                 Modifier
                     .padding(8.dp)
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.72f)
                     .imePadding(),
             verticalArrangement = Arrangement.spacedBy(4.dp),
         ) {

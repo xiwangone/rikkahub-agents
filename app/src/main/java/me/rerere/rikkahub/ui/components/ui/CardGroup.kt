@@ -47,14 +47,14 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEachIndexed
 import me.rerere.rikkahub.ui.theme.CustomColors
 
-private val CardGroupCorner = 20.dp
+private val CardGroupCorner = 16.dp
 private val CardGroupItemSpacing = 2.dp
 private val CardGroupInnerCorner = 4.dp
 private val CardGroupTitleHorizontalInset = 4.dp
-private val CardGroupTitleVerticalInset = 8.dp
+private val CardGroupTitleVerticalInset = 6.dp
 private val CardGroupPreviewHorizontalInset = 16.dp
-private val DefaultCardGroupIconContainerSize = 34.dp
-private val DefaultCardGroupIconGlyphSize = 18.dp
+private val DefaultCardGroupIconContainerSize = 32.dp
+private val DefaultCardGroupIconGlyphSize = 16.dp
 
 @PublishedApi
 internal data class CardGroupItem(
@@ -242,8 +242,8 @@ private fun CardGroupFormItem(
         color = CustomColors.listItemColors.containerColor,
     ) {
         Column(
-            modifier = Modifier.padding(horizontal = 16.dp, vertical = 12.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+            modifier = Modifier.padding(horizontal = 14.dp, vertical = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             if (item.headlineContent != null || item.leadingContent != null || item.trailingContent != null) {
                 Row(

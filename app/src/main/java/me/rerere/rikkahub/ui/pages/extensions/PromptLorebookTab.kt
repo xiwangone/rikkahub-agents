@@ -410,7 +410,7 @@ private fun LorebookEditSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.95f)
+                    .fillMaxHeight(0.78f)
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

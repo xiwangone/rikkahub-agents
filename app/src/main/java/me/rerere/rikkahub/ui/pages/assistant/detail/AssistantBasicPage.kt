@@ -14,7 +14,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -61,6 +60,7 @@ import org.koin.core.parameter.parametersOf
 import kotlin.math.roundToInt
 import kotlin.uuid.Uuid
 import me.rerere.rikkahub.data.model.Tag as DataTag
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun AssistantBasicPage(id: String) {
@@ -74,11 +74,11 @@ fun AssistantBasicPage(id: String) {
     val providers by vm.providers.collectAsStateWithLifecycle()
     val tags by vm.tags.collectAsStateWithLifecycle()
     val workspaces by vm.workspaces.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.assistant_page_tab_basic))
                 },
@@ -155,7 +155,7 @@ internal fun AssistantBasicContent(
                 },
                 modifier =
                     Modifier
-                        .size(96.dp)
+                        .size(64.dp)
                         .heroAnimation("assistant_${assistant.id}"),
             )
         }

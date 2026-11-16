@@ -198,7 +198,7 @@ private fun AssistantHeader(
     Column(
         modifier = modifier.fillMaxWidth(),
         horizontalAlignment = Alignment.CenterHorizontally,
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         UIAvatar(
             value = assistant.avatar,
@@ -207,19 +207,19 @@ private fun AssistantHeader(
             onUpdate = null,
             modifier =
                 Modifier
-                    .size(108.dp)
+                    .size(72.dp)
                     .heroAnimation("assistant_${assistant.id}"),
         )
 
         Text(
             text = name,
-            autoSize = TextAutoSize.StepBased(minFontSize = 20.sp, maxFontSize = 28.sp),
+            autoSize = TextAutoSize.StepBased(minFontSize = 18.sp, maxFontSize = 22.sp),
             maxLines = 2,
             overflow = TextOverflow.Ellipsis,
             textAlign = TextAlign.Center,
             style =
-                MaterialTheme.typography.headlineLargeEmphasized.copy(
-                    fontWeight = FontWeight.Black,
+                MaterialTheme.typography.titleLarge.copy(
+                    fontWeight = FontWeight.Bold,
                     lineHeight = 1.2.em,
                     lineBreak = LineBreak.Heading,
                 ),
@@ -258,7 +258,7 @@ private fun HeaderChip(text: String) {
     ) {
         Text(
             text = text,
-            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
+            modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
             style = MaterialTheme.typography.labelLarge,
             maxLines = 1,
             overflow = TextOverflow.Ellipsis,

@@ -73,7 +73,6 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SELECTED_TTS_PR
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SELECT_ASSISTANT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SELECT_MODEL
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SETTING_SHORTCUT_IDS
-import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SPONSOR_ALERT_DISMISSED_AT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SSH_HOST_PROBE
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SUB_AGENTS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.SUB_AGENT_DEFAULT_WORKSPACE
@@ -518,7 +517,6 @@ internal suspend fun persistSettingsTo(
         preferences[BACKUP_ENCRYPTION_ENABLED] = settings.backupEncryptionEnabled
         preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] = settings.backupEncryptionPasswordEnc
         preferences[LAUNCH_COUNT] = settings.launchCount
-        preferences[SPONSOR_ALERT_DISMISSED_AT] = settings.sponsorAlertDismissedAt
         preferences[EXECUTION_BACKEND] = settings.executionBackend
         preferences.putJsonIfChanged(
             BACKEND_CONNECTIONS,

@@ -5,7 +5,6 @@
   <string name="about_page_system">النظام</string>
   <string name="about_page_title">حول</string>
   <string name="about_page_version">الإصدار</string>
-  <string name="about_page_website">موقع RikkaHub</string>
   <string name="add">إضافة</string>
   <string name="app_name">Yao</string>
   <string name="assistant_detail_basic_desc">تكوين الاسم والصورة الرمزية والنموذج والمعاملات</string>
@@ -993,8 +992,6 @@
   <string name="setting_page_display_setting_desc">إدارة إعدادات العرض</string>
   <string name="setting_page_documentation">وثائق RikkaHub</string>
   <string name="setting_page_documentation_desc">عرض تعليمات استخدام التطبيق ووثائق المساعدة</string>
-  <string name="setting_page_donate">تبرّع</string>
-  <string name="setting_page_donate_desc">إذا أعجبك، ارعَ عمل المؤلف</string>
   <string name="setting_page_dynamic_color">الألوان الديناميكية</string>
   <string name="setting_page_dynamic_color_desc">استخدام الألوان الديناميكية</string>
   <string name="setting_page_extensions">الإضافات</string>
@@ -1703,7 +1700,6 @@
   <string name="mcp_error_reconnect_exhausted">انقطع الاتصال — تم بلوغ الحد الأقصى لمحاولات إعادة الاتصال</string>
   <string name="ocr_status_recognizing">جارٍ التعرف على الصورة…</string>
   <string name="share_sheet_title">شارك نماذجك اللغوية</string>
-  <string name="setting_provider_page_discount_badge">خصم 10%</string>
   <string name="chat_select_model_first">من فضلك اختر نموذجًا أولًا</string>
   <string name="image_preview_saving">جارٍ الحفظ…</string>
   <string name="image_preview_saved">تم حفظ الصورة</string>
@@ -2104,8 +2100,6 @@
   <string name="debug_refresh">تحديث</string>
   <string name="debug_create_huge">إنشاء محادثة ضخمة (30MB)</string>
   <string name="debug_create_1024">إنشاء محادثة بـ 1024 رسالة</string>
-  <string name="about_official">الرسمي (RikkaHub)</string>
-  <string name="about_extv_fork">النسخة الأصلية (ExTV)</string>
   <string name="about_ai_maintained">هذا المستودع (نسخة بصيانة الذكاء الاصطناعي)</string>
   <string name="mcp_oauth_authorize">تفويض OAuth</string>
   <string name="mcp_oauth_cancel">إلغاء التفويض</string>
@@ -4241,16 +4235,11 @@
   <string name="log_page_clip_label">سجل تطبيق Yao</string>
   <string name="web_bridge_clip_label">web-bridge-public-key</string>
   <string name="provider_test_tool_time_desc">الحصول على التاريخ والوقت الحاليين.</string>
-    <string name="copied_to_clipboard">تم النسخ إلى الحافظة</string>
     <string name="setting_media_page_asset_storage">تخزين الوسائط</string>
     <string name="setting_page_media_desc">إعداد خدمات إنشاء الصور والفيديو</string>
     <string name="search_picker_off">إيقاف</string>
     <string name="search_picker_status_off">متوقف</string>
     <string name="search_picker_off_description">عدم استخدام البحث في الويب</string>
-    <string name="setting_page_qq_group_1">مجموعة RikkaHub 1</string>
-    <string name="setting_page_qq_group_2">مجموعة RikkaHub 2</string>
-    <string name="setting_page_qq_group_3">مجموعة RikkaHub 3</string>
-    <string name="setting_page_douyin_group_1">مجموعة Douyin 1</string>
   <string name="setting_page_preferences_network_dns_title">نظام DNS مستقل داخل التطبيق</string>
   <string name="setting_page_preferences_network_dns_desc">تجاوز اختطاف DNS للنظام عبر DoH أو DoT أو DNS المخصص المباشر</string>
   <string name="setting_page_preferences_network_dns_mode_system">اتباع DNS النظام</string>
