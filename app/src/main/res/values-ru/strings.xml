@@ -3800,13 +3800,13 @@
   <string name="usage_stats_range_all">За всё время</string>
   <string name="usage_stats_runs">Запросы</string>
   <string name="usage_stats_tokens">Токены</string>
-  <string name="usage_stats_cost">Расходы (USD)</string>
+  <string name="usage_stats_cost">Расходы</string>
   <string name="usage_stats_cost_not_reported">Не сообщается</string>
   <string name="usage_stats_by_provider_cost">Доля расходов по провайдерам</string>
   <string name="usage_stats_by_provider_tokens">Доля использования по провайдерам</string>
   <string name="usage_stats_detail">Детализация</string>
   <string name="usage_stats_empty_range">%1$s: использований пока нет. Попробуйте другой период.</string>
-  <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость учитывается только по данным провайдера, без оценок.</string>
+  <string name="usage_stats_note">Учёт по генерациям: одна генерация — одна запись. Стоимость складывается из данных провайдера и оценок по заданным ценам; без отчёта и без цены стоимость не оценивается.</string>
   <string name="diff_view_expand_all">… +%1$d строк (нажмите, чтобы развернуть все)</string>
   <string name="json_tree_more_items">… ещё %1$d элементов (нажмите, чтобы развернуть)</string>
   <string name="json_tree_truncated_string">… (нажмите, чтобы показать всё)</string>
@@ -4418,4 +4418,28 @@
   <string name="doctor_global_model_dangling">Глобальная модель по умолчанию висит</string>
   <string name="doctor_model_unresolved">Не разрешено</string>
   <string name="doctor_model_unconfigured">Не настроено</string>
+ b/app/src/main/res/values-ru/strings.xml
+  <string name="usage_pricing_title">Своя цена</string>
+  <string name="usage_pricing_desc">Цены моделей, пиковые и внепиковые тарифы, лимиты, валюта и баллы</string>
+  <string name="usage_pricing_currency_title">Валюта и баллы</string>
+  <string name="usage_pricing_currency_label">Символ валюты</string>
+  <string name="usage_pricing_points_name_label">Название баллов</string>
+  <string name="usage_pricing_points_rate_label">Баллов за единицу валюты</string>
+  <string name="usage_pricing_points_rate_hint">Если задано, баллы показываются рядом со стоимостью (например, 100 баллов за 1 доллар). Пусто — баллы скрыты.</string>
+  <string name="usage_pricing_peak_title">Пиковые и внепиковые тарифы</string>
+  <string name="usage_pricing_peak_label">Пиковые и внепиковые тарифы</string>
+  <string name="usage_pricing_peak_hint">Когда включено, в пиковое окно применяется пиковая цена, вне его — внепиковая.</string>
+  <string name="usage_pricing_peak_start_label">Начало пикового времени (час)</string>
+  <string name="usage_pricing_peak_end_label">Конец пикового времени (час)</string>
+  <string name="usage_pricing_models_title">Цены моделей</string>
+  <string name="usage_pricing_price_label">Цена за 1 млн токенов</string>
+  <string name="usage_pricing_peak_price_label">Пиковая цена</string>
+  <string name="usage_pricing_offpeak_price_label">Внепиковая цена</string>
+  <string name="usage_pricing_empty_models">Моделей пока нет — после использования модели здесь можно задать цену.</string>
+  <string name="usage_pricing_providers_title">Лимиты провайдеров</string>
+  <string name="usage_pricing_quota_label">Лимит</string>
+  <string name="usage_pricing_manual_usage_label">Использование (вручную)</string>
+  <string name="usage_pricing_empty_providers">Провайдеров пока нет.</string>
+  <string name="usage_pricing_remaining">Остаток лимита %1$s</string>
+  <string name="usage_pricing_manual_usage_display">Использование (вручную) %1$s</string>
 </resources>

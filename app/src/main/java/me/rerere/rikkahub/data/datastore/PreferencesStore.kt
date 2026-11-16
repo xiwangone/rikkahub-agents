@@ -264,6 +264,9 @@ class SettingsStore(
         // 统计
         val LAUNCH_COUNT = intPreferencesKey("launch_count")
 
+        // 用量统计的自定义价格（JSON：UsagePricingSettings）
+        val USAGE_PRICING = stringPreferencesKey("usage_pricing")
+
         internal suspend fun writeColdSettings(context: Context, settings: Settings, stagedFile: File) {
             require(!settings.init) { "Cannot stage uninitialized settings" }
             stagedFile.parentFile?.let { check(it.isDirectory || it.mkdirs()) }
@@ -463,6 +466,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
                 backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
                 backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",
                 launchCount = preferences[LAUNCH_COUNT] ?: 0,
+                usagePricing = decodePrefOrDefault(preferences[USAGE_PRICING], UsagePricingSettings()),
             )
         }
         .map {

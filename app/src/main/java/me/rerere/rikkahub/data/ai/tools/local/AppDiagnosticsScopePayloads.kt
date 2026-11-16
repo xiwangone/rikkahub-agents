@@ -117,6 +117,7 @@ internal fun runsPayload(
                 },
             )
             put("totalCost", state.totalCost)
+            put("totalEstimatedCost", state.totalEstimatedCost)
             put(
                 "byProviderModel",
                 buildJsonArray {
@@ -130,9 +131,11 @@ internal fun runsPayload(
                                 put("promptTokens", stats.promptTokens)
                                 put("completionTokens", stats.completionTokens)
                                 put("cachedTokens", stats.cachedTokens)
-                                // 费用只含上报部分；costReportedRuns=0 表示该组合费用"未上报"，不估算
+                                // cost 只含上报部分；estimatedCost 是按自填价估算的部分
                                 put("cost", stats.cost)
                                 put("costReportedRuns", stats.costReportedRuns)
+                                put("estimatedCost", stats.estimatedCost)
+                                put("estimatedCostRuns", stats.estimatedCostRuns)
                             },
                         )
                     }

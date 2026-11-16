@@ -548,6 +548,19 @@ class GenerationLoop(
                     )
                 // provider 只解析一次：id 沿用旧口径，快照 key/name 供历史展示（provider 改名/删除后仍可读）
                 val resolvedProvider = runCatching { model.findProvider(settings.providers) }.getOrNull()
+                // provider 未上报费用时按自填价估算（有价格才估算；无价格仍记 null，展示为"未上报"）
+                val estimatedCost =
+                    if (runCtx.costReported) {
+                        null
+                    } else {
+                        settings.usagePricing.estimateCost(
+                            providerKey = resolvedProvider?.providerKey,
+                            modelId = model.id.toString(),
+                            promptTokens = runCtx.promptTokens.toLong(),
+                            completionTokens = runCtx.completionTokens.toLong(),
+                            ts = System.currentTimeMillis(),
+                        )
+                    }
                 GenerationRunTracker.record(
                     context = context,
                     run =
@@ -573,8 +586,9 @@ class GenerationLoop(
                             promptTokens = runCtx.promptTokens.toLong(),
                             completionTokens = runCtx.completionTokens.toLong(),
                             cachedTokens = runCtx.cachedTokens.toLong(),
-                            // 未上报费用的 provider 记 null（展示为"未上报"），不按 token 估算
+                            // 未上报费用的 provider 记 null（展示为"未上报"）；自填价存在时另记 estimatedCost
                             cost = if (runCtx.costReported) runCtx.cost else null,
+                            estimatedCost = estimatedCost,
                         ),
                 )
             }.onFailure { AppLog.w(TAG, "run attribution failed", it) }

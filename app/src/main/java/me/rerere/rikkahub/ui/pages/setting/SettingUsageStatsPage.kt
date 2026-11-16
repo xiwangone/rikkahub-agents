@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -35,12 +36,16 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Cpu
+import me.rerere.hugeicons.stroke.Money01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.GenerationRunTracker
 import me.rerere.rikkahub.data.ai.ProviderModelStats
 import me.rerere.rikkahub.data.ai.RangeUsageStats
 import me.rerere.rikkahub.data.ai.UsageRange
+import me.rerere.rikkahub.data.datastore.UsagePricingSettings
 import me.rerere.rikkahub.ui.components.charts.ChartAxis
 import me.rerere.rikkahub.ui.components.charts.ChartCard
 import me.rerere.rikkahub.ui.components.charts.ChartSeries
@@ -51,16 +56,40 @@ import me.rerere.rikkahub.ui.components.setting.usageRangeLabelRes
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
+import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
 
 private fun formatTokens(value: Long): String = "%,d".format(Locale.US, value)
 
-private fun formatCostCompact(cost: Double): String {
+private fun formatCostCompact(cost: Double, symbol: String): String {
     val trimmed = "%.4f".format(Locale.US, cost).trimEnd('0').trimEnd('.')
-    return "$$trimmed"
+    return "$symbol$trimmed"
 }
+
+private fun formatPoints(value: Double): String {
+    val trimmed = "%,.2f".format(Locale.US, value).trimEnd('0').trimEnd('.')
+    return trimmed
+}
+
+/** 上报 + 估算的费用合计（展示用；两栏在数据层分开记）。 */
+private fun RangeUsageStats.displayCost(): Double = cost + estimatedCost
+
+private fun RangeUsageStats.hasCost(): Boolean = costReportedRuns + estimatedCostRuns > 0
+
+private fun RangeUsageStats.hasEstimatedCost(): Boolean = estimatedCostRuns > 0
+
+private fun ProviderModelStats.displayCost(): Double = cost + estimatedCost
+
+private fun ProviderModelStats.hasCost(): Boolean = costReportedRuns + estimatedCostRuns > 0
+
+private fun ProviderModelStats.hasEstimatedCost(): Boolean = estimatedCostRuns > 0
+
+/** 含估算部分的费用显示时加 "≈"（估算值不是账单值）。 */
+private fun formatDisplayCost(cost: Double, hasEstimated: Boolean, symbol: String): String =
+    "${if (hasEstimated) "≈" else ""}${formatCostCompact(cost, symbol)}"
 
 private fun ProviderModelStats.displayTitle(key: String): String {
     val providerKey = key.substringBefore("/")
@@ -72,12 +101,17 @@ private fun ProviderModelStats.displayTitle(key: String): String {
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SettingUsageStatsPage() {
+fun SettingUsageStatsPage(vm: SettingVM = koinViewModel()) {
     val context = LocalContext.current
+    val navController = LocalNavController.current
+    val settings by vm.settings.collectAsStateWithLifecycle()
+    val pricing = settings.usagePricing
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
     var range by rememberSaveable { mutableStateOf(UsageRange.ALL_TIME) }
     val revision by GenerationRunTracker.revision.collectAsStateWithLifecycle()
     val stats = remember(range, revision) { GenerationRunTracker.snapshot(context).rangeStats(range) }
+    // 剩余额度按累计口径算，与当前范围无关。
+    val allTime = remember(revision) { GenerationRunTracker.snapshot(context) }
 
     Scaffold(
         topBar = {
@@ -123,8 +157,11 @@ fun SettingUsageStatsPage() {
                         modifier = Modifier.padding(bottom = 12.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        UsageOverviewCard(stats = stats)
-                        UsageProviderPieCard(stats = stats)
+                        UsageOverviewCard(stats = stats, pricing = pricing)
+                        UsagePricingEntryCard(
+                            onClick = { navController.navigate(Screen.SettingUsagePricing) },
+                        )
+                        UsageProviderPieCard(stats = stats, pricing = pricing)
                         Text(
                             text = stringResource(R.string.usage_stats_detail),
                             style = MaterialTheme.typography.titleSmallEmphasized,
@@ -137,6 +174,8 @@ fun SettingUsageStatsPage() {
                     UsageDetailRow(
                         key = key,
                         stats = rowStats,
+                        allTimeStats = allTime.byProviderModel[key],
+                        pricing = pricing,
                         shape = cardGroupItemShape(index, rows.size),
                         modifier = Modifier.padding(bottom = if (index == rows.lastIndex) 0.dp else 2.dp),
                     )
@@ -176,8 +215,23 @@ private fun UsageRangeChips(
 }
 
 @Composable
-private fun UsageOverviewCard(stats: RangeUsageStats) {
+private fun UsageOverviewCard(stats: RangeUsageStats, pricing: UsagePricingSettings) {
     val notReported = stringResource(R.string.usage_stats_cost_not_reported)
+    val totalCost = stats.displayCost()
+    val costText =
+        if (stats.hasCost()) {
+            formatDisplayCost(totalCost, stats.hasEstimatedCost(), pricing.effectiveCurrencySymbol)
+        } else {
+            notReported
+        }
+    val pointsText =
+        if (stats.hasCost()) {
+            pricing.toPoints(totalCost)?.let { points ->
+                "≈ ${formatPoints(points)} ${pricing.pointsName}"
+            }
+        } else {
+            null
+        }
     Surface(
         modifier = Modifier.fillMaxWidth(),
         shape = RoundedCornerShape(20.dp),
@@ -200,7 +254,8 @@ private fun UsageOverviewCard(stats: RangeUsageStats) {
             )
             UsageOverviewItem(
                 label = stringResource(R.string.usage_stats_cost),
-                value = if (stats.costReportedRuns > 0) formatCostCompact(stats.cost) else notReported,
+                value = costText,
+                sub = pointsText,
             )
         }
     }
@@ -210,6 +265,7 @@ private fun UsageOverviewCard(stats: RangeUsageStats) {
 private fun UsageOverviewItem(
     label: String,
     value: String,
+    sub: String? = null,
 ) {
     Column(
         horizontalAlignment = Alignment.CenterHorizontally,
@@ -227,12 +283,57 @@ private fun UsageOverviewItem(
             style = MaterialTheme.typography.labelMedium,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
+        if (sub != null) {
+            Text(
+                text = sub,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
 @Composable
-private fun UsageProviderPieCard(stats: RangeUsageStats) {
-    val hasCost = stats.costReportedRuns > 0
+private fun UsagePricingEntryCard(onClick: () -> Unit) {
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(20.dp),
+        color = CustomColors.listItemColors.containerColor,
+        onClick = onClick,
+    ) {
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            CardGroupIcon(icon = HugeIcons.Money01)
+            Column(modifier = Modifier.weight(1f)) {
+                Text(
+                    text = stringResource(R.string.usage_pricing_title),
+                    style = MaterialTheme.typography.bodyLarge,
+                    fontWeight = FontWeight.Medium,
+                )
+                Text(
+                    text = stringResource(R.string.usage_pricing_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Icon(
+                imageVector = HugeIcons.ArrowRight01,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+    }
+}
+
+@Composable
+private fun UsageProviderPieCard(stats: RangeUsageStats, pricing: UsagePricingSettings) {
+    val hasCost = stats.hasCost()
     val byProvider =
         stats.byProviderModel.entries.groupBy(
             keySelector = { it.key.substringBefore("/") },
@@ -245,7 +346,7 @@ private fun UsageProviderPieCard(stats: RangeUsageStats) {
     val values =
         byProvider.keys.map { key ->
             val rows = byProvider.getValue(key)
-            if (hasCost) rows.sumOf { it.cost } else rows.sumOf { (it.promptTokens + it.completionTokens).toDouble() }
+            if (hasCost) rows.sumOf { it.displayCost() } else rows.sumOf { (it.promptTokens + it.completionTokens).toDouble() }
         }
     if (values.all { it <= 0.0 }) return
     val spec =
@@ -265,10 +366,30 @@ private fun UsageProviderPieCard(stats: RangeUsageStats) {
 private fun UsageDetailRow(
     key: String,
     stats: ProviderModelStats,
+    allTimeStats: ProviderModelStats?,
+    pricing: UsagePricingSettings,
     shape: Shape,
     modifier: Modifier = Modifier,
 ) {
     val notReported = stringResource(R.string.usage_stats_cost_not_reported)
+    val symbol = pricing.effectiveCurrencySymbol
+    val rowCost = stats.displayCost()
+    val valueText =
+        if (stats.hasCost()) {
+            formatDisplayCost(rowCost, stats.hasEstimatedCost(), symbol)
+        } else {
+            notReported
+        }
+    val providerPricing = pricing.providerPricing[key.substringBefore("/")]
+    // 剩余额度按累计口径算（与当前范围无关）；手填用量只展示，不参与费用合计。
+    val quotaLine = providerPricing?.quota?.let { quota ->
+        val allTimeCost = (allTimeStats?.cost ?: 0.0) + (allTimeStats?.estimatedCost ?: 0.0)
+        stringResource(R.string.usage_pricing_remaining, formatCostCompact(quota - allTimeCost, symbol))
+    }
+    val manualUsageLine = providerPricing?.manualUsage?.let { usage ->
+        stringResource(R.string.usage_pricing_manual_usage_display, formatCostCompact(usage, symbol))
+    }
+    val extraLine = listOfNotNull(quotaLine, manualUsageLine).joinToString(" · ").takeIf { it.isNotEmpty() }
     Surface(
         modifier = modifier.fillMaxWidth(),
         shape = shape,
@@ -294,10 +415,15 @@ private fun UsageDetailRow(
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
+                if (extraLine != null) {
+                    Text(
+                        text = extraLine,
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
             }
-            CardGroupValue(
-                text = if (stats.costReportedRuns > 0) formatCostCompact(stats.cost) else notReported,
-            )
+            CardGroupValue(text = valueText)
         }
     }
 }

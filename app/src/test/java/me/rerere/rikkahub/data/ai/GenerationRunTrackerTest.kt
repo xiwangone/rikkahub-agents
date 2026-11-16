@@ -245,6 +245,54 @@ class GenerationRunTrackerTest {
     }
 
     @Test
+    fun `estimated cost aggregates separately from reported cost`() {
+        val nowTs = System.currentTimeMillis()
+        // 上报过的：费用进 cost 栏
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, ts = nowTs, cost = 0.01, promptTokens = 100, completionTokens = 50),
+        )
+        // 未上报但已估算的：费用进 estimatedCost 栏，上报栏不动
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, ts = nowTs, modelId = "m2", providerKey = "google", cost = null, promptTokens = 300)
+                .copy(estimatedCost = 0.006),
+        )
+        // 未上报也未估算的：两栏都不动
+        GenerationRunTracker.record(
+            NULL_CONTEXT,
+            run(GenerationOutcome.COMPLETED, ts = nowTs, modelId = "m3", providerKey = "google", cost = null, promptTokens = 10),
+        )
+
+        val state = GenerationRunTracker.snapshot(NULL_CONTEXT)
+        val openai = state.byProviderModel["openai/m1"]
+        assertEquals(0.01, openai?.cost ?: -1.0, 1e-9)
+        assertEquals(1L, openai?.costReportedRuns)
+        assertEquals(0.0, openai?.estimatedCost ?: -1.0, 1e-9)
+        assertEquals(0L, openai?.estimatedCostRuns)
+
+        val googleM2 = state.byProviderModel["google/m2"]
+        assertEquals(0.0, googleM2?.cost ?: -1.0, 1e-9)
+        assertEquals(0L, googleM2?.costReportedRuns)
+        assertEquals(0.006, googleM2?.estimatedCost ?: -1.0, 1e-9)
+        assertEquals(1L, googleM2?.estimatedCostRuns)
+
+        assertEquals(0.01, state.totalCost, 1e-9)
+        assertEquals(0.006, state.totalEstimatedCost, 1e-9)
+
+        val all = state.rangeStats(UsageRange.ALL_TIME)
+        assertEquals(0.01, all.cost, 1e-9)
+        assertEquals(0.006, all.estimatedCost, 1e-9)
+        assertEquals(1L, all.costReportedRuns)
+        assertEquals(1L, all.estimatedCostRuns)
+
+        // 按日分桶同样分开记
+        val today = state.rangeStats(UsageRange.TODAY)
+        assertEquals(0.006, today.estimatedCost, 1e-9)
+        assertEquals(1L, today.estimatedCostRuns)
+    }
+
+    @Test
     fun `day buckets roll and prune beyond 90 days`() {
         val today = java.time.LocalDate.now()
         val oldTs = today.minusDays(100).atStartOfDay(java.time.ZoneId.systemDefault()).toInstant().toEpochMilli()

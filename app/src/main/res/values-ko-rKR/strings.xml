@@ -3796,13 +3796,13 @@
   <string name="usage_stats_range_all">누적</string>
   <string name="usage_stats_runs">요청 수</string>
   <string name="usage_stats_tokens">토큰</string>
-  <string name="usage_stats_cost">비용 (USD)</string>
+  <string name="usage_stats_cost">비용</string>
   <string name="usage_stats_cost_not_reported">미보고</string>
   <string name="usage_stats_by_provider_cost">제공업체별 비용</string>
   <string name="usage_stats_by_provider_tokens">제공업체별 사용량</string>
   <string name="usage_stats_detail">상세</string>
   <string name="usage_stats_empty_range">%1$s: 아직 사용 기록이 없습니다. 다른 기간을 선택해 보세요.</string>
-  <string name="usage_stats_note">생성 단위로 집계: 1회 생성을 1건으로 기록. 비용은 제공업체 보고분만 포함하며 미보고분은 추정하지 않습니다.</string>
+  <string name="usage_stats_note">생성 단위로 집계: 1회 생성을 1건으로 기록. 비용은 제공업체 보고분과 직접 입력한 가격으로 추정한 금액의 합계이며, 보고도 가격 설정도 없는 비용은 추정하지 않습니다.</string>
   <string name="diff_view_expand_all">… +%1$d줄 (전체 펼치려면 탭)</string>
   <string name="json_tree_more_items">… %1$d개 항목 더 (탭하여 펼치기)</string>
   <string name="json_tree_truncated_string">… (탭하여 전체 보기)</string>
@@ -4414,4 +4414,28 @@
   <string name="doctor_global_model_dangling">전역 기본 모델이 연결되어 있지 않음</string>
   <string name="doctor_model_unresolved">확인되지 않음</string>
   <string name="doctor_model_unconfigured">구성되지 않음</string>
+ b/app/src/main/res/values-ko-rKR/strings.xml
+  <string name="usage_pricing_title">사용자 지정 가격</string>
+  <string name="usage_pricing_desc">모델 가격, 피크/오프피크 요금, 한도, 통화 및 포인트</string>
+  <string name="usage_pricing_currency_title">통화 및 포인트</string>
+  <string name="usage_pricing_currency_label">통화 기호</string>
+  <string name="usage_pricing_points_name_label">포인트 이름</string>
+  <string name="usage_pricing_points_rate_label">통화 1단위당 포인트 수</string>
+  <string name="usage_pricing_points_rate_hint">설정하면 비용 옆에 포인트를 표시합니다(예: 1달러당 100포인트). 비워 두면 표시하지 않습니다.</string>
+  <string name="usage_pricing_peak_title">피크/오프피크 요금</string>
+  <string name="usage_pricing_peak_label">피크/오프피크 요금</string>
+  <string name="usage_pricing_peak_hint">켜면 아래 피크 시간대에 따라 피크 가격과 오프피크 가격을 적용합니다.</string>
+  <string name="usage_pricing_peak_start_label">피크 시작 시간</string>
+  <string name="usage_pricing_peak_end_label">피크 종료 시간</string>
+  <string name="usage_pricing_models_title">모델 가격</string>
+  <string name="usage_pricing_price_label">100만 토큰당 가격</string>
+  <string name="usage_pricing_peak_price_label">피크 가격</string>
+  <string name="usage_pricing_offpeak_price_label">오프피크 가격</string>
+  <string name="usage_pricing_empty_models">아직 모델이 없습니다—모델을 사용한 뒤 여기서 가격을 설정할 수 있습니다.</string>
+  <string name="usage_pricing_providers_title">제공업체 한도</string>
+  <string name="usage_pricing_quota_label">한도</string>
+  <string name="usage_pricing_manual_usage_label">사용량(수동 입력)</string>
+  <string name="usage_pricing_empty_providers">아직 제공업체가 없습니다.</string>
+  <string name="usage_pricing_remaining">남은 한도 %1$s</string>
+  <string name="usage_pricing_manual_usage_display">사용량(수동 입력) %1$s</string>
 </resources>

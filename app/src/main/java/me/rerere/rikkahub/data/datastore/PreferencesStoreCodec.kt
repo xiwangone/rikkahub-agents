@@ -90,6 +90,7 @@ import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.TRANSLATE_THINK
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.TRANSLATION_PROMPT
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.TTS_PROVIDERS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.UPLOAD_S3_CONFIG
+import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.USAGE_PRICING
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WEBDAV_CONFIG
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WEBDAV_CONFIGS
 import me.rerere.rikkahub.data.datastore.SettingsStore.Companion.WEB_BRIDGE_CREDENTIAL_REF
@@ -517,6 +518,9 @@ internal suspend fun persistSettingsTo(
         preferences[BACKUP_ENCRYPTION_ENABLED] = settings.backupEncryptionEnabled
         preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] = settings.backupEncryptionPasswordEnc
         preferences[LAUNCH_COUNT] = settings.launchCount
+        preferences.putJsonIfChanged(USAGE_PRICING, previous, previous?.usagePricing, settings.usagePricing) {
+            JsonInstant.encodeToString(it)
+        }
         preferences[EXECUTION_BACKEND] = settings.executionBackend
         preferences.putJsonIfChanged(
             BACKEND_CONNECTIONS,

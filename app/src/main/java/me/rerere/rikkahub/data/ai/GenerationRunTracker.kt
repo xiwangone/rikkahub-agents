@@ -9,6 +9,7 @@ import kotlinx.serialization.Serializable
 import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
+import me.rerere.rikkahub.data.datastore.usagePricingKey
 import me.rerere.rikkahub.data.log.AppLog
 import java.time.Instant
 import java.time.LocalDate
@@ -107,6 +108,8 @@ data class GenerationRun(
     val cachedTokens: Long = 0,
     /** 本轮费用（USD）：provider 上报时累加各步 `usage.cost`；null = 未上报。 */
     val cost: Double? = null,
+    /** 本轮按自填价估算的费用（provider 未上报时）；null = 未估算（无自填价）。 */
+    val estimatedCost: Double? = null,
     /** 落盘快照：provider 注册键（如 `openai`），防 provider 改名/删除后历史对不上。 */
     val providerKey: String? = null,
     /** 落盘快照：provider 显示名。 */
@@ -124,10 +127,14 @@ data class ProviderModelStats(
     val promptTokens: Long = 0,
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
-    /** 累计费用（USD），只含上报了费用的生成。 */
+    /** 累计费用（provider 上报值之和，USD）。 */
     val cost: Double = 0.0,
     /** 上报了费用的生成数（0 = 该组合费用"未上报"，不按 token 估算）。 */
     val costReportedRuns: Long = 0,
+    /** 累计估算费用（按自填价估算之和，自定义货币单位）；与 [cost] 分开记，不混口径。 */
+    val estimatedCost: Double = 0.0,
+    /** 按自填价估算了费用的生成数。 */
+    val estimatedCostRuns: Long = 0,
     /** 落盘快照：provider 显示名（provider 删除后仍可显示）。 */
     val providerName: String? = null,
     /** 落盘快照：模型显示名。 */
@@ -142,6 +149,8 @@ data class DayStats(
     val completionTokens: Long = 0,
     val cachedTokens: Long = 0,
     val cost: Double = 0.0,
+    /** 该日估算费用之和（按自填价估算，自定义货币单位）。 */
+    val estimatedCost: Double = 0.0,
     val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
 )
 
@@ -161,6 +170,10 @@ data class RangeUsageStats(
     val cachedTokens: Long = 0,
     val cost: Double = 0.0,
     val costReportedRuns: Long = 0,
+    /** 该范围估算费用之和（按自填价估算，自定义货币单位）。 */
+    val estimatedCost: Double = 0.0,
+    /** 该范围按自填价估算了费用的生成数。 */
+    val estimatedCostRuns: Long = 0,
     val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
 )
 
@@ -190,6 +203,8 @@ internal fun mergeProviderModelStats(
         cachedTokens = (base?.cachedTokens ?: 0) + add.cachedTokens,
         cost = (base?.cost ?: 0.0) + add.cost,
         costReportedRuns = (base?.costReportedRuns ?: 0) + add.costReportedRuns,
+        estimatedCost = (base?.estimatedCost ?: 0.0) + add.estimatedCost,
+        estimatedCostRuns = (base?.estimatedCostRuns ?: 0) + add.estimatedCostRuns,
         providerName = add.providerName ?: base?.providerName,
         modelDisplayName = add.modelDisplayName ?: base?.modelDisplayName,
     )
@@ -254,6 +269,8 @@ object GenerationRunTracker {
         val byProviderModel: Map<String, ProviderModelStats> = emptyMap(),
         /** 累计费用（USD），只含上报了费用的生成。 */
         val totalCost: Double = 0.0,
+        /** 累计估算费用（按自填价估算，自定义货币单位）。 */
+        val totalEstimatedCost: Double = 0.0,
         /** 按日分桶（key = `yyyy-MM-dd`，设备本地时区），滚动保留 [MAX_DAILY_BUCKETS] 天。 */
         val daily: Map<String, DayStats> = emptyMap(),
         val recent: List<GenerationRun> = emptyList(),
@@ -273,6 +290,8 @@ object GenerationRunTracker {
                     cachedTokens = totalCachedTokens,
                     cost = totalCost,
                     costReportedRuns = byProviderModel.values.sumOf { it.costReportedRuns },
+                    estimatedCost = totalEstimatedCost,
+                    estimatedCostRuns = byProviderModel.values.sumOf { it.estimatedCostRuns },
                     byProviderModel = byProviderModel,
                 )
             }
@@ -298,6 +317,8 @@ object GenerationRunTracker {
                 cachedTokens = buckets.sumOf { it.cachedTokens },
                 cost = buckets.sumOf { it.cost },
                 costReportedRuns = merged.values.sumOf { it.costReportedRuns },
+                estimatedCost = buckets.sumOf { it.estimatedCost },
+                estimatedCostRuns = merged.values.sumOf { it.estimatedCostRuns },
                 byProviderModel = merged,
             )
         }
@@ -361,6 +382,24 @@ object GenerationRunTracker {
     }
 
     /** 记录一次生成结果。未开启统计时直接返回（零写入）。 */
+    /**
+     * 单次运行对 provider × 模型交叉聚合的增量：上报费用与自填价估算分两栏记；
+     * 未上报且无自填价的仍不估算（两栏都为 0）。
+     */
+    private fun singleRunProviderModelDelta(entry: GenerationRun): ProviderModelStats =
+        ProviderModelStats(
+            runs = 1,
+            promptTokens = entry.promptTokens,
+            completionTokens = entry.completionTokens,
+            cachedTokens = entry.cachedTokens,
+            cost = entry.cost ?: 0.0,
+            costReportedRuns = if (entry.cost != null) 1 else 0,
+            estimatedCost = entry.estimatedCost ?: 0.0,
+            estimatedCostRuns = if (entry.estimatedCost != null) 1 else 0,
+            providerName = entry.providerName,
+            modelDisplayName = entry.modelDisplayName,
+        )
+
     fun record(context: Context, run: GenerationRun) {
         if (!isRunStatsEnabled()) return
         // 口径统一收在数据层：缓存命中量不可能超过输入量（个别服务端会给出越界值），
@@ -373,19 +412,8 @@ object GenerationRunTracker {
             val perModel = runState.byModel[modelKey].orEmpty()
             val byModel =
                 runState.byModel + (modelKey to (perModel + (entry.outcome to (perModel[entry.outcome] ?: 0L) + 1L)))
-            // provider × 模型交叉聚合：费用只累加上报了的部分，未上报的不估算
-            val pmKey = "${entry.providerKey ?: "unknown"}/$modelKey"
-            val pmDelta =
-                ProviderModelStats(
-                    runs = 1,
-                    promptTokens = entry.promptTokens,
-                    completionTokens = entry.completionTokens,
-                    cachedTokens = entry.cachedTokens,
-                    cost = entry.cost ?: 0.0,
-                    costReportedRuns = if (entry.cost != null) 1 else 0,
-                    providerName = entry.providerName,
-                    modelDisplayName = entry.modelDisplayName,
-                )
+            val pmKey = usagePricingKey(entry.providerKey, modelKey)
+            val pmDelta = singleRunProviderModelDelta(entry)
             val byProviderModel = runState.byProviderModel + (pmKey to mergeProviderModelStats(runState.byProviderModel[pmKey], pmDelta))
             // 按日分桶（设备本地时区）+ 滚动保留
             val dayKey = dayKeyOf(entry.ts)
@@ -397,6 +425,7 @@ object GenerationRunTracker {
                     completionTokens = (day?.completionTokens ?: 0) + entry.completionTokens,
                     cachedTokens = (day?.cachedTokens ?: 0) + entry.cachedTokens,
                     cost = (day?.cost ?: 0.0) + (entry.cost ?: 0.0),
+                    estimatedCost = (day?.estimatedCost ?: 0.0) + (entry.estimatedCost ?: 0.0),
                     byProviderModel = (day?.byProviderModel.orEmpty()) + (pmKey to mergeProviderModelStats(day?.byProviderModel?.get(pmKey), pmDelta)),
                 )
             val daily = pruneDaily(runState.daily + (dayKey to newDay))
@@ -406,6 +435,7 @@ object GenerationRunTracker {
                     byModel = byModel,
                     byProviderModel = byProviderModel,
                     totalCost = runState.totalCost + (entry.cost ?: 0.0),
+                    totalEstimatedCost = runState.totalEstimatedCost + (entry.estimatedCost ?: 0.0),
                     daily = daily,
                     totalDurationMs = runState.totalDurationMs + entry.durationMs.coerceAtLeast(0),
                     totalModelMs = runState.totalModelMs + entry.modelMs.coerceAtLeast(0),

@@ -3900,13 +3900,13 @@
   <string name="usage_stats_range_all">All time</string>
   <string name="usage_stats_runs">Requests</string>
   <string name="usage_stats_tokens">Tokens</string>
-  <string name="usage_stats_cost">Cost (USD)</string>
+  <string name="usage_stats_cost">Cost</string>
   <string name="usage_stats_cost_not_reported">Not reported</string>
   <string name="usage_stats_by_provider_cost">Cost share by provider</string>
   <string name="usage_stats_by_provider_tokens">Usage share by provider</string>
   <string name="usage_stats_detail">Details</string>
   <string name="usage_stats_empty_range">%1$s: no usage yet. Try another range.</string>
-  <string name="usage_stats_note">Counted per generation (one record per generation). Cost only includes provider-reported amounts; unreported costs are not estimated.</string>
+  <string name="usage_stats_note">Counted per generation (one record per generation). Cost combines provider-reported amounts and estimates from your custom prices; costs that are neither reported nor priced are not estimated.</string>
   <string name="diff_view_render_capped">… %1$d more lines (content too long to expand)</string>
   <string name="diff_view_expand_all">… +%1$d lines (tap to expand all)</string>
   <string name="json_tree_more_items">… %1$d more items (tap to expand)</string>
@@ -4410,4 +4410,28 @@
   <string name="workspace_files_search_placeholder">Search file names</string>
   <string name="workspace_files_truncated">Showing the first %1$d of %2$d entries</string>
   <string name="workspace_terminal_reopen">Reopen</string>
+ b/app/src/main/res/values/strings.xml
+  <string name="usage_pricing_title">Custom pricing</string>
+  <string name="usage_pricing_desc">Model prices, peak/off-peak rates, quotas, currency and points</string>
+  <string name="usage_pricing_currency_title">Currency and points</string>
+  <string name="usage_pricing_currency_label">Currency symbol</string>
+  <string name="usage_pricing_points_name_label">Points name</string>
+  <string name="usage_pricing_points_rate_label">Points per currency unit</string>
+  <string name="usage_pricing_points_rate_hint">Shown next to costs when set, e.g. 100 points per $1. Leave empty to hide points.</string>
+  <string name="usage_pricing_peak_title">Peak/off-peak pricing</string>
+  <string name="usage_pricing_peak_label">Peak/off-peak pricing</string>
+  <string name="usage_pricing_peak_hint">When on, peak and off-peak prices apply inside and outside the peak window below.</string>
+  <string name="usage_pricing_peak_start_label">Peak start hour</string>
+  <string name="usage_pricing_peak_end_label">Peak end hour</string>
+  <string name="usage_pricing_models_title">Model prices</string>
+  <string name="usage_pricing_price_label">Price per 1M tokens</string>
+  <string name="usage_pricing_peak_price_label">Peak price</string>
+  <string name="usage_pricing_offpeak_price_label">Off-peak price</string>
+  <string name="usage_pricing_empty_models">No models yet — prices can be set once a model has been used.</string>
+  <string name="usage_pricing_providers_title">Provider quotas</string>
+  <string name="usage_pricing_quota_label">Quota</string>
+  <string name="usage_pricing_manual_usage_label">Usage (manual)</string>
+  <string name="usage_pricing_empty_providers">No providers yet.</string>
+  <string name="usage_pricing_remaining">Remaining quota %1$s</string>
+  <string name="usage_pricing_manual_usage_display">Manual usage %1$s</string>
 </resources>

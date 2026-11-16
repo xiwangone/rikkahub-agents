@@ -3803,13 +3803,13 @@
   <string name="usage_stats_range_all">الكل</string>
   <string name="usage_stats_runs">الطلبات</string>
   <string name="usage_stats_tokens">الرموز</string>
-  <string name="usage_stats_cost">التكلفة (دولار)</string>
+  <string name="usage_stats_cost">التكلفة</string>
   <string name="usage_stats_cost_not_reported">غير مُبلغ عنه</string>
   <string name="usage_stats_by_provider_cost">حصة التكلفة حسب المزوّد</string>
   <string name="usage_stats_by_provider_tokens">حصة الاستخدام حسب المزوّد</string>
   <string name="usage_stats_detail">التفاصيل</string>
   <string name="usage_stats_empty_range">%1$s: لا يوجد استخدام بعد. جرّب نطاقًا آخر.</string>
-  <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تشمل فقط ما أبلغ عنه المزوّد ولا تُقدَّر.</string>
+  <string name="usage_stats_note">يُحتسب لكل عملية إنشاء (سجل واحد لكل عملية). التكلفة تجمع بين ما أبلغ عنه المزوّد والتقديرات من الأسعار المخصصة؛ والتكلفة غير المُبلغ عنها وغير المُسعَّرة لا تُقدَّر.</string>
   <string name="diff_view_expand_all">… +%1$d سطرًا (انقر للتوسيع الكامل)</string>
   <string name="json_tree_more_items">… %1$d عناصر إضافية (انقر للتوسيع)</string>
   <string name="json_tree_truncated_string">… (انقر لعرض الكل)</string>
@@ -4421,4 +4421,28 @@
   <string name="workspace_terminal_reopen">إعادة الفتح</string>
   <string name="common_apply">تطبيق</string>
   <string name="common_move">نقل</string>
+ b/app/src/main/res/values-ar/strings.xml
+  <string name="usage_pricing_title">أسعار مخصصة</string>
+  <string name="usage_pricing_desc">أسعار النماذج، أسعار الذروة وخارج الذروة، الحصص، العملة والنقاط</string>
+  <string name="usage_pricing_currency_title">العملة والنقاط</string>
+  <string name="usage_pricing_currency_label">رمز العملة</string>
+  <string name="usage_pricing_points_name_label">اسم النقاط</string>
+  <string name="usage_pricing_points_rate_label">النقاط لكل وحدة عملة</string>
+  <string name="usage_pricing_points_rate_hint">عند التعيين تظهر النقاط بجانب التكلفة (مثال: 100 نقطة لكل دولار). اتركه فارغًا لإخفاء النقاط.</string>
+  <string name="usage_pricing_peak_title">أسعار الذروة وخارج الذروة</string>
+  <string name="usage_pricing_peak_label">أسعار الذروة وخارج الذروة</string>
+  <string name="usage_pricing_peak_hint">عند التفعيل تُطبَّق أسعار الذروة داخل نافذة الذروة أدناه، وأسعار خارج الذروة خارجها.</string>
+  <string name="usage_pricing_peak_start_label">بداية وقت الذروة (ساعة)</string>
+  <string name="usage_pricing_peak_end_label">نهاية وقت الذروة (ساعة)</string>
+  <string name="usage_pricing_models_title">أسعار النماذج</string>
+  <string name="usage_pricing_price_label">السعر لكل مليون رمز</string>
+  <string name="usage_pricing_peak_price_label">سعر الذروة</string>
+  <string name="usage_pricing_offpeak_price_label">سعر خارج الذروة</string>
+  <string name="usage_pricing_empty_models">لا توجد نماذج بعد — بعد استخدام نموذج يمكنك تعيين سعره هنا.</string>
+  <string name="usage_pricing_providers_title">حصص المزوّدين</string>
+  <string name="usage_pricing_quota_label">الحصة</string>
+  <string name="usage_pricing_manual_usage_label">الاستخدام (يدوي)</string>
+  <string name="usage_pricing_empty_providers">لا يوجد مزوّدون بعد.</string>
+  <string name="usage_pricing_remaining">الحصة المتبقية %1$s</string>
+  <string name="usage_pricing_manual_usage_display">الاستخدام (يدوي) %1$s</string>
 </resources>

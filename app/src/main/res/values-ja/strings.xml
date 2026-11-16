@@ -3796,13 +3796,13 @@
   <string name="usage_stats_range_all">累計</string>
   <string name="usage_stats_runs">リクエスト数</string>
   <string name="usage_stats_tokens">トークン</string>
-  <string name="usage_stats_cost">費用 (USD)</string>
+  <string name="usage_stats_cost">費用</string>
   <string name="usage_stats_cost_not_reported">未報告</string>
   <string name="usage_stats_by_provider_cost">プロバイダー別費用</string>
   <string name="usage_stats_by_provider_tokens">プロバイダー別使用量</string>
   <string name="usage_stats_detail">詳細</string>
   <string name="usage_stats_empty_range">%1$s：まだ利用がありません。別の期間をお試しください。</string>
-  <string name="usage_stats_note">生成単位で集計：1回の生成を1件として記録。費用はプロバイダー報告分のみで、未報告分は推定しません。</string>
+  <string name="usage_stats_note">生成単位で集計：1回の生成を1件として記録。費用はプロバイダー報告分と自填価格による推定分の合計で、報告も価格設定もない分は推定しません。</string>
   <string name="diff_view_expand_all">… +%1$d 行（タップしてすべて展開）</string>
   <string name="json_tree_more_items">… さらに %1$d 項目（タップして展開）</string>
   <string name="json_tree_truncated_string">…（タップしてすべて表示）</string>
@@ -4414,4 +4414,28 @@
   <string name="doctor_global_model_dangling">グローバルデフォルトモデルが未解決です</string>
   <string name="doctor_model_unresolved">未解決</string>
   <string name="doctor_model_unconfigured">未設定</string>
+ b/app/src/main/res/values-ja/strings.xml
+  <string name="usage_pricing_title">カスタム価格</string>
+  <string name="usage_pricing_desc">モデル価格、ピーク・オフピーク料金、枠、通貨とポイント</string>
+  <string name="usage_pricing_currency_title">通貨とポイント</string>
+  <string name="usage_pricing_currency_label">通貨記号</string>
+  <string name="usage_pricing_points_name_label">ポイント名</string>
+  <string name="usage_pricing_points_rate_label">通貨1単位あたりのポイント数</string>
+  <string name="usage_pricing_points_rate_hint">設定すると費用の横にポイントを表示します（例：1ドル＝100ポイント）。空欄で非表示。</string>
+  <string name="usage_pricing_peak_title">ピーク・オフピーク料金</string>
+  <string name="usage_pricing_peak_label">ピーク・オフピーク料金</string>
+  <string name="usage_pricing_peak_hint">オンにすると、下のピーク時間帯に応じてピーク価格とオフピーク価格を使い分けます。</string>
+  <string name="usage_pricing_peak_start_label">ピーク開始時刻</string>
+  <string name="usage_pricing_peak_end_label">ピーク終了時刻</string>
+  <string name="usage_pricing_models_title">モデル価格</string>
+  <string name="usage_pricing_price_label">100万トークンあたりの価格</string>
+  <string name="usage_pricing_peak_price_label">ピーク価格</string>
+  <string name="usage_pricing_offpeak_price_label">オフピーク価格</string>
+  <string name="usage_pricing_empty_models">モデルがまだありません——モデルを使用するとここで価格を設定できます。</string>
+  <string name="usage_pricing_providers_title">プロバイダー枠</string>
+  <string name="usage_pricing_quota_label">枠</string>
+  <string name="usage_pricing_manual_usage_label">使用量（手入力）</string>
+  <string name="usage_pricing_empty_providers">プロバイダーがまだありません。</string>
+  <string name="usage_pricing_remaining">残り枠 %1$s</string>
+  <string name="usage_pricing_manual_usage_display">使用量（手入力）%1$s</string>
 </resources>

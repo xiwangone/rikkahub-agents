@@ -3795,13 +3795,13 @@
   <string name="usage_stats_range_all">累計</string>
   <string name="usage_stats_runs">請求數</string>
   <string name="usage_stats_tokens">Tokens</string>
-  <string name="usage_stats_cost">費用 (USD)</string>
+  <string name="usage_stats_cost">費用</string>
   <string name="usage_stats_cost_not_reported">未上報</string>
   <string name="usage_stats_by_provider_cost">供應商費用佔比</string>
   <string name="usage_stats_by_provider_tokens">供應商用量佔比</string>
   <string name="usage_stats_detail">明細</string>
   <string name="usage_stats_empty_range">%1$s：暫無呼叫，可切換其他範圍查看。</string>
-  <string name="usage_stats_note">依生成口徑統計：一次生成記一條；費用僅含服務商上報部分，未上報的不估算。</string>
+  <string name="usage_stats_note">依生成口徑統計：一次生成記一條；費用由服務商上報與按自填價估算兩部分組成；既未上報又未設定價格的費用不估算。</string>
   <string name="diff_view_expand_all">… +%1$d 行（點擊展開全部）</string>
   <string name="json_tree_more_items">… 還有 %1$d 個項目（點擊展開）</string>
   <string name="json_tree_truncated_string">…（點擊查看全部）</string>
@@ -4413,4 +4413,28 @@
   <string name="doctor_global_model_dangling">全域預設模型懸空</string>
   <string name="doctor_model_unresolved">未解析</string>
   <string name="doctor_model_unconfigured">未設定</string>
+ b/app/src/main/res/values-b+zh+Hant/strings.xml
+  <string name="usage_pricing_title">自訂價格</string>
+  <string name="usage_pricing_desc">模型價格、峰谷價、額度、貨幣與積分</string>
+  <string name="usage_pricing_currency_title">貨幣與積分</string>
+  <string name="usage_pricing_currency_label">貨幣符號</string>
+  <string name="usage_pricing_points_name_label">積分名稱</string>
+  <string name="usage_pricing_points_rate_label">每 1 單位貨幣兌換的積分數</string>
+  <string name="usage_pricing_points_rate_hint">填了就會在費用旁顯示積分，如 1 美元兌 100 積分；留空不顯示積分。</string>
+  <string name="usage_pricing_peak_title">峰谷價</string>
+  <string name="usage_pricing_peak_label">峰谷價</string>
+  <string name="usage_pricing_peak_hint">開啟後按下方的峰時窗口分別使用峰時價與谷時價。</string>
+  <string name="usage_pricing_peak_start_label">峰時開始（小時）</string>
+  <string name="usage_pricing_peak_end_label">峰時結束（小時）</string>
+  <string name="usage_pricing_models_title">模型價格</string>
+  <string name="usage_pricing_price_label">每 1M token 的價格</string>
+  <string name="usage_pricing_peak_price_label">峰時價</string>
+  <string name="usage_pricing_offpeak_price_label">谷時價</string>
+  <string name="usage_pricing_empty_models">暫無模型——用過模型後可在此設定價格。</string>
+  <string name="usage_pricing_providers_title">提供商額度</string>
+  <string name="usage_pricing_quota_label">額度</string>
+  <string name="usage_pricing_manual_usage_label">用量（手填）</string>
+  <string name="usage_pricing_empty_providers">暫無提供商。</string>
+  <string name="usage_pricing_remaining">剩餘額度 %1$s</string>
+  <string name="usage_pricing_manual_usage_display">已用 %1$s（手填）</string>
 </resources>
