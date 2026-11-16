@@ -8,20 +8,24 @@ import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.AiBrain01
+import me.rerere.hugeicons.stroke.AlarmClock
+import me.rerere.hugeicons.stroke.Api
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Bug01
-import me.rerere.hugeicons.stroke.ChartColumn
-import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.Calendar02
+import me.rerere.hugeicons.stroke.ChartHistogram
 import me.rerere.hugeicons.stroke.CheckList
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.Connect
-import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Edit02
-import me.rerere.hugeicons.stroke.FileView
-import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.InformationCircle
 import me.rerere.hugeicons.stroke.Key01
-import me.rerere.hugeicons.stroke.Settings03
+import me.rerere.hugeicons.stroke.ListSetting
+import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.Settings02
+import me.rerere.hugeicons.stroke.ShieldKey
+import me.rerere.hugeicons.stroke.Timer01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 
@@ -41,6 +45,25 @@ internal class TitledToolUI(
     private val iconVector: ImageVector,
 ) : ToolUIRenderer {
     override fun icon(context: ToolUIContext): ImageVector = iconVector
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        when (context.tool.toolName) {
+            "vault_http_exec",
+            "vault_ssh_exec",
+            "get_tool_schema",
+            "list_tools",
+            "list_ssh_hosts",
+            "save_ssh_host",
+            "subagent_dispatch" -> ToolIconColor.PURPLE
+            "check_token_usage",
+            "tool_surface_report",
+            "ssh_job_poll",
+            "schedule_job_direct",
+            "schedule_job_llm" -> ToolIconColor.TEAL
+            "workspace_list",
+            "file_info" -> ToolIconColor.GREEN
+            else -> ToolIconColor.GRAY
+        }
 
     @Composable
     override fun title(context: ToolUIContext): String = stringResource(titleRes)
@@ -64,7 +87,7 @@ internal val VaultCredentialNamesToolUI =
     TitledToolUI("vault_credential_names", R.string.tool_ui_vault_names, HugeIcons.Key01)
 
 internal val VaultCredentialMetaToolUI =
-    TitledToolUI("vault_credential_meta", R.string.tool_ui_vault_meta, HugeIcons.Settings03)
+    TitledToolUI("vault_credential_meta", R.string.tool_ui_vault_meta, HugeIcons.Settings02)
 
 internal val VaultCredentialPrepareToolUI =
     TitledToolUI("vault_credential_prepare", R.string.tool_ui_vault_prepare, HugeIcons.Add01)
@@ -76,10 +99,10 @@ internal val VaultExportEnvToolUI =
     TitledToolUI("vault_export_env", R.string.tool_ui_vault_export, HugeIcons.Bash)
 
 internal val VaultHttpExecToolUI =
-    TitledToolUI("vault_http_exec", R.string.tool_ui_vault_http, HugeIcons.GlobalSearch)
+    TitledToolUI("vault_http_exec", R.string.tool_ui_vault_http, HugeIcons.Api)
 
 internal val VaultSshExecToolUI =
-    TitledToolUI("vault_ssh_exec", R.string.tool_ui_vault_ssh, HugeIcons.ComputerTerminal01)
+    TitledToolUI("vault_ssh_exec", R.string.tool_ui_vault_ssh, HugeIcons.ShieldKey)
 
 // ---- 诊断 / 元工具 ----
 internal val DiagnosticsToolUI =
@@ -95,34 +118,34 @@ internal val ListToolsToolUI =
     TitledToolUI("list_tools", R.string.tool_ui_list_tools, HugeIcons.CheckList)
 
 internal val ToolSurfaceReportToolUI =
-    TitledToolUI("tool_surface_report", R.string.tool_ui_surface_report, HugeIcons.ChartColumn)
+    TitledToolUI("tool_surface_report", R.string.tool_ui_surface_report, HugeIcons.ChartHistogram)
 
 // ---- SSH 主机 / 作业与工作区、文件、子代理 ----
 internal val SshHostsToolUI =
     TitledToolUI("list_ssh_hosts", R.string.tool_ui_ssh_hosts, HugeIcons.Connect)
 
 internal val SaveSshHostToolUI =
-    TitledToolUI("save_ssh_host", R.string.tool_ui_ssh_save_host, HugeIcons.Add01)
+    TitledToolUI("save_ssh_host", R.string.tool_ui_ssh_save_host, HugeIcons.ServerStack01)
 
 internal val SshJobPollToolUI =
-    TitledToolUI("ssh_job_poll", R.string.tool_ui_ssh_job_poll, HugeIcons.Clock02)
+    TitledToolUI("ssh_job_poll", R.string.tool_ui_ssh_job_poll, HugeIcons.Timer01)
 
 internal val WorkspaceListToolUI =
-    TitledToolUI("workspace_list", R.string.tool_ui_workspace_list, HugeIcons.CheckList)
+    TitledToolUI("workspace_list", R.string.tool_ui_workspace_list, HugeIcons.ListSetting)
 
 internal val FileInfoToolUI =
-    TitledToolUI("file_info", R.string.tool_ui_file_info, HugeIcons.FileView)
+    TitledToolUI("file_info", R.string.tool_ui_file_info, HugeIcons.InformationCircle)
 
 internal val SubagentDispatchToolUI =
     TitledToolUI("subagent_dispatch", R.string.tool_ui_subagent_dispatch, HugeIcons.AiBrain01)
 
 internal val ScheduleJobDirectToolUI: ToolUIRenderer =
-    object : ToolUIRenderer by TitledToolUI("schedule_job_direct", R.string.tool_ui_schedule_job_direct, HugeIcons.Clock02) {
+    object : ToolUIRenderer by TitledToolUI("schedule_job_direct", R.string.tool_ui_schedule_job_direct, HugeIcons.AlarmClock) {
         override val toolName: String = "schedule_job_direct"
     }
 
 internal val ScheduleJobLlmToolUI: ToolUIRenderer =
-    object : ToolUIRenderer by TitledToolUI("schedule_job_llm", R.string.tool_ui_schedule_job_llm, HugeIcons.Clock02) {
+    object : ToolUIRenderer by TitledToolUI("schedule_job_llm", R.string.tool_ui_schedule_job_llm, HugeIcons.Calendar02) {
         override val toolName: String = "schedule_job_llm"
     }
 
@@ -140,6 +163,8 @@ internal object McpToolUI : ToolUIRenderer {
     override val toolName: String = PREFIX
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Connect
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
 
     @Composable
     override fun title(context: ToolUIContext): String =

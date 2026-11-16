@@ -65,6 +65,8 @@ object SearchWebToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Search01
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
+
     @Composable
     override fun title(context: ToolUIContext): String =
         stringResource(
@@ -133,6 +135,8 @@ object ScrapeWebToolUI : ToolUIRenderer {
     override val toolName: String = "scrape_web"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.GlobalSearch
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String = stringResource(R.string.chat_message_tool_scrape_web)

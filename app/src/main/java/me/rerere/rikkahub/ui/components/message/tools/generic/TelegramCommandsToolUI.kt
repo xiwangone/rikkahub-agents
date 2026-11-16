@@ -10,8 +10,13 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonObject
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.AiBrain02
+import me.rerere.hugeicons.stroke.Command
+import me.rerere.hugeicons.stroke.Delete03
+import me.rerere.hugeicons.stroke.Menu01
 import me.rerere.hugeicons.stroke.Telegram
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -30,7 +35,20 @@ object TelegramCommandsToolUI : ToolUIRenderer {
 
     override val toolName: String = "telegram_set_commands"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Telegram
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "telegram_set_commands" -> HugeIcons.Command
+            "telegram_get_commands" -> HugeIcons.Menu01
+            "telegram_delete_commands" -> HugeIcons.Delete03
+            "telegram_set_assistant" -> HugeIcons.AiBrain02
+            else -> HugeIcons.Telegram
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        when (context.tool.toolName) {
+            "telegram_delete_commands" -> ToolIconColor.RED
+            else -> ToolIconColor.BLUE
+        }
 
     @Composable
     override fun title(context: ToolUIContext): String {

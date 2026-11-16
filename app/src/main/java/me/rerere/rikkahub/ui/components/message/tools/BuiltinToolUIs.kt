@@ -28,19 +28,23 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.longOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Calendar01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.ChartLineData01
 import me.rerere.hugeicons.stroke.ChartScatter
+import me.rerere.hugeicons.stroke.Chat01
 import me.rerere.hugeicons.stroke.Clipboard
-import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.CodeCircle
+import me.rerere.hugeicons.stroke.ContactBook
 import me.rerere.hugeicons.stroke.MagicWand01
-import me.rerere.hugeicons.stroke.Message02
+import me.rerere.hugeicons.stroke.Mail01
+import me.rerere.hugeicons.stroke.MessageAdd01
+import me.rerere.hugeicons.stroke.MessageSearch01
 import me.rerere.hugeicons.stroke.Pin
 import me.rerere.hugeicons.stroke.Refresh01
-import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Settings03
-import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Time02
+import me.rerere.hugeicons.stroke.Timer02
 import me.rerere.hugeicons.stroke.VolumeHigh
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.event.AppEvent
@@ -62,6 +66,8 @@ object GetTimeInfoToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Time02
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
+
     @Composable
     override fun title(context: ToolUIContext): String = stringResource(R.string.chat_message_tool_get_time)
 }
@@ -76,6 +82,8 @@ object ClipboardToolUI : ToolUIRenderer {
     override val toolName: String = "clipboard_tool"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Clipboard
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GRAY
 
     @Composable
     override fun title(context: ToolUIContext): String =
@@ -93,6 +101,8 @@ object TextToSpeechToolUI : ToolUIRenderer {
     override val toolName: String = "text_to_speech"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.VolumeHigh
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PINK
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -145,6 +155,8 @@ object UseSkillToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.MagicWand01
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
+
     @Composable
     override fun title(context: ToolUIContext): String {
         val skillName = context.arguments.getStringContent("name") ?: ""
@@ -163,7 +175,9 @@ object UseSkillToolUI : ToolUIRenderer {
 object RecentChatsToolUI : ToolUIRenderer {
     override val toolName: String = "recent_chats"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Message02
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Chat01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String = stringResource(R.string.chat_message_tool_recent_chats)
@@ -193,7 +207,9 @@ object RecentChatsToolUI : ToolUIRenderer {
 object ConversationSearchToolUI : ToolUIRenderer {
     override val toolName: String = "conversation_search"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Search01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.MessageSearch01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String =
@@ -227,7 +243,9 @@ object GetScreenTimeToolUI : ToolUIRenderer {
 
     override val toolName: String = "get_screen_time"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SmartPhone01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Timer02
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
 
     @Composable
     override fun title(context: ToolUIContext): String = stringResource(R.string.chat_message_tool_screen_time)
@@ -329,6 +347,8 @@ object ChartDisplayToolUI : ToolUIRenderer {
             "scatter" -> HugeIcons.ChartScatter
             else -> HugeIcons.ChartLineData01
         }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -464,7 +484,9 @@ private fun formatMinutes(minutes: Long): String {
 object RunJsToolUI : ToolUIRenderer {
     override val toolName: String = "run_js"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.MagicWand01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.CodeCircle
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -484,7 +506,9 @@ object RunJsToolUI : ToolUIRenderer {
 object CreateCalendarEventToolUI : ToolUIRenderer {
     override val toolName: String = "create_calendar_event"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Clock02
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Calendar01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -501,7 +525,9 @@ object CreateCalendarEventToolUI : ToolUIRenderer {
 object CreateContactToolUI : ToolUIRenderer {
     override val toolName: String = "create_contact"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SmartPhone01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ContactBook
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -520,7 +546,9 @@ object CreateContactToolUI : ToolUIRenderer {
 object SendSmsIntentToolUI : ToolUIRenderer {
     override val toolName: String = "send_sms_intent"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SmartPhone01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.MessageAdd01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -537,7 +565,9 @@ object SendSmsIntentToolUI : ToolUIRenderer {
 object SendEmailIntentToolUI : ToolUIRenderer {
     override val toolName: String = "send_email_intent"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Message02
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Mail01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -556,6 +586,8 @@ object OpenWifiSettingsToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Settings03
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GRAY
+
     @Composable
     override fun title(context: ToolUIContext): String =
         context.content.getStringContent("summary") ?: stringResource(R.string.tool_ui_wifi_settings)
@@ -565,6 +597,8 @@ object ShowLocationOnMapToolUI : ToolUIRenderer {
     override val toolName: String = "show_location_on_map"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Pin
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GRAY
 
     @Composable
     override fun title(context: ToolUIContext): String {

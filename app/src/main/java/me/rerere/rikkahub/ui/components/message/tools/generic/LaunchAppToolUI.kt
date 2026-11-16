@@ -4,8 +4,10 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.Grid
+import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -18,7 +20,14 @@ import me.rerere.rikkahub.ui.components.message.tools.getStringContent
 object LaunchAppToolUI : ToolUIRenderer {
     override val toolName: String = "launch_app"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SmartPhone01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "launch_app" -> HugeIcons.Rocket01
+            "launch_activity" -> HugeIcons.Grid
+            else -> HugeIcons.Rocket01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.ORANGE
 
     @Composable
     override fun title(context: ToolUIContext): String {

@@ -9,8 +9,10 @@ import kotlinx.serialization.json.jsonArray
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Telegram
+import me.rerere.hugeicons.stroke.Shield01
+import me.rerere.hugeicons.stroke.UserRemove01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -24,7 +26,14 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 object TelegramWhitelistToolUI : ToolUIRenderer {
     override val toolName: String = "telegram_add_whitelist"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Telegram
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "telegram_add_whitelist" -> HugeIcons.Shield01
+            "telegram_remove_whitelist" -> HugeIcons.UserRemove01
+            else -> HugeIcons.Shield01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {

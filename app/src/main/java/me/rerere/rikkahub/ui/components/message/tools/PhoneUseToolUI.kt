@@ -32,6 +32,8 @@ internal object PhoneUseToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SmartPhone01
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.ORANGE
+
     @Composable
     override fun title(context: ToolUIContext): String {
         val base = stringResource(R.string.chat_message_tool_call_generic, context.tool.toolName)

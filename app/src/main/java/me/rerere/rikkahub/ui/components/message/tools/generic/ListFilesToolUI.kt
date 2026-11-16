@@ -9,8 +9,10 @@ import androidx.compose.ui.res.stringResource
 import kotlinx.serialization.json.jsonArray
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Search01
+import me.rerere.hugeicons.stroke.FileSearch
+import me.rerere.hugeicons.stroke.FolderSearch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -26,7 +28,14 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 object ListFilesToolUI : ToolUIRenderer {
     override val toolName: String = "list_files"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Search01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "list_files" -> HugeIcons.FolderSearch
+            "find_files" -> HugeIcons.FileSearch
+            else -> HugeIcons.FolderSearch
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String {

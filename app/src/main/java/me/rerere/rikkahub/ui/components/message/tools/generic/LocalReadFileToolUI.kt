@@ -6,8 +6,9 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.FileView
+import me.rerere.hugeicons.stroke.DocumentCode
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -23,7 +24,9 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 object LocalReadFileToolUI : ToolUIRenderer {
     override val toolName: String = "read_file"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileView
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.DocumentCode
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String {

@@ -162,6 +162,8 @@ class RikkaHubApp : Application() {
 
         SearchService.init(get<OkHttpClient>(), this)
 
+        installSshDnsBridge()
+
         // AI 调试接口（实验性，默认关）：构造即拉起 DataStore collector，enabled 时自动恢复服务
         get<DebugApiManager>()
 
@@ -828,6 +830,23 @@ private fun verifyDatabaseOnStartup(context: Context, pendingRestoreInstalled: B
         throw t
     }
     PendingDatabaseRestore.confirmStartup(context)
+}
+
+/**
+ * SSH 拨号的域名解析复用 App 独立 DNS（HostOverrideDns：tailnet 域名合成 + 独立 DoH/DoT），
+ * 否则用域名连 tailnet 主机时会被判定成「非 tailnet」→ 走系统网络直连 → 移动数据下必然超时。
+ *
+ * 放在类外而不是 [RikkaHubApp] 里：类内已有 24 个函数，detekt `TooManyFunctions` 阈值 25，
+ * 再 +1 就红（同一次改动里 onCreate 的 `LongMethod` 也需要这 6 行搬出去，两个约束一起满足）。
+ */
+private fun installSshDnsBridge() {
+    runCatching {
+        val koin = org.koin.core.context.GlobalContext.get()
+        val sshDns = me.rerere.rikkahub.data.network.HostOverrideDns(
+            koin.get<me.rerere.rikkahub.data.datastore.SettingsStore>()
+        )
+        me.rerere.rikkahub.data.tunnel.TsnetBridge.dnsLookup = { host -> sshDns.lookup(host) }
+    }.onFailure { AppLog.w("RikkaHubApp", "ssh dns bridge install failed", it) }
 }
 
 class AppScope : CoroutineScope by CoroutineScope(

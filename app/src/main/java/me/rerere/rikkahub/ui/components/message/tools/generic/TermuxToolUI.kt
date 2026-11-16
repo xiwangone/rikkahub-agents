@@ -6,8 +6,15 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Eye
+import me.rerere.hugeicons.stroke.ListView
+import me.rerere.hugeicons.stroke.PlayCircle
+import me.rerere.hugeicons.stroke.PlayCircle02
+import me.rerere.hugeicons.stroke.StopCircle
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -24,7 +31,22 @@ object TermuxToolUI : ToolUIRenderer {
 
     override val toolName: String = "termux_session_start"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ComputerTerminal01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "termux_session_start" -> HugeIcons.PlayCircle
+            "termux_session_send" -> HugeIcons.ArrowRight01
+            "termux_session_read" -> HugeIcons.Eye
+            "termux_session_list" -> HugeIcons.ListView
+            "termux_session_kill" -> HugeIcons.StopCircle
+            "termux_run_command" -> HugeIcons.PlayCircle02
+            else -> HugeIcons.ComputerTerminal01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        when (context.tool.toolName) {
+            "termux_session_kill" -> ToolIconColor.RED
+            else -> ToolIconColor.PURPLE
+        }
 
     @Composable
     override fun title(context: ToolUIContext): String {

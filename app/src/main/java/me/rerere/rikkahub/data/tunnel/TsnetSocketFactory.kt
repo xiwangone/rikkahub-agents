@@ -52,11 +52,12 @@ class TsnetSocketFactory(
             if (TsnetBridge.isRunning && endpoint is InetSocketAddress) {
                 val hostName = endpoint.hostString?.trim().orEmpty()
                 val ipLiteral = endpoint.address?.hostAddress?.substringBefore('%').orEmpty()
-                val target = when {
-                    isTailnetMagicDnsHost(hostName) -> hostName
-                    TsnetBridge.isTailnetAddress(ipLiteral) -> ipLiteral
-                    TsnetBridge.isTailnetAddress(hostName) -> hostName
-                    else -> null
+                val target = if (TsnetBridge.isRunning) {
+                    // 判定与 SSH 侧（TunnelRouter）共用同一个入口（TailnetBridge.tailnetDialTarget），
+                    // 不再自己写一套 when：那边扩展了「域名按 App DNS 解析结果判定」也自动生效。
+                    tailnetDialTarget(hostName.ifBlank { ipLiteral })
+                } else {
+                    null
                 }
                 if (target != null) {
                     val localPort = TsnetBridge.proxyToBlocking(target, endpoint.port)

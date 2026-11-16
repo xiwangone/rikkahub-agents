@@ -9,8 +9,9 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.contentOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.Globe
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -26,7 +27,9 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 object WebFetchToolUI : ToolUIRenderer {
     override val toolName: String = "web_fetch"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.GlobalSearch
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Globe
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {

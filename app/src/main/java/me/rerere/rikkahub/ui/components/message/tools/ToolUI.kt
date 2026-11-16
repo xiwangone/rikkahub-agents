@@ -13,6 +13,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.TextStyle
@@ -120,6 +121,23 @@ interface ToolUIRenderer {
 
     /** 折叠步骤的图标 */
     fun icon(context: ToolUIContext): ImageVector = HugeIcons.Tools
+
+    /**
+     * 折叠步骤图标的 tint：按家族着色。默认保持旧外观（内容色 70% 透明）。
+     *
+     * 须是 @Composable：要读 MaterialTheme.extendColors 这个 CompositionLocal。
+     * 颜色决策在 [iconColorKey]，这里只做解析。
+     */
+    @Composable
+    fun iconColor(context: ToolUIContext): Color = iconColorKey(context).resolve()
+
+    /**
+     * 图标颜色决策（纯函数）：返回该渲染器的家族色组；默认 [ToolIconColor.DEFAULT]。
+     *
+     * 家族基类 override 一次、一家人继承；危险工具单独 override 回 RED。
+     * 单元测试直接断言它，不需要跑 Compose。
+     */
+    fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.DEFAULT
 
     /** 折叠步骤的标题 */
     @Composable

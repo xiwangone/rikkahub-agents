@@ -6,10 +6,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDataTransferHorizontal
+import me.rerere.hugeicons.stroke.BinaryCode
+import me.rerere.hugeicons.stroke.CloudDownload
+import me.rerere.hugeicons.stroke.CloudUpload
+import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.Copy02
 import me.rerere.hugeicons.stroke.Delete01
-import me.rerere.hugeicons.stroke.FileAdd
-import me.rerere.hugeicons.stroke.FileEdit
+import me.rerere.hugeicons.stroke.Delete02
+import me.rerere.hugeicons.stroke.Download01
+import me.rerere.hugeicons.stroke.FolderAdd
+import me.rerere.hugeicons.stroke.FolderOpen
+import me.rerere.hugeicons.stroke.FolderTransfer
+import me.rerere.hugeicons.stroke.Zip01
+import me.rerere.hugeicons.stroke.Zip02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -28,9 +40,27 @@ object FileOpToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector =
         when (context.tool.toolName) {
-            "delete_file", "batch_delete" -> HugeIcons.Delete01
-            "move_file", "batch_move" -> HugeIcons.FileEdit
-            else -> HugeIcons.FileAdd
+            "copy_file" -> HugeIcons.Copy01
+            "move_file" -> HugeIcons.ArrowDataTransferHorizontal
+            "delete_file" -> HugeIcons.Delete01
+            "create_directory" -> HugeIcons.FolderAdd
+            "batch_copy" -> HugeIcons.Copy02
+            "batch_move" -> HugeIcons.FolderTransfer
+            "batch_delete" -> HugeIcons.Delete02
+            "zip_files" -> HugeIcons.Zip01
+            "unzip_file" -> HugeIcons.Zip02
+            "download_file" -> HugeIcons.Download01
+            "open_file" -> HugeIcons.FolderOpen
+            "write_binary_file" -> HugeIcons.BinaryCode
+            "ssh_download" -> HugeIcons.CloudDownload
+            "ssh_upload" -> HugeIcons.CloudUpload
+            else -> HugeIcons.Copy01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        when (context.tool.toolName) {
+            "delete_file", "batch_delete" -> ToolIconColor.RED
+            else -> ToolIconColor.GREEN
         }
 
     @Composable

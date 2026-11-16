@@ -11,7 +11,9 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.Image03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -29,8 +31,11 @@ object ImageToolUI : ToolUIRenderer {
     override fun icon(context: ToolUIContext): ImageVector =
         when (context.tool.toolName) {
             "take_photo" -> HugeIcons.Camera01
+            "take_screenshot" -> HugeIcons.Image03
             else -> HugeIcons.Image02
         }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PINK
 
     @Composable
     override fun title(context: ToolUIContext): String {

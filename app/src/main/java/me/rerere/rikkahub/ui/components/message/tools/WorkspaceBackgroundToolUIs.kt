@@ -24,7 +24,7 @@ import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
-import me.rerere.hugeicons.stroke.FileEdit
+import me.rerere.hugeicons.stroke.GitCompare
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Stop
 import me.rerere.rikkahub.R
@@ -41,7 +41,9 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 object DiffFilesToolUI : ToolUIRenderer {
     override val toolName: String = "diff_files"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileEdit
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.GitCompare
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -87,6 +89,8 @@ object WorkspaceRunBackgroundToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_run_background"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Play
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.ORANGE
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -145,6 +149,8 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_background_status"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Clock02
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -265,6 +271,8 @@ object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_background_kill"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Stop
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.RED
 
     @Composable
     override fun title(context: ToolUIContext): String =

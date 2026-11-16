@@ -7,8 +7,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.File02
+import me.rerere.hugeicons.stroke.Image01
+import me.rerere.hugeicons.stroke.Pin02
 import me.rerere.hugeicons.stroke.Telegram
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -26,7 +30,16 @@ object TelegramSendToolUI : ToolUIRenderer {
 
     override val toolName: String = "telegram_send_message"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Telegram
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "telegram_send_message" -> HugeIcons.Telegram
+            "telegram_send_photo" -> HugeIcons.Image01
+            "telegram_send_document" -> HugeIcons.File02
+            "telegram_set_default_chat" -> HugeIcons.Pin02
+            else -> HugeIcons.Telegram
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {

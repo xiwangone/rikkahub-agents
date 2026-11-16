@@ -70,6 +70,9 @@ object MemoryToolUI : ToolUIRenderer {
             else -> HugeIcons.QuillWrite01
         }
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        if (memoryAction(context) == ACTION_DELETE) ToolIconColor.RED else ToolIconColor.PURPLE
+
     @Composable
     override fun title(context: ToolUIContext): String =
         when (memoryAction(context)) {
@@ -314,6 +317,8 @@ object MemorySearchToolUI : ToolUIRenderer {
     override val toolName: String = "memory_search"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.AiSearch02
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
 
     @Composable
     override fun title(context: ToolUIContext): String =

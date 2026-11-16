@@ -35,6 +35,7 @@ import me.rerere.hugeicons.stroke.Archive02
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.Calendar03
+import me.rerere.hugeicons.stroke.Call02
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.ChartLineData01
 import me.rerere.hugeicons.stroke.Clipboard
@@ -45,6 +46,7 @@ import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Contact
+import me.rerere.hugeicons.stroke.Cursor01
 import me.rerere.hugeicons.stroke.CursorPointer01
 import me.rerere.hugeicons.stroke.Database01
 import me.rerere.hugeicons.stroke.Download04
@@ -52,32 +54,47 @@ import me.rerere.hugeicons.stroke.File01
 import me.rerere.hugeicons.stroke.FingerPrint
 import me.rerere.hugeicons.stroke.Flash
 import me.rerere.hugeicons.stroke.Folder01
+import me.rerere.hugeicons.stroke.Folder02
 import me.rerere.hugeicons.stroke.GlobalSearch
+import me.rerere.hugeicons.stroke.Globe
+import me.rerere.hugeicons.stroke.Grid
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.JavaScript
 import me.rerere.hugeicons.stroke.Key01
+import me.rerere.hugeicons.stroke.Key02
 import me.rerere.hugeicons.stroke.Keyboard
+import me.rerere.hugeicons.stroke.Link01
 import me.rerere.hugeicons.stroke.Location01
 import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.Message02
 import me.rerere.hugeicons.stroke.MessageQuestion
 import me.rerere.hugeicons.stroke.Mic01
+import me.rerere.hugeicons.stroke.Notification01
 import me.rerere.hugeicons.stroke.Notification02
 import me.rerere.hugeicons.stroke.Play
 import me.rerere.hugeicons.stroke.Rocket01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.SecurityCheck
+import me.rerere.hugeicons.stroke.Sent
 import me.rerere.hugeicons.stroke.Share01
 import me.rerere.hugeicons.stroke.SmartPhone01
+import me.rerere.hugeicons.stroke.SmartPhone02
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Sun03
 import me.rerere.hugeicons.stroke.Telegram
+import me.rerere.hugeicons.stroke.Timer01
 import me.rerere.hugeicons.stroke.Tools
+import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.VolumeHigh
+import me.rerere.hugeicons.stroke.VolumeLow
 import me.rerere.hugeicons.stroke.Wifi01
+import me.rerere.hugeicons.stroke.WorkflowCircle01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
+import me.rerere.rikkahub.ui.components.message.tools.resolve
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -545,24 +562,24 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.Clipboard -> HugeIcons.Clipboard
         LocalToolOption.Tts -> HugeIcons.VolumeHigh
         LocalToolOption.AskUser -> HugeIcons.MessageQuestion
-        LocalToolOption.ScreenTime -> HugeIcons.SmartPhone01
+        LocalToolOption.ScreenTime -> HugeIcons.Timer01
         LocalToolOption.Diagnostics -> HugeIcons.Bug01
         LocalToolOption.ModelTesting -> HugeIcons.Activity01
         LocalToolOption.DeviceInfo -> HugeIcons.SmartPhone01
         LocalToolOption.SystemIntents -> HugeIcons.Calendar03
-        LocalToolOption.Toast -> HugeIcons.Message01
+        LocalToolOption.Toast -> HugeIcons.Message02
         LocalToolOption.Notification -> HugeIcons.Notification02
         LocalToolOption.Share -> HugeIcons.Share01
         LocalToolOption.ChartDisplay -> HugeIcons.ChartLineData01
         LocalToolOption.Location -> HugeIcons.Location01
         LocalToolOption.Contacts -> HugeIcons.Contact
-        LocalToolOption.CallLog -> HugeIcons.SmartPhone01
+        LocalToolOption.CallLog -> HugeIcons.Call02
         LocalToolOption.SmsInbox -> HugeIcons.Message01
         LocalToolOption.CameraPhoto -> HugeIcons.Camera01
         LocalToolOption.MicRecorder -> HugeIcons.Mic01
-        LocalToolOption.SpeechToText -> HugeIcons.Mic01
+        LocalToolOption.SpeechToText -> HugeIcons.Voice
         LocalToolOption.Fingerprint -> HugeIcons.FingerPrint
-        LocalToolOption.NotificationListener -> HugeIcons.Notification02
+        LocalToolOption.NotificationListener -> HugeIcons.Notification01
         LocalToolOption.Files -> HugeIcons.Folder01
         LocalToolOption.Download -> HugeIcons.Download04
         LocalToolOption.MediaPlayer -> HugeIcons.Play
@@ -570,35 +587,105 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.Ssh -> HugeIcons.Connect
         LocalToolOption.TelegramBot -> HugeIcons.Telegram
         LocalToolOption.Browser -> HugeIcons.GlobalSearch
-        LocalToolOption.WebFetch -> HugeIcons.GlobalSearch
+        LocalToolOption.WebFetch -> HugeIcons.Globe
         LocalToolOption.CronJobs -> HugeIcons.Clock02
-        LocalToolOption.Workflows -> HugeIcons.Activity01
+        LocalToolOption.Workflows -> HugeIcons.WorkflowCircle01
         LocalToolOption.SubAgents -> HugeIcons.AiBrain01
         LocalToolOption.SkillImport -> HugeIcons.Sparkles
         LocalToolOption.JsSkills -> HugeIcons.Code
-        LocalToolOption.McpControl -> HugeIcons.Connect
+        LocalToolOption.McpControl -> HugeIcons.Link01
         LocalToolOption.ExternalAutomation -> HugeIcons.Rocket01
         LocalToolOption.Reliability -> HugeIcons.SecurityCheck
         LocalToolOption.CostGuards -> HugeIcons.CoinsDollar
         LocalToolOption.ScreenAutomation -> HugeIcons.CursorPointer01
-        LocalToolOption.PhoneUse -> HugeIcons.SmartPhone01
-        LocalToolOption.AppLauncher -> HugeIcons.Rocket01
+        LocalToolOption.PhoneUse -> HugeIcons.Cursor01
+        LocalToolOption.AppLauncher -> HugeIcons.Grid
         LocalToolOption.Termux -> HugeIcons.ComputerTerminal01
         LocalToolOption.KeyboardControl -> HugeIcons.Keyboard
         LocalToolOption.Torch -> HugeIcons.Flash
-        LocalToolOption.Vibrate -> HugeIcons.SmartPhone01
+        LocalToolOption.Vibrate -> HugeIcons.SmartPhone02
         LocalToolOption.Brightness -> HugeIcons.Sun03
-        LocalToolOption.Volume -> HugeIcons.VolumeHigh
-        LocalToolOption.SmsSend -> HugeIcons.Message01
+        LocalToolOption.Volume -> HugeIcons.VolumeLow
+        LocalToolOption.SmsSend -> HugeIcons.Sent
         LocalToolOption.Wallpaper -> HugeIcons.Image02
         LocalToolOption.Keystore -> HugeIcons.Key01
         LocalToolOption.Shizuku -> HugeIcons.Bash
         LocalToolOption.VaultTools -> HugeIcons.Database01
-        LocalToolOption.VaultExportEnv -> HugeIcons.Key01
+        LocalToolOption.VaultExportEnv -> HugeIcons.Key02
         LocalToolOption.Nfc -> HugeIcons.Wifi01
-        LocalToolOption.ExternalStorage -> HugeIcons.Folder01
+        LocalToolOption.ExternalStorage -> HugeIcons.Folder02
         LocalToolOption.Archive -> HugeIcons.Archive02
         LocalToolOption.AppBackup -> HugeIcons.File01
+    }
+
+/**
+ * 59 个本地工具枚举项一对一映射图标颜色（家族色组），与 [iconForLocalToolOption] 并列。
+ *
+ * 未选中态用家族色，选中态保持 onPrimaryContainer（见 [ToolOptionGroupIcon]）。
+ * 色组是语义键，解析到 ExtendColors 的对应档位（见 ToolIconColor.resolve）。
+ * when 按色组归并（每组一行一个选项），分支数 7，复杂度在阈值内，不需要 Suppress。
+ */
+internal fun colorForLocalToolOption(option: LocalToolOption): ToolIconColor =
+    when (option) {
+        LocalToolOption.TelegramBot,
+        LocalToolOption.Toast,
+        LocalToolOption.Notification,
+        LocalToolOption.NotificationListener,
+        LocalToolOption.Contacts,
+        LocalToolOption.CallLog,
+        LocalToolOption.SmsInbox,
+        LocalToolOption.SmsSend,
+        LocalToolOption.AskUser,
+        LocalToolOption.Share,
+        LocalToolOption.Browser,
+        LocalToolOption.WebFetch,
+        LocalToolOption.MediaScanner -> ToolIconColor.BLUE
+        LocalToolOption.Files,
+        LocalToolOption.Download,
+        LocalToolOption.ExternalStorage,
+        LocalToolOption.Archive,
+        LocalToolOption.AppBackup -> ToolIconColor.GREEN
+        LocalToolOption.JavascriptEngine,
+        LocalToolOption.ModelTesting,
+        LocalToolOption.Ssh,
+        LocalToolOption.Shizuku,
+        LocalToolOption.Workflows,
+        LocalToolOption.SubAgents,
+        LocalToolOption.SkillImport,
+        LocalToolOption.JsSkills,
+        LocalToolOption.McpControl,
+        LocalToolOption.Termux -> ToolIconColor.PURPLE
+        LocalToolOption.ScreenAutomation,
+        LocalToolOption.PhoneUse,
+        LocalToolOption.AppLauncher,
+        LocalToolOption.ExternalAutomation,
+        LocalToolOption.KeyboardControl -> ToolIconColor.ORANGE
+        LocalToolOption.TimeInfo,
+        LocalToolOption.ScreenTime,
+        LocalToolOption.ChartDisplay,
+        LocalToolOption.CronJobs,
+        LocalToolOption.CostGuards -> ToolIconColor.TEAL
+        LocalToolOption.Tts,
+        LocalToolOption.CameraPhoto,
+        LocalToolOption.MicRecorder,
+        LocalToolOption.SpeechToText,
+        LocalToolOption.MediaPlayer,
+        LocalToolOption.Wallpaper -> ToolIconColor.PINK
+        LocalToolOption.Clipboard,
+        LocalToolOption.Diagnostics,
+        LocalToolOption.DeviceInfo,
+        LocalToolOption.SystemIntents,
+        LocalToolOption.Location,
+        LocalToolOption.Fingerprint,
+        LocalToolOption.Reliability,
+        LocalToolOption.Torch,
+        LocalToolOption.Vibrate,
+        LocalToolOption.Brightness,
+        LocalToolOption.Volume,
+        LocalToolOption.Keystore,
+        LocalToolOption.VaultTools,
+        LocalToolOption.VaultExportEnv,
+        LocalToolOption.Nfc -> ToolIconColor.GRAY
     }
 
 @Composable
@@ -618,7 +705,7 @@ internal fun ToolOptionGroupIcon(
             if (checked) {
                 MaterialTheme.colorScheme.onPrimaryContainer
             } else {
-                MaterialTheme.colorScheme.onSurfaceVariant
+                colorForLocalToolOption(option).resolve()
             },
     )
 }
@@ -648,7 +735,8 @@ internal fun CardGroupScope.toolSwitchItem(
                     if (checked) {
                         MaterialTheme.colorScheme.onPrimaryContainer
                     } else {
-                        MaterialTheme.colorScheme.onSurfaceVariant
+                        option?.let { colorForLocalToolOption(it).resolve() }
+                            ?: MaterialTheme.colorScheme.onSurfaceVariant
                     },
             )
         },

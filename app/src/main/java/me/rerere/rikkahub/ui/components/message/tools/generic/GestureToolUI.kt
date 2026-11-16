@@ -10,7 +10,15 @@ import kotlinx.serialization.json.intOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cursor01
+import me.rerere.hugeicons.stroke.FingerPrint
+import me.rerere.hugeicons.stroke.Hourglass
+import me.rerere.hugeicons.stroke.Keyboard
+import me.rerere.hugeicons.stroke.Move01
+import me.rerere.hugeicons.stroke.ScanImage
+import me.rerere.hugeicons.stroke.Scroll01
+import me.rerere.hugeicons.stroke.Target01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -27,7 +35,20 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 object GestureToolUI : ToolUIRenderer {
     override val toolName: String = "tap"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Cursor01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "tap" -> HugeIcons.Cursor01
+            "swipe" -> HugeIcons.Move01
+            "long_press" -> HugeIcons.FingerPrint
+            "scroll" -> HugeIcons.Scroll01
+            "click_node" -> HugeIcons.Target01
+            "click_and_read" -> HugeIcons.ScanImage
+            "wait_for" -> HugeIcons.Hourglass
+            "set_text" -> HugeIcons.Keyboard
+            else -> HugeIcons.Cursor01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.ORANGE
 
     @Composable
     @Suppress("ComplexCondition") // 四个可选坐标的非空判断，拆开反而更难读

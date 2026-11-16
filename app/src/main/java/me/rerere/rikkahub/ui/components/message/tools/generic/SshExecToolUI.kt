@@ -7,8 +7,11 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import kotlinx.serialization.json.JsonElement
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.ComputerTerminal01
+import me.rerere.hugeicons.stroke.Bookmark01
+import me.rerere.hugeicons.stroke.CommandLine
+import me.rerere.hugeicons.stroke.ComputerTerminal02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -24,7 +27,15 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 object SshExecToolUI : ToolUIRenderer {
     override val toolName: String = "ssh_exec"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ComputerTerminal01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "ssh_exec" -> HugeIcons.ComputerTerminal02
+            "shizuku_exec" -> HugeIcons.CommandLine
+            "ssh_exec_saved" -> HugeIcons.Bookmark01
+            else -> HugeIcons.ComputerTerminal02
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
 
     @Composable
     override fun title(context: ToolUIContext): String {

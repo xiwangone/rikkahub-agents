@@ -7,8 +7,12 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Telegram
+import me.rerere.hugeicons.stroke.Activity01
+import me.rerere.hugeicons.stroke.Key02
+import me.rerere.hugeicons.stroke.ToggleOff
+import me.rerere.hugeicons.stroke.ToggleOn
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -24,7 +28,20 @@ import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 object TelegramStatusToolUI : ToolUIRenderer {
     override val toolName: String = "telegram_status"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Telegram
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "telegram_status" -> HugeIcons.Activity01
+            "telegram_enable" -> HugeIcons.ToggleOn
+            "telegram_disable" -> HugeIcons.ToggleOff
+            "telegram_set_token" -> HugeIcons.Key02
+            else -> HugeIcons.Activity01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor =
+        when (context.tool.toolName) {
+            "telegram_disable" -> ToolIconColor.RED
+            else -> ToolIconColor.BLUE
+        }
 
     @Composable
     override fun title(context: ToolUIContext): String {

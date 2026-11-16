@@ -6,6 +6,7 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
@@ -13,6 +14,9 @@ import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.contentOrNull
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Edit01
+import me.rerere.hugeicons.stroke.SearchList01
 import me.rerere.rikkahub.R
 
 /**
@@ -26,6 +30,10 @@ import me.rerere.rikkahub.R
 /** `workspace_apply_edits`：折叠标题给「N 个文件 / M 处编辑」，展开列出每个文件。 */
 internal object WorkspaceApplyEditsToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_apply_edits"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Edit01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     /** 入参里每个文件的（路径, 编辑条数）；入参不可解析时为空列表。 */
     private fun fileEntries(context: ToolUIContext): List<Pair<String, Int>> =
@@ -67,6 +75,10 @@ internal object WorkspaceApplyEditsToolUI : ToolUIRenderer {
 /** `workspace_search_code`：折叠标题给匹配条数，展开列出命中的文件路径。 */
 internal object WorkspaceSearchCodeToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_search_code"
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.SearchList01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     /** 返回 (total 匹配数, 去重后的文件列表)。结构与工具实现一致：{matches:[{file,line,text}], total, …}。 */
     private fun matchedFiles(context: ToolUIContext): Pair<Int, List<String>> {

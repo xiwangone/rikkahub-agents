@@ -96,6 +96,14 @@ object TsnetBridge {
             _desiredRunning.value = value
         }
 
+    /**
+     * 供 SSH 拨号解析域名用：由 App 启动后注入，复用 `HostOverrideDns`
+     * （tailnet 域名合成 + App 内独立 DoH/DoT，绕开手机系统 DNS）。
+     * 未注入时回退到系统 DNS，行为与以前一致。
+     */
+    @Volatile
+    var dnsLookup: ((String) -> List<java.net.InetAddress>)? = null
+
     /** 本节点在 tailnet 中的 IP（如 100.64.0.5）；未启动时为 null。 */
     @Volatile
     var nodeIp: String? = null
@@ -402,8 +410,11 @@ object TsnetBridge {
      */
     fun installSshRouter() {
         me.rerere.workspace.ssh.TunnelRouter.install { host, port ->
-            if (isRunning && isTailnetAddress(host)) {
-                proxyToBlocking(host, port)?.let { local -> "127.0.0.1" to local }
+            if (!isRunning) return@install null
+            // 与 HTTP 侧（[TsnetSocketFactory]）走**同一个**判定入口，避免两套逻辑漂移。
+            val target = tailnetDialTarget(host)
+            if (target != null) {
+                proxyToBlocking(target, port)?.let { local -> "127.0.0.1" to local }
             } else {
                 null
             }
@@ -415,4 +426,39 @@ object TsnetBridge {
 fun isTailnetMagicDnsHost(host: String): Boolean {
     val clean = host.trim().trimEnd('.').lowercase()
     return clean.endsWith(".ts.net") || clean.endsWith(".beta.tailscale.net")
+}
+
+/**
+ * 把 [host] 解析成 tailnet 内的 IP（`100.64.0.0/10` / `fd7a:115c:a1e0::/48`），解析不到返回 null。
+ *
+ * 用途：SSH 拨号时判断「这个域名要不要走隧道」。**刻意不按域名后缀白名单** —— 自建控制面
+ * （headscale 系，各自的 MagicDNS 后缀不同，如 `<name>.c.<provider-domain>`）写死后换个
+ * 服务商 / 加第二个控制面就失效；改成「解析结果落在 tailnet 段才算」，与域名长什么样无关。
+ *
+ * 纯 IP 字面量不再做 DNS（直接走 [isTailnetAddress]）；解析异常 / 超时一律返回 null，
+ * 调用方按原目标直连（fail-open：隧道出问题不能把 SSH 本身拖垮）。
+ */
+/**
+ * 「这个 host 要不要交给隧道」的**唯一**判定入口：HTTP 侧 [TsnetSocketFactory] 与 SSH 侧
+ * `TunnelRouter` 共用，避免两处各写一套后漂移。返回实际拨号目标；null = 不接管（直连）。
+ */
+fun tailnetDialTarget(host: String): String? {
+    val clean = host.trim().trimEnd('.').removeSurrounding("[", "]")
+    if (clean.isEmpty()) return null
+    if (TsnetBridge.isTailnetAddress(clean)) return clean
+    if (isTailnetMagicDnsHost(clean)) return clean
+    return resolveTailnetTarget(clean)
+}
+
+internal fun resolveTailnetTarget(host: String): String? {
+    val clean = host.trim().trimEnd('.').removeSurrounding("[", "]")
+    if (clean.isEmpty()) return null
+    // 只负责「非 IP、非 ts.net」的域名：用 App DNS（HostOverrideDns，含独立 DoH/DoT）解析，
+    // 结果落在 tailnet 段才接管 —— 不依赖域名后缀，换控制面 / 加第二个控制面都适用。
+    val addrs = TsnetBridge.dnsLookup?.let { fn -> runCatching { fn(clean) }.getOrNull() }
+        ?: runCatching { java.net.InetAddress.getAllByName(clean).toList() }.getOrNull()
+        ?: return null
+    return addrs.firstOrNull { addr ->
+        TsnetBridge.isTailnetAddress(addr.hostAddress?.substringBefore('%').orEmpty())
+    }?.hostAddress?.substringBefore('%')
 }

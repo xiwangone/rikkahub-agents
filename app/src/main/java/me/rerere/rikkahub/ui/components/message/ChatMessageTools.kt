@@ -219,7 +219,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     imageVector = renderer.icon(context),
                     contentDescription = null,
                     modifier = Modifier.size(16.dp),
-                    tint = LocalContentColor.current.copy(alpha = 0.7f),
+                    tint = renderer.iconColor(context),
                 )
             }
         },

@@ -10,7 +10,9 @@ import kotlinx.serialization.json.jsonArray
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Message01
+import me.rerere.hugeicons.stroke.SearchList02
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRenderer
 import me.rerere.rikkahub.ui.components.message.tools.getStringContent
@@ -26,7 +28,14 @@ import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 object SmsInboxToolUI : ToolUIRenderer {
     override val toolName: String = "list_sms_inbox"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Message01
+    override fun icon(context: ToolUIContext): ImageVector =
+        when (context.tool.toolName) {
+            "list_sms_inbox" -> HugeIcons.Message01
+            "search_sms" -> HugeIcons.SearchList02
+            else -> HugeIcons.Message01
+        }
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.BLUE
 
     @Composable
     override fun title(context: ToolUIContext): String {

@@ -37,6 +37,7 @@ import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.FileAdd
 import me.rerere.hugeicons.stroke.FileEdit
 import me.rerere.hugeicons.stroke.FileView
+import me.rerere.hugeicons.stroke.Note01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.DiffAddedColor
 import me.rerere.rikkahub.ui.components.richtext.DiffRemovedColor
@@ -56,6 +57,8 @@ object EditFileToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_edit_file"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileEdit
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String {
@@ -208,6 +211,8 @@ object ReadFileToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileView
 
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
+
     @Composable
     override fun title(context: ToolUIContext): String {
         val path = context.arguments.getStringContent("path")
@@ -269,6 +274,8 @@ object WriteFileToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_write_file"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileAdd
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String = writeLikeTitle(context)
@@ -396,7 +403,9 @@ object WriteFileToolUI : ToolUIRenderer {
 object WriteTextFileToolUI : ToolUIRenderer {
     override val toolName: String = "write_text_file"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.FileAdd
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Note01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.GREEN
 
     @Composable
     override fun title(context: ToolUIContext): String = writeLikeTitle(context)
@@ -506,6 +515,8 @@ object ShellToolUI : ToolUIRenderer {
     override val toolName: String = "workspace_shell"
 
     override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ComputerTerminal01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PURPLE
 
     @Composable
     override fun title(context: ToolUIContext): String {
