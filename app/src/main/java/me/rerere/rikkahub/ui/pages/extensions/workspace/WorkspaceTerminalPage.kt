@@ -213,6 +213,8 @@ private fun WorkspaceTerminalContent(
                             minTabWidth = 132.dp,
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             divider = {},
+                            // 去掉选中页签下那条长指示线：选中态靠图标主色区分即可。
+                            indicator = {},
                         ) {
                             state.tabs.forEach { tab ->
                                 val tabDescription =
@@ -367,7 +369,7 @@ private fun WorkspaceTerminalTabContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val terminalTextSizePx = with(LocalDensity.current) { 12.sp.roundToPx() }
+    val terminalTextSizePx = with(LocalDensity.current) { 14.sp.roundToPx() }
     val terminalTypeface =
         remember(context) {
             ResourcesCompat.getFont(context, R.font.jetbrains_mono) ?: Typeface.MONOSPACE

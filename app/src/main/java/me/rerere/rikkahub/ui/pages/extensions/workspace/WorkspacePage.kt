@@ -41,8 +41,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.Edit01
-import me.rerere.hugeicons.stroke.File02
-import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.CloudServer
+import me.rerere.hugeicons.stroke.FolderCode
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -101,7 +101,7 @@ fun WorkspacePage(
                     ExtensionEmptyState(
                         message = stringResource(R.string.workspace_page_empty),
                         description = stringResource(R.string.workspace_page_empty_desc),
-                        icon = HugeIcons.File02,
+                        icon = HugeIcons.FolderCode,
                     )
                 }
             }
@@ -125,7 +125,7 @@ fun WorkspacePage(
             text = {
                 Column {
                     WorkspaceTypeOption(
-                        icon = HugeIcons.File02,
+                        icon = HugeIcons.FolderCode,
                         title = stringResource(R.string.workspace_type_local),
                         description = stringResource(R.string.workspace_type_local_desc),
                         onClick = {
@@ -134,7 +134,7 @@ fun WorkspacePage(
                         },
                     )
                     WorkspaceTypeOption(
-                        icon = HugeIcons.ServerStack01,
+                        icon = HugeIcons.CloudServer,
                         title = stringResource(R.string.workspace_type_ssh),
                         description = stringResource(R.string.workspace_type_ssh_desc),
                         onClick = {
@@ -229,7 +229,7 @@ private fun WorkspaceCard(
                     .padding(start = 16.dp, top = 12.dp, bottom = 12.dp, end = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            CardGroupIcon(if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02)
+            CardGroupIcon(if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode)
             Column(
                 modifier =
                     Modifier
@@ -265,7 +265,7 @@ private fun WorkspaceCard(
                             add(
                                 ItemAction(
                                     text = stringResource(R.string.workspace_ssh_edit_connection),
-                                    icon = HugeIcons.ServerStack01,
+                                    icon = HugeIcons.CloudServer,
                                     onClick = onEditSsh,
                                 ),
                             )

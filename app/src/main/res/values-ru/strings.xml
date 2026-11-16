@@ -262,7 +262,9 @@
   <string name="chat_input_file_read_failed">Не удалось прочитать файл: %s</string>
   <string name="chat_message_add_favorite">Добавить в избранное</string>
   <string name="chat_message_remove_favorite">Удалить из избранного</string>
-  <string name="chat_message_tool_approve">Одобрить</string>
+  <string name="chat_message_tool_approve_once">Разрешить один раз</string>
+  <string name="chat_message_tool_approve_always">Разрешать всегда</string>
+  <string name="chat_message_tool_approve_chat">Разрешить в этом чате</string>
   <string name="chat_message_tool_ask_questions">Задать %d вопросов</string>
   <string name="chat_message_tool_call_generic">Вызван инструмент %1$s</string>
   <string name="chat_message_tool_call_label">Вызван инструмент %1$s</string>
@@ -2547,6 +2549,9 @@
   <string name="debug_create_huge">Создать огромный диалог (30 МБ)</string>
   <string name="debug_create_1024">Создать чат из 1024 сообщений</string>
   <string name="about_ai_maintained">Этот репозиторий (версия с поддержкой ИИ)</string>
+  <string name="about_page_website">Сайт RikkaHub</string>
+  <string name="about_official">Официальный (RikkaHub)</string>
+  <string name="about_extv_fork">Оригинальный форк (ExTV)</string>
   <string name="mcp_oauth_authorize">Авторизация OAuth</string>
   <string name="mcp_oauth_cancel">Отменить авторизацию</string>
   <string name="chat_list_clear_selection">Снять выделение</string>

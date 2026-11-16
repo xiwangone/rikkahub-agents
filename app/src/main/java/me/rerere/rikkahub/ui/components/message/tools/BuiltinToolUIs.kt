@@ -28,7 +28,7 @@ import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.longOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Calendar01
+import me.rerere.hugeicons.stroke.CalendarAdd01
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.ChartLineData01
 import me.rerere.hugeicons.stroke.ChartScatter
@@ -506,7 +506,7 @@ object RunJsToolUI : ToolUIRenderer {
 object CreateCalendarEventToolUI : ToolUIRenderer {
     override val toolName: String = "create_calendar_event"
 
-    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.Calendar01
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.CalendarAdd01
 
     override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.TEAL
 

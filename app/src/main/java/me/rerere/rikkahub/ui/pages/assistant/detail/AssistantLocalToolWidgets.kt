@@ -38,7 +38,7 @@ import me.rerere.hugeicons.stroke.Calendar03
 import me.rerere.hugeicons.stroke.Call02
 import me.rerere.hugeicons.stroke.Camera01
 import me.rerere.hugeicons.stroke.ChartLineData01
-import me.rerere.hugeicons.stroke.Clipboard
+import me.rerere.hugeicons.stroke.ClipboardPaste
 import me.rerere.hugeicons.stroke.Clock01
 import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.Code
@@ -46,7 +46,7 @@ import me.rerere.hugeicons.stroke.CoinsDollar
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Contact
-import me.rerere.hugeicons.stroke.Cursor01
+import me.rerere.hugeicons.stroke.Cpu
 import me.rerere.hugeicons.stroke.CursorPointer01
 import me.rerere.hugeicons.stroke.Database01
 import me.rerere.hugeicons.stroke.Download04
@@ -81,8 +81,8 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.SmartPhone02
 import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.hugeicons.stroke.Sun03
+import me.rerere.hugeicons.stroke.Tap01
 import me.rerere.hugeicons.stroke.Telegram
-import me.rerere.hugeicons.stroke.Timer01
 import me.rerere.hugeicons.stroke.Tools
 import me.rerere.hugeicons.stroke.Voice
 import me.rerere.hugeicons.stroke.VolumeHigh
@@ -559,13 +559,13 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
     when (option) {
         LocalToolOption.JavascriptEngine -> HugeIcons.JavaScript
         LocalToolOption.TimeInfo -> HugeIcons.Clock01
-        LocalToolOption.Clipboard -> HugeIcons.Clipboard
+        LocalToolOption.Clipboard -> HugeIcons.ClipboardPaste
         LocalToolOption.Tts -> HugeIcons.VolumeHigh
         LocalToolOption.AskUser -> HugeIcons.MessageQuestion
-        LocalToolOption.ScreenTime -> HugeIcons.Timer01
+        LocalToolOption.ScreenTime -> HugeIcons.SmartPhone01
         LocalToolOption.Diagnostics -> HugeIcons.Bug01
         LocalToolOption.ModelTesting -> HugeIcons.Activity01
-        LocalToolOption.DeviceInfo -> HugeIcons.SmartPhone01
+        LocalToolOption.DeviceInfo -> HugeIcons.Cpu
         LocalToolOption.SystemIntents -> HugeIcons.Calendar03
         LocalToolOption.Toast -> HugeIcons.Message02
         LocalToolOption.Notification -> HugeIcons.Notification02
@@ -598,7 +598,7 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.Reliability -> HugeIcons.SecurityCheck
         LocalToolOption.CostGuards -> HugeIcons.CoinsDollar
         LocalToolOption.ScreenAutomation -> HugeIcons.CursorPointer01
-        LocalToolOption.PhoneUse -> HugeIcons.Cursor01
+        LocalToolOption.PhoneUse -> HugeIcons.Tap01
         LocalToolOption.AppLauncher -> HugeIcons.Grid
         LocalToolOption.Termux -> HugeIcons.ComputerTerminal01
         LocalToolOption.KeyboardControl -> HugeIcons.Keyboard

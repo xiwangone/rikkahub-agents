@@ -256,7 +256,9 @@
   <string name="chat_input_file_read_failed">檔案讀取失敗：%s</string>
   <string name="chat_message_add_favorite">加入最愛</string>
   <string name="chat_message_remove_favorite">移除最愛</string>
-  <string name="chat_message_tool_approve">核准</string>
+  <string name="chat_message_tool_approve_once">允許一次</string>
+  <string name="chat_message_tool_approve_always">總是允許</string>
+  <string name="chat_message_tool_approve_chat">本對話允許</string>
   <string name="chat_message_tool_ask_questions">詢問 %d 個問題</string>
   <string name="chat_message_tool_call_generic">調用工具 %1$s</string>
   <string name="chat_message_tool_call_label">調用工具 %1$s</string>
@@ -2913,6 +2915,9 @@
     <string name="debug_create_huge">建立超大對話 (30MB)</string>
     <string name="debug_create_1024">建立 1024 個訊息的聊天</string>
     <string name="about_ai_maintained">本倉庫（AI 維護版）</string>
+  <string name="about_page_website">RikkaHub 官網</string>
+  <string name="about_official">官方（RikkaHub）</string>
+  <string name="about_extv_fork">原版 Fork（ExTV）</string>
     <string name="mcp_oauth_authorize">OAuth 授權</string>
     <string name="mcp_oauth_cancel">取消授權</string>
     <string name="chat_list_clear_selection">清除選擇</string>

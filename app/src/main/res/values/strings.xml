@@ -403,7 +403,9 @@
   <string name="chat_input_paste_long_text_as_file">Long pasted text was attached as a file instead of being typed into the input box.</string>
   <string name="chat_message_add_favorite">Add Favorite</string>
   <string name="chat_message_remove_favorite">Remove Favorite</string>
-  <string name="chat_message_tool_approve">Approve</string>
+  <string name="chat_message_tool_approve_once">Allow once</string>
+  <string name="chat_message_tool_approve_always">Always allow</string>
+  <string name="chat_message_tool_approve_chat">Allow in this chat</string>
   <string name="chat_message_tool_ask_questions">Ask %d questions</string>
   <string name="chat_message_tool_call_generic">Called tool %1$s</string>
   <string name="chat_message_tool_call_label">Called tool %1$s</string>
@@ -3053,6 +3055,9 @@
   <string name="debug_create_huge">Create huge conversation (30MB)</string>
   <string name="debug_create_1024">Create a chat with 1024 messages</string>
   <string name="about_ai_maintained">This repo (AI-maintained)</string>
+  <string name="about_page_website">RikkaHub website</string>
+  <string name="about_official">Official (RikkaHub)</string>
+  <string name="about_extv_fork">Original fork (ExTV)</string>
   <string name="mcp_oauth_authorize">Authorize OAuth</string>
   <string name="mcp_oauth_cancel">Cancel authorization</string>
   <string name="chat_list_clear_selection">Clear selection</string>

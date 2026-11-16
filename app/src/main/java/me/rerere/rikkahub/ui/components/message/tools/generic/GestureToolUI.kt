@@ -10,13 +10,14 @@ import kotlinx.serialization.json.intOrNull
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cursor01
-import me.rerere.hugeicons.stroke.FingerPrint
 import me.rerere.hugeicons.stroke.Hourglass
 import me.rerere.hugeicons.stroke.Keyboard
-import me.rerere.hugeicons.stroke.Move01
 import me.rerere.hugeicons.stroke.ScanImage
-import me.rerere.hugeicons.stroke.Scroll01
+import me.rerere.hugeicons.stroke.ScrollVertical
+import me.rerere.hugeicons.stroke.SwipeRight01
+import me.rerere.hugeicons.stroke.Tap01
 import me.rerere.hugeicons.stroke.Target01
+import me.rerere.hugeicons.stroke.Touch01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.message.tools.ToolIconColor
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
@@ -37,10 +38,10 @@ object GestureToolUI : ToolUIRenderer {
 
     override fun icon(context: ToolUIContext): ImageVector =
         when (context.tool.toolName) {
-            "tap" -> HugeIcons.Cursor01
-            "swipe" -> HugeIcons.Move01
-            "long_press" -> HugeIcons.FingerPrint
-            "scroll" -> HugeIcons.Scroll01
+            "tap" -> HugeIcons.Tap01
+            "swipe" -> HugeIcons.SwipeRight01
+            "long_press" -> HugeIcons.Touch01
+            "scroll" -> HugeIcons.ScrollVertical
             "click_node" -> HugeIcons.Target01
             "click_and_read" -> HugeIcons.ScanImage
             "wait_for" -> HugeIcons.Hourglass

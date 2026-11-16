@@ -403,7 +403,9 @@
   <string name="chat_input_paste_long_text_as_file">粘贴的长文本已转为文件附件，未插入输入框。</string>
   <string name="chat_message_add_favorite">添加收藏</string>
   <string name="chat_message_remove_favorite">取消收藏</string>
-  <string name="chat_message_tool_approve">批准</string>
+  <string name="chat_message_tool_approve_once">允许一次</string>
+  <string name="chat_message_tool_approve_always">总是允许</string>
+  <string name="chat_message_tool_approve_chat">本会话允许</string>
   <string name="chat_message_tool_ask_questions">询问 %d 个问题</string>
   <string name="chat_message_tool_call_generic">调用工具 %1$s</string>
   <string name="chat_message_tool_call_label">调用工具 %1$s</string>
@@ -3060,6 +3062,9 @@
   <string name="debug_create_huge">创建超大对话 (30MB)</string>
   <string name="debug_create_1024">创建 1024 个消息的聊天</string>
   <string name="about_ai_maintained">本仓库（AI 维护版）</string>
+  <string name="about_page_website">RikkaHub 官网</string>
+  <string name="about_official">官方（RikkaHub）</string>
+  <string name="about_extv_fork">原版 Fork（ExTV）</string>
   <string name="mcp_oauth_authorize">OAuth 授权</string>
   <string name="mcp_oauth_cancel">取消授权</string>
   <string name="chat_list_clear_selection">清除选择</string>

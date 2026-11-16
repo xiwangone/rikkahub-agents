@@ -260,7 +260,9 @@
   <string name="chat_input_file_read_failed">ファイルの読み取りに失敗しました: %s</string>
   <string name="chat_message_add_favorite">お気に入りに追加</string>
   <string name="chat_message_remove_favorite">お気に入りから削除</string>
-  <string name="chat_message_tool_approve">承認</string>
+  <string name="chat_message_tool_approve_once">1回のみ許可</string>
+  <string name="chat_message_tool_approve_always">常に許可</string>
+  <string name="chat_message_tool_approve_chat">このチャットで許可</string>
   <string name="chat_message_tool_ask_questions">%d 件の質問</string>
   <string name="chat_message_tool_call_generic">ツール %1$s を呼び出しました</string>
   <string name="chat_message_tool_call_label">ツール %1$s を呼び出しました</string>
@@ -2552,6 +2554,9 @@
   <string name="debug_create_huge">巨大な会話を作成 (30MB)</string>
   <string name="debug_create_1024">1024 件のメッセージのチャットを作成</string>
   <string name="about_ai_maintained">本リポジトリ（AI メンテナンス版）</string>
+  <string name="about_page_website">RikkaHub 公式サイト</string>
+  <string name="about_official">公式（RikkaHub）</string>
+  <string name="about_extv_fork">オリジナル Fork（ExTV）</string>
   <string name="mcp_oauth_authorize">OAuth 認証</string>
   <string name="mcp_oauth_cancel">認証をキャンセル</string>
   <string name="chat_list_clear_selection">選択をクリア</string>

@@ -47,6 +47,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Bash
 import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.CloudServer
 import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Cpu
@@ -170,7 +171,7 @@ internal fun WorkspaceBasicPage(
                 }
                 if (remote) {
                     item(
-                        leadingContent = { CardGroupIcon(HugeIcons.ServerStack01) },
+                        leadingContent = { CardGroupIcon(HugeIcons.CloudServer) },
                         headlineContent = { Text(stringResource(R.string.workspace_ssh_host)) },
                         supportingContent = {
                             Text(remoteSettings?.let { "${it.username}@${it.host}:${it.port}" } ?: "-")

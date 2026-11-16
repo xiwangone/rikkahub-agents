@@ -7,11 +7,14 @@ import me.rerere.hugeicons.stroke.Alert01
 import me.rerere.hugeicons.stroke.Bookshelf01
 import me.rerere.hugeicons.stroke.Brain02
 import me.rerere.hugeicons.stroke.Image03
+import me.rerere.hugeicons.stroke.ImageAdd01
+import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.ChartRing
 import me.rerere.hugeicons.stroke.Clock02
+import me.rerere.hugeicons.stroke.CloudServer
+import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Connect
-import me.rerere.hugeicons.stroke.Console
 import me.rerere.hugeicons.stroke.Database02
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.GlobalSearch
@@ -21,6 +24,7 @@ import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.Megaphone01
 import me.rerere.hugeicons.stroke.Package
 import me.rerere.hugeicons.stroke.Robot01
+import me.rerere.hugeicons.stroke.SecurityCheck
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.hugeicons.stroke.Tools
@@ -73,7 +77,7 @@ object SettingCatalog {
         SettingEntry(
         id = "media_generation",
         group = SettingGroup.MODEL,
-        icon = HugeIcons.Image03,
+        icon = HugeIcons.ImageAdd01,
         titleRes = R.string.media_creation_title,
         descRes = R.string.media_creation_title,
         screen = Screen.MediaCreationSessions,
@@ -148,7 +152,7 @@ object SettingCatalog {
         SettingEntry(
             id = "web_capability",
             group = SettingGroup.CONNECTION,
-            icon = HugeIcons.ServerStack01,
+            icon = HugeIcons.Internet,
             titleRes = R.string.setting_page_web_capability,
             descRes = R.string.setting_page_web_server_desc,
             screen = Screen.SettingWeb,
@@ -197,7 +201,7 @@ object SettingCatalog {
         SettingEntry(
             id = "ssh_hosts",
             group = SettingGroup.TOOLS,
-            icon = HugeIcons.Console,
+            icon = HugeIcons.CloudServer,
             titleRes = R.string.setting_page_ssh_hosts,
             descRes = R.string.setting_page_ssh_hosts_desc,
             screen = Screen.SettingSshHosts,
@@ -213,7 +217,7 @@ object SettingCatalog {
         SettingEntry(
             id = "shizuku",
             group = SettingGroup.TOOLS,
-            icon = HugeIcons.Console,
+            icon = HugeIcons.SecurityCheck,
             titleRes = R.string.setting_page_shizuku,
             descRes = R.string.setting_page_shizuku_desc,
             screen = Screen.SettingShizuku,
@@ -221,7 +225,7 @@ object SettingCatalog {
         SettingEntry(
             id = "termux",
             group = SettingGroup.TOOLS,
-            icon = HugeIcons.Console,
+            icon = HugeIcons.ComputerTerminal01,
             titleRes = R.string.setting_page_termux,
             descRes = R.string.setting_page_termux_desc,
             screen = Screen.SettingTermux,

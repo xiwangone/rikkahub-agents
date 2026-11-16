@@ -380,7 +380,9 @@
   <string name="chat_input_unsupported_file_type">نوع ملف غير مدعوم: %s</string>
   <string name="chat_message_add_favorite">إضافة إلى المفضلة</string>
   <string name="chat_message_remove_favorite">إزالة من المفضلة</string>
-  <string name="chat_message_tool_approve">موافقة</string>
+  <string name="chat_message_tool_approve_once">السماح مرة واحدة</string>
+  <string name="chat_message_tool_approve_always">السماح دائمًا</string>
+  <string name="chat_message_tool_approve_chat">السماح في هذه المحادثة</string>
   <string name="chat_message_tool_ask_questions">طرح %d أسئلة</string>
   <string name="chat_message_tool_call_generic">تم استدعاء الأداة %1$s</string>
   <string name="chat_message_tool_call_label">تم استدعاء الأداة %1$s</string>
@@ -2101,6 +2103,9 @@
   <string name="debug_create_huge">إنشاء محادثة ضخمة (30MB)</string>
   <string name="debug_create_1024">إنشاء محادثة بـ 1024 رسالة</string>
   <string name="about_ai_maintained">هذا المستودع (نسخة بصيانة الذكاء الاصطناعي)</string>
+  <string name="about_page_website">موقع RikkaHub</string>
+  <string name="about_official">الرسمي (RikkaHub)</string>
+  <string name="about_extv_fork">النسخة الأصلية (ExTV)</string>
   <string name="mcp_oauth_authorize">تفويض OAuth</string>
   <string name="mcp_oauth_cancel">إلغاء التفويض</string>
   <string name="chat_list_clear_selection">مسح التحديد</string>

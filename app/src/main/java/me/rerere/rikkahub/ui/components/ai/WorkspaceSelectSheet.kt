@@ -30,8 +30,8 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Codesandbox
-import me.rerere.hugeicons.stroke.File02
-import me.rerere.hugeicons.stroke.ServerStack01
+import me.rerere.hugeicons.stroke.CloudServer
+import me.rerere.hugeicons.stroke.FolderCode
 import me.rerere.hugeicons.stroke.Tick02
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
@@ -86,9 +86,9 @@ internal fun WorkspaceSelectSheet(
                     WorkspaceSelectRow(
                         title = workspace.name,
                         status = workspace.statusLabel(),
-                        // 行图标按类型区分，与工作区列表页同口径：SSH 用服务器、本地用文件。
+                        // 行图标按类型区分，与工作区列表页同口径：SSH 用云服务器、本地用代码文件夹。
                         // 以前全行都是同一个 Codesandbox，同名工作区分不清本地还是 SSH。
-                        icon = if (workspace.isSsh()) HugeIcons.ServerStack01 else HugeIcons.File02,
+                        icon = if (workspace.isSsh()) HugeIcons.CloudServer else HugeIcons.FolderCode,
                         selected = workspace.id == assistant.workspaceId?.toString(),
                         onClick = { onSelect(workspace.id) },
                     )

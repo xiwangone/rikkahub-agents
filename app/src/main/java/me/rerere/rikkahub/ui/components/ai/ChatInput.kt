@@ -86,7 +86,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.ArrowUp02
 import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.FullScreen
+import me.rerere.hugeicons.stroke.Fullscreen
 import me.rerere.hugeicons.stroke.LockKey
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
@@ -802,7 +802,7 @@ keyboardOptions =
                     IconButton(onClick = {
                         isFullScreen = !isFullScreen
                     }) {
-                        Icon(HugeIcons.FullScreen, null)
+                        Icon(HugeIcons.Fullscreen, null)
                     }
                 }
             },
