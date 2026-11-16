@@ -710,7 +710,7 @@ internal fun appendApprovalProvenance(
     val marker =
         when (approvalState) {
             ToolApprovalState.Auto -> "[approval: auto]"
-            ToolApprovalState.Approved -> "[approval: approved-by-user]"
+            is ToolApprovalState.Approved -> "[approval: approved-by-user]"
             ToolApprovalState.Pending -> "[approval: pending]"
             is ToolApprovalState.Denied -> "[approval: denied-by-user]"
             is ToolApprovalState.Answered -> "[approval: answered-by-user]"

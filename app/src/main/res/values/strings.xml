@@ -406,6 +406,7 @@
   <string name="chat_message_tool_approve_once">Allow once</string>
   <string name="chat_message_tool_approve_always">Always allow</string>
   <string name="chat_message_tool_approve_chat">Allow in this chat</string>
+  <string name="chat_message_tool_approved_scope">Approved: %1$s</string>
   <string name="chat_message_tool_ask_questions">Ask %d questions</string>
   <string name="chat_message_tool_call_generic">Called tool %1$s</string>
   <string name="chat_message_tool_call_label">Called tool %1$s</string>

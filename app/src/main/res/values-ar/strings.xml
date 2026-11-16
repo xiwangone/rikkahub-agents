@@ -383,6 +383,7 @@
   <string name="chat_message_tool_approve_once">السماح مرة واحدة</string>
   <string name="chat_message_tool_approve_always">السماح دائمًا</string>
   <string name="chat_message_tool_approve_chat">السماح في هذه المحادثة</string>
+  <string name="chat_message_tool_approved_scope">تمت الموافقة: %1$s</string>
   <string name="chat_message_tool_ask_questions">طرح %d أسئلة</string>
   <string name="chat_message_tool_call_generic">تم استدعاء الأداة %1$s</string>
   <string name="chat_message_tool_call_label">تم استدعاء الأداة %1$s</string>

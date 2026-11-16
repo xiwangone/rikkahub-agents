@@ -43,7 +43,7 @@ class FinishPendingToolsTest {
 
     @Test
     fun `approved but unexecuted tool is marked cancelled`() {
-        assertEquals(cancelled, finish(tool(ToolApprovalState.Approved)))
+        assertEquals(cancelled, finish(tool(ToolApprovalState.Approved())))
     }
 
     @Test

@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.ui.components.message
 
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -10,6 +12,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LocalContentColor
@@ -28,9 +31,11 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
@@ -40,8 +45,11 @@ import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.ai.util.isSecretKey
 import me.rerere.common.http.jsonObjectOrNull
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.BubbleChatQuestion
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.ASK_USER_TOOL_NAME
@@ -52,6 +60,7 @@ import me.rerere.rikkahub.ui.components.message.tools.ToolStatusBadge
 import me.rerere.rikkahub.ui.components.message.tools.ToolSummarySurface
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIContext
 import me.rerere.rikkahub.ui.components.message.tools.ToolUIRegistry
+import me.rerere.rikkahub.ui.components.message.tools.approvalScopeStringRes
 import me.rerere.rikkahub.ui.components.message.tools.getErrorCode
 import me.rerere.rikkahub.ui.components.message.tools.resolveToolStepStatus
 import me.rerere.rikkahub.ui.components.richtext.ZoomableAsyncImage
@@ -59,6 +68,7 @@ import me.rerere.rikkahub.ui.components.ui.ChainOfThoughtScope
 import me.rerere.rikkahub.ui.components.ui.DotLoading
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.JsonInstant
+import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 
 // Per-tool icon/title/summary/preview rendering now lives in ToolUIRegistry
@@ -115,6 +125,56 @@ internal fun parseToolOutputContent(tool: UIMessagePart.Tool): JsonElement? {
             ),
         )
     }.getOrNull()
+}
+
+/**
+ * 待审批摘要的最大字符数（JSON 部分，不含「工具名: 」前缀）。审批卡是决策界面，
+ * 入参再长也不能把卡片撑开，超长截断加省略号。
+ */
+internal const val PENDING_TOOL_SUMMARY_MAX_CHARS = 200
+
+/**
+ * 按键名递归脱敏：键名命中敏感词（[isSecretKey]，裸 `token` 与短值也在内）时，
+ * 该键的值一律替换为 `***`，嵌套对象与数组同样处理。审批卡是给人看的界面，
+ * 凭证原文绝不能出现在这里。
+ *
+ * 只靠 [LogRedactor.maskText] 不够：它的键名表没有裸 `token`，且值短于 8 字符时不掩；
+ * 按键名脱敏没有长度下限。编码后再过一次 maskText 做纵深防御
+ * （嵌在字符串值里的 `?token=…` 这类形态）。
+ */
+private fun maskSensitiveArgs(element: JsonElement): JsonElement =
+    when (element) {
+        is JsonObject ->
+            JsonObject(
+                element.mapValues { (key, value) ->
+                    if (isSecretKey(key)) JsonPrimitive("***") else maskSensitiveArgs(value)
+                },
+            )
+        is JsonArray -> JsonArray(element.map(::maskSensitiveArgs))
+        else -> element
+    }
+
+/**
+ * 待审批调用的「工具名 + 入参」一行摘要，显示在审批区顶部（标题行下方、按钮上方），
+ * 让用户不用点开展开就能看到这次调用要干什么。
+ *
+ * 渲染器的 Summary 描述的是工具输出，待审批调用尚无输出，故直接展示入参。
+ * 入参先按 JSON 键名脱敏、再过自由文本脱敏；超长截断。非法 JSON 时 inputAsJson
+ * 返回空对象，摘要退化为「工具名: {}」。
+ */
+internal fun pendingToolSummaryLine(tool: UIMessagePart.Tool): String {
+    val masked = maskSensitiveArgs(tool.inputAsJson())
+    val text =
+        LogRedactor.maskText(
+            runCatching { JsonInstant.encodeToString(masked) }.getOrNull().orEmpty(),
+        )
+    val truncated =
+        if (text.length > PENDING_TOOL_SUMMARY_MAX_CHARS) {
+            text.take(PENDING_TOOL_SUMMARY_MAX_CHARS) + "…"
+        } else {
+            text
+        }
+    return "${tool.toolName}: $truncated"
 }
 
 @Composable
@@ -195,6 +255,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
     // cards and denial reasons are common to all tools.
     val hasExtraContent =
         renderer.hasSummary(context) || isDenied || images.isNotEmpty() || webviewParts.isNotEmpty()
+    val approvedScope = (tool.approvalState as? ToolApprovalState.Approved)?.scope
     val stepStatus =
         resolveToolStepStatus(
             isPending = isPending,
@@ -204,6 +265,7 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             exitCode = context.content.getStringContent("exit_code") ?: context.content.getStringContent("exitCode"),
             hasError = context.content.getErrorCode()?.let { it.isNotBlank() && !it.equals("false", ignoreCase = true) } == true,
             isInterruptedAttempt = tool.isInterruptedAttempt && !loading,
+            approvedScope = approvedScope,
         )
 
     ControlledChainOfThoughtStep(
@@ -241,6 +303,26 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             }
         },
         extra =
+            if (hasExtraContent) {
+                {
+                    // 折叠切换钮（小 chevron）：独立于标题行点击（开结果弹窗）。
+                    // 内层 clickable 吃掉点击事件，点它只切换 expanded，不触发外层的 onClick。
+                    Box(
+                        modifier = Modifier.size(28.dp).clip(CircleShape).clickable { expanded = !expanded },
+                        contentAlignment = Alignment.Center,
+                    ) {
+                        Icon(
+                            imageVector = if (expanded) HugeIcons.ArrowUp01 else HugeIcons.ArrowDown01,
+                            contentDescription = stringResource(if (expanded) R.string.code_block_collapse else R.string.code_block_expand),
+                            modifier = Modifier.size(16.dp),
+                            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                }
+            } else {
+                null
+            },
+        belowTitle =
             if (isPending && onToolApproval != null) {
                 {
                     // Per-row in-flight flag to debounce double-taps. Without this, two rapid
@@ -250,11 +332,50 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                     // recomposition for a different tool doesn't carry the flag.
                     var inFlight by remember(tool.toolCallId) { mutableStateOf(false) }
                     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        val isScheduleJob =
+                            tool.toolName in setOf("schedule_job", "schedule_job_direct", "schedule_job_llm")
+                        val mcpRendered =
+                            if (tool.toolName.startsWith("mcp_")) {
+                                runCatching {
+                                    (tool.inputAsJson() as? JsonObject)?.let {
+                                        me.rerere.rikkahub.data.ai.mcp.control.McpApprovalRenderer
+                                            .render(tool.toolName, it)
+                                    }
+                                }.getOrNull()
+                            } else {
+                                null
+                            }
+                        val workflowRendered =
+                            if (me.rerere.rikkahub.workflow.tools.WorkflowApprovalRenderer
+                                    .isWorkflowTool(tool.toolName) &&
+                                tool.toolName !in setOf("workflow_list", "workflow_get")
+                            ) {
+                                runCatching {
+                                    me.rerere.rikkahub.workflow.tools.WorkflowApprovalRenderer
+                                        .renderPlain(tool.toolName, tool.input.ifBlank { "{}" })
+                                }.getOrNull()
+                            } else {
+                                null
+                            }
+                        // 通用工具没有专用审批体时，补一行「工具名 + 入参」摘要（折叠态也可见），
+                        // 让用户不用点开展开就能看到这次调用要干什么。
+                        // 已有专用体的工具（schedule_job / mcp_ / workflow_*）用专用体，不再补通用摘要。
+                        val showGenericSummary =
+                            !isScheduleJob && mcpRendered.isNullOrBlank() && workflowRendered.isNullOrBlank()
+                        if (showGenericSummary) {
+                            Text(
+                                text = pendingToolSummaryLine(tool),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 2,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
                         // schedule_job family is the one approval that AUTHORISES future autonomous
                         // execution, not just one tool. Surface the consequence here so the
                         // user knows what they're approving — every tool the cron prompt
                         // invokes will run without prompts. (HARDLINE blocks still apply.)
-                        if (tool.toolName in setOf("schedule_job", "schedule_job_direct", "schedule_job_llm")) {
+                        if (isScheduleJob) {
                             Text(
                                 text = stringResource(R.string.chat_message_tool_schedule_job_warning),
                                 style = MaterialTheme.typography.labelSmall,
@@ -306,41 +427,22 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
                         // MCP control tools: render args via the redacting helper so headers
                         // like Authorization / X-Api-Key never appear plainly in the approval
                         // card. Generic args display would leak them (audit finding).
-                        if (tool.toolName.startsWith("mcp_")) {
-                            val mcpRendered =
-                                runCatching {
-                                    (tool.inputAsJson() as? JsonObject)?.let {
-                                        me.rerere.rikkahub.data.ai.mcp.control.McpApprovalRenderer
-                                            .render(tool.toolName, it)
-                                    }
-                                }.getOrNull()
-                            if (!mcpRendered.isNullOrBlank()) {
-                                Text(
-                                    text = mcpRendered,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                        if (!mcpRendered.isNullOrBlank()) {
+                            Text(
+                                text = mcpRendered,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         // Workflow_* mutators: human-readable approval body ("Create workflow X /
                         // When: WiFi connects to HomeWiFi / Do: 1. ssh_exec_saved(host=home) / …").
                         // Action arg values whose key is in the secret-redaction list are masked.
-                        if (me.rerere.rikkahub.workflow.tools.WorkflowApprovalRenderer
-                                .isWorkflowTool(tool.toolName) &&
-                            tool.toolName !in setOf("workflow_list", "workflow_get")
-                        ) {
-                            val workflowRendered =
-                                runCatching {
-                                    me.rerere.rikkahub.workflow.tools.WorkflowApprovalRenderer
-                                        .renderPlain(tool.toolName, tool.input.ifBlank { "{}" })
-                                }.getOrNull()
-                            if (!workflowRendered.isNullOrBlank()) {
-                                Text(
-                                    text = workflowRendered,
-                                    style = MaterialTheme.typography.labelSmall,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                        if (!workflowRendered.isNullOrBlank()) {
+                            Text(
+                                text = workflowRendered,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
                         }
                         // Four-button row: Allow / Always Allow / Allow for this chat / Deny.
                         // Order matches the Telegram inline-keyboard layout so the user sees the
@@ -400,6 +502,17 @@ fun ChainOfThoughtScope.ChatMessageToolStep(
             if (hasExtraContent) {
                 {
                     ToolSummarySurface {
+                        // 批准后已执行：徽标已按执行结果显示，详情里留一行当时批的范围。
+                        if (approvedScope != null && tool.isExecuted) {
+                            Text(
+                                text = stringResource(
+                                    R.string.chat_message_tool_approved_scope,
+                                    stringResource(approvalScopeStringRes(approvedScope)),
+                                ),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                         renderer.Summary(context)
                         webviewParts.forEach { webviewPart ->
                             SkillWebviewCardOrNull(part = webviewPart)

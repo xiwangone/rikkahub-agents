@@ -406,6 +406,7 @@
   <string name="chat_message_tool_approve_once">允许一次</string>
   <string name="chat_message_tool_approve_always">总是允许</string>
   <string name="chat_message_tool_approve_chat">本会话允许</string>
+  <string name="chat_message_tool_approved_scope">已批准：%1$s</string>
   <string name="chat_message_tool_ask_questions">询问 %d 个问题</string>
   <string name="chat_message_tool_call_generic">调用工具 %1$s</string>
   <string name="chat_message_tool_call_label">调用工具 %1$s</string>

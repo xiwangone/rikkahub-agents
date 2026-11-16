@@ -32,9 +32,9 @@ class GenerationLoopResumeToolSelectionTest {
     @Test
     fun `four unexecuted tools, two Approved and two Auto, all resume in original call order`() {
         val tools = listOf(
-            tool("t1", ToolApprovalState.Approved),
+            tool("t1", ToolApprovalState.Approved()),
             tool("t2", ToolApprovalState.Auto),
-            tool("t3", ToolApprovalState.Approved),
+            tool("t3", ToolApprovalState.Approved()),
             tool("t4", ToolApprovalState.Auto),
         )
         val resumed = resumableToolsIncludingUnexecutedAuto(tools)
@@ -65,7 +65,7 @@ class GenerationLoopResumeToolSelectionTest {
     @Test
     fun `a tool still Pending never resumes`() {
         val tools = listOf(
-            tool("t1", ToolApprovalState.Approved),
+            tool("t1", ToolApprovalState.Approved()),
             tool("t2", ToolApprovalState.Pending),
             tool("t3", ToolApprovalState.Auto),
         )
@@ -76,7 +76,7 @@ class GenerationLoopResumeToolSelectionTest {
     @Test
     fun `an already-executed Auto tool is not re-run`() {
         val tools = listOf(
-            tool("t1", ToolApprovalState.Approved),
+            tool("t1", ToolApprovalState.Approved()),
             tool("t2", ToolApprovalState.Auto, executed = true),
         )
         val resumed = resumableToolsIncludingUnexecutedAuto(tools)

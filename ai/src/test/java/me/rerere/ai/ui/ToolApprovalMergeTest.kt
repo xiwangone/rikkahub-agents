@@ -53,8 +53,8 @@ class ToolApprovalMergeTest {
         val stale = tool(state = ToolApprovalState.Auto)
 
         assertEquals(
-            ToolApprovalState.Approved,
-            stale.mergeApprovalProgress(tool(state = ToolApprovalState.Approved)).approvalState,
+            ToolApprovalState.Approved(),
+            stale.mergeApprovalProgress(tool(state = ToolApprovalState.Approved())).approvalState,
         )
     }
 

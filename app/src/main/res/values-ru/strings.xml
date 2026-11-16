@@ -265,6 +265,7 @@
   <string name="chat_message_tool_approve_once">Разрешить один раз</string>
   <string name="chat_message_tool_approve_always">Разрешать всегда</string>
   <string name="chat_message_tool_approve_chat">Разрешить в этом чате</string>
+  <string name="chat_message_tool_approved_scope">Одобрено: %1$s</string>
   <string name="chat_message_tool_ask_questions">Задать %d вопросов</string>
   <string name="chat_message_tool_call_generic">Вызван инструмент %1$s</string>
   <string name="chat_message_tool_call_label">Вызван инструмент %1$s</string>

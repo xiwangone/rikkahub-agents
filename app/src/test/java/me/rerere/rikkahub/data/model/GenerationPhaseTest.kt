@@ -14,7 +14,7 @@ class GenerationPhaseTest {
         toolCallId = "synthetic-call",
         toolName = name,
         input = "{}",
-        approvalState = if (pending) ToolApprovalState.Pending else ToolApprovalState.Approved,
+        approvalState = if (pending) ToolApprovalState.Pending else ToolApprovalState.Approved(),
     )
 
     @Test

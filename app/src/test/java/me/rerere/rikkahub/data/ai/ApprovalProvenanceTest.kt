@@ -23,7 +23,7 @@ class ApprovalProvenanceTest {
 
     @Test
     fun userApprovalIsMarkedDistinctly() {
-        val out = appendApprovalProvenance(listOf(text("done")), ToolApprovalState.Approved)
+        val out = appendApprovalProvenance(listOf(text("done")), ToolApprovalState.Approved())
         assertEquals("done\n[approval: approved-by-user]", (out.single() as UIMessagePart.Text).text)
     }
 

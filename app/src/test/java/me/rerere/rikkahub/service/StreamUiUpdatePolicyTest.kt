@@ -36,7 +36,7 @@ class StreamUiUpdatePolicyTest {
         val pending = toolMessage("pending", approvalState = ToolApprovalState.Pending)
         val executing = toolMessage(
             "executing",
-            approvalState = ToolApprovalState.Approved,
+            approvalState = ToolApprovalState.Approved(),
             executionStartedAt = 123L,
         )
 

@@ -237,6 +237,7 @@ interface ChainOfThoughtScope {
      * @param onClick 自定义点击行为；设置后优先于展开/折叠逻辑
      * @param collapsedAdaptiveWidth 是否在折叠且内容隐藏时使用自适应宽度
      * @param content 步骤展开后显示的内容；为 `null` 时步骤不可展开
+     * @param belowTitle 标题行下方的常驻区，不随折叠收起；为 `null` 时不渲染
      */
     @Composable
     fun ChainOfThoughtStep(
@@ -246,6 +247,7 @@ interface ChainOfThoughtScope {
         onClick: (() -> Unit)? = null,
         collapsedAdaptiveWidth: Boolean = false,
         content: (@Composable () -> Unit)? = null,
+        belowTitle: (@Composable () -> Unit)? = null,
     )
 
     /**
@@ -262,6 +264,7 @@ interface ChainOfThoughtScope {
      * @param collapsedAdaptiveWidth 是否在折叠且内容隐藏时使用自适应宽度
      * @param contentVisible 是否展示内容区域，可与 [expanded] 解耦
      * @param content 步骤内容；为 `null` 时步骤不可展开
+     * @param belowTitle 标题行下方的常驻区，不随折叠收起；为 `null` 时不渲染
      */
     @Composable
     fun ControlledChainOfThoughtStep(
@@ -274,6 +277,7 @@ interface ChainOfThoughtScope {
         collapsedAdaptiveWidth: Boolean = false,
         contentVisible: Boolean = expanded,
         content: (@Composable () -> Unit)? = null,
+        belowTitle: (@Composable () -> Unit)? = null,
     )
 }
 
@@ -290,6 +294,7 @@ private class ChainOfThoughtScopeImpl(
         onClick: (() -> Unit)?,
         collapsedAdaptiveWidth: Boolean,
         content: @Composable (() -> Unit)?,
+        belowTitle: @Composable (() -> Unit)?,
     ) {
         var expanded by remember { mutableStateOf(false) }
         ChainOfThoughtStepContent(
@@ -302,6 +307,7 @@ private class ChainOfThoughtScopeImpl(
             onExpandedChange = { expanded = it },
             contentVisible = expanded,
             content = content,
+            belowTitle = belowTitle,
         )
     }
 
@@ -316,6 +322,7 @@ private class ChainOfThoughtScopeImpl(
         collapsedAdaptiveWidth: Boolean,
         contentVisible: Boolean,
         content: @Composable (() -> Unit)?,
+        belowTitle: @Composable (() -> Unit)?,
     ) {
         ChainOfThoughtStepContent(
             icon = icon,
@@ -327,6 +334,7 @@ private class ChainOfThoughtScopeImpl(
             onExpandedChange = onExpandedChange,
             contentVisible = contentVisible,
             content = content,
+            belowTitle = belowTitle,
         )
     }
 
@@ -341,6 +349,7 @@ private class ChainOfThoughtScopeImpl(
         onExpandedChange: (Boolean) -> Unit,
         contentVisible: Boolean,
         content: @Composable (() -> Unit)?,
+        belowTitle: @Composable (() -> Unit)? = null,
     ) {
         val hasContent = content != null
         val shouldFillMaxWidth = !collapsedAdaptiveWidth || contentVisible
@@ -470,6 +479,22 @@ private class ChainOfThoughtScopeImpl(
                         modifier = Modifier.size(16.dp),
                         tint = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
+                }
+            }
+
+            // 标题行下方的常驻区（例如审批按钮组）：不随折叠收起，与可折叠的 content 分开。
+            if (belowTitle != null) {
+                Box(
+                    modifier =
+                        Modifier.then(
+                            if (shouldFillMaxWidth) {
+                                Modifier.fillMaxWidth()
+                            } else {
+                                Modifier
+                            },
+                        ),
+                ) {
+                    belowTitle()
                 }
             }
 

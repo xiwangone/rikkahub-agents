@@ -82,4 +82,65 @@ class ToolStepStatusTest {
             ),
         )
     }
+
+    @Test
+    fun `approved but not executed shows approved badge by scope`() {
+        assertEquals(
+            ToolStepStatus.APPROVED_ONCE,
+            resolveToolStepStatus(false, false, false, null, null, false, approvedScope = "once"),
+        )
+        assertEquals(
+            ToolStepStatus.APPROVED_CHAT,
+            resolveToolStepStatus(false, false, false, null, null, false, approvedScope = "chat"),
+        )
+        assertEquals(
+            ToolStepStatus.APPROVED_ALWAYS,
+            resolveToolStepStatus(false, false, false, null, null, false, approvedScope = "always"),
+        )
+    }
+
+    @Test
+    fun `unknown approved scope falls back to once`() {
+        assertEquals(
+            ToolStepStatus.APPROVED_ONCE,
+            resolveToolStepStatus(false, false, false, null, null, false, approvedScope = "bogus"),
+        )
+    }
+
+    @Test
+    fun `approved and executed follows execution result`() {
+        assertEquals(
+            ToolStepStatus.COMPLETED,
+            resolveToolStepStatus(false, false, true, true, "0", false, approvedScope = "always"),
+        )
+        assertEquals(
+            ToolStepStatus.FAILED,
+            resolveToolStepStatus(false, false, true, false, "0", false, approvedScope = "once"),
+        )
+    }
+
+    @Test
+    fun `denied pending and interrupted still win over approved scope`() {
+        assertEquals(
+            ToolStepStatus.DENIED,
+            resolveToolStepStatus(false, true, false, null, null, false, approvedScope = "always"),
+        )
+        assertEquals(
+            ToolStepStatus.NEEDS_APPROVAL,
+            resolveToolStepStatus(true, false, false, null, null, false, approvedScope = "always"),
+        )
+        assertEquals(
+            ToolStepStatus.INTERRUPTED,
+            resolveToolStepStatus(
+                false,
+                false,
+                false,
+                null,
+                null,
+                false,
+                isInterruptedAttempt = true,
+                approvedScope = "chat",
+            ),
+        )
+    }
 }

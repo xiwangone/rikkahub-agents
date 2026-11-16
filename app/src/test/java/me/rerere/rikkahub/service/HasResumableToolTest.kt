@@ -52,7 +52,7 @@ class HasResumableToolTest {
         assertTrue(
             hasResumableTool(
                 message(
-                    tool("t1", ToolApprovalState.Approved),
+                    tool("t1", ToolApprovalState.Approved()),
                     tool("t2", ToolApprovalState.Pending),
                 ),
             ),
@@ -79,7 +79,7 @@ class HasResumableToolTest {
         assertFalse(
             hasResumableTool(
                 message(
-                    tool("t1", ToolApprovalState.Approved, executed = true),
+                    tool("t1", ToolApprovalState.Approved(), executed = true),
                     tool("t2", ToolApprovalState.Pending),
                 ),
             ),

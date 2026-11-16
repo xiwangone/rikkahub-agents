@@ -78,7 +78,7 @@ class AbandonUnexecutedToolsTest {
 
     @Test
     fun `approved unexecuted tool is terminated`() {
-        val out = after(tool(ToolApprovalState.Approved))
+        val out = after(tool(ToolApprovalState.Approved()))
         assertEquals(ToolApprovalState.Denied(reason), out.approvalState)
         assertTrue(out.isExecuted)
     }
@@ -101,7 +101,7 @@ class AbandonUnexecutedToolsTest {
     fun `text parts survive and only unexecuted tools are terminated`() {
         val text = UIMessagePart.Text("I will run the command now")
         val running = tool(ToolApprovalState.Auto)
-        val done = tool(ToolApprovalState.Approved, executed = true)
+        val done = tool(ToolApprovalState.Approved(), executed = true)
         val message = UIMessage(role = MessageRole.ASSISTANT, parts = listOf(text, running, done))
 
         val updated = message.abandonUnexecutedTools(reason)
@@ -118,7 +118,7 @@ class AbandonUnexecutedToolsTest {
 
     @Test
     fun `approved interrupted attempt gets unknown-outcome reason`() {
-        val out = after(tool(ToolApprovalState.Approved, startedAt = 1_700_000_000_000L), unknownReason)
+        val out = after(tool(ToolApprovalState.Approved(), startedAt = 1_700_000_000_000L), unknownReason)
         assertEquals(ToolApprovalState.Denied(unknownReason), out.approvalState)
         assertTrue(out.isExecuted)
         val error = out.output.single() as UIMessagePart.Text
@@ -147,7 +147,7 @@ class AbandonUnexecutedToolsTest {
     @Test
     fun `mixed interrupted and unstarted tools get respective reasons`() {
         val started = tool(ToolApprovalState.Auto, startedAt = 1_700_000_000_000L)
-        val unstarted = tool(ToolApprovalState.Approved)
+        val unstarted = tool(ToolApprovalState.Approved())
         val message = UIMessage(role = MessageRole.ASSISTANT, parts = listOf(started, unstarted))
 
         val updated = message.abandonUnexecutedTools(reason, unknownReason)
@@ -187,7 +187,7 @@ class AbandonUnexecutedToolsTest {
 
     @Test
     fun `interrupted attempt output is interrupted envelope with abort recovery`() {
-        val out = after(tool(ToolApprovalState.Approved, startedAt = 1_700_000_000_000L), unknownReason)
+        val out = after(tool(ToolApprovalState.Approved(), startedAt = 1_700_000_000_000L), unknownReason)
         assertInterruptedEnvelope(envelopeOf(out), ToolErrorEnvelope.RECOVERY_ABORT, "interrupted_unknown_outcome")
     }
 

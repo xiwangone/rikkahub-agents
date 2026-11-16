@@ -343,7 +343,7 @@ internal class AgentLoop(
                 )
 
             is ToolApprovalState.Answered -> listOf(UIMessagePart.Text(state.answer))
-            ToolApprovalState.Auto, ToolApprovalState.Approved -> guardedRun(tool)
+            ToolApprovalState.Auto, is ToolApprovalState.Approved -> guardedRun(tool)
             ToolApprovalState.Pending -> error("Tool ${tool.toolCallId} is still waiting for approval")
         }
 

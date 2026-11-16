@@ -16,6 +16,9 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelAbility
+import me.rerere.ai.ui.APPROVAL_SCOPE_ALWAYS
+import me.rerere.ai.ui.APPROVAL_SCOPE_CHAT
+import me.rerere.ai.ui.APPROVAL_SCOPE_ONCE
 import me.rerere.ai.ui.ToolApprovalState
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
@@ -82,6 +85,7 @@ fun ChatService.handleToolApproval(
                                 approved = approved,
                                 reason = reason,
                                 answer = answer,
+                                scope = scope,
                             )
                         }
                         if (!hasAnyPendingTools(session.state.value)) {
@@ -102,6 +106,14 @@ fun ChatService.handleToolApproval(
             }
 
         session.setJob(job, cancelPrevious = false)
+    }
+
+/** 审批范围枚举 → 存进 [ToolApprovalState.Approved.scope] 的键。 */
+private fun ChatService.ApprovalScope.toScopeKey(): String =
+    when (this) {
+        ChatService.ApprovalScope.Once -> APPROVAL_SCOPE_ONCE
+        ChatService.ApprovalScope.ChatScope -> APPROVAL_SCOPE_CHAT
+        ChatService.ApprovalScope.Always -> APPROVAL_SCOPE_ALWAYS
     }
 
 private fun ChatService.persistToolApprovalScopeGrant(
@@ -135,12 +147,13 @@ private suspend fun ChatService.applyToolApprovalDecisionInLock(
     approved: Boolean,
     reason: String,
     answer: String?,
+    scope: ChatService.ApprovalScope = ChatService.ApprovalScope.Once,
 ) {
     val conversation = session.state.value
     val newApprovalState =
         when {
             answer != null -> ToolApprovalState.Answered(answer)
-            approved -> ToolApprovalState.Approved
+            approved -> ToolApprovalState.Approved(scope = scope.toScopeKey())
             else -> ToolApprovalState.Denied(reason)
         }
 

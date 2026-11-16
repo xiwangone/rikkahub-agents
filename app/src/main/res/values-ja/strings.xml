@@ -263,6 +263,7 @@
   <string name="chat_message_tool_approve_once">1回のみ許可</string>
   <string name="chat_message_tool_approve_always">常に許可</string>
   <string name="chat_message_tool_approve_chat">このチャットで許可</string>
+  <string name="chat_message_tool_approved_scope">承認済み：%1$s</string>
   <string name="chat_message_tool_ask_questions">%d 件の質問</string>
   <string name="chat_message_tool_call_generic">ツール %1$s を呼び出しました</string>
   <string name="chat_message_tool_call_label">ツール %1$s を呼び出しました</string>

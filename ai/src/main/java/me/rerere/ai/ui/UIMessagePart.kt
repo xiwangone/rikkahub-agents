@@ -18,9 +18,14 @@ sealed class ToolApprovalState {
     @SerialName("pending")
     data object Pending : ToolApprovalState()
 
+    /**
+     * 用户已批准本次调用，[scope] 记录当时批的范围（[APPROVAL_SCOPE_ONCE] /
+     * [APPROVAL_SCOPE_CHAT] / [APPROVAL_SCOPE_ALWAYS]）。旧数据没有 scope 字段时
+     * 默认 [APPROVAL_SCOPE_ONCE]，即只对本次调用有效。
+     */
     @Serializable
     @SerialName("approved")
-    data object Approved : ToolApprovalState()
+    data class Approved(val scope: String = APPROVAL_SCOPE_ONCE) : ToolApprovalState()
 
     @Serializable
     @SerialName("denied")
@@ -31,9 +36,18 @@ sealed class ToolApprovalState {
     data class Answered(val answer: String) : ToolApprovalState()
 }
 
+/** [ToolApprovalState.Approved.scope] 的取值：只对本次调用有效。 */
+const val APPROVAL_SCOPE_ONCE = "once"
+
+/** [ToolApprovalState.Approved.scope] 的取值：在本会话内有效。 */
+const val APPROVAL_SCOPE_CHAT = "chat"
+
+/** [ToolApprovalState.Approved.scope] 的取值：永久有效。 */
+const val APPROVAL_SCOPE_ALWAYS = "always"
+
 fun ToolApprovalState.canResumeToolExecution(): Boolean {
     return when (this) {
-        ToolApprovalState.Approved -> true
+        is ToolApprovalState.Approved -> true
         is ToolApprovalState.Denied -> true
         is ToolApprovalState.Answered -> true
         ToolApprovalState.Auto,

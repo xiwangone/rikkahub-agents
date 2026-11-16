@@ -14,17 +14,30 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import me.rerere.ai.ui.APPROVAL_SCOPE_ALWAYS
+import me.rerere.ai.ui.APPROVAL_SCOPE_CHAT
 import me.rerere.rikkahub.R
 
 /** Visual status shared by registered, generic and MCP tool steps. */
 enum class ToolStepStatus {
     RUNNING,
     NEEDS_APPROVAL,
+    APPROVED_ONCE,
+    APPROVED_CHAT,
+    APPROVED_ALWAYS,
     COMPLETED,
     FAILED,
     DENIED,
     INTERRUPTED,
 }
+
+/** 批准范围键 → 徽标/详情用的文案。未知取值一律按「允许一次」处理（旧数据无范围概念）。 */
+internal fun approvalScopeStringRes(scope: String): Int =
+    when (scope) {
+        APPROVAL_SCOPE_ALWAYS -> R.string.chat_message_tool_approve_always
+        APPROVAL_SCOPE_CHAT -> R.string.chat_message_tool_approve_chat
+        else -> R.string.chat_message_tool_approve_once
+    }
 
 /** Pure status mapping: explicit approval state wins, then execution, then result evidence. */
 internal fun resolveToolStepStatus(
@@ -35,11 +48,20 @@ internal fun resolveToolStepStatus(
     exitCode: String?,
     hasError: Boolean,
     isInterruptedAttempt: Boolean = false,
+    approvedScope: String? = null,
 ): ToolStepStatus =
     when {
         isDenied -> ToolStepStatus.DENIED
         isPending -> ToolStepStatus.NEEDS_APPROVAL
         isInterruptedAttempt -> ToolStepStatus.INTERRUPTED
+        // 已批准但还没执行：徽标显示当时批的范围；执行完成后主状态按执行结果，
+        // 范围改由卡片详情里的一行保留（见 ChatMessageToolStep）。
+        approvedScope != null && !isExecuted ->
+            when (approvedScope) {
+                APPROVAL_SCOPE_ALWAYS -> ToolStepStatus.APPROVED_ALWAYS
+                APPROVAL_SCOPE_CHAT -> ToolStepStatus.APPROVED_CHAT
+                else -> ToolStepStatus.APPROVED_ONCE
+            }
         !isExecuted -> ToolStepStatus.RUNNING
         success == false || (exitCode != null && exitCode != "0") || hasError -> ToolStepStatus.FAILED
         else -> ToolStepStatus.COMPLETED
@@ -65,6 +87,24 @@ fun ToolStatusBadge(
                     R.string.tool_status_needs_approval,
                     colorScheme.primaryContainer,
                     colorScheme.onPrimaryContainer,
+                )
+            ToolStepStatus.APPROVED_ONCE ->
+                Triple(
+                    R.string.chat_message_tool_approve_once,
+                    colorScheme.tertiaryContainer,
+                    colorScheme.onTertiaryContainer,
+                )
+            ToolStepStatus.APPROVED_CHAT ->
+                Triple(
+                    R.string.chat_message_tool_approve_chat,
+                    colorScheme.tertiaryContainer,
+                    colorScheme.onTertiaryContainer,
+                )
+            ToolStepStatus.APPROVED_ALWAYS ->
+                Triple(
+                    R.string.chat_message_tool_approve_always,
+                    colorScheme.tertiaryContainer,
+                    colorScheme.onTertiaryContainer,
                 )
             ToolStepStatus.COMPLETED ->
                 Triple(
