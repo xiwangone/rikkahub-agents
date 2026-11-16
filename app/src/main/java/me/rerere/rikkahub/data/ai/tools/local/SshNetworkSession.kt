@@ -471,9 +471,11 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
     // tcp_unreachable，且日志里从未出现过 proxy 调用 —— 根本没走到 openSshSession）。
     // 这里直接放行：failures 留空，所以调用方的 `winningNetwork == null && failures.isNotEmpty()`
     // 不会判失败；后续 openSshSession 里的 TunnelRouter 会把拨号改到 127.0.0.1:<localPort>。
-    if (me.rerere.rikkahub.data.tunnel.TsnetBridge.isRunning &&
-        me.rerere.rikkahub.data.tunnel.TsnetBridge.isTailnetAddress(host)
-    ) {
+    // 判定统一走 tailnetDialTarget（IP 字面量 / ts.net / 其余域名按 App DNS 解析结果）：
+    // 用 isTailnetAddress 只认 IP，自建控制面分配给节点的域名会被当成普通公网目标去做原生
+    // TCP 探测 → 移动数据下必然超时 → 报 tcp_unreachable，根本走不到 openSshSession。
+    val tunnelTarget = me.rerere.rikkahub.data.tunnel.tailnetDialTarget(host)
+    if (me.rerere.rikkahub.data.tunnel.TsnetBridge.isRunning && tunnelTarget != null) {
         AppLog.i(TAG_SSH, "tcp probe skipped for tailnet host $host:$port (tunnel running → dial via proxy)")
         return ProbeOutcome(
             winningNetwork = null,
