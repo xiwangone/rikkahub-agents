@@ -314,6 +314,8 @@ internal fun AgentQuickActionsButton(
             Icon(
                 imageVector = HugeIcons.Tools,
                 contentDescription = stringResource(R.string.chat_input_agent_quick_actions),
+                // 20.dp：与输入框那排（搜索/思考/模型标）统一，默认 24dp 会显大
+                modifier = Modifier.size(20.dp),
             )
         }
         if (expanded) {

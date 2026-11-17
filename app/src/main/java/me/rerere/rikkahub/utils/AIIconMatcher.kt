@@ -3,9 +3,19 @@ package me.rerere.rikkahub.utils
 import android.content.Context
 
 // 图标来源：lobehub 静态包 @lobehub/icons-static-svg@1.103.0（MIT，见 assets/icons/，
-// 其中已有 vllm-color.svg 等品牌文件）；另有 7 个库外文件（各品牌官网取回）：
+// 其中已有 vllm-color.svg 等品牌文件）；另有 44 个库外文件（各品牌官网 /
+// HuggingFace 组织头像 / Wikimedia / 官网 IR 站取回）：
 // mazal.svg、scnet.png、open-design.png、tokenrhythm.png、suixiang.png、
-// ackai.png、minicpm.png（OpenBMB/MiniCPM 官方 lockup 裁出的蓝色 M 标）。
+// ackai.png、minicpm.png（OpenBMB/MiniCPM 官方 lockup 裁出的蓝色 M 标）；
+// 2026-11-18 补 OpenRouter 小众厂商 18 个（nex-agi、thinkingmachines、kt、
+// ricursiveai、motif-technologies、particle-ai、recursive、prism-ml、
+// moondream、unbiased、scaledown、writer、thedrummer、anthracite-org、
+// sao10k、undi95、gryphe、typesafe）与国内小厂/平台 19 个（modelbest、
+// langboat、shengshu、hidream、colossalai、deeplang、metax、enflame、
+// cambricon、biren、mthreads、iluvatar、jdcloud、chinamobile、
+// chinatelecom、chinaunicom、ucloud、ksyun、paratera）。未补：elorian
+// （官方头像近白色，浅色主题下不可见）、mancer（无官方 logo）、恒创云
+// （官网只有白色版 logo，favicon 不可达）。
 // https://lobehub.com/zh/icons
 
 /**
@@ -51,6 +61,8 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "文心一言" to "wenxin",
     "文心" to "wenxin",
     "百度云" to "baiducloud",
+    "百度千帆" to "baiducloud",
+    "千帆" to "baiducloud",
     "百度" to "baidu",
     // 字节 / 讯飞
     "字节跳动" to "bytedance",
@@ -74,6 +86,33 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "天工" to "tiangong",
     "零一万物" to "zeroone",
     "无问芯穹" to "infinigence",
+    "面壁智能" to "modelbest",
+    "面壁" to "modelbest",
+    "澜舟科技" to "langboat",
+    "澜舟" to "langboat",
+    "生数科技" to "shengshu",
+    "生数" to "shengshu",
+    "智象未来" to "hidream",
+    "智象" to "hidream",
+    "潞晨科技" to "colossalai",
+    "潞晨云" to "colossalai",
+    "潞晨" to "colossalai",
+    "深言科技" to "deeplang",
+    "深言" to "deeplang",
+    "沐曦" to "metax",
+    "燧原科技" to "enflame",
+    "燧原" to "enflame",
+    "寒武纪" to "cambricon",
+    "壁仞科技" to "biren",
+    "壁仞" to "biren",
+    "摩尔线程" to "mthreads",
+    "天数智芯" to "iluvatar",
+    "天数" to "iluvatar",
+    "快手可灵" to "kling",
+    "可灵" to "kling",
+    "字节即梦" to "jimeng",
+    "即梦" to "jimeng",
+    "海螺" to "hailuo",
     "硅基流动" to "siliconflow",
     "秘塔" to "metaso",
     "商汤" to "sensenova",
@@ -86,6 +125,18 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     // 云 / 平台
     "华为云" to "huaweicloud",
     "华为" to "huawei",
+    "京东云" to "jdcloud",
+    "京东" to "jdcloud",
+    "移动云" to "chinamobile",
+    "中国移动" to "chinamobile",
+    "电信云" to "chinatelecom",
+    "中国电信" to "chinatelecom",
+    "联通云" to "chinaunicom",
+    "中国联通" to "chinaunicom",
+    "优刻得" to "ucloud",
+    "金山云" to "ksyun",
+    "并行科技" to "paratera",
+    "并行" to "paratera",
 )
 
 /**
@@ -116,6 +167,20 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     // 万相（Wan）是阿里通义的生图模型；库里没有独立 wan 图标，归阿里
     "wan" to "alibaba",
     "ernie" to "wenxin",
+    // 国内小厂 / 平台英文名（2026-11-18 补）：01.AI、商汤英文名、百度千帆、
+    // 生数新品牌 Genspi、潞晨科技英文名、摩尔线程、京东、三家运营商云、
+    // 金山云英文名、天数智芯英文品牌
+    "01ai" to "zeroone",
+    "sensetime" to "sensenova",
+    "qianfan" to "baiducloud",
+    "genspi" to "shengshu",
+    "luchentech" to "colossalai",
+    "moorethreads" to "mthreads",
+    "jd" to "jdcloud",
+    "chinamobilecloud" to "chinamobile",
+    "chinatelecomcloud" to "chinatelecom",
+    "kingsoftcloud" to "ksyun",
+    "iluvatarcorex" to "iluvatar",
     // ── 模型名里常见的品牌缩写（与提供商名共用一张表，模型解析见
     // [computeModelIconByName]）──
     // gpt-* 是 OpenAI 的模型名前缀（库里只有 openai.svg，没有 gpt.svg）

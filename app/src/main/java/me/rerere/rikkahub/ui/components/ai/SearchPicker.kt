@@ -172,27 +172,29 @@ fun SearchPickerButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier.size(24.dp),
+                modifier = Modifier.size(20.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (model?.tools?.contains(BuiltInTools.Search) == true) {
                     Icon(
                         imageVector = HugeIcons.AiSearch02,
                         contentDescription = stringResource(R.string.use_web_search),
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 } else if (enableSearch && currentService != null) {
-                    // AIIcon 内部带 4.dp 内边距，外框给 32.dp 使实际图标绘制尺寸达到 24.dp，与两侧图标对齐
+                    // 外框 28.dp − AIIcon 内部 4×2 padding = 20.dp 绘制区。
+                    // 原来 32.dp（→24.dp 绘制区）比输入框里的模型标明显大：模型标是品牌图，
+                    // 横版标按等比缩放后视觉高度只有约 20dp，24dp 的线条图标压在旁边显得突兀。
                     AutoAIIcon(
                         name = currentService.displayName,
-                        modifier = Modifier.requiredSize(32.dp),
+                        modifier = Modifier.requiredSize(28.dp),
                         color = Color.Transparent,
                     )
                 } else {
                     Icon(
                         imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
-                        modifier = Modifier.size(24.dp),
+                        modifier = Modifier.size(20.dp),
                     )
                 }
             }
