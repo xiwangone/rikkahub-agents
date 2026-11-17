@@ -11,8 +11,6 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearWavyProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
@@ -43,8 +41,6 @@ import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.Connect
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelSelector
 import me.rerere.rikkahub.ui.theme.extendColors
@@ -52,36 +48,31 @@ import me.rerere.rikkahub.utils.UiState
 import org.koin.compose.koinInject
 
 @Composable
-fun ProviderConnectionTester(
+fun ProviderConnectionTestDialog(
     internalProvider: ProviderSetting,
+    onDismissRequest: () -> Unit,
 ) {
-    var showTestDialog by remember { mutableStateOf(false) }
     val providerManager = koinInject<ProviderManager>()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
-    IconButton(onClick = { showTestDialog = true }) {
-        Icon(HugeIcons.Connect, null)
+    var model by remember(internalProvider) {
+        mutableStateOf(internalProvider.models.firstOrNull { it.type == ModelType.CHAT })
+    }
+    var nonStreamingState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
+    var streamingState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
+    var toolsState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
+    var streamingText by remember { mutableStateOf("") }
+
+    fun resetStates() {
+        nonStreamingState = UiState.Idle
+        streamingState = UiState.Idle
+        toolsState = UiState.Idle
+        streamingText = ""
     }
 
-    if (showTestDialog) {
-        var model by remember(internalProvider) {
-            mutableStateOf(internalProvider.models.firstOrNull { it.type == ModelType.CHAT })
-        }
-        var nonStreamingState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
-        var streamingState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
-        var toolsState: UiState<String> by remember { mutableStateOf(UiState.Idle) }
-        var streamingText by remember { mutableStateOf("") }
-
-        fun resetStates() {
-            nonStreamingState = UiState.Idle
-            streamingState = UiState.Idle
-            toolsState = UiState.Idle
-            streamingText = ""
-        }
-
-        AlertDialog(
-            onDismissRequest = { showTestDialog = false },
+    AlertDialog(
+        onDismissRequest = onDismissRequest,
             title = {
                 Text(stringResource(R.string.setting_provider_page_test_connection))
             },
@@ -124,7 +115,7 @@ fun ProviderConnectionTester(
                 }
             },
             dismissButton = {
-                TextButton(onClick = { showTestDialog = false }) {
+                TextButton(onClick = onDismissRequest) {
                     Text(stringResource(R.string.cancel))
                 }
             },
@@ -132,7 +123,8 @@ fun ProviderConnectionTester(
                 TextButton(
                     enabled = model != null,
                     onClick = {
-                        if (model == null) return@TextButton
+                        // 点击时固化当前模型：三路测试是异步协程，期间切换模型不能影响已发出的请求。
+                        val currentModel = model ?: return@TextButton
                         val provider = providerManager.getProviderByType(internalProvider)
                         resetStates()
                         scope.launch {
@@ -146,10 +138,10 @@ fun ProviderConnectionTester(
                                             UIMessage.user("hello"),
                                         ),
                                         params = TextGenerationParams(
-                                            model = model!!,
+                                            model = currentModel,
                                             reasoningLevel = ReasoningLevel.AUTO,
-                                            customHeaders = model!!.customHeaders,
-                                            customBody = model!!.customBodies
+                                            customHeaders = currentModel.customHeaders,
+                                            customBody = currentModel.customBodies
                                         )
                                     )
                                     val text = result.message.parts
@@ -168,10 +160,10 @@ fun ProviderConnectionTester(
                                             UIMessage.user("hello"),
                                         ),
                                         params = TextGenerationParams(
-                                            model = model!!,
+                                            model = currentModel,
                                             reasoningLevel = ReasoningLevel.AUTO,
-                                            customHeaders = model!!.customHeaders,
-                                            customBody = model!!.customBodies
+                                            customHeaders = currentModel.customHeaders,
+                                            customBody = currentModel.customBodies
                                         )
                                     )
                                     flow.collect { chunk ->
@@ -197,10 +189,10 @@ fun ProviderConnectionTester(
                                             UIMessage.user("Use the get_current_time tool."),
                                         ),
                                         params = TextGenerationParams(
-                                            model = model!!,
+                                            model = currentModel,
                                             tools = listOf(testTool),
-                                            customHeaders = model!!.customHeaders,
-                                            customBody = model!!.customBodies
+                                            customHeaders = currentModel.customHeaders,
+                                            customBody = currentModel.customBodies
                                         )
                                     )
                                     val message = result.message
@@ -229,7 +221,6 @@ fun ProviderConnectionTester(
                 }
             }
         )
-    }
 }
 
 @Composable

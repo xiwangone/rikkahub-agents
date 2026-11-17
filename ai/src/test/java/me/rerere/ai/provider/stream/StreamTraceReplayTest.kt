@@ -69,6 +69,24 @@ class StreamTraceReplayTest {
     }
 
     @Test
+    fun `replay Gemini function and Google Search mixed tool trace`() {
+        assertTrace(
+            "generated/google-generateContent/gemini-search-tool",
+            GoogleStreamDecoder(responseId = "google-search-trace", model = "gemini-4-carbon"),
+            ::assertGeminiMixedToolTraceSemantics,
+        )
+    }
+
+    @Test
+    fun `replay Gemini Google Search continuation trace`() {
+        assertTrace(
+            "generated/google-generateContent/gemini-search-continue",
+            GoogleStreamDecoder(responseId = "google-search-continue-trace", model = "gemini-4-carbon"),
+            ::assertGeminiSearchContinuationTraceSemantics,
+        )
+    }
+
+    @Test
     fun `replay DeepSeek Chat Completions trace`() {
         assertTrace(
             "generated/openai-chat/deepseek-chat-tool",
@@ -325,6 +343,68 @@ class StreamTraceReplayTest {
             "$path should contain a valid non-empty base64 thought signature",
             Base64.getDecoder().decode(decodedSignature).isNotEmpty(),
         )
+    }
+
+    private fun assertGeminiMixedToolTraceSemantics(path: String, message: UIMessage, chunks: List<StreamChunk>) {
+        assertEquals("$path should emit exactly one Finish", 1, chunks.count { it is StreamChunk.Finish })
+        val tool = message.parts.filterIsInstance<UIMessagePart.Tool>().single()
+        assertEquals("memory_read", tool.toolName)
+        assertEquals(
+            "/topics/entertainment.md",
+            json.parseToJsonElement(tool.input).jsonObject["path"]?.jsonPrimitive?.contentOrNull,
+        )
+        assertEquals(
+            "$path should preserve the function call signature exactly",
+            providerSignatures(path).single(),
+            tool.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature,
+        )
+    }
+
+    private fun assertGeminiSearchContinuationTraceSemantics(
+        path: String,
+        message: UIMessage,
+        chunks: List<StreamChunk>,
+    ) {
+        assertEquals("$path should emit exactly one Finish", 1, chunks.count { it is StreamChunk.Finish })
+        val tools = message.parts.filterIsInstance<UIMessagePart.ServerTool>()
+        assertTrue("$path should contain server tools", tools.isNotEmpty())
+        assertEquals(
+            "$path should only use Google Search",
+            setOf("GOOGLE_SEARCH_WEB"),
+            tools.map { it.toolName }.toSet()
+        )
+        assertEquals("$path should preserve distinct IDs", tools.size, tools.map { it.toolCallId }.toSet().size)
+        assertTrue("$path should finish every server tool", tools.all { it.status == ServerToolStatus.COMPLETED })
+
+        // 回放时原样发回 toolCall / toolResponse part，签名缺失会导致下一轮 400（#2327）
+        val signatures = providerSignatures(path)
+        val preserved = tools.flatMap { tool ->
+            val metadata = requireNotNull(tool.metadataAs<ServerToolMetadata>())
+            listOf(metadata.call, metadata.result).map {
+                requireNotNull(it?.get("thoughtSignature")?.jsonPrimitive?.contentOrNull) {
+                    "$path should preserve the signature of every toolCall and toolResponse"
+                }
+            }
+        }
+        assertEquals("$path should preserve server tool signatures in order", signatures.dropLast(1), preserved)
+
+        // 流末尾的 {"text": "", "thoughtSignature": ...} 应挂到最终回答上（#2316）
+        val answer = message.parts.last() as UIMessagePart.Text
+        assertTrue("$path should end with a non-empty answer", answer.text.isNotBlank())
+        assertEquals(
+            "$path should attach the trailing signature to the answer",
+            signatures.last(),
+            answer.metadataAs<GoogleThoughtMetadata>()?.thoughtSignature,
+        )
+    }
+
+    private fun providerSignatures(path: String): List<String> = loadEvents(path).flatMap { event ->
+        val response = json.parseToJsonElement(event.data).jsonObject
+        response["candidates"]?.jsonArray.orEmpty().flatMap { candidate ->
+            candidate.jsonObject["content"]?.jsonObject
+                ?.get("parts")?.jsonArray.orEmpty()
+                .mapNotNull { part -> part.jsonObject["thoughtSignature"]?.jsonPrimitive?.contentOrNull }
+        }
     }
 
     private fun loadEvents(path: String): List<SseEvent> =

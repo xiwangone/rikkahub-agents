@@ -2,6 +2,7 @@ package me.rerere.ai.provider.providers
 
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.providers.google.GoogleProvider
 import me.rerere.ai.ui.UIMessagePart
@@ -94,14 +95,23 @@ class GoogleProviderStreamChunkTest {
     }
 
     @Test
-    fun `a signature-only thought part with no text is skipped without throwing`() {
+    fun `a signature-only thought part with no text is kept without throwing`() {
+        // 行为变更：签名-only part 以前被丢弃，导致下一轮回传缺 thoughtSignature 而报 400；
+        // 现在按「空文本 + 签名」保留（见 GoogleStreamDecoder.parsePart 的 thoughtSignature 分支），
+        // StreamChunkHandler 会把它挂到相邻的文本/思考块上。
         val chunk = parse(
             """{"candidates":[{"content":{"role":"model","parts":[
                 {"thought":true,"thoughtSignature":"sig-1"}
             ]}}]}"""
         )
         val delta = requireNotNull(requireNotNull(chunk).choices[0].delta)
-        assertEquals(0, delta.parts.size)
+        assertEquals(1, delta.parts.size)
+        val part = delta.parts.single() as UIMessagePart.Text
+        assertEquals("", part.text)
+        assertEquals(
+            "sig-1",
+            part.metadata?.jsonObject?.get("thoughtSignature")?.jsonPrimitive?.content
+        )
     }
 
     @Test

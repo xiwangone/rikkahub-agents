@@ -520,6 +520,7 @@ internal class ChatFloatingOverlayController(
                     },
                 tools = tools,
                 conversationKey = snapshot.conversation.id.toString(),
+                generating = snapshot.generating,
             )
     }
 

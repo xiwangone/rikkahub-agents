@@ -634,11 +634,14 @@
   <string name="render_with_webview">Отображать в WebView</string>
   <string name="rikkahub_provider_description">Официальный бесплатный AI-сервис, использующий средства спонсоров для предоставления новым пользователям бесплатных моделей в качестве резерва; API-ключ не требуется. Действуют строгие ограничения по частоте запросов. Если у вас есть собственный провайдер, используйте его по возможности.</string>
   <string name="safe_mode_assistants">Помощники</string>
+  <string name="safe_mode_clear">Очистить</string>
+  <string name="safe_mode_clear_text">Эти данные достаточно велики, чтобы приложение исчерпало память. Очистка сбросит значение к значению по умолчанию без возможности отмены.</string>
+  <string name="safe_mode_clear_title">Очистить %1$s?</string>
   <string name="safe_mode_copy">Копировать</string>
   <string name="safe_mode_crash_report">Отчёт о сбое</string>
   <string name="safe_mode_current_assistant">Текущий ассистент: %s</string>
   <string name="safe_mode_default_assistant">Ассистент по умолчанию</string>
-  <string name="safe_mode_description">При последнем запуске приложение завершилось с ошибкой. Вы можете переключиться на другого ассистента, чтобы решить проблему.</string>
+  <string name="safe_mode_description">При последнем запуске приложение завершилось с ошибкой.</string>
   <string name="safe_mode_switch_assistant">Переключить помощника</string>
   <string name="safe_mode_title">Безопасный режим</string>
   <string name="search_ability_scrape">Собрать</string>
@@ -2329,6 +2332,8 @@
   <string name="local_llm_vision_retry">Повторить зрение</string>
   <string name="local_llm_vision_unavailable_caption">Устройство не поддерживает зрение — только текст</string>
   <string name="safe_mode_enter_app">Открыть приложение</string>
+  <string name="safe_mode_oversized_data">Слишком большие данные</string>
+  <string name="safe_mode_oversized_size">%1$.1f млн символов</string>
   <string name="setting_browser_per_tool_timeout_desc">Жёсткий лимит времени на один вызов браузерного инструмента. От 10 секунд до 10 минут.</string>
   <string name="setting_browser_per_tool_timeout_unit">сек</string>
   <string name="setting_browser_single_task_timeout_desc">Жёсткий лимит на одну задачу ИИ-браузера для защиты от бесконечных циклов. От 1 до 60 минут.</string>

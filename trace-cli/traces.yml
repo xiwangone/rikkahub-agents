@@ -237,7 +237,7 @@ traces:
   - name: gemini-tool
     provider: google-generateContent
     apiKeyEnv: GEMINI_API_KEY
-    model: gemini-3.1-pro-preview
+    model: gemini-4-carbon
     body:
       generationConfig:
         thinkingConfig:
@@ -258,6 +258,72 @@ traces:
                     type: string
                     description: A focused search query for one topic.
                 required: [query]
+  # Gemini 官方：Generate Content SSE 协议。内置 Google Search 与函数调用混用。
+  - name: gemini-search-tool
+    provider: google-generateContent
+    apiKeyEnv: GEMINI_API_KEY
+    model: gemini-4-carbon
+    body:
+      generationConfig:
+        thinkingConfig:
+          includeThoughts: true
+          thinkingLevel: high
+      contents:
+        - role: user
+          parts:
+            - text: "hi"
+      tools:
+        - functionDeclarations:
+            - name: memory_read
+              description: Read a memory file by path.
+              parameters:
+                type: object
+                properties:
+                  path:
+                    type: string
+                    description: Path of the memory file to read.
+                required: [path]
+        - googleSearch: {}
+  # Gemini 官方：Generate Content SSE 协议。继续上一轮：回传带签名的函数调用，触发内置 Google Search。
+  - name: gemini-search-continue
+    provider: google-generateContent
+    apiKeyEnv: GEMINI_API_KEY
+    model: gemini-4-carbon
+    body:
+      generationConfig:
+        thinkingConfig:
+          includeThoughts: true
+          thinkingLevel: high
+      contents:
+        - role: user
+          parts:
+            - text: "hi"
+        - role: model
+          parts:
+            - thoughtSignature: "EtEFCs4FAWkUfROYBlZJ3ArnEwgnMVvbgWio9H6q072RiNAfZCeptt/Qz6MlK3MGrLt9B9DqqX2uJIFDOMnC01xZDoSFTAehQqe6OzxmEwk4Sgwvq2lA7LFotBhtirp6hd3Z/hn0l3YiUoPhAsaadpISgMkvd0s5nc0kSBaPT7OwC1nlhSGCckDnvmi0KLP47BEwaNGg/k80RbvfVBvDXIPuN4klmNAtp91hpzWbSYL0m/9UYqLFTWMFW+3b6wcFqxwvurxUVbrgNVL0BOvxpxTN5a77F1yio8xldOzgRIu93zmsdDE0QLKxl2/VS4MbDiahi9l4deD8f2yfqd2WVi+RwQd5yUMHicEE6E1jdXA86i2GdiuJvxUGrToYkrkq6C5Ad9ebDSX8Qg5JBLkXbTJ+V3GlO6rgTmB2Z4F45Y4uUJ5rdmWrStoNs7sueS1mlOY3ghOc3uOEyLHesaJAEv9o1YJ2E10+YFa2ecOWybS2GarQl/+u5xR7wzXVHCJzKCzNgnWwuWza5j4wtLFm/ugkcPI+gBhM0NY45GnGKclM5K5xbEUPHIfT7W295KhbI3lFhNKhuNGT7JKlWwHSXllm3MfLhUGCjCX2JKZVl+cLm9PHdrOVji1KG/BHi8ZUWhYW/FoCvNkdZ8Ys6gKTJYNOOgEk25LuQGP2PszZFYQnvg988vfufGQfxcJZFTVFxav9YMrnwVvkTw5Pn3q567JCtFP+/n/LFhyGYL8pRdYCq1wVRjIW3Cq5X1Zfd1Rxl+GllgvGvtkOoGbqAm5h4Nolemv3eCXEKyRj+D7DutvqzkJsF0+8olheIPH9kXVsnKGVyd+HzpkzLCPMXDqm8Y90KooZZmfhN4p1m0F4cDfI8lQXXEHcTBV/sakxtN4i9L2497F69S3L/4uObY5FOTzL5NoHv0q7ExkkcxK649mB4/5SmaZHxfzCfKykqN7JAwZS9w=="
+              functionCall:
+                name: memory_read
+                args:
+                  path: "/topics/entertainment.md"
+                id: "call_3945272620508551583"
+        - role: user
+          parts:
+            - functionResponse:
+                name: memory_read
+                response:
+                  content: "Denis Villeneuve"
+      tools:
+        - functionDeclarations:
+            - name: memory_read
+              description: Read a memory file by path.
+              parameters:
+                type: object
+                properties:
+                  path:
+                    type: string
+                    description: Path of the memory file to read.
+                required: [path]
+        - googleSearch: {}
   # Gemini 官方：原生图像生成 SSE 协议。
   - name: gemini-image
     provider: google-generateContent

@@ -11,6 +11,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -23,6 +24,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
@@ -34,6 +36,7 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SheetValue
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
@@ -54,6 +57,7 @@ import me.rerere.rikkahub.RouteActivity
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
+import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
@@ -72,7 +76,10 @@ class SafeModeActivity : ComponentActivity() {
         setContent {
             RikkahubTheme {
                 val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+                val largeFields by settingsStore.largeStoredFieldsFlow()
+                    .collectAsStateWithLifecycle(initialValue = emptyList())
                 var showAssistantPicker by remember { mutableStateOf(false) }
+                var fieldToClear by remember { mutableStateOf<SettingsStore.LargeStoredField?>(null) }
                 val scope = rememberCoroutineScope()
                 val context = LocalContext.current
 
@@ -110,13 +117,6 @@ class SafeModeActivity : ComponentActivity() {
                         )
 
                         Button(
-                            onClick = { showAssistantPicker = true },
-                            modifier = Modifier.fillMaxWidth(),
-                        ) {
-                            Text(stringResource(R.string.safe_mode_switch_assistant))
-                        }
-
-                        OutlinedButton(
                             onClick = {
                                 startActivity(Intent(this@SafeModeActivity, RouteActivity::class.java))
                                 finish()
@@ -126,47 +126,22 @@ class SafeModeActivity : ComponentActivity() {
                             Text(stringResource(R.string.safe_mode_enter_app))
                         }
 
+                        OutlinedButton(
+                            onClick = { showAssistantPicker = true },
+                            modifier = Modifier.fillMaxWidth(),
+                        ) {
+                            Text(stringResource(R.string.safe_mode_switch_assistant))
+                        }
+
+                        if (largeFields.isNotEmpty()) {
+                            OversizedFieldsSection(
+                                largeFields = largeFields,
+                                onClearRequest = { fieldToClear = it },
+                            )
+                        }
+
                         if (stackTrace != null) {
-                            Row(
-                                modifier = Modifier.fillMaxWidth(),
-                                horizontalArrangement = Arrangement.SpaceBetween,
-                            ) {
-                                Text(
-                                    text = stringResource(R.string.safe_mode_crash_report),
-                                    style = MaterialTheme.typography.titleSmall,
-                                )
-                                OutlinedButton(
-                                    onClick = {
-                                        val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
-                                        cm.setPrimaryClip(ClipData.newPlainText("crash", stackTrace))
-                                    },
-                                ) {
-                                    Text(stringResource(R.string.safe_mode_copy))
-                                }
-                            }
-                            Card(
-                                modifier =
-                                    Modifier
-                                        .fillMaxWidth()
-                                        .weight(1f),
-                                colors =
-                                    CardDefaults.cardColors(
-                                        containerColor = MaterialTheme.colorScheme.surfaceVariant,
-                                    ),
-                            ) {
-                                val vScroll = rememberScrollState()
-                                val hScroll = rememberScrollState()
-                                Text(
-                                    text = stackTrace,
-                                    modifier =
-                                        Modifier
-                                            .padding(12.dp)
-                                            .verticalScroll(vScroll)
-                                            .horizontalScroll(hScroll),
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = FontFamily.Monospace,
-                                )
-                            }
+                            CrashReportSection(stackTrace = stackTrace)
                         }
                     }
                 }
@@ -182,10 +157,137 @@ class SafeModeActivity : ComponentActivity() {
                         onDismiss = { showAssistantPicker = false },
                     )
                 }
+
+                fieldToClear?.let { field ->
+                    ClearFieldConfirmDialog(
+                        field = field,
+                        onConfirm = { scope.launch { settingsStore.resetStoredField(field.keyName) } },
+                        onDismiss = { fieldToClear = null },
+                    )
+                }
             }
         }
     }
 }
+
+@Composable
+private fun ColumnScope.CrashReportSection(stackTrace: String) {
+    val context = LocalContext.current
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.SpaceBetween,
+    ) {
+        Text(
+            text = stringResource(R.string.safe_mode_crash_report),
+            style = MaterialTheme.typography.titleSmall,
+        )
+        OutlinedButton(
+            onClick = {
+                val cm = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+                cm.setPrimaryClip(ClipData.newPlainText("crash", stackTrace))
+            },
+        ) {
+            Text(stringResource(R.string.safe_mode_copy))
+        }
+    }
+    Card(
+        modifier =
+            Modifier
+                .fillMaxWidth()
+                .weight(1f),
+        colors =
+            CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surfaceVariant,
+            ),
+    ) {
+        val vScroll = rememberScrollState()
+        val hScroll = rememberScrollState()
+        Text(
+            text = stackTrace,
+            modifier =
+                Modifier
+                    .padding(12.dp)
+                    .verticalScroll(vScroll)
+                    .horizontalScroll(hScroll),
+            style = MaterialTheme.typography.bodySmall,
+            fontFamily = FontFamily.Monospace,
+        )
+    }
+}
+
+@Composable
+private fun OversizedFieldsSection(
+    largeFields: List<SettingsStore.LargeStoredField>,
+    onClearRequest: (SettingsStore.LargeStoredField) -> Unit,
+) {
+    CardGroup(
+        modifier = Modifier.fillMaxWidth(),
+        title = { Text(stringResource(R.string.safe_mode_oversized_data)) },
+    ) {
+        largeFields.forEach { field ->
+            item(
+                onClick = { onClearRequest(field) },
+                supportingContent = {
+                    Text(
+                        stringResource(
+                            R.string.safe_mode_oversized_size,
+                            field.charCount / 1_000_000.0,
+                        ),
+                    )
+                },
+                trailingContent = {
+                    Text(
+                        stringResource(R.string.safe_mode_clear),
+                        color = MaterialTheme.colorScheme.error,
+                    )
+                },
+            ) {
+                Text(storedFieldLabel(field.keyName))
+            }
+        }
+    }
+}
+
+@Composable
+private fun ClearFieldConfirmDialog(
+    field: SettingsStore.LargeStoredField,
+    onConfirm: () -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = {
+            Text(stringResource(R.string.safe_mode_clear_title, storedFieldLabel(field.keyName)))
+        },
+        text = { Text(stringResource(R.string.safe_mode_clear_text)) },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    onConfirm()
+                    onDismiss()
+                },
+            ) {
+                Text(
+                    stringResource(R.string.safe_mode_clear),
+                    color = MaterialTheme.colorScheme.error,
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}
+
+@Composable
+private fun storedFieldLabel(keyName: String): String =
+    when (keyName) {
+        SettingsStore.LOREBOOKS.name -> stringResource(R.string.prompt_page_lorebook_tab)
+        SettingsStore.ASSISTANTS.name -> stringResource(R.string.safe_mode_assistants)
+        else -> keyName
+    }
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable

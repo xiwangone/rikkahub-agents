@@ -639,11 +639,14 @@
   <string name="render_with_webview">WebViewで表示</string>
   <string name="rikkahub_provider_description">公式の無料AIサービスです。ユーザーのスポンサー資金を使い、新規ユーザーのためのフォールバック用の一部無料モデルを提供します。APIキーは不要です。厳しいレート制限があります。独自のプロバイダーを購入済みの場合は、可能な限りそちらをご利用ください。</string>
   <string name="safe_mode_assistants">アシスタント</string>
+  <string name="safe_mode_clear">クリア</string>
+  <string name="safe_mode_clear_text">このデータは大きすぎてアプリがメモリ不足になる可能性があります。クリアすると既定値に戻り、元に戻せません。</string>
+  <string name="safe_mode_clear_title">%1$sをクリアしますか？</string>
   <string name="safe_mode_copy">コピー</string>
   <string name="safe_mode_crash_report">クラッシュレポート</string>
   <string name="safe_mode_current_assistant">現在のアシスタント: %s</string>
   <string name="safe_mode_default_assistant">デフォルトアシスタント</string>
-  <string name="safe_mode_description">前回の起動時にアプリがクラッシュしました。別のアシスタントに切り替えて問題を解決できます。</string>
+  <string name="safe_mode_description">前回の起動時にアプリがクラッシュしました。</string>
   <string name="safe_mode_switch_assistant">アシスタントを切り替える</string>
   <string name="safe_mode_title">セーフモード</string>
   <string name="search_ability_scrape">スクレイピング</string>
@@ -2334,6 +2337,8 @@
   <string name="local_llm_vision_retry">視覚を再試行</string>
   <string name="local_llm_vision_unavailable_caption">この端末は視覚機能に非対応 — テキストのみで動作</string>
   <string name="safe_mode_enter_app">アプリを開く</string>
+  <string name="safe_mode_oversized_data">容量超過のデータ</string>
+  <string name="safe_mode_oversized_size">%1$.1f 百万文字</string>
   <string name="setting_browser_per_tool_timeout_desc">ブラウザツール呼び出し1回あたりの厳格な時間上限。範囲は 10 秒〜10 分。</string>
   <string name="setting_browser_per_tool_timeout_unit">秒</string>
   <string name="setting_browser_single_task_timeout_desc">AI 駆動ブラウザタスク1件の厳格な上限。無限ループを防止します。範囲は 1 分〜60 分。</string>

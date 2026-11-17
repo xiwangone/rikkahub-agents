@@ -778,8 +778,12 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         })
     }
     private fun UIMessagePart.toGooglePart(): JsonObject? = when (this) {
-        is UIMessagePart.Text -> buildJsonObject {
-            put("text", text)
+        is UIMessagePart.Text -> {
+            val thoughtSignature = metadataAs<GoogleThoughtMetadata>()?.thoughtSignature
+            buildJsonObject {
+                put("text", text)
+                thoughtSignature?.let { put("thoughtSignature", it) }
+            }
         }
 
         is UIMessagePart.Image -> {

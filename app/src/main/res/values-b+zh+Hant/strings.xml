@@ -629,11 +629,14 @@
   <string name="render_with_webview">網頁視圖渲染</string>
   <string name="rikkahub_provider_description">官方免費 AI 服務，使用用戶贊助資金為新用戶提供部分免費模型作為備用，無需 API 金鑰。具有嚴格速率限制，若您已購買自己的提供者，請盡量使用自有提供者。</string>
   <string name="safe_mode_assistants">助理</string>
+  <string name="safe_mode_clear">清除</string>
+  <string name="safe_mode_clear_text">這份資料大到可能讓應用程式記憶體不足。清除後會恢復為預設值，且無法復原。</string>
+  <string name="safe_mode_clear_title">清除%1$s？</string>
   <string name="safe_mode_copy">複製</string>
   <string name="safe_mode_crash_report">當機報告</string>
   <string name="safe_mode_current_assistant">目前助理：%s</string>
   <string name="safe_mode_default_assistant">預設助理</string>
-  <string name="safe_mode_description">應用程式在上次啟動時崩潰。您可以切換到其他助理來解決此問題。</string>
+  <string name="safe_mode_description">應用程式在上次啟動時崩潰。</string>
   <string name="safe_mode_switch_assistant">切換助理</string>
   <string name="safe_mode_title">安全模式</string>
   <string name="search_ability_scrape">爬取</string>
@@ -2632,6 +2635,8 @@
     <string name="local_llm_vision_retry">重試視覺</string>
     <string name="local_llm_vision_unavailable_caption">此裝置不支援視覺功能 — 僅文字模式執行</string>
     <string name="safe_mode_enter_app">進入應用</string>
+  <string name="safe_mode_oversized_data">超大設定資料</string>
+  <string name="safe_mode_oversized_size">%1$.1f 百萬字元</string>
     <string name="setting_browser_per_tool_timeout_desc">每次瀏覽器工具呼叫的硬性時間預算。範圍 10 秒至 10 分鐘。</string>
     <string name="setting_browser_per_tool_timeout_unit">秒</string>
     <string name="setting_browser_single_task_timeout_desc">單個 AI 驅動瀏覽器任務的硬性上限，防止無限迴圈。範圍 1 分鐘至 60 分鐘。</string>

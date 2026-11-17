@@ -691,6 +691,23 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         transformLock.withLock { persistSettings(settings, forceFullWrite = true) }
     }
 
+    private val oversizedFields = OversizedStoredFields(
+        dataStore,
+        transformLock,
+        settingsFlowRaw,
+        { settings -> persistSettings(settings) },
+        initialization,
+    )
+
+    /** 单个已存设置字段（键名，字符数），供安全模式列出超大字段。 */
+    data class LargeStoredField(val keyName: String, val charCount: Int)
+
+    /** 订阅盘上超大字符串字段（默认 ≥ 1_000_000 字符），从大到小排序。实现见 OversizedStoredFields。 */
+    fun largeStoredFieldsFlow(minChars: Int = 1_000_000) = oversizedFields.largeStoredFieldsFlow(minChars)
+
+    /** 清除单个已存字段并恢复缺省值。实现见 OversizedStoredFields。 */
+    suspend fun resetStoredField(keyName: String) = oversizedFields.resetStoredField(keyName)
+
     @Suppress("LongMethod") // 逐字段平铺落盘，拆分会把同一份键清单割裂成多段（与仓内既有写法口径一致）
     private suspend fun persistSettings(settings: Settings, forceFullWrite: Boolean = false) {
         if (settings.init) error("Cannot persist dummy Settings")

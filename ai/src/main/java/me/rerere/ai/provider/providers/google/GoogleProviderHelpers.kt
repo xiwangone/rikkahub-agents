@@ -1,5 +1,6 @@
 package me.rerere.ai.provider.providers.google
 
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.booleanOrNull
@@ -52,7 +53,7 @@ internal fun parseGoogleMessage(message: JsonObject): UIMessage {
             message["role"]?.jsonPrimitive?.contentOrNull ?: "model"
         )
         val content = message["content"]?.jsonObject ?: error("No content")
-        val parts = content["parts"]?.jsonArray?.mapIndexedNotNull { i, part -> parseMessagePart(part.jsonObject, i) } ?: emptyList()
+        val parts = parseMessageParts(content["parts"]?.jsonArray)
 
         val groundingMetadata = message["groundingMetadata"]?.jsonObject
         AppLogger.i("GoogleProvider", "parseMessage: $groundingMetadata")
@@ -64,6 +65,27 @@ internal fun parseGoogleMessage(message: JsonObject): UIMessage {
             annotations = annotations
         )
     }
+
+private fun parseMessageParts(parts: JsonArray?): List<UIMessagePart> = buildList {
+    parts.orEmpty().forEachIndexed { index, element ->
+        val part = parseMessagePart(element.jsonObject, index) ?: return@forEachIndexed
+        if (part is UIMessagePart.Text && part.text.isEmpty() && part.metadata != null) {
+            // 不带文本的签名 part：挂到前一个还没有签名的文本/思考 part 上，否则单独保留
+            val previous = lastOrNull()
+            when {
+                previous is UIMessagePart.Text && previous.metadata == null ->
+                    set(lastIndex, previous.copy(metadata = part.metadata))
+
+                previous is UIMessagePart.Reasoning && previous.metadata == null ->
+                    set(lastIndex, previous.copy(metadata = part.metadata))
+
+                else -> add(part)
+            }
+            return@forEachIndexed
+        }
+        add(part)
+    }
+}
 
 internal fun parseSearchGroundingMetadata(jsonObject: JsonObject?): List<UIMessageAnnotation> {
         if (jsonObject == null) return emptyList()
@@ -95,7 +117,10 @@ internal fun parseMessagePart(jsonObject: JsonObject, index: Int = 0): UIMessage
                     metadata = thoughtSignature?.let {
                         buildJsonObject { put("thoughtSignature", JsonPrimitive(it)) }
                     },
-                ) else UIMessagePart.Text(text)
+                ) else UIMessagePart.Text(
+                    text,
+                    thoughtSignature?.let { GoogleThoughtMetadata(it).toMetadata() },
+                )
             }
 
             jsonObject.containsKey("functionCall") -> {
@@ -162,6 +187,14 @@ internal fun parseMessagePart(jsonObject: JsonObject, index: Int = 0): UIMessage
                     metadata = GoogleThoughtMetadata(thoughtSignature = thoughtSignature).toMetadata()
                 )
             }
+
+            // Gemini 可能单独下发只含 thoughtSignature 的 part
+            jsonObject.containsKey("thoughtSignature") -> UIMessagePart.Text(
+                text = "",
+                metadata = jsonObject["thoughtSignature"]?.jsonPrimitive?.contentOrNull?.let {
+                    GoogleThoughtMetadata(thoughtSignature = it).toMetadata()
+                },
+            )
 
             else -> {
                 AppLogger.w("GoogleProvider", "parseMessagePart: skipping unrecognized part, keys=${jsonObject.keys}")

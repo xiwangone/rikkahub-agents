@@ -56,6 +56,7 @@ import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Connect
 import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.FloppyDisk
 import me.rerere.hugeicons.stroke.Package01
@@ -83,7 +84,7 @@ import me.rerere.rikkahub.ui.pages.setting.components.BackendProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.CodexProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.GrokProviderConfigure
 import me.rerere.rikkahub.ui.pages.setting.components.ProviderConfigure
-import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTester
+import me.rerere.rikkahub.ui.pages.setting.components.ProviderConnectionTestDialog
 import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOption
 import me.rerere.rikkahub.ui.pages.setting.components.isUsingDefaultBaseUrl
 import me.rerere.rikkahub.ui.pages.setting.components.resetBaseUrlToDefault
@@ -352,6 +353,7 @@ private fun SettingProviderConfigPage(
     // 草稿由父级持有（切页不丢）；同 id 的草稿优先于已保存的配置展示。
     val internalProvider = draft?.takeIf { it.id == provider.id } ?: provider
     var showDeleteDialog by remember { mutableStateOf(false) }
+    var showTestDialog by remember { mutableStateOf(false) }
     var expanded by rememberSaveable { mutableStateOf(true) }
 
     Box(
@@ -409,9 +411,11 @@ private fun SettingProviderConfigPage(
                     .align(Alignment.BottomCenter)
                     .offset(y = -ScreenOffset),
             leadingContent = {
-                    ProviderConnectionTester(
-                        internalProvider = internalProvider,
-                    )
+                    IconButton(
+                        onClick = { showTestDialog = true },
+                    ) {
+                        Icon(HugeIcons.Connect, null)
+                    }
 
                     if (!internalProvider.builtIn) {
                         IconButton(
@@ -468,6 +472,13 @@ private fun SettingProviderConfigPage(
                     }
                 }
         }
+    }
+
+    if (showTestDialog) {
+        ProviderConnectionTestDialog(
+            internalProvider = internalProvider,
+            onDismissRequest = { showTestDialog = false },
+        )
     }
 
     if (showDeleteDialog) {

@@ -35,12 +35,14 @@ import androidx.compose.material3.dynamicDarkColorScheme
 import androidx.compose.material3.dynamicLightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.platform.UriHandler
 import androidx.compose.ui.res.stringResource
@@ -94,6 +96,7 @@ internal data class FloatingWindowState(
     val failure: String?,
     val tools: List<FloatingToolAction>,
     val conversationKey: String = "",
+    val generating: Boolean = false,
 )
 
 /**
@@ -164,6 +167,12 @@ internal fun FloatingChatWindow(
         }
     val amoledDarkMode by rememberAmoledDarkMode()
     val context = LocalContext.current
+    // 生成中保持亮屏：收起时 panel 是 GONE，标志不起作用；手动按电源键锁屏不受影响。
+    val view = LocalView.current
+    DisposableEffect(view, state.generating) {
+        view.keepScreenOn = state.generating
+        onDispose { view.keepScreenOn = false }
+    }
     val uriHandler =
         remember(context) {
             object : UriHandler {

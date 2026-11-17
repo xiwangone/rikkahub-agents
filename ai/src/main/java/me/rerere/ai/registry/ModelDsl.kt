@@ -19,11 +19,6 @@ class ModelDefinition(
         return matcher.score(modelId, tokens) != null
     }
 
-    fun matchScore(modelId: String): Int? {
-        val tokens = tokenize(modelId)
-        return matcher.score(modelId, tokens)
-    }
-
     internal fun matchScore(modelId: String, tokens: List<String>): Int? =
         matcher.score(modelId, tokens)
 }

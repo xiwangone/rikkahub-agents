@@ -750,11 +750,14 @@
   <string name="render_with_webview">عرض باستخدام WebView</string>
   <string name="rikkahub_provider_description">خدمة ذكاء اصطناعي مجانية رسمية، تستخدم أموال رعاية المستخدمين لتوفير بعض النماذج المجانية للمستخدمين الجدد كاحتياطي، لا يلزم مفتاح API. لها حدود معدل صارمة، إذا اشتريت مزوّدك الخاص، من فضلك استخدم مزوّدك الخاص قدر الإمكان.</string>
   <string name="safe_mode_assistants">المساعدون</string>
+  <string name="safe_mode_clear">مسح</string>
+  <string name="safe_mode_clear_text">هذه البيانات كبيرة بما يكفي لجعل التطبيق ينفد من الذاكرة. المسح يعيدها إلى القيمة الافتراضية ولا يمكن التراجع عنه.</string>
+  <string name="safe_mode_clear_title">مسح %1$s؟</string>
   <string name="safe_mode_copy">نسخ</string>
   <string name="safe_mode_crash_report">تقرير التعطل</string>
   <string name="safe_mode_current_assistant">المساعد الحالي: %s</string>
   <string name="safe_mode_default_assistant">المساعد الافتراضي</string>
-  <string name="safe_mode_description">تعطل التطبيق عند آخر تشغيل. يمكنك التبديل إلى مساعد مختلف لحل المشكلة.</string>
+  <string name="safe_mode_description">تعطل التطبيق عند آخر تشغيل.</string>
   <string name="safe_mode_switch_assistant">تبديل المساعد</string>
   <string name="safe_mode_title">الوضع الآمن</string>
   <string name="search_ability_scrape">كشط</string>
@@ -1882,6 +1885,8 @@
   <string name="local_llm_vision_retry">إعادة محاولة الرؤية</string>
   <string name="local_llm_vision_unavailable_caption">الجهاز لا يدعم الرؤية — وضع النص فقط</string>
   <string name="safe_mode_enter_app">الدخول إلى التطبيق</string>
+  <string name="safe_mode_oversized_data">بيانات كبيرة الحجم</string>
+  <string name="safe_mode_oversized_size">%1$.1f مليون حرف</string>
   <string name="setting_browser_per_tool_timeout_desc">ميزانية زمنية صارمة لكل استدعاء لأداة المتصفح. النطاق من 10 ثوانٍ إلى 10 دقائق.</string>
   <string name="setting_browser_per_tool_timeout_unit">ثانية</string>
   <string name="setting_browser_single_task_timeout_desc">حد صارم لمهمة متصفح واحدة يقودها الذكاء الاصطناعي لمنع الحلقات اللانهائية. النطاق من دقيقة إلى 60 دقيقة.</string>

@@ -639,11 +639,14 @@
   <string name="render_with_webview">WebView로 렌더링</string>
   <string name="rikkahub_provider_description">공식 무료 AI 서비스로, 사용자 후원금으로 일부 무료 모델을 신규 사용자에게 대체 수단으로 제공하며 API 키가 필요 없습니다. 엄격한 요청 제한이 있으므로, 자체 제공자를 구매한 경우 되도록 자체 제공자를 사용하세요.</string>
   <string name="safe_mode_assistants">도우미</string>
+  <string name="safe_mode_clear">지우기</string>
+  <string name="safe_mode_clear_text">이 데이터가 너무 커서 앱이 메모리가 부족해질 수 있습니다. 지우면 기본값으로 초기화되며 되돌릴 수 없습니다.</string>
+  <string name="safe_mode_clear_title">%1$s을(를) 지우시겠습니까?</string>
   <string name="safe_mode_copy">복사</string>
   <string name="safe_mode_crash_report">충돌 보고서</string>
   <string name="safe_mode_current_assistant">현재 어시스턴트: %s</string>
   <string name="safe_mode_default_assistant">기본 비서</string>
-  <string name="safe_mode_description">앱이 마지막 실행에서 충돌했습니다. 문제를 해결하려면 다른 어시스턴트로 전환할 수 있습니다.</string>
+  <string name="safe_mode_description">앱이 마지막 실행에서 충돌했습니다.</string>
   <string name="safe_mode_switch_assistant">어시스턴트 전환</string>
   <string name="safe_mode_title">안전 모드</string>
   <string name="search_ability_scrape">스크래핑</string>
@@ -2334,6 +2337,8 @@
   <string name="local_llm_vision_retry">비전 재시도</string>
   <string name="local_llm_vision_unavailable_caption">이 기기는 비전 기능을 지원하지 않음 — 텍스트 전용 모드</string>
   <string name="safe_mode_enter_app">앱 열기</string>
+  <string name="safe_mode_oversized_data">대용량 데이터</string>
+  <string name="safe_mode_oversized_size">%1$.1f백만 자</string>
   <string name="setting_browser_per_tool_timeout_desc">브라우저 도구 호출 1회당 강제 시간 예산. 범위 10초~10분.</string>
   <string name="setting_browser_per_tool_timeout_unit">초</string>
   <string name="setting_browser_single_task_timeout_desc">AI 기반 브라우저 작업 1건의 강제 상한. 무한 루프 방지. 범위 1분~60분.</string>
