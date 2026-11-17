@@ -68,6 +68,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoModelIcon
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
 import me.rerere.rikkahub.ui.components.ui.ConnectedMultiChoiceButtons
@@ -602,9 +603,9 @@ internal fun ModelPicker(
                                         .fillMaxWidth()
                                         .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                             ) {
-                                AutoAIIcon(
-                                    it.modelId,
-                                    Modifier.size(30.dp),
+                                AutoModelIcon(
+                                    modelId = it.modelId,
+                                    modifier = Modifier.size(30.dp),
                                 )
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),

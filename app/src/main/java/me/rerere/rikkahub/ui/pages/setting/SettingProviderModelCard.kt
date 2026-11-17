@@ -51,6 +51,7 @@ import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoModelIcon
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -256,8 +257,8 @@ internal fun ModelCard(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
-                    AutoAIIcon(
-                        name = model.modelId,
+                    AutoModelIcon(
+                        modelId = model.modelId,
                         modifier = Modifier.size(36.dp),
                     )
                 }

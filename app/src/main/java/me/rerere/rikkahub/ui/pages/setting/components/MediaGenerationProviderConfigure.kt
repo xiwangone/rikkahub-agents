@@ -60,6 +60,7 @@ import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoModelIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
@@ -229,8 +230,8 @@ fun MediaGenerationProviderModelsConfigure(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         if (model.modelId.isNotBlank()) {
-                            AutoAIIcon(
-                                name = model.modelId,
+                            AutoModelIcon(
+                                modelId = model.modelId,
                                 modifier = Modifier.size(28.dp),
                             )
                         }
@@ -467,9 +468,9 @@ private fun MediaModelPickerSheet(
                                     .fillMaxWidth()
                                     .padding(start = 12.dp, top = 8.dp, end = 8.dp, bottom = 8.dp),
                         ) {
-                            AutoAIIcon(
-                                candidate.modelId,
-                                Modifier.size(30.dp),
+                            AutoModelIcon(
+                                modelId = candidate.modelId,
+                                modifier = Modifier.size(30.dp),
                             )
                             Column(
                                 verticalArrangement = Arrangement.spacedBy(4.dp),

@@ -76,10 +76,12 @@ class ChatInputIconSizeTest {
             )
         }
         composeRule.onNodeWithContentDescription("deepseek", useUnmergedTree = true)
-            .assertWidthIsEqualTo(24.dp)
-            .assertHeightIsEqualTo(24.dp)
+            // padding 收到 2.dp 后绘制区 28.dp（原 4.dp 时为 24.dp）
+            .assertWidthIsEqualTo(28.dp)
+            .assertHeightIsEqualTo(28.dp)
 
-        // 旧行为留档：plain size(36) 时字形 28.dp，证明测试能区分两种链。
+        // 对照：plain size(36.dp) 时外框被撑到 36.dp，绘制区 36 − 2×2 = 32.dp，
+        // 与上面 requiredSize(32.dp) 的 28.dp 不同 —— 证明两条修饰符链确实可区分。
         content = {
             AutoAIIcon(
                 name = "deepseek",
@@ -88,8 +90,8 @@ class ChatInputIconSizeTest {
             )
         }
         composeRule.onNodeWithContentDescription("deepseek", useUnmergedTree = true)
-            .assertWidthIsEqualTo(28.dp)
-            .assertHeightIsEqualTo(28.dp)
+            .assertWidthIsEqualTo(32.dp)
+            .assertHeightIsEqualTo(32.dp)
 
         // 改动的真实调用点：ModelSelectorButton(onlyIcon = true) 配 deepseek 模型，字形 24.dp。
         val modelUuid = Uuid.random()
@@ -109,7 +111,8 @@ class ChatInputIconSizeTest {
             ModelSelectorButton(state = state, onlyIcon = true)
         }
         composeRule.onNodeWithContentDescription("deepseek", useUnmergedTree = true)
-            .assertWidthIsEqualTo(24.dp)
-            .assertHeightIsEqualTo(24.dp)
+            // padding 收到 2.dp 后绘制区 28.dp（原 4.dp 时为 24.dp）
+            .assertWidthIsEqualTo(28.dp)
+            .assertHeightIsEqualTo(28.dp)
     }
 }

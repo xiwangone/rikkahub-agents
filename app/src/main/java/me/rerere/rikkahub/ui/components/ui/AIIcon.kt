@@ -60,10 +60,12 @@ private fun AIIcon(
         AsyncImage(
             model = model,
             contentDescription = name,
-            // 4.dp 是**必须保持的**：外框 32.dp − 4×2 = 24.dp 绘制区，与同排线条图标一致。
-            // 「看起来小」的根因不是这里的留白，而是 SVG 自身内容没铺满 viewBox
-            // （deepseek 只占 74%、hunyuan 左右不对称）→ 已由 icons/*.svg 的 viewBox 归一化修复。
-            modifier = Modifier.padding(4.dp),
+            // 2.dp：外框 32.dp − 2×2 = 28.dp 绘制区。
+            // 4.dp 时绘制区只有 24.dp，而横版品牌标（如 DeepSeek 鲸鱼 viewBox 24.72×18.19，
+            // 宽高比 1.36）按宽度适配后高度只剩 24/1.36 ≈ 17.6.dp，与同排 24.dp 的
+            // 线条图标（搜索/思考）差 26% —— 收到 2.dp 后高度约 20.6.dp，差距缩到 14%。
+            // 横版图标在方形槽里天然偏矮，这是 ContentScale.Fit 的固有取舍，不再强行拉伸（会失真）。
+            modifier = Modifier.padding(2.dp),
         )
     }
 }

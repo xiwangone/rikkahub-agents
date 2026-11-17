@@ -116,6 +116,8 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "grok" to "xai",
     "kimi" to "moonshot",
     "qwen" to "qwen",
+    // 万相（Wan）是阿里通义的生图模型；库里没有独立 wan 图标，归阿里
+    "wan" to "alibaba",
     "ernie" to "wenxin",
     "hunyuan" to "hunyuan",
     // ── 模型名里常见的品牌缩写（与提供商名共用一张表，模型解析见
@@ -309,6 +311,17 @@ private fun stripVersionSuffix(word: String): String? {
  *
  * @param availableIcons assets/icons/ 里的文件名集合（与 [computeAIIconByName] 同口径）。
  */
+/**
+ * 模型子品牌词：比厂商前缀更具体，**必须优先匹配**。
+ *
+ * `gpt-5.3-codex` 是 OpenAI 的模型，但用户认的是 Codex 那个终端样式图标；
+ * `muse-spark` 是 Meta 的模型，但品牌词是 Muse（不优先就会被 `spark` 抢成讯飞星火）。
+ * 排序是稳定的：同组内保持原词序。
+ */
+private val MODEL_SUBBRAND_WORDS: Set<String> = setOf(
+    "codex", "muse", "kimi", "longcat", "minicpm", "d3", "qwq", "gemma", "grok",
+)
+
 fun computeModelIconByName(
     modelId: String,
     availableIcons: Set<String>,
@@ -322,6 +335,8 @@ fun computeModelIconByName(
         modelId.split(Regex("[^\\p{L}\\p{N}]+"))
             .filter { it.length >= 2 }
             .map { it.lowercase() }
+            // 子品牌词优先：`gpt-5.3-codex` 先试 codex 再试 gpt
+            .sortedBy { word -> if (word in MODEL_SUBBRAND_WORDS) 0 else 1 }
             .forEach { word ->
                 add(word)
                 stripVersionSuffix(word)?.let { add(it) }

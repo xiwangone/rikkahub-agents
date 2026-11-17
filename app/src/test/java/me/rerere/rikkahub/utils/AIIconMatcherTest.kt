@@ -34,6 +34,7 @@ class AIIconMatcherTest {
         "anthropic.svg", "qiniu-color.svg", "poolside-color.svg", "internlm-color.svg",
         "minimax-color.svg", "gemma-color.svg", "meta-color.svg", "google-color.svg",
         "stepfun-color.svg", "zhipu-color.svg",
+        "codex-color.svg", "muse-color.svg", "alibaba-color.svg",
         "foo-color.svg", "foo.svg", "bar.svg", "baz.png",
         // 本批新增：端点别名 amd/minimaxi/tencentmaas 与新图标文件
         "amdradeoncloud-color.svg", "tokenrhythm.png", "suixiang.png", "ackai.png",
@@ -230,6 +231,17 @@ class AIIconMatcherTest {
     fun `qiniu chinese name resolves`() {
         assertEquals("qiniu-color.svg", resolve("七牛云"))
         assertEquals("qiniu-color.svg", resolve("七牛"))
+    }
+
+    @Test
+    fun `model subbrand wins over vendor prefix`() {
+        // gpt-5.3-codex 是 OpenAI 的模型，但图标要显示 Codex
+        assertEquals("codex-color.svg", resolveModel("gpt-5.3-codex"))
+        // muse-spark 是 Meta 的模型，品牌词是 Muse（不能被 spark 抢成讯飞星火）
+        assertEquals("muse-color.svg", resolveModel("meta/muse-spark-1.3-contributor"))
+        // 万相是阿里通义的生图模型
+        assertEquals("alibaba-color.svg", resolveModel("wan2.7-image"))
+        assertEquals("alibaba-color.svg", resolveModel("wan2.7-image-pro"))
     }
 
     @Test
