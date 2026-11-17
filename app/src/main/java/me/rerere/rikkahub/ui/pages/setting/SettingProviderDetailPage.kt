@@ -69,6 +69,7 @@ import me.rerere.rikkahub.ui.components.ai.ProviderBalanceText
 import me.rerere.rikkahub.ui.components.ai.providerDisplayName
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.utils.baseUrlOrNull
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
@@ -177,7 +178,12 @@ fun SettingProviderDetailPage(
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                     ) {
-                        AutoAIIcon(provider.name, modifier = Modifier.size(22.dp))
+                        AutoAIIcon(
+                            provider.name,
+                            modifier = Modifier.size(22.dp),
+                            // 端点优先：详情页与列表页必须同口径，否则会出现「列表有图标、点进去是首字母」
+                            baseUrl = provider.baseUrlOrNull(),
+                        )
                         Text(text = providerDisplayName(provider), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
                 },
@@ -630,6 +636,7 @@ internal fun ProviderOverrideSettings(
                         AutoAIIcon(
                             providerOverride.name,
                             modifier = Modifier.size(24.dp),
+                            baseUrl = providerOverride.baseUrlOrNull(),
                         )
                     },
                     headlineContent = {
