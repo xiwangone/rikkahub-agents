@@ -1556,6 +1556,8 @@
   <string name="assistant_page_local_tools_audio_info_title">音频信息</string>
   <string name="assistant_page_local_tools_battery_desc">读取电量、充电状态、充电方式、温度和健康度。</string>
   <string name="assistant_page_local_tools_device_info_title">设备信息</string>
+  <string name="assistant_page_local_tools_provider_icon_title">提供商图标</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">让助手设置或清除提供商的图标。</string>
   <string name="assistant_page_local_tools_device_info_desc">电池、音频、通话、Wi-Fi、存储与传感器。</string>
   <string name="assistant_page_local_tools_battery_title">电池</string>
   <string name="assistant_page_local_tools_brightness_desc">读取和设置屏幕亮度。设置需要 WRITE_SETTINGS 权限。</string>

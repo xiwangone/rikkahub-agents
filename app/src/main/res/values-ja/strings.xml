@@ -1323,6 +1323,8 @@
   <string name="assistant_page_local_tools_audio_info_title">オーディオ情報</string>
   <string name="assistant_page_local_tools_battery_desc">バッテリー残量、充電状態、接続タイプ、温度、状態を読み取ります。</string>
   <string name="assistant_page_local_tools_device_info_title">デバイス情報</string>
+  <string name="assistant_page_local_tools_provider_icon_title">プロバイダーアイコン</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">アシスタントがプロバイダーのアイコンを設定または解除できるようにします。</string>
   <string name="assistant_page_local_tools_device_info_desc">バッテリー、オーディオ、通話、Wi-Fi、ストレージ、センサー。</string>
   <string name="assistant_page_local_tools_battery_title">バッテリー</string>
   <string name="assistant_page_local_tools_brightness_desc">画面の明るさを読み取り、設定します。設定には WRITE_SETTINGS 権限が必要です。</string>

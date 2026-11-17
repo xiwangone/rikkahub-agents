@@ -1320,6 +1320,8 @@
   <string name="assistant_page_local_tools_audio_info_title">오디오 정보</string>
   <string name="assistant_page_local_tools_battery_desc">배터리 잔량, 충전 상태, 연결 유형, 온도, 상태를 읽습니다.</string>
   <string name="assistant_page_local_tools_device_info_title">기기 정보</string>
+  <string name="assistant_page_local_tools_provider_icon_title">제공자 아이콘</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">어시스턴트가 제공자 아이콘을 설정하거나 해제할 수 있습니다.</string>
   <string name="assistant_page_local_tools_device_info_desc">배터리, 오디오, 통화, Wi-Fi, 저장공간, 센서.</string>
   <string name="assistant_page_local_tools_battery_title">배터리</string>
   <string name="assistant_page_local_tools_brightness_desc">화면 밝기를 읽고 설정합니다. 설정하려면 WRITE_SETTINGS 권한이 필요합니다.</string>

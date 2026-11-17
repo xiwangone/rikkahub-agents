@@ -77,6 +77,8 @@
   <string name="assistant_page_local_tools_audio_info_title">معلومات الصوت</string>
   <string name="assistant_page_local_tools_battery_desc">قراءة مستوى البطارية وحالة الشحن ونوع التوصيل ودرجة الحرارة والصحة.</string>
   <string name="assistant_page_local_tools_device_info_title">معلومات الجهاز</string>
+  <string name="assistant_page_local_tools_provider_icon_title">أيقونة موفر الخدمة</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">السماح للمساعد بتعيين أيقونة موفر الخدمة أو مسحها.</string>
   <string name="assistant_page_local_tools_device_info_desc">البطارية والصوت والاتصال وWi-Fi والتخزين والمستشعرات.</string>
   <string name="assistant_page_local_tools_battery_title">البطارية</string>
   <string name="assistant_page_local_tools_brightness_desc">قراءة وتعيين سطوع الشاشة. يتطلب التعيين إذن WRITE_SETTINGS.</string>

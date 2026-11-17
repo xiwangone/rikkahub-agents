@@ -1339,6 +1339,8 @@
   <string name="assistant_page_local_tools_audio_info_title">音訊資訊</string>
   <string name="assistant_page_local_tools_battery_desc">讀取電量、充電狀態、充電方式、溫度和健康度。</string>
   <string name="assistant_page_local_tools_device_info_title">裝置資訊</string>
+  <string name="assistant_page_local_tools_provider_icon_title">提供商圖標</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">讓助手設定或清除提供商的圖標。</string>
   <string name="assistant_page_local_tools_device_info_desc">電池、音訊、通話、Wi-Fi、儲存與感測器。</string>
   <string name="assistant_page_local_tools_battery_title">電池</string>
   <string name="assistant_page_local_tools_brightness_desc">讀取和設定螢幕亮度。設定需要 WRITE_SETTINGS 權限。</string>

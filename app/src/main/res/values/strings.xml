@@ -1565,6 +1565,8 @@
   <string name="assistant_page_local_tools_audio_info_title">Audio info</string>
   <string name="assistant_page_local_tools_battery_desc">Read battery level, charging state, plug type, temperature, and health.</string>
   <string name="assistant_page_local_tools_device_info_title">Device info</string>
+  <string name="assistant_page_local_tools_provider_icon_title">Provider icon</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">Let the assistant set or clear a provider icon.</string>
   <string name="assistant_page_local_tools_device_info_desc">Battery, audio, telephony, Wi-Fi, storage and sensors.</string>
   <string name="assistant_page_local_tools_battery_title">Battery</string>
   <string name="assistant_page_local_tools_brightness_desc">Read and set screen brightness. Setting requires WRITE_SETTINGS.</string>

@@ -1318,6 +1318,8 @@
   <string name="assistant_page_local_tools_audio_info_title">Сведения об аудио</string>
   <string name="assistant_page_local_tools_battery_desc">Чтение уровня заряда, состояния зарядки, типа подключения, температуры и состояния батареи.</string>
   <string name="assistant_page_local_tools_device_info_title">Сведения об устройстве</string>
+  <string name="assistant_page_local_tools_provider_icon_title">Значок провайдера</string>
+  <string name="assistant_page_local_tools_provider_icon_desc">Разрешить ассистенту задавать или сбрасывать значок провайдера.</string>
   <string name="assistant_page_local_tools_device_info_desc">Батарея, звук, связь, Wi-Fi, память и датчики.</string>
   <string name="assistant_page_local_tools_battery_title">Батарея</string>
   <string name="assistant_page_local_tools_brightness_desc">Чтение и установка яркости экрана. Для установки требуется WRITE_SETTINGS.</string>
