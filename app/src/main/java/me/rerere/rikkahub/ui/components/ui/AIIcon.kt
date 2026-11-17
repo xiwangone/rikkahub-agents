@@ -21,7 +21,9 @@ import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
 import me.rerere.rikkahub.utils.ProviderIconSource
 import me.rerere.rikkahub.utils.computeAIIconByName
+import me.rerere.rikkahub.utils.computeModelIconByName
 import me.rerere.rikkahub.utils.listBundledIconNames
+import me.rerere.rikkahub.utils.resolveModelIcon
 import me.rerere.rikkahub.utils.resolveProviderIcon
 import me.rerere.rikkahub.utils.toCssHex
 
@@ -67,27 +69,20 @@ private fun AIIcon(
 }
 
 /**
- * 提供商/模型图标：优先级为覆盖表 > 品牌匹配 > 首字母。
- *
- * @param iconOverride 该提供商在 [me.rerere.rikkahub.data.datastore.Settings.providerIconOverrides]
- * 里的存储值（`asset:` / `file:` 前缀）；为 null 时不查覆盖表。其他调用点保持默认行为，
- * 只有提供商列表页传入覆盖值。
+ * 按已解析的图标来源渲染：Asset/LocalFile 走图片，null 走首字母头像。
+ * 覆盖指向的文件已不在磁盘上时，用 [fallbackBrandFile] 回退到品牌匹配，
+ * 再不行才显示首字母（不静默吞掉）。
  */
 @Composable
-fun AutoAIIcon(
+private fun AIIconBySource(
+    source: ProviderIconSource?,
     name: String,
+    fallbackBrandFile: () -> String?,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
-    iconOverride: String? = null,
-    /** 端点地址。名字是自定义短名时（`CC` 指向 commandcode），端点才是可靠的品牌依据。 */
-    baseUrl: String? = null,
 ) {
     val context = LocalContext.current
-    val availableIcons = remember(context) { listBundledIconNames(context) }
-    val source = remember(name, iconOverride, availableIcons, baseUrl) {
-        resolveProviderIcon(name, iconOverride, availableIcons, baseUrl)
-    }
     when (source) {
         is ProviderIconSource.Asset -> {
             AIIcon(
@@ -111,8 +106,7 @@ fun AutoAIIcon(
                     color = color,
                 )
             } else {
-                // 覆盖指向的文件已不在磁盘上：回退到品牌匹配，再不行才显示首字母。
-                val brandPath = remember(name, availableIcons) { computeAIIconByName(name, availableIcons) }
+                val brandPath = remember(source, name) { fallbackBrandFile() }
                 if (brandPath != null) {
                     AIIcon(
                         data = "file:///android_asset/icons/$brandPath",
@@ -131,6 +125,77 @@ fun AutoAIIcon(
             TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
         }
     }
+}
+
+/**
+ * 提供商/模型图标：优先级为覆盖表 > 品牌匹配 > 首字母。
+ *
+ * @param iconOverride 该提供商在 [me.rerere.rikkahub.data.datastore.Settings.providerIconOverrides]
+ * 里的存储值（`asset:` / `file:` 前缀）；为 null 时不查覆盖表。调用方传入覆盖值
+ * 时优先用覆盖（如提供商列表页、模型列表的提供商筛选 chips）。
+ */
+@Composable
+fun AutoAIIcon(
+    name: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    iconOverride: String? = null,
+    /** 端点地址。名字是自定义短名时（`CC` 指向 commandcode），端点才是可靠的品牌依据。 */
+    baseUrl: String? = null,
+) {
+    val context = LocalContext.current
+    val availableIcons = remember(context) { listBundledIconNames(context) }
+    val source = remember(name, iconOverride, availableIcons, baseUrl) {
+        resolveProviderIcon(name, iconOverride, availableIcons, baseUrl)
+    }
+    AIIconBySource(
+        source = source,
+        name = name,
+        fallbackBrandFile = { computeAIIconByName(name, availableIcons) },
+        modifier = modifier,
+        loading = loading,
+        color = color,
+    )
+}
+
+/**
+ * 模型图标：与提供商图标同一条优先级链——覆盖表 > 模型名品牌匹配 >
+ * 所属提供商名/端点品牌匹配 > 首字母。
+ *
+ * @param modelId 模型 ID（如 `qwen3.8-max`、`gpt-6-luna`），品牌词在前，
+ * 按 [me.rerere.rikkahub.utils.computeModelIconByName] 解析。
+ * @param providerName 所属提供商名；模型名解析不到时用它兜底（如决策模型
+ * `d3` 在 AMD 列表里显示 AMD 标）。
+ * @param iconOverride 该模型所属提供商在覆盖表里的存储值；为 null 时不查覆盖表。
+ * @param baseUrl 所属提供商的端点地址；名字是自定义短名时，端点才是可靠的品牌依据。
+ */
+@Composable
+fun AutoModelIcon(
+    modelId: String,
+    modifier: Modifier = Modifier,
+    loading: Boolean = false,
+    color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    providerName: String? = null,
+    iconOverride: String? = null,
+    baseUrl: String? = null,
+) {
+    val context = LocalContext.current
+    val availableIcons = remember(context) { listBundledIconNames(context) }
+    val source = remember(modelId, iconOverride, availableIcons, providerName, baseUrl) {
+        resolveModelIcon(modelId, iconOverride, availableIcons, providerName, baseUrl)
+    }
+    AIIconBySource(
+        source = source,
+        name = modelId,
+        fallbackBrandFile = {
+            computeModelIconByName(modelId, availableIcons)
+                ?: providerName?.let { computeAIIconByName(it, availableIcons, baseUrl) }
+        },
+        modifier = modifier,
+        loading = loading,
+        color = color,
+    )
 }
 
 @Preview

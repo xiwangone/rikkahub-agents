@@ -65,6 +65,32 @@ fun resolveProviderIcon(
 }
 
 /**
+ * 按优先级解析一个模型应渲染的图标来源，与提供商图标同一条链：
+ * 覆盖表（[override] 为该模型所属提供商的存储值）> 模型名品牌匹配
+ * （[computeModelIconByName]）> 提供商名/端点品牌匹配（模型名解析不到时
+ * 用所属提供商的标兜底，如决策模型 d3 在 AMD 列表里显示 AMD 标）>
+ * 无（首字母兜底）。
+ *
+ * 覆盖表以提供商名为键：模型图标用的就是所属提供商的那一项，列表页与
+ * 详情页改了覆盖，模型列表与输入框当前模型会跟着变，不用再单独登记模型。
+ */
+fun resolveModelIcon(
+    modelId: String,
+    override: String?,
+    availableIcons: Set<String>,
+    providerName: String? = null,
+    baseUrl: String? = null,
+): ProviderIconSource? {
+    ProviderIconOverrides.parse(override)?.let { return it }
+    computeModelIconByName(modelId, availableIcons)?.let { return ProviderIconSource.Asset(it) }
+    if (!providerName.isNullOrBlank()) {
+        computeAIIconByName(providerName, availableIcons, baseUrl)
+            ?.let { return ProviderIconSource.Asset(it) }
+    }
+    return null
+}
+
+/**
  * 取提供商的端点地址（用于按域名匹配品牌图标）。
  *
  * 只有基于 HTTP 的提供商有端点；本地模型（LiteRt / LlamaCpp）没有，

@@ -340,6 +340,7 @@ private fun CardGroupScope.modelItem(
         placeholder = stringResource(placeholder),
         onClear = onClear,
         stale = state.isStale,
+        providers = state.providers,
     )
 }
 

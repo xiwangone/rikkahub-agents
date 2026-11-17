@@ -9,10 +9,21 @@ import org.junit.Test
  */
 class ProviderIconOverrideTest {
 
-    private val icons = setOf("openai.svg", "deepseek-color.svg", "mazal.svg")
+    private val icons = setOf(
+        "openai.svg", "deepseek-color.svg", "mazal.svg",
+        // 模型优先级单测用到的品牌文件（与真实 assets/icons/ 同名）
+        "hunyuan-color.svg", "amdradeoncloud-color.svg", "moonshot.svg",
+    )
 
     private fun resolve(name: String, override: String?) =
         resolveProviderIcon(name, override, icons)
+
+    private fun resolveModel(
+        modelId: String,
+        override: String?,
+        providerName: String? = null,
+        baseUrl: String? = null,
+    ) = resolveModelIcon(modelId, override, icons, providerName, baseUrl)
 
     @Test
     fun `encode and parse round trip`() {
@@ -69,5 +80,62 @@ class ProviderIconOverrideTest {
     @Test
     fun `unknown name without override resolves to null`() {
         assertNull(resolve("some-provider-that-does-not-exist", null))
+    }
+
+    @Test
+    fun `model override wins over model brand match`() {
+        // 覆盖表（所属提供商的那一项）优先于模型名本身的品牌
+        assertEquals(
+            ProviderIconSource.Asset("mazal.svg"),
+            resolveModel("gpt-6-luna", ProviderIconOverrides.encodeAsset("mazal.svg")),
+        )
+        assertEquals(
+            ProviderIconSource.LocalFile("provider-icons/mazal.svg"),
+            resolveModel(
+                "kimi-k3",
+                ProviderIconOverrides.encodeFile("provider-icons/mazal.svg"),
+            ),
+        )
+    }
+
+    @Test
+    fun `model brand match wins over provider fallback`() {
+        // 模型名能解析到品牌时，不用提供商的标
+        assertEquals(
+            ProviderIconSource.Asset("hunyuan-color.svg"),
+            resolveModel("hy4", null, "Tencent Hunyuan", "https://tokenhub.tencentmaas.com/v1"),
+        )
+        assertEquals(
+            ProviderIconSource.Asset("moonshot.svg"),
+            resolveModel("kimi-k3", null, "Moonshot", "https://api.moonshot.ai/v1"),
+        )
+    }
+
+    @Test
+    fun `model falls back to provider brand when name has none`() {
+        // 模型名解析不到时用所属提供商的标兜底（端点优先）
+        assertEquals(
+            ProviderIconSource.Asset("amdradeoncloud-color.svg"),
+            resolveModel(
+                "unknown-model-xyz",
+                null,
+                "AMD",
+                "https://developer.amd.com.cn/radeon/api/v1",
+            ),
+        )
+    }
+
+    @Test
+    fun `model with no brand and no provider resolves to null`() {
+        assertNull(resolveModel("unknown-model-xyz", null, null))
+        assertNull(resolveModel("unknown-model-xyz", null, "some-provider-that-does-not-exist"))
+    }
+
+    @Test
+    fun `malformed model override falls back to model brand match`() {
+        assertEquals(
+            ProviderIconSource.Asset("openai.svg"),
+            resolveModel("gpt-6-luna", "not-a-prefixed-value", null),
+        )
     }
 }

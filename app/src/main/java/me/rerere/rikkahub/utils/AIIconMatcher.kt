@@ -2,8 +2,10 @@ package me.rerere.rikkahub.utils
 
 import android.content.Context
 
-// 图标来源：lobehub 静态包 @lobehub/icons-static-svg@1.103.0（MIT，见 assets/icons/）；
-// 另有 3 个库外文件：mazal.svg、scnet.png、open-design.png（分别取自品牌官网）。
+// 图标来源：lobehub 静态包 @lobehub/icons-static-svg@1.103.0（MIT，见 assets/icons/，
+// 其中已有 vllm-color.svg 等品牌文件）；另有 7 个库外文件（各品牌官网取回）：
+// mazal.svg、scnet.png、open-design.png、tokenrhythm.png、suixiang.png、
+// ackai.png、minicpm.png（OpenBMB/MiniCPM 官方 lockup 裁出的蓝色 M 标）。
 // https://lobehub.com/zh/icons
 
 /**
@@ -116,6 +118,21 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "qwen" to "qwen",
     "ernie" to "wenxin",
     "hunyuan" to "hunyuan",
+    // ── 模型名里常见的品牌缩写（与提供商名共用一张表，模型解析见
+    // [computeModelIconByName]）──
+    // gpt-* 是 OpenAI 的模型名前缀（库里只有 openai.svg，没有 gpt.svg）
+    "gpt" to "openai",
+    // hy3/hy4 是腾讯混元的模型名前缀（Hy4 官方名，见 hy.tencent.com）
+    "hy" to "hunyuan",
+    // seed-* 是字节豆包的模型名前缀（Doubao-Seed-2.1，火山方舟）
+    "seed" to "doubao",
+    // step-* 是阶跃星辰的模型名前缀
+    "step" to "stepfun",
+    // neohorse-* 是基元律动的模型名前缀（TokenRhythm/NeoHorse，库里只有 tokenrhythm.png）
+    "neohorse" to "tokenrhythm",
+    // d3/d3-flash 是 vLLM Semantic Router 的决策模型（vllm-sr/d3，见 AMD Radeon Cloud
+    // 模型目录）；不是 DeepSeek——名字里没有 deepseek，端点也在 developer.amd.com.cn
+    "d3" to "vllm",
 )
 
 private fun resolveAlias(normalized: String): String? {
@@ -257,6 +274,61 @@ fun computeAIIconByName(
     }
     for (slug in candidates.distinct()) {
         // 英文/缩写别名（精确匹配）优先，再回原 slug
+        val mapped = ENGLISH_ALIASES[slug]
+        if (mapped != null && mapped != slug) {
+            lookupIconFile(mapped, availableIcons)?.let { return it }
+        }
+        lookupIconFile(slug, availableIcons)?.let { return it }
+    }
+    return null
+}
+
+/**
+ * 去掉词尾的版本号后缀：`qwen3` → `qwen`、`hy4` → `hy`、`gpt6` → `gpt`、
+ * `deepseekv3` → `deepseek`、`minicpm5` → `minicpm`。剥掉后少于 2 个字符
+ * 不算（`k3` → `k`、`v2` → `` 都没有品牌意义）；不以数字结尾的词原样返回 null。
+ */
+private fun stripVersionSuffix(word: String): String? {
+    val stripped = word.replace(Regex("^(.*?)v?\\d+$"), "$1")
+    if (stripped == word || stripped.length < 2) return null
+    return stripped
+}
+
+/**
+ * 按模型名找 assets/icons/ 里的品牌图标文件。
+ *
+ * 与提供商名解析（[computeAIIconByName]）的区别：模型 ID 的品牌词在**前面**
+ *（`gpt-6-luna` → gpt、`qwen3.8-max` → qwen、`muse-spark-1.2` → muse），
+ *而提供商名是「品牌在后」（`Tencent Hunyuan` → hunyuan），所以这里按词从前
+ *往后试；再加上版本号剥离（`qwen3` → `qwen`、`hy4` → `hy`）与 2 字母词
+ *（`d3` 只有 2 个字母，提供商路径的 ≥3 字母过滤会把它丢掉）。
+ *
+ * 找不到返回 null，调用方按优先级链回退（提供商名/端点 → 首字母兜底），
+ * 不要在这里猜品牌：`llama` 在库里没有 Meta Llama 的文件（只有 llamaindex，
+ * 是另一家），宁可回落首字母也不能错挂别人的标。
+ *
+ * @param availableIcons assets/icons/ 里的文件名集合（与 [computeAIIconByName] 同口径）。
+ */
+fun computeModelIconByName(
+    modelId: String,
+    availableIcons: Set<String>,
+): String? {
+    val normalized = normalizeProviderName(modelId)
+    if (normalized.isEmpty()) return null
+    val candidates = buildList {
+        add(normalized)
+        stripVersionSuffix(normalized)?.let { add(it) }
+        // 模型 ID 按分隔符切词，品牌词在前；2 字母词也保留（d3），1 字母词没有品牌意义。
+        modelId.split(Regex("[^\\p{L}\\p{N}]+"))
+            .filter { it.length >= 2 }
+            .map { it.lowercase() }
+            .forEach { word ->
+                add(word)
+                stripVersionSuffix(word)?.let { add(it) }
+            }
+    }
+    for (slug in candidates.distinct()) {
+        // 英文/缩写别名（精确匹配）优先，再回原 slug；与 computeAIIconByName 同口径
         val mapped = ENGLISH_ALIASES[slug]
         if (mapped != null && mapped != slug) {
             lookupIconFile(mapped, availableIcons)?.let { return it }

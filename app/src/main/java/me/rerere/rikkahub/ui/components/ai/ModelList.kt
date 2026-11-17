@@ -90,11 +90,13 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.ui.components.ui.AutoModelIcon
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.icons.HeartIcon
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.extendColors
+import me.rerere.rikkahub.utils.baseUrlOrNull
 import me.rerere.rikkahub.utils.toDp
 import org.koin.compose.koinInject
 import sh.calvin.reorderable.ReorderableItem
@@ -223,6 +225,12 @@ internal fun ModelSelectorButton(
     onClear: () -> Unit = {},
 ) {
     val model = state.currentModel
+    // 模型图标与提供商图标同一条优先级链：覆盖表 > 模型名品牌匹配 > 所属提供商
+    // 名/端点品牌匹配 > 首字母。覆盖表以提供商名为键，取当前模型所属提供商的那一项；
+    // 有 providerOverwrite 的模型按实际生效的提供商取（与生成链路同口径）。
+    val settings by koinInject<SettingsStore>().settingsFlow.collectAsStateWithLifecycle()
+    val provider = model?.findProvider(state.providers)
+    val iconOverride = provider?.name?.let { settings.providerIconOverrides[it] }
 
     if (!onlyIcon) {
         Row(
@@ -234,14 +242,18 @@ internal fun ModelSelectorButton(
                 },
                 modifier = modifier,
             ) {
-                model?.modelId?.let {
-                    AutoAIIcon(
-                        it,
-                        Modifier
-                            .padding(end = 4.dp)
-                            .size(36.dp),
+                model?.let { current ->
+                    AutoModelIcon(
+                        modelId = current.modelId,
+                        modifier =
+                            Modifier
+                                .padding(end = 4.dp)
+                                .size(36.dp),
                         // 输入框区域统一透明：与同排线条图标口径一致
                         color = Color.Transparent,
+                        providerName = provider?.name,
+                        iconOverride = iconOverride,
+                        baseUrl = provider?.baseUrlOrNull(),
                     )
                 }
                 Text(
@@ -285,10 +297,13 @@ internal fun ModelSelectorButton(
                 // 内部的 24.dp 会被夹回 36.dp，外框 36.dp、字形 28.dp；照抄 SearchPickerButton，
                 // 用 requiredSize(32.dp) 越过内部约束，外框 32.dp、字形 24.dp，与同排搜索 /
                 // 思考 / 扳手 / 闪电 / 锁 / ASR / ＋对齐。44.dp 点击圆圈不变。
-                AutoAIIcon(
+                AutoModelIcon(
+                    modelId = model.modelId,
                     modifier = Modifier.requiredSize(32.dp),
-                    name = model.modelId,
                     color = Color.Transparent,
+                    providerName = provider?.name,
+                    iconOverride = iconOverride,
+                    baseUrl = provider?.baseUrlOrNull(),
                 )
             } else {
                 Icon(
@@ -312,7 +327,12 @@ internal fun ModelField(
     placeholder: String = stringResource(R.string.model_list_select_model),
     onClear: (() -> Unit)? = null,
     stale: Boolean = false,
+    /** 所属提供商列表（用于找当前模型的提供商：覆盖表键 + 品牌兜底）；不传时只按模型名匹配。 */
+    providers: List<ProviderSetting> = emptyList(),
 ) {
+    // 与 ModelSelectorButton 同口径：覆盖表 > 模型名品牌匹配 > 所属提供商名/端点品牌匹配 > 首字母。
+    val settings by koinInject<SettingsStore>().settingsFlow.collectAsStateWithLifecycle()
+    val provider = model?.findProvider(providers)
     Surface(
         onClick = onClick,
         tonalElevation = 4.dp,
@@ -325,10 +345,13 @@ internal fun ModelField(
             verticalAlignment = Alignment.CenterVertically,
         ) {
             if (model != null) {
-                AutoAIIcon(
-                    name = model.modelId,
+                AutoModelIcon(
+                    modelId = model.modelId,
                     modifier = Modifier.size(22.dp),
                     color = Color.Transparent,
+                    providerName = provider?.name,
+                    iconOverride = provider?.name?.let { settings.providerIconOverrides[it] },
+                    baseUrl = provider?.baseUrlOrNull(),
                 )
             }
             Text(
@@ -636,6 +659,7 @@ private fun ColumnScope.ModelList(
                         onDismiss = {
                             onDismiss()
                         },
+                        iconOverride = settings.value.providerIconOverrides[provider.name],
                         tail = {
                             IconButton(
                                 onClick = {
@@ -721,6 +745,7 @@ private fun ColumnScope.ModelList(
                     onDismiss = {
                         onDismiss()
                     },
+                    iconOverride = settings.value.providerIconOverrides[providerSetting.name],
                     tail = {
                         IconButton(
                             onClick = {
@@ -804,7 +829,13 @@ private fun ColumnScope.ModelList(
                         Text(providerDisplayName(provider))
                     },
                     leadingIcon = {
-                        AutoAIIcon(name = provider.name, modifier = Modifier.size(16.dp))
+                        // 提供商筛选 chips 与列表页同口径：覆盖表 > 端点/名字品牌匹配 > 首字母。
+                        AutoAIIcon(
+                            name = provider.name,
+                            modifier = Modifier.size(16.dp),
+                            iconOverride = settings.value.providerIconOverrides[provider.name],
+                            baseUrl = provider.baseUrlOrNull(),
+                        )
                     },
                 )
             }
@@ -822,6 +853,8 @@ private fun ModelItem(
     modifier: Modifier = Modifier,
     tail: @Composable RowScope.() -> Unit = {},
     dragHandle: @Composable (RowScope.() -> Unit)? = null,
+    /** 该提供商在覆盖表里的自定义图标（调用方从设置里取）；空时走品牌匹配。 */
+    iconOverride: String? = null,
 ) {
     val navController = LocalNavController.current
     val interactionSource = remember { MutableInteractionSource() }
@@ -866,12 +899,17 @@ private fun ModelItem(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
-                    AutoAIIcon(
-                        name = model.modelId,
+                    // 模型图标与提供商图标同一条优先级链：覆盖表 > 模型名品牌匹配 >
+                    // 所属提供商名/端点品牌匹配 > 首字母。
+                    AutoModelIcon(
+                        modelId = model.modelId,
                         modifier =
                             Modifier
                                 .padding(4.dp)
                                 .size(32.dp),
+                        providerName = providerSetting.name,
+                        iconOverride = iconOverride,
+                        baseUrl = providerSetting.baseUrlOrNull(),
                     )
                 }
                 Column(

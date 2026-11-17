@@ -239,6 +239,7 @@ internal fun AssistantBasicContent(
                 ModelField(
                     model = modelListState.currentModel,
                     onClick = { modelListState.open() },
+                    providers = modelListState.providers,
                 )
             }
             item(

@@ -25,10 +25,10 @@ class AIIconMatcherTest {
         // 中文别名表覆盖到的其余品牌
         "qwen-color.svg", "alibabacloud-color.svg", "alibaba-color.svg",
         "tencentcloud-color.svg", "baiducloud-color.svg", "huaweicloud-color.svg",
-        "huawei-color.svg", "zhipu-color.svg", "moonshot-color.svg",
+        "huawei-color.svg", "zhipu-color.svg", "moonshot.svg",
         "baichuan-color.svg", "internlm-color.svg", "tiangong-color.svg",
-        "zeroone-color.svg", "infinigence-color.svg", "siliconflow-color.svg",
-        "metaso-color.svg", "bytedance-color.svg", "minimax-color.svg",
+        "zeroone-color.svg", "infinigence-color.svg", "siliconflow.svg",
+        "metaso.svg", "bytedance-color.svg", "minimax-color.svg",
         "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "glmv-color.svg",
         // 模型家族 / 厂商需要用到的
         "anthropic.svg", "qiniu-color.svg", "poolside-color.svg", "internlm-color.svg",
@@ -37,10 +37,16 @@ class AIIconMatcherTest {
         "foo-color.svg", "foo.svg", "bar.svg", "baz.png",
         // 本批新增：端点别名 amd/minimaxi/tencentmaas 与新图标文件
         "amdradeoncloud-color.svg", "tokenrhythm.png", "suixiang.png", "ackai.png",
+        // 本批新增：模型解析用到的品牌文件（与真实 assets/icons/ 同名）
+        "minicpm.png", "vllm-color.svg", "longcat-color.svg",
+        "claude-color.svg", "gemini-color.svg",
     )
 
     private fun resolve(name: String, baseUrl: String? = null) =
         computeAIIconByName(name, icons, baseUrl)
+
+    private fun resolveModel(modelId: String) =
+        computeModelIconByName(modelId, icons)
 
     @Test
     fun `normalization strips separators and falls back word by word`() {
@@ -111,7 +117,8 @@ class AIIconMatcherTest {
         assertEquals("alibaba-color.svg", resolve("阿里"))
         assertEquals("zhipu-color.svg", resolve("智谱"))
         assertEquals("zhipu-color.svg", resolve("智谱清言"))
-        assertEquals("moonshot-color.svg", resolve("月之暗面"))
+        // 注意：库里只有 moonshot.svg（无 -color 版），假集合须与真实文件名一致
+        assertEquals("moonshot.svg", resolve("月之暗面"))
         assertEquals("deepseek-color.svg", resolve("深度求索"))
         assertEquals("baichuan-color.svg", resolve("百川智能"))
         assertEquals("internlm-color.svg", resolve("书生浦语"))
@@ -119,8 +126,8 @@ class AIIconMatcherTest {
         assertEquals("tiangong-color.svg", resolve("天工"))
         assertEquals("zeroone-color.svg", resolve("零一万物"))
         assertEquals("infinigence-color.svg", resolve("无问芯穹"))
-        assertEquals("siliconflow-color.svg", resolve("硅基流动"))
-        assertEquals("metaso-color.svg", resolve("秘塔"))
+        assertEquals("siliconflow.svg", resolve("硅基流动"))
+        assertEquals("metaso.svg", resolve("秘塔"))
         assertEquals("bytedance-color.svg", resolve("字节跳动"))
         assertEquals("huaweicloud-color.svg", resolve("华为云"))
         assertEquals("huawei-color.svg", resolve("华为"))
@@ -142,7 +149,7 @@ class AIIconMatcherTest {
         assertEquals("hunyuan-color.svg", resolve("Tencent Hunyuan"))
         assertEquals("qwen-color.svg", resolve("Alibaba Qwen"))
         assertEquals("zhipu-color.svg", resolve("Zhipu AI"))
-        assertEquals("moonshot-color.svg", resolve("Moonshot Kimi"))
+        assertEquals("moonshot.svg", resolve("Moonshot Kimi"))
         assertEquals("deepseek-color.svg", resolve("DeepSeek V3"))
         assertEquals("minimax-color.svg", resolve("MiniMax ABAB"))
     }
@@ -251,5 +258,83 @@ class AIIconMatcherTest {
         assertEquals("bing.png", resolve("Bing"))
         assertEquals("muse-color.svg", resolve("Muse"))
         assertEquals("copilot-color.svg", resolve("GitHub Copilot"))
+    }
+
+    @Test
+    fun `model ids from screenshots resolve to brand icons`() {
+        // 用户截图里的模型：品牌词在前，从前往后试
+        assertEquals("openai.svg", resolveModel("gpt-6-luna"))
+        assertEquals("openai.svg", resolveModel("gpt-5.6"))
+        assertEquals("qwen-color.svg", resolveModel("qwen3-235b-a22b"))
+        assertEquals("qwen-color.svg", resolveModel("qwen3.8-max"))
+        assertEquals("moonshot.svg", resolveModel("kimi-k3"))
+        assertEquals("moonshot.svg", resolveModel("kimi-k2.7-code"))
+        assertEquals("minimax-color.svg", resolveModel("minimax-m3.1-flash"))
+        assertEquals("xiaomimimo.svg", resolveModel("mimo-v2.6-flash"))
+        assertEquals("xiaomimimo.svg", resolveModel("mimo-v2-pro"))
+        assertEquals("doubao-color.svg", resolveModel("seed-2.1-pro"))
+        assertEquals("doubao-color.svg", resolveModel("seed-2.1-turbo"))
+        assertEquals("hunyuan-color.svg", resolveModel("hy3"))
+        assertEquals("hunyuan-color.svg", resolveModel("hy4"))
+        assertEquals("hunyuan-color.svg", resolveModel("hy4-flash-free"))
+        // 组织名前缀的模型 ID 解析到组织标（tencent-color.svg），与裸 hy4 的混元标
+        // 不一致，是已知取舍：按词从前往后试，首词 tencent 在库里有文件就先命中；
+        // 想改成混元标要么加组织词黑名单（误伤面不可控），要么等提供商兜底——
+        // 但模型名已经解析到了，兜底走不到。提供商是「腾讯混元」时仍是混元标。
+        assertEquals("tencent-color.svg", resolveModel("tencent/hy4-preview"))
+        assertEquals("stepfun-color.svg", resolveModel("step-5-preview"))
+        assertEquals("xai.svg", resolveModel("grok-4.7"))
+        assertEquals("longcat-color.svg", resolveModel("longcat-2.0"))
+        assertEquals("tokenrhythm.png", resolveModel("neohorse-1-9b"))
+        assertEquals("tokenrhythm.png", resolveModel("neohorse-1.5-flash-preview"))
+        assertEquals("vllm-color.svg", resolveModel("d3"))
+        assertEquals("vllm-color.svg", resolveModel("d3-flash"))
+        assertEquals("minicpm.png", resolveModel("MiniCPM-V-4.7-1B"))
+        assertEquals("minicpm.png", resolveModel("MiniCPM5-2B"))
+        // muse-spark：品牌词 muse 在前，不许错挂讯飞星火的 spark 标
+        assertEquals("muse-color.svg", resolveModel("muse-spark-1.2-contributor"))
+        assertEquals("muse-color.svg", resolveModel("muse-spark-1.3"))
+    }
+
+    @Test
+    fun `model ids generalize across families`() {
+        assertEquals("deepseek-color.svg", resolveModel("deepseek-chat"))
+        assertEquals("deepseek-color.svg", resolveModel("deepseek-v3.2"))
+        assertEquals("deepseek-color.svg", resolveModel("deepseek-reasoner"))
+        assertEquals("claude-color.svg", resolveModel("claude-opus-4.6"))
+        assertEquals("claude-color.svg", resolveModel("claude-sonnet-4.5"))
+        assertEquals("gemini-color.svg", resolveModel("gemini-3-pro"))
+        assertEquals("gemini-color.svg", resolveModel("gemini-2.5-flash"))
+        assertEquals("zhipu-color.svg", resolveModel("glm-5.3-flash"))
+        assertEquals("zhipu-color.svg", resolveModel("glm-4.6"))
+        assertEquals("wenxin-color.svg", resolveModel("ernie-5.0"))
+        assertEquals("hunyuan-color.svg", resolveModel("hunyuan-turbos-latest"))
+        // llama 在库里没有 Meta Llama 的文件（只有 llamaindex，是另一家），
+        // 宁可回落首字母也不能错挂别人的标
+        assertNull(resolveModel("llama-4-scout"))
+        assertNull(resolveModel("llama"))
+        assertNull(resolveModel("o1"))
+        assertNull(resolveModel("some-model-that-does-not-exist"))
+        assertNull(resolveModel(""))
+    }
+
+    @Test
+    fun `model version suffix is stripped`() {
+        assertEquals("qwen-color.svg", resolveModel("qwen3"))
+        assertEquals("qwen-color.svg", resolveModel("qwen2.5-72b"))
+        assertEquals("deepseek-color.svg", resolveModel("deepseekv3"))
+        assertEquals("minicpm.png", resolveModel("minicpm5"))
+        assertEquals("hunyuan-color.svg", resolveModel("hy4"))
+        // 剥掉后少于 2 个字符不算品牌
+        assertNull(resolveModel("k3"))
+        assertNull(resolveModel("v2"))
+    }
+
+    @Test
+    fun `model resolver prefers the first brand word`() {
+        // 提供商路径从后往前回退会把 muse-spark 判成 spark（讯飞星火）；
+        // 模型路径品牌词在前，判 muse。提供商侧行为本身不动：
+        assertEquals("muse-color.svg", resolveModel("muse-spark-1.2-contributor"))
+        assertEquals("spark-color.svg", resolve("Muse Spark"))
     }
 }
