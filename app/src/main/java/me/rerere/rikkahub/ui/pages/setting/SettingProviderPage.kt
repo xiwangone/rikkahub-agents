@@ -75,6 +75,7 @@ import me.rerere.rikkahub.data.datastore.ProviderDescriptors
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
+import me.rerere.rikkahub.utils.baseUrlOrNull
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -681,6 +682,8 @@ private fun ProviderItem(
                 name = provider.name,
                 modifier = Modifier.size(36.dp),
                 iconOverride = iconOverride,
+                // 端点优先：自定义短名（CC → commandcode、Zen → opencode）靠名字无解，域名才可信
+                baseUrl = provider.baseUrlOrNull(),
             )
             Column(
                 modifier = Modifier.weight(1f),

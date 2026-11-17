@@ -77,10 +77,14 @@ fun AutoAIIcon(
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
     iconOverride: String? = null,
+    /** 端点地址。名字是自定义短名时（`CC` 指向 commandcode），端点才是可靠的品牌依据。 */
+    baseUrl: String? = null,
 ) {
     val context = LocalContext.current
     val availableIcons = remember(context) { listBundledIconNames(context) }
-    val source = remember(name, iconOverride, availableIcons) { resolveProviderIcon(name, iconOverride, availableIcons) }
+    val source = remember(name, iconOverride, availableIcons, baseUrl) {
+        resolveProviderIcon(name, iconOverride, availableIcons, baseUrl)
+    }
     when (source) {
         is ProviderIconSource.Asset -> {
             AIIcon(

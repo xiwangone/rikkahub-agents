@@ -84,6 +84,29 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "华为" to "huawei",
 )
 
+/**
+ * 英文 / 缩写名 → 库里的 slug。与 [CHINESE_ALIASES] 分开：
+ * 中文表按「最长包含」匹配（中文没有词边界），英文必须**精确**匹配，
+ * 否则 `mimo` 会被 `xiaomimimo` 之类的长名反向吃掉。
+ *
+ * 只登记「库里确实有、但名字对不上」的：如小米 MiMo 在库里是 `xiaomimimo`，
+ * GLM 是智谱的模型品牌（库里 `glmv` 是 GLM-V，通用 GLM 归 `zhipu`）。
+ */
+private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
+    "mimo" to "xiaomimimo",
+    "xiaomimimo" to "xiaomimimo",
+    "glm" to "zhipu",
+    "glm4" to "zhipu",
+    "glm4v" to "zhipu",
+    "chatglm" to "zhipu",
+    "agens" to "agnesai",
+    "grok" to "xai",
+    "kimi" to "moonshot",
+    "qwen" to "qwen",
+    "ernie" to "wenxin",
+    "hunyuan" to "hunyuan",
+)
+
 private fun resolveAlias(normalized: String): String? {
     CHINESE_ALIASES[normalized]?.let { return it }
     return CHINESE_ALIASES.entries
@@ -99,6 +122,18 @@ private fun lookupIconFile(slug: String, availableIcons: Set<String>): String? {
     if (plain in availableIcons) return plain
     val png = "$slug.png"
     if (png in availableIcons) return png
+    // 回退：文件名自身可能带分隔符（`open-design.png`、`ai21-brand.svg`），而 slug 在
+    // normalizeProviderName 里已经把分隔符去掉了 → 逐级把文件名也归一化再比一次。
+    // 必须放在精确匹配之后，避免 `foo-bar` 抢在 `foobar` 前面。
+    val target = slug.filter { it.isLetterOrDigit() }
+    if (target.isEmpty()) return null
+    for (suffix in listOf("-color.svg", ".svg", ".png")) {
+        val hit = availableIcons.firstOrNull { f ->
+            f.endsWith(suffix) &&
+                f.removeSuffix(suffix).filter { it.isLetterOrDigit() }.equals(target, ignoreCase = true)
+        }
+        if (hit != null) return hit
+    }
     return null
 }
 
@@ -113,11 +148,21 @@ private fun lookupIconFile(slug: String, availableIcons: Set<String>): String? {
  * @param availableIcons assets/icons/ 里的文件名集合（调用方用
  * [listBundledIconNames] 枚举一次后传入；测试传假集合即可）。
  */
-fun computeAIIconByName(name: String, availableIcons: Set<String>): String? {
+fun computeAIIconByName(
+    name: String,
+    availableIcons: Set<String>,
+    baseUrl: String? = null,
+): String? {
     val normalized = normalizeProviderName(name)
     if (normalized.isEmpty()) return null
     val aliased = resolveAlias(normalized) ?: normalized
     val candidates = buildList {
+        // 域名优先：自定义短名（CC/Zen）靠名字无解，但域名里带着品牌
+        hostBrandCandidates(baseUrl).forEach { raw ->
+            val flat = raw.filter { ch -> ch.isLetterOrDigit() }
+            add(HOST_ALIASES[flat] ?: flat)
+            add(flat)
+        }
         add(aliased)
         if (aliased != normalized) add(normalized)
         // 多词名逐词回退：从后往前（“Azure OpenAI”先试 openai，与旧行为一致）；
@@ -129,9 +174,67 @@ fun computeAIIconByName(name: String, availableIcons: Set<String>): String? {
             .forEach { if (it != aliased && it != normalized) add(it) }
     }
     for (slug in candidates.distinct()) {
+        // 英文/缩写别名（精确匹配）优先，再回原 slug
+        val mapped = ENGLISH_ALIASES[slug]
+        if (mapped != null && mapped != slug) {
+            lookupIconFile(mapped, availableIcons)?.let { return it }
+        }
         lookupIconFile(slug, availableIcons)?.let { return it }
     }
     return null
+}
+
+/**
+ * 从 API Base URL 里取品牌候选词。
+ *
+ * 为什么需要：用户常把提供商起成自定义短名（`CC` 指向 `api.commandcode.ai`、`Zen` 指向
+ * `opencode.ai`），名字本身进不了 slug，但域名里就带着品牌。按域名匹配是这类情况的唯一可靠依据。
+ *
+ * 规则：取主机名去掉顶级域与常见通用前缀（`api`/`apihub`/`www`…），得到品牌段；
+ * 同时给出「多段拼接」与「最后一段」两个候选（`api.foo.example` → `fooexample` / `example`）。
+ */
+/**
+ * 域名品牌段 → 库里 slug。只登记「域名里的词和文件名对不上」的：
+ * `open.bigmodel.cn` 是智谱（slug 为 zhipu），`api.agnes-ai.cn` 是 agnesai，
+ * `api.commandcode.ai` 归一化后本身就能命中，无需登记。
+ */
+private val HOST_ALIASES: Map<String, String> = linkedMapOf(
+    "bigmodel" to "zhipu",
+    "zhipuai" to "zhipu",
+    "agnesai" to "agnesai",
+    "xiaomi" to "xiaomimimo",
+    "moonshot" to "moonshot",
+    "dashscope" to "qwen",
+    "aliyuncs" to "qwen",
+    "volces" to "volcengine",
+    "volcengineapi" to "volcengine",
+    "hunyuan" to "hunyuan",
+    "tencentcloudapi" to "tencentcloud",
+    "baidubce" to "baidu",
+    "siliconflow" to "siliconflow",
+    "deepseek" to "deepseek",
+    "minimax" to "minimax",
+    "sensetime" to "sensenova",
+    "stepfun" to "stepfun",
+    "modelscope" to "modelscope",
+    "scnet" to "scnet",
+)
+
+internal fun hostBrandCandidates(baseUrl: String?): List<String> {
+    if (baseUrl.isNullOrBlank()) return emptyList()
+    val host = runCatching { java.net.URI(baseUrl.trim()).host?.lowercase() }
+        .getOrNull()
+        ?.takeIf { it.isNotBlank() }
+        ?: return emptyList()
+    val parts = host.split('.').filter { it.isNotBlank() }
+    if (parts.size < 2) return emptyList()
+    val generic = setOf(
+        "www", "api", "apihub", "gateway", "proxy", "cdn", "open", "v1", "v2",
+        "com", "net", "org", "ai", "io", "cn", "co", "dev", "app", "studio", "cloud", "tech",
+    )
+    val brand = parts.dropLast(1).filter { it !in generic && it.isNotBlank() }
+    if (brand.isEmpty()) return emptyList()
+    return listOf(brand.joinToString(""), brand.last()).distinct()
 }
 
 /** 列出 assets/icons/ 里的文件名集合；调用方自行缓存结果。 */

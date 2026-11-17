@@ -29,10 +29,12 @@ class AIIconMatcherTest {
         "baichuan-color.svg", "internlm-color.svg", "tiangong-color.svg",
         "zeroone-color.svg", "infinigence-color.svg", "siliconflow-color.svg",
         "metaso-color.svg", "bytedance-color.svg", "minimax-color.svg",
+        "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "glmv-color.svg",
         "foo-color.svg", "foo.svg", "bar.svg", "baz.png",
     )
 
-    private fun resolve(name: String) = computeAIIconByName(name, icons)
+    private fun resolve(name: String, baseUrl: String? = null) =
+        computeAIIconByName(name, icons, baseUrl)
 
     @Test
     fun `normalization strips separators and falls back word by word`() {
@@ -140,6 +142,35 @@ class AIIconMatcherTest {
     }
 
     @Test
+    fun `english abbreviations and dashed filenames resolve`() {
+        // 小米 MiMo 在库里是 xiaomimimo（不是 mimo）
+        assertEquals("xiaomimimo.svg", resolve("MIMO"))
+        assertEquals("xiaomimimo.svg", resolve("MiMo"))
+        // GLM 系列归智谱
+        assertEquals("zhipu-color.svg", resolve("GLM"))
+        assertEquals("zhipu-color.svg", resolve("GLM-4V-Flash"))
+        assertEquals("zhipu-color.svg", resolve("ChatGLM"))
+        // 文件名自带连字符（open-design.png）：归一化会去掉分隔符，需要归一化回退
+        assertEquals("open-design.png", resolve("Open Design"))
+        assertEquals("open-design.png", resolve("open-design"))
+        // 拼写差异（域名是 agnes-ai.com，库里是 agnesai）
+        assertEquals("agnesai.svg", resolve("agens"))
+    }
+
+    @Test
+    fun `endpoint host wins over custom name`() {
+        // 名字是自定义短名时，端点才是可靠依据
+        assertEquals("commandcode.svg", resolve("CC", "https://api.commandcode.ai/provider/v1"))
+        assertEquals("opencode.svg", resolve("Zen", "https://opencode.ai/zen/v1"))
+        assertEquals("zhipu-color.svg", resolve("GLM-4V-Flash", "https://open.bigmodel.cn/api/paas/v4"))
+        assertEquals("agnesai.svg", resolve("AGENS_CN", "https://api.agnes-ai.cn/v1"))
+        assertEquals("open-design.png", resolve("Open Design", "https://amr-link.open-design.ai/v1"))
+        assertEquals("xiaomimimo.svg", resolve("MIMO", "https://api.xiaomimimo.com/v1"))
+        // 端点识别不出来时仍按名字
+        assertEquals("deepseek-color.svg", resolve("DeepSeek", "https://api.deepseek.com/v1"))
+    }
+
+    @Test
     fun `no match falls back to null`() {
         assertNull(resolve("some-provider-that-does-not-exist"))
         assertNull(resolve(""))
@@ -147,8 +178,10 @@ class AIIconMatcherTest {
         // 裸“火山”仍不归属（旧正则把“火山”判给豆包，属误判）；
         // 完整品牌名“火山方舟”/“火山引擎”已显式登记到 volcengine。
         assertNull(resolve("火山"))
-        // 模型名（非品牌名）匹配不到：GLM、llama、o1 不再归到厂商。
-        assertNull(resolve("GLM"))
+        // GLM 是智谱的模型品牌，已登记（库里 glmv 是 GLM-V，通用 GLM 归 zhipu）
+        assertEquals("zhipu-color.svg", resolve("GLM"))
+        // 纯模型名（无品牌归属）仍匹配不到
+        assertNull(resolve("llama"))
         assertNull(resolve("llama"))
         assertNull(resolve("o1"))
     }

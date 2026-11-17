@@ -1,5 +1,7 @@
 package me.rerere.rikkahub.utils
 
+import me.rerere.ai.provider.ProviderSetting
+
 /**
  * 提供商图标覆盖值的编解码与解析（纯函数，可在 JVM 单测里跑）。
  *
@@ -52,7 +54,26 @@ object ProviderIconOverrides {
  * 按优先级解析一个提供商应渲染的图标来源：
  * 覆盖表（[override] 为该提供商的存储值）> 品牌匹配 > 无（首字母兜底）。
  */
-fun resolveProviderIcon(name: String, override: String?, availableIcons: Set<String>): ProviderIconSource? {
+fun resolveProviderIcon(
+    name: String,
+    override: String?,
+    availableIcons: Set<String>,
+    baseUrl: String? = null,
+): ProviderIconSource? {
     ProviderIconOverrides.parse(override)?.let { return it }
-    return computeAIIconByName(name, availableIcons)?.let { ProviderIconSource.Asset(it) }
+    return computeAIIconByName(name, availableIcons, baseUrl)?.let { ProviderIconSource.Asset(it) }
+}
+
+/**
+ * 取提供商的端点地址（用于按域名匹配品牌图标）。
+ *
+ * 只有基于 HTTP 的提供商有端点；本地模型（LiteRt / LlamaCpp）没有，
+ * 返回 null 时匹配逻辑会退回按名字匹配。
+ */
+fun ProviderSetting.baseUrlOrNull(): String? = when (this) {
+    is ProviderSetting.OpenAI -> baseUrl
+    is ProviderSetting.Google -> baseUrl
+    is ProviderSetting.Claude -> baseUrl
+    is ProviderSetting.Backend -> baseUrl
+    else -> null
 }
