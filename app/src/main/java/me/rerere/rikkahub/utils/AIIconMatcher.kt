@@ -77,6 +77,8 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "商汤" to "sensenova",
     "阶跃星辰" to "stepfun",
     "阶跃" to "stepfun",
+    "七牛云" to "qiniu",
+    "七牛" to "qiniu",
     "魔搭" to "modelscope",
     "超算互联网" to "scnet",
     // 云 / 平台
@@ -100,6 +102,15 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "glm4v" to "zhipu",
     "chatglm" to "zhipu",
     "agens" to "agnesai",
+    "agnes" to "agnesai",
+    "zai" to "zhipu",
+    // 内置提供商用英文名（"Volcano Engine"），中文表覆盖不到，需在英文表登记
+    "volcanoengine" to "volcengine",
+    "alibabacloudbailian" to "bailian",
+    "tencenthunyuan" to "hunyuan",
+    "moonshotai" to "moonshot",
+    "sensenova" to "sensenova",
+    "zhipu" to "zhipu",
     "grok" to "xai",
     "kimi" to "moonshot",
     "qwen" to "qwen",
@@ -113,6 +124,75 @@ private fun resolveAlias(normalized: String): String? {
         .filter { (key, _) -> normalized.contains(key) }
         .maxByOrNull { (key, _) -> key.length }
         ?.value
+}
+
+/**
+ * 模型家族前缀 → 品牌 slug。
+ *
+ * 模型 ID 常写成 `gpt-5.4`、`Qwen3-235B-A22B`、`claude-sonnet-5`、`Intern-S1`——
+ * 它们是**模型名不是品牌名**，直接查 slug 查不到（`gpt54.svg` 不存在），
+ * 于是整排模型退回首字母。这张表把家族前缀映射回品牌。
+ *
+ * 匹配按**长度降序**（`stepfun` 先于 `step`、`gemini` 先于 `gem`），
+ * 只做前缀匹配、不做任意位置包含（避免 `xiyansql-qwencoder` 里的 `qwen` 误判成 Qwen 官方）。
+ */
+private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
+    "chatgpt" to "openai",
+    "gpt" to "openai",
+    "o1-preview" to "openai",
+    "claude" to "anthropic",
+    "gemini" to "gemini",
+    "gemma" to "gemma",
+    "qwen" to "qwen",
+    "qwq" to "qwen",
+    "llama" to "meta",
+    "intern" to "internlm",
+    "glm" to "zhipu",
+    "kimi" to "moonshot",
+    "moonshot" to "moonshot",
+    "deepseek" to "deepseek",
+    "stepfun" to "stepfun",
+    "minimax" to "minimax",
+    "mimo" to "xiaomimimo",
+    "agnes" to "agnesai",
+    "phi" to "microsoft",
+    "mixtral" to "mistral",
+    "mistral" to "mistral",
+    "command" to "cohere",
+    "doubao" to "doubao",
+    "hunyuan" to "hunyuan",
+    "ernie" to "wenxin",
+    "baichuan" to "baichuan",
+    "spark" to "spark",
+).sortedByDescending { it.first.length }
+
+/**
+ * 从模型 ID 推断品牌候选：先看 vendor 段（`meta/muse-spark` → `meta`），
+ * 再对每段做家族前缀匹配（`Intern-S1` → `internlm`、`gpt-5.4` → `openai`）。
+ */
+private fun modelFamilyCandidates(name: String): List<String> {
+    // ⚠ vendor 段**只认 `/`**：不能把空格/管道当分隔符，否则 `Azure OpenAI`、
+    // `Tencent Hunyuan`、`Groq Llama` 这类**带空格的品牌名**会被当成
+    // “vendor=azure / vendor=tencent”，整排图标串到错的品牌上。
+    val segments = name
+        .split('/')
+        .map { seg -> seg.filter { it.isLetterOrDigit() }.lowercase() }
+        .filter { it.isNotEmpty() }
+    if (segments.isEmpty()) return emptyList()
+    val out = mutableListOf<String>()
+    if (segments.size >= 2) out.add(segments.first())      // vendor 段（`meta/...` → meta）
+    // 段内再切词：`XiYanSQL-QwenCoder-32B` 的品牌在中间那个词里，
+    // 只对整段做前缀匹配会漏。切词后每个词都试一次前缀匹配。
+    // ⚠ 必须从**原始 name** 切词：segments 已经过 normalizeProviderName（分隔符被吃掉），
+    // 在它上面再 split 切不出 `QwenCoder` 这类中间词。
+    val tokens = name
+        .split('/', '-', '_', '.', ':', '@', ' ', ',')
+        .map { seg -> seg.filter { it.isLetterOrDigit() }.lowercase() }
+        .filter { it.isNotEmpty() }
+    for (token in (segments + tokens)) {
+        MODEL_FAMILY_ALIASES.firstOrNull { token.startsWith(it.first) }?.let { out.add(it.second) }
+    }
+    return out.distinct()
 }
 
 private fun lookupIconFile(slug: String, availableIcons: Set<String>): String? {
@@ -163,6 +243,8 @@ fun computeAIIconByName(
             add(HOST_ALIASES[flat] ?: flat)
             add(flat)
         }
+        // 模型家族：模型 ID 不是品牌名，靠 vendor 段 / 家族前缀反推
+        modelFamilyCandidates(name).forEach { add(it) }
         add(aliased)
         if (aliased != normalized) add(normalized)
         // 多词名逐词回退：从后往前（“Azure OpenAI”先试 openai，与旧行为一致）；

@@ -58,6 +58,9 @@ private fun AIIcon(
         AsyncImage(
             model = model,
             contentDescription = name,
+            // 4.dp 是**必须保持的**：外框 32.dp − 4×2 = 24.dp 绘制区，与同排线条图标一致。
+            // 「看起来小」的根因不是这里的留白，而是 SVG 自身内容没铺满 viewBox
+            // （deepseek 只占 74%、hunyuan 左右不对称）→ 已由 icons/*.svg 的 viewBox 归一化修复。
             modifier = Modifier.padding(4.dp),
         )
     }

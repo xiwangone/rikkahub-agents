@@ -99,6 +99,7 @@ internal fun ModelSettingsForm(
     parentProvider: ProviderSetting? = null,
     // 点过提交才亮字段错误：刚打开表单必填项就是空的，没点确认就标红太吵。
     showErrors: Boolean = false,
+    iconOverride: String? = null,
 ) {
     val pagerState = rememberPagerState { ModelFormTab.entries.size }
 
@@ -235,6 +236,7 @@ internal fun ModelSettingsForm(
                                 onModelChange(model.copy(providerOverwrite = providerOverride))
                             },
                             parentProvider = parentProvider,
+                            iconOverride = iconOverride,
                         )
 
                         CustomHeaders(
@@ -278,6 +280,7 @@ internal fun AddModelButton(
     onRemoveModel: (Model) -> Unit,
     parentProvider: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit,
+    iconOverride: String? = null,
 ) {
     val dialogState = useEditState<Model> {
         onAddModel(it.copy(displayName = it.displayName.trim()))
@@ -404,6 +407,7 @@ internal fun AddModelButton(
                             isEdit = false,
                             parentProvider = parentProvider,
                             showErrors = submitAttempted,
+                            iconOverride = iconOverride,
                         )
                     }
 

@@ -80,6 +80,7 @@ internal fun ModelList(
     selectedIds: Set<Uuid>,
     onSelectionModeChange: (Boolean) -> Unit,
     onSelectedIdsChange: (Set<Uuid>) -> Unit,
+    iconOverride: String? = null,
 ) {
     val providerManager = koinInject<ProviderManager>()
     val catalog = koinInject<ModelCatalogRepository>()
@@ -390,6 +391,7 @@ internal fun ModelList(
                                 onUpdateProvider(providerSetting.editModel(editedModel))
                             },
                             parentProvider = providerSetting,
+                            iconOverride = iconOverride,
                             selectionMode = selectionMode,
                             selected = item.id in selectedIds,
                             onToggleSelect = {
@@ -468,6 +470,7 @@ internal fun ModelList(
                 expanded = expanded,
                 parentProvider = providerSetting,
                 onUpdateProvider = onUpdateProvider,
+                iconOverride = iconOverride,
             )
         }
     }

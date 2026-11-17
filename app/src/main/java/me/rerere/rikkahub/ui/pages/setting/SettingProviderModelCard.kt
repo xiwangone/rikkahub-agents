@@ -69,6 +69,7 @@ internal fun ModelCard(
     selected: Boolean = false,
     onToggleSelect: () -> Unit = {},
     onEnterMultiSelect: () -> Unit = {},
+    iconOverride: String? = null,
 ) {
     val dialogState = useEditState<Model> {
         onEdit(it.copy(displayName = it.displayName.trim()))
@@ -137,6 +138,7 @@ internal fun ModelCard(
                             isEdit = true,
                             parentProvider = parentProvider,
                             showErrors = submitAttempted,
+                            iconOverride = iconOverride,
                         )
                     }
 

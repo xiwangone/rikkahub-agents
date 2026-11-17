@@ -30,6 +30,10 @@ class AIIconMatcherTest {
         "zeroone-color.svg", "infinigence-color.svg", "siliconflow-color.svg",
         "metaso-color.svg", "bytedance-color.svg", "minimax-color.svg",
         "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "glmv-color.svg",
+        // 模型家族 / 厂商需要用到的
+        "anthropic.svg", "qiniu-color.svg", "poolside-color.svg", "internlm-color.svg",
+        "minimax-color.svg", "gemma-color.svg", "meta-color.svg", "google-color.svg",
+        "stepfun-color.svg", "zhipu-color.svg",
         "foo-color.svg", "foo.svg", "bar.svg", "baz.png",
         // 本批新增：端点别名 amd/minimaxi/tencentmaas 与新图标文件
         "amdradeoncloud-color.svg", "tokenrhythm.png", "suixiang.png", "ackai.png",
@@ -188,6 +192,40 @@ class AIIconMatcherTest {
     }
 
     @Test
+    fun `model ids resolve to their family brand`() {
+        // 模型 ID 不是品牌名：靠 vendor 段或家族前缀反推
+        assertEquals("openai.svg", resolve("gpt-5.4"))
+        assertEquals("openai.svg", resolve("gpt-5.6-luna"))
+        assertEquals("anthropic.svg", resolve("claude-sonnet-5"))
+        assertEquals("gemma-color.svg", resolve("Gemma-4-31B-IT"))
+        assertEquals("qwen-color.svg", resolve("Qwen3-235B-A22B"))
+        assertEquals("minimax-color.svg", resolve("MiniMax-M3"))
+        assertEquals("xiaomimimo.svg", resolve("MiMo-V2.6-Flash"))
+        assertEquals("agnesai.svg", resolve("agnes-2.5-pro-beta"))
+        assertEquals("internlm-color.svg", resolve("Intern-S1"))
+    }
+
+    @Test
+    fun `vendor segment wins for namespaced model ids`() {
+        // 常见形态 `vendor/model`：vendor 段就是品牌
+        assertEquals("google-color.svg", resolve("google/gemini-4-argon"))
+        assertEquals("deepseek-color.svg", resolve("deepseek/deepseek-v4.1-flash"))
+        assertEquals("meta-color.svg", resolve("meta/muse-spark-1.3-contributor"))
+        assertEquals("qwen-color.svg", resolve("qwen/qwen3.5-plus"))
+        assertEquals("zhipu-color.svg", resolve("z-ai/glm-5.3-flash"))
+        assertEquals("zhipu-color.svg", resolve("zai-org/GLM-5.2-Fast"))
+        assertEquals("stepfun-color.svg", resolve("stepfun/Step-3.7-Flash"))
+        assertEquals("internlm-color.svg", resolve("Shanghai_AI_Laboratory/Intern-S1"))
+        assertEquals("qiniu-color.svg", resolve("qiniu/conatus-free"))
+    }
+
+    @Test
+    fun `qiniu chinese name resolves`() {
+        assertEquals("qiniu-color.svg", resolve("七牛云"))
+        assertEquals("qiniu-color.svg", resolve("七牛"))
+    }
+
+    @Test
     fun `no match falls back to null`() {
         assertNull(resolve("some-provider-that-does-not-exist"))
         assertNull(resolve(""))
@@ -197,9 +235,8 @@ class AIIconMatcherTest {
         assertNull(resolve("火山"))
         // GLM 是智谱的模型品牌，已登记（库里 glmv 是 GLM-V，通用 GLM 归 zhipu）
         assertEquals("zhipu-color.svg", resolve("GLM"))
-        // 纯模型名（无品牌归属）仍匹配不到
-        assertNull(resolve("llama"))
-        assertNull(resolve("llama"))
+        // llama 是 Meta 的模型家族 → 归 meta（模型家族识别）
+        assertEquals("meta-color.svg", resolve("llama"))
         assertNull(resolve("o1"))
         // UnifyLLM：站上是通用 new-api 前端，没有自有品牌 logo，favicon 是网关软件的
         // 默认标记而非品牌方标记，本批不收；域名与名字都解析不到，仍回落首字母

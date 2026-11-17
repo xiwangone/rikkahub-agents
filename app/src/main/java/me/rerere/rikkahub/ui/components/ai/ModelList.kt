@@ -240,6 +240,7 @@ internal fun ModelSelectorButton(
                         Modifier
                             .padding(end = 4.dp)
                             .size(36.dp),
+                        // 输入框区域统一透明：与同排线条图标口径一致
                         color = Color.Transparent,
                     )
                 }

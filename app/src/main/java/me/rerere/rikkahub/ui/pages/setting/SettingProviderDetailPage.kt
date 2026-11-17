@@ -183,6 +183,7 @@ fun SettingProviderDetailPage(
                             modifier = Modifier.size(22.dp),
                             // 端点优先：详情页与列表页必须同口径，否则会出现「列表有图标、点进去是首字母」
                             baseUrl = provider.baseUrlOrNull(),
+                            iconOverride = settings.providerIconOverrides[provider.name],
                         )
                         Text(text = providerDisplayName(provider), maxLines = 1, overflow = TextOverflow.Ellipsis)
                     }
@@ -285,6 +286,7 @@ fun SettingProviderDetailPage(
                             selectedIds = selectedIds,
                             onSelectionModeChange = { selectionMode = it },
                             onSelectedIdsChange = { selectedIds = it },
+                            iconOverride = settings.providerIconOverrides[provider.name],
                         )
                     }
 
@@ -523,6 +525,7 @@ private fun SettingProviderModelPage(
     selectedIds: Set<Uuid>,
     onSelectionModeChange: (Boolean) -> Unit,
     onSelectedIdsChange: (Set<Uuid>) -> Unit,
+    iconOverride: String? = null,
 ) {
     ModelList(
         providerSetting = provider,
@@ -531,6 +534,7 @@ private fun SettingProviderModelPage(
         selectedIds = selectedIds,
         onSelectionModeChange = onSelectionModeChange,
         onSelectedIdsChange = onSelectedIdsChange,
+        iconOverride = iconOverride,
     )
 }
 
@@ -621,6 +625,8 @@ internal fun ProviderOverrideSettings(
     providerOverride: ProviderSetting?,
     onUpdateProviderOverride: (ProviderSetting?) -> Unit,
     parentProvider: ProviderSetting?,
+    // 模型级覆盖是父提供商的副本（名字不变），沿用父提供商的图标覆盖。
+    iconOverride: String? = null,
 ) {
     var showProviderConfig by remember { mutableStateOf(false) }
     var editingProvider by remember { mutableStateOf<ProviderSetting?>(null) }
@@ -637,6 +643,7 @@ internal fun ProviderOverrideSettings(
                             providerOverride.name,
                             modifier = Modifier.size(24.dp),
                             baseUrl = providerOverride.baseUrlOrNull(),
+                            iconOverride = iconOverride,
                         )
                     },
                     headlineContent = {
