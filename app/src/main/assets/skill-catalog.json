@@ -1,6 +1,6 @@
 {
   "version": 1,
-  "updated_at": "2026-05-07",
+  "updated_at": "2026-11-17",
   "skills": [
     {
       "name": "auto-reply",
@@ -126,6 +126,33 @@
       "compatibility": "js",
       "is_bundled": true,
       "archived": true
+    },
+    {
+      "name": "agent-core",
+      "title": "智能体核心",
+      "description": "设备端智能体的操作手册：人格、周期感知循环与完整工具参考。",
+      "category": "core",
+      "size_kb": 100,
+      "compatibility": "any",
+      "is_bundled": true
+    },
+    {
+      "name": "autonomous-agent",
+      "title": "自主智能体",
+      "description": "智能体长期行为准则：主动预判、持久记忆、自我改进。",
+      "category": "core",
+      "size_kb": 14,
+      "compatibility": "any",
+      "is_bundled": true
+    },
+    {
+      "name": "openclaw-converter",
+      "title": "OpenClaw 转换",
+      "description": "把 OpenClaw 技能转换成 RikkaHub 兼容的技能。",
+      "category": "automation",
+      "size_kb": 4,
+      "compatibility": "any",
+      "is_bundled": true
     }
   ]
 }

@@ -5,13 +5,17 @@ import androidx.room.Entity
 import androidx.room.Index
 import androidx.room.PrimaryKey
 import me.rerere.rikkahub.data.model.SshWorkspaceSettings
+import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.workspace.Workspace
+import me.rerere.workspace.WorkspaceBindMount
 import me.rerere.workspace.WorkspaceCapabilities
 import me.rerere.workspace.WorkspaceManager
 import me.rerere.workspace.WorkspaceShellStatus
 import me.rerere.workspace.WorkspaceType
 import me.rerere.workspace.ssh.SshWorkspaceBackend
+import java.io.File
+import me.rerere.rikkahub.data.log.AppLog
 
 @Entity(
     tableName = "workspaces",
@@ -48,6 +52,9 @@ data class WorkspaceEntity(
     // SSH 工作区的连接配置 (SshWorkspaceSettings 的 JSON)；凭据只存凭证库条目名，本地工作区为 null
     @ColumnInfo("ssh_config")
     val sshConfig: String? = null,
+    // 挂载进 Rootfs 的共享存储目录 (WorkspaceStorageMount 列表的 JSON), 只对本地工作区生效
+    @ColumnInfo("storage_mounts", defaultValue = "[]")
+    val storageMounts: String = "[]",
 ) {
     fun isSsh(): Boolean = type == WorkspaceType.SSH.name
 
@@ -64,6 +71,27 @@ data class WorkspaceEntity(
             sshSettings()?.let { SshWorkspaceBackend.layoutOf(it.remoteDir).workspaceDir }
         } else {
             WorkspaceManager.ROOTFS_WORKSPACE_DIR
+        }
+
+    fun storageMountList(): List<WorkspaceStorageMount> {
+        if (storageMounts.isBlank()) return emptyList()
+        return runCatching {
+            JsonInstant.decodeFromString<List<WorkspaceStorageMount>>(storageMounts)
+        }.getOrElse { e ->
+            // 不静默吞：配置损坏时用户会看到"我配的挂载没了"，必须留痕才能定位
+            AppLog.w("WorkspaceEntity", "storage_mounts decode failed, treating as empty: ${e.message}")
+            emptyList()
+        }
+    }
+
+    /** 叠加在全局挂载表之后的工作区自有挂载; 共享存储目录在 Rootfs 内挂到同一路径 */
+    fun extraBindMounts(): List<WorkspaceBindMount> =
+        if (!capabilities().rootfs) {
+            emptyList()
+        } else {
+            storageMountList().map { mount ->
+                WorkspaceBindMount(source = File(mount.path), target = mount.path, writable = mount.writable)
+            }
         }
 
     fun supportsTerminal(): Boolean =

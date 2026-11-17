@@ -538,7 +538,7 @@ internal suspend fun WorkspaceRepository.backendOf(workspace: WorkspaceEntity): 
             val settings = workspace.sshSettings() ?: error("SSH workspace config is missing: ${workspace.id}")
             SshWorkspaceBackend(sshPool, workspace.id, toConnectionConfig(settings, audit = true))
         } else {
-            manager.backend(workspace.root, workspace.shellCompatibilityMode)
+            manager.backend(workspace.root, workspace.shellCompatibilityMode, workspace.extraBindMounts())
         }
 
 internal fun WorkspaceRepository.requireLocalRootfs(workspace: WorkspaceEntity, feature: String) {

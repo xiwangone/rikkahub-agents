@@ -31,7 +31,13 @@ class ChrootShellRunner(
         val token = cmdFile.name.removePrefix("$COMMAND_FILE-")
         try {
             val process = try {
-                newSuProcess(context.linuxDir, execCommandFor(cmdFile), context.dnsServers, chrootWorkdirFor(context.cwd))
+                newSuProcess(
+                    context.linuxDir,
+                    execCommandFor(cmdFile),
+                    context.dnsServers,
+                    chrootWorkdirFor(context.cwd),
+                    context.workspaceMounts,
+                )
             } catch (e: IOException) {
                 // 无 root 设备：su 不可用时返回结构化失败，不让异常上抛穿调用链；
                 // 记一条 w，否则「chroot 后端不可用」只出现在返回的 stderr 里，
@@ -246,10 +252,21 @@ class ChrootShellRunner(
         inner: String,
         dnsServers: List<String> = emptyList(),
         workdir: String? = null,
+        workspaceMounts: List<me.rerere.workspace.WorkspaceBindMount> = emptyList(),
     ): Process {
         val validDns = ShellDnsConfig.parseServers(dnsServers.joinToString(" "))
         return ProcessBuilder("su", "-c", suCommand(linuxDir, inner, validDns))
             .apply {
+                // 工作区自己的挂载：chroot 在宿主 root 下, 只能由脚本在自己的 mount namespace 里 bind。
+                // 用环境变量传（一行一个 source|target），避免拼进 `su -c` 命令串被再解释一次。
+                if (workspaceMounts.isNotEmpty()) {
+                    environment()["CHROOT_MOUNTS"] =
+                        workspaceMounts.joinToString("\n") { mount ->
+                            mount.source.absolutePath + "|" + mount.target.trimEnd('/')
+                        }
+                } else {
+                    environment().remove("CHROOT_MOUNTS")
+                }
                 if (validDns.isNotEmpty()) {
                     environment()["CHROOT_DNS"] = validDns.joinToString(" ")
                 } else {

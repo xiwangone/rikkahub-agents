@@ -18,17 +18,26 @@ import com.termux.view.TerminalViewClient
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.workspace.RootfsPatchOptions
 import me.rerere.workspace.RootfsPatcher
+import me.rerere.workspace.WorkspaceBindMount
 import me.rerere.workspace.WorkspaceManager
+import me.rerere.workspace.WorkspaceMountUnavailableException
 import java.io.File
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.utils.LogRedactor
 import me.rerere.rikkahub.ui.pages.setting.doctor.DnsProbe
 
+/**
+ * 本机终端会话: 在 Rootfs 内启动交互式 shell, 让用户可以直接在手机上敲命令。
+ *
+ * 通过 [extraMounts] 挂进来的目录由调用方保证存在, 不存在时启动直接失败:
+ * PRoot 会静默跳过不存在的源目录, 之后对该路径的读写就落回 Rootfs 自身, 文件会写错地方。
+ */
 internal fun createWorkspaceTerminalSession(
     context: Context,
     root: String,
     client: TerminalSessionClient,
     shellCompatibilityMode: Boolean,
+    extraMounts: List<WorkspaceBindMount> = emptyList(),
 ): TerminalSession {
     val appContext = context.applicationContext
     val workspaceDir = File(File(appContext.filesDir, "workspaces"), root)
@@ -55,6 +64,16 @@ internal fun createWorkspaceTerminalSession(
             "-b",
             "${skillsDir.absolutePath}:$SKILLS_DIR",
         )
+    // 挂载点逐一检查, 不存在时直接报错, 不要静默落回 Rootfs
+    val unavailable = extraMounts.filterNot { it.source.isDirectory }
+    if (unavailable.isNotEmpty()) {
+        throw WorkspaceMountUnavailableException(unavailable.map { it.target })
+    }
+    // 与 ProotShellRunner 同口径：按 target 长度升序（先父后子），保证更深的那层最终生效
+    extraMounts.sortedBy { it.target.trimEnd('/').length }.forEach { mount ->
+        args += "-b"
+        args += "${mount.source.absolutePath}:${mount.target}"
+    }
     listOf("/dev", "/proc", "/sys").forEach { path ->
         if (File(path).exists()) {
             args += "-b"

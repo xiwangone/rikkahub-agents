@@ -241,6 +241,20 @@ private fun buildWorkspacePrompt(
     appendLine("- To preview web files in the browser, start a static server with `workspace_run_background` (for example `python3 -m http.server 8000`) and then open it, since file:// breaks ES modules and fetch.")
     appendLine("- The skills directory is mounted at `/skills`. Each skill is a subdirectory `/skills/<skill-name>/` containing a `SKILL.md` (with `name` and `description` frontmatter) plus any supporting files. Read a skill's `SKILL.md` before using it, and follow its instructions.")
     appendLine("- Files the user uploaded are mounted at `/upload`. Treat `/upload` as READ-ONLY: read uploaded files from `/upload/<file-name>`, but never modify, overwrite, or delete anything there. If you need to change an uploaded file, copy it into `/workspace` first and edit the copy.")
+    val storageMounts = workspace.storageMountList()
+    if (storageMounts.isNotEmpty()) {
+        appendLine(
+            "- The user mounted these directories from the phone's shared storage at the same paths, so files there are the user's real files (also visible to other apps). Be careful when modifying or deleting anything there:"
+        )
+        storageMounts.forEach { mount ->
+            appendLine("  - `${mount.path}`")
+        }
+        // 注意: 共享存储 (FUSE) 拒绝建软链接; PRoot 的 link2symlink 模拟硬链接时会先把原文件改名成 .l2s.*,
+        // 建软链接失败后不回滚, 原文件名就消失了
+        appendLine(
+            "  These directories are on Android shared storage, which supports neither symbolic nor hard links. Never run `ln` there: a failed hard link renames the original file to a hidden `.l2s.*` file. Tools that create links (such as git, which hard-links object files, or package managers) can break there, so run them in `/workspace` and copy the results back."
+        )
+    }
     if (!cwd.isNullOrBlank()) {
         appendLine("- Current working directory: `$cwd`. Use this as the default context for file operations and shell commands.")
     }

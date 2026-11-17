@@ -166,7 +166,9 @@ class ProotShellRunner(
                 "${context.filesDir.absolutePath}:$WORKSPACE_DIR",
             )
 
-        context.bindMounts.forEach { mount ->
+        // ⚠ 必须按 target 长度**升序**绑定：proot 后绑的覆盖先绑的，先父后子才能让更深的那层生效。
+        // 顺序写反（子在父前）时 shell 里会看到父目录内容，而文件工具按最长匹配解析到子目录 → 两条路分叉。
+        context.bindMounts.sortedBy { it.target.trimEnd('/').length }.forEach { mount ->
             if (mount.source.exists()) {
                 command += "-b"
                 command += "${mount.source.absolutePath}:${mount.target.trimEnd('/')}"

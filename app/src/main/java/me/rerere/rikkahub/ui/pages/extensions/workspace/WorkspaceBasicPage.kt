@@ -75,6 +75,7 @@ import me.rerere.hugeicons.stroke.Wrench01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.resolveWorkspaceToolApproval
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.model.WorkspaceStorageMount
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.ui.CardGroupValue
@@ -106,6 +107,7 @@ internal fun WorkspaceBasicPage(
     upgradingPackages: Boolean = false,
     onToolApprovalChange: (String, Boolean) -> Unit,
     onShellCompatibilityModeChange: (Boolean) -> Unit,
+    onStorageMountsChange: (List<WorkspaceStorageMount>) -> Unit,
     onApplyMirrors: (WorkspaceMirrors) -> Unit,
     onRepairCaCerts: () -> Unit,
     sdcardEnabled: Boolean,
@@ -480,6 +482,13 @@ internal fun WorkspaceBasicPage(
                         },
                     )
                 }
+            }
+
+            item {
+                WorkspaceStorageMountCard(
+                    workspace = workspace,
+                    onMountsChange = onStorageMountsChange,
+                )
             }
 
             item {

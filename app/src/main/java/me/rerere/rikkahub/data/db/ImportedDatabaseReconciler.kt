@@ -61,7 +61,7 @@ object ImportedDatabaseReconciler {
      * hash — ImportedDatabaseReconcilerConstantsTest fails until it matches the exported schema.
      */
     internal const val EXPECTED_VERSION = AppDatabase.VERSION
-    internal const val EXPECTED_IDENTITY_HASH = "c2222aef4fc160047a5db0cb2f35ac0e"
+    internal const val EXPECTED_IDENTITY_HASH = "e0fd8e311f0dff09353f208687245aad"
 
     /**
      * This app's version whose shared tables equal a 2.4.x file's, with its identity hash
@@ -102,6 +102,7 @@ object ImportedDatabaseReconciler {
             "ConversationEntity" to "workspace_id_override",
             "MemoryEntity" to "tier",
             "workspaces" to "shell_compatibility_mode",
+            "workspaces" to "storage_mounts",
             "workspaces" to "tags",
             "workspaces" to "type",
             "workspaces" to "ssh_config",

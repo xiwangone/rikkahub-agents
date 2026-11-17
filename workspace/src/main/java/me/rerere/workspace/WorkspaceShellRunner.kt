@@ -61,6 +61,14 @@ data class WorkspaceShellContext(
     val timeoutMillis: Long,
     val stdin: ByteArray? = null,
     val bindMounts: List<WorkspaceBindMount> = emptyList(),
+    /**
+     * 仅当前工作区自己的挂载（用户配的共享存储目录），不含全局挂载。
+     *
+     * 单独出来是因为不同后端传挂载的方式不同：proot 用 `-b` 参数逐个传；
+     * chroot 是宿主 root 下的 bind mount，只能通过环境变量交给 chroot-run.sh 在
+     * 它自己的 mount namespace 里挂（全局那几项已在脚本里写死了）。
+     */
+    val workspaceMounts: List<WorkspaceBindMount> = emptyList(),
     val env: Map<String, String> = emptyMap(),
     val shellCompatibilityMode: Boolean = false,
     /** 后台任务令牌：由调用方生成并贯穿到命令文件名，供取消时定位整棵进程组。 */

@@ -241,25 +241,46 @@ class WorkspaceManager(
         return bindMounts + optional.mounts.filterKeys { it in enabled }.values
     }
 
-    // 按 target 长度降序, 保证 /a/b 优先于 /a 匹配
-    private fun sortedActiveMounts(): List<WorkspaceBindMount> =
-        activeBindMounts().sortedByDescending { it.target.trimEnd('/').length }
+    /**
+     * 工作区的目录约定。
+     *
+     * [extraMounts] 是单个工作区自己的挂载 (如用户配置的外部存储目录), 叠加在全局挂载表之后;
+     * 下面凡是带这个参数的方法, 调用方需传入同一份列表, 否则 PRoot 内外看到的路径会对不上。
+     */
+    fun layout(extraMounts: List<WorkspaceBindMount> = emptyList()): WorkspaceLayout {
+        val (writable, approval) = mountsOf(extraMounts).partition { it.writable }
+        return WorkspaceLayout(
+            workspaceDir = ROOTFS_WORKSPACE_DIR,
+            writableRoots = listOf(ROOTFS_WORKSPACE_DIR, "/tmp") + writable.map { it.target.trimEnd('/') },
+            approvalRoots = approval.map { it.target.trimEnd('/') },
+        )
+    }
 
-    /** 本机工作区在执行环境内的目录约定; 可写目录跟着挂载表走 */
-    val layout = WorkspaceLayout(
-        workspaceDir = ROOTFS_WORKSPACE_DIR,
-        writableRoots = listOf(ROOTFS_WORKSPACE_DIR, "/tmp") +
-            bindMounts.filter { it.writable }.map { it.target.trimEnd('/') },
-    )
+    fun backend(
+        root: String,
+        shellCompatibilityMode: Boolean = false,
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
+    ): WorkspaceBackend = LocalWorkspaceBackend(this, root, shellCompatibilityMode, extraMounts)
+
+    private fun mountsOf(extraMounts: List<WorkspaceBindMount>): List<WorkspaceBindMount> =
+        if (extraMounts.isEmpty()) activeBindMounts() else activeBindMounts() + extraMounts
+
+    /**
+     * PRoot 会跳过不存在的源目录, 这时 Rootfs 里对应路径落回 Rootfs 自身:
+     * 写入能「成功」, 文件却不在挂载源里, 文件工具也读不到。工作区挂载失效时直接报错。
+     */
+    private fun requireMountsAvailable(extraMounts: List<WorkspaceBindMount>) {
+        val unavailable = extraMounts.filterNot { it.source.isDirectory }
+        if (unavailable.isNotEmpty()) {
+            throw WorkspaceMountUnavailableException(unavailable.map { it.target })
+        }
+    }
 
     init {
         if (!baseDir.mkdirs() && !baseDir.isDirectory) {
             error("Failed to create workspace base directory: ${baseDir.path}")
         }
     }
-
-    fun backend(root: String, shellCompatibilityMode: Boolean = false): WorkspaceBackend =
-        LocalWorkspaceBackend(this, root, shellCompatibilityMode)
 
     fun ensureWorkspace(root: String): File {
         val dir = workspaceDir(root)
@@ -418,11 +439,13 @@ class WorkspaceManager(
     fun resolveRootfsPath(
         root: String,
         path: String,
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
     ): RootfsLocation {
         val trimmed = path.trim().trimEnd('/').ifBlank { "/" }
         require(trimmed.startsWith("/")) { "Rootfs path must be absolute: $path" }
 
-        sortedActiveMounts().forEach { mount ->
+        // 按 target 长度降序, 保证 /a/b 优先于 /a 匹配
+        mountsOf(extraMounts).sortedByDescending { it.target.trimEnd('/').length }.forEach { mount ->
             val target = mount.target.trimEnd('/')
             if (trimmed == target) {
                 if (target in optionalMountTargets) optionalMounts?.onAccess?.invoke(target, trimmed)
@@ -452,14 +475,16 @@ class WorkspaceManager(
     fun rootfsFileSize(
         root: String,
         path: String,
-    ): Long = resolveRootfsFile(root, path).also { it.requireReadableFile(path) }.length()
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
+    ): Long = resolveRootfsFile(root, path, extraMounts).also { it.requireReadableFile(path) }.length()
 
     fun exportRootfsFile(
         root: String,
         path: String,
         outputStream: OutputStream,
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
     ) {
-        val file = resolveRootfsFile(root, path)
+        val file = resolveRootfsFile(root, path, extraMounts)
         file.requireReadableFile(path)
         outputStream.use { out -> file.inputStream().use { it.copyTo(out) } }
     }
@@ -474,8 +499,9 @@ class WorkspaceManager(
     fun resolveRootfsFile(
         root: String,
         path: String,
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
     ): File {
-        val location = resolveRootfsPath(root, path)
+        val location = resolveRootfsPath(root, path, extraMounts)
         require(!location.relativePath.contains('\u0000')) { "Path contains invalid character" }
         val rootDir = location.rootDir
         if (!rootDir.mkdirs() && !rootDir.isDirectory) {
@@ -569,8 +595,10 @@ class WorkspaceManager(
         stdin: ByteArray? = null,
         env: Map<String, String> = emptyMap(),
         shellCompatibilityMode: Boolean = false,
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
     ): WorkspaceCommandResult = synchronized(backgroundLifecycleLock) {
         require(command.isNotBlank()) { "Command is required" }
+        requireMountsAvailable(extraMounts)
         val workingDir = resolveCommandWorkingDir(root, cwd)
 
         val ctx = WorkspaceShellContext(
@@ -583,7 +611,8 @@ class WorkspaceManager(
             workingDir = workingDir,
             timeoutMillis = timeoutMillis,
             stdin = stdin,
-            bindMounts = activeBindMounts(),
+            bindMounts = mountsOf(extraMounts),
+            workspaceMounts = extraMounts,
             env = env,
             shellCompatibilityMode = shellCompatibilityMode,
             dnsServers = dnsServers(),
@@ -613,9 +642,11 @@ class WorkspaceManager(
         command: String,
         cwd: String = "",
         env: Map<String, String> = emptyMap(),
+        extraMounts: List<WorkspaceBindMount> = emptyList(),
     ): BackgroundStatus =
         synchronized(backgroundLifecycleLock) {
             require(command.isNotBlank()) { "Command is required" }
+            requireMountsAvailable(extraMounts)
             val workingDir = resolveCommandWorkingDir(root, cwd)
             val taskToken = java.util.UUID.randomUUID().toString()
 
@@ -628,7 +659,8 @@ class WorkspaceManager(
                 tempDir = tempDir(root),
                 workingDir = workingDir,
                 timeoutMillis = 0L,
-                bindMounts = activeBindMounts(),
+                bindMounts = mountsOf(extraMounts),
+            workspaceMounts = extraMounts,
                 env = env,
                 taskToken = taskToken,
                 dnsServers = dnsServers(),
@@ -819,6 +851,14 @@ class WorkspaceManager(
         private val ROOT_NAME_REGEX = Regex("[A-Za-z0-9._-]+")
     }
 }
+
+/** 工作区挂载的源目录不存在或无权访问; 消息是英文, 会原样交给 AI, 界面按 [targets] 自行本地化 */
+class WorkspaceMountUnavailableException(
+    val targets: List<String>,
+) : IllegalArgumentException(
+    "Mounted directories are unavailable (missing, or storage permission not granted): " +
+        targets.joinToString() + ". Fix or remove them in the workspace settings."
+)
 
 /** Rootfs 内绝对路径在宿主机上的落点 */
 data class RootfsLocation(

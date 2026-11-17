@@ -11,9 +11,10 @@ class LocalWorkspaceBackend(
     private val manager: WorkspaceManager,
     private val root: String,
     private val shellCompatibilityMode: Boolean = false,
+    /** 该工作区自己的挂载, 叠加在 [WorkspaceManager] 的全局挂载表之后 */
+    private val extraMounts: List<WorkspaceBindMount> = emptyList(),
 ) : WorkspaceBackend {
-    override val layout: WorkspaceLayout
-        get() = manager.layout
+    override val layout: WorkspaceLayout = manager.layout(extraMounts)
 
     override fun shell(): String = WorkspaceManager.rootfsShell(manager.linuxDir(root))
 
@@ -64,12 +65,12 @@ class LocalWorkspaceBackend(
 
     override fun absoluteFileSize(path: String): Long {
         manager.ensureWorkspace(root)
-        return manager.rootfsFileSize(root, path)
+        return manager.rootfsFileSize(root, path, extraMounts)
     }
 
     override fun exportAbsoluteFile(path: String, outputStream: OutputStream) {
         manager.ensureWorkspace(root)
-        manager.exportRootfsFile(root, path, outputStream)
+        manager.exportRootfsFile(root, path, outputStream, extraMounts)
     }
 
     // 在 Rootfs 内用 shell 写入: Rootfs 里的绝对路径软链只有 PRoot 内才能正确解析
@@ -134,7 +135,7 @@ class LocalWorkspaceBackend(
         return manager.resolveFile(root, path, area)
     }
 
-    override fun localAbsoluteFile(path: String): File = manager.resolveRootfsFile(root, path)
+    override fun localAbsoluteFile(path: String): File = manager.resolveRootfsFile(root, path, extraMounts)
 
     override fun executeCommand(
         command: String,
@@ -153,6 +154,7 @@ class LocalWorkspaceBackend(
                 stdin = stdin,
                 env = env,
                 shellCompatibilityMode = shellCompatibilityMode,
+                extraMounts = extraMounts,
             )
         } catch (caught: CancellationException) {
             throw caught

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.skills
 
+import java.io.File
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -148,5 +149,37 @@ class SkillCatalogTest {
         val catalog = parseSkillCatalogJson(withExtras)
         assertEquals(1, catalog.skills.size)
         assertEquals("x", catalog.skills.first().name)
+    }
+
+    @Test fun `bundled asset catalog lists 15 entries including the three core skills`() {
+        // Guards catalog/asset drift: every directory under assets/default-skills
+        // must have a matching catalog entry, and vice versa for bundled entries.
+        // Runs with the module dir as working dir (same pattern as ModelsDevAssetTest).
+        val raw = File("src/main/assets/skill-catalog.json").readText()
+        val catalog = parseSkillCatalogJson(raw)
+        assertEquals(15, catalog.skills.size)
+        val byName = catalog.skills.associateBy { it.name }
+        assertEquals("no duplicate entry names", catalog.skills.size, byName.size)
+
+        val agentCore = requireNotNull(byName["agent-core"])
+        assertEquals("智能体核心", agentCore.title)
+        assertEquals("core", agentCore.category)
+        assertEquals(100, agentCore.sizeKb)
+        assertTrue(agentCore.isBundled)
+        assertEquals(false, agentCore.archived)
+
+        val autonomous = requireNotNull(byName["autonomous-agent"])
+        assertEquals("自主智能体", autonomous.title)
+        assertEquals("core", autonomous.category)
+        assertEquals(14, autonomous.sizeKb)
+        assertTrue(autonomous.isBundled)
+        assertEquals(false, autonomous.archived)
+
+        val converter = requireNotNull(byName["openclaw-converter"])
+        assertEquals("OpenClaw 转换", converter.title)
+        assertEquals("automation", converter.category)
+        assertEquals(4, converter.sizeKb)
+        assertTrue(converter.isBundled)
+        assertEquals(false, converter.archived)
     }
 }

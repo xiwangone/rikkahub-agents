@@ -397,6 +397,7 @@ fun WorkspaceDetailPage(id: String) {
                             upgradingPackages = upgradingPackages,
                             onToolApprovalChange = vm::setToolApproval,
                             onShellCompatibilityModeChange = vm::setShellCompatibilityMode,
+                            onStorageMountsChange = vm::setStorageMounts,
                             onApplyMirrors = vm::applyMirrors,
                             onRepairCaCerts = vm::repairCaCerts,
                             sdcardEnabled = sdcardEnabled,

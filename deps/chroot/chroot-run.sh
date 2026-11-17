@@ -239,6 +239,32 @@ do_mounts() {
         bind_extra "$app_dir" databases /workspace/app-databases
         bind_extra "$app_dir" shared_prefs /workspace/app-shared-prefs
     fi
+    # 工作区自己的挂载（用户在详情页配的共享存储目录）：由 Kotlin 侧经 CHROOT_MOUNTS 传入，
+    # 一行一个 "source|target"。chroot 跑在宿主 root 下，能直接 bind，因此这里不需要"降级提示"。
+    # 语义与 proot 侧对齐：源不是目录 → 直接失败（不静默落回 rootfs 自身，否则写入会写错地方）。
+    if [ -n "${CHROOT_MOUNTS:-}" ]; then
+        # ⚠ 用 here-doc 而不是管道：管道会把 while 放进子 shell，失败状态传不回来。
+        ws_failed=0
+        while IFS='|' read -r ws_src ws_dst; do
+            [ -n "$ws_src" ] || continue
+            if [ ! -d "$ws_src" ]; then
+                echo "ERR: workspace mount source missing: $ws_src (target ${ws_dst:-?})" >&2
+                ws_failed=1
+                continue
+            fi
+            mkdir -p "$ROOTFS$ws_dst" 2>/dev/null
+            if ! mount --bind "$ws_src" "$ROOTFS$ws_dst" 2>/dev/null; then
+                echo "ERR: bind workspace mount failed: $ws_src -> $ws_dst" >&2
+                ws_failed=1
+            fi
+        done <<CHROOT_MOUNTS_EOF
+$CHROOT_MOUNTS
+CHROOT_MOUNTS_EOF
+        if [ "$ws_failed" -ne 0 ]; then
+            echo "ERR: workspace mount(s) failed; refusing to continue (writes would land in Rootfs instead)" >&2
+            return 1
+        fi
+    fi
     # proot 侧 bindMounts 必建这两个挂载点；chroot 侧源目录不存在时 bind_extra 直接 return，
     # 于是 /workspace/app-databases 这类路径在两侧行为不一致（探针/脚本会报缺失）。补空目录对齐。
     mkdir -p "$ROOTFS/workspace/app-databases" "$ROOTFS/workspace/app-shared-prefs" 2>/dev/null

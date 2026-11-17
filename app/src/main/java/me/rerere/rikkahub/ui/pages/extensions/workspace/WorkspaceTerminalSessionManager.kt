@@ -16,10 +16,12 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.AppScope
+import me.rerere.rikkahub.R
 import java.util.concurrent.atomic.AtomicLong
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.workspace.WorkspaceMountUnavailableException
 
 /**
  * Owns workspace terminal sessions independently from the terminal page lifecycle.
@@ -111,7 +113,7 @@ class WorkspaceTerminalSessionManager internal constructor(
         lateinit var job: Job
         job = appScope.launch(start = CoroutineStart.LAZY) {
             try {
-                createTab(workspace = workspace, onlyIfEmpty = onlyIfEmpty)
+                createTab(cachedWorkspace = workspace, onlyIfEmpty = onlyIfEmpty)
             } finally {
                 creationJobs.remove(root, job)
             }
@@ -120,13 +122,15 @@ class WorkspaceTerminalSessionManager internal constructor(
         job.start()
     }
 
-    private suspend fun createTab(workspace: WorkspaceEntity, onlyIfEmpty: Boolean) = withContext(Dispatchers.Main.immediate) {
+    private suspend fun createTab(cachedWorkspace: WorkspaceEntity, onlyIfEmpty: Boolean) = withContext(Dispatchers.Main.immediate) {
+        // 重新读一次: 挂载列表可能在页签打开后改过, 旧快照里的挂载表不可信
+        val workspace = workspaceRepository.getById(cachedWorkspace.id) ?: cachedWorkspace
         val root = workspace.root
         val initialState = currentState(root)
         if (initialState.isCreating || (onlyIfEmpty && initialState.tabs.isNotEmpty())) {
             return@withContext
         }
-        updateState(root) { it.copy(isCreating = true) }
+        updateState(root) { it.copy(isCreating = true, errorMessage = null) }
 
         // 远程工作区没有本机 rootfs 可准备，跳过；本机已就绪的也不重复准备
         val prepared = if (!workspace.capabilities().rootfs ||
@@ -168,7 +172,7 @@ class WorkspaceTerminalSessionManager internal constructor(
             onTitleUpdated = { title -> updateTitle(root, tabId, title) },
             onFinished = { markFinished(root = root, tabId = tabId) },
         )
-        val session = runCatching {
+        val sessionResult = runCatching {
             if (workspace.isSsh()) {
                 val settings = workspace.sshSettings()
                     ?: error("SSH workspace settings missing: ${workspace.id}")
@@ -187,14 +191,28 @@ class WorkspaceTerminalSessionManager internal constructor(
                     root = root,
                     client = client,
                     shellCompatibilityMode = workspace.shellCompatibilityMode,
+                    extraMounts = workspace.extraBindMounts(),
                 )
             }
         }.onFailure { error ->
             AppLog.e(TAG, "Failed to create terminal for workspace $root", error)
-        }.getOrNull()
+        }
+        val session = sessionResult.getOrNull()
 
         if (session == null) {
-            updateState(root) { it.copy(isCreating = false) }
+            updateState(root) {
+                it.copy(
+                    isCreating = false,
+                    errorMessage = when (val error = sessionResult.exceptionOrNull()) {
+                        is WorkspaceMountUnavailableException ->
+                            appContext.getString(
+                                R.string.workspace_terminal_mounts_unavailable,
+                                error.targets.joinToString(),
+                            )
+                        else -> error?.message ?: appContext.getString(R.string.workspace_terminal_start_failed)
+                    },
+                )
+            }
             return@withContext
         }
 
@@ -210,6 +228,7 @@ class WorkspaceTerminalSessionManager internal constructor(
                 selectedTabId = tab.id,
                 readiness = WorkspaceTerminalReadiness.Ready,
                 isCreating = false,
+                errorMessage = null,
                 nextTabNumber = tabNumber + 1,
             )
         }
@@ -266,6 +285,8 @@ internal data class WorkspaceTerminalTabsState(
     val readiness: WorkspaceTerminalReadiness = WorkspaceTerminalReadiness.Loading,
     val isCreating: Boolean = false,
     val nextTabNumber: Int = 1,
+    /** 上次建会话失败的原因, 成功建出会话或开始重试时清掉 */
+    val errorMessage: String? = null,
 )
 
 internal data class WorkspaceTerminalTab(

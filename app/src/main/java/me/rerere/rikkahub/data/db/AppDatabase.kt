@@ -153,11 +153,14 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v48: ssh_hosts 新增 platform（默认 "AUTO"）与 allow_host_key_rotation
         // （默认 0）两列，纯加列带默认值可自动迁移
         AutoMigration(from = 47, to = 48),
+        // v49: workspaces 表新增 storage_mounts（挂载进 Rootfs 的共享存储目录，
+        // WorkspaceStorageMount 列表的 JSON，默认 "[]"），纯加列带默认值可自动迁移
+        AutoMigration(from = 48, to = 49),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    companion object { const val VERSION = 48 }
+    companion object { const val VERSION = 49 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO
