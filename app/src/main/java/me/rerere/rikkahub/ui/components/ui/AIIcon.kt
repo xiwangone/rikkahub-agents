@@ -10,6 +10,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.dp
@@ -38,13 +39,22 @@ private fun AIIcon(
 ) {
     val contentColor = LocalContentColor.current
     val context = LocalContext.current
+    val darkMode = LocalDarkMode.current
     val model =
-        remember(data, isSvg, contentColor, context) {
+        remember(data, isSvg, contentColor, context, darkMode) {
             val builder = ImageRequest.Builder(context).data(data)
             if (isSvg) {
+                // ⚠ 只写 `svg { fill }` 有两个问题：
+                // ① 它覆盖的是 <svg> 根上的 fill —— 于是「品牌色写在根上」的图标
+                //    （qwen-color / ling-color / zhipu-color 等）会被整块染成主题色，
+                //    深色模式下就成了黑块。这些已在资产侧把 fill 下移到 <path>。
+                // ② 深色模式下，品牌本身是近黑的图标（#1E1E1E / #0a0800）在深底上看不见。
+                //    这里对**没有显式颜色的 path** 注入主题色（浅色模式 = 正常控件色，
+                //    深色模式 = 浅色文字色），显式声明了品牌色的 path 一律保留原色。
                 builder.css(
                     """
-                    svg {
+                    svg { fill: ${contentColor.toCssHex()}; }
+                    path:not([fill]), polygon:not([fill]), rect:not([fill]), circle:not([fill]) {
                       fill: ${contentColor.toCssHex()};
                     }
                     """.trimIndent(),
@@ -60,12 +70,13 @@ private fun AIIcon(
         AsyncImage(
             model = model,
             contentDescription = name,
-            // 2.dp：外框 32.dp − 2×2 = 28.dp 绘制区。
-            // 4.dp 时绘制区只有 24.dp，而横版品牌标（如 DeepSeek 鲸鱼 viewBox 24.72×18.19，
-            // 宽高比 1.36）按宽度适配后高度只剩 24/1.36 ≈ 17.6.dp，与同排 24.dp 的
-            // 线条图标（搜索/思考）差 26% —— 收到 2.dp 后高度约 20.6.dp，差距缩到 14%。
-            // 横版图标在方形槽里天然偏矮，这是 ContentScale.Fit 的固有取舍，不再强行拉伸（会失真）。
+            // 尺寸链：外框 32.dp − 2×2 padding = 28.dp 绘制区（4.dp 时只有 24.dp，太小）。
+            // 缩放策略：Fit 按**宽度**适配，横版品牌标（DeepSeek 鲸鱼宽高比 1.36）在方槽里
+            // 高度只剩 28/1.36 ≈ 20.6.dp，比同排 28.dp 的线条图标（搜索/思考）小一截；
+            // FillBounds 按**较大边**撑满方槽 → 横版标的视觉高度和方形标一致（宽度略溢出圆角，
+            // 品牌标本就不是方形的，可接受）。矢量 SVG 放大不糊。
             modifier = Modifier.padding(2.dp),
+            contentScale = ContentScale.FillBounds,
         )
     }
 }
