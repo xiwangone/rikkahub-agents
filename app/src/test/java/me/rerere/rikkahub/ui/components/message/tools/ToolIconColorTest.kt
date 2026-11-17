@@ -73,7 +73,7 @@ class ToolIconColorTest {
     @Test
     fun `all local tool options have a family color`() {
         val all = LocalToolCatalog.all
-        assertEquals(59, all.size)
+        assertEquals(60, all.size)
         for (option in all) {
             val key = colorForLocalToolOption(option)
             assertTrue("本地工具选项无家族色: ${option::class.simpleName}", key in familyGroups)

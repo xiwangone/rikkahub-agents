@@ -3473,6 +3473,7 @@
   <string name="mcp_tool_app_logs">应用日志</string>
   <string name="mcp_tool_diagnostics">诊断与日志</string>
   <string name="mcp_tool_model_testing">模型测试</string>
+  <string name="mcp_tool_provider_icon">提供商图标</string>
   <string name="mcp_category_device_control">设备控制</string>
   <string name="mcp_category_media">媒体与输入</string>
   <string name="mcp_category_files">文件与存储</string>

@@ -2343,6 +2343,7 @@
   <string name="mcp_tool_app_logs">سجلات التطبيق</string>
   <string name="mcp_tool_diagnostics">التشخيص</string>
   <string name="mcp_tool_model_testing">اختبار النماذج</string>
+  <string name="mcp_tool_provider_icon">أيقونة موفر الخدمة</string>
   <string name="mcp_category_device_control">التحكم بالجهاز</string>
   <string name="mcp_category_media">الوسائط والإدخال</string>
   <string name="mcp_category_files">الملفات والتخزين</string>

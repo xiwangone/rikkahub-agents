@@ -275,6 +275,7 @@ fun SettingProviderPage(vm: SettingVM = koinViewModel()) {
                                             .scale(if (isDragging) 0.95f else 1f)
                                             .fillMaxWidth(),
                                     provider = provider,
+                                    iconOverride = settings.providerIconOverrides[provider.name],
                                     dragHandle = {
                                         val haptic = LocalHapticFeedback.current
                                         IconButton(
@@ -655,6 +656,7 @@ private fun ProviderItem(
     dragHandle: @Composable () -> Unit,
     onClick: () -> Unit,
     onLongClick: () -> Unit = {},
+    iconOverride: String? = null,
 ) {
     Surface(
         modifier =
@@ -678,6 +680,7 @@ private fun ProviderItem(
             AutoAIIcon(
                 name = provider.name,
                 modifier = Modifier.size(36.dp),
+                iconOverride = iconOverride,
             )
             Column(
                 modifier = Modifier.weight(1f),

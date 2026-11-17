@@ -24,6 +24,7 @@ import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
+import me.rerere.rikkahub.data.ai.tools.local.updateProviderIconTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSmsInboxTool
 import me.rerere.rikkahub.data.ai.tools.local.locationTool
@@ -665,6 +666,10 @@ class LocalTools(
     },
     ToolEntry(LocalToolOption.ModelTesting) { tools, invocationContext ->
         tools.add(testModelTool(providerManager, settingsStore, context, invocationContext))
+    },
+    // 提供商图标运行时更新（写工具，单独注册，不放进诊断工具）。
+    ToolEntry(LocalToolOption.ProviderIcon) { tools, _ ->
+        tools.add(updateProviderIconTool(context, settingsStore, okHttpClient))
     },
     )
 

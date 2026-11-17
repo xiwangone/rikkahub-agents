@@ -2795,6 +2795,7 @@
   <string name="mcp_tool_app_logs">アプリログ</string>
   <string name="mcp_tool_diagnostics">診断とログ</string>
   <string name="mcp_tool_model_testing">モデルテスト</string>
+  <string name="mcp_tool_provider_icon">プロバイダーアイコン</string>
   <string name="mcp_category_device_control">デバイス操作</string>
   <string name="mcp_category_media">メディアと入力</string>
   <string name="mcp_category_files">ファイルと保存</string>

@@ -19,13 +19,17 @@ import coil3.svg.css
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.hooks.rememberAvatarShape
 import me.rerere.rikkahub.ui.theme.LocalDarkMode
+import me.rerere.rikkahub.utils.ProviderIconSource
 import me.rerere.rikkahub.utils.computeAIIconByName
+import me.rerere.rikkahub.utils.listBundledIconNames
+import me.rerere.rikkahub.utils.resolveProviderIcon
 import me.rerere.rikkahub.utils.toCssHex
 
 @Composable
 private fun AIIcon(
-    path: String,
+    data: Any,
     name: String,
+    isSvg: Boolean,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
@@ -33,17 +37,18 @@ private fun AIIcon(
     val contentColor = LocalContentColor.current
     val context = LocalContext.current
     val model =
-        remember(path, contentColor, context) {
-            ImageRequest
-                .Builder(context)
-                .data("file:///android_asset/icons/$path")
-                .css(
+        remember(data, isSvg, contentColor, context) {
+            val builder = ImageRequest.Builder(context).data(data)
+            if (isSvg) {
+                builder.css(
                     """
                     svg {
                       fill: ${contentColor.toCssHex()};
                     }
                     """.trimIndent(),
-                ).build()
+                )
+            }
+            builder.build()
         }
     Surface(
         modifier = modifier.size(24.dp),
@@ -58,25 +63,67 @@ private fun AIIcon(
     }
 }
 
+/**
+ * 提供商/模型图标：优先级为覆盖表 > 品牌匹配 > 首字母。
+ *
+ * @param iconOverride 该提供商在 [me.rerere.rikkahub.data.datastore.Settings.providerIconOverrides]
+ * 里的存储值（`asset:` / `file:` 前缀）；为 null 时不查覆盖表。其他调用点保持默认行为，
+ * 只有提供商列表页传入覆盖值。
+ */
 @Composable
 fun AutoAIIcon(
     name: String,
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
+    iconOverride: String? = null,
 ) {
-    val path =
-        remember(name) { computeAIIconByName(name) } ?: run {
-            TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
-            return
+    val context = LocalContext.current
+    val availableIcons = remember(context) { listBundledIconNames(context) }
+    val source = remember(name, iconOverride, availableIcons) { resolveProviderIcon(name, iconOverride, availableIcons) }
+    when (source) {
+        is ProviderIconSource.Asset -> {
+            AIIcon(
+                data = "file:///android_asset/icons/${source.fileName}",
+                name = name,
+                isSvg = source.fileName.endsWith(".svg", ignoreCase = true),
+                modifier = modifier,
+                loading = loading,
+                color = color,
+            )
         }
-    AIIcon(
-        path = path,
-        name = name,
-        modifier = modifier,
-        loading = loading,
-        color = color,
-    )
+        is ProviderIconSource.LocalFile -> {
+            val file = remember(source) { java.io.File(context.filesDir, source.relativePath) }
+            if (file.exists()) {
+                AIIcon(
+                    data = file,
+                    name = name,
+                    isSvg = source.relativePath.endsWith(".svg", ignoreCase = true),
+                    modifier = modifier,
+                    loading = loading,
+                    color = color,
+                )
+            } else {
+                // 覆盖指向的文件已不在磁盘上：回退到品牌匹配，再不行才显示首字母。
+                val brandPath = remember(name, availableIcons) { computeAIIconByName(name, availableIcons) }
+                if (brandPath != null) {
+                    AIIcon(
+                        data = "file:///android_asset/icons/$brandPath",
+                        name = name,
+                        isSvg = brandPath.endsWith(".svg", ignoreCase = true),
+                        modifier = modifier,
+                        loading = loading,
+                        color = color,
+                    )
+                } else {
+                    TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
+                }
+            }
+        }
+        null -> {
+            TextAvatar(text = name, modifier = modifier, loading = loading, color = color)
+        }
+    }
 }
 
 @Preview

@@ -37,6 +37,7 @@ object LocalToolCatalog {
                 listOf(
                     LocalToolOption.DeviceInfo,
                     LocalToolOption.Diagnostics,
+                    LocalToolOption.ProviderIcon,
                 ),
             LocalToolCategory.DEVICE_CONTROL to
                 listOf(
@@ -219,6 +220,7 @@ object LocalToolCatalog {
             LocalToolOption.KeyboardControl -> R.string.mcp_tool_keyboard_control
             LocalToolOption.Diagnostics -> R.string.mcp_tool_diagnostics
             LocalToolOption.ModelTesting -> R.string.mcp_tool_model_testing
+            LocalToolOption.ProviderIcon -> R.string.mcp_tool_provider_icon
         }
 
     /** 非空分组，供界面按类别渲染 */

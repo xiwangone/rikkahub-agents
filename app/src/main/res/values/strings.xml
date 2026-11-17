@@ -3440,6 +3440,7 @@
   <string name="mcp_tool_app_logs">App logs</string>
   <string name="mcp_tool_diagnostics">Diagnostics</string>
   <string name="mcp_tool_model_testing">Model testing</string>
+  <string name="mcp_tool_provider_icon">Provider icon</string>
   <string name="mcp_category_device_control">Device control</string>
   <string name="mcp_category_media">Media and input</string>
   <string name="mcp_category_files">Files and storage</string>

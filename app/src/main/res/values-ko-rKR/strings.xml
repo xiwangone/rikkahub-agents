@@ -2795,6 +2795,7 @@
   <string name="mcp_tool_app_logs">앱 로그</string>
   <string name="mcp_tool_diagnostics">진단 및 로그</string>
   <string name="mcp_tool_model_testing">모델 테스트</string>
+  <string name="mcp_tool_provider_icon">제공자 아이콘</string>
   <string name="mcp_category_device_control">기기 제어</string>
   <string name="mcp_category_media">미디어 및 입력</string>
   <string name="mcp_category_files">파일 및 저장소</string>

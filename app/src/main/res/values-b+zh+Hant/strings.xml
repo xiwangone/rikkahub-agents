@@ -3348,6 +3348,7 @@
   <string name="mcp_tool_app_logs">應用日誌</string>
   <string name="mcp_tool_diagnostics">診斷與日誌</string>
   <string name="mcp_tool_model_testing">模型測試</string>
+  <string name="mcp_tool_provider_icon">提供商圖標</string>
   <string name="mcp_category_device_control">裝置控制</string>
   <string name="mcp_category_media">媒體與輸入</string>
   <string name="mcp_category_files">檔案與儲存</string>

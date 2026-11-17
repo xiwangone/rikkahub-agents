@@ -10,6 +10,7 @@ import io.ktor.server.routing.Route
 import io.ktor.server.routing.get
 import io.ktor.server.routing.route
 import me.rerere.rikkahub.utils.computeAIIconByName
+import me.rerere.rikkahub.utils.listBundledIconNames
 import me.rerere.rikkahub.web.BadRequestException
 
 fun Route.aiIconRoutes(context: Context) {
@@ -21,7 +22,7 @@ fun Route.aiIconRoutes(context: Context) {
                 throw BadRequestException("Missing name")
             }
 
-            val iconPath = computeAIIconByName(name)
+            val iconPath = computeAIIconByName(name, listBundledIconNames(context))
             if (iconPath != null) {
                 val assetPath = "icons/$iconPath"
                 runCatching {

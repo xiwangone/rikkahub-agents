@@ -30,6 +30,7 @@ import me.rerere.rikkahub.data.model.Tag
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
+import me.rerere.rikkahub.utils.ProviderIconOverrides
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
 import me.rerere.tts.provider.TTSProviderSetting
@@ -103,6 +104,14 @@ data class Settings(
     val toolOutputCompactMaxChars: Int = 2 * 1000,
     val assistantId: Uuid = DEFAULT_ASSISTANT_ID,
     val providers: List<ProviderSetting> = DEFAULT_PROVIDERS,
+    /**
+     * 提供商图标覆盖表：按提供商名索引，助手运行时通过 update_provider_icon 维护。
+     *
+     * 值是图标来源，格式见 [ProviderIconOverrides]：`asset:<assets/icons/ 下的文件名>` 或
+     * `file:<files/provider-icons/ 下的相对路径>`。键缺失或值无法解析时不报错，
+     * 渲染回退到品牌匹配 / 首字母兜底；改名后旧键失效，需重新指定。
+     */
+    val providerIconOverrides: Map<String, String> = emptyMap(),
     val mediaGenerationProviders: List<MediaGenerationProviderSetting> = emptyList(),
     /**
      * IDs of built-in providers the user explicitly removed via long-press. The re-seed

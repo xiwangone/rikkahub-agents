@@ -58,6 +58,7 @@ import me.rerere.hugeicons.stroke.Folder02
 import me.rerere.hugeicons.stroke.GlobalSearch
 import me.rerere.hugeicons.stroke.Globe
 import me.rerere.hugeicons.stroke.Grid
+import me.rerere.hugeicons.stroke.Image01
 import me.rerere.hugeicons.stroke.Image02
 import me.rerere.hugeicons.stroke.JavaScript
 import me.rerere.hugeicons.stroke.Key01
@@ -553,7 +554,7 @@ internal fun TermuxStatusRowSubtitle(enabled: Boolean) {
     }
 }
 
-// 58 个本地工具枚举项一对一映射图标，分支数与密封类子类数一致
+// 60 个本地工具枚举项一对一映射图标，分支数与密封类子类数一致
 @Suppress("CyclomaticComplexMethod")
 internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
     when (option) {
@@ -565,6 +566,7 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.ScreenTime -> HugeIcons.SmartPhone01
         LocalToolOption.Diagnostics -> HugeIcons.Bug01
         LocalToolOption.ModelTesting -> HugeIcons.Activity01
+        LocalToolOption.ProviderIcon -> HugeIcons.Image01
         LocalToolOption.DeviceInfo -> HugeIcons.Cpu
         LocalToolOption.SystemIntents -> HugeIcons.Calendar03
         LocalToolOption.Toast -> HugeIcons.Message02
@@ -619,7 +621,7 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
     }
 
 /**
- * 59 个本地工具枚举项一对一映射图标颜色（家族色组），与 [iconForLocalToolOption] 并列。
+ * 60 个本地工具枚举项一对一映射图标颜色（家族色组），与 [iconForLocalToolOption] 并列。
  *
  * 未选中态用家族色，选中态保持 onPrimaryContainer（见 [ToolOptionGroupIcon]）。
  * 色组是语义键，解析到 ExtendColors 的对应档位（见 ToolIconColor.resolve）。
@@ -674,6 +676,7 @@ internal fun colorForLocalToolOption(option: LocalToolOption): ToolIconColor =
         LocalToolOption.Clipboard,
         LocalToolOption.Diagnostics,
         LocalToolOption.DeviceInfo,
+        LocalToolOption.ProviderIcon,
         LocalToolOption.SystemIntents,
         LocalToolOption.Location,
         LocalToolOption.Fingerprint,
