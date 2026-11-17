@@ -159,7 +159,10 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "chatgpt" to "openai",
     "gpt" to "openai",
     "o1-preview" to "openai",
-    "claude" to "anthropic",
+    // claude-* 用 Claude 自己的标（库里 claude-color.svg），不是 Anthropic 公司标：
+    // 模型列表里一排 claude-* 全显示公司的 A 形标，既分不出系列也认不出是 Claude。
+    "muse" to "muse",
+    "claude" to "claude",
     "gemini" to "gemini",
     "gemma" to "gemma",
     "qwen" to "qwen",
@@ -183,6 +186,15 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "ernie" to "wenxin",
     "baichuan" to "baichuan",
     "spark" to "spark",
+    // ── 模型品牌键：模型列表里这些比公司名更具体 ──
+    "hy" to "hunyuan",       // hy3/hy4（腾讯混元官方模型名）
+    "codex" to "codex",      // gpt-5.3-codex 用 Codex 自己的标
+    "seed" to "doubao",      // Doubao-Seed
+    "step" to "stepfun",     // Step-3.7
+    "longcat" to "longcat",
+    "minicpm" to "minicpm",
+    "d3" to "vllm",          // vLLM Semantic Router 的决策模型
+    "vllm" to "vllm",
 ).sortedByDescending { it.first.length }
 
 /**
@@ -198,8 +210,6 @@ private fun modelFamilyCandidates(name: String): List<String> {
         .map { seg -> seg.filter { it.isLetterOrDigit() }.lowercase() }
         .filter { it.isNotEmpty() }
     if (segments.isEmpty()) return emptyList()
-    val out = mutableListOf<String>()
-    if (segments.size >= 2) out.add(segments.first())      // vendor 段（`meta/...` → meta）
     // 段内再切词：`XiYanSQL-QwenCoder-32B` 的品牌在中间那个词里，
     // 只对整段做前缀匹配会漏。切词后每个词都试一次前缀匹配。
     // ⚠ 必须从**原始 name** 切词：segments 已经过 normalizeProviderName（分隔符被吃掉），
@@ -208,9 +218,18 @@ private fun modelFamilyCandidates(name: String): List<String> {
         .split('/', '-', '_', '.', ':', '@', ' ', ',')
         .map { seg -> seg.filter { it.isLetterOrDigit() }.lowercase() }
         .filter { it.isNotEmpty() }
-    for (token in (segments + tokens)) {
+
+    val out = mutableListOf<String>()
+    // ① **模型家族词优先于 vendor 段**。模型列表里区分的是「哪个模型」：
+    //    `google/gemini-*` 该显示 Gemini 而不是 Google G；
+    //    `tencent/hy3`/`hy4`/`hy4-flash` 该显示混元而不是一排相同的腾讯 T。
+    //    （提供商列表是另一条路径 computeAIIconByName，仍按公司品牌走。）
+    // 子品牌词优先（`muse-spark` 先试 muse 再试 spark；`gpt-5.3-codex` 先试 codex）
+    for (token in tokens.sortedBy { t -> if (t in MODEL_SUBBRAND_WORDS) 0 else 1 }) {
         MODEL_FAMILY_ALIASES.firstOrNull { token.startsWith(it.first) }?.let { out.add(it.second) }
     }
+    // ② vendor 段兜底：模型名里没有已知品牌词时（如 `poolside/laguna`、`xai/grok` 的 xai）
+    if (segments.size >= 2) out.add(segments.first())
     return out.distinct()
 }
 
@@ -320,6 +339,9 @@ private fun stripVersionSuffix(word: String): String? {
  */
 private val MODEL_SUBBRAND_WORDS: Set<String> = setOf(
     "codex", "muse", "kimi", "longcat", "minicpm", "d3", "qwq", "gemma", "grok",
+    "hy", "seed", "step", "gemini", "qwen", "glm", "deepseek", "doubao", "hunyuan",
+    "claude", "llama", "mistral", "mixtral", "command", "phi", "ernie", "baichuan",
+    "intern", "moonshot", "minimax", "mimo", "agnes", "vllm",
 )
 
 fun computeModelIconByName(
@@ -329,6 +351,9 @@ fun computeModelIconByName(
     val normalized = normalizeProviderName(modelId)
     if (normalized.isEmpty()) return null
     val candidates = buildList {
+        // ① 家族词优先（与提供商侧共用同一条推断）：`tencent/hy4` 显示混元而非腾讯、
+        //    `google/gemini-*` 显示 Gemini 而非 Google —— 模型列表里区分的是「哪个模型」。
+        addAll(modelFamilyCandidates(modelId))
         add(normalized)
         stripVersionSuffix(normalized)?.let { add(it) }
         // 模型 ID 按分隔符切词，品牌词在前；2 字母词也保留（d3），1 字母词没有品牌意义。

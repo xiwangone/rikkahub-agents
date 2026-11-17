@@ -204,7 +204,7 @@ class AIIconMatcherTest {
         // 模型 ID 不是品牌名：靠 vendor 段或家族前缀反推
         assertEquals("openai.svg", resolve("gpt-5.4"))
         assertEquals("openai.svg", resolve("gpt-5.6-luna"))
-        assertEquals("anthropic.svg", resolve("claude-sonnet-5"))
+        assertEquals("claude-color.svg", resolve("claude-sonnet-5"))
         assertEquals("gemma-color.svg", resolve("Gemma-4-31B-IT"))
         assertEquals("qwen-color.svg", resolve("Qwen3-235B-A22B"))
         assertEquals("minimax-color.svg", resolve("MiniMax-M3"))
@@ -216,9 +216,10 @@ class AIIconMatcherTest {
     @Test
     fun `vendor segment wins for namespaced model ids`() {
         // 常见形态 `vendor/model`：vendor 段就是品牌
-        assertEquals("google-color.svg", resolve("google/gemini-4-argon"))
+        assertEquals("gemini-color.svg", resolve("google/gemini-4-argon"))
         assertEquals("deepseek-color.svg", resolve("deepseek/deepseek-v4.1-flash"))
-        assertEquals("meta-color.svg", resolve("meta/muse-spark-1.3-contributor"))
+        // 模型品牌词优先于 vendor 段：muse 比 meta 更具体
+        assertEquals("muse-color.svg", resolve("meta/muse-spark-1.3-contributor"))
         assertEquals("qwen-color.svg", resolve("qwen/qwen3.5-plus"))
         assertEquals("zhipu-color.svg", resolve("z-ai/glm-5.3-flash"))
         assertEquals("zhipu-color.svg", resolve("zai-org/GLM-5.2-Fast"))
@@ -289,11 +290,11 @@ class AIIconMatcherTest {
         assertEquals("hunyuan-color.svg", resolveModel("hy3"))
         assertEquals("hunyuan-color.svg", resolveModel("hy4"))
         assertEquals("hunyuan-color.svg", resolveModel("hy4-flash-free"))
-        // 组织名前缀的模型 ID 解析到组织标（tencent-color.svg），与裸 hy4 的混元标
+        // 模型家族词优先于组织名：tencent/hy4 显示混元（与裸 hy4 一致）
         // 不一致，是已知取舍：按词从前往后试，首词 tencent 在库里有文件就先命中；
         // 想改成混元标要么加组织词黑名单（误伤面不可控），要么等提供商兜底——
         // 但模型名已经解析到了，兜底走不到。提供商是「腾讯混元」时仍是混元标。
-        assertEquals("tencent-color.svg", resolveModel("tencent/hy4-preview"))
+        assertEquals("hunyuan-color.svg", resolveModel("tencent/hy4-preview"))
         assertEquals("stepfun-color.svg", resolveModel("step-5-preview"))
         assertEquals("xai.svg", resolveModel("grok-4.7"))
         assertEquals("longcat-color.svg", resolveModel("longcat-2.0"))
@@ -321,10 +322,10 @@ class AIIconMatcherTest {
         assertEquals("zhipu-color.svg", resolveModel("glm-4.6"))
         assertEquals("wenxin-color.svg", resolveModel("ernie-5.0"))
         assertEquals("hunyuan-color.svg", resolveModel("hunyuan-turbos-latest"))
-        // llama 在库里没有 Meta Llama 的文件（只有 llamaindex，是另一家），
-        // 宁可回落首字母也不能错挂别人的标
-        assertNull(resolveModel("llama-4-scout"))
-        assertNull(resolveModel("llama"))
+        // llama 在库里没有 Llama 专属文件（只有 llamaindex，是另一家），
+        // 但 Meta 是它的厂商 → 退到公司标（比首字母有信息量，且不是错挂别家）
+        assertEquals("meta-color.svg", resolveModel("llama-4-scout"))
+        assertEquals("meta-color.svg", resolveModel("llama"))
         assertNull(resolveModel("o1"))
         assertNull(resolveModel("some-model-that-does-not-exist"))
         assertNull(resolveModel(""))
@@ -347,6 +348,7 @@ class AIIconMatcherTest {
         // 提供商路径从后往前回退会把 muse-spark 判成 spark（讯飞星火）；
         // 模型路径品牌词在前，判 muse。提供商侧行为本身不动：
         assertEquals("muse-color.svg", resolveModel("muse-spark-1.2-contributor"))
-        assertEquals("spark-color.svg", resolve("Muse Spark"))
+        // 提供商侧也走家族推断后，`Muse Spark` 同样判 muse（与模型侧一致）
+        assertEquals("muse-color.svg", resolve("Muse Spark"))
     }
 }
