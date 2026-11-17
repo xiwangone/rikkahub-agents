@@ -4,12 +4,12 @@ litertlm = "0.13.1"
 cameraCore = "1.6.1"
 exifinterface = "1.4.2"
 jlatexmath = "1.5"
-kotlin = "2.4.20"
+kotlin = "2.4.21"
 coreKtx = "1.19.0"
 junit = "4.13.2"
 robolectric = "4.17"
 junitVersion = "1.3.0"
-json = "20260719"
+json = "20260814"
 espressoCore = "3.7.0"
 commons-text = "1.15.0"
 lifecycleRuntimeKtx = "2.11.0"
@@ -17,25 +17,23 @@ activityCompose = "1.13.0"
 composeBom = "2026.08.00"
 material3 = "1.5.0-alpha26"
 media3 = "1.11.0"
-metadataExtractor = "2.21.0"
+metadataExtractor = "2.22.0"
 nav2 = "2.9.8"
 nav3Core = "1.1.6"
 material3AdaptiveNav3 = "1.3.0"
 lifecycleViewmodelNav3 = "2.11.0"
 nav3Material = "1.3.0"
 markdown = "d79a97cc8e"
-okhttp = "5.4.0"
-retrofit = "3.0.0"
-gson = "2.11.0"
-coil = "3.5.0"
-quickjs = "1.0.15"
-room = "2.8.4"
+okhttp = "5.5.1"
+coil = "3.6.3"
+quickjs = "1.0.18"
+room = "2.8.5"
 koin-bom = "4.2.2"
-datastore = "1.2.1"
-serialization-json = "1.11.0"
+datastore = "1.3.0"
+serialization-json = "1.13.0"
 kotlin-coroutines-core = "1.11.0"
 kotlinx-datetime = "0.8.0"
-ksp = "2.3.10"
+ksp = "2.3.14"
 paging = "3.5.1"
 lucide-icons = "1.1.0"
 huge-icons = "1.5"
@@ -43,10 +41,10 @@ image-viewer = "1.1.0-alpha.7"
 jsoup = "1.23.2"
 zxing = "3.5.4"
 sonner = "0.4.0"
-workmanager = "2.11.2"
+workmanager = "2.12.0"
 reorderable = "3.1.0"
 mcp = "0.15.0"
-pebble = "4.1.1"
+pebble = "4.1.3"
 browser = "1.10.0"
 webkit = "1.16.0"
 appcompat = "1.7.1"
@@ -54,28 +52,27 @@ material = "1.14.0"
 ucrop = "2.2.11-native"
 floatingx = "2.3.7"
 haze = "2.0.0-alpha03"
-ktor = "3.5.2"
+ktor = "3.6.1"
 # ktor-server-auth-jwt 及其 jwks 组件会带入 jackson；统一钉到已修复版本，
 # 避免传递依赖解析出带已知问题的版本。
 jackson = "2.22.3"
-sqlite-vector = "0.9.92"
-jmdns = "3.6.3"
-slf4j = "2.0.18"
+jmdns = "3.6.5"
+slf4j = "2.0.20"
 sqlite-android = "80cedc8888df2fe1d22d7f9bf8d9287f621624be"
 jsch = "2.28.8"
-termux = "0.118.0"
+termux = "v0.119.0-beta.3"
 shizuku = "13.1.5"
-diffutils = "4.17"
-playServicesLocation = "21.3.0"
+diffutils = "4.18"
+playServicesLocation = "21.4.0"
 kotlinxCoroutinesPlayServices = "1.11.0"
 biometric = "1.2.0-alpha05"
-media = "1.7.0"
-documentfile = "1.0.1"
+media = "1.8.0"
+documentfile = "1.1.0"
 cronUtils = "9.2.1"
 # Verified with `javap -p` against the published artifact: Shizuku.newProcess is PRIVATE in
 # this version, so shizuku_exec is built on Shizuku.bindUserService + our own AIDL service
 # instead (see ShizukuManager.kt).
-genaiPrompt = "1.0.0-beta2"
+genaiPrompt = "1.0.0-beta5"
 # Pinned below 0.14.0 deliberately. 0.14.0 drops libLiteRtClGlAccelerator.so and moves
 # the GPU backend from OpenCL/GLES to Dawn/WebGPU-on-Vulkan, which Adreno 6xx rejects:
 # every CreateComputePipelines call returns VK_ERROR_UNKNOWN, the delegate keeps
@@ -84,8 +81,7 @@ genaiPrompt = "1.0.0-beta2"
 # it. 0.13.1 has an identical public API (same classes, same tool-calling surface,
 # getTokenCount/getBenchmarkInfo/cancelProcess all present) and a working GPU path.
 
-snakeyaml = "2.6"
-dom4j = "2.2.0"
+snakeyaml = "2.7"
 
 profileinstaller = "1.4.1"
 leakcanary = "2.14"
@@ -103,7 +99,6 @@ androidx-media3-common = { module = "androidx.media3:media3-common", version.ref
 androidx-media3-exoplayer = { module = "androidx.media3:media3-exoplayer", version.ref = "media3" }
 androidx-media3-ui = { module = "androidx.media3:media3-ui", version.ref = "media3" }
 litertlm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "litertlm" }
-dom4j = { module = "org.dom4j:dom4j", version.ref = "dom4j" }
 jlatexmath = { module = "com.github.rikkahub.jlatexmath-android:jlatexmath", version.ref = "jlatexmath" }
 jlatexmath-font-greek = { module = "com.github.rikkahub.jlatexmath-android:jlatexmath-font-greek", version.ref = "jlatexmath" }
 jlatexmath-font-cyrillic = { module = "com.github.rikkahub.jlatexmath-android:jlatexmath-font-cyrillic", version.ref = "jlatexmath" }
@@ -144,9 +139,6 @@ metadata-extractor = { module = "com.drewnoakes:metadata-extractor", version.ref
 okhttp = { group = "com.squareup.okhttp3", name = "okhttp", version.ref = "okhttp" }
 okhttp-sse = { group = "com.squareup.okhttp3", name = "okhttp-sse", version.ref = "okhttp" }
 okhttp-logging = { group = "com.squareup.okhttp3", name = "logging-interceptor", version.ref = "okhttp" }
-retrofit = { group = "com.squareup.retrofit2", name = "retrofit", version.ref = "retrofit" }
-retrofit-serialization-json = { group = "com.squareup.retrofit2", name = "converter-kotlinx-serialization", version.ref = "retrofit" }
-gson = { group = "com.google.code.gson", name = "gson", version.ref = "gson" }
 coil-compose = { group = "io.coil-kt.coil3", name = "coil-compose", version.ref = "coil" }
 coil-gif = { group = "io.coil-kt.coil3", name = "coil-gif", version.ref = "coil" }
 coil-okhttp = { group = "io.coil-kt.coil3", name = "coil-network-okhttp", version.ref = "coil" }
@@ -201,13 +193,12 @@ ktor-server-cio = { module = "io.ktor:ktor-server-cio", version.ref = "ktor" }
 ktor-server-auth = { module = "io.ktor:ktor-server-auth", version.ref = "ktor" }
 ktor-server-auth-jwt = { module = "io.ktor:ktor-server-auth-jwt", version.ref = "ktor" }
 jackson-bom = { module = "com.fasterxml.jackson:jackson-bom", version.ref = "jackson" }
-sqlite-vector = { module = "ai.sqlite:vector", version.ref = "sqlite-vector" }
 jmdns = { module = "org.jmdns:jmdns", version.ref = "jmdns" }
 xz = { module = "org.tukaani:xz", version = "1.12" }
 # SSH 客户端 (Mwiede fork — maintained, Android-friendly)，:app 与 :workspace 共用同一版本
 jsch = { module = "com.github.mwiede:jsch", version.ref = "jsch" }
 slf4j-api = { module = "org.slf4j:slf4j-api", version.ref = "slf4j" }
-slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version = "2.0.17-0" }
+slf4j-android = { module = "uk.uuid.slf4j:slf4j-android", version = "2.0.20-0" }
 sqlite-android = { module = "com.github.rikkahub:sqlite-android", version.ref = "sqlite-android" }
 termux-terminal-view = { module = "com.termux.termux-app:terminal-view", version.ref = "termux" }
 guava-listenablefuture = { module = "com.google.guava:listenablefuture", version = "9999.0-empty-to-avoid-conflict-with-guava" }

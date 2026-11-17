@@ -31,6 +31,8 @@ class AIIconMatcherTest {
         "metaso-color.svg", "bytedance-color.svg", "minimax-color.svg",
         "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "glmv-color.svg",
         "foo-color.svg", "foo.svg", "bar.svg", "baz.png",
+        // 本批新增：端点别名 amd/minimaxi/tencentmaas 与新图标文件
+        "amdradeoncloud-color.svg", "tokenrhythm.png", "suixiang.png", "ackai.png",
     )
 
     private fun resolve(name: String, baseUrl: String? = null) =
@@ -168,6 +170,21 @@ class AIIconMatcherTest {
         assertEquals("xiaomimimo.svg", resolve("MIMO", "https://api.xiaomimimo.com/v1"))
         // 端点识别不出来时仍按名字
         assertEquals("deepseek-color.svg", resolve("DeepSeek", "https://api.deepseek.com/v1"))
+        // 本批补的域名别名：域名里的词与库里文件名对不上，须经 HOST_ALIASES 翻译
+        // developer.amd.com.cn → amd → amdradeoncloud（库里只有 amdradeoncloud，没有 amd）
+        assertEquals("amdradeoncloud-color.svg", resolve("AMD", "https://developer.amd.com.cn/radeon/api/v1"))
+        // api.minimaxi.com → minimaxi → minimax（名字 MiniMax 本身也能解析，用短名隔离端点路径）
+        assertEquals("minimax-color.svg", resolve("MM", "https://api.minimaxi.com/anthropic/v1"))
+        assertEquals("minimax-color.svg", resolve("MiniMax", "https://api.minimaxi.com/anthropic/v1"))
+        // tokenhub.tencentmaas.com → tencentmaas → hunyuan
+        assertEquals("hunyuan-color.svg", resolve("TH", "https://tokenhub.tencentmaas.com/v1"))
+        assertEquals("hunyuan-color.svg", resolve("Tencent Hunyuan", "https://tokenhub.tencentmaas.com/v1"))
+        // 本批新补的图标文件：域名直接产出 slug，不经别名表
+        assertEquals("tokenrhythm.png", resolve("基元律动", "https://tokenrhythm.studio/v1"))
+        assertEquals("tokenrhythm.png", resolve("TR", "https://tokenrhythm.studio/v1"))
+        assertEquals("suixiang.png", resolve("SuiXiang AI Gateway", "https://sui-xiang.com/v1"))
+        assertEquals("ackai.png", resolve("AckAI", "https://ackai.fun/v1"))
+        assertEquals("ackai.png", resolve("A", "https://ackai.fun/v1"))
     }
 
     @Test
@@ -184,6 +201,9 @@ class AIIconMatcherTest {
         assertNull(resolve("llama"))
         assertNull(resolve("llama"))
         assertNull(resolve("o1"))
+        // UnifyLLM：站上是通用 new-api 前端，没有自有品牌 logo，favicon 是网关软件的
+        // 默认标记而非品牌方标记，本批不收；域名与名字都解析不到，仍回落首字母
+        assertNull(resolve("UnifyLLM", "https://apicn.unifyllm.top/v1"))
     }
 
     @Test

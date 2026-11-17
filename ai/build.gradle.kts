@@ -63,7 +63,7 @@ dependencies {
     // ML Kit GenAI (AICore / Gemini Nano on-device).
     // Only loads runtime native code on GenAI-capable devices; on others
     // checkStatus() returns UNAVAILABLE and the provider self-disables.
-    api("com.google.mlkit:genai-prompt:1.0.0-beta2")
+    api("com.google.mlkit:genai-prompt:1.0.0-beta5")
 
     // kotlinx
     api(libs.kotlinx.serialization.json)

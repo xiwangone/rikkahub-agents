@@ -218,6 +218,9 @@ private val HOST_ALIASES: Map<String, String> = linkedMapOf(
     "stepfun" to "stepfun",
     "modelscope" to "modelscope",
     "scnet" to "scnet",
+    "amd" to "amdradeoncloud",
+    "minimaxi" to "minimax",
+    "tencentmaas" to "hunyuan",
 )
 
 internal fun hostBrandCandidates(baseUrl: String?): List<String> {

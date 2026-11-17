@@ -384,7 +384,7 @@ dependencies {
     implementation(libs.sqlite.android)
 
     // Google Play Services Location (FusedLocationProvider)
-    implementation("com.google.android.gms:play-services-location:21.3.0")
+    implementation("com.google.android.gms:play-services-location:21.4.0")
     // kotlinx.coroutines.tasks.await for Task<*> (was previously transitive via Firebase)
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-play-services:1.11.0")
 
@@ -392,11 +392,11 @@ dependencies {
     implementation("androidx.biometric:biometric:1.2.0-alpha05")
 
     // AndroidX Media — MediaSessionCompat, MediaButtonReceiver, NotificationCompat.MediaStyle
-    implementation("androidx.media:media:1.7.0")
+    implementation("androidx.media:media:1.8.0")
 
     // AndroidX DocumentFile — Phase 25 SAF tree traversal for the ExternalStorage tools
     // (USB / SD / Downloads / cloud DocumentsProvider access via persisted tree grants).
-    implementation("androidx.documentfile:documentfile:1.0.1")
+    implementation("androidx.documentfile:documentfile:1.1.0")
 
     // modules
     implementation(project(":ai"))
@@ -423,11 +423,11 @@ dependencies {
     // SSH client (Mwiede fork — maintained, Android-friendly)
     implementation(libs.jsch)
     // JSch 使用 ed25519/ed448 OPENSSH 私钥必需（否则 Auth fail publickey）
-    implementation("org.bouncycastle:bcprov-jdk18on:1.86")
+    implementation("org.bouncycastle:bcprov-jdk18on:1.87")
     // OpenPGP（GPG）密钥环生成与 armored 导出（凭证库「生成密钥」用）
-    implementation("org.bouncycastle:bcpg-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpg-jdk18on:1.87")
     // X.509 自签证书 / PKCS#10 CSR 生成（凭证库「生成密钥」用）
-    implementation("org.bouncycastle:bcpkix-jdk18on:1.86")
+    implementation("org.bouncycastle:bcpkix-jdk18on:1.87")
 
     // Cron utilities (expression parsing & validation)
     implementation("com.cronutils:cron-utils:9.2.1")
