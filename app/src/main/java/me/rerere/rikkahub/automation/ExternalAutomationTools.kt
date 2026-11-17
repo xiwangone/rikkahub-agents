@@ -27,10 +27,10 @@ import me.rerere.ai.ui.UIMessagePart
  *  * A future phase can add the Settings UI as polish; the data model, exported activity,
  *    receiver, and trust gate are all designed to outlive that addition.
  *
- * All four mutating tools require approval — flipping any of them changes who's allowed
+ * All three mutating tools require approval — flipping any of them changes who's allowed
  * to fire the assistant from outside the app, which is squarely a privilege-escalation
- * surface. None are eligible for "Always Allow" via [ToolApprovalDefaults.NO_ALWAYS_ALLOW]
- * in the current build, but they ARE in [ToolApprovalDefaults.ALWAYS_ASK].
+ * surface. All three are in [ToolApprovalDefaults.NO_ALWAYS_ALLOW] (no "Always Allow")
+ * and in [ToolApprovalDefaults.ALWAYS_ASK]. The read-only status tool is in neither.
  */
 
 private fun errEnv(error: String, detail: String): List<UIMessagePart> =

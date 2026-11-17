@@ -5,6 +5,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.JsonObject
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
@@ -31,7 +32,7 @@ class DirectModeActionRunnerRunTest {
 
     @Test
     fun `all tools available yields success`() = runBlocking {
-        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json)
+        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json) { me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE }
         val seq = runner.run(
             actions = listOf(action("send_notification")),
             availableTools = listOf(fakeTool("send_notification")),
@@ -42,7 +43,7 @@ class DirectModeActionRunnerRunTest {
 
     @Test
     fun `unavailable tool yields failed outcome naming the tool`() = runBlocking {
-        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json)
+        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json) { me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE }
         val seq = runner.run(
             actions = listOf(action("send_notification")),
             availableTools = emptyList(), // tool was disabled after job creation
@@ -56,7 +57,7 @@ class DirectModeActionRunnerRunTest {
 
     @Test
     fun `unavailable tool in second action is still reported by name`() = runBlocking {
-        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json)
+        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json) { me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE }
         val seq = runner.run(
             actions = listOf(action("get_battery"), action("send_sms")),
             availableTools = listOf(fakeTool("get_battery")), // send_sms missing
@@ -68,6 +69,76 @@ class DirectModeActionRunnerRunTest {
         assertTrue("error points at action index 1", err.contains("action 1"))
     }
 
+    private fun gatedTool(name: String): Tool = Tool(
+        name = name,
+        description = "fake gated",
+        needsApproval = { true },
+        execute = { listOf(UIMessagePart.Text("ok")) },
+    )
+
+    private fun runnerWith(snapshot: ToolApprovalDefaults.HeadlessApprovalSnapshot) =
+        DirectModeActionRunner(kotlinx.serialization.json.Json) { snapshot }
+
+    // ── Headless authorisation (A1) ──────────────────────────────────────────
+
+    @Test
+    fun `NO_ALWAYS_ALLOW tool is skipped even with YOLO on`() = runBlocking {
+        val runner = runnerWith(
+            ToolApprovalDefaults.HeadlessApprovalSnapshot(yoloEnabled = true, alwaysAllowGrants = emptySet()),
+        )
+        val seq = runner.run(
+            actions = listOf(action("vault_ssh_exec")),
+            availableTools = listOf(gatedTool("vault_ssh_exec")),
+        )
+        assertEquals("failed", seq.finalOutcome)
+        assertEquals(listOf("vault_ssh_exec"), seq.skippedTools)
+        val err = requireNotNull(seq.errorMessage)
+        assertTrue(err.contains("authorization_required"))
+        assertTrue(err.contains("can never run unattended"))
+    }
+
+    @Test
+    fun `gated tool runs with a persistent grant`() = runBlocking {
+        val runner = runnerWith(
+            ToolApprovalDefaults.HeadlessApprovalSnapshot(
+                yoloEnabled = false,
+                alwaysAllowGrants = setOf("ssh_exec"),
+            ),
+        )
+        val seq = runner.run(
+            actions = listOf(action("ssh_exec")),
+            availableTools = listOf(gatedTool("ssh_exec")),
+        )
+        assertEquals("success", seq.finalOutcome)
+        assertTrue(seq.skippedTools.isEmpty())
+    }
+
+    @Test
+    fun `gated tool without a grant is skipped with a visible record`() = runBlocking {
+        val runner = runnerWith(ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE)
+        val seq = runner.run(
+            actions = listOf(action("ssh_exec")),
+            availableTools = listOf(gatedTool("ssh_exec")),
+        )
+        assertEquals("failed", seq.finalOutcome)
+        assertEquals(listOf("ssh_exec"), seq.skippedTools)
+        val err = requireNotNull(seq.errorMessage)
+        assertTrue(err.contains("authorization_required"))
+        assertTrue(err.contains("needs authorization first"))
+    }
+
+    @Test
+    fun `partial skip still succeeds but names the skipped tool`() = runBlocking {
+        val runner = runnerWith(ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE)
+        val seq = runner.run(
+            actions = listOf(action("send_notification"), action("ssh_exec")),
+            availableTools = listOf(fakeTool("send_notification"), gatedTool("ssh_exec")),
+        )
+        assertEquals("success", seq.finalOutcome)
+        assertEquals(listOf("ssh_exec"), seq.skippedTools)
+        assertTrue(requireNotNull(seq.errorMessage).contains("ssh_exec"))
+    }
+
     /**
      * A cancelled tool must unwind the run as a real cancellation, not get turned into a
      * `failed` SequenceResult. WorkflowActionRunner already re-throws CancellationException
@@ -75,7 +146,7 @@ class DirectModeActionRunnerRunTest {
      */
     @Test
     fun `cancellation from a tool propagates instead of becoming a Failed outcome`() = runBlocking {
-        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json)
+        val runner = DirectModeActionRunner(kotlinx.serialization.json.Json) { me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE }
         val cancellingTool = Tool(
             name = "boom",
             description = "fake",

@@ -98,7 +98,6 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
  */
 private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "mimo" to "xiaomimimo",
-    "xiaomimimo" to "xiaomimimo",
     "glm" to "zhipu",
     "glm4" to "zhipu",
     "glm4v" to "zhipu",
@@ -111,15 +110,12 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "alibabacloudbailian" to "bailian",
     "tencenthunyuan" to "hunyuan",
     "moonshotai" to "moonshot",
-    "sensenova" to "sensenova",
-    "zhipu" to "zhipu",
-    "grok" to "xai",
+    // grok-* 走**模型家族表**（"grok" 不在本表里，否则自映射会短路掉 lookupIconFile 的回退）。
+    // 库里 grok.svg 是产品标、xai.svg 是公司 X 形标；模型列表要显示产品标。
     "kimi" to "moonshot",
-    "qwen" to "qwen",
     // 万相（Wan）是阿里通义的生图模型；库里没有独立 wan 图标，归阿里
     "wan" to "alibaba",
     "ernie" to "wenxin",
-    "hunyuan" to "hunyuan",
     // ── 模型名里常见的品牌缩写（与提供商名共用一张表，模型解析见
     // [computeModelIconByName]）──
     // gpt-* 是 OpenAI 的模型名前缀（库里只有 openai.svg，没有 gpt.svg）
@@ -161,6 +157,7 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "o1-preview" to "openai",
     // claude-* 用 Claude 自己的标（库里 claude-color.svg），不是 Anthropic 公司标：
     // 模型列表里一排 claude-* 全显示公司的 A 形标，既分不出系列也认不出是 Claude。
+    "grok" to "grok",
     "muse" to "muse",
     "claude" to "claude",
     "gemini" to "gemini",
@@ -395,23 +392,14 @@ fun computeModelIconByName(
 private val HOST_ALIASES: Map<String, String> = linkedMapOf(
     "bigmodel" to "zhipu",
     "zhipuai" to "zhipu",
-    "agnesai" to "agnesai",
     "xiaomi" to "xiaomimimo",
-    "moonshot" to "moonshot",
     "dashscope" to "qwen",
     "aliyuncs" to "qwen",
     "volces" to "volcengine",
     "volcengineapi" to "volcengine",
-    "hunyuan" to "hunyuan",
     "tencentcloudapi" to "tencentcloud",
     "baidubce" to "baidu",
-    "siliconflow" to "siliconflow",
-    "deepseek" to "deepseek",
-    "minimax" to "minimax",
     "sensetime" to "sensenova",
-    "stepfun" to "stepfun",
-    "modelscope" to "modelscope",
-    "scnet" to "scnet",
     "amd" to "amdradeoncloud",
     "minimaxi" to "minimax",
     "tencentmaas" to "hunyuan",

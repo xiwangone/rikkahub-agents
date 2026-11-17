@@ -50,7 +50,6 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.ai.ModelAbilityTag
 import me.rerere.rikkahub.ui.components.ai.ModelModalityTag
 import me.rerere.rikkahub.ui.components.ai.ModelTypeTag
-import me.rerere.rikkahub.ui.components.ui.AutoAIIcon
 import me.rerere.rikkahub.ui.components.ui.AutoModelIcon
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
@@ -58,6 +57,7 @@ import me.rerere.rikkahub.ui.components.ui.TagType
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.theme.CustomColors
+import me.rerere.rikkahub.utils.baseUrlOrNull
 
 @Composable
 internal fun ModelCard(
@@ -257,9 +257,15 @@ internal fun ModelCard(
                     color = MaterialTheme.colorScheme.secondaryContainer,
                     shape = MaterialTheme.shapes.small,
                 ) {
+                    // 模型行图标与聊天侧同口径：覆盖表 > 模型名品牌匹配 >
+                    // 所属提供商名/端点品牌匹配 > 首字母（只传名字时自定义短名
+                    // 的模型与覆盖过的提供商都解析不到品牌标）。
                     AutoModelIcon(
                         modelId = model.modelId,
                         modifier = Modifier.size(36.dp),
+                        providerName = parentProvider.name,
+                        iconOverride = iconOverride,
+                        baseUrl = parentProvider.baseUrlOrNull(),
                     )
                 }
                 Column(

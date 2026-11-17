@@ -108,6 +108,14 @@ object ToolApprovalDefaults {
         "search_contacts",
         "list_sms_inbox",
         "search_sms",
+        // Clipboard / focused-field reads — the clipboard and the focused text
+        // field routinely hold tokens, passwords and card numbers; reading them
+        // into model context is PII exfiltration like contacts/sms, so they get
+        // the same gate (previously ungated: the keyboard KDoc claimed the read
+        // tools were "deliberately NOT" gated, and clipboard_tool had no entry).
+        "clipboard_tool",
+        "keyboard_read_field",
+        "keyboard_editor_info",
 
         // Notification listener side effects (read-only listing is free, mutating is not)
         "dismiss_notification",
@@ -184,6 +192,22 @@ object ToolApprovalDefaults {
         "workflow_set_enabled",
         "workflow_run",
 
+        // Workspace shell — executes arbitrary shell (foreground or persistent
+        // background) inside the bound workspace (local Rootfs or remote SSH
+        // host). Same trust footprint as ssh_exec / termux_run_command, so the
+        // central set gates it: the per-workspace switch can only ADD approval
+        // (see WorkspaceTools.resolveWorkspaceToolApprovalWithCentral), never
+        // remove this gate. Deliberately NOT in NO_ALWAYS_ALLOW — YOLO /
+        // per-chat authorisation can cover it, like ssh_exec. (Persistent
+        // "Always Allow" never applies to workspace_ names by design:
+        // ToolApprovalPreferences refuses them because grants are
+        // per-workspace, not global — so headless workspace_shell is
+        // YOLO-only. Other workspace tools stay switch-gated: their work is
+        // confined to the workspace Rootfs, which is exactly what the switch
+        // isolates.)
+        "workspace_shell",
+        "workspace_run_background",
+
         // Skill import (Phase 16) — pulls a markdown / JSON skill from an arbitrary URL
         // (or from raw text the LLM already fetched via ssh / curl / MCP) and installs
         // it. Whatever is in the skill rides along with the assistant's tool surface,
@@ -253,7 +277,8 @@ object ToolApprovalDefaults {
 
         // agent-keyboard control — every tool that mutates the focused text field or cursor
         // is side-effecting and approval-gated. The two read tools (keyboard_read_field,
-        // keyboard_editor_info) are deliberately NOT in this set. No HARDLINE arm is needed:
+        // keyboard_editor_info) are gated in the privacy-reads section above: focused-field
+        // text can carry credentials. No HARDLINE arm is needed:
         // typing a string into a focused field is not shell execution, and agent-keyboard
         // itself refuses password / sensitive fields at the IME boundary.
         "keyboard_type",
@@ -331,6 +356,13 @@ object ToolApprovalDefaults {
         // blanket 放行，一个无人值守的回合就能"先改条目指向别处、再 ssh_exec_saved"，等于绕开
         // vault_ssh_exec 的逐次确认。保存是低频操作，逐次确认代价很小。
         "save_ssh_host",
+        // Phase 13 — External Automation mutations: flipping any of these changes
+        // who's allowed to fire the assistant from outside the app (privilege
+        // escalation). A standing "Always Allow" would let an unattended turn
+        // enable the API or trust a new caller package. Per-call confirmation.
+        "external_automation_set_enabled",
+        "external_automation_add_trusted_package",
+        "external_automation_remove_trusted_package",
     )
 
     /**
@@ -367,12 +399,145 @@ object ToolApprovalDefaults {
     fun isAutoApprovable(toolName: String): Boolean = allowsAlwaysAllow(toolName)
 
     /**
-     * True if [toolName] requires approval. Local tools are looked up in [ALWAYS_ASK];
-     * MCP-relayed tools (`mcp__*`) are always gated because the MCP server's tool surface
-     * is opaque to us — we can't know which calls are destructive. An MCP server that
-     * exposes purely-read tools costs the user one approval per session via "Always
-     * Allow", which is a fair trade for the floor.
+     * True if [toolName] requires approval by name. Local tools are looked up in
+     * [ALWAYS_ASK]; MCP-relayed tools (`mcp__*`) always match this name rule
+     * because the MCP server's tool surface is opaque to us — we can't know which
+     * calls are destructive. This is the *name* half of the gate for a relayed
+     * call: the effective decision is [mcpRelayNeedsApproval], which ANDs this
+     * rule with the stored per-tool flag, so a user-flipped flag can exempt a
+     * single read-only tool. The name rule alone no longer means "always
+     * gated" — see [mcpRelayNeedsApproval].
      */
     fun requiresApproval(toolName: String): Boolean =
         toolName in ALWAYS_ASK || toolName.startsWith("mcp__")
+
+    /**
+     * MCP 中转工具（`mcp__*`）的审批判定：名字规则与存下来的单工具开关取与。
+     *
+     * [requiresApproval] 对 `mcp__*` 恒为真（名字前缀规则），取与后开关完全
+     * 说了算：开关 true → 审批，false → 不审批。新发现工具默认 true（见
+     * McpTool.needsApproval），所以默认仍是每次审批；用户把单个开关拨到
+     * false 才放行。写成取与而不是直接取开关，是为保留名字规则在判定里——
+     * 名字规则与开关缺一不可：将来若前缀规则变化、某名字不再命中名字规则，
+     * 开关 true 也不会凭空造出审批。
+     */
+    fun mcpRelayNeedsApproval(toolName: String, storedNeedsApproval: Boolean): Boolean =
+        requiresApproval(toolName) && storedNeedsApproval
+    /**
+     * Snapshot of the persistent authorisation state a headless fire consults.
+     * Read once per fire (not per action) so a grant revoked mid-run cannot
+     * change the outcome halfway through the sequence.
+     */
+    data class HeadlessApprovalSnapshot(
+        val yoloEnabled: Boolean,
+        val alwaysAllowGrants: Set<String>,
+    ) {
+        companion object {
+            /** Nothing granted — the fail-closed default for tests and unknown callers. */
+            val NONE = HeadlessApprovalSnapshot(yoloEnabled = false, alwaysAllowGrants = emptySet())
+        }
+    }
+
+    /**
+     * Headless auto-approval — the unattended twin of ChatService's
+     * isToolAutoApprovedForConversation. A headless fire (cron direct-mode,
+     * workflow) has no conversation, so it recognises ONLY:
+     *  · global YOLO, or
+     *  · a persistent "Always Allow" grant for the tool.
+     * Session-scoped ("Allow for this chat", 💬) and one-time approvals do not
+     * apply — there is nobody in the room to have granted them, and a grant
+     * made for one chat must never leak into an unattended run (user decision
+     * 2026-11-17: "无人值守只认 YOLO 与持久授权，会话/一次不适用").
+     *
+     * NO_ALWAYS_ALLOW tools are never auto-approved by any blanket path
+     * ([isAutoApprovable] == false): headless has no 💬, so those 16 tools can
+     * never run unattended. "ask_user" is likewise never auto-approved
+     * headless — it needs a live user to answer, and the chat path only
+     * auto-approves it inside a marked headless conversation.
+     *
+     * Workspace tools ("workspace_*") are never covered by a persistent grant:
+     * ToolApprovalPreferences refuses workspace_ names (grants are
+     * per-workspace, not global), so headless workspace tools are YOLO-only.
+     */
+    fun isHeadlessAutoApproved(
+        toolName: String,
+        snapshot: HeadlessApprovalSnapshot,
+    ): Boolean {
+        if (toolName == "ask_user") return false
+        if (!isAutoApprovable(toolName)) return false
+        return snapshot.yoloEnabled ||
+            (!me.rerere.rikkahub.data.preferences.isWorkspaceToolName(toolName) &&
+                toolName in snapshot.alwaysAllowGrants)
+    }
+
+    /**
+     * Human-readable reason a headless fire skips [toolName]. Shared by the
+     * cron and workflow runners so both run histories word the gap the same
+     * way: a NO_ALWAYS_ALLOW tool can never run unattended, anything else
+     * just needs a prior grant.
+     */
+    fun headlessSkipReason(toolName: String): String =
+        if (!isAutoApprovable(toolName)) {
+            "$toolName can never run unattended (it requires a per-call confirmation every time)"
+        } else {
+            "$toolName needs authorization first (grant 'Always Allow' in a chat, or enable YOLO)"
+        }
+
+    /**
+     * Name-based approximation of "would this tool need a prior authorisation
+     * grant to run headless". Used by creation-time validation, where only
+     * tool NAMES are known (no Tool instances to call needsApproval on).
+     *
+     * True when the central policy gates the tool ([requiresApproval]) or the
+     * tool can never be blanket-approved ([isAutoApprovable] == false — the
+     * NO_ALWAYS_ALLOW set, whose members' factories all set needsApproval
+     * { true } but which are NOT all in ALWAYS_ASK, e.g. vault_ssh_exec).
+     *
+     * Known gap (by design; the fire-time check is authoritative and catches
+     * it): a tool whose factory lambda returns true but which is in neither
+     * set (e.g. vault_export_env) is NOT flagged here — creation succeeds,
+     * and the runner skips it at fire time with a visible record. There are
+     * no false positives today: every tool this returns true for has
+     * needsApproval { true } in its factory or via the LocalTools opt-in.
+     */
+    fun requiresHeadlessAuthorization(toolName: String): Boolean =
+        requiresApproval(toolName) || !isAutoApprovable(toolName)
+
+    /**
+     * Creation-time authorisation detail for [toolNames], or null when every
+     * tool is already covered by [snapshot]. Shared by the cron validator
+     * and the workflow create/update tools so both word the error the same
+     * way. Returns the detail text only — callers wrap it in their own error
+     * type (`ValidationError` / `errorResponse("authorization_required", …)`).
+     *
+     * [kind] is the thing being created ("job" / "workflow") and is woven
+     * into the wording. Two groups, because the fix differs: tools that can
+     * never run unattended must be removed from the definition; the rest just
+     * need a prior grant ("Always Allow" in a chat, or YOLO) before the
+     * definition is created again.
+     */
+    fun headlessAuthorizationDetail(
+        toolNames: List<String>,
+        snapshot: HeadlessApprovalSnapshot,
+        kind: String,
+    ): String? {
+        val unauthorized =
+            toolNames.distinct().filter { toolName ->
+                requiresHeadlessAuthorization(toolName) &&
+                    !isHeadlessAutoApproved(toolName, snapshot)
+            }
+        if (unauthorized.isEmpty()) return null
+        val neverAllowed = unauthorized.filter { !isAutoApprovable(it) }
+        val needsGrant = unauthorized - neverAllowed.toSet()
+        return buildString {
+            if (neverAllowed.isNotEmpty()) {
+                append("tools ${neverAllowed.joinToString(", ")} can never run unattended ")
+                append("(they require a per-call confirmation every time); remove them from the $kind. ")
+            }
+            if (needsGrant.isNotEmpty()) {
+                append("tools ${needsGrant.joinToString(", ")} need authorization first: ")
+                append("in a chat, grant 'Always Allow' for each tool, or enable YOLO, then create the $kind again.")
+            }
+        }.trim()
+    }
 }

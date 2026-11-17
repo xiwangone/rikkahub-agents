@@ -36,7 +36,10 @@ import me.rerere.rikkahub.data.log.AppLog
  * 与对话卡片中的展示态渲染（UIMessageAnnotation）互补：卡片负责展示，本桥负责交互。
  * 应答状态存在进程内存（进程被杀则交互失效），与 MCP 审批桥同一模式。
  */
-class BackendInteractionNotifier(private val context: Context) : BackendInteractionHandler {
+class BackendInteractionNotifier(
+    private val context: Context,
+    private val client: okhttp3.OkHttpClient,
+) : BackendInteractionHandler {
 
     private companion object {
         const val TAG = "BackendInteraction"
@@ -330,6 +333,7 @@ class BackendInteractionNotifier(private val context: Context) : BackendInteract
             password = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(setting.password),
             // 支持 `$$凭证名` 引用（未命中保持原样，便于暴露配置错误）
             token = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(setting.token),
+            client = client,
         )
 
     private fun ensureReceiverRegistered() {

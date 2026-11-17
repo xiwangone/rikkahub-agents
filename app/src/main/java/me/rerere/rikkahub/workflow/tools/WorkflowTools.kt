@@ -35,6 +35,7 @@ fun workflowCreateTool(
     knownToolNamesProvider: () -> List<String>,
     callerContext: me.rerere.rikkahub.data.ai.tools.ToolInvocationContext =
         me.rerere.rikkahub.data.ai.tools.ToolInvocationContext.EMPTY,
+    approvalSnapshot: suspend () -> me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot,
 ): Tool =
     Tool(
         name = "workflow_create",
@@ -123,6 +124,11 @@ fun workflowCreateTool(
                 }
 
                 is WorkflowJson.ParseResult.Ok -> {
+                    // Headless authorisation, checked after parse so shape /
+                    // unknown-tool errors win over the authorisation error.
+                    me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.headlessAuthorizationDetail(
+                        parsed.definition.actions.map { it.tool }, approvalSnapshot(), "workflow",
+                    )?.let { return@Tool errorResponse("authorization_required", it) }
                     // Stamp the authoring assistant from the caller context — the engine reads
                     // this back at fire time to resolve the right tool surface deterministically.
                     // If the user-declared definition pre-set an authoringAssistantId we trust it
@@ -285,6 +291,7 @@ fun workflowUpdateTool(
     knownToolNamesProvider: () -> List<String>,
     callerContext: me.rerere.rikkahub.data.ai.tools.ToolInvocationContext =
         me.rerere.rikkahub.data.ai.tools.ToolInvocationContext.EMPTY,
+    approvalSnapshot: suspend () -> me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot,
 ): Tool =
     Tool(
         name = "workflow_update",
@@ -324,6 +331,11 @@ fun workflowUpdateTool(
                 }
 
                 is WorkflowJson.ParseResult.Ok -> {
+                    // Headless authorisation — same check as workflow_create:
+                    // an unauthorised action must not be smuggled in via update.
+                    me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.headlessAuthorizationDetail(
+                        parsed.definition.actions.map { it.tool }, approvalSnapshot(), "workflow",
+                    )?.let { return@Tool errorResponse("authorization_required", it) }
                     val existing =
                         repository.getById(parsed.definition.id)
                             ?: return@Tool errorResponse(

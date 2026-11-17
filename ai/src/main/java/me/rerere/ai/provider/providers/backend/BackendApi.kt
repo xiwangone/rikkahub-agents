@@ -1,7 +1,6 @@
 package me.rerere.ai.provider.providers.backend
 
 import java.io.IOException
-import java.util.concurrent.TimeUnit
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.Json
@@ -11,7 +10,6 @@ import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.util.shortRequestClient
-import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.MediaType.Companion.toMediaType
@@ -23,20 +21,18 @@ import okhttp3.RequestBody.Companion.toRequestBody
  * Backend REST API — 对应 serve 端点的 HTTP 客户端。
  * 使用 kotlinx.serialization 编解码。
  * 增加 Basic Auth / Bearer 认证支持（nginx Basic Auth 前置）。
+ *
+ * [client] 是注入的共享 OkHttpClient（与 ProviderManager / ClaudeProvider
+ * 同一来源，带代理 / DNS / Tsnet 与脱敏请求日志）；本类不再自建客户端，
+ * 也不再另挂 SafeRequestLoggingInterceptor——共享客户端的
+ * RequestLoggingInterceptor 已做同样的最小日志。
  */
 class BackendApi(
     private val baseUrl: String,
     private val username: String = "",
     private val password: String = "",
     private val token: String = "",
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(120, TimeUnit.SECONDS)
-        .readTimeout(120, TimeUnit.SECONDS)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
-        // （baseUrl 后的路径含会话信息，:common 层无脱敏能力）。
-        .addInterceptor(SafeRequestLoggingInterceptor())
-        .build(),
+    private val client: OkHttpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
     private val jsonMediaType = "application/json; charset=utf-8".toMediaType()

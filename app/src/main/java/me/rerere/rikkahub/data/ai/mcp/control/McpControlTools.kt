@@ -823,9 +823,10 @@ fun mcpListToolsTool(
 fun mcpSetToolApprovalTool(settingsStore: SettingsStore): Tool = Tool(
     name = "mcp_set_tool_approval",
     description = """
-        Set the needsApproval flag on a single MCP tool exposed by a given server. Useful
-        for marking specific tools as side-effecting on a server whose tool list is
-        otherwise read-only — without flipping approval for every other call.
+        Set the needsApproval flag on a single MCP tool exposed by a given server.
+        Newly discovered tools default to needing approval; use this to exempt a
+        specific read-only tool (or to re-require approval on one) without flipping
+        approval for every other call.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(

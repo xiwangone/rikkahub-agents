@@ -29,7 +29,7 @@ class AIIconMatcherTest {
         "baichuan-color.svg", "internlm-color.svg", "tiangong-color.svg",
         "zeroone-color.svg", "infinigence-color.svg", "siliconflow.svg",
         "metaso.svg", "bytedance-color.svg", "minimax-color.svg",
-        "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "glmv-color.svg",
+        "xiaomimimo.svg", "open-design.png", "agnesai.svg", "xai.svg", "grok.svg", "glmv-color.svg",
         // 模型家族 / 厂商需要用到的
         "anthropic.svg", "qiniu-color.svg", "poolside-color.svg", "internlm-color.svg",
         "minimax-color.svg", "gemma-color.svg", "meta-color.svg", "google-color.svg",
@@ -296,7 +296,8 @@ class AIIconMatcherTest {
         // 但模型名已经解析到了，兜底走不到。提供商是「腾讯混元」时仍是混元标。
         assertEquals("hunyuan-color.svg", resolveModel("tencent/hy4-preview"))
         assertEquals("stepfun-color.svg", resolveModel("step-5-preview"))
-        assertEquals("xai.svg", resolveModel("grok-4.7"))
+        // grok-* 显示 Grok 产品标（库里 grok.svg），不是 xAI 的公司 X 形标
+        assertEquals("grok.svg", resolveModel("grok-4.7"))
         assertEquals("longcat-color.svg", resolveModel("longcat-2.0"))
         assertEquals("tokenrhythm.png", resolveModel("neohorse-1-9b"))
         assertEquals("tokenrhythm.png", resolveModel("neohorse-1.5-flash-preview"))

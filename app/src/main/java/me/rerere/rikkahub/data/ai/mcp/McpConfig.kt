@@ -56,7 +56,11 @@ data class McpTool(
     val name: String = "",
     val description: String? = null,
     val inputSchema: InputSchema? = null,
-    val needsApproval: Boolean = false
+    // 默认需要审批：新发现工具先弹卡片，用户把开关拨到 false 才放行。
+    // 序列化约定（JsonInstant，encodeDefaults=true）：已存 JSON 里该字段是
+    // 显式写出的，改默认值不影响存量值；缺失字段的极旧存量落到 true；
+    // 用户显式设过 false 的保留 false。
+    val needsApproval: Boolean = true
 )
 
 @Serializable

@@ -161,6 +161,23 @@ class LocalTools(
     private val doctorChecks: me.rerere.rikkahub.ui.pages.setting.doctor.DoctorChecks,
     private val providerManager: me.rerere.ai.provider.ProviderManager,
 ) {
+    // Headless authorisation snapshot for the creation-time authorization_required
+    // checks of the cron / workflow tools (read once per tool call, not per
+    // action, so a create call sees a consistent authorisation state).
+    // Resolved from Koin here, not injected: the constructor signature is a
+    // detekt-baseline key (LongParameterList) and adding a parameter would
+    // orphan the registered entry — the same reason WorkflowJson.parse keeps
+    // its signature. No JVM test constructs LocalTools, so the lookup never
+    // runs outside a started Koin (same GlobalContext idiom as below).
+    private val approvalSnapshot: suspend () -> me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot =
+        {
+            val prefs = GlobalContext.get().get<me.rerere.rikkahub.data.preferences.ToolApprovalPreferences>()
+            me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot(
+                yoloEnabled = prefs.currentYolo(),
+                alwaysAllowGrants = prefs.current(),
+            )
+        }
+
     // eval_javascript 的实现已移到同目录 JavascriptTool.kt：那边用原生内存/栈上限、
     // 求值超时与中断、日志长度上限做保护，装配处直接调用 buildJavascriptTool()。
 
@@ -321,6 +338,7 @@ class LocalTools(
             me.rerere.rikkahub.data.ai.tools.local.scheduleJobDirectTool(
                 scheduledJobRepository, cronJobScheduler, settingsStore,
                 knownToolNamesProvider = { tools.map { it.name } },
+                approvalSnapshot = approvalSnapshot,
             ),
         )
         tools.add(
@@ -332,6 +350,7 @@ class LocalTools(
             me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(
                 scheduledJobRepository, cronJobScheduler, settingsStore,
                 knownToolNamesProvider = { tools.map { it.name } },
+                approvalSnapshot = approvalSnapshot,
             ),
         )
         tools.add(me.rerere.rikkahub.data.ai.tools.local.listJobsTool(scheduledJobRepository))
@@ -568,6 +587,7 @@ class LocalTools(
                 workflowRepository,
                 knownToolNamesProvider = { tools.map { it.name } },
                 callerContext = invocationContext,
+                approvalSnapshot = approvalSnapshot,
             ),
         )
         tools.add(me.rerere.rikkahub.workflow.tools.workflowListTool(workflowRepository))
@@ -577,6 +597,7 @@ class LocalTools(
                 workflowRepository,
                 knownToolNamesProvider = { tools.map { it.name } },
                 callerContext = invocationContext,
+                approvalSnapshot = approvalSnapshot,
             ),
         )
         tools.add(me.rerere.rikkahub.workflow.tools.workflowDeleteTool(workflowRepository))

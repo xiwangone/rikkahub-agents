@@ -26,7 +26,7 @@ class ProviderManager(
         registerProvider("google", GoogleProvider(client, context))
         registerProvider("claude", ClaudeProvider(client, context))
         registerProvider("aicore", AICoreProvider(context))
-        registerProvider("backend", BackendProvider(cliExecutor))
+        registerProvider("backend", BackendProvider(client, cliExecutor))
     }
 
     /**

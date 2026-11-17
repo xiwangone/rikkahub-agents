@@ -46,13 +46,14 @@ import kotlin.uuid.Uuid
  */
 class BackendProvider(
     private val clientFactory: (ProviderSetting.Backend) -> BackendApi,
-    private val httpClient: OkHttpClient = OkHttpClient(),
+    private val httpClient: OkHttpClient,
     private val cliExecutor: CliCommandExecutor? = null,
     private val interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
     private val sessionPathStore: SessionPathStore = SessionPathStore.NOOP,
 ) : Provider<ProviderSetting.Backend> {
 
     constructor(
+        httpClient: OkHttpClient,
         cliExecutor: CliCommandExecutor? = null,
         interactionHandler: BackendInteractionHandler = BackendInteractionHandler.NOOP,
         sessionPathStore: SessionPathStore = SessionPathStore.NOOP,
@@ -63,8 +64,10 @@ class BackendProvider(
                 username = setting.username,
                 password = setting.password,
                 token = setting.token,
+                client = httpClient,
             )
         },
+        httpClient = httpClient,
         cliExecutor = cliExecutor,
         interactionHandler = interactionHandler,
         sessionPathStore = sessionPathStore,
@@ -243,6 +246,7 @@ class BackendProvider(
                     username = providerSetting.username,
                     password = providerSetting.password,
                     token = providerSetting.token,
+                    client = httpClient,
                     historyLoader = { runBlocking { api.getHistory() } },
                     statusLoader = { runBlocking { api.getStatus() } },
                 )

@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.tools.LocalToolOption
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.preferences.ToolApprovalPreferences
 import me.rerere.rikkahub.data.vault.CredentialPurpose
 import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
@@ -32,6 +33,7 @@ class LocalMcpServerManager(
     private val settingsStore: SettingsStore,
     private val localTools: LocalTools,
     private val vaultRepository: CredentialVaultRepository,
+    private val toolApprovalPreferences: ToolApprovalPreferences,
 ) {
 
     companion object {
@@ -88,7 +90,12 @@ class LocalMcpServerManager(
     }
 
     private val registry = LocalToolRegistry(localTools)
-    private val approvalBridge = LocalApprovalBridge(context)
+    // 入站审批与对话路径同一套决策（YOLO / 持久“总是允许”）；会话级 💬 没有
+    // 会话上下文，不适用。见 LocalApprovalBridge。
+    private val approvalBridge = LocalApprovalBridge(context) { toolName ->
+        toolApprovalPreferences.currentYolo() ||
+            toolApprovalPreferences.current().contains(toolName)
+    }
 
     private val _state = MutableStateFlow(LocalMcpServerState())
     val state: StateFlow<LocalMcpServerState> = _state.asStateFlow()

@@ -259,6 +259,9 @@ internal fun buildClipboardTool(context: Context): Tool = run {
                     required = listOf("action")
                 )
             },
+            // Approval-gated: a read pulls whatever is on the clipboard — often a
+            // token, password, or card number — into model context.
+            needsApproval = { true },
             execute = {
                 val params = it.jsonObject
                 val action = params.optString("action") ?: error("action is required")

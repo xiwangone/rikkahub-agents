@@ -70,8 +70,17 @@ val appModule =
             )
         }
         single {
+            val prefs: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences = get()
             me.rerere.rikkahub.service
-                .DirectModeActionRunner(get())
+                .DirectModeActionRunner(
+                    json = get(),
+                    approvalSnapshot = {
+                        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot(
+                            yoloEnabled = prefs.currentYolo(),
+                            alwaysAllowGrants = prefs.current(),
+                        )
+                    },
+                )
         }
         single { CronJobScheduler(get(), get()) }
         single { SshHostRepository(get<me.rerere.rikkahub.data.db.AppDatabase>().sshHostDao()) }
@@ -217,8 +226,16 @@ val appModule =
                 .ContextProvider(get())
         }
         single {
+            val prefs: me.rerere.rikkahub.data.preferences.ToolApprovalPreferences = get()
             me.rerere.rikkahub.workflow.execution
-                .WorkflowActionRunner()
+                .WorkflowActionRunner(
+                    approvalSnapshot = {
+                        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot(
+                            yoloEnabled = prefs.currentYolo(),
+                            alwaysAllowGrants = prefs.current(),
+                        )
+                    },
+                )
         }
         single {
             me.rerere.rikkahub.workflow.execution
@@ -293,12 +310,14 @@ val appModule =
                 settingsStore = get(),
                 localTools = get(),
                 vaultRepository = get(),
+                toolApprovalPreferences = get(),
             )
         }
 
         single {
             me.rerere.rikkahub.data.ai.backend.BackendInteractionNotifier(
                 context = get(),
+                client = get(),
             )
         }
 

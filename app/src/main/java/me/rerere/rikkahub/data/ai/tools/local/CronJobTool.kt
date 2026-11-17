@@ -18,6 +18,7 @@ import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.HardlineCommandGuard
+import me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
 import me.rerere.rikkahub.service.MAX_HISTORY_RETENTION
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -45,17 +46,25 @@ private fun errEnvelope(code: String, detail: String, extra: JsonObject? = null)
 object ScheduleJobValidator {
     data class ValidationError(val code: String, val detail: String, val extra: JsonObject? = null)
 
-    fun validate(input: JsonObject, knownToolNames: List<String>): ValidationError? {
+    fun validate(
+        input: JsonObject,
+        knownToolNames: List<String>,
+        approval: ToolApprovalDefaults.HeadlessApprovalSnapshot,
+    ): ValidationError? {
         val mode = (input["mode"] as? JsonPrimitive)?.contentOrNull
         if (mode != "llm" && mode != "direct") return ValidationError("bad_mode", "mode must be 'llm' or 'direct'")
         return when (mode) {
             "llm" -> validateLlm(input)
-            else -> validateDirect(input, knownToolNames)
+            else -> validateDirect(input, knownToolNames, approval)
         }
     }
 
     /** Validates mode='direct' inputs. Expects no 'mode' field (fixed by tool). */
-    fun validateDirect(input: JsonObject, knownToolNames: List<String>): ValidationError? {
+    fun validateDirect(
+        input: JsonObject,
+        knownToolNames: List<String>,
+        approval: ToolApprovalDefaults.HeadlessApprovalSnapshot,
+    ): ValidationError? {
         val prompt = (input["prompt"] as? JsonPrimitive)?.contentOrNull
         val actions = input["actions"] as? kotlinx.serialization.json.JsonArray
         if (actions == null || prompt != null)
@@ -77,6 +86,18 @@ object ScheduleJobValidator {
             if (hardline != null)
                 return ValidationError("hardline_blocked", "action $idx: $hardline")
         }
+        // Headless authorisation, checked last so shape / unknown-tool /
+        // HARDLINE errors (which the model can fix by editing the job) win
+        // over the authorisation error (which needs the user, not the model).
+        // Hard error, like the other validators: the model surfaces it to the
+        // user, who grants the authorisation in a chat and retries creation.
+        ToolApprovalDefaults.headlessAuthorizationDetail(
+            toolNames = actions.mapNotNull { el ->
+                (el as? JsonObject)?.let { (it["tool"] as? JsonPrimitive)?.contentOrNull }
+            },
+            snapshot = approval,
+            kind = "job",
+        )?.let { return ValidationError("authorization_required", it) }
         return validateCommon(input)
     }
 
@@ -291,6 +312,7 @@ fun scheduleJobDirectTool(
     scheduler: CronJobScheduler,
     settingsStore: SettingsStore,
     knownToolNamesProvider: () -> List<String>,
+    approvalSnapshot: suspend () -> ToolApprovalDefaults.HeadlessApprovalSnapshot,
 ): Tool = Tool(
     name = "schedule_job_direct",
     description = """
@@ -328,7 +350,7 @@ fun scheduleJobDirectTool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        ScheduleJobValidator.validateDirect(obj, knownToolNamesProvider())?.let { err ->
+        ScheduleJobValidator.validateDirect(obj, knownToolNamesProvider(), approvalSnapshot())?.let { err ->
             return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
         }
         textPart(createScheduledJob(repo, scheduler, settingsStore, obj, "direct"))
@@ -385,6 +407,7 @@ fun scheduleJobTool(
     scheduler: CronJobScheduler,
     settingsStore: SettingsStore,
     knownToolNamesProvider: () -> List<String>,
+    approvalSnapshot: suspend () -> ToolApprovalDefaults.HeadlessApprovalSnapshot,
 ): Tool = Tool(
     name = "schedule_job",
     description = """
@@ -431,7 +454,7 @@ fun scheduleJobTool(
     },
     execute = { input ->
         val obj = input.jsonObject
-        ScheduleJobValidator.validate(obj, knownToolNamesProvider())?.let { err ->
+        ScheduleJobValidator.validate(obj, knownToolNamesProvider(), approvalSnapshot())?.let { err ->
             return@Tool textPart(errEnvelope(err.code, err.detail, err.extra))
         }
         val mode = (obj["mode"] as? JsonPrimitive)?.contentOrNull ?: error("mode is required")

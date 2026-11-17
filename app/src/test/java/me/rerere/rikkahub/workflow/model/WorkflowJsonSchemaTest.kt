@@ -8,7 +8,7 @@ import org.junit.Test
 
 class WorkflowJsonSchemaTest {
 
-    private val knownTools = setOf("ssh_exec_saved", "telegram_send_message", "post_notification", "show_toast")
+    private val knownTools = setOf("ssh_exec_saved", "telegram_send_message", "post_notification", "show_toast", "vault_ssh_exec")
 
     // -- Reject paths (10+) --------------------------------------------------------------
 

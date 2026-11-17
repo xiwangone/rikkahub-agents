@@ -7,14 +7,19 @@ import kotlinx.serialization.json.addJsonObject
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ScheduleJobToolValidationTest {
 
-    private val knownTools = listOf("post_notification", "telegram_send_message", "termux_run_command")
+    private val knownTools = listOf("post_notification", "telegram_send_message", "termux_run_command", "vault_ssh_exec")
+    // Headless authorisation snapshots for the creation-time check (A1).
+    private val yolo = ToolApprovalDefaults.HeadlessApprovalSnapshot(yoloEnabled = true, alwaysAllowGrants = emptySet())
+    private val none = ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE
 
     private fun base(): JsonObject = buildJsonObject {
         put("name", "test")
@@ -26,7 +31,7 @@ class ScheduleJobToolValidationTest {
 
     @Test
     fun `valid llm cron job passes`() {
-        val r = ScheduleJobValidator.validate(base(), knownTools)
+        val r = ScheduleJobValidator.validate(base(), knownTools, none)
         assertNull(r)
     }
 
@@ -38,7 +43,7 @@ class ScheduleJobToolValidationTest {
             put("schedule_type", "cron")
             put("cron_expression", "not a cron")
             put("prompt", "x")
-        }, knownTools)
+        }, knownTools, none)
         assertNotNull(r)
         assertEquals("invalid_cron", r!!.code)
     }
@@ -48,7 +53,7 @@ class ScheduleJobToolValidationTest {
         val r = ScheduleJobValidator.validate(buildJsonObject {
             put("name", "x"); put("mode", "llm")
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("mutual_exclusive", r!!.code)
     }
 
@@ -58,7 +63,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "direct")
             put("actions", buildJsonArray { })
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("empty_actions", r!!.code)
     }
 
@@ -70,7 +75,7 @@ class ScheduleJobToolValidationTest {
                 put("tool", "no_such_tool"); put("args", buildJsonObject { })
             }) })
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("unknown_tool", r!!.code)
     }
 
@@ -83,7 +88,7 @@ class ScheduleJobToolValidationTest {
                 put("args", buildJsonObject { put("command", "rm -rf /") })
             }) })
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("hardline_blocked", r!!.code)
     }
 
@@ -93,7 +98,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("start_at_unix_ms", 200L); put("end_at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bounds_inverted", r!!.code)
     }
 
@@ -103,7 +108,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("timezone", "Mars/Olympus")
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bad_timezone", r!!.code)
     }
 
@@ -120,7 +125,7 @@ class ScheduleJobToolValidationTest {
                     })
                 }
             })
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("too_many_actions", r!!.code)
     }
 
@@ -130,7 +135,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("prompt", "a".repeat(4001))
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("prompt_too_long", r!!.code)
     }
 
@@ -140,7 +145,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("prompt", "a".repeat(4000))
-        }, knownTools)
+        }, knownTools, none)
         assertNull(r)
     }
 
@@ -150,7 +155,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("end_at_unix_ms", 1L)  // epoch ms — always in the past
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bounds_past", r!!.code)
     }
 
@@ -160,7 +165,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("max_runs", 0)
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("max_runs_invalid", r!!.code)
     }
 
@@ -173,7 +178,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("max_runs", me.rerere.rikkahub.service.MAX_HISTORY_RETENTION + 1)
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("max_runs_invalid", r!!.code)
     }
 
@@ -183,7 +188,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("max_runs", me.rerere.rikkahub.service.MAX_HISTORY_RETENTION)
-        }, knownTools)
+        }, knownTools, none)
         assertNull(r)
     }
 
@@ -193,7 +198,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("catchup", "never")
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bad_catchup", r!!.code)
     }
 
@@ -203,7 +208,7 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm"); put("prompt", "p")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("tags", buildJsonArray { add("HasUppercase") })
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bad_tag", r!!.code)
     }
 
@@ -228,7 +233,7 @@ class ScheduleJobToolValidationTest {
 
     @Test
     fun `validateDirect accepts valid direct input without mode`() {
-        assertNull(ScheduleJobValidator.validateDirect(directBase(), knownTools))
+        assertNull(ScheduleJobValidator.validateDirect(directBase(), knownTools, yolo))
     }
 
     @Test
@@ -240,7 +245,7 @@ class ScheduleJobToolValidationTest {
                 put("tool", "post_notification"); put("args", buildJsonObject { })
             }) })
             put("prompt", "nope")
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("mutual_exclusive", r!!.code)
     }
 
@@ -249,7 +254,7 @@ class ScheduleJobToolValidationTest {
         val r = ScheduleJobValidator.validateDirect(buildJsonObject {
             put("name", "x")
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, yolo)
         assertEquals("mutual_exclusive", r!!.code)
     }
 
@@ -285,16 +290,50 @@ class ScheduleJobToolValidationTest {
             put("name", "x"); put("mode", "llm")
             put("schedule_type", "cron"); put("cron_expression", "@hourly")
             put("prompt", "p")
-        }, knownTools))
+        }, knownTools, none))
         // direct via legacy entrypoint
         assertNull(ScheduleJobValidator.validate(directBase().toMutableMap().apply {
             put("mode", JsonPrimitive("direct"))
-        }.let { buildJsonObject { it.forEach { (k, v) -> put(k, v) } } }, knownTools))
+        }.let { buildJsonObject { it.forEach { (k, v) -> put(k, v) } } }, knownTools, yolo))
         // bad mode still rejected
         val r = ScheduleJobValidator.validate(buildJsonObject {
             put("name", "x"); put("mode", "bogus")
             put("schedule_type", "once"); put("at_unix_ms", 100L)
-        }, knownTools)
+        }, knownTools, none)
         assertEquals("bad_mode", r!!.code)
+    }
+
+    // ---- Headless authorisation (A1) ----
+
+    private fun directWithTool(tool: String): JsonObject = buildJsonObject {
+        put("name", "x")
+        put("schedule_type", "once"); put("at_unix_ms", 100L)
+        put("actions", buildJsonArray { add(buildJsonObject {
+            put("tool", tool)
+            put("args", buildJsonObject { put("command", "echo hi") })
+        }) })
+    }
+
+    @Test
+    fun `mode direct gated tool without authorization rejected`() {
+        val r = ScheduleJobValidator.validateDirect(directWithTool("termux_run_command"), knownTools, none)
+        assertNotNull(r)
+        assertEquals("authorization_required", r!!.code)
+        assertTrue(r.detail.contains("termux_run_command"))
+        assertTrue(r.detail.contains("Always Allow"))
+    }
+
+    @Test
+    fun `mode direct gated tool passes with YOLO`() {
+        assertNull(ScheduleJobValidator.validateDirect(directWithTool("termux_run_command"), knownTools, yolo))
+    }
+
+    @Test
+    fun `mode direct NO_ALWAYS_ALLOW tool rejected even with YOLO`() {
+        val r = ScheduleJobValidator.validateDirect(directWithTool("vault_ssh_exec"), knownTools, yolo)
+        assertNotNull(r)
+        assertEquals("authorization_required", r!!.code)
+        assertTrue(r.detail.contains("vault_ssh_exec"))
+        assertTrue(r.detail.contains("can never run unattended"))
     }
 }

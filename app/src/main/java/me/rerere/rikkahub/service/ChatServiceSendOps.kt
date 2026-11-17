@@ -660,6 +660,9 @@ internal suspend fun ChatService.cancelBackendGenerationIfNeeded(conversationId:
                 username = target.username,
                 password = target.password,
                 token = target.token,
+                // ChatService has no OkHttp field; resolve the shared client
+                // from Koin (same precedent as WorkflowEngine's lazy lookups).
+                client = org.koin.java.KoinJavaComponent.getKoin().get<okhttp3.OkHttpClient>(),
             ).cancel()
         }
     }

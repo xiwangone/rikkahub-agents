@@ -7,7 +7,6 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asSharedFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.serialization.json.Json
-import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.common.log.AppLogger
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
 import okhttp3.OkHttpClient
@@ -50,18 +49,21 @@ class BackendSseClient(
     private val historyLoader: (() -> List<HistoryMessage>)? = null,
     /** 服务端状态读取（用于断流重连后探测是否有待应答交互） */
     private val statusLoader: (() -> StatusInfo?)? = null,
-    private val client: OkHttpClient = OkHttpClient.Builder()
-        .connectTimeout(120, TimeUnit.SECONDS)
-        // 有限读超时：服务端静默挂起时连接最终会报错走重连，而不是无限等待。
-        // 取 10 分钟，长于事件处理器的 300 秒首内容超时，不会先于它触发。
-        .readTimeout(10, TimeUnit.MINUTES)
-        .writeTimeout(120, TimeUnit.SECONDS)
-        // 最小请求日志：只记 host + 状态码 + 耗时，不记 path/query/headers/body
-        // （SSE URL 后的路径含会话信息，:common 层无脱敏能力）。
-        .addInterceptor(SafeRequestLoggingInterceptor())
-        .build(),
+    /**
+     * 注入的共享 OkHttpClient（与 ProviderManager / ClaudeProvider 同一来源）。
+     * SSE 的 10 分钟读超时不在此改共享配置，而是派生客户端时固化
+     * （见 [sseClient]）：共享客户端的超时是全局口径，改它会波及其他调用方。
+     */
+    private val client: OkHttpClient,
 ) {
     private val json = Json { ignoreUnknownKeys = true }
+
+    /**
+     * 派生客户端：只改读超时（10 分钟——服务端静默挂起时连接最终会报错走重连，
+     * 而不是无限等待；长于事件处理器的 300 秒首内容超时，不会先于它触发）。
+     * newBuilder() 与原客户端共享连接池与分发器，只换超时配置。
+     */
+    private val sseClient: OkHttpClient = client.newBuilder().readTimeout(10, TimeUnit.MINUTES).build()
 
     // ── 断流补拉：本地已发事件累计（跨线程访问，用 lock 保护）──
     // 只用于断流后与服务端历史做差分补发，超限后丢弃最旧内容，避免服务端
@@ -236,7 +238,7 @@ class BackendSseClient(
                 }
             }
 
-        val factory = EventSources.createFactory(client)
+        val factory = EventSources.createFactory(sseClient)
         daemonThread("BackendSse-connect") {
             if (closed) return@daemonThread
             runCatching {

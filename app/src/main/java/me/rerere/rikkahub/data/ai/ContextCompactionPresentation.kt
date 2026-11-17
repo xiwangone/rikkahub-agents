@@ -21,6 +21,13 @@ import kotlin.uuid.Uuid
 internal object ContextCompactionPresentation {
     const val TOOL_NAME = "context_compaction"
     private const val DISPLAY_ONLY_METADATA_KEY = "rikkahub_display_only_context_compaction"
+    private const val RAW_CONTEXT_HEADER = "[Raw context retained verbatim after this summary]"
+    private const val RAW_CONTEXT_FOOTER = "[End raw context retention report]"
+    private val retainedRawToolCountPattern = Regex("completed_tool_calls=(\\d+)")
+    private val rawContextReportPattern = Regex(
+        "${Regex.escape(RAW_CONTEXT_HEADER)}\\s*(.*?)\\s*${Regex.escape(RAW_CONTEXT_FOOTER)}",
+        setOf(RegexOption.DOT_MATCHES_ALL),
+    )
 
     fun createTool(compaction: ConversationCompaction): UIMessagePart.Tool = UIMessagePart.Tool(
         toolCallId = "context_compaction_${compaction.createdAt.toEpochMilli()}_${compaction.sourceEndNodeId}",
@@ -31,7 +38,7 @@ internal object ContextCompactionPresentation {
             put("summary_model_id", JsonPrimitive(compaction.summaryModelId.toString()))
             put(
                 "retained_raw_tool_calls",
-                JsonPrimitive(ContextCompactionPlanner.retainedRawToolCallCount(compaction.summary)),
+                JsonPrimitive(retainedRawToolCallCount(compaction.summary)),
             )
         }.toString(),
         output = listOf(UIMessagePart.Text(compaction.summary)),
@@ -39,6 +46,30 @@ internal object ContextCompactionPresentation {
             put(DISPLAY_ONLY_METADATA_KEY, JsonPrimitive(true))
         },
     )
+
+    /**
+     * Reads the retained-raw-tool-call count out of a persisted summary.
+     *
+     * Moved here from the deleted ContextCompactionPlanner: the planner's
+     * map/reduce planning is dead — real compression is
+     * [me.rerere.rikkahub.service.ChatServiceAux.compressConversation] and no
+     * production code writes a raw-context retention report any more. Only
+     * this reader survives, because summaries persisted by older builds still
+     * carry a `[Raw context retained verbatim after this summary] ...`
+     * block with a `completed_tool_calls=N` line, and the compaction card
+     * displays that count. A bare `completed_tool_calls=N` outside the
+     * delimited block does NOT count (the model may guess one in prose).
+     */
+    internal fun retainedRawToolCallCount(summary: String): Int = rawContextReportPattern
+        .findAll(summary)
+        .lastOrNull()
+        ?.groupValues
+        ?.get(1)
+        ?.let(retainedRawToolCountPattern::find)
+        ?.groupValues
+        ?.get(1)
+        ?.toIntOrNull()
+        ?: 0
 
     fun isDisplayTool(part: UIMessagePart): Boolean =
         part is UIMessagePart.Tool &&

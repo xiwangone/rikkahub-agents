@@ -146,6 +146,37 @@ class ContextCompactionPresentationTest {
         assertTrue((tool.output.single() as UIMessagePart.Text).text.contains("completed_tool_calls=55"))
     }
 
+    @Test
+    fun `retained count reads completed_tool_calls from a delimited report`() {
+        val report = """
+            [Raw context retained verbatim after this summary]
+            raw_messages=1
+            completed_tool_calls=55
+            These messages follow this summary in the active model context. Their original tool
+            names, inputs, and outputs were not deleted or replaced by the summary.
+            [End raw context retention report]
+        """.trimIndent()
+
+        assertEquals(55, ContextCompactionPresentation.retainedRawToolCallCount(report))
+    }
+
+    @Test
+    fun `raw retention count only reads a delimited current report`() {
+        val summary = """
+            The model guessed completed_tool_calls=999 outside the report.
+            [Raw context retained verbatim after this summary]
+            raw_messages=1
+            completed_tool_calls=55
+            [End raw context retention report]
+        """.trimIndent()
+
+        assertEquals(55, ContextCompactionPresentation.retainedRawToolCallCount(summary))
+        assertEquals(
+            0,
+            ContextCompactionPresentation.retainedRawToolCallCount("completed_tool_calls=999"),
+        )
+    }
+
     private fun sampleCompaction(conversation: Conversation) = ConversationCompaction(
         conversationId = conversation.id,
         summary = "compressed context",

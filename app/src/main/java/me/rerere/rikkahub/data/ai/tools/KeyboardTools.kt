@@ -22,8 +22,11 @@ import me.rerere.rikkahub.data.keyboard.KeyboardApiClient
  * recovery}` object — the recovery text spells out the install / set-as-IME requirement
  * verbatim when that is the cause.
  *
- * Read tools (`keyboard_read_field`, `keyboard_editor_info`) are NOT approval-gated. The
- * side-effecting tools are listed in [ToolApprovalDefaults.ALWAYS_ASK]. None need a
+ * Read tools (`keyboard_read_field`, `keyboard_editor_info`) ARE approval-gated: the
+ * focused field and editor metadata routinely contain tokens, passwords, or card
+ * numbers, and reading them pulls that content into model context. They are listed
+ * in the privacy-reads section of [ToolApprovalDefaults.ALWAYS_ASK], alongside
+ * clipboard reads. The side-effecting tools are listed in the same set. None need a
  * HARDLINE arm: typing a string into a focused field is not shell execution and the
  * keyboard itself refuses password / sensitive fields.
  */
@@ -162,6 +165,9 @@ fun keyboardReadFieldTool(client: KeyboardApiClient): Tool = Tool(
         "expose their buffer to the IME, so this can return empty even when text is " +
         "visible on screen - take a screenshot to read those. Example: keyboard_read_field().",
     parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
+    // Approval-gated: the focused field routinely contains tokens / passwords,
+    // and reading it pulls that content into model context.
+    needsApproval = { true },
     execute = {
         when (val text = client.getCurrentText()) {
             is KeyboardApiClient.Result.Ok -> {
@@ -253,6 +259,9 @@ fun keyboardEditorInfoTool(client: KeyboardApiClient): Tool = Tool(
         "field, and the current selection range. Read-only. Use this to decide whether " +
         "typing is safe before calling keyboard_type. Example: keyboard_editor_info().",
     parameters = { InputSchema.Obj(properties = buildJsonObject { }) },
+    // Approval-gated: editor metadata (owning package, field hint, selection)
+    // can identify what the user is typing into, and pairs with a read.
+    needsApproval = { true },
     execute = {
         handle(client.getEditorInfo()) { info ->
             if (info == null) {

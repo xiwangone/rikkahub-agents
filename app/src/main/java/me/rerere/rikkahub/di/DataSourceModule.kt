@@ -472,6 +472,7 @@ val dataSourceModule =
                 pm.registerProvider(
                     "backend",
                     me.rerere.ai.provider.providers.backend.BackendProvider(
+                        httpClient = get(),
                         cliExecutor = TermuxCliCommandExecutor(
                             context = get(),
                             sshHostRepository = get(),

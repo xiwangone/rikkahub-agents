@@ -9,7 +9,6 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.ai.tools.local.NULL_CONTEXT
 import me.rerere.rikkahub.data.keyboard.KeyboardApiClient
 import org.junit.Assert.assertEquals
-import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -121,20 +120,19 @@ class KeyboardToolsTest {
     }
 
     @Test
-    fun `read keyboard tools are not approval gated`() {
+    fun `read keyboard tools are approval gated (they read private field content)`() {
         listOf(keyboardReadFieldTool(client), keyboardEditorInfoTool(client)).forEach { tool ->
-            assertFalse("${tool.name} is read-only", tool.needsApproval(JsonObject(emptyMap())))
+            assertTrue("${tool.name} reads private content and must require approval", tool.needsApproval(JsonObject(emptyMap())))
         }
     }
 
     @Test
-    fun `ToolApprovalDefaults gates exactly the six side-effecting keyboard tools`() {
+    fun `ToolApprovalDefaults gates all eight keyboard tools`() {
         val gated = setOf(
             "keyboard_type", "keyboard_press_key", "keyboard_delete",
             "keyboard_clear", "keyboard_set_cursor", "keyboard_select_range",
+            "keyboard_read_field", "keyboard_editor_info",
         )
         gated.forEach { assertTrue("$it must be in ALWAYS_ASK", ToolApprovalDefaults.requiresApproval(it)) }
-        assertFalse(ToolApprovalDefaults.requiresApproval("keyboard_read_field"))
-        assertFalse(ToolApprovalDefaults.requiresApproval("keyboard_editor_info"))
     }
 }

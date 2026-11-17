@@ -100,9 +100,11 @@ class ChatToolFactory(
                     name = mcpToolName,
                     description = tool.description ?: "",
                     parameters = { tool.inputSchema },
-                    // MCP 工具语义不透明，一律默认需要审批；用户可对单个工具授予 Always。
+                    // 单工具开关说了算（见 ToolApprovalDefaults.mcpRelayNeedsApproval）：
+                    // 名字规则与开关取与；新发现工具默认 true，开关拨到 false 才放行。
+                    // YOLO / 会话级 💬 / 持久“总是允许”仍按统一逻辑在审批决策层生效。
                     needsApproval = {
-                        ToolApprovalDefaults.requiresApproval(mcpToolName) || tool.needsApproval
+                        ToolApprovalDefaults.mcpRelayNeedsApproval(mcpToolName, tool.needsApproval)
                     },
                     execute = {
                         mcpManager.callTool(serverId, tool.name, it.jsonObject)

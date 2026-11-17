@@ -36,17 +36,25 @@ import me.rerere.rikkahub.data.log.AppLog
  *  6. Resolve assistant + tool list. Workflows are app-global, but actions still need a
  *     tool surface to execute against — we use the first assistant with the Workflows
  *     toggle on (the toggle gates *authoring*; runtime fallback is reasonable).
- *  7. Execute action sequence via [DirectModeActionRunner] — every action HARDLINE-checked.
+ *  7. Execute action sequence via [WorkflowActionRunner] — every action HARDLINE-checked
+ *     and headless-authorisation-checked.
  *  8. Persist run row, projected last-run state, daily counter, trim history.
  *
  * Concurrency: per-workflow mutex so two near-simultaneous fires (e.g. WiFi flicker) can't
  * race on the daily counter. Cross-workflow execution stays parallel.
  *
- * Approval semantics: HARDLINE applies in workflow context. Tool factories that set
- * `needsApproval = { true }` would normally pop a prompt — workflows are headless and the
- * pre-authorisation is the workflow_create approval the user already granted. So the
- * action runner just calls the tool's [Tool.execute] directly. This matches scheduled-jobs
- * direct-mode behavior.
+ * Approval semantics: HARDLINE applies in workflow context, and every action
+ * whose tool declares approval must pass the shared headless policy
+ * ([ToolApprovalDefaults.isHeadlessAutoApproved]: global YOLO or a
+ * persistent "Always Allow" grant; NO_ALWAYS_ALLOW tools never pass, and
+ * session-scoped ("Allow for this chat") approvals do not apply without a
+ * live conversation). Creating a workflow already warns when its actions
+ * are unauthorised (workflow_create / workflow_update, error `authorization_required`); at
+ * fire time an unauthorised action is SKIPPED and named in the run summary,
+ * never run silently. A fire where every action was skipped records FAILED
+ * so it is not counted as a success. The old "the workflow_create approval
+ * covers the actions" reading is gone: one creation approval must not
+ * become a standing licence to fire credentials unattended.
  *
  * The `Workflows` per-assistant toggle gates the seven `workflow_*` LLM tools, NOT the
  * trigger pipeline. A workflow that's been authored stays armed regardless of which
@@ -273,7 +281,9 @@ class WorkflowEngine(
                 ),
             )
 
-        // Execute the action sequence. ActionRunner enforces per-action timeout + HARDLINE.
+        // Execute the action sequence. ActionRunner enforces per-action timeout +
+        // HARDLINE + headless authorisation (unauthorised actions are skipped
+        // and named in the summary; all-skipped fires record FAILED).
         val result = actionRunner.run(def.actions, tools)
         val status = if (result.success) WorkflowRunStatus.SUCCESS else WorkflowRunStatus.FAILED
         return persistAndReturn(workflowId, firedAtMs, started, status, result.error, result.summary, ledgerId)
@@ -444,22 +454,41 @@ internal object CooldownGate {
 /**
  * Sequential action runner — wraps [me.rerere.rikkahub.service.DirectModeActionRunner]'s
  * core logic but on the workflow side, since direct-mode's own runner takes a slightly
- * different action shape. Same HARDLINE-then-execute semantics.
+ * different action shape. Same HARDLINE-then-execute semantics, plus the shared
+ * headless authorisation check: an action whose tool declares approval is skipped
+ * (and named in the summary) unless global YOLO or a persistent "Always Allow"
+ * grant covers it. See [me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.isHeadlessAutoApproved].
  *
  * Per-action timeout is the action's [WorkflowAction.timeoutSeconds] field; default 60s.
  */
-class WorkflowActionRunner {
+class WorkflowActionRunner(
+    private val approvalSnapshot: suspend () -> me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot,
+) {
     data class RunResult(
         val success: Boolean,
         val error: String?,
         val summary: String,
+        /** Tools skipped for lack of headless authorisation (distinct names, in order). */
+        val skippedTools: List<String> = emptyList(),
     )
 
     suspend fun run(
         actions: List<WorkflowAction>,
         availableTools: List<Tool>,
     ): RunResult {
+        val snapshot = approvalSnapshot()
         val outputs = mutableListOf<String>()
+        val skipped = mutableListOf<String>()
+        var executed = 0
+        fun summarize(): String {
+            val base = outputs.joinToString("\n")
+            if (skipped.isEmpty()) return base
+            val line = "skipped (authorization_required): " +
+                skipped.joinToString("; ") {
+                    me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.headlessSkipReason(it)
+                }
+            return if (base.isEmpty()) line else "$base\n$line"
+        }
         for ((idx, action) in actions.withIndex()) {
             val argsJson = action.args.toString()
             val hardlineReason = HardlineCommandGuard.checkTool(action.tool, argsJson)
@@ -468,12 +497,28 @@ class WorkflowActionRunner {
                 return RunResult(
                     success = false,
                     error = "action $idx: hardline:$hardlineReason",
-                    summary = outputs.joinToString("\n"),
+                    summary = summarize(),
+                    skippedTools = skipped.toList(),
                 )
             }
             val tool =
                 availableTools.find { it.name == action.tool }
-                    ?: return RunResult(false, "action $idx: unknown_tool:${action.tool}", outputs.joinToString("\n"))
+                    ?: return RunResult(
+                        false,
+                        "action $idx: unknown_tool:${action.tool}",
+                        summarize(),
+                        skipped.toList(),
+                    )
+            if (tool.needsApproval(action.args) &&
+                !me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.isHeadlessAutoApproved(action.tool, snapshot)
+            ) {
+                logSafe(
+                    "workflow action $idx tool=${action.tool} skipped: " +
+                        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.headlessSkipReason(action.tool),
+                )
+                if (action.tool !in skipped) skipped += action.tool
+                continue
+            }
             val out =
                 try {
                     withTimeoutOrNull(action.timeoutSeconds * 1000L) { tool.execute(action.args) }
@@ -487,16 +532,19 @@ class WorkflowActionRunner {
                     return RunResult(
                         false,
                         "action $idx: ${t::class.simpleName}: ${t.message.orEmpty()}".take(500),
-                        outputs.joinToString("\n"),
+                        summarize(),
+                        skipped.toList(),
                     )
                 }
             if (out == null) {
                 return RunResult(
                     false,
                     "action $idx: ${action.tool} exceeded ${action.timeoutSeconds}s",
-                    outputs.joinToString("\n"),
+                    summarize(),
+                    skipped.toList(),
                 )
             }
+            executed++
             // Surface the first ~200 chars of the tool's text output for the run history.
             val text =
                 out
@@ -504,7 +552,22 @@ class WorkflowActionRunner {
                     .joinToString("\n") { it.text }
             outputs += "[$idx] ${action.tool}: ${text.take(200)}"
         }
-        return RunResult(true, null, outputs.joinToString("\n").take(2000))
+        // All actions skipped for lack of authorisation: not a success — the
+        // fire must not count toward the daily cap as a success. A
+        // partially-skipped fire still succeeds, with the skipped tools named
+        // in the summary so the gap is visible, never silent.
+        if (executed == 0 && skipped.isNotEmpty()) {
+            return RunResult(
+                false,
+                "all ${actions.size} action(s) skipped (authorization_required): " +
+                    skipped.joinToString("; ") {
+                        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.headlessSkipReason(it)
+                    },
+                summarize().take(2000),
+                skipped.toList(),
+            )
+        }
+        return RunResult(true, null, summarize().take(2000), skipped.toList())
     }
 
     /**

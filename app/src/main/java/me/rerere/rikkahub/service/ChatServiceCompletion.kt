@@ -364,13 +364,22 @@ private suspend fun ChatService.isToolAutoApprovedForConversation(
             me.rerere.rikkahub.data.ai.tools.ToolApprovalAllowList
                 .isAllowedForChat(conversationId, toolName)
     } else {
-        toolApprovalPreferences.currentYolo() ||
+        // The YOLO / persistent-grant half is the shared headless policy
+        // (ToolApprovalDefaults.isHeadlessAutoApproved) — the same decision the
+        // cron / workflow runners make. The chat-only halves (marked headless
+        // conversation, per-chat allow-list) stay here; they have no meaning
+        // without a live conversation.
+        me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.isHeadlessAutoApproved(
+            toolName,
+            me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot(
+                yoloEnabled = toolApprovalPreferences.currentYolo(),
+                alwaysAllowGrants = toolApprovalPreferences.current(),
+            ),
+        ) ||
             me.rerere.rikkahub.data.ai.tools.HeadlessConversations
                 .shouldAutoApprove(conversationId) ||
             me.rerere.rikkahub.data.ai.tools.ToolApprovalAllowList
-                .isAllowedForChat(conversationId, toolName) ||
-            (!isWorkspaceToolName(toolName) &&
-                toolApprovalPreferences.current().contains(toolName))
+                .isAllowedForChat(conversationId, toolName)
     }
 
 // 节流状态容器：字段虽多（时间戳 / 后台任务 / 完成标记）但由同一组节流逻辑一起读写，

@@ -32,6 +32,26 @@ val WorkspaceToolDefaultApprovals: Map<String, Boolean> = mapOf(
 fun resolveWorkspaceToolApproval(name: String, overrides: Map<String, Boolean>): Boolean =
     overrides[name] ?: WorkspaceToolDefaultApprovals[name] ?: false
 
+/**
+ * Workspace approval, now on the central model. The declared approval of a
+ * workspace tool is the central [ToolApprovalDefaults.requiresApproval] plus
+ * the per-workspace override (the workspace's own setting page / stored JSON)
+ * — the override is one input to the central decision, not a parallel
+ * approval system. A workspace switch can only ADD approval (turn a
+ * centrally-free tool on), never remove a central gate: workspace_shell is
+ * in [ToolApprovalDefaults.ALWAYS_ASK], so it stays gated even if a
+ * workspace's overrides say otherwise.
+ *
+ * Note: persistent "Always Allow" grants never apply to `workspace_` names
+ * by design ([me.rerere.rikkahub.data.preferences.ToolApprovalPreferences]
+ * filters them out), so workspace_shell in a headless fire only passes with
+ * YOLO; in a chat it is covered by YOLO, "Allow for this chat", or a
+ * per-call tap. That filter is deliberate (grants are scoped per workspace)
+ * and is NOT changed here.
+ */
+fun resolveWorkspaceToolApprovalWithCentral(name: String, overrides: Map<String, Boolean>): Boolean =
+    ToolApprovalDefaults.requiresApproval(name) || resolveWorkspaceToolApproval(name, overrides)
+
 suspend fun createWorkspaceTools(
     workspaceId: String?,
     workspaceRepository: WorkspaceRepository,
@@ -41,7 +61,7 @@ suspend fun createWorkspaceTools(
     val workspace = workspaceRepository.getById(workspaceId) ?: return emptyList()
     val layout = workspaceRepository.layout(workspaceId) ?: return emptyList()
     val approvalOverrides = workspace.toolApprovalOverrides()
-    fun needsApproval(name: String) = resolveWorkspaceToolApproval(name, approvalOverrides)
+    fun needsApproval(name: String) = resolveWorkspaceToolApprovalWithCentral(name, approvalOverrides)
 
     val shellCwd = cwd?.let(layout::relativeToWorkspace)
     val supportsBackground = workspace.capabilities().backgroundShell
@@ -68,7 +88,13 @@ suspend fun createWorkspaceTools(
     } + me.rerere.agenttools.createAgentTools(
         AppAgentWorkspaceIO(workspaceId, workspaceRepository),
         approvalOverrides,
-    )
+    ).map { t ->
+        // Central opt-in, same as LocalTools: the agent-tools module can't see
+        // ToolApprovalDefaults (module boundary), so the central gate is
+        // applied here. Today none of the 5 names is in ALWAYS_ASK, so this
+        // is a no-op — it exists so the central set stays the input.
+        if (ToolApprovalDefaults.requiresApproval(t.name)) t.copy(needsApproval = { true }) else t
+    }
 }
 
 private val IMAGE_EXTENSIONS = setOf(

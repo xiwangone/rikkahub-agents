@@ -61,7 +61,7 @@ class CronJobWorkerInstrumentedTest {
             .build()
         jobRepo = ScheduledJobRepository(db.scheduledJobDao())
         runRepo = ScheduledJobRunRepository(db.scheduledJobRunDao())
-        directRunner = DirectModeActionRunner(Json)
+        directRunner = DirectModeActionRunner(Json) { me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE }
     }
 
     @After

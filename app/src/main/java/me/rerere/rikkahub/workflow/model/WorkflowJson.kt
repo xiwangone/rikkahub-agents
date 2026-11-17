@@ -87,6 +87,17 @@ object WorkflowJson {
      * Parse a workflow definition from the LLM's JSON. Returns Err for any structural problem
      * with a stable error code. The caller is expected to surface the error verbatim so the
      * LLM can repair its emission.
+     *
+     * Headless authorisation is NOT checked here: parse only knows tool
+     * names, and its signature is a detekt-baseline key (changing it would
+     * orphan the two registered LongMethod / CyclomaticComplexMethod entries
+     * for this function, and the delivery rules forbid touching the baseline).
+     * The workflow_create / workflow_update tools (WorkflowTools) run the
+     * shared ToolApprovalDefaults.headlessAuthorizationDetail check on the
+     * parsed actions right after parse succeeds, and fail with
+     * `authorization_required` naming the tools and how to authorise them.
+     * The check is name-based; the fire-time check evaluates the real
+     * needsApproval lambda and stays authoritative.
      */
     fun parse(
         rawJson: String,
@@ -175,7 +186,7 @@ object WorkflowJson {
             // for v1 — without this guard, a malicious or hallucinated workflow definition
             // could trigger an unbounded chain across distinct workflow ids that the
             // per-workflow Mutex doesn't catch. The workflow_* mutating tools are blocked
-            // for the same reason: the engine runs actions WITHOUT approval, so an action
+            // for the same reason: the engine runs actions headless, so an action
             // could otherwise create/edit/delete workflows and bypass needsApproval.
             if (toolName in FORBIDDEN_ACTION_TOOLS) {
                 return ParseResult.Err(

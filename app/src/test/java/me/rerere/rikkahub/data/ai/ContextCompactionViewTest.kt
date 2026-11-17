@@ -154,9 +154,17 @@ class ContextCompactionViewTest {
             assistantId = Uuid.random(),
             messageNodes = listOf(userNode, toolNode),
         )
-        val report = ContextCompactionPlanner.rawContextRetentionReport(
-            listOf(toolNode.currentMessage)
-        )
+        // Literal retention report: the planner that used to generate it is
+        // deleted (real compression no longer writes this report); only the
+        // reader in ContextCompactionPresentation survives, for old summaries.
+        val report = """
+            [Raw context retained verbatim after this summary]
+            raw_messages=1
+            completed_tool_calls=55
+            These messages follow this summary in the active model context. Their original tool
+            names, inputs, and outputs were not deleted or replaced by the summary.
+            [End raw context retention report]
+        """.trimIndent()
         val compaction = ConversationCompaction(
             conversationId = conversation.id,
             summary = "summary of research request\n\n$report",

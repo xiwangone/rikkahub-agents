@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools.registry
 
+import java.io.File
+import me.rerere.rikkahub.browser.BrowserToolDefaults
+import me.rerere.rikkahub.data.ai.tools.ASK_USER_TOOL_NAME
 import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.ai.tools.SurfaceTier
 import me.rerere.rikkahub.data.ai.tools.ToolSurfacePolicy
@@ -120,5 +123,61 @@ class ToolIndexTest {
         assertTrue(ToolIndex.byTier(SurfaceTier.HOT).isNotEmpty())
         assertTrue(ToolIndex.byTier(SurfaceTier.WARM).isNotEmpty())
         assertTrue(ToolIndex.byTier(SurfaceTier.COLD).isNotEmpty())
+    }
+
+    @Test
+    fun `registered tool names are a subset of the index`() {
+        // 注册表工具名集合 ⊆ ToolIndex 工具名集合：新增工具只注册不登记时失败。
+        // 源码解析是 fail-closed——找不到源码目录即失败，不静默通过。
+        val registered = registeredToolNames()
+        val indexed = ToolIndex.entries.map { it.toolName }.toSet()
+        val missing = registered - indexed - REGISTERED_BUT_NOT_INDEXED
+        assertTrue("注册了但索引缺失: $missing", missing.isEmpty())
+    }
+
+    companion object {
+        /**
+         * 注册了但有意不进索引的工具名。新增条目必须人工复核后在此登记：
+         * - get_current_time：AppDiagnosticsTools 的模型探针里内联构造的临时工具，
+         *   不在助手工具面；
+         * - web_extract：工厂存在但全仓无调用的死代码（2026-10-06 已除名），
+         *   不补索引、也不在本批删工厂（删是另立项清理）。
+         */
+        private val REGISTERED_BUT_NOT_INDEXED = setOf("get_current_time", "web_extract")
+
+        private val TOOL_NAME_PATTERN = Regex("\\bTool\\(\\s*name\\s*=\\s*\"([^\"]+)\"")
+
+        private fun registeredToolNames(): Set<String> {
+            // Gradle 下工作目录是 app/ 模块目录；仓库根目录直接跑时是根目录。
+            // 两套候选只取真实存在的目录，取不到任何一个即 fail-closed。
+            val candidates = listOf(
+                "src/main/java",
+                "app/src/main/java",
+                "../agent-tools/src/main/java",
+                "agent-tools/src/main/java",
+                "../ai/src/main/java",
+                "ai/src/main/java",
+            )
+            val roots = candidates.map(::File).filter { it.isDirectory }
+            assertTrue(
+                "cannot locate Kotlin sources from ${File(".").absolutePath}",
+                roots.isNotEmpty(),
+            )
+            val names = mutableSetOf<String>()
+            for (root in roots) {
+                root.walkTopDown()
+                    .filter { it.isFile && it.name.endsWith(".kt") }
+                    .forEach { file ->
+                        TOOL_NAME_PATTERN.findAll(file.readText()).forEach { match ->
+                            names += match.groupValues[1]
+                        }
+                    }
+            }
+            // ask_user 经 ASK_USER_TOOL_NAME 常量构造，正则抓不到，显式补上；
+            // browser_* 是动态装配（BrowserToolDefaults.ALL_TOOLS），同样补上。
+            names += ASK_USER_TOOL_NAME
+            names += BrowserToolDefaults.ALL_TOOLS
+            return names
+        }
     }
 }

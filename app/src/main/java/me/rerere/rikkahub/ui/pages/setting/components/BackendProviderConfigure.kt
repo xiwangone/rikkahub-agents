@@ -204,6 +204,9 @@ fun BackendProviderConfigure(
     if (provider.backendType == "backend" && provider.baseUrl.isNotBlank()) {
         val resources = androidx.compose.ui.platform.LocalResources.current
         val scope = rememberCoroutineScope()
+        // Shared OkHttpClient, resolved at composition time (koinInject is
+        // @Composable — it cannot be called inside the launch block below).
+        val httpClient: okhttp3.OkHttpClient = org.koin.compose.koinInject()
         var diag by remember { mutableStateOf<String?>(null) }
         var diagLoading by remember { mutableStateOf(false) }
 
@@ -216,7 +219,9 @@ fun BackendProviderConfigure(
                             diagLoading = true
                             scope.launch {
                                 diag =
-                                    runCatching { backendStatusDigest(resources, provider) }
+                                    runCatching {
+                                        backendStatusDigest(resources, provider, client = httpClient)
+                                    }
                                         .getOrElse {
                                             resources.getString(
                                                 R.string.backend_diag_check_failed,
@@ -246,6 +251,7 @@ fun BackendProviderConfigure(
 private suspend fun backendStatusDigest(
     resources: android.content.res.Resources,
     provider: ProviderSetting.Backend,
+    client: okhttp3.OkHttpClient,
 ): String {
     val st =
         me.rerere.ai.provider.providers.backend.BackendApi(
@@ -253,6 +259,7 @@ private suspend fun backendStatusDigest(
             username = provider.username,
             password = provider.password,
             token = provider.token,
+            client = client,
         ).getStatus() ?: return resources.getString(R.string.backend_diag_status_unavailable)
     return buildString {
         appendLine(resources.getString(R.string.backend_diag_pending_prompt, (st.pendingPrompt == true).toString()))

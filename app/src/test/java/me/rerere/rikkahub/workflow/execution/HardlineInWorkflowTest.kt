@@ -4,6 +4,7 @@ import kotlinx.coroutines.runBlocking
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
+import me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.workflow.model.WorkflowAction
@@ -33,7 +34,7 @@ class HardlineInWorkflowTest {
     )
 
     @Test fun `rm -rf root blocked by hardline`() = runBlocking {
-        val runner = WorkflowActionRunner()
+        val runner = WorkflowActionRunner({ me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE })
         val actions = listOf(
             WorkflowAction(
                 tool = "termux_run_command",
@@ -50,7 +51,7 @@ class HardlineInWorkflowTest {
     }
 
     @Test fun `unknown tool short-circuits`() = runBlocking {
-        val runner = WorkflowActionRunner()
+        val runner = WorkflowActionRunner({ me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE })
         val actions = listOf(
             WorkflowAction(tool = "format_disk", args = buildJsonObject {}, timeoutSeconds = 10),
         )
@@ -60,7 +61,7 @@ class HardlineInWorkflowTest {
     }
 
     @Test fun `clean toast action succeeds`() = runBlocking {
-        val runner = WorkflowActionRunner()
+        val runner = WorkflowActionRunner({ me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE })
         val actions = listOf(
             WorkflowAction(tool = "show_toast", args = buildJsonObject { put("text", "hi") }, timeoutSeconds = 10),
         )
@@ -76,7 +77,7 @@ class HardlineInWorkflowTest {
             parameters = { InputSchema.Obj(properties = buildJsonObject {}) },
             execute = { lateExecuted = true; listOf(UIMessagePart.Text("late")) },
         )
-        val runner = WorkflowActionRunner()
+        val runner = WorkflowActionRunner({ me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE })
         val actions = listOf(
             WorkflowAction(tool = "format_disk", args = buildJsonObject {}, timeoutSeconds = 10),
             WorkflowAction(tool = "late_tool", args = buildJsonObject {}, timeoutSeconds = 10),
@@ -93,7 +94,7 @@ class HardlineInWorkflowTest {
             parameters = { InputSchema.Obj(properties = buildJsonObject {}) },
             execute = { listOf(UIMessagePart.Text("ok")) },
         )
-        val runner = WorkflowActionRunner()
+        val runner = WorkflowActionRunner({ me.rerere.rikkahub.data.ai.tools.ToolApprovalDefaults.HeadlessApprovalSnapshot.NONE })
         val actions = listOf(
             WorkflowAction(
                 tool = "ssh_exec",
