@@ -182,12 +182,11 @@ fun SearchPickerButton(
                         modifier = Modifier.size(20.dp),
                     )
                 } else if (enableSearch && currentService != null) {
-                    // 外框 28.dp − AIIcon 内部 4×2 padding = 20.dp 绘制区。
-                    // 原来 32.dp（→24.dp 绘制区）比输入框里的模型标明显大：模型标是品牌图，
-                    // 横版标按等比缩放后视觉高度只有约 20dp，24dp 的线条图标压在旁边显得突兀。
+                    // 外框 24.dp − AIIcon 内部 2×2 padding = 20.dp 绘制区，与同排的
+                    // 思考灯泡 / 扳手 / 闪电 / 锁 / ＋（均 20.dp）以及模型标的视觉高度一致。
                     AutoAIIcon(
                         name = currentService.displayName,
-                        modifier = Modifier.requiredSize(28.dp),
+                        modifier = Modifier.requiredSize(24.dp),
                         color = Color.Transparent,
                     )
                 } else {
