@@ -176,8 +176,10 @@ fun SearchPickerButton(
                 contentAlignment = Alignment.Center,
             ) {
                 if (model?.tools?.contains(BuiltInTools.Search) == true) {
+                    // 用纯放大镜：AiSearch02 是「放大镜 + AI 星」复合图，
+                    // 在 20dp 下 AI 标记会挤成底部一小截，看着像图标拖尾。
                     Icon(
-                        imageVector = HugeIcons.AiSearch02,
+                        imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
                         modifier = Modifier.size(20.dp),
                     )
