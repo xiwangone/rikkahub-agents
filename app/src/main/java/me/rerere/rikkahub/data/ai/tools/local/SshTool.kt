@@ -9,7 +9,6 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 
 import me.rerere.rikkahub.data.vault.message
-import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.Session
@@ -146,6 +145,8 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         SSH to a host and run one shell command; returns stdout/stderr/exit code. Confirm
         with the user before destructive/system-level commands. For repeat hosts prefer
         save_ssh_host + ssh_exec_saved so credentials never appear in chat history.
+        Password and private key are both optional: omitting both uses none
+        authentication (only servers that accept it, e.g. token-username relays).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -206,11 +207,6 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
             passphrase = p.optString("passphrase"),
         )
         val timeoutSec = (p.optInt("timeout_seconds") ?: 30).coerceIn(1, 300)
-        if (!auth.isUsable()) {
-            return@Tool listOf(UIMessagePart.Text(
-                ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password or private_key", hint = "Check the parameter values and retry with corrected arguments.").toString()
-            ))
-        }
         if (background && stdin != null) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()
@@ -525,12 +521,13 @@ private fun connectSingleSshAttempt(
                 // （AcceptNewHostKeyRepository；JSch 本身没有 "accept-new"）。
                 installHostKeyVerification(jsch, target, port)
                 target.setConfig(Properties().apply {
-                    setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
+                    setProperty("PreferredAuthentications", preferredAuthentications(auth))
                 })
-                if (!auth.privateKey.isNullOrBlank()) {
-                    val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
-                    val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
-                    jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
+                installSshIdentity(jsch, auth)
+                if (!auth.proxyCommand.isNullOrBlank()) {
+                    // 跳板与代理命令同时配时跳板优先，代理被忽略（两者都是传输层，
+                    // 一个会话只能用一个）：记一条警告，不静默。
+                    AppLog.w(TAG_SSH, "proxy command ignored for $host: jump host takes precedence")
                 }
                 target.serverAliveInterval = SERVER_ALIVE_INTERVAL_MS
                 target.serverAliveCountMax = SERVER_ALIVE_COUNT_MAX

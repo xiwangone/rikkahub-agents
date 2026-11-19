@@ -9,12 +9,14 @@ import android.view.KeyEvent
 import android.view.MotionEvent
 import android.view.inputmethod.InputMethodManager
 import androidx.core.net.toUri
+import com.termux.terminal.LocalPtyTransport
 import com.termux.terminal.TerminalEmulator
 import com.termux.terminal.TerminalSession
 import com.termux.terminal.TerminalSessionClient
 import com.termux.terminal.TerminalTransport
 import com.termux.view.TerminalView
 import com.termux.view.TerminalViewClient
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FileFolders
 import me.rerere.workspace.RootfsPatchOptions
 import me.rerere.workspace.RootfsPatcher
@@ -104,24 +106,30 @@ internal fun createWorkspaceTerminalSession(
         env += "PROOT_NO_SECCOMP=1"
     }
 
-    return TerminalSession(
-        proot.absolutePath,
-        filesDir.absolutePath,
-        args.toTypedArray(),
-        env.toTypedArray(),
-        2_000,
-        client,
-    ).apply {
+    // 本机 proot shell 默认不打印任何东西：包一层欢迎文本，否则打开就是光秃秃的提示符。
+    // 欢迎文本走 TerminalSession.initializeEmulator 的 describeStart 首行通道，
+    // 与远程的 [Connecting to ...] 同格式。
+    val transport =
+        WelcomeTerminalTransport(
+            LocalPtyTransport(
+                proot.absolutePath,
+                filesDir.absolutePath,
+                args.toTypedArray(),
+                env.toTypedArray(),
+            ),
+            appContext.getString(R.string.workspace_terminal_welcome),
+        )
+    return TerminalSession(transport, TERMINAL_TRANSCRIPT_ROWS, client).apply {
         mSessionName = root
     }
 }
 
-/** transport 版：远程 SSH 终端由 SshTerminalTransport 提供，本机仍走上面的 proot 进程版 */
+/** transport 版：远程 SSH 终端由 ShellTerminalTransport 提供，本机仍走上面的 proot 进程版 */
 internal fun createWorkspaceTerminalSession(
     transport: TerminalTransport,
     root: String,
     client: TerminalSessionClient,
-): TerminalSession = TerminalSession(transport, 2_000, client).apply {
+): TerminalSession = TerminalSession(transport, TERMINAL_TRANSCRIPT_ROWS, client).apply {
     mSessionName = root
 }
 

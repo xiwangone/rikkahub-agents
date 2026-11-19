@@ -141,4 +141,40 @@ class EnvInjectionSafetyTest {
         assertTrue(BackgroundInjectedSecrets.get("ws", "t0").isEmpty())
         assertEquals(s, BackgroundInjectedSecrets.get("ws", "t199"))
     }
+
+    @Test
+    fun `evicted task secrets are retained in permanent mask rules`() {
+        // 回归：第 129 个任务注册后最早任务的值被淘汰，但必须留在永久掩码集里，
+        // 否则淘汰任务的 stdout/stderr 里 `$$` 值以明文直达模型
+        repeat(130) { i ->
+            BackgroundInjectedSecrets.register(
+                "ws", "t$i",
+                listOf(InjectedSecret("GH", "GITHUB_TOKEN", "ghp_secretVALUE_$i")),
+            )
+        }
+        assertTrue(BackgroundInjectedSecrets.get("ws", "t0").isEmpty()) // 已被淘汰
+        val legacy = BackgroundInjectedSecrets.retainedRules()
+        val placeholder = injectedSecretPlaceholder("GITHUB_TOKEN")
+        assertTrue("淘汰值仍在掩码集: t0", legacy.containsKey("ghp_secretVALUE_0"))
+        assertEquals(placeholder, legacy["ghp_secretVALUE_0"])
+        // 130 次注册（t0..t129）只淘汰 t0、t1 进永久掩码集；t129 仍在活动表
+        assertTrue(legacy.containsKey("ghp_secretVALUE_1"))
+        assertFalse(legacy.containsKey("ghp_secretVALUE_129"))
+        assertEquals(listOf(InjectedSecret("GH", "GITHUB_TOKEN", "ghp_secretVALUE_129")),
+            BackgroundInjectedSecrets.get("ws", "t129"))
+    }
+
+    @Test
+    fun `maskInjectedValues applies legacy rules alongside active secrets`() {
+        val legacy = mapOf("ghp_evictedSECRET" to injectedSecretPlaceholder("OLD_CRED"))
+        val active = listOf(InjectedSecret("GH", "GITHUB_TOKEN", "ghp_activeSECRET"))
+        val out = maskInjectedValues(
+            "echo ghp_evictedSECRET ghp_activeSECRET",
+            active, legacy,
+        )
+        assertFalse(out.contains("ghp_evictedSECRET"))
+        assertFalse(out.contains("ghp_activeSECRET"))
+        assertTrue(out.contains(injectedSecretPlaceholder("OLD_CRED")))
+        assertTrue(out.contains(injectedSecretPlaceholder("GITHUB_TOKEN")))
+    }
 }

@@ -1,37 +1,29 @@
 package me.rerere.rikkahub.ui.pages.setting
 
 import android.content.Context
+import android.graphics.Typeface
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
+import androidx.compose.foundation.layout.imeAnimationTarget
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.text.KeyboardActions
-import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.AssistChip
 import androidx.compose.material3.FilterChip
-import androidx.compose.material3.Button
-import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,45 +38,56 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalClipboardManager
+import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
-import androidx.compose.ui.platform.LocalResources
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.AnnotatedString
-import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.core.content.res.ResourcesCompat
 import com.jcraft.jsch.JSchException
+import com.jcraft.jsch.Session
+import com.termux.terminal.TerminalSession
+import com.termux.view.TerminalView
 import me.rerere.rikkahub.data.ai.tools.local.VerifyingHostKeyRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
-import me.rerere.hugeicons.stroke.Clean
-import me.rerere.hugeicons.stroke.Copy01
-import me.rerere.hugeicons.stroke.Play
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
+import me.rerere.rikkahub.data.ai.tools.local.ProcessProxyCommand
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
+import me.rerere.rikkahub.data.ai.tools.local.installSshIdentity
 import me.rerere.rikkahub.data.ai.tools.local.knownHostsFile
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
+import me.rerere.rikkahub.data.ai.tools.local.preferredAuthentications
 import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
-import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding
+import me.rerere.rikkahub.data.ai.tools.local.splitProxyCommand
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
-import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.pages.extensions.workspace.HostKeyConfirmDialog
+import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionClient
+import me.rerere.rikkahub.ui.pages.extensions.workspace.TERMINAL_TRANSCRIPT_ROWS
+import me.rerere.rikkahub.ui.pages.extensions.workspace.ShellTerminalTransport
+import me.rerere.rikkahub.ui.pages.extensions.workspace.SshTerminalExitRow
+import me.rerere.rikkahub.ui.pages.extensions.workspace.TerminalExtraKeysBar
+import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalViewClient
+import me.rerere.rikkahub.ui.pages.extensions.workspace.writeText
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import me.rerere.workspace.ssh.SshHostKey
 import org.koin.compose.koinInject
 import java.io.File
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicReference
 
 private val SSH_QUICK_COMMANDS_POSIX =
     listOf(
@@ -105,9 +108,13 @@ private val SSH_QUICK_COMMANDS_WINDOWS =
     )
 
 /**
- * SSH 终端页（Material 3 Expressive 终端面板 + 快捷命令栏）。
+ * SSH 终端页：常驻交互式终端（PTY shell + 终端模拟器）。
+ *
+ * 建连沿用原来的主机实体凭证与主机密钥确认流程；连上后在同一条连接上开
+ * 一个带 PTY 的登录 shell，接到终端模拟器上。键盘输入、Ctrl+C、尺寸变化、
+ * ssh 的问答、vim 这类全屏程序都走终端本身，不再按条跑命令。
  */
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Suppress("LocalContextGetResourceValueCall")
 @Composable
 fun SshTerminalPage(hostName: String) {
@@ -115,51 +122,74 @@ fun SshTerminalPage(hostName: String) {
     val vaultRepo: CredentialVaultRepository = koinInject()
     val settingsStore: SettingsStore = koinInject()
     val appContext = LocalContext.current
-    val appResources = LocalResources.current
-    @Suppress("DEPRECATION")
-    val clipboard = LocalClipboardManager.current
     val scope = rememberCoroutineScope()
 
     var connected by remember { mutableStateOf(false) }
     var connectError by remember { mutableStateOf<String?>(null) }
     var connectNonce by remember { mutableStateOf(0) }
     // 远端是否 Windows：建连成功后由显式平台（主机设置 > 全局默认）或服务端 banner 算出；
-    // null 表示尚未判定，命令发送时回退到命令特征判据。
+    // null 表示尚未判定，快捷命令栏回退到命令特征判据。
     var isWindowsRemote by remember { mutableStateOf<Boolean?>(null) }
-    // 平台未判定时用户在页内手动选一次：快捷命令栏与命令编码都按手动值走。
+    // 平台未判定时用户在页内手动选一次：快捷命令栏按手动值走。
     // 只有未判定时才显示切换；一旦 banner/显式设置判定出来，就以判定为准。
     var platformOverride by remember { mutableStateOf<Boolean?>(null) }
     val isWindowsEffective = platformOverride ?: isWindowsRemote
     var pendingHostKey by remember { mutableStateOf<PendingTerminalHostKey?>(null) }
-    var command by remember { mutableStateOf("") }
-    var output by remember { mutableStateOf("") }
-    val sessionRef = remember { java.util.concurrent.atomic.AtomicReference<com.jcraft.jsch.Session?>(null) }
-    // 按行渲染输出：每行独立布局，新行追加时只测量新增行，不再全量重组整段文本。
-    val outputLines = remember(output) {
-        if (output.isEmpty()) {
-            emptyList()
-        } else {
-            output.split("\n").let { lines ->
-                if (lines.size > 1 && lines.last().isEmpty()) lines.dropLast(1) else lines
-            }
+    var terminalFinished by remember { mutableStateOf(false) }
+    var terminalSession by remember { mutableStateOf<TerminalSession?>(null) }
+    val terminalSessionRef = remember { AtomicReference<TerminalSession?>(null) }
+    val terminalClientRef = remember { AtomicReference<WorkspaceTerminalSessionClient?>(null) }
+    val sessionRef = remember { AtomicReference<Session?>(null) }
+    val viewClient = remember { WorkspaceTerminalViewClient(appContext) }
+    var controlDown by remember { mutableStateOf(false) }
+    var altDown by remember { mutableStateOf(false) }
+    viewClient.controlDown = controlDown
+    viewClient.altDown = altDown
+    val terminalTextSizePx = with(LocalDensity.current) { 14.sp.roundToPx() }
+    val terminalTypeface =
+        remember(appContext) {
+            ResourcesCompat.getFont(appContext, R.font.jetbrains_mono) ?: Typeface.MONOSPACE
         }
+
+    fun finishTerminalSession() {
+        terminalSessionRef.getAndSet(null)?.finishIfRunning()
+        terminalClientRef.getAndSet(null)?.let { it.terminalView = null }
+        terminalSession = null
+        terminalFinished = false
     }
-    val outputListState = rememberLazyListState()
+
+    fun createTerminalSession(jschSession: Session, address: String) {
+        finishTerminalSession()
+        // 每个终端会话配自己的 client：旧会话的结束回调可能晚于新会话的建立，
+        // 回调只认自己绑定的会话，避免旧会话的结束把新会话误判成已退出。
+        val holder = AtomicReference<TerminalSession?>(null)
+        val client =
+            WorkspaceTerminalSessionClient(
+                context = appContext,
+                onTitleUpdated = {},
+                onFinished = {
+                    if (terminalSessionRef.get() === holder.get()) {
+                        terminalFinished = true
+                        connected = false
+                    }
+                },
+            )
+        val transport =
+            ShellTerminalTransport(address) { columns, rows ->
+                openSshHostShell(jschSession, columns, rows)
+            }
+        val terminal = TerminalSession(transport, TERMINAL_TRANSCRIPT_ROWS, client)
+        holder.set(terminal)
+        terminalClientRef.set(client)
+        terminalSessionRef.set(terminal)
+        terminalSession = terminal
+    }
 
     DisposableEffect(hostName) {
         onDispose {
+            finishTerminalSession()
+            viewClient.terminalView = null
             runCatching { sessionRef.getAndSet(null)?.disconnect() }
-        }
-    }
-
-    // 只有用户已在底部时才跟随新输出；上翻看历史时不拽回到底部。
-    LaunchedEffect(output.length) {
-        val lastIndex = outputLines.lastIndex
-        if (lastIndex < 0) return@LaunchedEffect
-        val lastVisible = outputListState.layoutInfo.visibleItemsInfo.lastOrNull()?.index
-        val atBottom = lastVisible == null || lastVisible >= lastIndex - 1
-        if (atBottom) {
-            outputListState.animateScrollToItem(lastIndex)
         }
     }
 
@@ -169,6 +199,9 @@ fun SshTerminalPage(hostName: String) {
         withContext(Dispatchers.IO) {
             connectError = null
             connected = false
+            terminalFinished = false
+            finishTerminalSession()
+            runCatching { sessionRef.getAndSet(null)?.disconnect() }
             val host = hostRepo.getByName(hostName)
             if (host == null) {
                 AppLog.w("SshTerm", "connect: host not found $hostName")
@@ -202,7 +235,13 @@ fun SshTerminalPage(hostName: String) {
                     val repo = VerifyingHostKeyRepository(jsch.hostKeyRepository)
                     hostKeyRepo = repo
                     jsch.hostKeyRepository = repo
-                    val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host.host, host.port)
+                    // 代理命令自己负责寻址：配了 proxyCommand 时不走隧道解析。
+                    val proxyCommand = auth.proxyCommand
+                    val (dialHost, dialPort) = if (!proxyCommand.isNullOrBlank()) {
+                        host.host to host.port
+                    } else {
+                        me.rerere.workspace.ssh.TunnelRouter.resolve(host.host, host.port)
+                    }
                     val session = jsch.getSession(host.user, dialHost, dialPort)
                     // 拨号地址可能是隧道分配的本地地址，主机密钥仍按用户填的主机名比对，
                     // 否则同一主机的密钥变更会被当成新主机放过。
@@ -212,15 +251,23 @@ fun SshTerminalPage(hostName: String) {
                     session.setConfig("StrictHostKeyChecking", "yes")
                     session.setConfig("ServerAliveInterval", "30")
                     session.setConfig("ServerAliveCountMax", "3")
+                    session.setConfig("PreferredAuthentications", preferredAuthentications(auth))
                     auth.password?.let { session.setPassword(it) }
-                    auth.privateKey?.let {
-                        jsch.addIdentity("ssh-term-$hostName", it.ensureTrailingNewline().toByteArray(Charsets.UTF_8), null, null)
+                    // 证书 / 私钥 / 口令统一走 installSshIdentity：证书先校验（过期、未生效、
+                    // 缺私钥都在这里失败），无凭证时不加载任何身份（none 认证）。
+                    installSshIdentity(jsch, auth)
+                    if (!proxyCommand.isNullOrBlank()) {
+                        val argv = try {
+                            splitProxyCommand(proxyCommand, host.host, host.port)
+                        } catch (e: IllegalArgumentException) {
+                            throw JSchException("invalid proxy command: ${e.message}", e)
+                        }
+                        session.setProxy(ProcessProxyCommand(argv))
                     }
                     session.connect(10000)
                     sessionRef.set(session)
                     connected = true
-                    // 平台判定：主机显式设置 > 服务端 banner（建连时获取）> 全局默认；决定快捷命令栏用哪套
-                    // 命令，以及后续命令是否补 UTF-8 输出前缀。
+                    // 平台判定：主机显式设置 > 服务端 banner（建连时获取）> 全局默认；决定快捷命令栏用哪套。
                     isWindowsRemote = when (SshPlatform.fromPreference(host.platform)) {
                         SshPlatform.WINDOWS -> true
                         SshPlatform.LINUX -> false
@@ -232,7 +279,6 @@ fun SshTerminalPage(hostName: String) {
                             }
                     }
                     connectError = null
-                    output = appContext.getString(R.string.ssh_terminal_connected, host.user, host.host, host.port) + "\n"
                     AppLog.i("SshTerm", "connected ${host.user}@${host.host}:${host.port}")
                     lastError = null
                     break
@@ -265,6 +311,19 @@ fun SshTerminalPage(hostName: String) {
                         AppLog.w("SshTerm", "connect failed: ${lastError.message}")
                     }
                 }
+                return@withContext
+            }
+            // 连接已建立，在主线程建终端会话（终端模拟器只在主线程接管视图）；
+            // 离开页面后连接已被清掉时不再建，避免建好的会话无处挂载。
+            // 建会话本身不做网络操作（打开 shell 通道在终端的会话线程里进行，
+            // 失败时由终端的结束回调走「已退出」浮层），这里不需要再包一层捕获。
+            val liveSession = sessionRef.get()
+            if (liveSession != null && liveSession.isConnected) {
+                withContext(Dispatchers.Main) {
+                    if (sessionRef.get() === liveSession) {
+                        createTerminalSession(liveSession, "${host.user}@${host.host}:${host.port}")
+                    }
+                }
             }
         }
     }
@@ -273,82 +332,10 @@ fun SshTerminalPage(hostName: String) {
         connect()
     }
 
-    fun runCmd(cmd: String) {
-        val trimmed = cmd.trim()
-        if (trimmed.isBlank()) return
-        output += "\n$ $trimmed\n"
-        scope.launch {
-            withContext(Dispatchers.IO) {
-                val session = sessionRef.get()
-                if (session == null || !session.isConnected) {
-                    sessionRef.set(null)
-                    connected = false
-                    // 断线也要弹出错误卡片（带“重试”按钮），否则输入框和快捷栏
-                    // 消失后用户只能退出页面再进来重连。
-                    connectError = appContext.getString(R.string.ssh_terminal_connection_lost)
-                    output += appContext.getString(R.string.ssh_terminal_connection_lost) + "\n"
-                    return@withContext
-                }
-                // 执行中会话断掉时同样回到断线态（错误卡片 + 重试），而不是
-                // 只留一行失败记录、把输入框留在已死的会话上。
-                fun markDisconnectedIfSessionDown() {
-                    if (session?.isConnected == false) {
-                        sessionRef.set(null)
-                        connected = false
-                        connectError = appContext.getString(R.string.ssh_terminal_connection_lost)
-                    }
-                }
-                var ch: com.jcraft.jsch.ChannelExec? = null
-                try {
-                    val execChannel = session.openChannel("exec") as com.jcraft.jsch.ChannelExec
-                    ch = execChannel
-                    // Windows 远端补 UTF-8 输出前缀修中文乱码；平台未知时由命令特征判据兜底，
-                    // 用户在页内手动选过平台时按手动值走。
-                    execChannel.setCommand(withUtf8ConsoleEncoding(trimmed, isWindowsEffective))
-                    execChannel.connect(10000)
-                    val buf = ByteArray(4096)
-                    val outBuf = java.io.ByteArrayOutputStream()
-                    val errBuf = java.io.ByteArrayOutputStream()
-                    val input = execChannel.inputStream
-                    val errIn = execChannel.errStream
-                    val deadline = System.currentTimeMillis() + 30000
-                    while (System.currentTimeMillis() < deadline) {
-                        while (input.available() > 0) {
-                            val n = input.read(buf)
-                            if (n > 0) outBuf.write(buf, 0, n)
-                        }
-                        while (errIn.available() > 0) {
-                            val n = errIn.read(buf)
-                            if (n > 0) errBuf.write(buf, 0, n)
-                        }
-                        if (execChannel.isClosed && input.available() <= 0 && errIn.available() <= 0) break
-                        Thread.sleep(100)
-                    }
-                    val timedOut = !execChannel.isClosed
-                    if (timedOut) {
-                        runCatching { execChannel.sendSignal("KILL") }
-                        runCatching { execChannel.disconnect() }
-                    }
-                    val stdout = outBuf.toString("UTF-8").trim()
-                    val stderr = errBuf.toString("UTF-8").trim()
-                    if (stdout.isNotEmpty()) output += "$stdout\n"
-                    if (stderr.isNotEmpty()) output += "stderr: $stderr\n"
-                    if (timedOut) {
-                        output += appContext.getString(R.string.ssh_terminal_command_timeout) + "\n"
-                    } else {
-                        output += "[exit=${execChannel.exitStatus}]\n"
-                    }
-                } catch (e: JSchException) {
-                    output += appContext.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
-                    markDisconnectedIfSessionDown()
-                } catch (e: IOException) {
-                    output += appResources.getString(R.string.ssh_terminal_exec_failed, e.message) + "\n"
-                    markDisconnectedIfSessionDown()
-                } finally {
-                    runCatching { ch?.disconnect() }
-                }
-            }
-        }
+    fun reconnect() {
+        connectError = null
+        connected = false
+        connectNonce++
     }
 
     Scaffold(
@@ -380,6 +367,7 @@ fun SshTerminalPage(hostName: String) {
                                     when {
                                         connectError != null -> stringResource(R.string.ssh_terminal_status_failed)
                                         connected -> stringResource(R.string.ssh_terminal_status_connected)
+                                        terminalFinished -> stringResource(R.string.ssh_terminal_exited)
                                         else -> stringResource(R.string.ssh_terminal_status_connecting)
                                     },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
@@ -393,24 +381,13 @@ fun SshTerminalPage(hostName: String) {
                     if (connected) {
                         IconButton(
                             onClick = {
+                                finishTerminalSession()
                                 runCatching { sessionRef.getAndSet(null)?.disconnect() }
                                 connected = false
-                                connectError = appContext.getString(R.string.ssh_terminal_disconnected)
+                                terminalFinished = true
                             },
                         ) {
                             Icon(HugeIcons.Cancel01, contentDescription = stringResource(R.string.ssh_terminal_disconnect))
-                        }
-                    }
-                    if (output.isNotBlank()) {
-                        IconButton(
-                            onClick = { clipboard.setText(AnnotatedString(output)) },
-                        ) {
-                            Icon(HugeIcons.Copy01, contentDescription = stringResource(R.string.ssh_terminal_copy_output))
-                        }
-                        IconButton(
-                            onClick = { output = "" },
-                        ) {
-                            Icon(HugeIcons.Clean, contentDescription = stringResource(R.string.ssh_terminal_clear_output))
                         }
                     }
                 },
@@ -424,7 +401,9 @@ fun SshTerminalPage(hostName: String) {
                 Modifier
                     .fillMaxSize()
                     .padding(innerPadding)
-                    .imePadding()
+                    // 按键盘动画的终点高度一次调整终端尺寸，而不是每帧发一次尺寸变化，
+                    // 否则终端行数在键盘动画期间来回抖。
+                    .windowInsetsPadding(WindowInsets.imeAnimationTarget)
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
@@ -444,11 +423,7 @@ fun SshTerminalPage(hostName: String) {
                             style = MaterialTheme.typography.bodySmall,
                         )
                         OutlinedButton(
-                            onClick = {
-                                connectError = null
-                                connected = false
-                                connectNonce++
-                            },
+                            onClick = { reconnect() },
                         ) {
                             Text(stringResource(R.string.ssh_terminal_retry))
                         }
@@ -462,8 +437,7 @@ fun SshTerminalPage(hostName: String) {
                         .fillMaxWidth()
                         .weight(1f),
                 shape = RoundedCornerShape(20.dp),
-                color = MaterialTheme.colorScheme.inverseSurface,
-                contentColor = MaterialTheme.colorScheme.inverseOnSurface,
+                color = Color.Black,
             ) {
                 Box(
                     modifier =
@@ -471,26 +445,53 @@ fun SshTerminalPage(hostName: String) {
                             .fillMaxSize()
                             .padding(14.dp),
                 ) {
-                    SelectionContainer {
-                        LazyColumn(
-                            state = outputListState,
-                            modifier = Modifier.fillMaxSize(),
-                        ) {
-                            itemsIndexed(outputLines, key = { index, _ -> index }) { _, line ->
-                                Text(
-                                    text = line,
-                                    style = MaterialTheme.typography.bodySmall,
-                                    fontFamily = JetbrainsMono,
-                                    color = MaterialTheme.colorScheme.inverseOnSurface,
-                                    modifier = Modifier.fillMaxWidth(),
-                                )
+                    AndroidView(
+                        modifier = Modifier.fillMaxSize(),
+                        factory = { viewContext ->
+                            TerminalView(viewContext, null).apply {
+                                isFocusable = true
+                                isFocusableInTouchMode = true
+                                setTextSize(terminalTextSizePx)
+                                setTypeface(terminalTypeface)
+                                setTerminalViewClient(viewClient)
+                                terminalSession?.let { attachSession(it) }
+                                terminalClientRef.get()?.terminalView = this
+                                viewClient.terminalView = this
+                                if (terminalSession != null) {
+                                    post { viewClient.focusAndShowKeyboard() }
+                                }
                             }
-                        }
+                        },
+                        update = { terminalView ->
+                            terminalClientRef.get()?.terminalView = terminalView
+                            viewClient.terminalView = terminalView
+                            val session = terminalSession
+                            if (session != null && terminalView.currentSession !== session) {
+                                terminalView.setTextSize(terminalTextSizePx)
+                                terminalView.setTypeface(terminalTypeface)
+                                terminalView.setTerminalViewClient(viewClient)
+                                terminalView.attachSession(session)
+                                terminalView.onScreenUpdated()
+                                terminalView.post { viewClient.focusAndShowKeyboard() }
+                            }
+                        },
+                    )
+                    if (terminalSession == null && connectError == null && !terminalFinished) {
+                        Text(
+                            text = stringResource(R.string.ssh_terminal_status_connecting),
+                            style = MaterialTheme.typography.bodyLarge,
+                            color = Color.White.copy(alpha = 0.7f),
+                            modifier = Modifier.align(Alignment.Center),
+                        )
+                    }
+                    if (terminalFinished) {
+                        SshTerminalExitRow(onReopen = { reconnect() })
                     }
                 }
             }
 
-            if (connected) {
+            val terminalLive = terminalSession != null && !terminalFinished
+            if (terminalLive) {
                 // 平台未判定时默认给 Linux 命令，连 Windows 主机点了也没用，
                 // 页内又没地方改：给一个小的 Linux/Windows 切换。
                 if (isWindowsRemote == null) {
@@ -517,6 +518,8 @@ fun SshTerminalPage(hostName: String) {
                         )
                     }
                 }
+                // 快捷命令现在是往终端里发文本（带回车），不再按条执行：交互问答
+                // 与全屏程序都能继续用。
                 val quickCommands =
                     if (isWindowsEffective == true) SSH_QUICK_COMMANDS_WINDOWS else SSH_QUICK_COMMANDS_POSIX
                 Row(
@@ -528,7 +531,7 @@ fun SshTerminalPage(hostName: String) {
                 ) {
                     quickCommands.forEach { preset ->
                         AssistChip(
-                            onClick = { runCmd(preset) },
+                            onClick = { terminalSession?.writeText("$preset\n") },
                             label = {
                                 Text(
                                     text = preset,
@@ -539,44 +542,13 @@ fun SshTerminalPage(hostName: String) {
                         )
                     }
                 }
-
-                Row(
-                    modifier = Modifier.fillMaxWidth(),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    OutlinedTextField(
-                        value = command,
-                        onValueChange = { command = it },
-                        placeholder = { Text(stringResource(R.string.ssh_terminal_input_placeholder)) },
-                        modifier = Modifier.weight(1f),
-                        singleLine = true,
-                        shape = RoundedCornerShape(16.dp),
-                        keyboardOptions = KeyboardOptions(imeAction = ImeAction.Send),
-                        keyboardActions =
-                            KeyboardActions(
-                                onSend = {
-                                    runCmd(command)
-                                    command = ""
-                                },
-                            ),
-                    )
-                    Button(
-                        onClick = {
-                            runCmd(command)
-                            command = ""
-                        },
-                        enabled = command.isNotBlank(),
-                    ) {
-                        Icon(
-                            imageVector = HugeIcons.Play,
-                            contentDescription = null,
-                            modifier = Modifier.size(ButtonDefaults.IconSize),
-                        )
-                        Spacer(Modifier.width(4.dp))
-                        Text(stringResource(R.string.ssh_terminal_execute))
-                    }
-                }
+                TerminalExtraKeysBar(
+                    controlDown = controlDown,
+                    altDown = altDown,
+                    onControlToggle = { controlDown = !controlDown },
+                    onAltToggle = { altDown = !altDown },
+                    onSendText = { terminalSession?.writeText(it) },
+                )
             }
         }
     }
@@ -599,6 +571,7 @@ fun SshTerminalPage(hostName: String) {
         )
     }
 }
+
 
 /** 等待用户确认的主机密钥：[expected] 为 null 表示首次连接，否则是已信任密钥被替换 */
 private data class PendingTerminalHostKey(

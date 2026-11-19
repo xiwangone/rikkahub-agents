@@ -84,14 +84,25 @@ internal fun legacyCredentialNameError(hits: List<Pair<String, String>>): String
  * - 同时替换原值与 trim 后的值（命令常 `echo -n`/`printf` 掉首尾空白）；
  * - 长值优先替换，避免短值先吃掉长值的一部分。
  */
-internal fun maskInjectedValues(text: String, secrets: Collection<InjectedSecret>): String {
-    if (text.isEmpty() || secrets.isEmpty()) return text
+internal fun maskInjectedValues(
+    text: String,
+    secrets: Collection<InjectedSecret>,
+    legacyRules: Map<String, String> = emptyMap(),
+): String {
+    if (text.isEmpty() || (secrets.isEmpty() && legacyRules.isEmpty())) return text
     val rules = LinkedHashMap<String, String>() // 值 -> 占位符（同值取第一个引用名）
     for (s in secrets) {
         val min = if (s.isField) INJECTED_FIELD_MIN_LEN else INJECTED_SECRET_MIN_LEN
         for (candidate in listOf(s.value, s.value.trim())) {
             if (candidate.isBlank() || candidate.length < min) continue
             rules.putIfAbsent(candidate, injectedSecretPlaceholder(s.ref))
+        }
+    }
+    // 被淘汰任务留下的永久掩码规则：活动规则优先（占位符带新鲜 ref），同值不重复
+    for ((value, placeholder) in legacyRules) {
+        for (candidate in listOf(value, value.trim())) {
+            if (candidate.isBlank()) continue
+            rules.putIfAbsent(candidate, placeholder)
         }
     }
     if (rules.isEmpty()) return text
@@ -113,13 +124,38 @@ internal fun countUnmaskableInjected(secrets: Collection<InjectedSecret>): Int =
  * 后台任务 → 本次注入值的进程内登记，供 workspace_background_status 脱敏。
  *
  * 明文只活在内存里、生命周期与进程一致（同后台进程表本身）；kill 时移除；
- * 超过 [MAX_TASKS] 条时淘汰最早的，防止长跑进程无限增长。
+ * 超过 [MAX_TASKS] 条时淘汰最早的，防止长跑进程无限增长。淘汰不丢脱敏能力：
+ * 被淘汰任务的值并入 [legacyMasks] 永久掩码集（见 [retainedRules]）。
  */
 internal object BackgroundInjectedSecrets {
     private const val MAX_TASKS = 128
+
+    // 被淘汰任务的注入值进永久掩码集（值 -> 占位符），否则第 129 个任务启动后，
+    // 最早任务的 stdout/stderr 里 `$$` 值会以明文直达模型且无任何提示。
+    // 值来自凭证库、去重后规模极小；MAX_LEGACY_VALUES 只是防御性上限。
+    private const val MAX_LEGACY_VALUES = 4096
+    private val legacyMasks = LinkedHashMap<String, String>(16, 0.75f, false)
+
+    private fun retainLegacy(secrets: List<InjectedSecret>) {
+        for (s in secrets) {
+            val min = if (s.isField) INJECTED_FIELD_MIN_LEN else INJECTED_SECRET_MIN_LEN
+            for (candidate in listOf(s.value, s.value.trim())) {
+                if (candidate.isBlank() || candidate.length < min) continue
+                if (candidate !in legacyMasks && legacyMasks.size >= MAX_LEGACY_VALUES) {
+                    val oldest = legacyMasks.keys.firstOrNull() ?: break
+                    legacyMasks.remove(oldest)
+                }
+                legacyMasks.putIfAbsent(candidate, injectedSecretPlaceholder(s.ref))
+            }
+        }
+    }
+
     private val byTask = object : LinkedHashMap<String, List<InjectedSecret>>(16, 0.75f, false) {
-        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<InjectedSecret>>?): Boolean =
-            size > MAX_TASKS
+        override fun removeEldestEntry(eldest: MutableMap.MutableEntry<String, List<InjectedSecret>>?): Boolean {
+            if (size <= MAX_TASKS) return false
+            eldest?.value?.let { retainLegacy(it) }
+            return true
+        }
     }
 
     private fun key(workspaceId: String, taskId: String) = "$workspaceId\u0000$taskId"
@@ -140,5 +176,12 @@ internal object BackgroundInjectedSecrets {
     }
 
     @Synchronized
-    internal fun clearForTest() = byTask.clear()
+    internal fun clearForTest() {
+        byTask.clear()
+        legacyMasks.clear()
+    }
+
+    /** 被淘汰任务的值 → 占位符；调用方在后台状态输出时并入 [maskInjectedValues]。 */
+    @Synchronized
+    fun retainedRules(): Map<String, String> = legacyMasks.toMap()
 }

@@ -37,5 +37,15 @@ data class SshHostEntity(
     @ColumnInfo(defaultValue = "AUTO") val platform: String = "AUTO",
     /** 是否允许该主机密钥轮换（默认不允许；开启后密钥变化时重新信任） */
     @ColumnInfo(defaultValue = "0") val allowHostKeyRotation: Boolean = false,
+    /** OpenSSH 用户证书文本（`-cert.pub` 文件内容）；公开材料，明文存放 */
+    val certificate: String? = null,
+    /** 引用 Vault 凭证名（连接时从 Vault 读证书文本，不明文存 Room）；有值时优先于 certificate */
+    val vaultCertificateRef: String? = null,
+    /**
+     * 代理命令（本地拉起做传输，`%h`/`%p` 展开为目标主机/端口，如
+     * `cloudflared access ssh --hostname %h`）。只允许设置页 UI 填写，
+     * 模型建主机工具不得设置。
+     */
+    val proxyCommand: String? = null,
     val createdAtMs: Long,
 )

@@ -298,7 +298,7 @@ internal fun wrapDetachedCommandSmart(command: String, windows: Boolean? = null)
         val body = shellSingleQuote(command)
         val wrapped = "{ command -v nohup >/dev/null 2>&1 && nohup sh -c $body >$logPath 2>&1 </dev/null" +
             " || command -v setsid >/dev/null 2>&1 && setsid sh -c $body >$logPath 2>&1 </dev/null" +
-            " || sh -c $body >$logPath 2>&1 </dev/null; } & echo \"rikkahub_bg_pid=\$!\""
+            " || sh -c $body >$logPath 2>&1 </dev/null; } >/dev/null 2>&1 </dev/null & echo \"rikkahub_bg_pid=\$!\""
         return wrapped to logPath
     }
 

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.data.ai.tools.local
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
-import java.security.MessageDigest
 import java.util.concurrent.ConcurrentHashMap
 
 /**
@@ -50,21 +49,6 @@ internal data class SshConnection(
     val session: Session,
     val tunnel: JumpTunnelProxy?,
 )
-
-/**
- * 凭证材料的缓存指纹：私钥/密码分别加 `key:`/`pw:` 前缀再取 SHA-256 hex，含
- * passphrase。只存摘要不存明文；同一份凭证每次算出的指纹相同，不同凭证必然不同键。
- */
-internal fun SshAuth.cacheFingerprint(): String {
-    val material = when {
-        !privateKey.isNullOrBlank() -> "key:$privateKey|pass:${passphrase.orEmpty()}"
-        !password.isNullOrBlank() -> "pw:$password"
-        else -> "none:"
-    }
-    return MessageDigest.getInstance("SHA-256")
-        .digest(material.toByteArray(Charsets.UTF_8))
-        .joinToString("") { "%02x".format(it) }
-}
 
 /** 把跳板描述折成缓存键里的一段；直连为 null。 */
 internal fun JumpSpec.cacheKeyPart(): String = "$host:$port:$user:${auth.cacheFingerprint()}"

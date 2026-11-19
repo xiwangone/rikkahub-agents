@@ -15,23 +15,23 @@ import java.util.concurrent.atomic.AtomicBoolean
  */
 class SshShell internal constructor(
     private val channel: ChannelExec,
-    val inputStream: InputStream,
-    val outputStream: OutputStream,
+    override val inputStream: InputStream,
+    override val outputStream: OutputStream,
     private val connection: SshConnection,
     private val onClose: () -> Unit,
-) : Closeable {
+) : Closeable, TerminalShell {
     private val closed = AtomicBoolean(false)
 
     /** shell 结束时 SSH 连接是否已经断开, 用来区分正常退出和掉线 */
-    val connectionLost: Boolean
+    override val connectionLost: Boolean
         get() = !connection.isConnected
 
-    fun resize(columns: Int, rows: Int) {
+    override fun resize(columns: Int, rows: Int) {
         channel.setPtySize(columns, rows, 0, 0)
     }
 
     /** 阻塞到 shell 结束, 返回退出码; 没收到退出码 (掉线、被信号结束或被 [close]) 时返回 null */
-    fun waitFor(): Int? {
+    override fun waitFor(): Int? {
         while (!channel.isClosed) {
             Thread.sleep(POLL_INTERVAL_MS)
         }

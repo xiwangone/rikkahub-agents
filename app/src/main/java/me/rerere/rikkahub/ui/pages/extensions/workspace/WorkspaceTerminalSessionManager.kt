@@ -31,7 +31,7 @@ import me.rerere.workspace.WorkspaceMountUnavailableException
  * tab is explicitly closed (or the shell exits by itself).
  *
  * 会话内部仍以工作区 root 为键（root 是文件区与终端会话的稳定标识）；入口收实体，
- * 因为创建分支要看能力位（SSH 走 SshTerminalTransport，本机走 proot 进程）。
+ * 因为创建分支要看能力位（SSH 走 ShellTerminalTransport，本机走 proot 进程）。
  */
 class WorkspaceTerminalSessionManager internal constructor(
     context: Context,
@@ -177,7 +177,7 @@ class WorkspaceTerminalSessionManager internal constructor(
                 val settings = workspace.sshSettings()
                     ?: error("SSH workspace settings missing: ${workspace.id}")
                 createWorkspaceTerminalSession(
-                    transport = SshTerminalTransport(
+                    transport = ShellTerminalTransport(
                         address = "${settings.username}@${settings.host}:${settings.port}",
                     ) { columns, rows ->
                         workspaceRepository.openSshShell(workspace, columns, rows)

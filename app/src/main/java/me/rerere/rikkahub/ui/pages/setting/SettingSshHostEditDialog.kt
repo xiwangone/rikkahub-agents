@@ -67,6 +67,10 @@ internal fun SshHostEditDialog(
     var privateKey by remember { mutableStateOf(initial?.privateKey ?: "") }
     var passphrase by remember { mutableStateOf(initial?.passphrase ?: "") }
     var vaultCredentialRef by remember { mutableStateOf(initial?.vaultCredentialRef) }
+    var certificate by remember { mutableStateOf(initial?.certificate ?: "") }
+    var vaultCertificateRef by remember { mutableStateOf(initial?.vaultCertificateRef) }
+    var proxyCommand by remember { mutableStateOf(initial?.proxyCommand ?: "") }
+    var showCertVaultPicker by remember { mutableStateOf(false) }
     var templateRef by remember { mutableStateOf(initial?.templateRef) }
     var platform by remember { mutableStateOf(SshPlatform.fromPreference(initial?.platform)) }
     var allowHostKeyRotation by remember { mutableStateOf(initial?.allowHostKeyRotation ?: false) }
@@ -171,6 +175,65 @@ internal fun SshHostEditDialog(
                     nameHint = "SSH_PASSPHRASE",
                     typeHint = CredentialType.BASIC_AUTH,
                     singleLine = true,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                SecretRefField(
+                    value = certificate,
+                    onValueChange = { certificate = it },
+                    label = stringResource(R.string.setting_ssh_host_certificate),
+                    nameHint = "SSH_CERTIFICATE",
+                    typeHint = CredentialType.SSH_KEY,
+                    maxLines = 4,
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(
+                    onClick = { showCertVaultPicker = true },
+                    enabled = keyChoice.vaultPickEnabled,
+                    modifier = Modifier.fillMaxWidth(),
+                    contentPadding = PaddingValues(horizontal = 10.dp, vertical = 8.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Key01,
+                        contentDescription = null,
+                        modifier = Modifier.size(ButtonDefaults.IconSize),
+                    )
+                    Spacer(Modifier.width(4.dp))
+                    Text(
+                        text = stringResource(R.string.setting_ssh_pick_vault_certificate),
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                if (showCertVaultPicker) {
+                    VaultCredentialPickerDialog(
+                        entries = keyCandidates,
+                        onPick = {
+                            vaultCertificateRef = it.name
+                            showCertVaultPicker = false
+                        },
+                        onDismiss = { showCertVaultPicker = false },
+                    )
+                }
+                vaultCertificateRef?.let { ref ->
+                    Text(
+                        stringResource(R.string.setting_ssh_vault_certificate_used, ref),
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+                Text(
+                    text = stringResource(R.string.setting_ssh_host_no_auth_hint),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                SettingTextField(
+                    value = proxyCommand,
+                    onValueChange = { proxyCommand = it },
+                    label = { Text(stringResource(R.string.setting_ssh_host_proxy_command)) },
+                    singleLine = true,
+                    supportingText = {
+                        Text(stringResource(R.string.setting_ssh_host_proxy_command_hint))
+                    },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -368,6 +431,9 @@ internal fun SshHostEditDialog(
                             privateKey = privateKey.ifBlank { null },
                             passphrase = passphrase.ifBlank { null },
                             vaultCredentialRef = vaultCredentialRef,
+                            certificate = certificate.ifBlank { null },
+                            vaultCertificateRef = vaultCertificateRef,
+                            proxyCommand = proxyCommand.ifBlank { null },
                             templateRef = templateRef,
                             // 编辑保存是整行 upsert：未在界面上编辑的字段必须从原实体带回，
                             // 否则一次保存会把它们悄悄清成 null。

@@ -29,6 +29,7 @@ import me.rerere.rikkahub.data.vault.CredentialResolution
 import me.rerere.rikkahub.data.vault.CredentialResolver
 import me.rerere.rikkahub.data.vault.message
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.isVaultReference
 import me.rerere.rikkahub.data.vault.resolveLiteralOrReference
 
 /**
@@ -126,6 +127,10 @@ internal sealed interface JumpResolution {
 /**
  * 解析主机认证（**带原因**版）。
  *
+ * 无任何凭证材料 = none 认证（返回 Ready，连接时服务端接受即可）；证书走
+ * [resolveHostCertificate] 解析（引用解不出来直接报不可用）；proxyCommand
+ * 原样带进 [SshAuth]，由连接层决定是否使用。
+ *
  * 名称容错：历史数据里的 `vaultCredentialRef` 可能是归一前的形态
  * （如 `PC ED25519 KEY`），与库中现名（`PC_ED25519_KEY`）不一致 → 名字不存在时按
  * [CredentialVaultRepository.normalizeName] 再解析一次，避免“库里明明有这条凭证却连不上”。
@@ -157,7 +162,16 @@ internal suspend fun resolveHostAuthDetailed(
         isAuthorized = isAuthorized,
         destination = destination,
     )
+    // 证书：引用解不出来时直接报不可用，不静默回落到密钥认证（用户显式配了证书，
+    // 丢掉它等于换了一种认证方式，服务端拒绝时报错也对不上）。
+    val certificate = when (val r = resolveHostCertificate(h, vaultRepository, isAuthorized, destination)) {
+        is CertificateResolution.Resolved -> r.certificate
+        is CertificateResolution.Failed -> return HostAuthResolution.Unusable(r.reason)
+    }
+    val proxyCommand = h.proxyCommand?.takeIf { it.isNotBlank() }
     val ref = h.vaultCredentialRef?.trim().orEmpty()
+    val password: String?
+    val privateKey: String?
     if (ref.isNotEmpty()) {
         // 连接前探测：audit = false，避免候选主机探测写满审计
         val resolver = CredentialResolver(vaultRepository, isAuthorized)
@@ -168,35 +182,96 @@ internal suspend fun resolveHostAuthDetailed(
                 r = resolver.resolve(normalized, CredentialPurpose.SSH_AUTH, caller = "ssh", audit = false, destination = destination)
             }
         }
-        val secret = (r as? CredentialResolution.Granted)?.value
+        // OPENSSH 私钥末尾换行标准化（缺换行 Auth fail）——统一在此容错，覆盖所有走本函数的连接
+        privateKey = (r as? CredentialResolution.Granted)?.value?.ensureTrailingNewline()
             ?: return HostAuthResolution.Unusable(
                 "saved host '${h.name}' has unusable credentials: ${r.message} (reference field = $ref)",
             )
-        // OPENSSH 私钥末尾换行标准化（缺换行 Auth fail）——统一在此容错，覆盖所有走本函数的连接
-        return HostAuthResolution.Ready(
-            SshAuth(password = null, privateKey = secret.ensureTrailingNewline(), passphrase = passphrase),
+        password = null
+    } else {
+        // 历史数据兼容：password / privateKey 既可能是明文，也可能是 `$$引用`
+        password = resolveLiteralOrReference(
+            h.password,
+            CredentialPurpose.SSH_AUTH,
+            vaultRepository,
+            caller = "ssh-password",
+            isAuthorized = isAuthorized,
+            destination = destination,
+        )
+        privateKey = resolveLiteralOrReference(
+            h.privateKey,
+            CredentialPurpose.SSH_AUTH,
+            vaultRepository,
+            caller = "ssh-key",
+            isAuthorized = isAuthorized,
+            destination = destination,
         )
     }
-    // 历史数据兼容：password / privateKey 既可能是明文，也可能是 `$$引用`
-    val password = resolveLiteralOrReference(
-        h.password,
+    // 证书必须配私钥：有证书没私钥时早失败，不要等到连接时才由服务端拒绝。
+    if (!certificate.isNullOrBlank() && privateKey.isNullOrBlank()) {
+        return HostAuthResolution.Unusable(
+            "saved host '${h.name}' has a certificate but no private key (a certificate only works with its matching private key)"
+        )
+    }
+    // 无任何凭证材料 = none 认证（token 用户名中继这类服务端接受即可），不再视为不可用。
+    return HostAuthResolution.Ready(
+        SshAuth(
+            password = password,
+            privateKey = privateKey,
+            passphrase = passphrase,
+            certificate = certificate,
+            proxyCommand = proxyCommand,
+        )
+    )
+}
+
+/** [resolveHostCertificate] 的结果：解出的证书文本（null = 未配），或解不出来的原因。 */
+private sealed interface CertificateResolution {
+    data class Resolved(val certificate: String?) : CertificateResolution
+    data class Failed(val reason: String) : CertificateResolution
+}
+
+/**
+ * 解析主机条目的证书：vaultCertificateRef 优先于 certificate 明文（与私钥的
+ * vaultCredentialRef 口径一致）；明文栏也可填 `$$引用`。引用解不出来时报
+ * [CertificateResolution.Failed]，不要当成“没配证书”静默回落。
+ */
+private suspend fun resolveHostCertificate(
+    h: SshHostEntity,
+    vaultRepository: CredentialVaultRepository,
+    isAuthorized: (suspend (String) -> Boolean)?,
+    destination: CredentialDestination,
+): CertificateResolution {
+    val ref = h.vaultCertificateRef?.trim().orEmpty()
+    if (ref.isNotEmpty()) {
+        val resolver = CredentialResolver(vaultRepository, isAuthorized)
+        var r = resolver.resolve(ref, CredentialPurpose.SSH_AUTH, caller = "ssh-certificate", audit = false, destination = destination)
+        if (r is CredentialResolution.Missing) {
+            val normalized = CredentialVaultRepository.normalizeName(ref)
+            if (normalized != ref) {
+                r = resolver.resolve(normalized, CredentialPurpose.SSH_AUTH, caller = "ssh-certificate", audit = false, destination = destination)
+            }
+        }
+        val secret = (r as? CredentialResolution.Granted)?.value
+            ?: return CertificateResolution.Failed(
+                "saved host '${h.name}' has unusable certificate: ${r.message} (reference field = $ref)",
+            )
+        return CertificateResolution.Resolved(secret.ensureTrailingNewline())
+    }
+    val literal = resolveLiteralOrReference(
+        h.certificate,
         CredentialPurpose.SSH_AUTH,
         vaultRepository,
-        caller = "ssh-password",
+        caller = "ssh-certificate",
         isAuthorized = isAuthorized,
         destination = destination,
     )
-    val privateKey = resolveLiteralOrReference(
-        h.privateKey,
-        CredentialPurpose.SSH_AUTH,
-        vaultRepository,
-        caller = "ssh-key",
-        isAuthorized = isAuthorized,
-        destination = destination,
-    )
-    val auth = SshAuth(password = password, privateKey = privateKey, passphrase = passphrase)
-    return if (auth.isUsable()) HostAuthResolution.Ready(auth)
-    else HostAuthResolution.Unusable("saved host '${h.name}' has no usable auth material (neither private key nor password)")
+    if (literal == null && isVaultReference(h.certificate)) {
+        return CertificateResolution.Failed(
+            "saved host '${h.name}' has unusable certificate: reference ${h.certificate} could not be resolved"
+        )
+    }
+    return CertificateResolution.Resolved(literal)
 }
 
 /** 兼容入口：只取结果、丢掉原因；新调用点请用 [resolveHostAuthDetailed] 以保留失败原因。 */
@@ -249,8 +324,10 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
     description = """
         Persist an SSH host (host, port, user, credentials) under a short name so the LLM can
         reference it later via ssh_exec_saved / ssh_upload / ssh_download without re-typing
-        credentials. Replaces any existing host with the same name. Pass either password OR
-        private_key for authentication.
+        credentials. Replaces any existing host with the same name. Pass password, private_key
+        or vault_credential for authentication; omit all three for none authentication (only
+        servers that accept it, e.g. token-username relays). A certificate additionally
+        requires its matching private_key (or vault_credential).
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -263,6 +340,8 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 put("private_key", buildJsonObject { put("type", "string"); put("description", "Full PEM/OpenSSH private key contents") })
                 put("passphrase", buildJsonObject { put("type", "string"); put("description", "Optional passphrase for the private key") })
                 put("vault_credential", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the SSH private key (preferred over private_key — the key is never stored in plaintext). See vault_credential_names.") })
+                put("certificate", buildJsonObject { put("type", "string"); put("description", "Optional OpenSSH user certificate text (contents of a -cert.pub file). Requires its matching private_key (or vault_credential); it is validated before connect and never silently falls back to another method.") })
+                put("vault_certificate", buildJsonObject { put("type", "string"); put("description", "Optional Vault credential name holding the OpenSSH user certificate text (preferred over certificate).") })
                 put("fallback_hosts", buildJsonObject {
                     put("type", "array")
                     put("items", buildJsonObject { put("type", "string") })
@@ -277,17 +356,6 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
     },
     execute = { input ->
         val p = input.jsonObject
-        val name = p.optString("name") ?: error("name is required")
-        val host = p.optString("host") ?: error("host is required")
-        val user = p.optString("user") ?: error("user is required")
-        val port = p.optInt("port") ?: 22
-        val password = p.optString("password")
-        val privateKey = p.optString("private_key")
-        val passphrase = p.optString("passphrase")
-        val vaultCredential = p.optString("vault_credential")
-        val fallbackHosts = p["fallback_hosts"]?.jsonArray?.mapNotNull { (it as? JsonPrimitive)?.contentOrNull }
-        val jumpHost = p.optString("jump_host")
-        val platformParam = p.optString("platform")
         val sshOptions = p.optString("ssh_options")
         // 主机密钥信任键不接受按主机覆盖（模型可写 ssh_options）→ 显式拒绝，不静默丢弃。
         // 连接期仍会过滤一次作为历史数据兜底（SshNetworkSession），但那条路径只记日志、模型看不到，
@@ -307,35 +375,22 @@ fun saveSshHostTool(repo: SshHostRepository): Tool = Tool(
                 ).toString(),
             ))
         }
-        if (password.isNullOrBlank() && privateKey.isNullOrBlank() && vaultCredential.isNullOrBlank()) {
-            return@Tool listOf(UIMessagePart.Text(
-                ToolErrors.envelopeFor(error = "invalid_argument", message = "must provide password, private_key or vault_credential", hint = "Check the parameter values and retry with corrected arguments.").toString()
-            ))
-        }
-        repo.upsert(SshHostEntity(
-            name = name, host = host, port = port, user = user,
-            password = if (vaultCredential.isNullOrBlank()) password else null,
-            privateKey = if (vaultCredential.isNullOrBlank()) privateKey else null,
-            passphrase = passphrase,
-            vaultCredentialRef = vaultCredential,
-            fallbackHostsJson = fallbackHosts?.takeIf { it.isNotEmpty() }
-                ?.let { buildJsonArray { it.forEach { f -> add(f) } }.toString() },
-            jumpHost = jumpHost,
-            platform = platformParam?.let { SshPlatform.fromPreference(it).name } ?: "AUTO",
-            sshOptions = sshOptions,
-            createdAtMs = System.currentTimeMillis(),
-        ))
+        // 无任何凭证材料 = none 认证，不再拦截。proxy_command 故意不在参数白名单里：
+        // 它是本地命令，只能由用户在设置页填写，模型不得设置（见 sshHostEntityFromSaveInput）。
+        val entity = sshHostEntityFromSaveInput(p, System.currentTimeMillis())
+        repo.upsert(entity)
         listOf(UIMessagePart.Text(buildJsonObject {
             put("success", true)
-            put("name", name)
+            put("name", entity.name)
         }.toString()))
     }
 )
 
+
 /** List saved hosts. Secrets omitted — only metadata + which auth method is configured. */
 fun listSshHostsTool(repo: SshHostRepository): Tool = Tool(
     name = "list_ssh_hosts",
-    description = "List all saved SSH hosts (name, host, port, user, has_password, has_private_key). Secrets are not returned.".trimIndent().replace("\n", " "),
+    description = "List all saved SSH hosts (name, host, port, user, has_password, has_private_key, has_certificate, has_proxy_command). Secrets are not returned.".trimIndent().replace("\n", " "),
     parameters = { InputSchema.Obj(properties = buildJsonObject {}) },
     execute = {
         val all = repo.getAll()
@@ -349,6 +404,8 @@ fun listSshHostsTool(repo: SshHostRepository): Tool = Tool(
                         put("user", h.user)
                         put("has_password", !h.password.isNullOrBlank())
                         put("has_private_key", !h.privateKey.isNullOrBlank())
+                        put("has_certificate", !h.certificate.isNullOrBlank() || !h.vaultCertificateRef.isNullOrBlank())
+                        put("has_proxy_command", !h.proxyCommand.isNullOrBlank())
                         put("fallback_hosts", h.fallbackHostsJson ?: "")
                         put("jump_host", h.jumpHost ?: "")
                         put("ssh_options", h.sshOptions ?: "")

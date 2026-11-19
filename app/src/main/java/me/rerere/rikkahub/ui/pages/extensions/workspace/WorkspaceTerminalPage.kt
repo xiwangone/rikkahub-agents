@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import android.graphics.Typeface
 import androidx.compose.foundation.background
-import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -19,9 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.FilterChip
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -56,7 +53,6 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import kotlinx.coroutines.flow.flowOf
 import me.rerere.hugeicons.HugeIcons
@@ -64,6 +60,7 @@ import me.rerere.hugeicons.stroke.Add01
 import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.hugeicons.stroke.Cancel01
+import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
@@ -90,6 +87,7 @@ fun WorkspaceTerminalPage(id: String) {
         initialValue = WorkspaceTerminalTabsState(),
     )
     var pendingCloseTabId by remember(root) { mutableStateOf<Long?>(null) }
+    var showBackgroundTasks by remember { mutableStateOf(false) }
 
     LaunchedEffect(state.workspace) {
         state.workspace?.let { sessionManager.ensureSession(it) }
@@ -103,6 +101,7 @@ fun WorkspaceTerminalPage(id: String) {
                 state = terminalState,
                 contentPadding = innerPadding,
                 onCreateTab = { state.workspace?.let { sessionManager.createTab(it) } },
+                onShowBackgroundTasks = { showBackgroundTasks = true },
                 onSelectTab = { tabId ->
                     root?.let { sessionManager.selectTab(it, tabId) }
                 },
@@ -152,6 +151,12 @@ fun WorkspaceTerminalPage(id: String) {
                 },
             )
         }
+        if (showBackgroundTasks) {
+            WorkspaceBackgroundTasksSheet(
+                workspaceId = id,
+                onDismiss = { showBackgroundTasks = false },
+            )
+        }
     }
 }
 
@@ -163,6 +168,7 @@ private fun WorkspaceTerminalContent(
     state: WorkspaceTerminalTabsState,
     contentPadding: PaddingValues,
     onCreateTab: () -> Unit,
+    onShowBackgroundTasks: () -> Unit,
     onSelectTab: (Long) -> Unit,
     onCloseTab: (Long) -> Unit,
     onRestartTab: (Long) -> Unit,
@@ -314,6 +320,22 @@ private fun WorkspaceTerminalContent(
                     }
                 }
                 val newTabDescription = stringResource(R.string.workspace_terminal_new_tab)
+                // 后台任务入口：本地与远程同一张表（仓库层按类型分流），放查找与新建标签旁边。
+                val backgroundTasksDescription = stringResource(R.string.workspace_background_tasks_title)
+                IconButton(
+                    onClick = onShowBackgroundTasks,
+                    enabled = root != null,
+                    modifier =
+                        Modifier
+                            .size(44.dp)
+                            .semantics { contentDescription = backgroundTasksDescription },
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Clock02,
+                        contentDescription = null,
+                        modifier = Modifier.size(20.dp),
+                    )
+                }
                 // 查找输出开关：只在有页签时可用。
                 val searchHint = stringResource(R.string.workspace_terminal_search_hint)
                 IconButton(
@@ -539,32 +561,9 @@ private fun WorkspaceTerminalTabContent(
                 },
             )
             if (tab.finished) {
-                Row(
-                    modifier =
-                        Modifier
-                            .align(Alignment.BottomCenter)
-                            .padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Surface(
-                        shape = MaterialTheme.shapes.small,
-                        color = MaterialTheme.colorScheme.surfaceContainerHighest,
-                        contentColor = MaterialTheme.colorScheme.onSurfaceVariant,
-                        tonalElevation = 2.dp,
-                    ) {
-                        Text(
-                            text = stringResource(R.string.workspace_terminal_exited),
-                            style = MaterialTheme.typography.bodySmall,
-                            modifier = Modifier.padding(horizontal = 12.dp, vertical = 6.dp),
-                        )
-                    }
-                    // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
-                    // 再新建，点两轮才能重开。
-                    TextButton(onClick = onRestart) {
-                        Text(stringResource(R.string.workspace_terminal_reopen))
-                    }
-                }
+                // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
+                // 再新建，点两轮才能重开。
+                WorkspaceTerminalExitRow(onReopen = onRestart)
             }
         }
         TerminalExtraKeysBar(
@@ -573,65 +572,9 @@ private fun WorkspaceTerminalTabContent(
             onControlToggle = { controlDown = !controlDown },
             onAltToggle = { altDown = !altDown },
             onSendText = { tab.session.writeText(it) },
+            modifier = Modifier.background(MaterialTheme.colorScheme.surfaceContainerLow),
         )
     }
-}
-
-@Composable
-private fun TerminalExtraKeysBar(
-    controlDown: Boolean,
-    altDown: Boolean,
-    onControlToggle: () -> Unit,
-    onAltToggle: () -> Unit,
-    onSendText: (String) -> Unit,
-) {
-    Row(
-        modifier =
-            Modifier
-                .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
-                .background(MaterialTheme.colorScheme.surfaceContainerLow)
-                .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
-    ) {
-        TerminalExtraKey("ESC") { onSendText("\u001B") }
-        TerminalExtraKey("TAB") { onSendText("\t") }
-        TerminalExtraKey("CTRL", selected = controlDown, onClick = onControlToggle)
-        TerminalExtraKey("ALT", selected = altDown, onClick = onAltToggle)
-        // 触屏上最高频的三个控制键：中断 / EOF / 清屏。有了直发键就不必「先按 CTRL 再点字母」，
-        // 长按拖动选词等操作也不会被 CTRL 粘滞态干扰。
-        TerminalExtraKey("⌃C") { onSendText("\u0003") }
-        TerminalExtraKey("⌃D") { onSendText("\u0004") }
-        TerminalExtraKey("⌃L") { onSendText("\u000C") }
-        TerminalExtraKey("-") { onSendText("-") }
-        TerminalExtraKey("/") { onSendText("/") }
-        TerminalExtraKey("|") { onSendText("|") }
-        TerminalExtraKey("←") { onSendText("\u001B[D") }
-        TerminalExtraKey("↓") { onSendText("\u001B[B") }
-        TerminalExtraKey("↑") { onSendText("\u001B[A") }
-        TerminalExtraKey("→") { onSendText("\u001B[C") }
-        TerminalExtraKey("HOME") { onSendText("\u001B[H") }
-        TerminalExtraKey("END") { onSendText("\u001B[F") }
-    }
-}
-
-@Composable
-private fun TerminalExtraKey(
-    label: String,
-    selected: Boolean = false,
-    onClick: () -> Unit,
-) {
-    FilterChip(
-        selected = selected,
-        onClick = onClick,
-        label = { Text(label, style = MaterialTheme.typography.labelMedium) },
-    )
-}
-
-private fun TerminalSession.writeText(text: String) {
-    val bytes = text.toByteArray()
-    write(bytes, 0, bytes.size)
 }
 
 /**

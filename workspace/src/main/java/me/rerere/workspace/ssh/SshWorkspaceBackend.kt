@@ -42,6 +42,9 @@ class SshWorkspaceBackend(
 ) : WorkspaceBackend {
     override val layout = layoutOf(config.remoteDir)
 
+    /** 远端是 Windows 时后台任务的 POSIX detached 模型不适用，调用方据此给明确报错。 */
+    val isWindows: Boolean get() = config.platform == "WINDOWS"
+
     private val workspaceDir = layout.workspaceDir
 
     override fun shell(): String = pool.use(id, config, retry = true) { it.shell }

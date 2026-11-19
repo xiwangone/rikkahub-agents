@@ -289,17 +289,6 @@ enum class AiLogLevel(val preferenceName: String) {
     }
 }
 
-@Serializable
-enum class SshPlatform(val preferenceName: String) {
-    AUTO("AUTO"),
-    LINUX("LINUX"),
-    WINDOWS("WINDOWS");
-
-    companion object {
-        fun fromPreference(value: String?): SshPlatform = entries.firstOrNull { it.preferenceName == value } ?: AUTO
-    }
-}
-
 /**
  * SSH 主机探针触发模式（设置项 `ssh_host_probe`，默认仅手动）：
  * - AUTO：首次连接可自动探（进工作区自动补一次，走独立协程 + 自有会话 + 预算，不占调用方超时）；

@@ -2,7 +2,7 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import com.termux.terminal.TerminalTransport
 import kotlinx.coroutines.runBlocking
-import me.rerere.workspace.ssh.SshShell
+import me.rerere.workspace.ssh.TerminalShell
 import java.io.IOException
 import java.io.InputStream
 import java.io.OutputStream
@@ -10,24 +10,29 @@ import java.util.concurrent.Executors
 import java.util.concurrent.RejectedExecutionException
 
 /**
- * 把远程 [SshShell] 接到终端会话上。
+ * 把一个带 PTY 的 [TerminalShell] 接到终端会话上，工作区远程终端与 SSH 主机终端共用。
  *
- * 调整尺寸和关闭都要走网络, 而终端在主线程调用它们, 所以统一交给一个后台线程按顺序执行。
+ * 两页唯一的区别是 shell 怎么开：工作区走 `WorkspaceRepository.openSshShell`
+ *（SshConnection 连接池里的 exec 通道），SSH 主机页走 `openSshHostShell`
+ *（直连 JSch 会话上的 shell 通道）。除此之外，调整尺寸、关闭、等待退出、
+ *连接丢失判定、起止描述全部相同，所以只留这一个实现。
+ *
+ * 调整尺寸和关闭都要走网络，而终端在主线程调用它们，所以统一交给一个后台线程按顺序执行。
  * openShell 是 suspend（建连要解析凭证库），而 TerminalTransport 的方法是阻塞式
  * 回调：start() 在终端的会话线程上调用，runBlocking 堵在那里等 shell 建好——正好就是
  * start() 的语义（阻塞到 shell 就绪）。
  */
-internal class SshTerminalTransport(
-    /** 连接目标, 如 user@host:22, 连接期间显示在终端里 */
+internal class ShellTerminalTransport(
+    /** 连接目标，如 user@host:22，连接期间显示在终端里 */
     private val address: String,
-    private val openShell: suspend (columns: Int, rows: Int) -> SshShell,
+    private val openShell: suspend (columns: Int, rows: Int) -> TerminalShell,
 ) : TerminalTransport {
     private val control = Executors.newSingleThreadExecutor { runnable ->
-        Thread(runnable, "ssh-terminal-control").apply { isDaemon = true }
+        Thread(runnable, "shell-terminal-control").apply { isDaemon = true }
     }
 
     @Volatile
-    private var shell: SshShell? = null
+    private var shell: TerminalShell? = null
 
     @Volatile
     private var killed = false
@@ -41,7 +46,7 @@ internal class SshTerminalTransport(
     override fun start(columns: Int, rows: Int) {
         val opened = runBlocking { openShell(columns, rows) }
         shell = opened
-        // 连接期间标签页已被关掉: kill() 那时还拿不到 shell, 由这里收尾
+        // 连接期间页面已被关掉：kill() 那时还拿不到 shell，由这里收尾
         if (killed) {
             opened.close()
             throw IOException("Terminal closed")
@@ -85,13 +90,13 @@ internal class SshTerminalTransport(
         else -> "Session closed"
     }
 
-    private fun requireShell(): SshShell = shell ?: error("SSH shell is not started")
+    private fun requireShell(): TerminalShell = shell ?: error("Shell is not started")
 
     private fun runControl(block: () -> Unit) {
         try {
             control.execute { runCatching(block) }
         } catch (_: RejectedExecutionException) {
-            // 已经 close, shell 也已关闭
+            // 已经 close，shell 也已关闭
         }
     }
 }

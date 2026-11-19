@@ -4,13 +4,13 @@ import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.log.AppLog
 
 import me.rerere.rikkahub.data.vault.message
-import me.rerere.rikkahub.data.vault.ensureTrailingNewline
 import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
 import com.jcraft.jsch.ChannelDirectTCPIP
 import com.jcraft.jsch.JSch
+import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.Proxy
 import com.jcraft.jsch.Session
 import kotlinx.coroutines.Dispatchers
@@ -191,17 +191,6 @@ private fun enumerateCandidateNetworks(ctx: Context): List<Pair<String, Network?
     return out
 }
 
-/**
- * Auth bundle. Either [password] or [privateKey] must be non-blank for connect to succeed.
- */
-internal data class SshAuth(
-    val password: String? = null,
-    val privateKey: String? = null,
-    val passphrase: String? = null,
-)
-
-internal fun SshAuth.isUsable() = !password.isNullOrBlank() || !privateKey.isNullOrBlank()
-
 /** 跳板主机描述：连上它之后经它直达目标。由 SshHostsTool 从 jumpHost 名解析而来。 */
 internal data class JumpSpec(
     val host: String,
@@ -260,30 +249,32 @@ internal fun openSshSession(
     /** 自定义 ssh 选项文本（每行 "键 值"），覆盖默认 setConfig 属性 */
     extraOptions: String? = null,
 ): Session {
-    if (!auth.privateKey.isNullOrBlank()) {
-        val keyBytes = auth.privateKey.ensureTrailingNewline().toByteArray(Charsets.UTF_8)
-        val passBytes = auth.passphrase?.toByteArray(Charsets.UTF_8)
-        jsch.addIdentity("rikkahub-ssh-key-${System.nanoTime()}", keyBytes, null, passBytes)
-    }
+    installSshIdentity(jsch, auth)
+    val proxyCmd = auth.proxyCommand?.takeIf { it.isNotBlank() }
     // 先问隧道：tailnet 目标（100.64.0.0/10）在 Android 上无法直接拨号 —— userspace tsnet
     // 只把出口开在 127.0.0.1:<随机端口>。终端页（SshTerminalPage）早已这样做，这里补齐，
     // 否则 ssh_exec / ssh_exec_saved / SFTP 连 tailscale 网段会一律 "connection closed by foreign host"
     // （TCP 看似建立、实际包没到对端，对端 sshd 日志里没有任何记录）。
     // TunnelRouter 在隧道未运行或目标非 tailnet 时原样返回，不影响普通公网/内网 SSH。
-    val (dialHost, dialPort) = me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)
+    // 代理命令自己负责寻址：配了 proxyCommand 时不走隧道解析也不做本地解析。
+    val (dialHost, dialPort) = if (proxyCmd != null) {
+        host to port
+    } else {
+        me.rerere.workspace.ssh.TunnelRouter.resolve(host, port)
+    }
     // Force IPv4 resolution before handing the address to JSch. Solves the "ssh works in
     // Termux but times out in our app" Pixel-only failure: Android's DnsResolver returns
     // AAAA first and JSch sits on the IPv6 SYN for the full timeout instead of falling
     // back to v4. setHostKeyAlias keeps known_hosts comparisons keyed by the human-readable
     // hostname so trust-on-first-use still works the same.
-    val resolution = resolveToIPv4(dialHost)
-    if (resolution.ip == null && resolution.fakeIp != null) {
+    val resolution = if (proxyCmd != null) null else resolveToIPv4(dialHost)
+    if (resolution?.ip == null && resolution?.fakeIp != null) {
         // Dialing the fake address (or the raw hostname, which the system resolver would map
         // to the same fake address) can never succeed from this process — say so precisely
         // instead of letting JSch time out into a generic connect_failed.
         throw FakeIpResolutionException(host, resolution.fakeIp)
     }
-    val ipv4 = resolution.ip
+    val ipv4 = resolution?.ip
     val effectiveHost = ipv4 ?: dialHost
     val session = jsch.getSession(user, effectiveHost, dialPort)
     // known_hosts 始终按用户填的原始 host 记录，代理端口每次不同也不影响信任判断
@@ -298,7 +289,7 @@ internal fun openSshSession(
     // other config, but never the host-key trust keys (PROTECTED_SSH_OPTION_KEYS).
     installHostKeyVerification(jsch, session, port)
     session.setConfig(Properties().apply {
-        setProperty("PreferredAuthentications", "publickey,keyboard-interactive,password")
+        setProperty("PreferredAuthentications", preferredAuthentications(auth))
         // 自定义选项最后应用，可覆盖默认值（每行 "键 值"，# 开头为注释）
         extraOptions?.lineSequence()?.forEach { line ->
             val trimmed = line.trim()
@@ -327,6 +318,14 @@ internal fun openSshSession(
     // upload/download, so setting it here covers every JSch session in the app.
     session.serverAliveInterval = sshOptionInt(extraOptions, "ServerAliveInterval") ?: SERVER_ALIVE_INTERVAL_MS
     session.serverAliveCountMax = sshOptionInt(extraOptions, "ServerAliveCountMax") ?: SERVER_ALIVE_COUNT_MAX
+    if (proxyCmd != null) {
+        val argv = try {
+            splitProxyCommand(proxyCmd, host, port)
+        } catch (e: IllegalArgumentException) {
+            throw JSchException("invalid proxy command: ${e.message}", e)
+        }
+        session.setProxy(ProcessProxyCommand(argv))
+    }
     session.connect(timeoutMs)
     return session
 }
