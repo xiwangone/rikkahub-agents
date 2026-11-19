@@ -547,12 +547,13 @@ internal fun WorkspaceRepository.requireLocalRootfs(workspace: WorkspaceEntity, 
         }
     }
 
-/** 后台任务的落点是本地进程表；远程工作区没有这个落点，跨区误调时直接给出 POSIX 脱离运行指引 */
+/**
+ * 后台任务的落点：本地是本机进程表，远程是 SSH detached 进程（见 RemoteBackgroundTasks）；
+ * 没有 backgroundShell 能力位的工作区调后台任务时直接拒掉，不静默降级。
+ */
 internal fun WorkspaceRepository.requireBackgroundShell(workspace: WorkspaceEntity, feature: String) {
         require(workspace.capabilities().backgroundShell) {
-            "$feature is only available for local workspaces: ${workspace.id} (${workspace.name} is a remote SSH workspace with no background-task tools). " +
-                "Use workspace_shell with workspace=\"${workspace.name}\" and run detached in a single command: " +
-                "cd <dir> && setsid nohup <cmd> >/tmp/task.log 2>&1 </dev/null & sleep 2; echo \"pid=\$!\"; tail -n 5 /tmp/task.log"
+            "$feature is only available for workspaces with background shell support: ${workspace.id}"
         }
     }
 

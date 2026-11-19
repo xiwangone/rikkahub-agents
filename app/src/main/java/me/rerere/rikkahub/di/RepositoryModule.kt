@@ -12,7 +12,9 @@ import me.rerere.rikkahub.data.repository.MediaCreationRepository
 import me.rerere.rikkahub.data.repository.FolderRepository
 import me.rerere.rikkahub.data.repository.GenMediaRepository
 import me.rerere.rikkahub.data.repository.MemoryRepository
+import me.rerere.rikkahub.data.repository.RemoteBackgroundTasks
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
+import me.rerere.rikkahub.data.preferences.RemoteBackgroundTaskStore
 import me.rerere.rikkahub.data.repository.TranslationHistoryRepository
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
@@ -157,7 +159,15 @@ val repositoryModule =
         } onClose { it?.close() }
 
         single {
-            WorkspaceRepository(get(), get(), get(), get(), get(), get(), get())
+            RemoteBackgroundTaskStore(get())
+        }
+
+        single {
+            RemoteBackgroundTasks(get())
+        }
+
+        single {
+            WorkspaceRepository(get(), get(), get(), get(), get(), get(), get(), get())
         }
 
         single {

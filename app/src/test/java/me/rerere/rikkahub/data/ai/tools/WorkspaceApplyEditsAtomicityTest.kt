@@ -25,6 +25,8 @@ import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.preferences.RemoteBackgroundTaskStore
+import me.rerere.rikkahub.data.repository.RemoteBackgroundTasks
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultPreferences
@@ -209,6 +211,7 @@ class WorkspaceApplyEditsAtomicityTest {
                 },
                 vaultPreferences = VaultPreferences(context),
             ),
+            remoteBackgroundTasks = RemoteBackgroundTasks(RemoteBackgroundTaskStore(context)),
         )
         val fileA = File(filesDir, "a.txt").apply { writeText("hello old\n") }
         val fileB = File(filesDir, "b.txt").apply { writeText("world old\n") }

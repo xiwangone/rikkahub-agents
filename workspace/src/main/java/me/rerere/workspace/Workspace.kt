@@ -29,7 +29,7 @@ enum class WorkspaceType(val capabilities: WorkspaceCapabilities) {
             terminal = true,
             localFiles = false,
             fileWriteTools = true,
-            backgroundShell = false,
+            backgroundShell = true,
         )
     ),
 }
@@ -56,7 +56,7 @@ data class WorkspaceCapabilities(
      * 因此不再按“覆盖写入会清空原内容”关掉远程写工具。
      */
     val fileWriteTools: Boolean,
-    /** shell 命令可以在后台运行, 由 AI 之后读取输出或终止；远程暂不支持 */
+    /** shell 命令可以在后台运行, 由 AI 之后读取输出或终止；远程走 SSH detached 进程 */
     val backgroundShell: Boolean,
 )
 

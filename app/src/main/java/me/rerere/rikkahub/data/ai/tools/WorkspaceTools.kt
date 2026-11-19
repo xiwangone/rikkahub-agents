@@ -77,8 +77,8 @@ suspend fun createWorkspaceTools(
         add(createShellTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd, supportsBackground))
         add(createCreateFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
         add(createReadFolderTool(workspaceId, layout, ::needsApproval, workspaceRepository))
-        // 后台任务跑在本机进程里, 远程工作区没有这个落点, 不提供
-        // （backgroundShell 位与原实现同口径：本地 true、远程 false）
+        // 后台任务：本地跑在本机进程里，远程走 SSH detached 进程（见 RemoteBackgroundTasks）；
+        // 两边都由 backgroundShell 位开关，仓库层按类型分流，工具不用分本地/远程两套。
         if (supportsBackground) {
             add(createRunBackgroundTool(workspaceId, layout, ::needsApproval, workspaceRepository, shellCwd))
             add(createBackgroundStatusTool(workspaceId, ::needsApproval, workspaceRepository))
@@ -728,7 +728,7 @@ private fun createBackgroundStatusTool(
                     }
                     put("processes", buildJsonArray {
                         statuses.forEach { status ->
-                            add(status.toJson(BackgroundInjectedSecrets.get(wsId, status.id)))
+                            add(status.toJson(BackgroundInjectedSecrets.get(wsId, status.id), BackgroundInjectedSecrets.retainedRules()))
                         }
                     })
                 }.toString()

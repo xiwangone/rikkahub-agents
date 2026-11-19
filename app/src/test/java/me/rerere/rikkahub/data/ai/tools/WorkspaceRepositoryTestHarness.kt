@@ -15,6 +15,8 @@ import me.rerere.rikkahub.data.db.dao.WorkspaceDAO
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.preferences.RemoteBackgroundTaskStore
+import me.rerere.rikkahub.data.repository.RemoteBackgroundTasks
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
@@ -105,6 +107,7 @@ internal fun newTestWorkspaceRepository(
             },
             vaultPreferences = VaultPreferences(context),
         ),
+        remoteBackgroundTasks = RemoteBackgroundTasks(RemoteBackgroundTaskStore(context)),
     )
     return TestWorkspaceRepository(
         repository = repository,

@@ -287,11 +287,18 @@ internal suspend fun validateWorkspaceTargetPath(
             "Path '$path' is an Android phone storage path, but workspace '${ws.name}' is a remote SSH host ('$remoteDir'). Use device tools (read_file / write_text_file / list_files) to access Android phone storage."
         }
     } else if (!workspaceRepository.sdcardEnabledNow()) {
-        val hitsUnmountedSdcard = ANDROID_STORAGE_ROOTS.firstOrNull { root ->
-            path == root || path.startsWith("$root/")
-        }
-        require(hitsUnmountedSdcard == null) {
-            "Path '$path' refers to Android shared storage, which is not mounted in local workspace '${ws.name}' (the /sdcard mount switch is off in Workspace settings). Use device tools (read_file / write_text_file / list_files) to access phone storage directly, or enable the phone storage mount in Extensions > Workspace."
+        // 工作区显式配置的 storage_mounts 是比全局开关更强的意图表达，且自带 approvalRoots
+        // 审批闸门（proot bind 已挂上，shell 本来就进得去）——豁免全局开关，
+        // 否则文件工具拒、shell 放行，两条入口口径分裂。
+        val explicitlyMounted = ws.storageMountList().map { it.path.trimEnd('/') }
+            .firstOrNull { m -> m.isNotEmpty() && (path == m || path.startsWith("$m/")) }
+        if (explicitlyMounted == null) {
+            val hitsUnmountedSdcard = ANDROID_STORAGE_ROOTS.firstOrNull { root ->
+                path == root || path.startsWith("$root/")
+            }
+            require(hitsUnmountedSdcard == null) {
+                "Path '$path' refers to Android shared storage, which is not reachable by file tools in local workspace '${ws.name}' (no storage mount covers it and the /sdcard mount switch is off in Workspace settings). Use device tools (read_file / write_text_file / list_files) to access phone storage directly, add a storage mount on this workspace, or enable the phone storage mount in Extensions > Workspace."
+            }
         }
     }
 }
@@ -364,15 +371,19 @@ internal fun shellToolSchema(defaultCwd: String?, presetsPath: String): JsonObje
     }
 
 
-internal fun BackgroundStatus.toJson(injectedSecrets: List<InjectedSecret> = emptyList()) = buildJsonObject {
+internal fun BackgroundStatus.toJson(
+    injectedSecrets: List<InjectedSecret> = emptyList(),
+    legacyMaskRules: Map<String, String> = emptyMap(),
+) = buildJsonObject {
     put("id", id)
     put("command", command)
     put("status", if (running) "running" else "exited")
     if (!running) put("exitCode", exitCode)
     put("startedAt", startedAtMillis)
     // 启动时经 `$$` 注入的值：状态/日志尾部返回前替换为占位符
-    put("stdout", maskInjectedValues(stdout, injectedSecrets))
-    put("stderr", maskInjectedValues(stderr, injectedSecrets))
+    // legacyMaskRules = 被登记表淘汰的任务留下的永久掩码，保证淘汰不致明文回传
+    put("stdout", maskInjectedValues(stdout, injectedSecrets, legacyMaskRules))
+    put("stderr", maskInjectedValues(stderr, injectedSecrets, legacyMaskRules))
     if (droppedStdout > 0) put("droppedStdout", droppedStdout)
     if (droppedStderr > 0) put("droppedStderr", droppedStderr)
 }

@@ -156,11 +156,14 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v49: workspaces 表新增 storage_mounts（挂载进 Rootfs 的共享存储目录，
         // WorkspaceStorageMount 列表的 JSON，默认 "[]"），纯加列带默认值可自动迁移
         AutoMigration(from = 48, to = 49),
+        // v50: ssh_hosts 新增 certificate / vaultCertificateRef / proxyCommand
+        // 三列（可空，无默认值），纯加列可自动迁移
+        AutoMigration(from = 49, to = 50),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    companion object { const val VERSION = 49 }
+    companion object { const val VERSION = 50 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO

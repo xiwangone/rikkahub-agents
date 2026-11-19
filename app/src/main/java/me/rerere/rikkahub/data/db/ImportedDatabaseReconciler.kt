@@ -61,7 +61,7 @@ object ImportedDatabaseReconciler {
      * hash — ImportedDatabaseReconcilerConstantsTest fails until it matches the exported schema.
      */
     internal const val EXPECTED_VERSION = AppDatabase.VERSION
-    internal const val EXPECTED_IDENTITY_HASH = "e0fd8e311f0dff09353f208687245aad"
+    internal const val EXPECTED_IDENTITY_HASH = "3c4e6d1b2d0429054d562fd5ebc9e6ce"
 
     /**
      * This app's version whose shared tables equal a 2.4.x file's, with its identity hash
@@ -113,6 +113,9 @@ object ImportedDatabaseReconciler {
             "ssh_hosts" to "sshOptions",
             "ssh_hosts" to "platform",
             "ssh_hosts" to "allowHostKeyRotation",
+            "ssh_hosts" to "certificate",
+            "ssh_hosts" to "proxyCommand",
+            "ssh_hosts" to "vaultCertificateRef",
         )
 
     /**

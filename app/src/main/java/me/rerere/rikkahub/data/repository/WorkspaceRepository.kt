@@ -94,6 +94,7 @@ class WorkspaceRepository(
     internal val mountSwitch: WorkspaceMountSwitch,
     internal val sshPool: SshConnectionPool,
     internal val vaultRepository: CredentialVaultRepository,
+    internal val remoteBackgroundTasks: RemoteBackgroundTasks,
 ) {
     fun listFlow(): Flow<List<WorkspaceEntity>> = dao.listFlow()
 
@@ -996,33 +997,67 @@ class WorkspaceRepository(
     ): BackgroundStatus {
         val workspace = dao.getById(id) ?: error("Workspace not found: $id")
         requireBackgroundShell(workspace, "background tasks")
+        if (workspace.isSsh()) {
+            // ⚠ backendOf 是 suspend（可能要解析 SSH 凭证），必须在 withContext
+            // 之外先取好；后端方法本身都是阻塞调用。
+            val backend = backendOf(workspace) as? SshWorkspaceBackend
+                ?: error("Not an SSH workspace: ${workspace.id}")
+            return withContext(NonCancellable + Dispatchers.IO) {
+                remoteBackgroundTasks.start(backend, workspace.id, command, cwd, env)
+            }
+        }
         return withContext(NonCancellable + Dispatchers.IO) {
             manager.ensureWorkspace(workspace.root)
             manager.startBackground(workspace.root, command, cwd, env, workspace.extraBindMounts())
         }
     }
 
-    suspend fun backgroundStatus(id: String, taskId: String): BackgroundStatus? = withContext(Dispatchers.IO) {
-        val workspace = dao.getById(id) ?: return@withContext null
+    suspend fun backgroundStatus(id: String, taskId: String): BackgroundStatus? {
+        val workspace = dao.getById(id) ?: return null
         requireBackgroundShell(workspace, "background tasks")
-        manager.backgroundStatus(workspace.root, taskId)
+        if (workspace.isSsh()) {
+            val backend = backendOf(workspace) as? SshWorkspaceBackend ?: return null
+            return withContext(Dispatchers.IO) { remoteBackgroundTasks.status(backend, workspace.id, taskId) }
+        }
+        return withContext(Dispatchers.IO) { manager.backgroundStatus(workspace.root, taskId) }
     }
 
-    suspend fun listBackground(id: String): List<BackgroundStatus> = withContext(Dispatchers.IO) {
-        val workspace = dao.getById(id) ?: return@withContext emptyList()
+    suspend fun listBackground(id: String): List<BackgroundStatus> {
+        val workspace = dao.getById(id) ?: return emptyList()
         requireBackgroundShell(workspace, "background tasks")
-        manager.listBackground(workspace.root)
+        if (workspace.isSsh()) {
+            val backend = backendOf(workspace) as? SshWorkspaceBackend ?: return emptyList()
+            return withContext(Dispatchers.IO) { remoteBackgroundTasks.list(backend, workspace.id) }
+        }
+        return withContext(Dispatchers.IO) { manager.listBackground(workspace.root) }
     }
 
-    suspend fun killBackground(id: String, taskId: String): Boolean = withContext(Dispatchers.IO) {
-        val workspace = dao.getById(id) ?: return@withContext false
+    suspend fun killBackground(id: String, taskId: String): Boolean {
+        val workspace = dao.getById(id) ?: return false
         requireBackgroundShell(workspace, "background tasks")
-        manager.killBackground(workspace.root, taskId)
+        if (workspace.isSsh()) {
+            val backend = backendOf(workspace) as? SshWorkspaceBackend ?: return false
+            return withContext(Dispatchers.IO) { remoteBackgroundTasks.kill(backend, workspace.id, taskId) }
+        }
+        return withContext(Dispatchers.IO) { manager.killBackground(workspace.root, taskId) }
     }
 
     suspend fun delete(id: String): Boolean {
         val workspace = dao.getById(id) ?: return false
         sshPool.close(id)
+        // 远程后台任务：工作区删掉时顺带杀掉它的远端任务（尽力而为，杀不掉只记日志
+        // 不阻断删除）；无论杀没杀掉，指向已删工作区的记录都清掉，不留悬空记录。
+        if (workspace.isSsh()) {
+            runCatching {
+                val backend = backendOf(workspace) as? SshWorkspaceBackend
+                if (backend != null) {
+                    withContext(Dispatchers.IO) { remoteBackgroundTasks.killAllForWorkspace(backend, workspace.id) }
+                }
+            }.onFailure {
+                AppLog.w("WorkspaceRepository", "delete: remote background tasks cleanup failed for ${workspace.id}: ${it.message}")
+            }
+            runCatching { remoteBackgroundTasks.dropAllRecords(workspace.id) }
+        }
         // 远程工作区在本机没有文件可删; 有本地落点的先删文件再删 DB，
         // 文件删除失败则不删 DB（UI 可重试），避免孤儿目录残留
         if (workspace.capabilities().localFiles) {
