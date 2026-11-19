@@ -1089,6 +1089,10 @@
   <string name="setting_provider_page_response_api_warning">Response API — это новое поколение API от OpenAI. Большинство поставщиков его не поддерживают. Если вы не знаете, что это такое, не включайте его.</string>
   <string name="setting_provider_page_save">Сохранить</string>
   <string name="setting_provider_page_save_success">Сохранено успешно</string>
+  <string name="setting_provider_icon_pick_title">Выбрать значок</string>
+  <string name="setting_provider_icon_pick_search">Поиск значков</string>
+  <string name="setting_provider_icon_pick_reset">Автоматически</string>
+  <string name="setting_provider_icon_pick_close">Закрыть</string>
   <string name="setting_provider_page_scan_error">Ошибка: %s</string>
   <string name="setting_provider_page_scan_qr_code">Сканировать QR-код</string>
   <string name="setting_provider_page_search_providers">Поиск поставщиков</string>
@@ -1944,6 +1948,7 @@
   <string name="workspace_terminal_title_with_name">%s · Терминал</string>
   <string name="workspace_terminal_not_installed">Пожалуйста, сначала установите Rootfs</string>
   <string name="workspace_terminal_loading">Загрузка рабочего пространства…</string>
+  <string name="workspace_terminal_welcome">Добро пожаловать в терминал рабочей области</string>
   <string name="workspace_terminal_exited">Терминал завершен</string>
   <string name="workspace_terminal_tab">Терминал %1$d</string>
   <string name="workspace_terminal_search_hint">Поиск по выводу</string>
@@ -2832,11 +2837,7 @@
   <string name="chat_page_backend_local">Это устройство</string>
   <string name="ssh_terminal_host_not_found">Хост не найден: %1$s</string>
   <string name="ssh_terminal_no_credential">Нет доступных учётных данных (vault ref: %1$s)</string>
-  <string name="ssh_terminal_connected">Подключено к %1$s@%2$s:%3$s\n</string>
   <string name="ssh_terminal_connect_failed">Ошибка подключения: %1$s</string>
-  <string name="ssh_terminal_exec_failed">Ошибка выполнения: %1$s\n</string>
-  <string name="ssh_terminal_input_placeholder">Введите команду и нажмите Enter</string>
-  <string name="ssh_terminal_execute">Выполнить</string>
   <string name="ssh_hosts_save_failed">Не удалось сохранить: %1$s</string>
   <string name="vault_page_export_format">Формат экспорта</string>
   <string name="vault_format_vault_desc">.vault (шифрованный, под паролем)</string>
@@ -3157,6 +3158,12 @@
   <string name="setting_ssh_host_password">Пароль</string>
   <string name="setting_ssh_host_private_key">Приватный ключ (PEM)</string>
   <string name="setting_ssh_host_passphrase">Парольная фраза</string>
+  <string name="setting_ssh_host_certificate">Сертификат (OpenSSH)</string>
+  <string name="setting_ssh_host_no_auth_hint">Оставьте пароль, закрытый ключ и сертификат пустыми, чтобы использовать аутентификацию none (только для серверов, которые её принимают).</string>
+  <string name="setting_ssh_host_proxy_command">Прокси-команда</string>
+  <string name="setting_ssh_host_proxy_command_hint" formatted="false">Локальная команда, используемая как транспорт, например cloudflared access ssh --hostname %h. %h и %p раскрываются в целевой хост и порт. Выполняется на этом устройстве; пустое значение — прямое подключение.</string>
+  <string name="setting_ssh_pick_vault_certificate">Выбрать сертификат из хранилища</string>
+  <string name="setting_ssh_vault_certificate_used">Сертификат из хранилища: %1$s</string>
   <string name="setting_ssh_from_template">Заполнить из шаблона сервера</string>
   <string name="setting_ssh_pick_vault_key">Выбрать ключ из хранилища</string>
   <string name="setting_ssh_no_saved_key_hint">Сохранённых SSH-ключей пока нет. Создайте новый.</string>
@@ -4348,16 +4355,13 @@
   <string name="setting_ssh_template_apply_failed">Не удалось применить шаблон: %1$s</string>
   <string name="setting_ssh_template_decrypt_failed">Не удалось расшифровать шаблон</string>
   <string name="share_no_app_available">Нет приложения для отправки</string>
-  <string name="ssh_terminal_clear_output">Очистить вывод</string>
-  <string name="ssh_terminal_command_timeout">Время выполнения команды истекло (30s)</string>
-  <string name="ssh_terminal_connection_lost">Соединение потеряно, подключитесь снова</string>
   <string name="ssh_terminal_disconnect">Отключиться</string>
-  <string name="ssh_terminal_disconnected">Отключено.</string>
-  <string name="ssh_terminal_copy_output">Копировать вывод</string>
   <string name="ssh_terminal_retry">Повторить</string>
   <string name="ssh_terminal_status_connected">Подключено</string>
   <string name="ssh_terminal_status_connecting">Подключение…</string>
   <string name="ssh_terminal_status_failed">Не удалось подключиться</string>
+  <string name="ssh_terminal_exited">Терминал завершен</string>
+  <string name="ssh_terminal_reopen">Открыть снова</string>
   <string name="workspace_detail_stats_refresh_failed">Не удалось обновить статистику рабочей области: %1$s</string>
   <string name="workspace_ssh_credential_required">Укажите учётные данные</string>
   <string name="workspace_ssh_host_key_copy">Копировать отпечаток</string>
@@ -4473,4 +4477,12 @@
   <string name="workspace_detail_storage_path_unavailable">Папка не существует или не предоставлен доступ ко всем файлам</string>
   <string name="workspace_terminal_mounts_unavailable">Смонтированные папки недоступны: %1$s. Исправьте или удалите их в настройках рабочей области.</string>
   <string name="workspace_terminal_start_failed">Не удалось запустить терминал</string>
+<string name="workspace_background_tasks_title">Фоновые задачи</string>
+<string name="workspace_background_tasks_empty">Нет фоновых задач</string>
+<string name="workspace_background_task_running">Выполняется</string>
+<string name="workspace_background_task_exited">Завершено</string>
+<string name="workspace_background_task_exit_code">Код выхода: %1$d</string>
+<string name="workspace_background_task_stop">Остановить</string>
+<string name="workspace_background_task_output">Вывод</string>
+<string name="workspace_background_task_refresh">Обновить</string>
 </resources>

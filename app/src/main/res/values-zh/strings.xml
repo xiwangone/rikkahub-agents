@@ -1292,6 +1292,10 @@
   <string name="setting_provider_page_response_api_warning">Response API是OpenAI新一代API，大部分提供商并不支持，如果你不知道这是什么，不要开启</string>
   <string name="setting_provider_page_save">保存</string>
   <string name="setting_provider_page_save_success">保存成功</string>
+  <string name="setting_provider_icon_pick_title">选择图标</string>
+  <string name="setting_provider_icon_pick_search">搜索图标</string>
+  <string name="setting_provider_icon_pick_reset">恢复自动</string>
+  <string name="setting_provider_icon_pick_close">关闭</string>
   <string name="setting_provider_page_scan_error">错误: %s</string>
   <string name="setting_provider_page_scan_qr_code">扫描二维码</string>
   <string name="setting_provider_page_search_providers">搜索提供商</string>
@@ -2258,6 +2262,7 @@
   <string name="workspace_terminal_title_with_name">%s · 终端</string>
   <string name="workspace_terminal_not_installed">请先安装 Rootfs</string>
   <string name="workspace_terminal_loading">正在加载工作区…</string>
+  <string name="workspace_terminal_welcome">欢迎使用工作区终端</string>
   <string name="workspace_terminal_exited">终端已退出</string>
   <string name="workspace_terminal_tab">终端 %1$d</string>
   <string name="workspace_terminal_search_hint">搜索输出</string>
@@ -2703,6 +2708,12 @@
   <string name="setting_ssh_host_password">密码</string>
   <string name="setting_ssh_host_private_key">私钥 (PEM)</string>
   <string name="setting_ssh_host_passphrase">口令</string>
+  <string name="setting_ssh_host_certificate">证书 (OpenSSH)</string>
+  <string name="setting_ssh_host_no_auth_hint">密码、私钥和证书都留空即使用 none 认证（仅适用于接受它的服务器）。</string>
+  <string name="setting_ssh_host_proxy_command">代理命令</string>
+  <string name="setting_ssh_host_proxy_command_hint" formatted="false">用作传输的本地命令，如 cloudflared access ssh --hostname %h。%h 与 %p 会展开为目标主机与端口。在本设备上运行；留空为直连。</string>
+  <string name="setting_ssh_pick_vault_certificate">从密钥库选择证书</string>
+  <string name="setting_ssh_vault_certificate_used">密钥库证书：%1$s</string>
   <string name="setting_ssh_from_template">从服务器样板填充</string>
   <string name="setting_ssh_pick_vault_key">从密钥库选择私钥</string>
   <string name="setting_ssh_no_saved_key_hint">暂无已保存的 SSH 密钥，可新建一个。</string>
@@ -3515,21 +3526,14 @@
   <string name="chat_page_backend_local">本机</string>
   <string name="ssh_terminal_host_not_found">主机不存在: %1$s</string>
   <string name="ssh_terminal_no_credential">无可用凭证（vault ref: %1$s）</string>
-  <string name="ssh_terminal_connected">已连接 %1$s@%2$s:%3$s\n</string>
   <string name="ssh_terminal_connect_failed">连接失败: %1$s</string>
-  <string name="ssh_terminal_exec_failed">执行失败: %1$s\n</string>
-  <string name="ssh_terminal_input_placeholder">输入命令，回车执行</string>
-  <string name="ssh_terminal_execute">执行</string>
   <string name="ssh_terminal_retry">重试</string>
-  <string name="ssh_terminal_connection_lost">连接已断开，请重连</string>
   <string name="ssh_terminal_disconnect">断开连接</string>
-  <string name="ssh_terminal_disconnected">已断开连接。</string>
-  <string name="ssh_terminal_command_timeout">命令超时（30s）</string>
   <string name="ssh_terminal_status_connected">已连接</string>
   <string name="ssh_terminal_status_connecting">连接中…</string>
   <string name="ssh_terminal_status_failed">连接失败</string>
-  <string name="ssh_terminal_copy_output">复制输出</string>
-  <string name="ssh_terminal_clear_output">清空输出</string>
+  <string name="ssh_terminal_exited">终端已退出</string>
+  <string name="ssh_terminal_reopen">重新打开</string>
   <string name="ssh_hosts_save_failed">保存失败: %1$s</string>
   <string name="vault_page_export_format">导出格式</string>
   <string name="vault_format_vault_desc">.vault（加密，口令保护）</string>
@@ -4465,4 +4469,12 @@
   <string name="workspace_detail_storage_path_unavailable">该文件夹不存在，或未授予所有文件访问权限</string>
   <string name="workspace_terminal_mounts_unavailable">已挂载的文件夹不可用：%1$s。请在工作区设置中修复或移除它们。</string>
   <string name="workspace_terminal_start_failed">无法启动终端</string>
+<string name="workspace_background_tasks_title">后台任务</string>
+<string name="workspace_background_tasks_empty">暂无后台任务</string>
+<string name="workspace_background_task_running">运行中</string>
+<string name="workspace_background_task_exited">已退出</string>
+<string name="workspace_background_task_exit_code">退出码：%1$d</string>
+<string name="workspace_background_task_stop">停止</string>
+<string name="workspace_background_task_output">输出</string>
+<string name="workspace_background_task_refresh">刷新</string>
 </resources>

@@ -193,6 +193,10 @@ jobs:
           test "$BUILD_TYPE" = release
           chmod +x gradlew
           set -euo pipefail
+          # 版本指纹进包体：versionName 追加 -<commit短8位>（见 app/build.gradle.kts），
+          # 解决"两个构建 versionCode 相同、系统层面无法区分是哪份代码"的问题。
+          # GH expressions 无 substring，截断放 shell 做；GITHUB_SHA 默认可用
+          export BUILD_COMMIT_SHORT="${GITHUB_SHA::8}"
           test -n "$KEYSTORE_BASE64" && test -n "$KEYSTORE_PASSWORD"
           test -n "$KEY_ALIAS" && test -n "$KEY_PASSWORD"
           KEYSTORE="$RUNNER_TEMP/rikkahub.jks"

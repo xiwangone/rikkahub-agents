@@ -1338,6 +1338,10 @@
   <string name="setting_provider_page_response_api_warning">Response API is OpenAI\'s next-generation API. Most providers do not support it. If you don\'t know what this is, don\'t enable it.</string>
   <string name="setting_provider_page_save">Save</string>
   <string name="setting_provider_page_save_success">Save successful</string>
+  <string name="setting_provider_icon_pick_title">Choose icon</string>
+  <string name="setting_provider_icon_pick_search">Search icons</string>
+  <string name="setting_provider_icon_pick_reset">Use automatic</string>
+  <string name="setting_provider_icon_pick_close">Close</string>
   <string name="setting_provider_page_scan_error">Error: %s</string>
   <string name="setting_provider_page_scan_qr_code">Scan QR Code</string>
   <string name="setting_provider_page_search_providers">Search providers</string>
@@ -2318,6 +2322,7 @@
   <string name="workspace_terminal_title_with_name">%s · Terminal</string>
   <string name="workspace_terminal_not_installed">Please install Rootfs first</string>
   <string name="workspace_terminal_loading">Loading workspace…</string>
+  <string name="workspace_terminal_welcome">Welcome to the workspace terminal</string>
   <string name="workspace_terminal_exited">Terminal exited</string>
   <string name="workspace_terminal_close_confirm_title">Close terminal %1$d?</string>
   <string name="workspace_terminal_close_confirm_message">Closing this tab will terminate any process still running in it.</string>
@@ -2696,6 +2701,12 @@
   <string name="setting_ssh_host_password">Password</string>
   <string name="setting_ssh_host_private_key">Private key (PEM)</string>
   <string name="setting_ssh_host_passphrase">Passphrase</string>
+  <string name="setting_ssh_host_certificate">Certificate (OpenSSH)</string>
+  <string name="setting_ssh_host_no_auth_hint">Leave password, private key and certificate blank for none authentication (only servers that accept it).</string>
+  <string name="setting_ssh_host_proxy_command">Proxy command</string>
+  <string name="setting_ssh_host_proxy_command_hint" formatted="false">Local command used as the transport, e.g. cloudflared access ssh --hostname %h. %h and %p expand to the target host and port. Runs on this device; leave blank for a direct connection.</string>
+  <string name="setting_ssh_pick_vault_certificate">Pick certificate from Vault</string>
+  <string name="setting_ssh_vault_certificate_used">Vault certificate: %1$s</string>
   <string name="setting_ssh_from_template">Fill from server template</string>
   <string name="setting_ssh_pick_vault_key">Pick private key from Vault</string>
   <string name="setting_ssh_no_saved_key_hint">No saved SSH keys yet. Create a new one instead.</string>
@@ -3482,21 +3493,14 @@
   <string name="chat_page_backend_local">Local</string>
   <string name="ssh_terminal_host_not_found">Host not found: %1$s</string>
   <string name="ssh_terminal_no_credential">No available credential (vault ref: %1$s)</string>
-  <string name="ssh_terminal_connected">Connected %1$s@%2$s:%3$s\n</string>
   <string name="ssh_terminal_connect_failed">Connection failed: %1$s</string>
-  <string name="ssh_terminal_exec_failed">Execution failed: %1$s\n</string>
-  <string name="ssh_terminal_input_placeholder">Type a command, Enter to run</string>
-  <string name="ssh_terminal_execute">Execute</string>
   <string name="ssh_terminal_retry">Retry</string>
-  <string name="ssh_terminal_connection_lost">Connection lost, please reconnect</string>
   <string name="ssh_terminal_disconnect">Disconnect</string>
-  <string name="ssh_terminal_disconnected">Disconnected.</string>
-  <string name="ssh_terminal_command_timeout">Command timed out (30s)</string>
   <string name="ssh_terminal_status_connected">Connected</string>
   <string name="ssh_terminal_status_connecting">Connecting…</string>
   <string name="ssh_terminal_status_failed">Connection failed</string>
-  <string name="ssh_terminal_copy_output">Copy output</string>
-  <string name="ssh_terminal_clear_output">Clear output</string>
+  <string name="ssh_terminal_exited">Terminal exited</string>
+  <string name="ssh_terminal_reopen">Reopen</string>
   <string name="ssh_hosts_save_failed">Save failed: %1$s</string>
   <string name="vault_page_export_format">Export format</string>
   <string name="vault_format_vault_desc">.vault (encrypted, passphrase-protected)</string>
@@ -4465,4 +4469,12 @@
   <string name="workspace_detail_storage_path_unavailable">The folder does not exist, or all files access is not granted</string>
   <string name="workspace_terminal_mounts_unavailable">Mounted folders are unavailable: %1$s. Fix or remove them in the workspace settings.</string>
   <string name="workspace_terminal_start_failed">Failed to start the terminal</string>
+<string name="workspace_background_tasks_title">Background Tasks</string>
+<string name="workspace_background_tasks_empty">No background tasks yet</string>
+<string name="workspace_background_task_running">Running</string>
+<string name="workspace_background_task_exited">Exited</string>
+<string name="workspace_background_task_exit_code">Exit code: %1$d</string>
+<string name="workspace_background_task_stop">Stop</string>
+<string name="workspace_background_task_output">Output</string>
+<string name="workspace_background_task_refresh">Refresh</string>
 </resources>
