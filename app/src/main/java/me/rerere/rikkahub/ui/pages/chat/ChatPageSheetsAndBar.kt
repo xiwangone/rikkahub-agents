@@ -2,6 +2,8 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
+import me.rerere.rikkahub.ui.pages.setting.TunnelStatus
+import me.rerere.rikkahub.ui.pages.setting.parseTunnelStatus
 import me.rerere.rikkahub.ui.theme.CustomColors
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -35,6 +37,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.DrawerState
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -45,6 +48,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
@@ -555,9 +559,22 @@ private fun TopBarTunnelStatusBadge(
             is TunnelState.Failed -> MaterialTheme.colorScheme.error
             is TunnelState.Off -> MaterialTheme.colorScheme.outline
         }
+    // 域名/设备只在已连上时拉一次（连上或断开各刷新一次），不在后台轮询
+    var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
+    LaunchedEffect(tunnelState) {
+        nodeStatus = if (tunnelState is TunnelState.Connected) {
+            parseTunnelStatus(TsnetBridge.statusJson())
+        } else {
+            null
+        }
+    }
+    val connectedLabel = (tunnelState as? TunnelState.Connected)?.let { s ->
+        nodeStatus?.dnsName?.takeIf { it.isNotBlank() }?.let { "${s.ip} · $it" } ?: s.ip
+    }
+
     val statusText =
         when (val s = tunnelState) {
-            is TunnelState.Connected -> s.ip
+            is TunnelState.Connected -> connectedLabel ?: s.ip
             is TunnelState.Connecting -> stringResource(R.string.tunnel_status_connecting)
             is TunnelState.Offline -> stringResource(R.string.tunnel_status_offline)
             is TunnelState.Failed -> stringResource(R.string.tunnel_status_failed, s.reason)
@@ -665,6 +682,75 @@ private fun TopBarTunnelStatusBadge(
                         modifier = Modifier.size(8.dp).clip(CircleShape).background(dotColor),
                     )
                     Text(statusText, style = MaterialTheme.typography.bodyMedium)
+                }
+                nodeStatus?.let { st ->
+                    if (st.dnsName.isNotBlank() || st.peers.isNotEmpty()) {
+                        HorizontalDivider()
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Text(
+                                text = stringResource(R.string.tunnel_devices),
+                                style = MaterialTheme.typography.labelLarge,
+                            )
+                            Text(
+                                text = "${st.peers.count { it.online }}/${st.peers.size}",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                        if (st.dnsName.isNotBlank()) {
+                            Text(
+                                text = if (st.hostName.isNotBlank()) "${st.hostName} · ${st.dnsName}" else st.dnsName,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+                        if (st.peers.isEmpty()) {
+                            Text(
+                                text = stringResource(R.string.tunnel_devices_empty),
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        } else {
+                            Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+                                st.peers.take(8).forEach { peer ->
+                                    Row(
+                                        verticalAlignment = Alignment.CenterVertically,
+                                        horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                    ) {
+                                        Box(
+                                            modifier = Modifier
+                                                .size(6.dp)
+                                                .clip(CircleShape)
+                                                .background(
+                                                    if (peer.online) Color(0xFF34A853) else MaterialTheme.colorScheme.outline,
+                                                ),
+                                        )
+                                        Text(
+                                            text = peer.hostName.ifBlank { peer.dnsName },
+                                            style = MaterialTheme.typography.labelMedium,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                            modifier = Modifier.weight(1f),
+                                        )
+                                        Text(
+                                            text = peer.curAddr.ifBlank {
+                                                peer.relay.ifBlank { peer.ips.firstOrNull().orEmpty() }
+                                            },
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            maxLines = 1,
+                                            overflow = TextOverflow.Ellipsis,
+                                        )
+                                    }
+                                }
+                            }
+                        }
+                    }
                 }
                 OutlinedTextField(
                     value = controlUrlDraft,

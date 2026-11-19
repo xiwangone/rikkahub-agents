@@ -953,7 +953,7 @@ private fun TunnelPeer.sortIp(): String =
     ips.firstOrNull { it.count { c -> c == '.' } == 3 }?.let(::ipSortKey) ?: "999.999.999.999"
 
 /** 一个 tailnet 对端。 */
-private data class TunnelPeer(
+internal data class TunnelPeer(
     val hostName: String,
     val dnsName: String,
     val ips: List<String>,
@@ -968,7 +968,7 @@ private data class TunnelPeer(
 )
 
 /** tsnet 状态快照（来自 [TsnetBridge.statusJson]）。 */
-private data class TunnelStatus(
+internal data class TunnelStatus(
     val running: Boolean = false,
     val selfIps: List<String> = emptyList(),
     val dnsName: String = "",
@@ -980,7 +980,7 @@ private data class TunnelStatus(
 )
 
 /** 解析 Go 侧 StatusJSON；字段缺失一律取默认值，不抛异常。 */
-private fun parseTunnelStatus(raw: String?): TunnelStatus? {
+internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
     if (raw.isNullOrBlank()) return null
     return runCatching {
         val o = org.json.JSONObject(raw)
