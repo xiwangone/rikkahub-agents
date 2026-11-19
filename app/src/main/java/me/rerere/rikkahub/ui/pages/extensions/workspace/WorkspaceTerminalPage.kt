@@ -233,7 +233,7 @@ private fun WorkspaceTerminalContent(
                             selectedTabIndex = selectedIndex,
                             modifier = Modifier.fillMaxWidth(),
                             edgePadding = 4.dp,
-                            minTabWidth = 132.dp,
+                            minTabWidth = 96.dp,
                             containerColor = MaterialTheme.colorScheme.surfaceContainerLow,
                             divider = {},
                             // 去掉选中页签下那条长指示线：选中态靠图标主色区分即可。
@@ -258,7 +258,7 @@ private fun WorkspaceTerminalContent(
                                     modifier =
                                         Modifier
                                             .height(52.dp)
-                                            .widthIn(min = 132.dp, max = 260.dp)
+                                            .widthIn(min = 96.dp, max = 220.dp)
                                             .semantics {
                                                 contentDescription = tabTitle
                                             },
@@ -302,7 +302,7 @@ private fun WorkspaceTerminalContent(
                                             onClick = { onCloseTab(tab.id) },
                                             modifier =
                                                 Modifier
-                                                    .size(32.dp)
+                                                    .size(28.dp)
                                                     .semantics {
                                                         contentDescription = closeDescription
                                                     },
@@ -327,7 +327,7 @@ private fun WorkspaceTerminalContent(
                     enabled = root != null,
                     modifier =
                         Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .semantics { contentDescription = backgroundTasksDescription },
                 ) {
                     Icon(
@@ -343,7 +343,7 @@ private fun WorkspaceTerminalContent(
                     enabled = selectedTab != null,
                     modifier =
                         Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .semantics { contentDescription = searchHint },
                 ) {
                     Icon(
@@ -361,7 +361,7 @@ private fun WorkspaceTerminalContent(
                         state.readiness != WorkspaceTerminalReadiness.NotInstalled,
                     modifier =
                         Modifier
-                            .size(44.dp)
+                            .size(40.dp)
                             .semantics { contentDescription = newTabDescription },
                 ) {
                     Icon(
