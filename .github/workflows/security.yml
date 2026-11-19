@@ -155,8 +155,26 @@ jobs:
       - name: 导出运行时依赖清单
         run: |
           chmod +x gradlew
-          ./gradlew --no-configuration-cache --no-daemon \
-            :app:dependencies --configuration releaseRuntimeClasspath > deps-raw.txt 2>&1 || true
+          # KSP 等插件首次解析需联网：runner 侧网络抖动会让配置阶段直接失败，
+          # 表现为全部仓库均不可达（版本本身在中央仓库可查，同批其他作业正常解析）。
+          # gradle 失败不立即退出，最多重试 3 次；全部失败才把真实错误贴出
+          # 来再退出，避免 parse 脚本报“0 组件”掩盖根因。
+          ok=0
+          for i in 1 2 3; do
+            if ./gradlew --no-configuration-cache --no-daemon \
+              :app:dependencies --configuration releaseRuntimeClasspath > deps-raw.txt 2>&1; then
+              ok=1
+              echo "依赖清单已导出（第 $i 次尝试）"
+              break
+            fi
+            echo "依赖导出失败（第 $i 次），尾部错误如下："
+            tail -n 25 deps-raw.txt
+            if [ "$i" -lt 3 ]; then sleep 30; fi
+          done
+          if [ "$ok" -ne 1 ]; then
+            echo "::error::依赖清单导出 3 次均失败，见上方 gradle 错误（非漏洞扫描本身失败）"
+            exit 1
+          fi
           # 输出里可能混有告警/下载信息，仅保留包含坐标的行由解析脚本处理
           wc -l deps-raw.txt
           python3 .github/scripts/parse-gradle-deps.py deps-raw.txt runtime-deps.json
