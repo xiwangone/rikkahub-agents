@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.chat
 
 import android.net.Uri
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
+import me.rerere.rikkahub.ui.pages.setting.TunnelDevicesDialog
 import me.rerere.rikkahub.ui.pages.setting.TunnelStatus
 import me.rerere.rikkahub.ui.pages.setting.parseTunnelStatus
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -433,24 +434,25 @@ internal fun TopBar(
 
                 // 行 1：标题 + 操作图标（同一 Row，天然对齐）
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Surface(
-                        onClick = {
-                            if (conversation.messageNodes.isNotEmpty()) {
-                                titleState.open(conversation.title)
-                            } else {
-                                toaster.show(editTitleWarning, type = ToastType.Warning)
+                    Text(
+                        text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        style = MaterialTheme.typography.bodyMedium,
+                        // clickable 代替 Surface：Surface 自带 48dp 最小触控高度，
+                        // 会把标题行撑高、标题下方留出空白（看起来像“空了一行”）
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(4.dp))
+                            .clickable {
+                                if (conversation.messageNodes.isNotEmpty()) {
+                                    titleState.open(conversation.title)
+                                } else {
+                                    toaster.show(editTitleWarning, type = ToastType.Warning)
+                                }
                             }
-                        },
-                        color = Color.Transparent,
-                        modifier = Modifier.weight(1f),
-                    ) {
-                        Text(
-                            text = conversation.title.ifBlank { stringResource(R.string.chat_page_new_chat) },
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                            style = MaterialTheme.typography.bodyMedium,
-                        )
-                    }
+                            .padding(vertical = 1.dp),
+                    )
                     if (conversationModelOverride) {
                         IconButton(onClick = onResetConversationModel) {
                             Icon(
@@ -473,14 +475,18 @@ internal fun TopBar(
                     }
                 }
 
-                // 行 2：助手名
-                Text(
-                    text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    style = MaterialTheme.typography.labelSmall,
-                )
+                // 行 2：助手名 + 隧道徽章（本机 IP·域名在这一行右侧）
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Text(
+                        text = assistant.name.ifBlank { stringResource(R.string.assistant_page_default_assistant) },
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        style = MaterialTheme.typography.labelSmall,
+                        modifier = Modifier.weight(1f),
+                    )
+                    TopBarTunnelStatusBadge(settings = settings)
+                }
 
                 // 行 3：模型名 + 隧道（同一 Row，天然对齐）
                 Row(verticalAlignment = Alignment.CenterVertically) {
@@ -497,7 +503,9 @@ internal fun TopBar(
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f),
                     )
-                    TopBarTunnelStatusBadge(settings = settings)
+                    // 当前连接对象：最近 2 分钟有流量的 peer，显示「直连/中继(区域) + 设备名」；
+                    // 没有实时路径就不显示（relay 是归属 DERP，空闲时也填着，不能当“正在走”）
+                    TopBarTunnelPeerLabel()
                 }
             }
         }
@@ -540,6 +548,37 @@ internal fun TopBar(
     }
 }
 
+/**
+ * 顶栏「当前连接对象」：只在存在实时路径（online && active）时显示，
+ * 直连显示「直连 设备名」，走中继显示「中继(区域) 设备名」。
+ */
+@Composable
+private fun TopBarTunnelPeerLabel() {
+    val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
+    var status by remember { mutableStateOf<TunnelStatus?>(null) }
+    LaunchedEffect(tunnelState) {
+        status = if (tunnelState is TunnelState.Connected) {
+            parseTunnelStatus(TsnetBridge.statusJson())
+        } else {
+            null
+        }
+    }
+    val peer = status?.peers?.firstOrNull { it.online && it.active } ?: return
+    val pathText = when {
+        peer.curAddr.isNotBlank() -> stringResource(R.string.tunnel_path_direct)
+        peer.relay.isNotBlank() -> stringResource(R.string.tunnel_path_relay, peer.relay)
+        else -> return
+    }
+    val name = peer.hostName.ifBlank { peer.dnsName }
+    Text(
+        text = "$pathText $name",
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
+
 @Composable
 private fun TopBarTunnelStatusBadge(
     settings: Settings,
@@ -561,6 +600,7 @@ private fun TopBarTunnelStatusBadge(
         }
     // 域名/设备只在已连上时拉一次（连上或断开各刷新一次），不在后台轮询
     var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
+    var showDevices by remember { mutableStateOf(false) }
     LaunchedEffect(tunnelState) {
         nodeStatus = if (tunnelState is TunnelState.Connected) {
             parseTunnelStatus(TsnetBridge.statusJson())
@@ -607,6 +647,14 @@ private fun TopBarTunnelStatusBadge(
     }
 
     if (showDialog) {
+        // 设备列表单独一屏：卡片里只放前 5 条摘要，点「设备」标题行看全部（可滚动）
+        if (showDevices) {
+            TunnelDevicesDialog(
+                peers = nodeStatus?.peers.orEmpty(),
+                connected = nodeStatus != null,
+                onDismiss = { showDevices = false },
+            )
+        }
         // 快捷卡片：点开左上角 IP 即可直接改配置并启/停，不用跳到设置页
         val settingsStore: SettingsStore = koinInject()
         val vaultRepository: CredentialVaultRepository = koinInject()
@@ -689,6 +737,11 @@ private fun TopBarTunnelStatusBadge(
                         Row(
                             verticalAlignment = Alignment.CenterVertically,
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
+                            modifier = Modifier
+                                .fillMaxWidth()
+                                .clip(RoundedCornerShape(6.dp))
+                                .clickable { showDevices = true }
+                                .padding(vertical = 2.dp),
                         ) {
                             Text(
                                 text = stringResource(R.string.tunnel_devices),
@@ -697,6 +750,12 @@ private fun TopBarTunnelStatusBadge(
                             Text(
                                 text = "${st.peers.count { it.online }}/${st.peers.size}",
                                 style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                modifier = Modifier.weight(1f),
+                            )
+                            Text(
+                                text = "\u203A",
+                                style = MaterialTheme.typography.titleMedium,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                         }
@@ -717,7 +776,7 @@ private fun TopBarTunnelStatusBadge(
                             )
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                st.peers.take(8).forEach { peer ->
+                                st.peers.take(5).forEach { peer ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),

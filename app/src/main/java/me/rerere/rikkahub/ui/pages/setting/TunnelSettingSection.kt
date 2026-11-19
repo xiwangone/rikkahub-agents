@@ -643,146 +643,10 @@ fun TunnelSettingSection(vm: SettingVM) {
     }
 
     if (showDevicesDialog) {
-        // 按 IP 数字顺序排：100.66.66.9 < 100.66.66.10（字符串排会把 .10 排到 .9 前面）；
-        // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。
-        val devicePeers = nodeStatus?.peers.orEmpty()
-            .sortedWith(
-                compareBy<TunnelPeer> { it.sortIp() }
-                    .thenBy { it.dnsName.trimEnd('.').ifBlank { it.hostName }.lowercase() },
-            )
-        AlertDialog(
-            onDismissRequest = { showDevicesDialog = false },
-            title = { Text(stringResource(R.string.tunnel_devices)) },
-            text = {
-                // 设备多时可上下滑，AlertDialog 本身不会替内容滚，行数一多底部会被裁掉；
-                // 再限高 420dp，弹窗不再撑满屏（与出口节点、提供商弹窗同口径）。
-                // 顺序不能反：heightIn 在 verticalScroll 外层才卡视口高度；写在内层会卡内容高度、滚动范围归零。
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier
-                        .heightIn(max = 420.dp)
-                        .verticalScroll(rememberScrollState()),
-                ) {
-                    if (nodeStatus == null) {
-                        // 隧道没连上：peers 为空是“没连上”，不是“尾网没设备”，别显示空列表。
-                        Text(
-                            text = stringResource(R.string.tunnel_status_disconnected),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else if (devicePeers.isEmpty()) {
-                        Text(
-                            text = stringResource(R.string.tunnel_devices_empty),
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    } else {
-                        devicePeers.forEach { peer ->
-                            val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
-                            val ip = peer.ips.firstOrNull().orEmpty()
-                            // 第一行只放短名（MagicDNS 名去掉尾网后缀，如 minis）；完整域名另起一行，
-                            // 放 IP 行下面：同尾网后缀都一样、放上面是重复噪音，跨尾网共享节点靠它区分才有用。
-                            // 换 IP/重连不变；短名为空时回落到主机名，第二行只剩 IP，不重复。
-                            val domain = peer.dnsName.trimEnd('.')
-                            val shortName = domain.substringBefore('.').ifBlank { name }
-                            val secondLine = if (peer.dnsName.isBlank()) ip else "$name  $ip"
-                            // 圆点颜色 = 实时路径：绿直连 / 黄中继 / 灰空闲 / 红离线。
-                            // 离线节点没有实时连接，不挂中继——relay 是控制面给的归属 DERP，
-                            // 空闲时也会填着，挂出来等于把“能上次走哪”说成“现在正走哪”。
-                            val dotColor: Color
-                            val path: String
-                            when {
-                                !peer.online -> {
-                                    dotColor = MaterialTheme.colorScheme.error
-                                    path = ""
-                                }
-                                !peer.active -> {
-                                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    path = stringResource(R.string.tunnel_path_idle)
-                                }
-                                peer.curAddr.isNotBlank() -> {
-                                    dotColor = Color(0xFF43A047)
-                                    path = stringResource(R.string.tunnel_path_direct)
-                                }
-                                peer.relay.isNotBlank() -> {
-                                    dotColor = Color(0xFFFFB300)
-                                    path = stringResource(R.string.tunnel_path_relay, peer.relay)
-                                }
-                                else -> {
-                                    dotColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                    path = ""
-                                }
-                            }
-                            // 点一行复制该设备的 IP（没有 IP 时复制 MagicDNS 名），
-                            // 免得对着弹窗一个字符一个字符手打；状态徽章点一下能复制本机 IP，
-                            // 设备行之前是纯文本、复制不了。
-                            // key(完整域名)：同名设备可能来自不同尾网，短名会撞，完整域名才唯一；
-                            // 行数增减时各行身份不变，不会串位跳动。
-                            key(domain.ifBlank { ip.ifBlank { name } }) {
-                                Column(
-                                    modifier = Modifier
-                                        .fillMaxWidth()
-                                        .clickable {
-                                            val toCopy = ip.ifBlank { peer.dnsName.trimEnd('.') }
-                                            if (toCopy.isNotBlank()) {
-                                                clipboard.setText(AnnotatedString(toCopy))
-                                                toaster.show(
-                                                    copiedLabel,
-                                                    type = ToastType.Success,
-                                                )
-                                            }
-                                        }
-                                        .padding(vertical = 4.dp),
-                                ) {
-                                    Text(
-                                        text = buildAnnotatedString {
-                                            withStyle(SpanStyle(color = dotColor)) { append("● ") }
-                                            withStyle(
-                                                SpanStyle(
-                                                    color = if (peer.online) {
-                                                        MaterialTheme.colorScheme.onSurface
-                                                    } else {
-                                                        MaterialTheme.colorScheme.onSurfaceVariant
-                                                    },
-                                                ),
-                                            ) { append(shortName) }
-                                        },
-                                        style = MaterialTheme.typography.bodySmall,
-                                    )
-                                    if (secondLine.isNotBlank()) {
-                                        Text(
-                                            text = secondLine,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    // 完整域名放 IP 行下面：只有跨尾网共享节点才跟短名不一样，
-                                    // 同尾网时它就是短名加后缀，重复出现一次就够了。
-                                    if (domain.isNotBlank() && domain != shortName) {
-                                        Text(
-                                            text = domain,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                    if (path.isNotBlank()) {
-                                        Text(
-                                            text = path,
-                                            style = MaterialTheme.typography.labelSmall,
-                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        )
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            },
-            confirmButton = {
-                TextButton(onClick = { showDevicesDialog = false }) {
-                    Text(stringResource(R.string.settings_cancel))
-                }
-            },
+        TunnelDevicesDialog(
+            peers = nodeStatus?.peers.orEmpty(),
+            connected = nodeStatus != null,
+            onDismiss = { showDevicesDialog = false },
         )
     }
 
@@ -1016,4 +880,157 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
             exitNodeIp = o.optString("exitNodeIP"),
         )
     }.getOrNull()
+}
+
+@Composable
+internal fun TunnelDevicesDialog(
+    peers: List<TunnelPeer>,
+    connected: Boolean,
+    onDismiss: () -> Unit,
+) {
+    val copiedLabel = stringResource(R.string.copied)
+    val clipboard = LocalClipboardManager.current
+    val toaster = LocalToaster.current
+    // 按 IP 数字顺序排：100.66.66.9 < 100.66.66.10（字符串排会把 .10 排到 .9 前面）；
+    // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。
+    val devicePeers = peers
+        .sortedWith(
+            compareBy<TunnelPeer> { it.sortIp() }
+                .thenBy { it.dnsName.trimEnd('.').ifBlank { it.hostName }.lowercase() },
+        )
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.tunnel_devices)) },
+        text = {
+            // 设备多时可上下滑，AlertDialog 本身不会替内容滚，行数一多底部会被裁掉；
+            // 再限高 420dp，弹窗不再撑满屏（与出口节点、提供商弹窗同口径）。
+            // 顺序不能反：heightIn 在 verticalScroll 外层才卡视口高度；写在内层会卡内容高度、滚动范围归零。
+            Column(
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+                modifier = Modifier
+                    .heightIn(max = 420.dp)
+                    .verticalScroll(rememberScrollState()),
+            ) {
+                if (!connected) {
+                    // 隧道没连上：peers 为空是“没连上”，不是“尾网没设备”，别显示空列表。
+                    Text(
+                        text = stringResource(R.string.tunnel_status_disconnected),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else if (devicePeers.isEmpty()) {
+                    Text(
+                        text = stringResource(R.string.tunnel_devices_empty),
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                } else {
+                    devicePeers.forEach { peer ->
+                        val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
+                        val ip = peer.ips.firstOrNull().orEmpty()
+                        // 第一行只放短名（MagicDNS 名去掉尾网后缀，如 minis）；完整域名另起一行，
+                        // 放 IP 行下面：同尾网后缀都一样、放上面是重复噪音，跨尾网共享节点靠它区分才有用。
+                        // 换 IP/重连不变；短名为空时回落到主机名，第二行只剩 IP，不重复。
+                        val domain = peer.dnsName.trimEnd('.')
+                        val shortName = domain.substringBefore('.').ifBlank { name }
+                        val secondLine = if (peer.dnsName.isBlank()) ip else "$name  $ip"
+                        // 圆点颜色 = 实时路径：绿直连 / 黄中继 / 灰空闲 / 红离线。
+                        // 离线节点没有实时连接，不挂中继——relay 是控制面给的归属 DERP，
+                        // 空闲时也会填着，挂出来等于把“能上次走哪”说成“现在正走哪”。
+                        val dotColor: Color
+                        val path: String
+                        when {
+                            !peer.online -> {
+                                dotColor = MaterialTheme.colorScheme.error
+                                path = ""
+                            }
+                            !peer.active -> {
+                                dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                path = stringResource(R.string.tunnel_path_idle)
+                            }
+                            peer.curAddr.isNotBlank() -> {
+                                dotColor = Color(0xFF43A047)
+                                path = stringResource(R.string.tunnel_path_direct)
+                            }
+                            peer.relay.isNotBlank() -> {
+                                dotColor = Color(0xFFFFB300)
+                                path = stringResource(R.string.tunnel_path_relay, peer.relay)
+                            }
+                            else -> {
+                                dotColor = MaterialTheme.colorScheme.onSurfaceVariant
+                                path = ""
+                            }
+                        }
+                        // 点一行复制该设备的 IP（没有 IP 时复制 MagicDNS 名），
+                        // 免得对着弹窗一个字符一个字符手打；状态徽章点一下能复制本机 IP，
+                        // 设备行之前是纯文本、复制不了。
+                        // key(完整域名)：同名设备可能来自不同尾网，短名会撞，完整域名才唯一；
+                        // 行数增减时各行身份不变，不会串位跳动。
+                        key(domain.ifBlank { ip.ifBlank { name } }) {
+                            Column(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .clickable {
+                                        val toCopy = ip.ifBlank { peer.dnsName.trimEnd('.') }
+                                        if (toCopy.isNotBlank()) {
+                                            clipboard.setText(AnnotatedString(toCopy))
+                                            toaster.show(
+                                                copiedLabel,
+                                                type = ToastType.Success,
+                                            )
+                                        }
+                                    }
+                                    .padding(vertical = 4.dp),
+                            ) {
+                                Text(
+                                    text = buildAnnotatedString {
+                                        withStyle(SpanStyle(color = dotColor)) { append("● ") }
+                                        withStyle(
+                                            SpanStyle(
+                                                color = if (peer.online) {
+                                                    MaterialTheme.colorScheme.onSurface
+                                                } else {
+                                                    MaterialTheme.colorScheme.onSurfaceVariant
+                                                },
+                                            ),
+                                        ) { append(shortName) }
+                                    },
+                                    style = MaterialTheme.typography.bodySmall,
+                                )
+                                if (secondLine.isNotBlank()) {
+                                    Text(
+                                        text = secondLine,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                // 完整域名放 IP 行下面：只有跨尾网共享节点才跟短名不一样，
+                                // 同尾网时它就是短名加后缀，重复出现一次就够了。
+                                if (domain.isNotBlank() && domain != shortName) {
+                                    Text(
+                                        text = domain,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                                if (path.isNotBlank()) {
+                                    Text(
+                                        text = path,
+                                        style = MaterialTheme.typography.labelSmall,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                }
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.settings_cancel))
+            }
+        },
+    )
+
 }
