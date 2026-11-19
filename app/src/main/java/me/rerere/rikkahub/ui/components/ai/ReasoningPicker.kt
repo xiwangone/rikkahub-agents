@@ -89,7 +89,7 @@ fun ReasoningButton(
                     imageVector = reasoningLevel.icon(),
                     contentDescription = null,
                     // 20.dp：与输入框里的模型品牌标视觉高度对齐（品牌标多为横版，等比后约 20dp）
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
             if (!onlyIcon) Text(stringResource(R.string.setting_provider_page_reasoning))

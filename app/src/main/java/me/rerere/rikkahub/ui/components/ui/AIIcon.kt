@@ -9,6 +9,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.tooling.preview.Preview
@@ -70,7 +71,8 @@ private fun AIIcon(
             // 缩放用默认的 Fit（等比、不拉伸）。⚠ 不要用 FillBounds：它会把横版品牌标
             // （DeepSeek 鲸鱼宽高比 1.36）横向拉伸变形。横版标在方槽里天然矮一点是等比缩放
             // 的固有结果，可接受；想更饱满就在资产侧把 viewBox 收紧（已做：97% 填充）。
-            modifier = Modifier.padding(2.dp),
+            // 裁到容器形状：贴边的图（尖角、满版块）不会画到圆底外面去
+            modifier = Modifier.padding(2.dp).clip(rememberAvatarShape(loading)),
         )
     }
 }
@@ -148,7 +150,7 @@ fun AutoAIIcon(
     loading: Boolean = false,
     color: Color = MaterialTheme.colorScheme.secondaryContainer,
     iconOverride: String? = null,
-    /** 端点地址。名字是自定义短名时（`CC` 指向 commandcode），端点才是可靠的品牌依据。 */
+    /** 端点地址。名字是自定义短名时，端点才是可靠的品牌依据。 */
     baseUrl: String? = null,
 ) {
     val context = LocalContext.current

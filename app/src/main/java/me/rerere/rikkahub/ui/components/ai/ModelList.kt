@@ -293,13 +293,14 @@ internal fun ModelSelectorButton(
             contentAlignment = Alignment.Center,
         ) {
             if (model != null) {
-                // AIIcon 内部固定 size(24.dp)：plain size(36.dp) 时外层约束是 36.dp，
-                // 内部的 24.dp 会被夹回 36.dp，外框 36.dp、字形 28.dp；照抄 SearchPickerButton，
-                // 用 requiredSize(32.dp) 越过内部约束，外框 32.dp、字形 24.dp，与同排搜索 /
-                // 思考 / 扳手 / 闪电 / 锁 / ASR / ＋对齐。44.dp 点击圆圈不变。
+                // 整行字形统一 24dp（同排搜索 / 思考 / 扳手 / 闪电 / 锁 / ASR / ＋ 均为
+                // 24dp；绘制区 = 外框 − AIIcon 内部 2×2 padding）。AIIcon 内部固定
+                // size(24.dp)，requiredSize(28) 越过内部约束 → 外框 28.dp、绘制区 24.dp。
+                // 44.dp 点击圆圈不变。横版品牌标（DeepSeek 鲸鱼）已在资产侧换成
+                // 蓝圆角块 + 白鲸的方形形态，方槽不再有矮一截的问题。
                 AutoModelIcon(
                     modelId = model.modelId,
-                    modifier = Modifier.requiredSize(32.dp),
+                    modifier = Modifier.requiredSize(28.dp),
                     color = Color.Transparent,
                     providerName = provider?.name,
                     iconOverride = iconOverride,
@@ -309,7 +310,7 @@ internal fun ModelSelectorButton(
                 Icon(
                     imageVector = HugeIcons.Brain02,
                     contentDescription = stringResource(R.string.setting_model_page_chat_model),
-                    modifier = Modifier.size(20.dp),
+                    modifier = Modifier.size(24.dp),
                 )
             }
         }

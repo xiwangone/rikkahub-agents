@@ -682,7 +682,7 @@ private fun ProviderItem(
                 name = provider.name,
                 modifier = Modifier.size(36.dp),
                 iconOverride = iconOverride,
-                // 端点优先：自定义短名（CC → commandcode、Zen → opencode）靠名字无解，域名才可信
+                // 名字无解时由端点域名兜底，与详情页同口径
                 baseUrl = provider.baseUrlOrNull(),
             )
             Column(

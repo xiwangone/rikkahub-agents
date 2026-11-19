@@ -48,7 +48,7 @@ internal fun VoiceModeRow(
                 HugeIcons.Voice,
                 contentDescription = null,
                 tint = statusColor,
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(24.dp),
             )
             Column(modifier = Modifier.weight(1f)) {
                 Text(

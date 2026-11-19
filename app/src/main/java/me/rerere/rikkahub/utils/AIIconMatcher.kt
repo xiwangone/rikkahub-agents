@@ -49,10 +49,16 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "通义千问" to "qwen",
     "通义" to "qwen",
     "千问" to "qwen",
+    // 百炼是独立产品（有自己的标），须显式登记长键，否则按最长包含会判成“阿里云”
+    "阿里云百炼" to "bailian",
+    "百炼" to "bailian",
     "阿里云" to "alibabacloud",
     "阿里" to "alibaba",
     // 腾讯系
     "腾讯混元" to "hunyuan",
+    // 中英混合名（"腾讯 Hunyuan"）归一化为"腾讯hunyuan"：纯中文键接不住，
+    // 会回落到"腾讯"→tencent；混合键走同一条最长包含匹配，长键优先于"腾讯"
+    "腾讯hunyuan" to "hunyuan",
     "混元" to "hunyuan",
     "腾讯云" to "tencentcloud",
     "腾讯" to "tencent",
@@ -133,6 +139,8 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "中国电信" to "chinatelecom",
     "联通云" to "chinaunicom",
     "中国联通" to "chinaunicom",
+    // 网关
+    "随想" to "suixiang",
     "优刻得" to "ucloud",
     "金山云" to "ksyun",
     "并行科技" to "paratera",
@@ -320,8 +328,12 @@ private fun lookupIconFile(slug: String, availableIcons: Set<String>): String? {
 /**
  * 按名找 assets/icons/ 里的品牌图标文件。
  *
- * 查找顺序：别名翻译出的 slug → 归一化全名 → 逐词回退（多词名按词试，
- * 如“Amazon Bedrock”取 bedrock、“Azure OpenAI”取 openai，从后往前试）；
+ * 查找顺序：模型家族前缀 → 别名翻译出的 slug → 归一化全名 → 逐词回退（多词名按词试，
+ * 如“Amazon Bedrock”取 bedrock、“Azure OpenAI”取 openai，从后往前试）→
+ * 端点域名品牌。命中即返回，不做二次覆盖。
+ * 两层判据：名字层是用户显式写明的品牌，优先；端点域名是兜底，只救“名字完全没有
+ * 品牌词”的短名——域名里的词常不是提供商自己的品牌（同一端点可能服务多个产品线，
+ * 按端点取值会把显式写明的品牌判错）。
  * 每个 slug 优先 `<slug>-color.svg`，其次 `<slug>.svg`，最后 `<slug>.png`
  * （旧资产里有 7 个 PNG 品牌）。找不到返回 null，调用方回落首字母头像。
  *
@@ -337,12 +349,6 @@ fun computeAIIconByName(
     if (normalized.isEmpty()) return null
     val aliased = resolveAlias(normalized) ?: normalized
     val candidates = buildList {
-        // 域名优先：自定义短名（CC/Zen）靠名字无解，但域名里带着品牌
-        hostBrandCandidates(baseUrl).forEach { raw ->
-            val flat = raw.filter { ch -> ch.isLetterOrDigit() }
-            add(HOST_ALIASES[flat] ?: flat)
-            add(flat)
-        }
         // 模型家族：模型 ID 不是品牌名，靠 vendor 段 / 家族前缀反推
         modelFamilyCandidates(name).forEach { add(it) }
         add(aliased)
@@ -354,6 +360,12 @@ fun computeAIIconByName(
             .map { it.lowercase() }
             .asReversed()
             .forEach { if (it != aliased && it != normalized) add(it) }
+        // 端点兜底：名字层完全没有品牌词时才用域名里的品牌（无品牌含义的短名靠这一层）。
+        hostBrandCandidates(baseUrl).forEach { raw ->
+            val flat = raw.filter { ch -> ch.isLetterOrDigit() }
+            add(HOST_ALIASES[flat] ?: flat)
+            add(flat)
+        }
     }
     for (slug in candidates.distinct()) {
         // 英文/缩写别名（精确匹配）优先，再回原 slug
@@ -443,23 +455,26 @@ fun computeModelIconByName(
 /**
  * 从 API Base URL 里取品牌候选词。
  *
- * 为什么需要：用户常把提供商起成自定义短名（`CC` 指向 `api.commandcode.ai`、`Zen` 指向
- * `opencode.ai`），名字本身进不了 slug，但域名里就带着品牌。按域名匹配是这类情况的唯一可靠依据。
+ * 为什么需要：提供商常被起成过短、无品牌含义的自定义短名，名字本身进不了 slug，
+ * 但域名里就带着品牌。按域名匹配是这类情况的唯一可靠依据。
  *
  * 规则：取主机名去掉顶级域与常见通用前缀（`api`/`apihub`/`www`…），得到品牌段；
  * 同时给出「多段拼接」与「最后一段」两个候选（`api.foo.example` → `fooexample` / `example`）。
  */
 /**
  * 域名品牌段 → 库里 slug。只登记「域名里的词和文件名对不上」的：
- * `open.bigmodel.cn` 是智谱（slug 为 zhipu），`api.agnes-ai.cn` 是 agnesai，
- * `api.commandcode.ai` 归一化后本身就能命中，无需登记。
+ * `open.bigmodel.cn` 是智谱（slug 为 zhipu），`api.agnes-ai.cn` 是 agnesai；
+ * 其余品牌域名归一化后本身就能命中，无需登记。
  */
 private val HOST_ALIASES: Map<String, String> = linkedMapOf(
     "bigmodel" to "zhipu",
     "zhipuai" to "zhipu",
     "xiaomi" to "xiaomimimo",
-    "dashscope" to "qwen",
-    "aliyuncs" to "qwen",
+    // dashscope.aliyuncs.com 是阿里云百炼平台的 API 域名：域名候选产出 bailian
+    // 平台标，而不是 qwen 模型标；Qwen 系模型图标由模型名路径
+    // computeModelIconByName 负责，不受影响
+    "dashscope" to "bailian",
+    "aliyuncs" to "bailian",
     "volces" to "volcengine",
     "volcengineapi" to "volcengine",
     "tencentcloudapi" to "tencentcloud",

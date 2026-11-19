@@ -172,30 +172,30 @@ fun SearchPickerButton(
             horizontalArrangement = Arrangement.spacedBy(8.dp),
         ) {
             Box(
-                modifier = Modifier.size(20.dp),
+                modifier = Modifier.size(28.dp),
                 contentAlignment = Alignment.Center,
             ) {
                 if (model?.tools?.contains(BuiltInTools.Search) == true) {
                     // 用纯放大镜：AiSearch02 是「放大镜 + AI 星」复合图，
-                    // 在 20dp 下 AI 标记会挤成底部一小截，看着像图标拖尾。
+                    // 在小尺寸下 AI 标记会挤成底部一小截，看着像图标拖尾。
                     Icon(
                         imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 } else if (enableSearch && currentService != null) {
-                    // 外框 24.dp − AIIcon 内部 2×2 padding = 20.dp 绘制区，与同排的
-                    // 思考灯泡 / 扳手 / 闪电 / 锁 / ＋（均 20.dp）以及模型标的视觉高度一致。
+                    // 外框 28.dp − AIIcon 内部 2×2 padding = 24.dp 绘制区，与同排的
+                    // 思考灯泡 / 扳手 / 闪电 / 锁 / ＋（均 24.dp）以及模型标的视觉高度一致。
                     AutoAIIcon(
                         name = currentService.displayName,
-                        modifier = Modifier.requiredSize(24.dp),
+                        modifier = Modifier.requiredSize(28.dp),
                         color = Color.Transparent,
                     )
                 } else {
                     Icon(
                         imageVector = HugeIcons.Search01,
                         contentDescription = stringResource(R.string.use_web_search),
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 }
             }

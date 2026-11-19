@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -42,9 +43,11 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
@@ -90,7 +93,12 @@ import me.rerere.rikkahub.ui.pages.setting.components.SettingProviderBalanceOpti
 import me.rerere.rikkahub.ui.pages.setting.components.isUsingDefaultBaseUrl
 import me.rerere.rikkahub.ui.pages.setting.components.resetBaseUrlToDefault
 import me.rerere.rikkahub.ui.theme.CustomColors
+import kotlinx.coroutines.launch
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.utils.ProviderIconOverrides
+import me.rerere.rikkahub.utils.listBundledIconNames
 import org.koin.androidx.compose.koinViewModel
+import org.koin.compose.koinInject
 import kotlin.uuid.Uuid
 
 private enum class ProviderDetailTab(
@@ -116,6 +124,15 @@ fun SettingProviderDetailPage(
     val pager = rememberPagerState { ProviderDetailTab.entries.size }
     val toaster = LocalToaster.current
     val saveSuccessText = stringResource(R.string.setting_provider_page_save_success)
+
+    // 图标手动覆盖：点顶部图标打开选择器，选完写覆盖表（渲染优先级：覆盖 > 品牌匹配 > 首字母）
+    val settingsStore = koinInject<SettingsStore>()
+    val iconScope = rememberCoroutineScope()
+    val iconContext = LocalContext.current
+    var showIconPicker by remember { mutableStateOf(false) }
+    val bundledIconNames = remember(iconContext) {
+        listBundledIconNames(iconContext).filterNot { it.endsWith("-text.svg") }.sorted()
+    }
 
     var selectionMode by rememberSaveable { mutableStateOf(false) }
     var selectedIds by rememberSaveable { mutableStateOf(setOf<Uuid>()) }
@@ -180,8 +197,8 @@ fun SettingProviderDetailPage(
                     ) {
                         AutoAIIcon(
                             provider.name,
-                            modifier = Modifier.size(22.dp),
-                            // 端点优先：详情页与列表页必须同口径，否则会出现「列表有图标、点进去是首字母」
+                            modifier = Modifier.size(22.dp).clickable { showIconPicker = true },
+                            // 列表与详情必须同口径，否则会出现「列表有图标、点进去是首字母」
                             baseUrl = provider.baseUrlOrNull(),
                             iconOverride = settings.providerIconOverrides[provider.name],
                         )
@@ -317,6 +334,28 @@ fun SettingProviderDetailPage(
         },
         onDismiss = { showDeleteSelectedDialog = false },
     )
+
+    if (showIconPicker) {
+        ProviderIconPickerDialog(
+            currentOverride = settings.providerIconOverrides[provider.name],
+            icons = bundledIconNames,
+            onPick = { picked ->
+                showIconPicker = false
+                iconScope.launch {
+                    settingsStore.update { current ->
+                        val next = if (picked == null) {
+                            current.providerIconOverrides - provider.name
+                        } else {
+                            current.providerIconOverrides +
+                                (provider.name to ProviderIconOverrides.encodeAsset(picked))
+                        }
+                        current.copy(providerIconOverrides = next)
+                    }
+                }
+            },
+            onDismiss = { showIconPicker = false },
+        )
+    }
 }
 
 @Composable

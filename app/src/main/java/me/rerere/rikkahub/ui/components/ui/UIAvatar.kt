@@ -105,6 +105,9 @@ fun TextAvatar(
         Text(
             text = text.take(1).uppercase(),
             color = LocalContentColor.current,
+            // 宽度给满：不留约束时 autoSize 按“内容自身宽度”量，字号会被压到偏小
+            modifier = Modifier.fillMaxWidth(),
+            textAlign = TextAlign.Center,
             maxLines = 1,
             overflow = TextOverflow.Clip,
             autoSize =

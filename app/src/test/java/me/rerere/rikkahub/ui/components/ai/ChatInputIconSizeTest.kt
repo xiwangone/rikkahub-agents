@@ -111,8 +111,8 @@ class ChatInputIconSizeTest {
             ModelSelectorButton(state = state, onlyIcon = true)
         }
         composeRule.onNodeWithContentDescription("deepseek", useUnmergedTree = true)
-            // padding 收到 2.dp 后绘制区 28.dp（原 4.dp 时为 24.dp）
-            .assertWidthIsEqualTo(28.dp)
-            .assertHeightIsEqualTo(28.dp)
+            // 模型槽 requiredSize(28.dp) − 2×2 padding = 绘制区 24.dp（与整排字形一致）
+            .assertWidthIsEqualTo(24.dp)
+            .assertHeightIsEqualTo(24.dp)
     }
 }

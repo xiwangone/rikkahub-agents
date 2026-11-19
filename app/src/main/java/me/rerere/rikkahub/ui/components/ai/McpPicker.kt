@@ -93,7 +93,7 @@ fun McpPickerButton(
             ) {
                 if (loading) {
                     CircularProgressIndicator(
-                        modifier = Modifier.size(20.dp),
+                        modifier = Modifier.size(24.dp),
                     )
                 } else {
                     BadgedBox(

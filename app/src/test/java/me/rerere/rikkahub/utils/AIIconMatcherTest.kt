@@ -24,6 +24,7 @@ class AIIconMatcherTest {
         "copilot-color.svg", "open-design.png", "muse-color.svg",
         // 中文别名表覆盖到的其余品牌
         "qwen-color.svg", "alibabacloud-color.svg", "alibaba-color.svg",
+        "bailian-color.svg",
         "tencentcloud-color.svg", "baiducloud-color.svg", "huaweicloud-color.svg",
         "huawei-color.svg", "zhipu-color.svg", "moonshot.svg",
         "baichuan-color.svg", "internlm-color.svg", "tiangong-color.svg",
@@ -131,6 +132,7 @@ class AIIconMatcherTest {
         assertEquals("qwen-color.svg", resolve("通义"))
         assertEquals("qwen-color.svg", resolve("千问"))
         assertEquals("alibabacloud-color.svg", resolve("阿里云"))
+        assertEquals("bailian-color.svg", resolve("阿里云百炼"))
         assertEquals("alibaba-color.svg", resolve("阿里"))
         assertEquals("zhipu-color.svg", resolve("智谱"))
         assertEquals("zhipu-color.svg", resolve("智谱清言"))
@@ -188,12 +190,12 @@ class AIIconMatcherTest {
     }
 
     @Test
-    fun `endpoint host wins over custom name`() {
+    fun `endpoint host backs custom short names`() {
         // 名字是自定义短名时，端点才是可靠依据
-        assertEquals("commandcode.svg", resolve("CC", "https://api.commandcode.ai/provider/v1"))
-        assertEquals("opencode.svg", resolve("Zen", "https://opencode.ai/zen/v1"))
+        assertEquals("commandcode.svg", resolve("AB", "https://api.commandcode.ai/provider/v1"))
+        assertEquals("opencode.svg", resolve("ZX", "https://opencode.ai/zen/v1"))
         assertEquals("zhipu-color.svg", resolve("GLM-4V-Flash", "https://open.bigmodel.cn/api/paas/v4"))
-        assertEquals("agnesai.svg", resolve("AGENS_CN", "https://api.agnes-ai.cn/v1"))
+        assertEquals("agnesai.svg", resolve("AG", "https://api.agnes-ai.cn/v1"))
         assertEquals("open-design.png", resolve("Open Design", "https://amr-link.open-design.ai/v1"))
         assertEquals("xiaomimimo.svg", resolve("MIMO", "https://api.xiaomimimo.com/v1"))
         // 端点识别不出来时仍按名字
@@ -202,17 +204,45 @@ class AIIconMatcherTest {
         // developer.amd.com.cn → amd → amdradeoncloud（库里只有 amdradeoncloud，没有 amd）
         assertEquals("amdradeoncloud-color.svg", resolve("AMD", "https://developer.amd.com.cn/radeon/api/v1"))
         // api.minimaxi.com → minimaxi → minimax（名字 MiniMax 本身也能解析，用短名隔离端点路径）
-        assertEquals("minimax-color.svg", resolve("MM", "https://api.minimaxi.com/anthropic/v1"))
+        assertEquals("minimax-color.svg", resolve("MX", "https://api.minimaxi.com/anthropic/v1"))
         assertEquals("minimax-color.svg", resolve("MiniMax", "https://api.minimaxi.com/anthropic/v1"))
         // tokenhub.tencentmaas.com → tencentmaas → hunyuan
-        assertEquals("hunyuan-color.svg", resolve("TH", "https://tokenhub.tencentmaas.com/v1"))
+        assertEquals("hunyuan-color.svg", resolve("TQ", "https://tokenhub.tencentmaas.com/v1"))
         assertEquals("hunyuan-color.svg", resolve("Tencent Hunyuan", "https://tokenhub.tencentmaas.com/v1"))
         // 本批新补的图标文件：域名直接产出 slug，不经别名表
         assertEquals("tokenrhythm.png", resolve("基元律动", "https://tokenrhythm.studio/v1"))
-        assertEquals("tokenrhythm.png", resolve("TR", "https://tokenrhythm.studio/v1"))
+        assertEquals("tokenrhythm.png", resolve("TK", "https://tokenrhythm.studio/v1"))
         assertEquals("suixiang.png", resolve("SuiXiang AI Gateway", "https://sui-xiang.com/v1"))
         assertEquals("ackai.png", resolve("AckAI", "https://ackai.fun/v1"))
         assertEquals("ackai.png", resolve("A", "https://ackai.fun/v1"))
+    }
+
+    @Test
+    fun `name resolves before host when name is confident`() {
+        // 名字显式给出品牌时，通用公司域不应抢跑
+        // "腾讯 Hunyuan"（中文前缀+英文后缀混合名）在 tencent.* 域名下应显示混元标
+        assertEquals("hunyuan-color.svg", resolve("腾讯 Hunyuan", "https://api.tencent.com/v1"))
+        assertEquals("hunyuan-color.svg", resolve("腾讯 Hunyuan", "https://hunyuan.tencentcloudapi.com/v1"))
+        assertEquals("hunyuan-color.svg", resolve("腾讯混元", "https://hunyuan.tencentcloudapi.com"))
+        // 阿里云百炼平台标：名字本身就能解析，不依赖端点；dashscope/aliyuncs 域名也归 bailian
+        assertEquals("bailian-color.svg", resolve("阿里云百炼"))
+        assertEquals("bailian-color.svg", resolve("阿里云百炼", "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+        assertEquals("bailian-color.svg", resolve("阿里云百炼（Token Plan）", "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+        assertEquals("bailian-color.svg", resolve("阿里云百炼（按量计费）", "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+        assertEquals(
+            "bailian-color.svg",
+            resolve("Alibaba Cloud Bailian", "https://dashscope.aliyuncs.com/compatible-mode/v1"),
+        )
+        assertEquals("bailian-color.svg", resolve("百炼"))
+        // 随想：名字本身就能解析，不依赖端点里带不带 suixiang
+        assertEquals("suixiang.png", resolve("随想 AI 网关"))
+        // 名字直接叫 Qwen 的仍显示 Qwen（名字优先于域名的副产品）
+        assertEquals("qwen-color.svg", resolve("Qwen", "https://dashscope.aliyuncs.com/compatible-mode/v1"))
+        // 相近拼写不互相串：名字有精确图标文件时必须用它，不能被近似品牌或端点顶掉
+        assertEquals("opencode.svg", resolve("OpenCode", "https://api.openai.com/v1"))
+        assertEquals("openrouter.svg", resolve("OpenRouter", "https://api.openai.com/v1"))
+        // 名字完全没有品牌词时才靠端点：短名 + 端点域名
+        assertEquals("opencode.svg", resolve("中转一号", "https://api.opencode.ai/v1"))
     }
 
     @Test

@@ -330,7 +330,7 @@ fun ChatInput(
                                     imageVector = HugeIcons.Cancel01,
                                     contentDescription = stringResource(R.string.stop),
                                     tint = MaterialTheme.colorScheme.error,
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
                         } else {
@@ -472,7 +472,7 @@ fun ChatInput(
                                 Icon(
                                     imageVector = HugeIcons.Zap,
                                     contentDescription = stringResource(R.string.auto_task_title),
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
 
@@ -483,7 +483,7 @@ fun ChatInput(
                                 Icon(
                                     imageVector = HugeIcons.LockKey,
                                     contentDescription = stringResource(R.string.vault_authorize_shortcut),
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
 
@@ -493,7 +493,7 @@ fun ChatInput(
                                 Icon(
                                     imageVector = HugeIcons.Add01,
                                     contentDescription = stringResource(R.string.more_options),
-                                    modifier = Modifier.size(20.dp),
+                                    modifier = Modifier.size(24.dp),
                                 )
                             }
 
