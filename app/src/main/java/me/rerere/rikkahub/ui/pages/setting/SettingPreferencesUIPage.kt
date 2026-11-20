@@ -334,6 +334,23 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             steps = 11,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                        Surface(
+                            modifier = Modifier.fillMaxWidth(),
+                            shape = MaterialTheme.shapes.large,
+                            color = MaterialTheme.colorScheme.surfaceContainer,
+                        ) {
+                            MarkdownBlock(
+                                content = stringResource(R.string.setting_display_page_font_size_preview),
+                                modifier = Modifier.padding(12.dp),
+                                style =
+                                    LocalTextStyle.current.copy(
+                                        fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
+                                        lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
+                                        fontFamily = chatFontFamily,
+                                    ),
+                            )
+                        }
+                    }
                     formItem(
                         headlineContent = { Text(stringResource(R.string.setting_display_page_terminal_text_size_title)) },
                         trailingContent = { CardGroupValue("${displaySetting.terminalTextSize} sp") },
@@ -353,23 +370,6 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             steps = 13,
                             modifier = Modifier.fillMaxWidth(),
                         )
-                    }
-                        Surface(
-                            modifier = Modifier.fillMaxWidth(),
-                            shape = MaterialTheme.shapes.large,
-                            color = MaterialTheme.colorScheme.surfaceContainer,
-                        ) {
-                            MarkdownBlock(
-                                content = stringResource(R.string.setting_display_page_font_size_preview),
-                                modifier = Modifier.padding(12.dp),
-                                style =
-                                    LocalTextStyle.current.copy(
-                                        fontSize = LocalTextStyle.current.fontSize * displaySetting.fontSizeRatio,
-                                        lineHeight = LocalTextStyle.current.lineHeight * displaySetting.fontSizeRatio,
-                                        fontFamily = chatFontFamily,
-                                    ),
-                            )
-                        }
                     }
                 }
             }
