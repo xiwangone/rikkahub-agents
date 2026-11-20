@@ -5,6 +5,8 @@ import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import me.rerere.rikkahub.ui.pages.setting.TunnelDevicesDialog
 import me.rerere.rikkahub.ui.pages.setting.TunnelStatus
 import me.rerere.rikkahub.ui.pages.setting.parseTunnelStatus
+import me.rerere.rikkahub.ui.pages.setting.tunnelPeerDotColor
+import me.rerere.rikkahub.ui.pages.setting.tunnelPeerPathText
 import me.rerere.rikkahub.ui.theme.CustomColors
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.background
@@ -65,6 +67,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import me.rerere.ai.ui.UIMessagePart
@@ -556,11 +559,16 @@ internal fun TopBar(
 private fun TopBarTunnelPeerLabel() {
     val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
     var status by remember { mutableStateOf<TunnelStatus?>(null) }
+    // ⚠ 必须轮询：`active` 表示“最近 2 分钟有流量”，隧道状态不变时 LaunchedEffect(tunnelState)
+    // 不会重跑，只拉一次会让这一行永远停在建连那一刻的状态。
     LaunchedEffect(tunnelState) {
-        status = if (tunnelState is TunnelState.Connected) {
-            parseTunnelStatus(TsnetBridge.statusJson())
-        } else {
-            null
+        if (tunnelState !is TunnelState.Connected) {
+            status = null
+            return@LaunchedEffect
+        }
+        while (true) {
+            status = parseTunnelStatus(TsnetBridge.statusJson())
+            delay(10_000)
         }
     }
     val peer = status?.peers?.firstOrNull { it.online && it.active } ?: return
@@ -776,7 +784,7 @@ private fun TopBarTunnelStatusBadge(
                             )
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                st.peers.take(5).forEach { peer ->
+                                st.peers.filter { it.online }.take(5).forEach { peer ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -785,9 +793,7 @@ private fun TopBarTunnelStatusBadge(
                                             modifier = Modifier
                                                 .size(6.dp)
                                                 .clip(CircleShape)
-                                                .background(
-                                                    if (peer.online) Color(0xFF34A853) else MaterialTheme.colorScheme.outline,
-                                                ),
+                                                .background(tunnelPeerDotColor(peer)),
                                         )
                                         Text(
                                             text = peer.hostName.ifBlank { peer.dnsName },
@@ -797,9 +803,7 @@ private fun TopBarTunnelStatusBadge(
                                             modifier = Modifier.weight(1f),
                                         )
                                         Text(
-                                            text = peer.curAddr.ifBlank {
-                                                peer.relay.ifBlank { peer.ips.firstOrNull().orEmpty() }
-                                            },
+                                            text = tunnelPeerPathText(peer),
                                             style = MaterialTheme.typography.labelSmall,
                                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                                             maxLines = 1,

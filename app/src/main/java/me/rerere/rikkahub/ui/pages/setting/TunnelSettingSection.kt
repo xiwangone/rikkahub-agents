@@ -882,6 +882,26 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
     }.getOrNull()
 }
 
+/** 设备圆点：绿=直连 / 黄=中继 / 灰=空闲（在线但无实时路径）/ 红=离线。 */
+@Composable
+internal fun tunnelPeerDotColor(peer: TunnelPeer): Color = when {
+    !peer.online -> MaterialTheme.colorScheme.error
+    !peer.active -> MaterialTheme.colorScheme.onSurfaceVariant
+    peer.curAddr.isNotBlank() -> Color(0xFF43A047)
+    peer.relay.isNotBlank() -> Color(0xFFFFB300)
+    else -> MaterialTheme.colorScheme.onSurfaceVariant
+}
+
+/** 设备路径文字：直连 / 中继(区域) / 空闲；离线为空串。卡片与设备列表共用这一套，避免“绿点配中继名”。 */
+@Composable
+internal fun tunnelPeerPathText(peer: TunnelPeer): String = when {
+    !peer.online -> ""
+    !peer.active -> stringResource(R.string.tunnel_path_idle)
+    peer.curAddr.isNotBlank() -> stringResource(R.string.tunnel_path_direct)
+    peer.relay.isNotBlank() -> stringResource(R.string.tunnel_path_relay, peer.relay)
+    else -> ""
+}
+
 @Composable
 internal fun TunnelDevicesDialog(
     peers: List<TunnelPeer>,
@@ -894,6 +914,7 @@ internal fun TunnelDevicesDialog(
     // 按 IP 数字顺序排：100.66.66.9 < 100.66.66.10（字符串排会把 .10 排到 .9 前面）；
     // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。
     val devicePeers = peers
+        .filter { it.online }        // 只列已连接的设备（离线的不显示，避免长列表里混着“上次见过”的旧节点）
         .sortedWith(
             compareBy<TunnelPeer> { it.sortIp() }
                 .thenBy { it.dnsName.trimEnd('.').ifBlank { it.hostName }.lowercase() },
@@ -937,30 +958,8 @@ internal fun TunnelDevicesDialog(
                         // 圆点颜色 = 实时路径：绿直连 / 黄中继 / 灰空闲 / 红离线。
                         // 离线节点没有实时连接，不挂中继——relay 是控制面给的归属 DERP，
                         // 空闲时也会填着，挂出来等于把“能上次走哪”说成“现在正走哪”。
-                        val dotColor: Color
-                        val path: String
-                        when {
-                            !peer.online -> {
-                                dotColor = MaterialTheme.colorScheme.error
-                                path = ""
-                            }
-                            !peer.active -> {
-                                dotColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                path = stringResource(R.string.tunnel_path_idle)
-                            }
-                            peer.curAddr.isNotBlank() -> {
-                                dotColor = Color(0xFF43A047)
-                                path = stringResource(R.string.tunnel_path_direct)
-                            }
-                            peer.relay.isNotBlank() -> {
-                                dotColor = Color(0xFFFFB300)
-                                path = stringResource(R.string.tunnel_path_relay, peer.relay)
-                            }
-                            else -> {
-                                dotColor = MaterialTheme.colorScheme.onSurfaceVariant
-                                path = ""
-                            }
-                        }
+                        val dotColor = tunnelPeerDotColor(peer)
+                        val path = tunnelPeerPathText(peer)
                         // 点一行复制该设备的 IP（没有 IP 时复制 MagicDNS 名），
                         // 免得对着弹窗一个字符一个字符手打；状态徽章点一下能复制本机 IP，
                         // 设备行之前是纯文本、复制不了。
