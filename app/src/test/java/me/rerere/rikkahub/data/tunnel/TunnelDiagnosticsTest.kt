@@ -226,9 +226,9 @@ class TunnelDiagnosticsTest {
     }
 
     @Test
-    fun `decideTailnetTcp requires a banner`() {
+    fun `decideTailnetTcp passes once connected`() {
         assertEquals(DiagStatus.PASS, decideTailnetTcp(zhStrings, true, "HTTP/1.1 200 OK", null).first)
-        assertEquals(DiagStatus.FAIL, decideTailnetTcp(zhStrings, true, null, null).first)
+        assertEquals(DiagStatus.PASS, decideTailnetTcp(zhStrings, true, null, null).first)
         assertEquals(DiagStatus.FAIL, decideTailnetTcp(zhStrings, false, null, "timeout").first)
     }
 

@@ -306,22 +306,31 @@ class TunnelDiagnosticsRunner(
                         (proxy.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
                             ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
             try {
-                val read = runCatching {
-                    Socket().use { socket ->
-                        socket.soTimeout = 5_000
-                        socket.connect(InetSocketAddress("127.0.0.1", localPort), 5_000)
-                        val out = socket.getOutputStream()
+                // 本项验的是「尾网 TCP 是否能连上」：连不上（reset/拒绝/超时）才 FAIL；
+                // 连上但对面不是 HTTP 服务（读不到 HTTP 响应）仍算连通，用 TCP_NO_BANNER 提示。
+                val socket = runCatching {
+                    Socket().apply {
+                        soTimeout = 5_000
+                        connect(InetSocketAddress("127.0.0.1", localPort), 5_000)
+                    }
+                }.throwIfCancelled()
+                val connectError = socket.exceptionOrNull()
+                if (connectError != null) {
+                    return@withContext decideTailnetTcp(strings, false, null, connectError.message)
+                }
+                socket.getOrNull()?.use { s ->
+                    val banner = runCatching {
+                        val out = s.getOutputStream()
                         out.write("GET / HTTP/1.0\r\nHost: $targetIp\r\n\r\n".toByteArray(Charsets.US_ASCII))
                         out.flush()
                         val buf = ByteArray(512)
-                        val n = socket.getInputStream().read(buf)
+                        val n = s.getInputStream().read(buf)
                         if (n <= 0) null
                         else String(buf, 0, n, Charsets.US_ASCII).lineSequence().firstOrNull()
                             ?.trim()?.takeIf { it.startsWith("HTTP/") }
-                    }
-                }.throwIfCancelled()
-                if (read.isSuccess) decideTailnetTcp(strings, true, read.getOrNull(), null)
-                else decideTailnetTcp(strings, false, null, read.exceptionOrNull()?.message)
+                    }.throwIfCancelled().getOrNull()
+                    decideTailnetTcp(strings, true, banner, null)
+                } ?: decideTailnetTcp(strings, false, null, null)
             } finally {
                 bridge.stopProxy(localPort)
             }

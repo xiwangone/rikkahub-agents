@@ -346,16 +346,32 @@ class SshWorkspaceBackend(
         runCatching { connection.sftp { it.rm(path.sftpQuote()) } }
     }
 
+    /**
+     * Windows 交互终端启动命令：兼容 pwsh 7 / PowerShell 5.1 / cmd。
+     * 不假设 pwsh 存在——用 `cmd /c` 串成一条（三种默认 shell 都能解析执行）：
+     * 有 pwsh 用 pwsh，否则退系统自带的 powershell；指令走 EncodedCommand 避免嵌套引号。
+     * 远程目录按区配置值处理（不同机器/用户目录不同）：留空 = 不切目录，直接用登录主目录；
+     * 支持 `/C:/Users/x`（sftp 习惯写法）与 `C:\Users\x`、`D:/work` 等。
+     */
+    private fun windowsShellCommand(dir: String): String {
+        val winDir = dir.trim().removePrefix("/").replace('/', '\\').trim('\\')
+        fun forShell(exe: String): String =
+            if (winDir.isBlank()) {
+                "$exe -NoLogo -NoProfile -NoExit"
+            } else {
+                val script = "Set-Location -LiteralPath '" + winDir.replace("'", "''") + "'"
+                val enc = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+                "$exe -NoLogo -NoProfile -NoExit -EncodedCommand $enc"
+            }
+        return "cmd /c where pwsh >nul 2>&1 && ${forShell("pwsh")} || ${forShell("powershell")}"
+    }
+
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
     fun openShell(columns: Int, rows: Int): SshShell =
         pool.openShell(id, config) { connection, onClose ->
             connection.ensureDir(workspaceDir)
             // POSIX：外层交给探测到的 shell 解析，再 exec 用户的登录 shell（$SHELL 缺失时退回探测结果）
-            // Windows：没有 /bin/sh，直接让 pwsh 切到工作目录（路径去掉 POSIX 化前缀 /C:/… → C:/…）
-            val remoteCommand = if (isWindows) {
-                val winDir = workspaceDir.trim().removePrefix("/")
-                "pwsh -NoLogo -NoProfile -Command \"Set-Location -LiteralPath '$winDir'\""
-            } else {
+            val remoteCommand = if (isWindows) windowsShellCommand(workspaceDir) else {
                 listOf(
                     connection.shell,
                     "-c",

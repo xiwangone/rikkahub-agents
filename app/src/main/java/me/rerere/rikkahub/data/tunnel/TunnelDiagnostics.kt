@@ -285,7 +285,8 @@ fun decideRoutes(strings: DiagStrings, peers: List<DiagPeer>, acceptRoutes: Bool
 fun decideTailnetTcp(strings: DiagStrings, ok: Boolean, banner: String?, error: String?): Pair<DiagStatus, String> =
     when {
         ok && banner != null -> DiagStatus.PASS to strings.get(DiagStringKey.TCP_BANNER, banner.take(40))
-        ok -> DiagStatus.FAIL to strings.get(DiagStringKey.TCP_NO_BANNER)
+        // 连上就算通：对面不是 HTTP 服务（读不到响应）不影响「尾网 TCP 可达」这个结论。
+        ok -> DiagStatus.PASS to strings.get(DiagStringKey.TCP_NO_BANNER)
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.TCP_FAIL) +
             (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
     }
