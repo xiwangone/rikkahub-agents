@@ -18,6 +18,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -204,6 +205,8 @@ private fun WorkspaceTerminalContent(
         jumpToTerminalMatch(tab, searchMatches[searchIndex])
     }
 
+    // 外层不用黑色：终端卡片是黑色圆角，底色必须是主题 surface 卡片边缘才看得出来
+    //（与 SSH 主机终端同口径）。
     Surface(
         modifier =
             Modifier
@@ -213,7 +216,6 @@ private fun WorkspaceTerminalContent(
                 // Resize to the final IME height at animation start so the toolbar moves immediately
                 // and terminal rows stay stable instead of sending a SIGWINCH for every frame.
                 .windowInsetsPadding(WindowInsets.imeAnimationTarget),
-        color = Color.Black,
     ) {
         Column(modifier = Modifier.fillMaxSize()) {
             Row(
@@ -524,46 +526,61 @@ private fun WorkspaceTerminalTabContent(
         }
     }
 
-    Column(modifier = modifier) {
-        Box(
+    // 与 SSH 主机终端同口径：外 16dp、内 12dp，终端套 20dp 圆角黑色卡片。
+    Column(
+        modifier =
+            modifier
+                .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalArrangement = Arrangement.spacedBy(10.dp),
+    ) {
+        Surface(
             modifier =
                 Modifier
-                    .weight(1f)
-                    .fillMaxWidth(),
+                    .fillMaxWidth()
+                    .weight(1f),
+            shape = RoundedCornerShape(20.dp),
+            color = Color.Black,
         ) {
-            AndroidView(
-                modifier = Modifier.fillMaxSize(),
-                factory = { viewContext ->
-                    TerminalView(viewContext, null).apply {
-                        isFocusable = true
-                        isFocusableInTouchMode = true
-                        setTextSize(terminalTextSizePx)
-                        setTypeface(terminalTypeface)
-                        setTerminalViewClient(viewClient)
-                        attachSession(tab.session)
-                        tab.client.terminalView = this
-                        viewClient.terminalView = this
-                        post {
-                            viewClient.focusAndShowKeyboard()
+            Box(
+                modifier =
+                    Modifier
+                        .fillMaxSize()
+                        .padding(14.dp),
+            ) {
+                AndroidView(
+                    modifier = Modifier.fillMaxSize(),
+                    factory = { viewContext ->
+                        TerminalView(viewContext, null).apply {
+                            isFocusable = true
+                            isFocusableInTouchMode = true
+                            setTextSize(terminalTextSizePx)
+                            setTypeface(terminalTypeface)
+                            setTerminalViewClient(viewClient)
+                            attachSession(tab.session)
+                            tab.client.terminalView = this
+                            viewClient.terminalView = this
+                            post {
+                                viewClient.focusAndShowKeyboard()
+                            }
                         }
-                    }
-                },
-                update = { terminalView ->
-                    tab.client.terminalView = terminalView
-                    viewClient.terminalView = terminalView
-                    if (terminalView.currentSession !== tab.session) {
-                        terminalView.setTextSize(terminalTextSizePx)
-                        terminalView.setTypeface(terminalTypeface)
-                        terminalView.setTerminalViewClient(viewClient)
-                        terminalView.attachSession(tab.session)
-                        terminalView.onScreenUpdated()
-                    }
-                },
-            )
-            if (tab.finished) {
-                // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
-                // 再新建，点两轮才能重开。
-                WorkspaceTerminalExitRow(onReopen = onRestart)
+                    },
+                    update = { terminalView ->
+                        tab.client.terminalView = terminalView
+                        viewClient.terminalView = terminalView
+                        if (terminalView.currentSession !== tab.session) {
+                            terminalView.setTextSize(terminalTextSizePx)
+                            terminalView.setTypeface(terminalTypeface)
+                            terminalView.setTerminalViewClient(viewClient)
+                            terminalView.attachSession(tab.session)
+                            terminalView.onScreenUpdated()
+                        }
+                    },
+                )
+                if (tab.finished) {
+                    // 已退出的会话给「重新打开」入口：之前要先关标签（还要再过一次确认弹窗）、
+                    // 再新建，点两轮才能重开。
+                    WorkspaceTerminalExitRow(onReopen = onRestart)
+                }
             }
         }
         TerminalExtraKeysBar(

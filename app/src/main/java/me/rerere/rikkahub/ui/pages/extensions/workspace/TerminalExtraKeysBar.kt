@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.extensions.workspace
 
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -29,34 +30,50 @@ internal fun TerminalExtraKeysBar(
     onSendText: (String) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Row(
+    Column(
         modifier =
             Modifier
                 .fillMaxWidth()
-                .horizontalScroll(rememberScrollState())
                 .then(modifier)
                 .padding(horizontal = 12.dp, vertical = 6.dp),
-        horizontalArrangement = Arrangement.spacedBy(6.dp),
-        verticalAlignment = Alignment.CenterVertically,
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        TerminalExtraKey("ESC") { onSendText("\u001B") }
-        TerminalExtraKey("TAB") { onSendText("\t") }
-        TerminalExtraKey("CTRL", selected = controlDown, onClick = onControlToggle)
-        TerminalExtraKey("ALT", selected = altDown, onClick = onAltToggle)
-        // 触屏上最高频的三个控制键：中断 / EOF / 清屏。有了直发键就不必「先按 CTRL 再点字母」，
-        // 长按拖动选词等操作也不会被 CTRL 粘滞态干扰。
-        TerminalExtraKey("⌃C") { onSendText("\u0003") }
-        TerminalExtraKey("⌃D") { onSendText("\u0004") }
-        TerminalExtraKey("⌃L") { onSendText("\u000C") }
-        TerminalExtraKey("-") { onSendText("-") }
-        TerminalExtraKey("/") { onSendText("/") }
-        TerminalExtraKey("|") { onSendText("|") }
-        TerminalExtraKey("←") { onSendText("\u001B[D") }
-        TerminalExtraKey("↓") { onSendText("\u001B[B") }
-        TerminalExtraKey("↑") { onSendText("\u001B[A") }
-        TerminalExtraKey("→") { onSendText("\u001B[C") }
-        TerminalExtraKey("HOME") { onSendText("\u001B[H") }
-        TerminalExtraKey("END") { onSendText("\u001B[F") }
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TerminalExtraKey("ESC") { onSendText("\u001B") }
+            TerminalExtraKey("TAB") { onSendText("\t") }
+            TerminalExtraKey("CTRL", selected = controlDown, onClick = onControlToggle)
+            TerminalExtraKey("ALT", selected = altDown, onClick = onAltToggle)
+            // 触屏上最高频的三个控制键：中断 / EOF / 清屏。有了直发键就不必「先按 CTRL 再点字母」，
+            // 长按拖动选词等操作也不会被 CTRL 粘滞态干扰。
+            TerminalExtraKey("⌃C") { onSendText("\u0003") }
+            TerminalExtraKey("⌃D") { onSendText("\u0004") }
+            TerminalExtraKey("⌃L") { onSendText("\u000C") }
+            TerminalExtraKey("-") { onSendText("-") }
+            TerminalExtraKey("/") { onSendText("/") }
+            TerminalExtraKey("|") { onSendText("|") }
+        }
+        Row(
+            modifier =
+                Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+            horizontalArrangement = Arrangement.spacedBy(6.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            TerminalExtraKey("←") { onSendText("\u001B[D") }
+            TerminalExtraKey("↓") { onSendText("\u001B[B") }
+            TerminalExtraKey("↑") { onSendText("\u001B[A") }
+            TerminalExtraKey("→") { onSendText("\u001B[C") }
+            TerminalExtraKey("HOME") { onSendText("\u001B[H") }
+            TerminalExtraKey("END") { onSendText("\u001B[F") }
+        }
     }
 }
 

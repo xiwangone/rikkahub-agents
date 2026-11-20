@@ -67,6 +67,7 @@ import androidx.core.content.FileProvider
 import androidx.core.net.toUri
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -229,6 +230,7 @@ internal fun ChatFilesPickerSheet(
                             preCropTempFile = tempFile
                             launchImageCrop(tempFile.toUri())
                         }.onFailure {
+                            if (it is CancellationException) throw it
                             AppLog.e("ImagePickButton", "Failed to copy image to temp, falling back", it)
                             launchImageCrop(selectedUris.first())
                         }
@@ -508,7 +510,7 @@ internal fun TopBar(
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f),
                     )
-                    // 当前连接对象：最近 2 分钟有流量的 peer，显示「直连/中继(区域) + 设备名」；
+                    // 当前连接对象：最近 2 分钟有流量的 peer，显示「圆点 + 设备名 (p2p)/(relay)」；
                     // 没有实时路径就不显示（relay 是归属 DERP，空闲时也填着，不能当“正在走”）
                     TopBarTunnelPeerLabel()
                 }
@@ -555,7 +557,8 @@ internal fun TopBar(
 
 /**
  * 顶栏「当前连接对象」：只在存在实时路径（online && active）时显示，
- * 直连显示「直连 设备名」，走中继显示「中继(区域) 设备名」。
+ * 圆点按路径着色（绿=直连、黄=中继）+ 设备名 + 括号后缀，直连「(p2p)」、中继「(relay)」；
+ * 区域名不显示（中继归属的主机名过长，显示会挤掉设备名）。
  */
 @Composable
 private fun TopBarTunnelPeerLabel() {
@@ -574,19 +577,38 @@ private fun TopBarTunnelPeerLabel() {
         }
     }
     val peer = status?.peers?.firstOrNull { it.online && it.active } ?: return
-    val pathText = when {
-        peer.curAddr.isNotBlank() -> stringResource(R.string.tunnel_path_direct)
-        peer.relay.isNotBlank() -> stringResource(R.string.tunnel_path_relay, peer.relay)
-        else -> return
-    }
+    val isDirect = peer.curAddr.isNotBlank()
+    if (!isDirect && peer.relay.isBlank()) return
     val name = peer.hostName.ifBlank { peer.dnsName }
-    Text(
-        text = "$pathText $name",
-        maxLines = 1,
-        overflow = TextOverflow.Ellipsis,
-        style = MaterialTheme.typography.labelSmall,
-        color = MaterialTheme.colorScheme.onSurfaceVariant,
-    )
+    val pathSuffix = if (isDirect) " (p2p)" else " (relay)"
+    // 圆点色与设备列表共用 tunnelPeerDotColor：绿=直连 / 黄=中继。
+    val dotColor = tunnelPeerDotColor(peer)
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(4.dp),
+    ) {
+        Box(
+            modifier =
+                Modifier
+                    .size(9.dp)
+                    .clip(CircleShape)
+                    .background(dotColor),
+        )
+        Text(
+            text = name,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.weight(1f, fill = false),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = pathSuffix,
+            maxLines = 1,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
 }
 
 @Composable
