@@ -37,6 +37,7 @@ import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -226,6 +227,7 @@ fun VaultPage() {
                         }
                         backupResult = successStr.format(plaintexts.size)
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         backupResult = failedStr.format(e.message ?: "")
                     }
                 }
@@ -258,10 +260,11 @@ fun VaultPage() {
                                     type = q.type,
                                     metaJson = q.metaJson,
                                 )
-                            }
+                            }.onFailure { if (it is CancellationException) throw it }
                         }
                         backupResult = restoreSuccessStr.format(restored.size)
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         backupResult = restoreFailedStr.format(e.message ?: "")
                     }
                     refreshCount()
@@ -311,6 +314,7 @@ fun VaultPage() {
                         }
                         exportResult = successStr.format(plaintexts.size, exportFormat)
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         exportResult = failedStr.format(e.message ?: "")
                     }
                 }
@@ -361,6 +365,7 @@ fun VaultPage() {
                                 importResult = context.getString(R.string.vault_export_password_required)
                         }
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         importResult = context.getString(R.string.vault_import_failed, e.message ?: "")
                     }
                     refreshCount()

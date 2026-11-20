@@ -382,7 +382,10 @@ class WorkspaceRepository(
                     _statsById.value = _statsById.value + (id to stats)
                     persistStats(id, stats)
                 }
-                .onFailure { AppLog.e("WorkspaceStats", "collect failed for $id", it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    AppLog.e("WorkspaceStats", "collect failed for $id", it)
+                }
         }
     }
 
@@ -395,6 +398,7 @@ class WorkspaceRepository(
                     persistStats(id, stats)
                 }
                 .onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.e("WorkspaceStats", "refresh failed for $id", it)
                     _statsRefreshFailure.value = it.message ?: it::class.simpleName ?: "?"
                 }
@@ -859,6 +863,7 @@ class WorkspaceRepository(
     ): File? = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext null
         runCatching { backendOf(workspace).localAbsoluteFile(path) }
+            .onFailure { if (it is CancellationException) throw it }
             .getOrNull()
             ?.takeIf { it.isFile }
     }
@@ -867,7 +872,9 @@ class WorkspaceRepository(
     suspend fun readShellPath(id: String): String? = withContext(Dispatchers.IO) {
         val workspace = dao.getById(id) ?: return@withContext null
         if (!workspace.isSsh() && !manager.hasRootfs(workspace.root)) return@withContext null
-        runCatching { backendOf(workspace).shell() }.getOrNull()
+        runCatching { backendOf(workspace).shell() }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
     }
 
     /**
@@ -1054,6 +1061,7 @@ class WorkspaceRepository(
                     withContext(Dispatchers.IO) { remoteBackgroundTasks.killAllForWorkspace(backend, workspace.id) }
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w("WorkspaceRepository", "delete: remote background tasks cleanup failed for ${workspace.id}: ${it.message}")
             }
             runCatching { remoteBackgroundTasks.dropAllRecords(workspace.id) }

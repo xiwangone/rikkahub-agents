@@ -36,6 +36,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -135,6 +136,7 @@ internal fun InstallRootfsDialog(
                 }.onSuccess {
                     onConfirmFile(target.absolutePath)
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e
                     // 本地导入失败以前没有任何分支：选了损坏的归档，弹窗毫无反应。
                     toaster.show(importFailedFormat.format(e.message ?: e.javaClass.simpleName))
                 }

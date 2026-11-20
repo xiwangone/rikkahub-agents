@@ -8,6 +8,7 @@ import me.rerere.rikkahub.data.repository.TelegramChatRepository
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 import java.io.File
 import java.io.FileOutputStream
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.log.AppLog
 
 // 类名 27 字符, 超过 23 字符会被 logcat 截断, Telegram 缩写为 Tg。
@@ -86,7 +87,10 @@ class TelegramInteractiveToolStreamer(
 
         // Gate 3: resolve the Telegram chat id. Missing mapping = not a Telegram conversation.
         val mapping = runCatching { chatRepo.getByConversationId(convId) }
-            .onFailure { AppLog.w(TAG, "streamIfHeadless: chatRepo lookup failed for $convId", it) }
+            .onFailure {
+                if (it is CancellationException) throw it
+                AppLog.w(TAG, "streamIfHeadless: chatRepo lookup failed for $convId", it)
+            }
             .getOrNull() ?: return
 
         // Settle: let the launch/transition animation finish before grabbing the screen, so we
@@ -113,7 +117,10 @@ class TelegramInteractiveToolStreamer(
             client.sendPhoto(mapping.chatId, file, caption)
             TelegramStreamSignal.noteScreenshot(convId.toString())
             AppLog.i(TAG, "streamIfHeadless: posted screenshot ($actionLabel) to chat=${mapping.chatId}")
-        }.onFailure { AppLog.w(TAG, "streamIfHeadless: sendPhoto failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "streamIfHeadless: sendPhoto failed", it)
+        }
     }
 
     // -----------------------------------------------------------------------------------------
@@ -132,6 +139,7 @@ class TelegramInteractiveToolStreamer(
                 }
             }
         }.getOrElse {
+            if (it is CancellationException) throw it
             AppLog.w(TAG, "captureScreenOrNull: exception during capture", it)
             null
         }

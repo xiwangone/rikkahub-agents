@@ -304,6 +304,8 @@ class SkillsVM(
                 AppLog.i(TAG, "refreshCatalog: loaded entries=${merged.entries.size} statuses=${merged.sourceStatuses}")
                 _mergedCatalog.value = merged
                 AppLog.i(TAG, "refreshCatalog: assigned")
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.e(TAG, "refreshCatalog: FAILED", t)
             } finally {

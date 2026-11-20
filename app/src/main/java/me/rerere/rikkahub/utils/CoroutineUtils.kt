@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.utils
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -19,6 +20,7 @@ fun <T> Flow<T>.toMutableStateFlow(
                 stateFlow.value = value
             }
         }.onFailure {
+            if (it is CancellationException) throw it
             AppLog.e(TAG, "Error while collecting flow: ${it.message}", it)
         }
     }

@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -139,6 +140,7 @@ fun ImportExportTab(
                         type = if (undecryptable > 0) ToastType.Warning else ToastType.Success,
                     )
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e
                     AppLog.e(TAG, "export backup failed", e)
                     toaster.show(
                         if (exportType == "migration" && e is IllegalStateException) {
@@ -270,6 +272,7 @@ fun ImportExportTab(
                     }
                     onShowRestartDialog()
                 }.onFailure { e ->
+                    if (e is CancellationException) throw e
                     if (e !is BackupNeedsPasswordException) {
                         AppLog.e(TAG, "import backup failed", e)
                         toaster.show(
@@ -423,6 +426,7 @@ fun ImportExportTab(
                                         vm.loadMigrationCloudItems()
                                     }
                                     .onFailure { e ->
+                                        if (e is CancellationException) throw e
                                         toaster.show(
                                             resources.getString(R.string.backup_page_restore_failed, restoreFailureMessage(resources, e)),
                                             type = ToastType.Error,
@@ -601,6 +605,7 @@ fun ImportExportTab(
                                 onShowRestartDialog()
                             }
                             .onFailure { e ->
+                                if (e is CancellationException) throw e
                                 if (e is BackupNeedsPasswordException) {
                                     pendingPasswordReq =
                                         PendingPasswordRequest(
@@ -702,6 +707,7 @@ fun ImportExportTab(
                         pendingPasswordError = null
                         onShowRestartDialog()
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         if (e is BackupNeedsPasswordException || e is IllegalArgumentException) {
                             pendingPasswordError =
                                 resources.getString(R.string.backup_page_encryption_wrong_password)

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.workflow.execution
 
 import android.util.Log
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.sync.Mutex
@@ -395,7 +396,10 @@ class WorkflowEngine(
                 durationMs = durationMs,
                 errorMessage = error,
             )
-        }.onFailure { AppLog.w(TAG, "recordFire failed for $workflowId", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "recordFire failed for $workflowId", it)
+        }
         // Phase 24 — mirror the terminal outcome into the cross-pillar ledger. Every
         // WorkflowRunStatus is terminal from the ledger's point of view: SUCCESS →
         // succeeded; FAILED → failed; every SKIPPED_* variant → cancelled (the fire was

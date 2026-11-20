@@ -8,6 +8,7 @@ import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -370,8 +371,13 @@ class CronJobWorker(
                 )
             return finishRunLlm(completed, conv.id) {
                 runCatching { chatService.stopGeneration(conv.id) }
-                    .onFailure { AppLog.w(TAG, "runLlm: stopGeneration failed after timeout for ${job.id}", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "runLlm: stopGeneration failed after timeout for ${job.id}", it)
+                    }
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             return Triple("failed", "${t::class.simpleName}: ${t.message.orEmpty()}", conv.id)
         } finally {
@@ -440,7 +446,10 @@ class CronJobWorker(
                     errorMessage = errorMessage?.take(500),
                 ),
             )
-        }.onFailure { AppLog.w(TAG, "recordRun failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "recordRun failed", it)
+        }
     }
 
     private fun postFailureNotification(

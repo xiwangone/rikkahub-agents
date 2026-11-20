@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.net.wifi.WifiManager
 import android.os.Build
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -71,6 +72,7 @@ internal abstract class BaseBroadcastTriggerFamily(
                     scope.launch(Dispatchers.IO) {
                         for ((wfId, spec) in matches) {
                             runCatching { callback.onFire(wfId, spec) }.onFailure {
+                                if (it is CancellationException) throw it
                                 AppLog.w(logTag, "$name fire failed for wf=$wfId", it)
                             }
                         }

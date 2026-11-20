@@ -86,7 +86,10 @@ class RemoteFileStore internal constructor(
         }
         if (sweepDue) {
             scope.launch {
-                runCatching { sweep() }.onFailure { Log.w(TAG, "sweep failed", it) }
+                runCatching { sweep() }.onFailure {
+                    if (it is CancellationException) throw it
+                    Log.w(TAG, "sweep failed", it)
+                }
             }
         }
 

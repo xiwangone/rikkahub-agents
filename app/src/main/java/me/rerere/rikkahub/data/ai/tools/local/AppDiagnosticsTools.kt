@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeout
 import kotlinx.serialization.encodeToString
@@ -230,7 +232,10 @@ private suspend fun <T : ProviderSetting> probeProvider(
             )
         }
         ProbeResult(ok = true, summary = "ok")
-    }.getOrElse { ProbeResult(ok = false, summary = "failed", error = it.message) }
+    }.getOrElse {
+        if (it is CancellationException && it !is TimeoutCancellationException) throw it
+        ProbeResult(ok = false, summary = "failed", error = it.message)
+    }
 
     // Streaming
     val streaming: ProbeResult = runCatching {
@@ -254,7 +259,10 @@ private suspend fun <T : ProviderSetting> probeProvider(
             if (received > 0) ProbeResult(ok = true, summary = "ok ($received chars)")
             else ProbeResult(ok = true, summary = "ok (empty stream)")
         }
-    }.getOrElse { ProbeResult(ok = false, summary = "failed", error = it.message) }
+    }.getOrElse {
+        if (it is CancellationException && it !is TimeoutCancellationException) throw it
+        ProbeResult(ok = false, summary = "failed", error = it.message)
+    }
 
     // Tool call
     val toolCall: ProbeResult = runCatching {
@@ -282,7 +290,10 @@ private suspend fun <T : ProviderSetting> probeProvider(
             if (toolCall != null) ProbeResult(ok = true, summary = "tool called: ${toolCall.toolName}")
             else ProbeResult(ok = true, summary = "no tool call (may not support tools)")
         }
-    }.getOrElse { ProbeResult(ok = false, summary = "failed", error = it.message) }
+    }.getOrElse {
+        if (it is CancellationException && it !is TimeoutCancellationException) throw it
+        ProbeResult(ok = false, summary = "failed", error = it.message)
+    }
 
     return ProviderProbeResults(nonStreaming, streaming, toolCall)
 }

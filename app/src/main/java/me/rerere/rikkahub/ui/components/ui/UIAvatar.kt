@@ -149,6 +149,8 @@ fun UIAvatar(
             val localUri =
                 try {
                     filesManager.saveAvatarImage(uri)
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
                 } catch (t: Throwable) {
                     // 失败不再静默（17168ab 曾用 getOrNull() 吞异常 → 头像静默换不了且无提示）。
                     // 报错 + 完整堆栈日志，便于定位真正断点；同时 UI 提示用户。

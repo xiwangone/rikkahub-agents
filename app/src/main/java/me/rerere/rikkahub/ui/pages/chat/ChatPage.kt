@@ -44,6 +44,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import dev.chrisbanes.haze.hazeSource
 import dev.chrisbanes.haze.rememberHazeState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
@@ -381,6 +382,7 @@ private fun ChatPageContent(
                 vaultAuthorized = true
                 vaultAuthMsg = context.getString(R.string.vault_authorize_success)
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 me.rerere.rikkahub.data.log.AppLog.d("VaultAuth", "授权失败: ${e.message}")
                 vaultAuthMsg = context.getString(R.string.chat_page_vault_auth_failed, e.message)
             }
@@ -401,6 +403,7 @@ private fun ChatPageContent(
                                 false,
                             )
                         }
+                            .onFailure { if (it is CancellationException) throw it }
                     me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "deleteFile FILES 结果=${deleted.getOrNull()} 异常=${deleted.exceptionOrNull()?.message} ws.id=${ws.id} root=${ws.root}")
                 } else {
                     me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "ws 为 null——未执行 deleteFile")
@@ -408,6 +411,7 @@ private fun ChatPageContent(
                 vaultAuthorized = false
                 vaultAuthMsg = context.getString(R.string.vault_authorize_revoked)
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 me.rerere.rikkahub.data.log.AppLog.d("VaultRevoke", "撤销失败: ${e.message}")
                 vaultAuthMsg = context.getString(R.string.chat_page_vault_revoke_failed, e.message)
             }

@@ -427,6 +427,8 @@ class ImgGenVM(
                 if (file.exists()) {
                     file.delete()
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to delete image", e)
                 _error.value = "Failed to delete image"

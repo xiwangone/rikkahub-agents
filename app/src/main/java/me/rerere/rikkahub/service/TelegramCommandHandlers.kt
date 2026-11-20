@@ -200,6 +200,8 @@ internal suspend fun TelegramBotService.cancelStaleApprovalKeyboards(
                 text = "❌ Cancelled by $reason",
                 parseMode = null,
             )
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Throwable) {
             AppLog.w(TAG, "cancelStaleApprovalKeyboards: edit failed for $toolCallId", e)
         }
@@ -281,6 +283,7 @@ internal suspend fun TelegramBotService.handleStopCommand(chatId: Long) {
     val convId =
         try {
             Uuid.parse(mapping.conversationId)
+        // cancel-guard-ok: Uuid.parse 非挂起，try 内无挂起点
         } catch (_: Throwable) {
             try {
                 client.sendMessage(chatId, "🛑 Could not resolve the conversation id. Try /new.")
@@ -380,6 +383,8 @@ internal fun TelegramBotService.activeModelDisplay(): Pair<String, String> {
 internal suspend fun TelegramBotService.cfgSafe(): me.rerere.rikkahub.data.telegram.TelegramBotConfig? =
     try {
         prefs.current()
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (_: Throwable) {
         null
     }
@@ -802,6 +807,7 @@ internal suspend fun TelegramBotService.tryRescueImageFromTurn(
             AppLog.i(TAG, "tryRescueImageFromTurn: sent ${tool.toolName} artifact to chat=$chatId path=$path")
             true
         }.getOrElse {
+            if (it is CancellationException) throw it
             AppLog.e(TAG, "tryRescueImageFromTurn: sendPhoto failed chat=$chatId", it)
             false
         }
@@ -824,6 +830,7 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
     }
     val results =
         runCatching { doctorChecks.runAll() }.getOrElse {
+            if (it is CancellationException) throw it
             try {
                 client.sendMessage(
                     chatId,
@@ -848,8 +855,10 @@ internal suspend fun TelegramBotService.handleDoctorCommand(chatId: Long) {
         runCatching {
             client.sendMessage(chatId, html, parseMode = PARSE_MODE_HTML)
         }.onFailure {
+            if (it is CancellationException) throw it
             // Fallback to plain text if HTML send fails for any reason.
             runCatching { client.sendMessage(chatId, c) }
+                .onFailure { if (it is CancellationException) throw it }
         }
     }
     // Surface AutoFix actions as inline-keyboard buttons. Without this, the /doctor
@@ -929,6 +938,7 @@ internal suspend fun TelegramBotService.handleDoctorFixCallback(cq: TelegramCall
     runCatching { client.editMessageText(cq.chatId, msgId, "🔧 Running fix for $checkId…") }
     val results =
         runCatching { doctorChecks.runAll() }.getOrElse {
+            if (it is CancellationException) throw it
             val msg = "🩺 Doctor re-run failed: ${it::class.simpleName}: ${it.message ?: "(no message)"}"
             runCatching { client.editMessageText(cq.chatId, msgId, msg) }
             return
@@ -949,6 +959,7 @@ internal suspend fun TelegramBotService.handleDoctorFixCallback(cq: TelegramCall
                 "$icon $label: ${r.message}"
             },
             onFailure = { t ->
+                if (t is CancellationException) throw t
                 "❌ $label: ${t::class.simpleName}: ${t.message ?: "(no message)"}"
             },
         )
@@ -1019,6 +1030,8 @@ internal suspend fun TelegramBotService.registerBuiltInCommandsWithTelegram() {
         val custom =
             try {
                 prefs.current().customCommands
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (_: Throwable) {
                 emptyList()
             }
@@ -1029,6 +1042,8 @@ internal suspend fun TelegramBotService.registerBuiltInCommandsWithTelegram() {
             "registerBuiltInCommandsWithTelegram: setMyCommands ok=$ok " +
                 "(builtins=${BUILT_IN_COMMANDS.size}, custom=${custom.size})",
         )
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (e: Throwable) {
         AppLog.e(TAG, "registerBuiltInCommandsWithTelegram failed", e)
     }

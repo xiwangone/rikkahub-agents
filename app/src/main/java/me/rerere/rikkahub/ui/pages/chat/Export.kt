@@ -43,6 +43,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -236,6 +237,7 @@ fun ChatExportSheet(
                                                 options = imageExportOptions,
                                             )
                                         }.onFailure {
+                                            if (it is CancellationException) throw it
                                             AppLog.e(TAG, "ChatExportSheet: export image failed", it)
                                             toaster.showFailure(context, it)
                                         }.onSuccess { exported ->
@@ -282,6 +284,8 @@ fun ChatExportSheet(
                                         toaster.show(resources.getString(R.string.export_import_success), type = ToastType.Success)
                                         onDismissRequest()
                                     }
+                                } catch (ce: kotlinx.coroutines.CancellationException) {
+                                    throw ce
                                 } catch (e: Exception) {
                                     toaster.show(resources.getString(R.string.export_import_failed, e.message), type = ToastType.Error)
                                 }

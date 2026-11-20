@@ -1,6 +1,7 @@
 package me.rerere.ai.provider.providers.backend
 
 import java.util.concurrent.ConcurrentHashMap
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.first
@@ -131,6 +132,7 @@ internal class BackendEventProcessor(
                 sessionContext.onSessionPath(path)
                 runCatching { sessionContext.sessionPathStore.put(key, path) }
                     .onFailure {
+                        if (it is CancellationException) throw it
                         AppLogger.e("BackendEventProcessor", "会话路径持久化失败，后续 resume 可能失败", it)
                     }
             }

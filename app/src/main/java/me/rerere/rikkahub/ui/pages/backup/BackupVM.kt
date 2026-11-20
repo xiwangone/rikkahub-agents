@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.backup
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.launch
@@ -129,6 +130,7 @@ class BackupVM(
                         ),
                 )
             }.onFailure {
+                if (it is CancellationException) throw it
                 webDavBackupItems.emit(UiState.Error(it))
             }
         }
@@ -146,7 +148,7 @@ class BackupVM(
             val r = runCatching {
                 webDavSync.testConnection(settings.value.activeWebDavConfig())
                 Unit
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onResult(r)
         }
     }
@@ -160,7 +162,7 @@ class BackupVM(
                 recordBackupTime()
                 loadBackupFileItems()
                 stats
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onState(
                 if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
                 else BackupRunState.Failed(r.exceptionOrNull()),
@@ -174,7 +176,7 @@ class BackupVM(
             onState(BackupRunState.Running)
             val r = runCatching {
                 webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             onState(
                 when {
@@ -202,7 +204,7 @@ class BackupVM(
                     password = password,
                     cachedEncFile = encFile,
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             onState(
                 when {
@@ -222,7 +224,7 @@ class BackupVM(
             val r = runCatching {
                 webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
                 loadBackupFileItems()
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
         }
     }
@@ -346,7 +348,10 @@ class BackupVM(
                     settings.value.activeWebDavConfig().copy(items = localBackupItems.value),
                 )
             }.onSuccess { migrationCloudItems.emit(UiState.Success(it)) }
-                .onFailure { migrationCloudItems.emit(UiState.Error(it)) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    migrationCloudItems.emit(UiState.Error(it))
+                }
         }
     }
 
@@ -450,6 +455,7 @@ class BackupVM(
                         ),
                 )
             }.onFailure {
+                if (it is CancellationException) throw it
                 s3BackupItems.emit(UiState.Error(it))
             }
         }
@@ -466,7 +472,7 @@ class BackupVM(
             val r = runCatching {
                 s3Sync.testS3(settings.value.activeS3Config())
                 Unit
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onResult(r)
         }
     }
@@ -479,7 +485,7 @@ class BackupVM(
                 recordBackupTime()
                 loadS3BackupFileItems()
                 stats
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onState(
                 if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
                 else BackupRunState.Failed(r.exceptionOrNull()),
@@ -492,7 +498,7 @@ class BackupVM(
             onState(BackupRunState.Running)
             val r = runCatching {
                 s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             onState(
                 when {
@@ -520,7 +526,7 @@ class BackupVM(
                     password = password,
                     cachedEncFile = encFile,
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             onState(
                 when {
@@ -538,7 +544,7 @@ class BackupVM(
             val r = runCatching {
                 s3Sync.deleteS3BackupFile(settings.value.activeS3Config(), item)
                 loadS3BackupFileItems()
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
         }
     }

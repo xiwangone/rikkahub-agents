@@ -82,6 +82,8 @@ internal suspend fun WorkspaceRepository.probeSshImpl(id: String?, draft: SshWor
                 try {
                     SshHostProbeStore(context).put(config.host, config.port, hostProbe, config.username)
                     RemotePlatformStore(context).put(config.host, config.port, hostProbe.isWindows)
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (_: Throwable) {
                     // 写缓存失败不影响本次测试连接结果
                 }

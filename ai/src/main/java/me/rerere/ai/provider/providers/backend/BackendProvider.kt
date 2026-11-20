@@ -1,5 +1,6 @@
 package me.rerere.ai.provider.providers.backend
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -260,6 +261,7 @@ class BackendProvider(
                     api.newSession()
                 } else {
                     runCatching { api.resumeSession(existingPath) }.onFailure {
+                        if (it is CancellationException) throw it
                         AppLogger.e("BackendProvider", "resume 会话失败，将新建", it)
                         runCatching { api.newSession() }
                             .onSuccess { created ->
@@ -268,6 +270,7 @@ class BackendProvider(
                                 }
                             }
                             .onFailure {
+                                if (it is CancellationException) throw it
                                 AppLogger.e("BackendProvider", "resume 失败后新建会话失败", it)
                             }
                     }

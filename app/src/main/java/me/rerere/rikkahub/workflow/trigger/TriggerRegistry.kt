@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.workflow.trigger
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.FlowPreview
@@ -113,6 +114,7 @@ class TriggerRegistry(
             for (family in families) {
                 val matching = enabled.filter { family.handles(it.trigger) }
                 runCatching { family.sync(matching, fire) }.onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.w(TAG, "resync failed for family=${family.name}", it)
                 }
             }
@@ -143,6 +145,7 @@ class TriggerRegistry(
         val fire = engineFire ?: return
         val loaded = workflowRepository.getById(workflowId) ?: return
         runCatching { fire.onFire(workflowId, loaded.definition.trigger) }.onFailure {
+            if (it is CancellationException) throw it
             AppLog.w(TAG, "manual fire failed for wf=$workflowId", it)
         }
     }

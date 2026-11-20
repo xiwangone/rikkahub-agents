@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import androidx.annotation.StringRes
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
@@ -117,7 +118,10 @@ internal suspend fun loadShellPresets(
 ): JsonObject {
     val text = runCatching {
         workspaceRepository.readAbsoluteText(workspaceId, presetsPath)
-    }.getOrElse { return JsonObject(emptyMap()) }
+    }.getOrElse {
+        if (it is CancellationException) throw it
+        return JsonObject(emptyMap())
+    }
     return runCatching { Json.parseToJsonElement(text).jsonObject }
         .getOrElse { throw ShellPresetsCorruptedException(it) }
 }

@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.repository
 
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.preferences.RemoteBackgroundTaskStore
 import me.rerere.workspace.BackgroundStatus
@@ -146,6 +147,7 @@ class RemoteBackgroundTasks(
     suspend fun killAllForWorkspace(backend: SshWorkspaceBackend, workspaceId: String) {
         for (record in store.listForWorkspace(workspaceId)) {
             runCatching { kill(backend, workspaceId, record.id) }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w(
                     "RemoteBackgroundTasks",
                     "killAllForWorkspace: failed to kill ${record.id} (pid=${record.pid}) on $workspaceId: ${it.message}",

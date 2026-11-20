@@ -5,6 +5,7 @@ import android.Manifest
 import android.content.Context
 import android.os.Build
 import androidx.annotation.StringRes
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withContext
@@ -200,7 +201,9 @@ class DoctorChecks(
                         .assistants
                         .flatMap { it.localTools }
                         .toSet()
-                }.getOrDefault(emptySet())
+                }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrDefault(emptySet())
 
             buildList {
                 addAll(permissionChecks(enabled))
@@ -827,7 +830,9 @@ class DoctorChecks(
                             .query("PRAGMA integrity_check;")
                             .use { c -> if (c.moveToFirst()) c.getString(0) else null }
                     }
-                }.getOrNull()
+                }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
             // Offer an AutoFix only when the corruption mentions message_fts — that's the one
             // we know how to repair (DROP + recreate + reindex from the messages table). For
             // any other integrity failure, surface the message and let the user decide; we
@@ -855,6 +860,7 @@ class DoctorChecks(
                                         val n = conversationRepository.repairAndRebuildIndexes()
                                         AutoFixResult(ok = true, message = context.getString(R.string.doctor_msg_fts_rebuilt, n))
                                     }.getOrElse {
+                                        if (it is CancellationException) throw it
                                         AutoFixResult(
                                             ok = false,
                                             message = context.getString(R.string.doctor_msg_fix_failed, it::class.simpleName, it.message ?: "?"),

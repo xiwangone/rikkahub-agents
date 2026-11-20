@@ -78,6 +78,8 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         try {
             val status: Int = try {
                 generativeModel.checkStatus()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLogger.e(TAG, "checkStatus threw", t)
                 error(translateAICoreError(t))
@@ -87,6 +89,8 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
             }
             try {
                 generativeModel.warmup()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLogger.e(TAG, "warmup threw", t)
                 error(translateAICoreError(t))
@@ -175,11 +179,14 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
                         )
                     }
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLogger.e(TAG, "generateContentStream threw", t)
                 error(translateAICoreError(t))
             }
         } finally {
+            // cancel-guard-ok: finally 里 close()，非挂起调用
             try { generativeModel.close() } catch (t: Throwable) {
                 AppLogger.w(TAG, "close failed", t)
             }
@@ -238,6 +245,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         } finally {
             try {
                 generativeModel.close()
+            // cancel-guard-ok: finally 里 close()，非挂起调用
             } catch (t: Throwable) {
                 AppLogger.w(TAG, "checkStatus: close failed", t)
             }
@@ -318,6 +326,7 @@ class AICoreProvider(private val context: Context) : Provider<ProviderSetting.AI
         )
         try {
             ctx.startActivity(launchIntent)
+        // cancel-guard-ok: startActivity 等阻塞调用，try 内无挂起点
         } catch (t: Throwable) {
             AppLogger.w(TAG, "ensureAppForeground: startActivity threw", t)
             return

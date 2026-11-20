@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.AuditContext
@@ -44,6 +45,7 @@ internal object ProviderKeyAudit {
                 runCatching { repository.logAccess(name, "provider", "resolve") }
                     .onSuccess { written++ }
                     .onFailure {
+                        if (it is CancellationException) throw it
                         // 取用审计缺口不能静默：记日志，调用方按返回值核对写入条数。
                         AppLog.w(TAG, "Failed to audit provider key access: $name", it)
                     }

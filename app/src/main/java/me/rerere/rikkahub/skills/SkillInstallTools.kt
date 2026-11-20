@@ -99,6 +99,8 @@ private suspend fun applyAutoEnable(
             }
         }
         outcome
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (t: Throwable) {
         AppLog.w(TAG, "applyAutoEnable: failed to auto-enable '$skillName'", t)
         AutoEnableOutcome(

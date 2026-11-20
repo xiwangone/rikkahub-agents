@@ -135,6 +135,8 @@ class CodexOAuthManager(
                                             val account = exchangeCode(code, session)
                                             _status.value = CodexOAuthStatus.Success(account.id)
                                             runCatching { repository.refreshAccount(account.id) }
+                                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                                            throw ce
                                         } catch (error: Throwable) {
                                             AppLog.e(
                                                 TAG,

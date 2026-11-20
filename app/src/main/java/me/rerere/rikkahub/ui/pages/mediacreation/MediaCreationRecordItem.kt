@@ -60,6 +60,7 @@ import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
@@ -529,6 +530,7 @@ private fun OutputMenu(
                             )
                         }
                         .onFailure {
+                            if (it is CancellationException) throw it
                             toaster.show(
                                 it.message ?: resources.getString(R.string.media_creation_page_save_failed),
                                 type = ToastType.Error,

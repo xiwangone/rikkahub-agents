@@ -43,6 +43,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Add01
@@ -114,6 +115,7 @@ fun SettingSshHostsPage() {
                 hosts = list
                 loadError = null
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 AppLog.w("SshHostsPage", "刷新主机列表失败: ${e.message}")
                 loadError = e.message ?: e.javaClass.simpleName
                 toaster.show(loadFailedFormat.format(loadError!!))
@@ -351,6 +353,7 @@ fun SettingSshHostsPage() {
                         reload()
                         showEdit = false
                     }.onFailure { e ->
+                        if (e is CancellationException) throw e
                         AppLog.w(
                             "SshHostsPage",
                             "failed to save SSH host: name=${entity.name} err=${e.message}",

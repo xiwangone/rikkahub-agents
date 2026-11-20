@@ -28,6 +28,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Clock02
@@ -160,6 +161,7 @@ internal fun VaultSessionSection(
                                     })
                                 onRefreshSessionList()
                             }.onFailure { e ->
+                                if (e is CancellationException) throw e
                                 onSessionResultChange(exportFailedFormat.format(e.message ?: ""))
                             }
                         }

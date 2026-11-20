@@ -38,6 +38,8 @@ class ExternalAutomationReceiver : BroadcastReceiver(), KoinComponent {
                 withTimeoutOrNull(8_500L) {
                     handle(intent)
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "receiver dispatch failed", t)
             } finally {

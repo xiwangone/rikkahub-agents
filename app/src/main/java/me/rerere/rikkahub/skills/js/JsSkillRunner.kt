@@ -248,6 +248,8 @@ class JsSkillRunner(private val context: Context) {
                 AppLog.w(TAG, "JS skill execution timed out after ${timeoutMs}ms")
                 Result.Err("script_timeout",
                     "JS skill execution exceeded ${timeoutMs}ms — check for infinite loops or unresponsive network calls")
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "JS skill execution failed", t)
                 Result.Err("script_failed", "${t::class.simpleName}: ${t.message.orEmpty()}")

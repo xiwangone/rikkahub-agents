@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import me.rerere.ai.provider.providers.backend.SessionPathStore
 import me.rerere.rikkahub.utils.JsonInstant
@@ -36,7 +37,9 @@ class BackendSessionPathStore(
         runCatching {
             val raw = dataStore.data.first()[KEY_SESSION_PATHS] ?: return null
             JsonInstant.decodeFromString<Map<String, String>>(raw)[conversationId]
-        }.getOrNull()
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
 
     override suspend fun put(conversationId: String, path: String) {
         if (conversationId.isBlank() || path.isBlank()) return

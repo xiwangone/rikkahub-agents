@@ -25,6 +25,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import com.dokar.sonner.ToastType
 import com.dokar.sonner.ToasterState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -84,6 +85,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
                                 filesManager = filesManager,
                             )
                         }.onFailure { exception ->
+                            if (exception is CancellationException) throw exception
                             AppLog.e(TAG, "SillyTavernImporter: import character card failed", exception)
                             toaster.show(
                                 exception.message ?: context.getString(R.string.assistant_importer_import_failed),
@@ -113,6 +115,7 @@ private fun SillyTavernImporter(onImport: (Assistant) -> Unit) {
                                 filesManager = filesManager,
                             )
                         }.onFailure { exception ->
+                            if (exception is CancellationException) throw exception
                             AppLog.e(TAG, "SillyTavernImporter: import character card failed", exception)
                             toaster.show(
                                 exception.message ?: context.getString(R.string.assistant_importer_import_failed),
@@ -330,6 +333,8 @@ private suspend fun importAssistantFromUri(
         val json = Json.parseToJsonElement(jsonString).jsonObject
         val assistant = parseAssistantFromJson(context = context, json = json, background = backgroundStr)
         onImport(assistant)
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (exception: Exception) {
         AppLog.e(TAG, "importAssistantFromUri: parse assistant json failed", exception)
         toaster.show(

@@ -763,7 +763,9 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         runCatching {
             val raw = dataStore.data.first()[CONV_LIFETIME_USAGE] ?: return null
             decodeConvLifetimeUsageMap(raw)[conversationId]
-        }.getOrNull()
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
 
     /**
      * 累加**一次请求**的用量（事件驱动：每次 API 请求各计一次，口径同平台账单）。

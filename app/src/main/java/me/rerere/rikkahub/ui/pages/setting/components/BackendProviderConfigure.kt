@@ -20,6 +20,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.hugeicons.HugeIcons
@@ -223,6 +224,7 @@ fun BackendProviderConfigure(
                                         backendStatusDigest(resources, provider, client = httpClient)
                                     }
                                         .getOrElse {
+                                            if (it is CancellationException) throw it
                                             resources.getString(
                                                 R.string.backend_diag_check_failed,
                                                 it.message ?: it::class.simpleName ?: "",

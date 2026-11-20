@@ -180,6 +180,7 @@ internal suspend fun withActionEnvelope(
     svc: RikkaAccessibilityService,
     act: suspend (RikkaAccessibilityService) -> JsonObject,
 ): JsonObject {
+    // cancel-guard-ok: treeHash 非挂起，try 内无挂起点
     val before = try { treeHash(svc) } catch (t: Throwable) {
         AppLog.w("ScreenState", "before-hash failed: ${t.message}")
         null
@@ -208,6 +209,7 @@ internal suspend fun withActionEnvelope(
     } finally {
         svc.setListenContentChanges(false)
     }
+    // cancel-guard-ok: treeHash 非挂起，try 内无挂起点
     val after = try { treeHash(svc) } catch (t: Throwable) {
         AppLog.w("ScreenState", "after-hash failed: ${t.message}")
         null

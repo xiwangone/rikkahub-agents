@@ -97,6 +97,7 @@ object PendingLogicalApply {
             runCatching {
                 apply(payload, settingsStore, vaultRepository, sshHostRepository, scheduledJobRepository)
             }
+                .onFailure { if (it is CancellationException) throw it }
         // apply() 返回 Boolean：部分段写回失败时它返回 false 而不是抛异常，
         // 只看 isSuccess 会把这种情况当成成功并把暂存删掉（数据丢一次就没了）。
         return if (result.isSuccess && result.getOrNull() == true) {

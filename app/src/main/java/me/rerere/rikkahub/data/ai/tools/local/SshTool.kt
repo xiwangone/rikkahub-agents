@@ -330,13 +330,10 @@ internal suspend fun execOneShot(
     // pick the working network for JSch to bind to.
     // 跳板场景：探测目标是跳板主机（隧道由跳板代达），而非目标本身——目标可能只在
     // 跳板的内网可达，直连探测必然失败会误报 unreachable。
-    val outcome = if (jump != null) {
-        probeReachability(context, jump.host, jump.port)
-    } else {
-        probeReachability(context, host, port)
-    }
+    val (probeHost, probePort) = if (jump != null) jump.host to jump.port else host to port
+    val outcome = probeReachability(context, probeHost, probePort)
     if (outcome.winningNetwork == null && outcome.failures.isNotEmpty()) {
-        return unreachableEnvelope(if (jump != null) jump.host else host, if (jump != null) jump.port else port, outcome)
+        return unreachableEnvelope(probeHost, probePort, outcome)
     }
 
     // Stage 2 (suspend): 带重试的 JSch 握手。重试探测与退避是 suspend 的，
@@ -368,6 +365,8 @@ internal suspend fun execOneShot(
     val handshakeStart = System.currentTimeMillis()
     val (connection, cacheKey) = try {
         connectOnce()
+    } catch (e: CancellationException) {
+        throw e
     } catch (error: Throwable) {
         if (!allowHostKeyRotation || !isHostKeyChange(error.message)) {
             AppLog.w(TAG_SSH, "ssh handshake failed in ${System.currentTimeMillis() - handshakeStart}ms", error)
@@ -381,6 +380,8 @@ internal suspend fun execOneShot(
         AppLog.i(TAG_SSH, "host key changed for $host, forgot ${forgotten.totalRemoved} stored key(s), retrying once")
         try {
             connectOnce()
+        } catch (e: CancellationException) {
+            throw e
         } catch (retryError: Throwable) {
             AppLog.w(TAG_SSH, "ssh handshake retry after host key rotation failed in ${System.currentTimeMillis() - handshakeStart}ms", retryError)
             return wrapConnectError(host, retryError)
@@ -410,6 +411,7 @@ internal suspend fun execOneShot(
                 // （测试连接）或 AUTO 模式的进工作区自动补一次（独立协程 + 自有会话 +
                 // 预算，不占调用方超时，见 WorkspaceRepositoryHelpers）。
                 result
+            // cancel-guard-ok: runInterruptible 内阻塞调用，取消由外层 catch 处理
             } catch (e: Throwable) {
                 ToolErrors.envelopeFor(error = "tool_failed", message = "exec failed: ${e.message ?: "unknown"}")
             } finally {

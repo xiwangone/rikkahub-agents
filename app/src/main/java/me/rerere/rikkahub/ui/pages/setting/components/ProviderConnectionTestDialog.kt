@@ -31,6 +31,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.ai.core.Tool
 import me.rerere.ai.core.ReasoningLevel
@@ -148,7 +149,10 @@ fun ProviderConnectionTestDialog(
                                         .filterIsInstance<UIMessagePart.Text>()
                                         .joinToString("") { it.text }
                                     nonStreamingState = UiState.Success(text)
-                                }.onFailure { nonStreamingState = UiState.Error(it) }
+                                }.onFailure {
+                                    if (it is CancellationException) throw it
+                                    nonStreamingState = UiState.Error(it)
+                                }
                             }
                             launch {
                                 runCatching {
@@ -172,7 +176,10 @@ fun ProviderConnectionTestDialog(
                                         }
                                     }
                                     streamingState = UiState.Success("")
-                                }.onFailure { streamingState = UiState.Error(it) }
+                                }.onFailure {
+                                    if (it is CancellationException) throw it
+                                    streamingState = UiState.Error(it)
+                                }
                             }
                             launch {
                                 runCatching {
@@ -212,7 +219,10 @@ fun ProviderConnectionTestDialog(
                                         resources.getString(R.string.provider_test_no_tool, text)
                                     }
                                     toolsState = UiState.Success(resultText)
-                                }.onFailure { toolsState = UiState.Error(it) }
+                                }.onFailure {
+                                    if (it is CancellationException) throw it
+                                    toolsState = UiState.Error(it)
+                                }
                             }
                         }
                     }

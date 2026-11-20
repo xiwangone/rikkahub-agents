@@ -8,6 +8,7 @@ import android.os.Build
 import androidx.core.app.NotificationChannelCompat
 import androidx.core.app.NotificationManagerCompat
 import androidx.core.content.ContextCompat
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineName
 import kotlinx.coroutines.CoroutineScope
@@ -271,7 +272,7 @@ class RikkaHubApp : Application() {
                 val filled = get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>()
                     .backfillMissingTypes()
                 if (filled > 0) AppLog.i("RikkaHubApp", "vault credential types backfilled: $filled")
-            }.onFailure { AppLog.w("RikkaHubApp", "vault type backfill failed", it) }
+            }.onFailure { if (it is CancellationException) throw it }.onFailure { AppLog.w("RikkaHubApp", "vault type backfill failed", it) }
         }
 
         // provider 密钥引用（`$$凭证名`）：启动时把库内容接入解析钩子，
@@ -281,7 +282,7 @@ class RikkaHubApp : Application() {
                 val cached = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
                     .refresh(get<me.rerere.rikkahub.data.vault.CredentialVaultRepository>())
                 AppLog.i("RikkaHubApp", "vault provider key refs cached: $cached")
-            }.onFailure { AppLog.w("RikkaHubApp", "vault provider key refs refresh failed", it) }
+            }.onFailure { if (it is CancellationException) throw it }.onFailure { AppLog.w("RikkaHubApp", "vault provider key refs refresh failed", it) }
         }
 
         // Increment launch count
@@ -314,6 +315,7 @@ class RikkaHubApp : Application() {
                     catalog.refresh()
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 me.rerere.rikkahub.data.log.AppLog.w(TAG, "model catalog init failed: ${it.message}")
             }
         }
@@ -462,6 +464,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<me.rerere.rikkahub.data.agentrun.AgentRunBootRecovery>().runRecovery()
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w(TAG, "runAgentRunBootRecovery failed", it)
             }
         }
@@ -499,6 +502,7 @@ class RikkaHubApp : Application() {
                     }
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w(TAG, "applyPendingLogicalRestore failed", it)
             }
         }
@@ -554,11 +558,15 @@ class RikkaHubApp : Application() {
                             AppLog.i(TAG, "sweepOrphanHeadlessConversations: deleting orphan conv $id")
                             convRepo.deleteConversation(conv)
                         }
-                    }.onFailure { AppLog.w(TAG, "sweepOrphanHeadlessConversations: error for $id", it) }
+                    }.onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "sweepOrphanHeadlessConversations: error for $id", it)
+                    }
                 }
                 HeadlessConversations.clearAll()
                 AppLog.i(TAG, "sweepOrphanHeadlessConversations: sweep complete")
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "sweepOrphanHeadlessConversations failed", it)
             }
         }
@@ -618,6 +626,7 @@ class RikkaHubApp : Application() {
                     me.rerere.rikkahub.service.TelegramBotHealthWorker.cancel(this@RikkaHubApp)
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "startTelegramBotIfEnabled failed", it)
             }
         }
@@ -648,6 +657,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<WorkspaceRepository>().checkIntegrity()
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "checkWorkspaceIntegrity failed", it)
             }
         }
@@ -678,6 +688,7 @@ class RikkaHubApp : Application() {
             runCatching {
                 get<FilesManager>().syncFolder()
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "syncManagedFiles failed", it)
             }
         }
@@ -723,6 +734,7 @@ class RikkaHubApp : Application() {
                     startForegroundService(intent)
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "startWebServerIfEnabled failed", it)
             }
         }
@@ -740,6 +752,7 @@ class RikkaHubApp : Application() {
                     startForegroundService(intent)
                 }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "startMcpServerIfEnabled failed", it)
             }
         }

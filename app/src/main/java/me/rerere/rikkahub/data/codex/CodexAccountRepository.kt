@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.codex
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -91,7 +92,9 @@ class CodexAccountRepository internal constructor(
             val candidate = state.accounts[index]
             if (!candidate.isAvailable()) return@repeat
             updateState(state.copy(nextAccountIndex = (index + 1) % state.accounts.size))
-            val fresh = runCatching { ensureFreshLocked(candidate) }.getOrNull() ?: return@repeat
+            val fresh = runCatching { ensureFreshLocked(candidate) }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull() ?: return@repeat
             return fresh
         }
         error("No available Codex account")

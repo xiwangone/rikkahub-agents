@@ -53,6 +53,8 @@ class ExternalAutomationActivity : Activity() {
         automationScope.launch(Dispatchers.Default) {
             try {
                 handleAction(action, intent, callerPkg, requestId, returnAction, returnPackage)
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "external automation activity dispatch failed", t)
             } finally {

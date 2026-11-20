@@ -509,6 +509,7 @@ internal suspend fun probeReachability(context: Context, host: String, port: Int
                             Triple(label, candidate, "${e::class.java.simpleName}: ${e.message ?: "unknown"}")
                         }
                     } finally {
+                        // cancel-guard-ok: socket close 守卫，非挂起调用
                         try { s.close() } catch (_: Throwable) {}
                     }
                 }

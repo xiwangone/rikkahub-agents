@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import me.rerere.rikkahub.R
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -33,6 +34,7 @@ class DoctorViewModel(
             val results =
                 runCatching { checks.runAll() }
                     .getOrElse { t ->
+                        if (t is CancellationException) throw t
                         listOf(
                             DoctorCheck(
                                 id = "doctor.error",
@@ -55,6 +57,7 @@ class DoctorViewModel(
     suspend fun applyAutoFix(fix: FixAction.AutoFix): AutoFixResult =
         runCatching { fix.run() }
             .getOrElse {
+                if (it is CancellationException) throw it
                 AutoFixResult(ok = false, message = "${it::class.simpleName}: ${it.message.orEmpty()}")
             }.also {
                 // Re-run all checks so the fix's effect shows up.

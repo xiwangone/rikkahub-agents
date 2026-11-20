@@ -38,6 +38,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.platform.LocalContext
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowLeft01
@@ -109,6 +110,7 @@ fun WorkspaceFileEditorPage(
                 toaster.show(context.getString(R.string.file_editor_saved), type = ToastType.Success)
                 onDone?.invoke()
             }.onFailure {
+                if (it is CancellationException) throw it
                 toaster.show(it.message ?: context.getString(R.string.file_editor_save_failed), type = ToastType.Error)
             }
             saving = false
@@ -127,6 +129,7 @@ fun WorkspaceFileEditorPage(
             initialText = content
             loading = false
         }.onFailure {
+            if (it is CancellationException) throw it
             loadError = it.message ?: context.getString(R.string.file_editor_read_failed)
             loading = false
         }

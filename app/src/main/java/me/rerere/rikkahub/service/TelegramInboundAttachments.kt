@@ -105,6 +105,8 @@ internal suspend fun downloadInboundPhotos(
             images.add(UIMessagePart.Image(url = "file://${dest.absolutePath}"))
             paths.add(dest.absolutePath)
             totalBytes += dest.length()
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Throwable) {
             AppLog.w(TAG, "downloadInboundPhotos: failed for $fileId", e)
         }

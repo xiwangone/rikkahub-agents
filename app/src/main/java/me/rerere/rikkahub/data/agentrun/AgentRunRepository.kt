@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.agentrun
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -66,7 +67,10 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                 dao.insert(row)
                 dao.purgeOldest(AgentRunDefaults.RETENTION_CAP)
             }
-        }.onFailure { logSafe { AppLog.e(TAG, "open($kind, $domainId) failed", it) } }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            logSafe { AppLog.e(TAG, "open($kind, $domainId) failed", it) }
+        }
         return id
     }
 
@@ -90,7 +94,10 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { AppLog.e(TAG, "setStatus($id, $status) failed", it) } }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            logSafe { AppLog.e(TAG, "setStatus($id, $status) failed", it) }
+        }
     }
 
     /**
@@ -117,7 +124,10 @@ class AgentRunRepository(private val dao: AgentRunDao) {
                     )
                 )
             }
-        }.onFailure { logSafe { AppLog.e(TAG, "markTerminal($id, $status) failed", it) } }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            logSafe { AppLog.e(TAG, "markTerminal($id, $status) failed", it) }
+        }
     }
 
     fun observeRecent(limit: Int = 50): Flow<List<AgentRun>> = dao.observeRecent(limit)
@@ -154,7 +164,10 @@ class AgentRunRepository(private val dao: AgentRunDao) {
             writeMutex.withLock {
                 dao.markProcessLost(ids, System.currentTimeMillis())
             }
-        }.onFailure { logSafe { AppLog.e(TAG, "markAllProcessLost failed", it) } }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            logSafe { AppLog.e(TAG, "markAllProcessLost failed", it) }
+        }
             .getOrDefault(0)
     }
 

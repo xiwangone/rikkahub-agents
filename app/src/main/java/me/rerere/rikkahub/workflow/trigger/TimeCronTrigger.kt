@@ -8,6 +8,7 @@ import androidx.work.OneTimeWorkRequestBuilder
 import androidx.work.PeriodicWorkRequestBuilder
 import androidx.work.WorkManager
 import androidx.work.workDataOf
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -168,7 +169,10 @@ internal class TimeCronTriggerFamily(
         if (!skipFire && cb != null) {
             scope.launch(Dispatchers.IO) {
                 runCatching { cb.onFire(wf.id, wf.trigger) }
-                    .onFailure { AppLog.w(TAG, "time_cron: fire callback failed for $workflowId", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "time_cron: fire callback failed for $workflowId", it)
+                    }
             }
         }
         // For one-shot path (period < 15min or null), re-enqueue with the next fire.

@@ -138,6 +138,8 @@ class RikkaNotificationListenerService : NotificationListenerService() {
         val cfg =
             try {
                 whitelistPrefs.current()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "whitelist prefs read failed; skipping forward", t)
                 return
@@ -147,6 +149,8 @@ class RikkaNotificationListenerService : NotificationListenerService() {
         val tg =
             try {
                 telegramPrefs.current()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "telegram prefs read failed; skipping forward", t)
                 return
@@ -196,6 +200,8 @@ class RikkaNotificationListenerService : NotificationListenerService() {
             lastForwarded[entry.key] = signature
             lastForwardedGlobalSig = globalSig
             lastForwardedGlobalAtMs = now
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (e: Throwable) {
             AppLog.w(TAG, "auto-route failed for ${entry.packageName}", e)
         }

@@ -72,6 +72,8 @@ private suspend fun withSavedHostSession(
                 SshConnection(session, null)
             }
         }
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (e: Throwable) {
         AppLog.w(TAG_SFTP, "ssh handshake failed", e)
         return wrapConnectError(h.host, e)

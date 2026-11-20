@@ -377,6 +377,7 @@ suspend fun ChatService.compressConversation(
                 )
                 AppLog.d(TAG, "压缩归档成功: json=${archiveJson.length} chars")
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 AppLog.w(TAG, "归档压缩历史失败: ${e.message}")
             }
 
@@ -385,7 +386,7 @@ suspend fun ChatService.compressConversation(
             requireConversationUnchanged(conversationId, allMessages)
 
             saveConversation(conversationId, newConversation)
-        }
+        }.onFailure { if (it is CancellationException) throw it }
 
 private suspend fun ChatService.seedLifetimeUsageBeforeCompaction(
     conversationId: Uuid,
@@ -431,6 +432,7 @@ private suspend fun ChatService.recordAgentTraceMemoryOnCompaction(
             }
         }
     }.onFailure { e ->
+        if (e is CancellationException) throw e
         AppLog.w(TAG, "沉淀工具执行轨迹记忆失败: ${e.message}")
     }
 }

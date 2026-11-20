@@ -87,6 +87,7 @@ class GitHubReleaseChecker(
             val response =
                 try {
                     client.newCall(req).execute()
+                // cancel-guard-ok: withContext 返回时会重抛取消，catch 内 return 不吞掉
                 } catch (t: Throwable) {
                     AppLog.w(TAG, "GitHub release fetch failed", t)
                     return@withContext CheckResult.Failed("network error: ${t.message ?: t.javaClass.simpleName}")
@@ -106,6 +107,7 @@ class GitHubReleaseChecker(
                 val release =
                     try {
                         json.decodeFromString<Release>(body)
+                    // cancel-guard-ok: withContext 返回时会重抛取消，catch 内 return 不吞掉
                     } catch (t: Throwable) {
                         AppLog.w(TAG, "could not parse github release: ${t.message ?: t.javaClass.simpleName}")
                         return@withContext CheckResult.Failed(

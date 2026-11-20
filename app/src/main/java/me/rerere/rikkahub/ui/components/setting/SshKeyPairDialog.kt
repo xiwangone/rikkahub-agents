@@ -212,6 +212,8 @@ fun SshKeyPairDialog(
                                     )
                                     publicKey = pair.publicText
                                     savedName = finalName
+                                } catch (ce: kotlinx.coroutines.CancellationException) {
+                                    throw ce
                                 } catch (e: Throwable) {
                                     error = context.getString(R.string.ssh_key_save_failed, e.message)
                                 }

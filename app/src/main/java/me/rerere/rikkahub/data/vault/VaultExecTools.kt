@@ -156,7 +156,10 @@ private suspend fun runVaultExportEnv(
     remoteTargetNeedsConfirm(target, o.optBoolean("confirm") ?: false)
         ?.let { reason -> return fail(reason) }
     runCatching { wsRepository.writeText(target.id, "tmp/vault-env.sh", lines.joinToString("\n"), overwrite = true) }
-        .onFailure { AppLog.w("VaultTools", "Failed to write vault-env.sh", it) }
+        .onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w("VaultTools", "Failed to write vault-env.sh", it)
+        }
         .getOrNull()
         ?: return fail("Failed to write the sandbox env file")
 

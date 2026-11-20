@@ -486,6 +486,7 @@ class LiteRtRuntime(private val context: Context) {
         // Probe the file for speculative-decoding support BEFORE building the engine.
         val supportsSpeculativeDecoding = try {
             Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }
+        // cancel-guard-ok: Capabilities 探测非挂起，try 内无挂起点
         } catch (t: Throwable) {
             // A probe failure is not the same as "file does not support it": surface it
             // so a damaged or unreadable file is not silently treated as unsupported.
@@ -546,6 +547,7 @@ class LiteRtRuntime(private val context: Context) {
             // next turn mistakes it for a warm Conversation and fails again on it.
             // Tear the whole load down so the next call rebuilds cold.
             val oldConversation = current.conversation
+            // cancel-guard-ok: close() 守卫，非挂起调用
             try { oldConversation.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation config change: close failed", t) }
             try {
                 current.conversation = createConversationWithFlags(
@@ -555,6 +557,7 @@ class LiteRtRuntime(private val context: Context) {
                 )
             } catch (t: Throwable) {
                 current.processed.clear()
+                // cancel-guard-ok: close() 守卫，非挂起调用
                 try { current.engine.close() } catch (closeError: Throwable) { AppLogger.e("LiteRtRuntime", "Conversation config change: engine close failed", closeError) }
                 loaded = null
                 lastTelemetry = null
@@ -573,7 +576,9 @@ class LiteRtRuntime(private val context: Context) {
         }
 
         // Engine swap path: tear down any prior Engine + Conversation.
+        // cancel-guard-ok: close() 守卫，非挂起调用
         try { current?.conversation?.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Engine swap: conversation close failed", t) }
+        // cancel-guard-ok: close() 守卫，非挂起调用
         try { current?.engine?.close() } catch (t: Throwable) { AppLogger.e("LiteRtRuntime", "Engine swap: engine close failed", t) }
         loaded = null
 

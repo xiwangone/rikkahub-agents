@@ -111,7 +111,10 @@ class WorkspaceDetailVM(
     fun applyMirrors(mirrors: me.rerere.workspace.WorkspaceMirrors) {
         viewModelScope.launch {
             runCatching { repository.setMirrors(mirrors) }
-                .onFailure { _settingsError.value = SettingsError.of(it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    _settingsError.value = SettingsError.of(it)
+                }
         }
     }
 
@@ -124,7 +127,10 @@ class WorkspaceDetailVM(
         viewModelScope.launch {
             runCatching { repository.repairCaCerts() }
                 .onSuccess { count -> _caRepairCount.value = count }
-                .onFailure { _settingsError.value = SettingsError.of(it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    _settingsError.value = SettingsError.of(it)
+                }
         }
     }
 
@@ -144,7 +150,10 @@ class WorkspaceDetailVM(
     fun setSdcardAccess(enabled: Boolean) {
         viewModelScope.launch {
             runCatching { repository.setSdcardAccess(enabled) }
-                .onFailure { _settingsError.value = SettingsError.of(it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    _settingsError.value = SettingsError.of(it)
+                }
         }
     }
 
@@ -181,6 +190,7 @@ class WorkspaceDetailVM(
                 repository.setShellBackend(target)
                 _backendFallbackReason.value = repository.shellBackendFallbackReason()
             }.onFailure {
+                if (it is CancellationException) throw it
                 _backendFallbackReason.value = repository.shellBackendFallbackReason() ?: it.message
                 _settingsError.value = SettingsError.of(it)
             }
@@ -201,6 +211,7 @@ class WorkspaceDetailVM(
                     _state.update { it.copy(workspace = workspace) }
                 }
                 .onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.w("WorkspaceTags", "save failed", it)
                     _settingsError.value = SettingsError.of(it)
                 }
@@ -274,6 +285,7 @@ class WorkspaceDetailVM(
                     )
                 }
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update {
                     it.copy(
                         entries = emptyList(),
@@ -341,7 +353,7 @@ class WorkspaceDetailVM(
                 repository.writeAbsoluteText(id, absolutePath, "", overwrite = false)
             }
             target
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     fun delete(entry: WorkspaceFileEntry) {
@@ -357,6 +369,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_delete)) }
             }
         }
@@ -394,6 +407,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_rename)) }
             }
         }
@@ -415,7 +429,9 @@ class WorkspaceDetailVM(
             // 变成中文提示（数据层同样会拒，但那是英文原文）
             val clash = runCatching {
                 repository.listFiles(id = id, area = state.value.area, path = targetDir)
-            }.getOrDefault(emptyList()).any { it.name == entry.name }
+            }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrDefault(emptyList()).any { it.name == entry.name }
             if (clash) {
                 _state.update {
                     it.copy(error = context.getString(me.rerere.rikkahub.R.string.workspace_detail_rename_exists, entry.name))
@@ -433,6 +449,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_move)) }
             }
         }
@@ -485,6 +502,7 @@ class WorkspaceDetailVM(
                 _state.update { it.copy(clipboard = null) }
                 refresh()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_copy)) }
             }
         }
@@ -494,7 +512,9 @@ class WorkspaceDetailVM(
     suspend fun listSubDirectories(path: String): List<WorkspaceFileEntry> =
         runCatching {
             repository.listFiles(id = id, area = state.value.area, path = path)
-        }.getOrDefault(emptyList()).filter { it.isDirectory }
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(emptyList()).filter { it.isDirectory }
 
     /**
      * LINUX（rootfs）区只读拦截：文件页的删除/改名/移动/粘贴统一在此拦下并给中文提示，
@@ -543,6 +563,7 @@ class WorkspaceDetailVM(
             }.onSuccess {
                 refresh()
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_import)) }
             }
         }
@@ -564,6 +585,7 @@ class WorkspaceDetailVM(
                     outputStream = outputStream,
                 )
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
         }
@@ -598,6 +620,7 @@ class WorkspaceDetailVM(
                 }
                 file
             }.onSuccess(onReady).onFailure { error ->
+                if (error is CancellationException) throw error
                 onFail?.invoke()
                 _state.update { it.copy(error = error.message ?: context.getString(me.rerere.rikkahub.R.string.workspace_err_export)) }
             }
@@ -959,6 +982,7 @@ class WorkspaceDetailVM(
                     )
                 }
             }.onFailure { error ->
+                if (error is CancellationException) throw error
                 _terminalState.update {
                     it.copy(
                         running = false,

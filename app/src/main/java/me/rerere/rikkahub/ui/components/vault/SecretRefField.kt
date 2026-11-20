@@ -18,6 +18,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileImport
@@ -159,6 +160,7 @@ fun SecretRefField(
                                     notice = if (r.reusedExisting) "♻ ${r.name}" else "✅ ${r.name}"
                                     entries = runCatching { repository.getAll() }.getOrDefault(entries)
                                 }.onFailure { e ->
+                                    if (e is CancellationException) throw e
                                     notice = "❌ ${e.message ?: ""}"
                                 }
                                 busy = false

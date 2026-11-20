@@ -124,7 +124,9 @@ class WorkspaceSshEditorVM(
                         .filter { entity -> entity.id != id }
                         .map { entity -> entity.name.trim() }
                         .toSet(),
-                    savedHosts = runCatching { sshHostRepository.getAll() }.getOrDefault(emptyList())
+                    savedHosts = runCatching { sshHostRepository.getAll() }
+                        .onFailure { if (it is CancellationException) throw it }
+                        .getOrDefault(emptyList())
                         .map { SavedJumpHost(name = it.name, user = it.user, host = it.host) },
                 )
             }

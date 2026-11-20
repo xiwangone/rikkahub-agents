@@ -11,6 +11,7 @@ import com.google.android.gms.location.Geofence
 import com.google.android.gms.location.GeofencingRequest
 import com.google.android.gms.location.LocationServices
 import com.google.android.gms.tasks.Tasks
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.joinAll
@@ -91,7 +92,10 @@ internal class GeofenceTriggerFamily(
         if (toRemove.isNotEmpty()) {
             withContext(Dispatchers.IO) {
                 runCatching { Tasks.await(client.removeGeofences(toRemove.toList())) }
-                    .onFailure { AppLog.w(TAG, "geofence: removeGeofences failed", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "geofence: removeGeofences failed", it)
+                    }
             }
         }
 
@@ -134,7 +138,10 @@ internal class GeofenceTriggerFamily(
                 @Suppress("MissingPermission") // permission was checked above
                 withContext(Dispatchers.IO) {
                     runCatching { Tasks.await(client.addGeofences(req, geofencingPendingIntent())) }
-                        .onFailure { AppLog.w(TAG, "geofence: addGeofences failed", it) }
+                        .onFailure {
+                            if (it is CancellationException) throw it
+                            AppLog.w(TAG, "geofence: addGeofences failed", it)
+                        }
                 }
             }
         }
@@ -188,6 +195,7 @@ internal class GeofenceTriggerFamily(
                         (transition == Geofence.GEOFENCE_TRANSITION_EXIT && fireSpec is TriggerSpec.GeofenceExit)
                 if (matches) {
                     runCatching { cb.onFire(id, fireSpec) }.onFailure {
+                        if (it is CancellationException) throw it
                         AppLog.w(TAG, "geofence: fire callback failed for wf=$id", it)
                     }
                 }
@@ -280,7 +288,10 @@ object GeofenceTriggerDispatcher {
                 workflowIds.map { id ->
                     launch {
                         runCatching { GeofenceTriggerHelper.lookupAndFire(id, transition) }
-                            .onFailure { AppLog.w(TAG, "geofence: cold-start dispatch failed for wf=$id", it) }
+                            .onFailure {
+                                if (it is CancellationException) throw it
+                                AppLog.w(TAG, "geofence: cold-start dispatch failed for wf=$id", it)
+                            }
                     }
                 }
             try {

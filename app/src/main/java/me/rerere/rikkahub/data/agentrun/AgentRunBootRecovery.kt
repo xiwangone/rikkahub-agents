@@ -6,6 +6,7 @@ import android.app.NotificationManager
 import android.content.Context
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "AgentRunBootRecovery"
@@ -61,7 +62,10 @@ class AgentRunBootRecovery(
                     .onFailure { logSafe { AppLog.w(TAG, "notifyStranded failed", it) } }
             }
             flipped
-        }.onFailure { logSafe { AppLog.e(TAG, "runRecovery failed", it) } }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            logSafe { AppLog.e(TAG, "runRecovery failed", it) }
+        }
             .getOrDefault(0)
     }
 

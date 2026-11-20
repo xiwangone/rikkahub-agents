@@ -282,6 +282,7 @@ internal suspend fun ChatService.handleMessageComplete(
                 onRetryDiagnosed = { retryDiagnosis = it },
             )
         }.onFailure {
+            if (it is CancellationException) throw it
             handleMessageCompleteFailure(conversationId, it)
         }.onSuccess {
             handleMessageCompleteSuccess(conversationId, retryDiagnosis)

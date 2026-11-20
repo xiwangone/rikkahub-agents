@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.subagent
 
 import me.rerere.rikkahub.data.log.AppLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -371,6 +372,8 @@ class SubAgentEngine(
             // Foreground — block until terminal.
             try {
                 executionJob.join()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (t: Throwable) {
                 AppLog.w(TAG, "foreground sub-agent join failed for $runId", t)
             }
@@ -602,7 +605,10 @@ class SubAgentEngine(
             }
             val timedOut = finishSubAgentWait(completed = completed != null) {
                 runCatching { chatService.stopGeneration(conv.id) }
-                    .onFailure { AppLog.w(TAG, "sub-agent timeout: stopGeneration failed for $runId", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "sub-agent timeout: stopGeneration failed for $runId", it)
+                    }
             }
             if (timedOut) {
                 markTerminal(runId, SubAgentStatus.TIMED_OUT, "exceeded ${request.timeoutSeconds}-second cap")
@@ -822,6 +828,8 @@ class SubAgentEngine(
                 .flatMap { it.parts.filterIsInstance<UIMessagePart.Text>() }
                 .joinToString("\n") { it.text }
                 .trim()
-        }.getOrDefault("")
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault("")
     }
 }

@@ -252,6 +252,8 @@ class VolcengineASRController(
                         throw IllegalStateException("AudioRecord read error: $read")
                     }
                 }
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 if (isActive) scope.launch(Dispatchers.Main.immediate) {
                     if (webSocket === socket) setError(e.message ?: "Audio recording failed")

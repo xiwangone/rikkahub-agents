@@ -2,6 +2,7 @@ package me.rerere.rikkahub.workflow.ui
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -31,7 +32,10 @@ class WorkflowsViewModel(
             // A DB/trigger failure here would otherwise propagate to the coroutine's
             // uncaught handler and crash the app — the switch just no-ops visibly.
             runCatching { repository.setEnabled(id, enabled) }
-                .onFailure { AppLog.e("WorkflowsViewModel", "setEnabled failed for $id", it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    AppLog.e("WorkflowsViewModel", "setEnabled failed for $id", it)
+                }
         }
     }
 
@@ -41,7 +45,10 @@ class WorkflowsViewModel(
     ) {
         viewModelScope.launch(Dispatchers.IO) {
             runCatching { repository.deleteCascading(id) }
-                .onFailure { AppLog.e("WorkflowsViewModel", "delete failed for $id", it) }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    AppLog.e("WorkflowsViewModel", "delete failed for $id", it)
+                }
             // Callers pass UI work (nav.popBackStack) — must not run on the IO dispatcher.
             withContext(Dispatchers.Main) { onDone() }
         }

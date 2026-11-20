@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.gemini
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -101,7 +102,7 @@ class GeminiAccountRepository internal constructor(
             ) ?: error("No available Google account")
             val candidate = state.accounts[index]
             updateState(state.copy(nextAccountIndex = (index + 1) % state.accounts.size))
-            val fresh = runCatching { ensureFreshLocked(candidate) }.getOrNull() ?: return@repeat
+            val fresh = runCatching { ensureFreshLocked(candidate) }.onFailure { if (it is CancellationException) throw it }.getOrNull() ?: return@repeat
             return fresh
         }
         error("No available Google account")
@@ -223,7 +224,9 @@ class GeminiAccountRepository internal constructor(
                         .get()
                         .build()
                 ).await()
-            }.getOrNull() ?: return@withContext GeminiIdentity()
+            }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull() ?: return@withContext GeminiIdentity()
             if (!response.isSuccessful) {
                 response.close()
                 return@withContext GeminiIdentity()

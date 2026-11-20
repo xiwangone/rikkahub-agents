@@ -60,6 +60,8 @@ class RemoteCatalogFetcher(
             val body =
                 try {
                     download(normalized)
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
                 } catch (t: Throwable) {
                     AppLog.e(TAG, "fetch failed for $normalized", t)
                     null

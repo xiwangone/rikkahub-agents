@@ -217,6 +217,8 @@ class SkillTestRunner(
             } else {
                 emit(TestRunState.Done(harvested.text, harvested.imageUrls))
             }
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             // Log via a runCatching so JVM tests (which don't stub android.util.Log) don't
             // explode. The error envelope below carries the same info to the UI.

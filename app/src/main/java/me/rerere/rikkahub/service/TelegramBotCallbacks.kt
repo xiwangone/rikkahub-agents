@@ -2,6 +2,7 @@
 package me.rerere.rikkahub.service
 
 import me.rerere.rikkahub.data.log.AppLog
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.withLock
@@ -90,7 +91,9 @@ internal suspend fun TelegramBotService.sendClarifyQuestion(entry: TelegramBotSe
                         "$body\n\n<i>Reply with your answer.</i>",
                         parseMode = PARSE_MODE_HTML,
                     )
-                }.getOrNull()
+                }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
             } else {
                 entry.awaitingText = false
                 runCatching {
@@ -100,7 +103,9 @@ internal suspend fun TelegramBotService.sendClarifyQuestion(entry: TelegramBotSe
                         parseMode = PARSE_MODE_HTML,
                         replyMarkup = buildClarifyKeyboard(entry.toolCallId, entry.currentIdx, q.options),
                     )
-                }.getOrNull()
+                }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
             }
         entry.questionMessageId = res?.get("message_id")?.jsonPrimitive?.longOrNull
     }
@@ -138,7 +143,7 @@ internal suspend fun TelegramBotService.handleClarifyCallback(cq: TelegramCallba
                     "✍️ Type your answer for: <i>${TelegramHtmlRenderer.escape(q.text)}</i>",
                     parseMode = PARSE_MODE_HTML,
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             return
         }
         val chosen = sel.toIntOrNull()?.let { q.options.getOrNull(it) }
@@ -181,7 +186,7 @@ internal suspend fun TelegramBotService.recordAndAdvance(
                     "❓ ${TelegramHtmlRenderer.escape(q.text)}\n→ <b>${TelegramHtmlRenderer.escape(answer)}</b>",
                     parseMode = PARSE_MODE_HTML,
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
         entry.currentIdx++
         if (entry.currentIdx < entry.questions.size) sendClarifyQuestion(entry) else finalizeClarify(entry)
@@ -293,7 +298,9 @@ internal suspend fun TelegramBotService.sendApprovalPrompt(
                             val actions =
                                 runCatching {
                                     (jobInput?.get("actions") as? kotlinx.serialization.json.JsonArray)
-                                }.getOrNull()
+                                }
+                                    .onFailure { if (it is CancellationException) throw it }
+                                    .getOrNull()
                             if (actions != null && actions.isNotEmpty()) {
                                 append("\n\n<b>Actions:</b>")
                                 actions.forEachIndexed { i, el ->
@@ -329,6 +336,7 @@ internal suspend fun TelegramBotService.sendApprovalPrompt(
                     replyMarkup = buildApprovalKeyboard(tool.toolCallId, tool.toolName),
                 )
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 AppLog.w(TelegramBotService.TAG, "approval prompt send failed", e)
             }.getOrNull()
         val msgId = res?.get("message_id")?.jsonPrimitive?.longOrNull
@@ -380,6 +388,7 @@ internal suspend fun TelegramBotService.handleProviderPickCallback(cq: TelegramC
                     replyMarkup = buildProviderKeyboard(enabledProviders, currentPair?.first?.id),
                 )
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 AppLog.w(TelegramBotService.TAG, "handleProviderPickCallback: back-to-providers edit failed", e)
             }
             return
@@ -441,6 +450,7 @@ internal suspend fun TelegramBotService.handleProviderPickCallback(cq: TelegramC
                 replyMarkup = keyboard,
             )
         }.onFailure { e ->
+            if (e is CancellationException) throw e
             AppLog.w(TelegramBotService.TAG, "handleProviderPickCallback: model-list edit failed", e)
         }
     }
@@ -489,6 +499,7 @@ internal suspend fun TelegramBotService.handleModelPickCallback(cq: TelegramCall
                 }
             client.editMessageText(cq.chatId, cq.messageId, newText, parseMode = PARSE_MODE_HTML)
         }.onFailure { e ->
+            if (e is CancellationException) throw e
             AppLog.w(TelegramBotService.TAG, "handleModelPickCallback: switched-confirmation edit failed", e)
         }
     }
@@ -639,6 +650,7 @@ private suspend fun TelegramBotService.handleToolApprovalCallback(
                     "cb:${cq.callbackQueryId} EDITED in ${System.currentTimeMillis() - editStart} ms (total ${System.currentTimeMillis() - cbStartMs} ms since START)",
                 )
             }.onFailure { e ->
+                if (e is CancellationException) throw e
                 AppLog.w(
                     TelegramBotService.TAG,
                     "cb:${cq.callbackQueryId} EDIT FAILED: ${e.message ?: e::class.simpleName}",

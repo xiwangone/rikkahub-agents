@@ -138,6 +138,8 @@ class StepASRController(
                 // 等当前正在跑的 flushJob 完成, 避免并发 flush 导致缓冲区竞争
                 flushJob?.join()
                 flushSegment()
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 // The tail segment was dropped along with the failure: say so in the log,
                 // since the state below no longer carries the error after stopping.

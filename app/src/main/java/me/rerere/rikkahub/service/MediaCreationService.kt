@@ -6,6 +6,7 @@ import me.rerere.rikkahub.data.log.AppLog
 import androidx.core.app.NotificationCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.ProcessLifecycleOwner
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -242,6 +243,7 @@ class MediaCreationService(
                         }
                     }
                 }.onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.e(TAG, "resumePending failed", it)
                 }
             }

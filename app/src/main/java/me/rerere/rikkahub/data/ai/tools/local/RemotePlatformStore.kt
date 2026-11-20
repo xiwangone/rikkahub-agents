@@ -4,6 +4,7 @@ import android.content.Context
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import androidx.datastore.preferences.preferencesDataStore
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import me.rerere.rikkahub.utils.JsonInstant
 
@@ -38,7 +39,9 @@ class RemotePlatformStore(
             val raw = dataStore.data.first()[KEY_PLATFORMS] ?: return null
             JsonInstant.decodeFromString<Map<String, String>>(raw)[RemotePlatform.cacheKey(host, port)]
                 ?.let { it == WINDOWS }
-        }.getOrNull()
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
 
     /** 记录一条判定；[isWindows] 为 null（banner 判不出来）时**不写**，避免污染缓存。 */
     suspend fun put(host: String, port: Int, isWindows: Boolean?) {

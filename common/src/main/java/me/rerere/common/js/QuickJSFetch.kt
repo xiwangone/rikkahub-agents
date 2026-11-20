@@ -93,6 +93,7 @@ suspend fun QuickJs.injectFetch(httpClient: OkHttpClient) {
 
         val contentType = try {
             parsedHeaders?.get("Content-Type")?.jsonPrimitive?.content
+        // cancel-guard-ok: JSON 解析非挂起，try 内无挂起点
         } catch (_: Exception) {
             null
         }

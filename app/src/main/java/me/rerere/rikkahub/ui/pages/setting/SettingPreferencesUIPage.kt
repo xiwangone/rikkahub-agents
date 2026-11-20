@@ -41,6 +41,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -105,6 +106,7 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                     }
                     toaster.show(importSuccessMsg, type = ToastType.Success)
                 }.onFailure { error ->
+                    if (error is CancellationException) throw error
                     toaster.show(importFailedMsg.format(error.message.orEmpty()), type = ToastType.Error)
                 }
             }

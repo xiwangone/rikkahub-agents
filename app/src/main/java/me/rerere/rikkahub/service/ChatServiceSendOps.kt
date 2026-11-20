@@ -83,7 +83,10 @@ internal fun ChatService.dispatchNextQueuedMessageImpl(
             AppLog.i(TAG, "msg-dequeue-skip conv=$conversationId reason=pending-tool (finalizing)")
             appScope.launch {
                 runCatching { finishInterruptedPendingTools(conversationId) }
-                    .onFailure { AppLog.w(TAG, "msg-dequeue: finalize pending tools failed", it) }
+                    .onFailure {
+                        if (it is CancellationException) throw it
+                        AppLog.w(TAG, "msg-dequeue: finalize pending tools failed", it)
+                    }
                 val stillPending =
                     session.state.value.currentMessages.lastOrNull()?.getTools()?.any { it.isPending } == true
                 if (stillPending) {
@@ -531,7 +534,7 @@ internal suspend fun ChatService.saveConversationImpl(
             val storedHasContent =
                 runCatching {
                     conversationRepo.getConversationById(conversation.id)?.messageNodes?.isNotEmpty() == true
-                }.getOrDefault(false)
+                }.onFailure { if (it is CancellationException) throw it }.getOrDefault(false)
             if (storedHasContent) {
                 AppLog.w(
                     TAG,

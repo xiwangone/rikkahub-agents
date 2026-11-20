@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.telegram
 
+import kotlinx.coroutines.CancellationException
 import me.rerere.rikkahub.browser.BrowserScreenshotStreamer
 import me.rerere.rikkahub.data.repository.TelegramChatRepository
 import java.io.File
@@ -45,7 +46,10 @@ class TelegramBrowserScreenshotStreamer(
         // Telegram conversation — and there's nothing to send. That's not an error; just
         // the wrong streamer.
         val mapping = runCatching { chatRepo.getByConversationId(callerConvId) }
-            .onFailure { AppLog.w(TAG, "send: chatRepo.getByConversationId failed for $callerConvId", it) }
+            .onFailure {
+                if (it is CancellationException) throw it
+                AppLog.w(TAG, "send: chatRepo.getByConversationId failed for $callerConvId", it)
+            }
             .getOrNull() ?: return
 
         val file = File(screenshotPath)
@@ -59,7 +63,10 @@ class TelegramBrowserScreenshotStreamer(
             client.sendPhoto(mapping.chatId, file, caption)
             TelegramStreamSignal.noteScreenshot(callerConvId)
             AppLog.i(TAG, "send: posted browser screenshot ($actionLabel) to chat=${mapping.chatId} url=$currentUrl")
-        }.onFailure { AppLog.w(TAG, "send: sendPhoto failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "send: sendPhoto failed", it)
+        }
     }
 
     private fun buildCaption(actionLabel: String, currentUrl: String?): String {

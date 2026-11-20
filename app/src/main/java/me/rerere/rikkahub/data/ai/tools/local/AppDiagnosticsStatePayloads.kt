@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 import kotlinx.datetime.TimeZone
 import kotlinx.datetime.toInstant
@@ -49,7 +50,9 @@ import me.rerere.rikkahub.data.model.Avatar
  * 对齐规划 #6「配置真相」+ get_providers V1 读侧：AI 能看见自己配了什么，才能谈管理。
  */
 internal suspend fun appSettingsPayload(settingsStore: SettingsStore): String {
-        val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
+        val settings = runCatching { settingsStore.settingsFlow.first() }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
             ?: return "{\"error\":\"settings_unavailable\"}"
         // 模型索引：把 chatModelId（UUID）解析成「提供商 / 模型名」，否则 AI 只看到一串 id，
         // 无法判断自己跑在哪个模型上、成本与能力如何。
@@ -126,7 +129,9 @@ internal suspend fun assistantsPayload(
     params: JsonObject,
     invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
 ): String {
-    val settings = runCatching { settingsStore.settingsFlow.first() }.getOrNull()
+    val settings = runCatching { settingsStore.settingsFlow.first() }
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
         ?: return "{\"error\":\"settings_unavailable\"}"
     val onlyId = params.optString("assistant_id").orEmpty().trim()
     val full = params.optString("full")?.equals("true", ignoreCase = true) == true
@@ -593,13 +598,19 @@ private suspend fun resolveGenerationConversation(
 ): me.rerere.rikkahub.data.model.Conversation? {
     if (idRaw.isNotBlank()) {
         val uuid = runCatching { kotlin.uuid.Uuid.parse(idRaw) }.getOrNull() ?: return null
-        return runCatching { conversationRepo.getConversationById(uuid) }.getOrNull()
+        return runCatching { conversationRepo.getConversationById(uuid) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
     }
     invocationContext.callerConversationUuid?.let { callerUuid ->
-        runCatching { conversationRepo.getConversationById(callerUuid) }.getOrNull()?.let { return it }
+        runCatching { conversationRepo.getConversationById(callerUuid) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()?.let { return it }
     }
     val assistant = settings.resolveAssistantFor(invocationContext.callerAssistantUuid)
-    return runCatching { conversationRepo.getRecentConversations(assistant.id, 1).firstOrNull() }.getOrNull()
+    return runCatching { conversationRepo.getRecentConversations(assistant.id, 1).firstOrNull() }
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrNull()
 }
 
 internal suspend fun modelsPayload(

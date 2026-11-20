@@ -23,6 +23,7 @@ import coil3.compose.rememberAsyncImagePainter
 import com.dokar.sonner.ToastType
 import com.jvziyaoyao.scale.image.pager.ImagePager
 import com.jvziyaoyao.scale.zoomable.pager.rememberZoomablePagerState
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Download01
@@ -84,6 +85,7 @@ fun ImagePreviewDialog(
                                     type = ToastType.Success,
                                 )
                             }.onFailure {
+                                if (it is CancellationException) throw it
                                 AppLog.e("ImagePreviewDialog", "Failed to save image", it)
                                 toaster.show(
                                     message = saveFailedText,

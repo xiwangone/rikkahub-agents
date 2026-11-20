@@ -279,6 +279,7 @@ internal suspend fun TelegramBotService.sendChunked(
             runCatching {
                 client.sendMessage(chatId = chatId, text = notice, parseMode = null)
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TelegramBotService.TAG, "sendChunked: even the failure notice failed to deliver", it)
             }
         }

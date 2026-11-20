@@ -288,6 +288,8 @@ class DashScopeASRController(
                             throw IllegalStateException("AudioRecord read error: $read")
                         }
                     }
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    throw ce
                 } catch (e: Exception) {
                     AppLogger.e(TAG, "Audio recording failed", e)
                     setError(e.message ?: "Audio recording failed")

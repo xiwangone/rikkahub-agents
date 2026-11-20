@@ -6,6 +6,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.BatteryManager
 import android.os.Build
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -84,6 +85,7 @@ internal class BatteryTriggerFamily(
                     scope.launch(Dispatchers.IO) {
                         for ((wfId, spec) in fires) {
                             runCatching { callback.onFire(wfId, spec) }.onFailure {
+                                if (it is CancellationException) throw it
                                 AppLog.w(TAG, "battery fire failed for wf=$wfId", it)
                             }
                         }
@@ -107,6 +109,7 @@ internal class BatteryTriggerFamily(
                 if (level >= 0) prevLevel = (level * 100 / scale).coerceIn(0, 100)
             }
             AppLog.d(TAG, "battery: receiver registered, seed=$prevLevel%, ${matching.size} wf(s)")
+        // cancel-guard-ok: registerReceiver 非挂起，try 内无挂起点
         } catch (t: Throwable) {
             AppLog.w(TAG, "battery: registerReceiver failed", t)
         }

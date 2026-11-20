@@ -791,6 +791,8 @@ private fun ImageGalleryScreen(
                                                                     ),
                                                                 type = ToastType.Success,
                                                             )
+                                                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                                                            throw ce
                                                         } catch (e: Exception) {
                                                             toaster.show(
                                                                 message =

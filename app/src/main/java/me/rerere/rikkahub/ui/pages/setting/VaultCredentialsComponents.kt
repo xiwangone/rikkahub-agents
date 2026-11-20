@@ -40,6 +40,7 @@ import androidx.compose.ui.focus.onFocusChanged
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.drop
@@ -123,7 +124,9 @@ internal fun CredentialRow(
                             out.flush()
                         } ?: error("openOutputStream returned null")
                     }
-                }.isSuccess
+                }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .isSuccess
                 android.widget.Toast.makeText(
                     context,
                     resources.getString(if (ok) R.string.vault_keyexport_done else R.string.vault_keyexport_failed),

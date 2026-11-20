@@ -582,7 +582,10 @@ class ChatService(
      */
     suspend fun deleteConversation(conversationId: Uuid) {
         runCatching { stopGeneration(conversationId) }
-            .onFailure { AppLog.w(TAG, "deleteConversation: stopGeneration failed for $conversationId", it) }
+            .onFailure {
+                if (it is CancellationException) throw it
+                AppLog.w(TAG, "deleteConversation: stopGeneration failed for $conversationId", it)
+            }
         dropSession(conversationId)
         conversationRepo.getConversationById(conversationId)?.let { conversationRepo.deleteConversation(it) }
     }

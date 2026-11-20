@@ -7,6 +7,7 @@ import android.content.Context
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineExceptionHandler
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
@@ -260,6 +261,8 @@ class TelegramBotService : Service() {
             val cfg =
                 try {
                     prefs.current()
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (e: Throwable) {
                     prefsFailure = e
                     null
@@ -338,6 +341,8 @@ class TelegramBotService : Service() {
                         scope.launch {
                             try {
                                 handleIncoming(cfg, incoming)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (
                                 e: Throwable,
                             ) {
@@ -355,6 +360,8 @@ class TelegramBotService : Service() {
                         scope.launch {
                             try {
                                 handleCallbackQuery(cfg, cq)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (
                                 e: Throwable,
                             ) {
@@ -372,6 +379,8 @@ class TelegramBotService : Service() {
                         scope.launch {
                             try {
                                 handleMyChatMember(mcm)
+                            } catch (e: CancellationException) {
+                                throw e
                             } catch (
                                 e: Throwable,
                             ) {
@@ -408,6 +417,8 @@ class TelegramBotService : Service() {
                 // API during a flood-wait; otherwise fall back to exponential backoff.
                 val retryAfterMs = e.retryAfterSec?.let { it * 1000L + 1000L } ?: 0L
                 delay(maxOf(computeBackoffMs(consecutiveErrors), retryAfterMs))
+            } catch (e: CancellationException) {
+                throw e
             } catch (e: Throwable) {
                 AppLog.e(TAG, "pollLoop: unexpected error in cycle=$cycle", e)
                 consecutiveErrors++
@@ -415,6 +426,7 @@ class TelegramBotService : Service() {
             } finally {
                 try {
                     if (wakeLock?.isHeld == true) wakeLock.release()
+                // cancel-guard-ok: wakeLock.release 守卫，非挂起调用
                 } catch (t: Throwable) {
                     AppLog.w(TAG, "pollLoop: wakeLock release failed", t)
                 }
@@ -506,6 +518,7 @@ class TelegramBotService : Service() {
                     "external-gen-pump: convId=$convId → pushed ${text.length} chars to Telegram chat ${mapping.chatId}",
                 )
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w(TAG, "external-gen-pump: send failed for convId=$convId", it)
             }
         }

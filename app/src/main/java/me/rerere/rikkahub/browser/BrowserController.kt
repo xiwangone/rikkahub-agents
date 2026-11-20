@@ -3,6 +3,7 @@ package me.rerere.rikkahub.browser
 import android.graphics.Bitmap
 import android.graphics.Canvas
 import android.webkit.WebView
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -520,6 +521,7 @@ object BrowserController {
         val currentUrl = runCatching {
             withContext(Dispatchers.Main) { webView.url }
         }.onFailure {
+            if (it is CancellationException) throw it
             // A throw reading webView.url (StrictMode off-main-thread, destroyed WebView)
             // would otherwise vanish — the de-dupe check then treats the URL as null and
             // streams anyway. Log so the cause is recoverable from logcat.
@@ -563,7 +565,10 @@ object BrowserController {
                 }
                 Capture(out.absolutePath, currentUrl)
             }
-        }.onFailure { AppLog.w(TAG, "streamScreenshotIfHeadless: capture failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "streamScreenshotIfHeadless: capture failed", it)
+        }
             .getOrNull() ?: return
         // Record what we just streamed AFTER the bitmap path succeeds so a transient
         // capture failure doesn't lock out a subsequent attempt for the dedupe window.
@@ -575,7 +580,10 @@ object BrowserController {
         runCatching {
             (streamer ?: BrowserScreenshotStreamer.NoOp)
                 .send(m.callerConvId, capture.path, actionLabel, capture.url)
-        }.onFailure { AppLog.w(TAG, "streamScreenshotIfHeadless: streamer.send failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.w(TAG, "streamScreenshotIfHeadless: streamer.send failed", it)
+        }
     }
 }
 
@@ -655,6 +663,7 @@ suspend fun WebView.evaluateJavascriptAsync(code: String, timeoutMs: Long = 8_00
     withContext(Dispatchers.Main) {
         try {
             evaluateJavascript(code) { result -> deferred.complete(result) }
+        // cancel-guard-ok: WebView evaluateJavascript 非挂起，取消由 withContext 返回路径传播
         } catch (e: Exception) {
             // evaluateJavascript can throw if the WebView has been destroyed underneath
             // us (Activity finished, headless session stopped). Log so the cause is

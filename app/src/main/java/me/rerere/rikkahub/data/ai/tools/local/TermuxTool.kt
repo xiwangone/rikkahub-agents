@@ -293,7 +293,9 @@ internal suspend fun runCommandCapture(
             // lets Termux append its own extras to the intent it sends.
             PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_MUTABLE,
         )
+    // cancel-guard-ok: PendingIntent 创建非挂起
     } catch (t: Throwable) {
+        // cancel-guard-ok: PendingIntent 创建非挂起
         try { ctx.unregisterReceiver(receiver) } catch (_: Throwable) {}
         return CaptureResult.OtherError("PendingIntent creation failed: ${t.message}")
     }
@@ -350,10 +352,13 @@ internal suspend fun runCommandCapture(
         }
     } catch (t: SecurityException) {
         CaptureResult.Denied
+    // cancel-guard-ok: 非挂起调用，返回错误结果
     } catch (t: Throwable) {
         CaptureResult.OtherError(t.message ?: t::class.java.simpleName)
     } finally {
+        // cancel-guard-ok: 非挂起调用，返回错误结果
         try { ctx.unregisterReceiver(receiver) } catch (_: Throwable) {}
+        // cancel-guard-ok: unregisterReceiver 守卫，非挂起调用
         try { pi.cancel() } catch (_: Throwable) {}
     }
 }

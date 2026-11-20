@@ -130,6 +130,8 @@ internal suspend fun TelegramBotService.handleIncoming(
                         text = "⏳ A previous turn is still generating. Send /stop to cancel it.",
                         replyToMessageId = m.messageId,
                     )
+                } catch (e: CancellationException) {
+                    throw e
                 } catch (ignored: Throwable) {
                     // 「上一轮还在生成」的提示发不出去时记一条 w，否则用户收不到
                     // 提示、又不知道为什么没反应，时间线里也查不到。
@@ -391,6 +393,7 @@ private suspend fun TelegramBotService.tryLiveEditHtmlOrPlain(
     runCatching {
         client.editMessageText(chatId, placeholderId, cappedHtml, parseMode = PARSE_MODE_HTML) != null
     }.getOrElse {
+        if (it is CancellationException) throw it
         runCatching {
             client.editMessageText(
                 chatId,
@@ -398,7 +401,9 @@ private suspend fun TelegramBotService.tryLiveEditHtmlOrPlain(
                 TelegramHtmlRenderer.stripHtml(cappedHtml),
                 parseMode = null,
             ) != null
-        }.getOrDefault(false)
+        }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(false)
     }
 
 private fun TelegramBotService.dispatchPendingToolsForTelegram(

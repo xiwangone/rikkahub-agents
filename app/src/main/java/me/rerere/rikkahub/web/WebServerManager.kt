@@ -5,6 +5,7 @@ import me.rerere.rikkahub.data.log.AppLog
 import android.content.Context
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -118,10 +119,13 @@ class WebServerManager(
                             }
                         )
                     }.onFailure {
+                        if (it is CancellationException) throw it
                         AppLog.w(TAG, "NSD register failed", it)
                     }
                 }
                 AppLog.i(TAG, "Web server started successfully on $host:$port")
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to start web server", e)
                 _state.value = baseState.copy(error = e.message)
@@ -144,10 +148,13 @@ class WebServerManager(
                 runCatching {
                     nsdRegistrar.unregister()
                 }.onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.w(TAG, "NSD unregister failed", it)
                 }
                 _state.value = _state.value.copy(isLoading = false)
                 AppLog.i(TAG, "Web server stopped")
+            } catch (ce: kotlinx.coroutines.CancellationException) {
+                throw ce
             } catch (e: Exception) {
                 AppLog.e(TAG, "Failed to stop web server", e)
                 _state.value = _state.value.copy(isLoading = false, error = e.message)

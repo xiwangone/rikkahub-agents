@@ -29,6 +29,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
@@ -61,7 +62,10 @@ fun WorkspaceBackgroundTasksSheet(
             error = null
             runCatching { repository.listBackground(workspaceId) }
                 .onSuccess { tasks = it }
-                .onFailure { error = it.message ?: it.toString() }
+                .onFailure {
+                    if (it is CancellationException) throw it
+                    error = it.message ?: it.toString()
+                }
             loading = false
         }
     }
@@ -122,7 +126,10 @@ fun WorkspaceBackgroundTasksSheet(
                                     killingId = task.id
                                     scope.launch {
                                         runCatching { repository.killBackground(workspaceId, task.id) }
-                                            .onFailure { error = it.message ?: it.toString() }
+                                            .onFailure {
+                                                if (it is CancellationException) throw it
+                                                error = it.message ?: it.toString()
+                                            }
                                         killingId = null
                                         refresh()
                                     }

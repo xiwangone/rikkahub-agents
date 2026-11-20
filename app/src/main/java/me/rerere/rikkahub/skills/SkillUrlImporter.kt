@@ -61,6 +61,8 @@ class SkillUrlImporter(
 
         val raw = try {
             fetch(url)
+        } catch (ce: kotlinx.coroutines.CancellationException) {
+            throw ce
         } catch (t: Throwable) {
             return Result.Err("fetch_failed", t.message ?: "network error")
         }

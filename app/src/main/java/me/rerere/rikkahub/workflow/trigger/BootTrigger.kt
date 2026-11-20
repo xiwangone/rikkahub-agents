@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.workflow.trigger
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -54,6 +55,7 @@ internal class BootTriggerFamily(
                 for (wf in snap) {
                     if (wf.trigger !is TriggerSpec.BootCompleted) continue
                     runCatching { cb.onFire(wf.id, wf.trigger) }.onFailure {
+                        if (it is CancellationException) throw it
                         AppLog.w(TAG, "boot fire failed for wf=${wf.id}", it)
                     }
                 }
@@ -63,6 +65,7 @@ internal class BootTriggerFamily(
             for (wf in defs) {
                 if (wf.trigger !is TriggerSpec.BootCompleted) continue
                 runCatching { repoFire.onFire(wf.id, wf.trigger) }.onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.w(TAG, "boot fire failed for wf=${wf.id}", it)
                 }
             }

@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.tunnel
 
 import android.content.Context
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -42,7 +43,10 @@ object TunnelAutoStart {
      */
     private suspend fun restoreDesiredRunning(settingsStore: SettingsStore) {
         runCatching { settingsStore.awaitInitialized() }
-            .onFailure { AppLog.w(TAG, "restore skipped: settings not initialized: ${it.message}", it) }
+            .onFailure {
+                if (it is CancellationException) throw it
+                AppLog.w(TAG, "restore skipped: settings not initialized: ${it.message}", it)
+            }
         val enabled = settingsStore.settingsFlow.value.networkSetting.tailscaleEnabled
         if (enabled && !TsnetBridge.desiredRunning) {
             AppLog.i(TAG, "restore tunnel on app start (enabled=true)")

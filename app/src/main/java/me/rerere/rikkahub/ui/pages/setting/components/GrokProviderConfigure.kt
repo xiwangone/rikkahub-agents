@@ -31,6 +31,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
@@ -231,6 +232,7 @@ fun GrokProviderConfigure(
                         scope.launch {
                             runCatching { repository.refreshAccount(account.id) }
                                 .onFailure {
+                                    if (it is CancellationException) throw it
                                     toaster.show(
                                         it.message ?: context.getString(R.string.grok_refresh_failed),
                                         type = ToastType.Error,

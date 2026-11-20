@@ -121,6 +121,8 @@ class MiniMaxTTSProvider : TTSProvider<TTSProviderSetting.MiniMax> {
                                 ),
                             )
                             hasEmittedAudio = true
+                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                            throw ce
                         } catch (e: Exception) {
                             // A failed chunk is skipped, but never silently: count it so the
                             // terminal chunk records how much audio was lost to decode errors.

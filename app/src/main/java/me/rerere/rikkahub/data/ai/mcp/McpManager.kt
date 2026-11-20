@@ -166,7 +166,10 @@ class McpManager(
                         toAdd.forEach { cfg ->
                             appScope.launch {
                                 runCatching { addClient(cfg) }
-                                    .onFailure { AppLog.w(TAG, "addClient failed for ${cfg.commonOptions.name}", it) }
+                                    .onFailure {
+                                        if (it is CancellationException) throw it
+                                        AppLog.w(TAG, "addClient failed for ${cfg.commonOptions.name}", it)
+                                    }
                             }
                         }
                         toRemove.forEach { cfg ->
@@ -175,7 +178,10 @@ class McpManager(
                         toReplace.forEach { cfg ->
                             appScope.launch {
                                 runCatching { addClient(cfg) }
-                                    .onFailure { AppLog.w(TAG, "reconnect-on-edit failed for ${cfg.commonOptions.name}", it) }
+                                    .onFailure {
+                                        if (it is CancellationException) throw it
+                                        AppLog.w(TAG, "reconnect-on-edit failed for ${cfg.commonOptions.name}", it)
+                                    }
                             }
                         }
                     }.onFailure {
@@ -363,6 +369,7 @@ class McpManager(
             reconnectAttempts[config.id] = 0 // 重置重连计数
             AppLog.i(TAG, "addClient: connected ${config.commonOptions.name}")
         }.onFailure {
+            if (it is CancellationException) throw it
             AppLog.e(TAG, "addClient: connect failed for ${config.commonOptions.name}", it)
             if (needsAuthorization(config, it)) {
                 setStatus(config = config, status = McpStatus.NeedsAuthorization)
@@ -448,6 +455,7 @@ class McpManager(
                 // sync() rekeys clients for this id; serialize against add/remove/reconnect.
                 lockFor(config.id).withLock { sync(config) }
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.w(TAG, "syncAll: sync failed for ${config.commonOptions.name}", it)
                 if (needsAuthorization(config, it)) {
                     setStatus(config, McpStatus.NeedsAuthorization)

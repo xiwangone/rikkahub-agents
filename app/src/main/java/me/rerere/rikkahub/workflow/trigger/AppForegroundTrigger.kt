@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.workflow.trigger
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
@@ -78,6 +79,7 @@ internal class AppForegroundTriggerFamily(
         scope.launch(Dispatchers.IO) {
             for ((wfId, spec) in fires) {
                 runCatching { cb.onFire(wfId, spec) }.onFailure {
+                    if (it is CancellationException) throw it
                     AppLog.w(TAG, "app_foreground: fire failed for wf=$wfId", it)
                 }
             }

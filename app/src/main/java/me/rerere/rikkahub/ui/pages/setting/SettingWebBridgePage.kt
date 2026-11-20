@@ -33,6 +33,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
@@ -406,6 +407,7 @@ fun SettingWebBridgePage() {
                                                 )
                                             }
                                     }.onFailure { e ->
+                                        if (e is CancellationException) throw e
                                         keyInfo = context.getString(R.string.setting_web_bridge_gen_failed, e.message ?: "")
                                     }
                                 }

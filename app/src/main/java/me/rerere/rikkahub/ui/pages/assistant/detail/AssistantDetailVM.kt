@@ -3,6 +3,7 @@ package me.rerere.rikkahub.ui.pages.assistant.detail
 import androidx.core.net.toUri
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -287,6 +288,7 @@ class AssistantDetailVM(
                     tier = memory.tier,
                 )
             }.onFailure {
+                if (it is CancellationException) throw it
                 // The record may have been deleted (e.g. by the memory tool) between opening
                 // the editor and saving; don't crash the VM scope, the update is moot.
                 AppLog.e(TAG, "Failed to update memory #${memory.id}", it)
@@ -304,6 +306,7 @@ class AssistantDetailVM(
             runCatching {
                 memoryRepository.deleteMemory(memoryAssistantId, memory.id)
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "Failed to delete memory #${memory.id}", it)
             }
         }

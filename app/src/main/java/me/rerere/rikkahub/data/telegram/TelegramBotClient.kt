@@ -422,6 +422,7 @@ class TelegramBotClient(
                     }
                 }
             })
+            // cancel-guard-ok: 取消由 suspendCancellableCoroutine 的 cont.isActive 处理
             cont.invokeOnCancellation { try { cancel() } catch (_: Throwable) {} }
         }
     }

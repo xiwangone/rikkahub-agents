@@ -9,6 +9,7 @@ import androidx.core.net.toUri
 import java.io.File
 import java.net.HttpURLConnection
 import java.net.URL
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
@@ -634,6 +635,7 @@ class FilesManager(
                     )
                 )
             }.onFailure {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "trackManagedFile: Failed to track file ${file.absolutePath}", it)
                 Logging.log(
                     TAG,

@@ -133,6 +133,8 @@ class GeminiOAuthManager(
                                             awaitNetworkUnblocked()
                                             val account = exchangeCode(code, redirectUri)
                                             _status.value = GeminiOAuthStatus.Success(account.id)
+                                        } catch (ce: kotlinx.coroutines.CancellationException) {
+                                            throw ce
                                         } catch (error: Throwable) {
                                             AppLog.e(
                                                 TAG,

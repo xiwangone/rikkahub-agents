@@ -995,6 +995,8 @@ private suspend fun runOnHostOnce(
 ): JsonObject {
     val session = try {
         openSshSession(newJSch(context), h.host, h.port, targetUser, auth, timeoutMs, extraOptions = h.sshOptions)
+    } catch (ce: kotlinx.coroutines.CancellationException) {
+        throw ce
     } catch (e: Throwable) {
         return ToolErrors.envelopeFor(error = "tool_failed", message = "connect failed: ${e.message ?: "unknown"}")
     }

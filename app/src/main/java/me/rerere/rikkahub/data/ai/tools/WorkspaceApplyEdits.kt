@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonPrimitive
@@ -178,6 +179,7 @@ private suspend fun runApplyEdits(
             val entry = runCatching {
                 workspaceRepository.writeAbsoluteText(workspaceId, path, pair.first, overwrite = true)
             }.getOrElse { e ->
+                if (e is CancellationException) throw e
                 val rollbackFailures = rollbackToOriginals(workspaceId, workspaceRepository, writtenPaths + path, originals)
                 val rollbackNote = rollbackFailures
                     .takeIf { it.isNotEmpty() }
@@ -220,7 +222,10 @@ private suspend fun rollbackToOriginals(
         val original = originals[path] ?: continue
         runCatching {
             workspaceRepository.writeAbsoluteText(workspaceId, path, original, overwrite = true)
-        }.onFailure { failures += path }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            failures += path
+        }
     }
     return failures
 }
