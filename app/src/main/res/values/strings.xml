@@ -4355,6 +4355,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">Tunnel status unknown</string>
   <string name="tunnel_diag_detail_snapshot_not_running">Tunnel not running</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">Peer has no MagicDNS record, cannot resolve</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">Custom control plane: built-in DNS is not used</string>
   <string name="tunnel_diag_detail_peer_no_ip">Peer has no tailnet IP</string>
   <string name="tunnel_diag_detail_check_error">Check error: %1$s</string>
   <string name="tunnel_diag_detail_unknown_error">Unknown error</string>

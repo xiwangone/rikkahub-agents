@@ -4270,6 +4270,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">隧道狀態未知</string>
   <string name="tunnel_diag_detail_snapshot_not_running">隧道未執行</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">對端缺少 MagicDNS 記錄，無法解析</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">自訂控制面：不使用內建 DNS</string>
   <string name="tunnel_diag_detail_peer_no_ip">對端無尾網 IP</string>
   <string name="tunnel_diag_detail_check_error">檢查異常：%1$s</string>
   <string name="tunnel_diag_detail_unknown_error">未知錯誤</string>

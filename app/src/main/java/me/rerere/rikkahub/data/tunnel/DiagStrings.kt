@@ -54,6 +54,7 @@ private val RES_IDS: Map<DiagStringKey, Int> = mapOf(
     DiagStringKey.SNAPSHOT_UNKNOWN to R.string.tunnel_diag_detail_snapshot_unknown,
     DiagStringKey.SNAPSHOT_NOT_RUNNING to R.string.tunnel_diag_detail_snapshot_not_running,
     DiagStringKey.MAGIC_MISSING_RESOLVE to R.string.tunnel_diag_detail_magic_missing_resolve,
+    DiagStringKey.MAGIC_DNS_CUSTOM_SKIP to R.string.tunnel_diag_detail_magic_dns_custom_skip,
     DiagStringKey.PEER_NO_IP to R.string.tunnel_diag_detail_peer_no_ip,
     DiagStringKey.CHECK_ERROR to R.string.tunnel_diag_detail_check_error,
     DiagStringKey.UNKNOWN_ERROR to R.string.tunnel_diag_detail_unknown_error,

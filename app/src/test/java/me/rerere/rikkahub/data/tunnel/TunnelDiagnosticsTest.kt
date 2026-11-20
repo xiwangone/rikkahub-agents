@@ -81,6 +81,7 @@ class TunnelDiagnosticsTest {
             DiagStringKey.DNS_PROXY_FAIL -> "建立 DNS 代理失败"
             DiagStringKey.RESOLVE_TRANSPORT_ERROR -> "解析失败（传输错误%1\$s）"
             DiagStringKey.PROXY_FAIL -> "建立代理失败"
+            DiagStringKey.MAGIC_DNS_CUSTOM_SKIP -> "自定义控制面：不使用内置 DNS"
             DiagStringKey.STATUS_PASS -> "通过"
             DiagStringKey.STATUS_FAIL -> "失败"
             DiagStringKey.STATUS_SKIP -> "跳过"

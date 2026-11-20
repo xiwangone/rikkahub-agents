@@ -4271,6 +4271,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">トンネル状態が不明です</string>
   <string name="tunnel_diag_detail_snapshot_not_running">トンネルが実行されていません</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">ピアに MagicDNS レコードがなく、解決できません</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">カスタムコントロールプレーン：組み込み DNS は使用しません</string>
   <string name="tunnel_diag_detail_peer_no_ip">ピアにテールネット IP がありません</string>
   <string name="tunnel_diag_detail_check_error">チェックで異常が発生しました：%1$s</string>
   <string name="tunnel_diag_detail_unknown_error">不明なエラー</string>

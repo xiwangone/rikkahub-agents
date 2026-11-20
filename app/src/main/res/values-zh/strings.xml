@@ -4355,6 +4355,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">隧道状态未知</string>
   <string name="tunnel_diag_detail_snapshot_not_running">隧道未运行</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">对端缺少 MagicDNS 记录，无法解析</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">自定义控制面：不使用内置 DNS</string>
   <string name="tunnel_diag_detail_peer_no_ip">对端无尾网 IP</string>
   <string name="tunnel_diag_detail_check_error">检查异常：%1$s</string>
   <string name="tunnel_diag_detail_unknown_error">未知错误</string>

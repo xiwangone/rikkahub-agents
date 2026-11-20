@@ -579,8 +579,15 @@ private fun TopBarTunnelPeerLabel() {
     val peer = status?.peers?.firstOrNull { it.online && it.active } ?: return
     val isDirect = peer.curAddr.isNotBlank()
     if (!isDirect && peer.relay.isBlank()) return
-    val name = peer.hostName.ifBlank { peer.dnsName }
-    val pathSuffix = if (isDirect) " (p2p)" else " (relay)"
+    // 顶栏空间小：优先控制面给的终端名（MagicDNS 名第一段），主机名兜底。
+    val name = peer.dnsName.trimEnd('.').substringBefore('.').ifBlank { peer.hostName }
+    // 与卡片/弹窗共用同一套路径资源；中继不带区域名（区域主机名过长会挤掉设备名）。
+    val pathLabel = if (isDirect) {
+        stringResource(R.string.tunnel_path_direct)
+    } else {
+        stringResource(R.string.tunnel_path_relay, "").trim()
+    }
+    val pathSuffix = " ($pathLabel)"
     // 圆点色与设备列表共用 tunnelPeerDotColor：绿=直连 / 黄=中继。
     val dotColor = tunnelPeerDotColor(peer)
     Row(
@@ -827,7 +834,7 @@ private fun TopBarTunnelStatusBadge(
                                                 .background(tunnelPeerDotColor(peer)),
                                         )
                                         Text(
-                                            text = peer.hostName.ifBlank { peer.dnsName },
+                                            text = peer.dnsName.trimEnd('.').substringBefore('.').ifBlank { peer.hostName },
                                             style = MaterialTheme.typography.labelMedium,
                                             maxLines = 1,
                                             overflow = TextOverflow.Ellipsis,

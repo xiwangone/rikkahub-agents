@@ -4275,6 +4275,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">Состояние туннеля неизвестно</string>
   <string name="tunnel_diag_detail_snapshot_not_running">Туннель не работает</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">У пира нет записи MagicDNS, разрешить невозможно</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">Собственная панель управления: встроенный DNS не используется</string>
   <string name="tunnel_diag_detail_peer_no_ip">У пира нет IP в тейлнете</string>
   <string name="tunnel_diag_detail_check_error">Ошибка проверки: %1$s</string>
   <string name="tunnel_diag_detail_unknown_error">Неизвестная ошибка</string>

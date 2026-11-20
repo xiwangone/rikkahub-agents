@@ -4271,6 +4271,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">터널 상태 알 수 없음</string>
   <string name="tunnel_diag_detail_snapshot_not_running">터널이 실행 중이 아님</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">피어에 MagicDNS 레코드가 없어 확인할 수 없음</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">사용자 지정 컨트롤 플레인: 내장 DNS를 사용하지 않음</string>
   <string name="tunnel_diag_detail_peer_no_ip">피어에 테일넷 IP가 없음</string>
   <string name="tunnel_diag_detail_check_error">검사 오류: %1$s</string>
   <string name="tunnel_diag_detail_unknown_error">알 수 없는 오류</string>

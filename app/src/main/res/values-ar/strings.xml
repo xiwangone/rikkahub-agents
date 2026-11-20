@@ -4278,6 +4278,7 @@
   <string name="tunnel_diag_detail_snapshot_unknown">حالة النفق غير معروفة</string>
   <string name="tunnel_diag_detail_snapshot_not_running">النفق غير مشغّل</string>
   <string name="tunnel_diag_detail_magic_missing_resolve">النظير ليس لديه سجل MagicDNS، يتعذّر الحل</string>
+  <string name="tunnel_diag_detail_magic_dns_custom_skip">لوحة تحكم مخصصة: لا يتم استخدام DNS المدمج</string>
   <string name="tunnel_diag_detail_peer_no_ip">النظير ليس لديه عنوان IP داخل الشبكة</string>
   <string name="tunnel_diag_detail_check_error">خطأ في الفحص: %1$s</string>
   <string name="tunnel_diag_detail_unknown_error">خطأ غير معروف</string>

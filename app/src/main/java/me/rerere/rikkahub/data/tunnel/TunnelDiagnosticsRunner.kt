@@ -100,12 +100,21 @@ class TunnelDiagnosticsRunner(
             else -> decideMagicDns(strings, target)
         }
 
+    /**
+     * 是否官方 Tailscale 控制面：控制面 URL 留空即用默认官方地址，填了就是自建控制面。
+     * 内置 DNS（100.100.100.100）只有官方提供，自建控制面一律没有。
+     */
+    private fun usesOfficialControlPlane(): Boolean =
+        settingsStore.settingsFlow.value.networkSetting.tailscaleControlUrl.isBlank()
+
     private suspend fun magicDnsResolveDecision(
         snapshot: DiagSnapshot?,
         target: DiagPeer?,
     ): Pair<DiagStatus, String> = when {
         snapshot == null -> DiagStatus.SKIP to strings.get(DiagStringKey.SNAPSHOT_UNKNOWN)
         !snapshot.running -> DiagStatus.SKIP to strings.get(DiagStringKey.SNAPSHOT_NOT_RUNNING)
+        // 内置 DNS（100.100.100.100）只在官方 Tailscale 提供；自建控制面不下发，探测必然超时。
+        !usesOfficialControlPlane() -> DiagStatus.SKIP to strings.get(DiagStringKey.MAGIC_DNS_CUSTOM_SKIP)
         target == null -> DiagStatus.SKIP to strings.get(DiagStringKey.NO_PEER)
         target.dnsName.isBlank() || target.firstIpv4().isBlank() ->
             DiagStatus.SKIP to strings.get(DiagStringKey.MAGIC_MISSING_RESOLVE)

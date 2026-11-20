@@ -350,14 +350,20 @@ class SshWorkspaceBackend(
     fun openShell(columns: Int, rows: Int): SshShell =
         pool.openShell(id, config) { connection, onClose ->
             connection.ensureDir(workspaceDir)
-            // 外层交给探测到的 POSIX shell 解析, 再 exec 用户自己的登录 shell ($SHELL 缺失时退回探测结果)
-            val remoteCommand = listOf(
-                connection.shell,
-                "-c",
-                "cd -- \"\$1\"; exec \"\${SHELL:-\$0}\" -l",
-                connection.shell,
-                workspaceDir,
-            ).joinToString(" ") { it.shellQuote() }
+            // POSIX：外层交给探测到的 shell 解析，再 exec 用户的登录 shell（$SHELL 缺失时退回探测结果）
+            // Windows：没有 /bin/sh，直接让 pwsh 切到工作目录（路径去掉 POSIX 化前缀 /C:/… → C:/…）
+            val remoteCommand = if (isWindows) {
+                val winDir = workspaceDir.trim().removePrefix("/")
+                "pwsh -NoLogo -NoProfile -Command \"Set-Location -LiteralPath '$winDir'\""
+            } else {
+                listOf(
+                    connection.shell,
+                    "-c",
+                    "cd -- \"\$1\"; exec \"\${SHELL:-\$0}\" -l",
+                    connection.shell,
+                    workspaceDir,
+                ).joinToString(" ") { it.shellQuote() }
+            }
             connection.openShell(remoteCommand, columns, rows, onClose)
         }
 
