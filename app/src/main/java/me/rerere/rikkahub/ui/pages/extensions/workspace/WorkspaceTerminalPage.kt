@@ -65,6 +65,7 @@ import me.rerere.hugeicons.stroke.Clock02
 import me.rerere.hugeicons.stroke.ComputerTerminal01
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.ColorMode
@@ -503,7 +504,9 @@ private fun WorkspaceTerminalTabContent(
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
-    val terminalTextSizePx = with(LocalDensity.current) { 14.sp.roundToPx() }
+    val terminalTextSizePx = with(LocalDensity.current) {
+        LocalSettings.current.displaySetting.terminalTextSize.sp.roundToPx()
+    }
     val terminalTypeface =
         remember(context) {
             ResourcesCompat.getFont(context, R.font.jetbrains_mono) ?: Typeface.MONOSPACE

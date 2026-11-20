@@ -847,6 +847,7 @@
   <string name="setting_display_page_enable_message_generation_haptic_effect_title">اهتزاز توليد الرسائل</string>
   <string name="setting_display_page_font_size_preview">في الرابعة صباحًا، رأيت أزهار البيغونيا لا تزال مستيقظة. كثيرًا ما أكون هكذا — مستلقيًا مستيقظًا وحدي في الليل الهادئ، أفكّر: لو أن أحدًا يفكّر فيّ في هذه اللحظة، لكان ذلك رائعًا.</string>
   <string name="setting_display_page_font_size_title">حجم خط الدردشة</string>
+  <string name="setting_display_page_terminal_text_size_title">حجم خط الطرفية</string>
   <string name="setting_display_page_live_update_notification">إشعار التحديث المباشر</string>
   <string name="setting_display_page_live_update_notification_desc">عرض تحديثات إشعار في الوقت الفعلي أثناء توليد الرسالة (Android 15+)</string>
   <string name="setting_display_page_message_jumper_position_desc">نقل أداة الانتقال بين الرسائل إلى الجانب الأيسر</string>

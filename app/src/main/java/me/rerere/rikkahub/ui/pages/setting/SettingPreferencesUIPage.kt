@@ -334,6 +334,26 @@ fun SettingPreferencesUIPage(vm: SettingVM = koinViewModel()) {
                             steps = 11,
                             modifier = Modifier.fillMaxWidth(),
                         )
+                    formItem(
+                        headlineContent = { Text(stringResource(R.string.setting_display_page_terminal_text_size_title)) },
+                        trailingContent = { CardGroupValue("${displaySetting.terminalTextSize} sp") },
+                    ) {
+                        Slider(
+                            value = displaySetting.terminalTextSize.toFloat(),
+                            onValueChange = {
+                                displaySetting = displaySetting.copy(terminalTextSize = it.toInt())
+                            },
+                            onValueChangeFinished = {
+                                val target = displaySetting.terminalTextSize
+                                vm.updateSettings { current ->
+                                    current.copy(displaySetting = current.displaySetting.copy(terminalTextSize = target))
+                                }
+                            },
+                            valueRange = 10f..24f,
+                            steps = 13,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                    }
                         Surface(
                             modifier = Modifier.fillMaxWidth(),
                             shape = MaterialTheme.shapes.large,

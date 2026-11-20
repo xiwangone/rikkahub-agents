@@ -72,6 +72,7 @@ import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.pages.extensions.workspace.HostKeyConfirmDialog
 import me.rerere.rikkahub.ui.pages.extensions.workspace.WorkspaceTerminalSessionClient
@@ -145,7 +146,9 @@ fun SshTerminalPage(hostName: String) {
     var altDown by remember { mutableStateOf(false) }
     viewClient.controlDown = controlDown
     viewClient.altDown = altDown
-    val terminalTextSizePx = with(LocalDensity.current) { 14.sp.roundToPx() }
+    val terminalTextSizePx = with(LocalDensity.current) {
+        LocalSettings.current.displaySetting.terminalTextSize.sp.roundToPx()
+    }
     val terminalTypeface =
         remember(appContext) {
             ResourcesCompat.getFont(appContext, R.font.jetbrains_mono) ?: Typeface.MONOSPACE

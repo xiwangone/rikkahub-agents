@@ -429,6 +429,8 @@ data class DisplaySetting(
     val showMessageJumper: Boolean = true,
     val messageJumperOnLeft: Boolean = false,
     val fontSizeRatio: Float = 1.0f,
+    /** 终端字号（sp），10–24，默认 14。 */
+    val terminalTextSize: Int = 14,
     val enableMessageGenerationHapticEffect: Boolean = false,
     val skipCropImage: Boolean = true,
     val enableNotificationOnMessageGeneration: Boolean = false,
