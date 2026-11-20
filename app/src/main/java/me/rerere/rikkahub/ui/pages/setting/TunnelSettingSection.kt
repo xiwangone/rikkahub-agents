@@ -48,6 +48,7 @@ import com.dokar.sonner.ToastType
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Global
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.browser.BrowserActivity
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.log.AppLog
@@ -60,6 +61,7 @@ import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import org.koin.compose.koinInject
 
@@ -81,6 +83,7 @@ fun TunnelSettingSection(vm: SettingVM) {
     @Suppress("DEPRECATION")
     val clipboard = LocalClipboardManager.current
     val toaster = LocalToaster.current
+    val nav = LocalNavController.current
     val scope = rememberCoroutineScope()
     val vaultRepository: CredentialVaultRepository = koinInject()
     // 隧道认证密钥解析也要过会话授权门（LOCAL_USE 自 df5ad9c71 起必须授权）：
@@ -548,6 +551,15 @@ fun TunnelSettingSection(vm: SettingVM) {
                     value = exitNodeLabel(nodeStatus, exitNode, stringResource(R.string.tunnel_exit_node_none)),
                     onClick = { showExitPicker = true },
                 )
+                HorizontalDivider()
+                TunnelRow(
+                    title = stringResource(R.string.tunnel_diag_title),
+                    value = "",
+                    onClick = {
+                        showDetail = false
+                        nav.navigate(Screen.TunnelDiagnostics)
+                    },
+                )
             }
         }
     }
@@ -857,6 +869,7 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
         }
         TunnelStatus(
             running = o.optBoolean("running"),
+            backendState = o.optString("backendState"),
             selfIps = selfIps,
             dnsName = o.optString("dnsName"),
             hostName = o.optString("hostName"),

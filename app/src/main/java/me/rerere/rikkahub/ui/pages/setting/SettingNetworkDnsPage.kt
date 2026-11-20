@@ -239,26 +239,34 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                             horizontalArrangement = Arrangement.spacedBy(6.dp),
                             modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                         ) {
-                            AppDnsResolver.PRESETS.forEach { preset ->
-                                val selected = when (dnsDraft.draft.mode) {
-                                    NetworkSetting.DNS_MODE_DOH -> dnsDraft.draft.dohUrl.trim() == preset.dohUrl
-                                    NetworkSetting.DNS_MODE_DOT -> dnsDraft.draft.dotHost.trim() == preset.dotHost
-                                    else -> dnsDraft.draft.customServers.trim() == preset.bootstrapIps
+                            AppDnsResolver.PRESETS
+                                .filter { !it.customOnly || dnsDraft.draft.mode == NetworkSetting.DNS_MODE_CUSTOM }
+                                .forEach { preset ->
+                                    val selected = when (dnsDraft.draft.mode) {
+                                        NetworkSetting.DNS_MODE_DOH -> dnsDraft.draft.dohUrl.trim() == preset.dohUrl
+                                        NetworkSetting.DNS_MODE_DOT -> dnsDraft.draft.dotHost.trim() == preset.dotHost
+                                        else -> dnsDraft.draft.customServers.trim() == preset.bootstrapIps
+                                    }
+                                    FilterChip(
+                                        selected = selected,
+                                        onClick = {
+                                            dnsDraft.edit {
+                                                it.copy(
+                                                    dohUrl = preset.dohUrl,
+                                                    dotHost = preset.dotHost,
+                                                    customServers = preset.bootstrapIps,
+                                                )
+                                            }
+                                        },
+                                        label = {
+                                            if (preset.id == AppDnsResolver.TAILNET_PRESET_ID) {
+                                                Text(stringResource(R.string.dns_preset_tailnet))
+                                            } else {
+                                                Text(preset.label)
+                                            }
+                                        },
+                                    )
                                 }
-                                FilterChip(
-                                    selected = selected,
-                                    onClick = {
-                                        dnsDraft.edit {
-                                            it.copy(
-                                                dohUrl = preset.dohUrl,
-                                                dotHost = preset.dotHost,
-                                                customServers = preset.bootstrapIps,
-                                            )
-                                        }
-                                    },
-                                    label = { Text(preset.label) },
-                                )
-                            }
                         }
                     }
 

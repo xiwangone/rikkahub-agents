@@ -28,6 +28,7 @@ import (
 
 	"tailscale.com/ipn"
 	"tailscale.com/net/netmon"
+	"tailscale.com/tailcfg"
 	"tailscale.com/tsnet"
 )
 
@@ -525,6 +526,39 @@ func StatusJSON() string {
 		out["exitNodeIP"] = prefs.ExitNodeIP.String()
 	}
 	return marshalJSON(out)
+}
+
+// PingPeer sends one TSMP ping to a tailnet address and returns the
+// round-trip latency in milliseconds. The 10s budget covers DERP fallback
+// when no direct path exists; the caller adds its own timeout on top.
+func PingPeer(ip string) (int64, error) {
+	mu.Lock()
+	s := srv
+	mu.Unlock()
+	if s == nil {
+		return 0, errors.New("tsnet: not started")
+	}
+	addr, err := netip.ParseAddr(ip)
+	if err != nil {
+		return 0, err
+	}
+	lc, err := s.LocalClient()
+	if err != nil {
+		return 0, err
+	}
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Second)
+	defer cancel()
+	res, err := lc.Ping(ctx, addr, tailcfg.PingTSMP)
+	if err != nil {
+		return 0, err
+	}
+	if res == nil {
+		return 0, errors.New("tsnet: empty ping result")
+	}
+	if res.Err != "" {
+		return 0, errors.New(res.Err)
+	}
+	return int64(res.LatencySeconds * 1000), nil
 }
 
 // SetAcceptRoutes turns acceptance of peers' subnet routes on or off

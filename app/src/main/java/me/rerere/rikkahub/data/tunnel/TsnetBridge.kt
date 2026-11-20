@@ -327,6 +327,15 @@ object TsnetBridge {
             .getOrNull()
     }
 
+    /**
+     * 对尾网地址发一次 TSMP Ping，返回往返时延（毫秒）。
+     * 阻塞调用（Go 侧 10 秒预算），调用方须自行包 withTimeoutOrNull。
+     */
+    suspend fun pingPeerBlocking(ip: String): Result<Long> = withContext(Dispatchers.IO) {
+        runCatching { Tsnetlib.pingPeer(ip) }
+            .onFailure { AppLog.e(TAG, "pingPeer($ip) failed: ${it.message}", it) }
+    }
+
     /** 退出登录：服务端使该节点失效，随后停止隧道。 */
     /**
      * 退出登录：与 [stop] 同口径收尾 —— 必须清掉 desiredRunning，否则守护循环

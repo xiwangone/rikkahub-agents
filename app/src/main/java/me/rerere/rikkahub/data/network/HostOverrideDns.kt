@@ -56,8 +56,16 @@ class HostOverrideDns(
             .toList()
         if (fixed.isNotEmpty()) return fixed
 
-        // Tailscale 隧道开启时，MagicDNS (*.ts.net) 域名合成占位地址交给 TsnetSocketFactory 在拨号阶段走隧道直连
+        // Tailscale 隧道开启时，MagicDNS (*.ts.net) 域名：
+        // 用户选了「尾网 DNS」预设时先走尾网 DNS 真解析，拿到真实 tailnet IP；
+        // 查不到 / 超时 / 异常时回退合成占位地址（原有行为），拨号阶段仍由 TsnetSocketFactory 按主机名走隧道直连。
         if (TsnetBridge.isRunning && isTailnetMagicDnsHost(cleanHost)) {
+            if (usesTailnetDns(networkSetting)) {
+                val real = runCatching {
+                    AppDnsResolver.resolve(cleanHost, networkSetting, fallbackDns = Dns { emptyList() })
+                }.getOrNull()?.firstOrNull()
+                if (real != null) return listOf(real)
+            }
             return listOf(
                 InetAddress.getByAddress(cleanHost, byteArrayOf(100, 64, 0, 1)),
             )

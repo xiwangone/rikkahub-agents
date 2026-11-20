@@ -21,6 +21,7 @@ import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationVM
 import me.rerere.rikkahub.ui.pages.mediacreation.MediaCreationSessionsVM
 import me.rerere.rikkahub.ui.pages.search.SearchVM
 import me.rerere.rikkahub.ui.pages.setting.SettingVM
+import me.rerere.rikkahub.ui.pages.setting.TunnelDiagnosticsViewModel
 import me.rerere.rikkahub.ui.pages.setting.browser.SettingBrowserViewModel
 import me.rerere.rikkahub.ui.pages.setting.doctor.DoctorViewModel
 import me.rerere.rikkahub.ui.pages.setting.locallm.SettingLocalLlmViewModel
@@ -115,6 +116,7 @@ val viewModelModule =
         viewModelOf(::ScheduledJobsViewModel)
         viewModelOf(::DoctorViewModel)
         viewModelOf(::SettingBrowserViewModel)
+        viewModelOf(::TunnelDiagnosticsViewModel)
         viewModelOf(::SettingTermuxViewModel)
 
         // Phase 22A: parameterised by LocalRuntime — one VM instance per provider tile.

@@ -2,6 +2,7 @@ package me.rerere.rikkahub.data.network
 
 import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.rikkahub.data.datastore.NetworkSetting
+import me.rerere.rikkahub.data.tunnel.TsnetBridge
 import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -54,12 +55,20 @@ object AppDnsResolver {
     const val QTYPE_A = 1
     const val QTYPE_AAAA = 28
 
+    /** Tailscale 内置 DNS：只经隧道可达，直连永远不通。 */
+    const val TAILNET_DNS_SERVER = "100.100.100.100"
+
+    /** 「尾网 DNS」预设 id。 */
+    const val TAILNET_PRESET_ID = "tailnet"
+
     data class DnsPreset(
         val id: String,
         val label: String,
         val dohUrl: String,
         val dotHost: String,
         val bootstrapIps: String,
+        /** 只在自定义直连模式下提供：该服务器没有 DoH / DoT 端点。 */
+        val customOnly: Boolean = false,
     )
 
     val PRESETS: List<DnsPreset> = listOf(
@@ -104,6 +113,14 @@ object AppDnsResolver {
             dohUrl = "https://dns.adguard-dns.com/dns-query",
             dotHost = "dns.adguard-dns.com",
             bootstrapIps = "94.140.14.14, 94.140.15.15",
+        ),
+        DnsPreset(
+            id = TAILNET_PRESET_ID,
+            label = "Tailnet DNS (100.100.100.100)",
+            dohUrl = "",
+            dotHost = "",
+            bootstrapIps = TAILNET_DNS_SERVER,
+            customOnly = true,
         ),
     )
 
@@ -268,6 +285,15 @@ object AppDnsResolver {
         requestedHost: String = "",
     ): DnsParsedPacket? = parseDnsWireResponse(expectedId, buf, length, requestedHost)
 }
+
+/** [serverIp] 是否为尾网 DNS 服务器（须经隧道 proxy 路由，不可直连）。 */
+internal fun isTailnetDnsServer(serverIp: String): Boolean =
+    serverIp.trim() == AppDnsResolver.TAILNET_DNS_SERVER
+
+/** 当前 DNS 配置是否走尾网 DNS（自定义直连模式 + 服务器含 100.100.100.100）。 */
+internal fun usesTailnetDns(setting: NetworkSetting): Boolean =
+    setting.dnsMode == NetworkSetting.DNS_MODE_CUSTOM &&
+        AppDnsResolver.parseServerList(setting.customDnsServers).contains(AppDnsResolver.TAILNET_DNS_SERVER)
 
 private fun dnsConfigKey(setting: NetworkSetting): String =
     "${setting.dnsMode}|${setting.dohUrl.trim()}|${setting.dotHost.trim()}|${setting.customDnsServers.trim()}|${setting.dnsEnableIpv6}"
@@ -489,6 +515,10 @@ private fun queryDnsUdpOrTcp(
     timeoutMs: Int = 2_500,
 ): AppDnsResolver.DnsParsedPacket? {
     val serverAddr = parseFixedAddress(serverIp) ?: return null
+    // 尾网 DNS 只经隧道可达：直连 100.100.100.100 永远不通，须经隧道 proxy 路由。
+    if (isTailnetDnsServer(serverIp)) {
+        return queryDnsViaTailnetProxy(domain, qtype, timeoutMs)
+    }
     val txid = Random.nextInt(1, 0xFFFF)
     val query = buildDnsWireQuery(txid, domain, qtype)
     val udpResult = runCatching {
@@ -532,6 +562,25 @@ private fun queryDnsTcp(
         input.readFully(buf)
         return parseDnsWireResponse(txid, buf, respLen, domain)
     }
+}
+
+/**
+ * 经隧道 proxy 向尾网 DNS 发 TCP 查询（与诊断 1.6b 同口径：2 字节长度前缀 + [AppDnsResolver.buildQuery] / [AppDnsResolver.parseResponse]）。
+ * 隧道未运行时返回 null，由调用方走下一服务器 / 回退。代理端口不主动关闭：DNS 查询高频，
+ * 复用已建端口（隧道停止时缓存随之清空）。
+ */
+private fun queryDnsViaTailnetProxy(
+    domain: String,
+    qtype: Int,
+    timeoutMs: Int,
+): AppDnsResolver.DnsParsedPacket? {
+    val localPort = TsnetBridge.proxyToBlocking(AppDnsResolver.TAILNET_DNS_SERVER, 53) ?: return null
+    val txid = Random.nextInt(1, 0xFFFF)
+    val query = buildDnsWireQuery(txid, domain, qtype)
+    val loopback = InetAddress.getByAddress(byteArrayOf(127, 0, 0, 1))
+    return runCatching {
+        queryDnsTcp(loopback, localPort, txid, query, domain, timeoutMs)
+    }.getOrNull()
 }
 
 private fun buildDnsWireQuery(

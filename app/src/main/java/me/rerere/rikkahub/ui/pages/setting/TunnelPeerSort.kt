@@ -30,6 +30,8 @@ internal data class TunnelPeer(
 /** tsnet 状态快照（来自 TsnetBridge.statusJson）。 */
 internal data class TunnelStatus(
     val running: Boolean = false,
+    /** Go 侧 Status.BackendState（如 Running）；1.1 判定用它区分“已启动但未就绪”。 */
+    val backendState: String = "",
     val selfIps: List<String> = emptyList(),
     val dnsName: String = "",
     /** 控制面侧的终端名称（控制台可改；本机只读展示）。 */

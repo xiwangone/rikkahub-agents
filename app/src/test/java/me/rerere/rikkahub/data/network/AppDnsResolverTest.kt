@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.data.network
 
+import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -94,5 +95,53 @@ class AppDnsResolverTest {
         assertTrue(TsnetBridge.isTailnetAddress("fd7a:115c:a1e0::1234"))
         assertTrue(TsnetBridge.isTailnetAddress("my-node.tail1234.ts.net"))
         assertFalse(TsnetBridge.isTailnetAddress("example.com"))
+    }
+
+    @Test
+    fun `tailnet DNS server is recognized by exact address only`() {
+        assertTrue(isTailnetDnsServer("100.100.100.100"))
+        assertTrue(isTailnetDnsServer("  100.100.100.100  "))
+        assertFalse(isTailnetDnsServer("100.100.100.101"))
+        assertFalse(isTailnetDnsServer("1.1.1.1"))
+        assertFalse(isTailnetDnsServer(""))
+    }
+
+    @Test
+    fun `tailnet DNS is used only in custom mode with the server in the list`() {
+        val tailnetOnly = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_CUSTOM,
+            customDnsServers = "100.100.100.100",
+        )
+        assertTrue(usesTailnetDns(tailnetOnly))
+
+        val mixed = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_CUSTOM,
+            customDnsServers = "1.1.1.1, 100.100.100.100",
+        )
+        assertTrue(usesTailnetDns(mixed))
+
+        val otherCustom = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_CUSTOM,
+            customDnsServers = "1.1.1.1, 8.8.8.8",
+        )
+        assertFalse(usesTailnetDns(otherCustom))
+
+        val dohWithTailnetBootstrap = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_DOH,
+            customDnsServers = "100.100.100.100",
+        )
+        assertFalse(usesTailnetDns(dohWithTailnetBootstrap))
+
+        val system = NetworkSetting(dnsMode = NetworkSetting.DNS_MODE_SYSTEM)
+        assertFalse(usesTailnetDns(system))
+    }
+
+    @Test
+    fun `tailnet preset is present with the tailnet DNS server and custom-only`() {
+        val presets = AppDnsResolver.PRESETS.filter { it.id == AppDnsResolver.TAILNET_PRESET_ID }
+        assertEquals(1, presets.size)
+        val preset = presets.first()
+        assertEquals("100.100.100.100", preset.bootstrapIps)
+        assertTrue(preset.customOnly)
     }
 }
