@@ -105,7 +105,10 @@ fun buildStatusCommand(tasks: List<RemoteBackgroundTask>): String {
                 "echo '__RIKKAHUB_BG_TASK_END__'; }"
         } else {
             "{ echo '__RIKKAHUB_BG_TASK_BEGIN__ ${task.id}'; " +
-            "if kill -0 ${task.pid} 2>/dev/null; then echo 'BG_STATUS=RUNNING'; " +
+            // 先认退出码文件：命令跑完就写它，而进程退出后可能长时间停在僵尸态
+            //（父进程未回收时 kill -0 仍返回成功）—— 只按 kill -0 判会永远 RUNNING。
+            "if [ -s ${task.exitPath.bgShellQuote()} ]; then echo 'BG_STATUS=EXITED'; " +
+            "elif kill -0 ${task.pid} 2>/dev/null; then echo 'BG_STATUS=RUNNING'; " +
             "else echo 'BG_STATUS=EXITED'; fi; " +
             "echo \"BG_EXITCODE=\$(cat ${task.exitPath.bgShellQuote()} 2>/dev/null)\"; " +
             "echo \"BG_LOGSIZE=\$(wc -c < ${task.logPath.bgShellQuote()} 2>/dev/null | tr -d ' ')\"; " +
