@@ -27,7 +27,7 @@ class TunnelPreviewPeersTest {
     private fun self() = TunnelPeer(
         hostName = "yao",
         dnsName = "yao.example.ts.net",
-        ips = listOf("192.0.2.0.9"),
+        ips = listOf("192.0.2.9"),
         online = true,
         canBeExitNode = false,
         active = true,
@@ -38,9 +38,9 @@ class TunnelPreviewPeersTest {
     @Test
     fun `active peers come first regardless of IP`() {
         val peers = listOf(
-            peer("idle-low", "192.0.2.0.2", active = false),
-            peer("active-high", "192.0.2.0.10", active = true),
-            peer("active-low", "192.0.2.0.3", active = true),
+            peer("idle-low", "192.0.2.2", active = false),
+            peer("active-high", "192.0.2.10", active = true),
+            peer("active-low", "192.0.2.3", active = true),
         )
         assertEquals(
             listOf("active-low", "active-high", "idle-low"),
@@ -51,8 +51,8 @@ class TunnelPreviewPeersTest {
     @Test
     fun `offline peers are excluded`() {
         val peers = listOf(
-            peer("offline-active", "192.0.2.0.1", online = false, active = true),
-            peer("online", "192.0.2.0.2"),
+            peer("offline-active", "192.0.2.1", online = false, active = true),
+            peer("online", "192.0.2.2"),
         )
         assertEquals(listOf("online"), peers.previewPeers().map { it.hostName })
     }
@@ -60,16 +60,16 @@ class TunnelPreviewPeersTest {
     @Test
     fun `IP order is numeric not lexicographic`() {
         val peers = listOf(
-            peer("p10", "192.0.2.0.10"),
-            peer("p9", "192.0.2.0.9"),
-            peer("p2", "192.0.2.0.2"),
+            peer("p10", "192.0.2.10"),
+            peer("p9", "192.0.2.9"),
+            peer("p2", "192.0.2.2"),
         )
         assertEquals(listOf("p2", "p9", "p10"), peers.previewPeers().map { it.hostName })
     }
 
     @Test
     fun `at most five peers are returned`() {
-        val peers = (1..7).map { peer("p$it", "192.0.2.0.$it") }
+        val peers = (1..7).map { peer("p$it", "192.0.2.$it") }
         val result = peers.previewPeers()
         assertEquals(5, result.size)
         assertEquals(listOf("p1", "p2", "p3", "p4", "p5"), result.map { it.hostName })
@@ -79,7 +79,7 @@ class TunnelPreviewPeersTest {
     fun `peers without an IPv4 address sort last`() {
         val peers = listOf(
             peer("no-ip", ""),
-            peer("p1", "192.0.2.0.1"),
+            peer("p1", "192.0.2.1"),
         )
         assertEquals(listOf("p1", "no-ip"), peers.previewPeers().map { it.hostName })
     }
@@ -87,16 +87,16 @@ class TunnelPreviewPeersTest {
     @Test
     fun `dialog second line appends OS when present`() {
         assertEquals(
-            "aaa  192.0.2.0.14 · linux",
-            peer("aaa", "192.0.2.0.14", os = "linux").dialogSecondLine(),
+            "aaa  192.0.2.14 · linux",
+            peer("aaa", "192.0.2.14", os = "linux").dialogSecondLine(),
         )
     }
 
     @Test
     fun `dialog second line without OS matches old output`() {
         assertEquals(
-            "aaa  192.0.2.0.14",
-            peer("aaa", "192.0.2.0.14").dialogSecondLine(),
+            "aaa  192.0.2.14",
+            peer("aaa", "192.0.2.14").dialogSecondLine(),
         )
     }
 
@@ -105,13 +105,13 @@ class TunnelPreviewPeersTest {
         val noDns = TunnelPeer(
             hostName = "aaa",
             dnsName = "",
-            ips = listOf("192.0.2.0.14"),
+            ips = listOf("192.0.2.14"),
             online = true,
             canBeExitNode = false,
             os = "windows",
         )
-        assertEquals("192.0.2.0.14 · windows", noDns.dialogSecondLine())
-        assertEquals("192.0.2.0.14", noDns.copy(os = "").dialogSecondLine())
+        assertEquals("192.0.2.14 · windows", noDns.dialogSecondLine())
+        assertEquals("192.0.2.14", noDns.copy(os = "").dialogSecondLine())
     }
 
     @Test
@@ -130,14 +130,14 @@ class TunnelPreviewPeersTest {
     fun `self peer is built from status`() {
         val status = TunnelStatus(
             running = true,
-            selfIps = listOf("192.0.2.0.9"),
+            selfIps = listOf("192.0.2.9"),
             dnsName = "yao.example.ts.net",
             hostName = "yao",
             peers = emptyList(),
         )
         val self = selfPeer(status)
         assertEquals("yao", self?.hostName)
-        assertEquals(listOf("192.0.2.0.9"), self?.ips)
+        assertEquals(listOf("192.0.2.9"), self?.ips)
         assertEquals("android", self?.os)
         assertEquals(true, self?.isSelf)
         assertEquals(true, self?.online)
@@ -152,8 +152,8 @@ class TunnelPreviewPeersTest {
     @Test
     fun `dialog peers pin self first and keep IP order`() {
         val peers = listOf(
-            peer("p10", "192.0.2.0.10"),
-            peer("p2", "192.0.2.0.2"),
+            peer("p10", "192.0.2.10"),
+            peer("p2", "192.0.2.2"),
         )
         val result = dialogPeers(peers, self())
         assertEquals(listOf("yao", "p2", "p10"), result.map { it.hostName })
@@ -163,8 +163,8 @@ class TunnelPreviewPeersTest {
     @Test
     fun `dialog peers without self keep existing order`() {
         val peers = listOf(
-            peer("p10", "192.0.2.0.10"),
-            peer("p2", "192.0.2.0.2"),
+            peer("p10", "192.0.2.10"),
+            peer("p2", "192.0.2.2"),
         )
         assertEquals(listOf("p2", "p10"), dialogPeers(peers, null).map { it.hostName })
     }
