@@ -2,7 +2,7 @@ name: 单元测试
 
 on:
   push:
-    branches: [master]
+    branches: [master, test]
     paths-ignore:
       - 'docs/**'
       - '**.md'

@@ -7,7 +7,7 @@ name: 安全扫描（密钥 / 依赖漏洞 / 依赖变更审查）
 
 on:
   push:
-    branches: [master]
+    branches: [master, test]
     # 纯文档 / 发版说明改动不触发密钥与依赖扫描（lint 作业单跑约 40 分钟，代价高）
     paths-ignore:
       - 'docs/**'
