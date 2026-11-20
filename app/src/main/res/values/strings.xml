@@ -4270,6 +4270,9 @@
   <string name="tunnel_status_failed">Failed: %1$s</string>
   <string name="tunnel_status_disconnected">Disconnected</string>
   <string name="tunnel_control_url_label">Control plane URL</string>
+  <string name="tunnel_peer_self">This device</string>
+  <string name="tunnel_control_url_hint">Leave empty to use the official Tailscale server</string>
+  <string name="tunnel_control_url_use_official">Use official Tailscale server</string>
   <string name="tunnel_auth_key_label">Auth key</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... or $$ credential name</string>
   <string name="tunnel_hostname_label">Hostname</string>

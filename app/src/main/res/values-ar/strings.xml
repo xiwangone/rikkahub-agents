@@ -4193,6 +4193,9 @@
   <string name="tunnel_status_failed">فشل: %1$s</string>
   <string name="tunnel_status_disconnected">غير متصل</string>
   <string name="tunnel_control_url_label">عنوان URL لمستوى التحكم</string>
+  <string name="tunnel_peer_self">هذا الجهاز</string>
+  <string name="tunnel_control_url_hint">اتركه فارغًا لاستخدام خادم Tailscale الرسمي</string>
+  <string name="tunnel_control_url_use_official">استخدام خادم Tailscale الرسمي</string>
   <string name="tunnel_auth_key_label">مفتاح المصادقة</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... أو اسم بيانات الاعتماد $$</string>
   <string name="tunnel_hostname_label">اسم المضيف</string>

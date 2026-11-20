@@ -4190,6 +4190,9 @@
   <string name="tunnel_status_failed">Ошибка: %1$s</string>
   <string name="tunnel_status_disconnected">Отключено</string>
   <string name="tunnel_control_url_label">URL плоскости управления</string>
+  <string name="tunnel_peer_self">Это устройство</string>
+  <string name="tunnel_control_url_hint">Оставьте пустым, чтобы использовать официальный сервер Tailscale</string>
+  <string name="tunnel_control_url_use_official">Использовать официальный сервер Tailscale</string>
   <string name="tunnel_auth_key_label">Ключ авторизации</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... или имя учетных данных $$</string>
   <string name="tunnel_hostname_label">Имя хоста</string>

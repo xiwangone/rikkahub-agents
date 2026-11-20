@@ -4186,6 +4186,9 @@
   <string name="tunnel_status_failed">失敗: %1$s</string>
   <string name="tunnel_status_disconnected">未接続</string>
   <string name="tunnel_control_url_label">コントロールプレーン URL</string>
+  <string name="tunnel_peer_self">このデバイス</string>
+  <string name="tunnel_control_url_hint">空欄のままにすると Tailscale 公式サーバーが使用されます</string>
+  <string name="tunnel_control_url_use_official">Tailscale 公式サーバーに切り替える</string>
   <string name="tunnel_auth_key_label">認証キー</string>
   <string name="tunnel_auth_key_placeholder">tskey-auth-... または $$ 認証情報名</string>
   <string name="tunnel_hostname_label">ホスト名</string>

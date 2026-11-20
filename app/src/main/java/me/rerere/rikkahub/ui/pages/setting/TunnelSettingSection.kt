@@ -647,6 +647,7 @@ fun TunnelSettingSection(vm: SettingVM) {
             peers = nodeStatus?.peers.orEmpty(),
             connected = nodeStatus != null,
             onDismiss = { showDevicesDialog = false },
+            selfPeer = selfPeer(nodeStatus),
         )
     }
 
@@ -701,13 +702,31 @@ fun TunnelSettingSection(vm: SettingVM) {
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                     when (field) {
-                        TunnelField.ControlUrl -> OutlinedTextField(
-                            value = controlUrl,
-                            onValueChange = { controlUrl = it },
-                            placeholder = { Text(NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL) },
-                            singleLine = true,
-                            modifier = Modifier.fillMaxWidth(),
-                        )
+                        TunnelField.ControlUrl -> {
+                            OutlinedTextField(
+                                value = controlUrl,
+                                onValueChange = { controlUrl = it },
+                                placeholder = { Text(NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL) },
+                                singleLine = true,
+                                modifier = Modifier.fillMaxWidth(),
+                            )
+                            // 留空即官方：空值时连接用 tsnet 默认官方地址，填了才覆盖。
+                            // 一键恢复只清空输入框、不直接保存，误触点取消还能回来；
+                            // 保存后现有重连逻辑自动用官方地址重连，不用另写。
+                            Text(
+                                text = stringResource(R.string.tunnel_control_url_hint),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = stringResource(R.string.tunnel_control_url_use_official),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier
+                                    .clickable { controlUrl = "" }
+                                    .padding(vertical = 4.dp),
+                            )
+                        }
                         TunnelField.Hostname -> OutlinedTextField(
                             value = hostname,
                             onValueChange = { hostname = it },
@@ -808,41 +827,6 @@ private fun serveUrl(serve: String, dnsName: String?, selfIps: List<String>): St
 /** 可在隧道设置页弹窗编辑的字段。 */
 private enum class TunnelField { ControlUrl, AuthKey, Hostname, AdvertiseRoutes, Serve }
 
-/** IP 排序键：每段补零到 3 位，字符串比较即数字顺序（100.066.066.009 < 100.066.066.010）；非数字段按 0 计。 */
-private fun ipSortKey(ip: String): String =
-    ip.split(".").joinToString(".") { (it.toIntOrNull() ?: 0).toString().padStart(3, '0') }
-
-/** 对端的排序用 IP：首个含 3 个点的地址；没有 IPv4 地址时排最后。 */
-private fun TunnelPeer.sortIp(): String =
-    ips.firstOrNull { it.count { c -> c == '.' } == 3 }?.let(::ipSortKey) ?: "999.999.999.999"
-
-/** 一个 tailnet 对端。 */
-internal data class TunnelPeer(
-    val hostName: String,
-    val dnsName: String,
-    val ips: List<String>,
-    val online: Boolean,
-    val canBeExitNode: Boolean,
-    /** 直连地址；为空表示走中继。 */
-    val curAddr: String = "",
-    /** 中继所在的 DERP 区域（如 hkg / sz）。 */
-    val relay: String = "",
-    /** 最近 2 分钟内有流量；在线但无流量即为空闲（未建立实时路径）。缺省 true，兼容旧版 Go 库。 */
-    val active: Boolean = true,
-)
-
-/** tsnet 状态快照（来自 [TsnetBridge.statusJson]）。 */
-internal data class TunnelStatus(
-    val running: Boolean = false,
-    val selfIps: List<String> = emptyList(),
-    val dnsName: String = "",
-    /** 控制面侧的终端名称（控制台可改；本机只读展示）。 */
-    val hostName: String = "",
-    val peers: List<TunnelPeer> = emptyList(),
-    val acceptRoutes: Boolean = false,
-    val exitNodeIp: String = "",
-)
-
 /** 解析 Go 侧 StatusJSON；字段缺失一律取默认值，不抛异常。 */
 internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
     if (raw.isNullOrBlank()) return null
@@ -863,6 +847,7 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
                     curAddr = p.optString("curAddr"),
                     relay = p.optString("relay"),
                     active = p.optBoolean("active", true),
+                    os = p.optString("os"),
                 )
             }
         }
@@ -885,6 +870,8 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
 /** 设备圆点：绿=直连 / 黄=中继 / 灰=空闲（在线但无实时路径）/ 红=离线。 */
 @Composable
 internal fun tunnelPeerDotColor(peer: TunnelPeer): Color = when {
+    // 本机没有 curAddr/relay，走现有分支会落到灰；本机已连上就是绿。
+    peer.isSelf -> Color(0xFF43A047)
     !peer.online -> MaterialTheme.colorScheme.error
     !peer.active -> MaterialTheme.colorScheme.onSurfaceVariant
     peer.curAddr.isNotBlank() -> Color(0xFF43A047)
@@ -907,18 +894,14 @@ internal fun TunnelDevicesDialog(
     peers: List<TunnelPeer>,
     connected: Boolean,
     onDismiss: () -> Unit,
+    selfPeer: TunnelPeer? = null,
 ) {
     val copiedLabel = stringResource(R.string.copied)
     val clipboard = LocalClipboardManager.current
     val toaster = LocalToaster.current
     // 按 IP 数字顺序排：100.66.66.9 < 100.66.66.10（字符串排会把 .10 排到 .9 前面）；
-    // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。
-    val devicePeers = peers
-        .filter { it.online }        // 只列已连接的设备（离线的不显示，避免长列表里混着“上次见过”的旧节点）
-        .sortedWith(
-            compareBy<TunnelPeer> { it.sortIp() }
-                .thenBy { it.dnsName.trimEnd('.').ifBlank { it.hostName }.lowercase() },
-        )
+    // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。本机合成行置顶。
+    val devicePeers = dialogPeers(peers, selfPeer)
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.tunnel_devices)) },
@@ -954,7 +937,7 @@ internal fun TunnelDevicesDialog(
                         // 换 IP/重连不变；短名为空时回落到主机名，第二行只剩 IP，不重复。
                         val domain = peer.dnsName.trimEnd('.')
                         val shortName = domain.substringBefore('.').ifBlank { name }
-                        val secondLine = if (peer.dnsName.isBlank()) ip else "$name  $ip"
+                        val secondLine = peer.dialogSecondLine()
                         // 圆点颜色 = 实时路径：绿直连 / 黄中继 / 灰空闲 / 红离线。
                         // 离线节点没有实时连接，不挂中继——relay 是控制面给的归属 DERP，
                         // 空闲时也会填着，挂出来等于把“能上次走哪”说成“现在正走哪”。
@@ -993,6 +976,13 @@ internal fun TunnelDevicesDialog(
                                                 },
                                             ),
                                         ) { append(shortName) }
+                                        if (peer.isSelf) {
+                                            withStyle(
+                                                SpanStyle(
+                                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                                ),
+                                            ) { append(" ${stringResource(R.string.tunnel_peer_self)}") }
+                                        }
                                     },
                                     style = MaterialTheme.typography.bodySmall,
                                 )

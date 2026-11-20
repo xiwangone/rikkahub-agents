@@ -5,6 +5,8 @@ import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import me.rerere.rikkahub.ui.pages.setting.TunnelDevicesDialog
 import me.rerere.rikkahub.ui.pages.setting.TunnelStatus
 import me.rerere.rikkahub.ui.pages.setting.parseTunnelStatus
+import me.rerere.rikkahub.ui.pages.setting.previewPeers
+import me.rerere.rikkahub.ui.pages.setting.selfPeer
 import me.rerere.rikkahub.ui.pages.setting.tunnelPeerDotColor
 import me.rerere.rikkahub.ui.pages.setting.tunnelPeerPathText
 import me.rerere.rikkahub.ui.theme.CustomColors
@@ -606,14 +608,18 @@ private fun TopBarTunnelStatusBadge(
             is TunnelState.Failed -> MaterialTheme.colorScheme.error
             is TunnelState.Off -> MaterialTheme.colorScheme.outline
         }
-    // 域名/设备只在已连上时拉一次（连上或断开各刷新一次），不在后台轮询
+    // 设备状态 10 秒轮询：`active` 表示"最近 2 分钟有流量"，只拉一次会让卡片里的
+    // 设备列表、圆点颜色、路径文字永远停在建连那一刻的状态（与弹窗 5 秒轮询看到的不一致）。
     var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
     var showDevices by remember { mutableStateOf(false) }
     LaunchedEffect(tunnelState) {
-        nodeStatus = if (tunnelState is TunnelState.Connected) {
-            parseTunnelStatus(TsnetBridge.statusJson())
-        } else {
-            null
+        if (tunnelState !is TunnelState.Connected) {
+            nodeStatus = null
+            return@LaunchedEffect
+        }
+        while (true) {
+            nodeStatus = parseTunnelStatus(TsnetBridge.statusJson())
+            delay(10_000)
         }
     }
     val connectedLabel = (tunnelState as? TunnelState.Connected)?.let { s ->
@@ -661,6 +667,7 @@ private fun TopBarTunnelStatusBadge(
                 peers = nodeStatus?.peers.orEmpty(),
                 connected = nodeStatus != null,
                 onDismiss = { showDevices = false },
+                selfPeer = selfPeer(nodeStatus),
             )
         }
         // 快捷卡片：点开左上角 IP 即可直接改配置并启/停，不用跳到设置页
@@ -784,7 +791,9 @@ private fun TopBarTunnelStatusBadge(
                             )
                         } else {
                             Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
-                                st.peers.filter { it.online }.take(5).forEach { peer ->
+                                // 最近活跃排前：最近 2 分钟有流量的排前，其次在线，再按 IP；
+                                // Go 侧 peers 是 map 遍历顺序，不排每次刷新都会乱跳。
+                                st.peers.previewPeers().forEach { peer ->
                                     Row(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(6.dp),
