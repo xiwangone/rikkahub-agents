@@ -134,7 +134,7 @@ class WorkspaceReminderTransformerTest {
     }
 
     @Test
-    fun `remote SSH workspace READY prompt includes detached setsid guidance and path boundary notice`() {
+    fun `remote SSH workspace READY prompt includes background task guidance and path boundary notice`() {
         val sshWs = WorkspaceEntity(
             id = "ssh-1",
             name = "prod-box",
@@ -153,7 +153,10 @@ class WorkspaceReminderTransformerTest {
         )
         requireNotNull(prompt)
         assertTrue(prompt.contains("/home/ubuntu/app"))
-        assertTrue(prompt.contains("setsid nohup"))
+        // 远程区的后台任务已可用：断言新指导（判完成看 status/exitCode，全文读 log_path）
+        assertTrue(prompt.contains("workspace_run_background"))
+        assertTrue(prompt.contains("status: exited"))
+        assertTrue(prompt.contains("log_path"))
         assertTrue(prompt.contains("do NOT exist on the remote host"))
     }
 

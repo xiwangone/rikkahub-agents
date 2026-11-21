@@ -92,6 +92,7 @@ class RemoteBackgroundTasks(
             stderr = "",
             droppedStdout = 0,
             droppedStderr = 0,
+            logPath = record.logPath,
         )
     }
 
@@ -192,6 +193,7 @@ class RemoteBackgroundTasks(
                 stderr = "",
                 droppedStdout = 0,
                 droppedStderr = 0,
+                logPath = record.logPath,
             )
         }
         // 远端 stdout/stderr 合并进同一个日志文件：stdout 放 tail，stderr 为空；
@@ -213,6 +215,7 @@ class RemoteBackgroundTasks(
             stderr = "",
             droppedStdout = dropped,
             droppedStderr = 0,
+            logPath = record.logPath,
         )
     }
 }

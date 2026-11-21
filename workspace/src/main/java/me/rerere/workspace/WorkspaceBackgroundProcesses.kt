@@ -55,6 +55,8 @@ data class BackgroundStatus(
     val stderr: String,
     val droppedStdout: Long,
     val droppedStderr: Long,
+    /** 远程任务日志文件绝对路径（本地任务为 null）；要看全文用它 + workspace_read_file。 */
+    val logPath: String? = null,
 )
 
 /**

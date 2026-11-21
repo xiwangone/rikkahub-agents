@@ -17,7 +17,7 @@ package me.rerere.workspace.ssh
 const val REMOTE_BG_DIR_NAME = ".rikkahub-bg"
 
 /** 单次状态查询从远端日志取回的最大字节数（与本地 TailBuffer 的 32KB 同口径）。 */
-const val REMOTE_BG_LOG_TAIL_BYTES = 32 * 1024
+const val REMOTE_BG_LOG_TAIL_BYTES = 4 * 1024
 
 /** 单个工作区同时运行的后台任务上限（与本地 MAX_BG_PROCESSES 同口径）。 */
 const val REMOTE_BG_MAX_RUNNING = 5

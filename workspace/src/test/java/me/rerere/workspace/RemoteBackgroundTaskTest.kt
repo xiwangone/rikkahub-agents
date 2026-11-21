@@ -1,5 +1,6 @@
 package me.rerere.workspace
 
+import me.rerere.workspace.ssh.REMOTE_BG_LOG_TAIL_BYTES
 import me.rerere.workspace.ssh.RemoteBackgroundTask
 import me.rerere.workspace.ssh.buildKillCommand
 import me.rerere.workspace.ssh.buildLaunchCommand
@@ -101,7 +102,7 @@ class RemoteBackgroundTaskTest {
         assertTrue(cmd.contains("__RIKKAHUB_BG_TASK_BEGIN__ rbg_2"))
         assertTrue(cmd.contains("kill -0 111 2>/dev/null"))
         assertTrue(cmd.contains("kill -0 222 2>/dev/null"))
-        assertTrue(cmd.contains("tail -c 32768 '/remote/ws/.rikkahub-bg/rbg_1/log'"))
+        assertTrue(cmd.contains("tail -c $REMOTE_BG_LOG_TAIL_BYTES '/remote/ws/.rikkahub-bg/rbg_1/log'"))
         assertTrue(cmd.contains("BG_EXITCODE=\$(cat '/remote/ws/.rikkahub-bg/rbg_2/exit' 2>/dev/null)"))
         assertTrue(cmd.contains("BG_LOGSIZE=\$(wc -c < '/remote/ws/.rikkahub-bg/rbg_1/log' 2>/dev/null | tr -d ' ')"))
     }

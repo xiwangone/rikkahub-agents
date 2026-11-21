@@ -388,8 +388,13 @@ internal fun BackgroundStatus.toJson(
     // legacyMaskRules = 被登记表淘汰的任务留下的永久掩码，保证淘汰不致明文回传
     put("stdout", maskInjectedValues(stdout, injectedSecrets, legacyMaskRules))
     put("stderr", maskInjectedValues(stderr, injectedSecrets, legacyMaskRules))
-    if (droppedStdout > 0) put("droppedStdout", droppedStdout)
+    if (droppedStdout > 0) {
+        put("droppedStdout", droppedStdout)
+        put("stdout_truncated", true)
+    }
     if (droppedStderr > 0) put("droppedStderr", droppedStderr)
+    // 日志全文路径：status 只给尾部，要全文就读这个文件（workspace_read_file / search_code）。
+    logPath?.let { put("log_path", it) }
 }
 
 
