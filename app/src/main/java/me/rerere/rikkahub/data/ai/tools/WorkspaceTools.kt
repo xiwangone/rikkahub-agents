@@ -160,6 +160,21 @@ private fun createReadFileTool(
             // 二进制内容不按 UTF-8 文本返回：乱码会被 AI 当成文本误判，改走 base64；
             // 本地 Rootfs 与远程 SSH 共用 readRootfsBuffer，两条路径一次覆盖
             if (bytes.isBinaryContent()) {
+                // 二进制凭据（.p12/.jks/.key 等）整个文件就是机密，无法按行掩值：
+                // 不外带 base64，只回脱敏标记（先于尺寸检查，避免大文件报错盖过脱敏语义）。
+                if (isSensitiveCredentialPath(path)) {
+                    return@Tool listOf(
+                        UIMessagePart.Text(
+                            buildJsonObject {
+                                put("path", path)
+                                put("binary", true)
+                                put("redacted", true)
+                                put("size", bytes.size)
+                                put("note", CREDENTIAL_WITHHELD_NOTE)
+                            }.toString()
+                        )
+                    )
+                }
                 requireInlineBase64Size(bytes.size, path)
                 return@Tool listOf(
                     UIMessagePart.Text(

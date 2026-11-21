@@ -21,6 +21,7 @@ import java.security.MessageDigest
 import me.rerere.common.http.optBoolean
 import me.rerere.common.http.optInt
 import me.rerere.common.http.optString
+import me.rerere.rikkahub.data.ai.tools.CREDENTIAL_WITHHELD_NOTE
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.isSensitiveCredentialPath
 import me.rerere.rikkahub.data.ai.tools.redactCredentialFileText
@@ -420,6 +421,33 @@ private const val MAX_READ_BYTES = 1048576
 private fun redactSensitiveIfNeeded(path: String, text: String): String =
     if (isSensitiveCredentialPath(path)) redactCredentialFileText(text) else text
 
+/**
+ * read_file 的二进制分支返回体：凭据类文件（.p12/.jks 等）整个文件就是机密，
+ * 只回脱敏标记，其余按 base64 内联。抽成独立函数同时压住 readFileTool 的 LongMethod。
+ */
+private fun readFileBinaryPayload(
+    rawPath: String,
+    bytes: ByteArray,
+    truncated: Boolean,
+): List<UIMessagePart> {
+    if (isSensitiveCredentialPath(rawPath)) {
+        return fmTextPart(buildJsonObject {
+            put("path", rawPath)
+            put("binary", true)
+            put("redacted", true)
+            put("bytes_read", bytes.size)
+            put("truncated", truncated)
+            put("note", CREDENTIAL_WITHHELD_NOTE)
+        }.toString())
+    }
+    return fmTextPart(buildJsonObject {
+        put("content_base64", JBase64.getEncoder().encodeToString(bytes))
+        put("binary", true)
+        put("bytes_read", bytes.size)
+        put("truncated", truncated)
+    }.toString())
+}
+
 fun readFileTool(): Tool = Tool(
     name = "read_file",
     description = """
@@ -502,12 +530,8 @@ fun readFileTool(): Tool = Tool(
         val isBinary = sample.isNotEmpty() && (nonPrintable.toDouble() / sample.size) > 0.15
 
         if (isBinary) {
-            fmTextPart(buildJsonObject {
-                put("content_base64", JBase64.getEncoder().encodeToString(bytes))
-                put("binary", true)
-                put("bytes_read", bytes.size)
-                put("truncated", truncated)
-            }.toString())
+            // 凭据类文件只回脱敏标记，其余按 base64 内联（抽函数同时压住 LongMethod）。
+            readFileBinaryPayload(rawPath, bytes, truncated)
         } else {
             val startOffset = if (isBom) 3 else 0
             val text = redactSensitiveIfNeeded(rawPath, String(bytes, startOffset, bytes.size - startOffset, charset))

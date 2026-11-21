@@ -28,6 +28,22 @@ class SensitivePathRedactionTest {
     }
 
     /**
+     * 二进制凭据后缀必须命中：read_file / workspace_read_file 的 base64 分支靠这个判定
+     * 扣下整个文件内容（二进制无法按行掩值，整文件就是机密）。
+     */
+    @Test
+    fun `binary credential suffixes are sensitive`() {
+        assertTrue(isSensitiveCredentialPath("/root/keystore.p12"))
+        assertTrue(isSensitiveCredentialPath("/root/keystore.pfx"))
+        assertTrue(isSensitiveCredentialPath("/root/app.jks"))
+        assertTrue(isSensitiveCredentialPath("/root/app.keystore"))
+        assertTrue(isSensitiveCredentialPath("/etc/ssl/private/server.KEY"))
+        // 公开材料不因二进制形态误伤
+        assertFalse(isSensitiveCredentialPath("/root/.ssh/id_ed25519.pub"))
+        assertFalse(isSensitiveCredentialPath("/root/photo.jpg"))
+    }
+
+    /**
      * `.ssh/` 下不是全部都要掩：公钥与主机指纹本就是公开贴的，掩了反而不便（用户想看一眼
      * 自己贴的公钥）。注意：一刀切把 authorized_keys 标成 redacted 但它本就无 = 分隔符，
      * 结果是“标了却没掩”，两头不对。

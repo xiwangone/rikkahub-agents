@@ -45,6 +45,14 @@ internal const val MAX_READ_FILE_BYTES = 8L * 1024 * 1024
 internal const val MAX_BINARY_BASE64_BYTES = 256 * 1024
 
 /**
+ * 凭据类文件内容被扣下时的统一提示：告诉模型别换路重读（shell base64 是同一个洞），
+ * 内容确实需要时问用户。三处读类工具（workspace_read_file / read_file 的 file 分支与
+ * content:// 分支）共用，避免文案漂移。
+ */
+internal const val CREDENTIAL_WITHHELD_NOTE =
+    "credential file: content withheld; do not re-read via shell, ask the user if needed"
+
+/**
  * Base64 内联上限判定：二进制文件超过 256KB 不直接内联进消息，
  * 改由调用方用 shell（head/xxd/python）查看，避免撑爆上下文。
  */

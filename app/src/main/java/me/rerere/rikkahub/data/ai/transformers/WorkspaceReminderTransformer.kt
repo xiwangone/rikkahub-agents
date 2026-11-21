@@ -230,6 +230,7 @@ private fun buildWorkspacePrompt(
     appendLine("- All paths passed to workspace tools must be absolute and inside the Rootfs (for example `/workspace/notes.md`). For files on the Android device outside Rootfs (such as `/sdcard/...` when phone storage mount is off, or `content://` URIs), use device tools (`read_file`, `write_text_file`, `list_files`) instead.")
     appendLine("- Available tools:")
     appendLine("  - `workspace_read_file`: read file contents.")
+    appendLine("  - Credential files (`.env`, private keys, `*.p12` / `*.pfx` / `*.jks` / `*.keystore`) come back redacted or with the content withheld: never re-read one through the shell (`cat`, `base64`) to bypass that, and ask the user if the content is genuinely needed.")
     appendLine("  - `workspace_write_file` / `workspace_edit_file`: create files, or make precise edits to existing files.")
     appendLine("  - `workspace_create_folder`: create a directory (and missing parents).")
     appendLine("  - `workspace_read_folder`: recursively list a directory as an indented tree.")
@@ -290,6 +291,7 @@ private fun buildRemoteWorkspacePrompt(
     }
     appendLine("- Available tools:")
     appendLine("  - `workspace_read_file`: read file contents.")
+    appendLine("  - Credential files (`.env`, private keys, `*.p12` / `*.pfx` / `*.jks` / `*.keystore`) come back redacted or with the content withheld: never re-read one through the shell (`cat`, `base64`) to bypass that, and ask the user if the content is genuinely needed.")
     appendLine("  - `workspace_write_file` / `workspace_edit_file` / `workspace_apply_edits`: create files, or make precise edits to existing files.")
     appendLine("  - `workspace_create_folder`: create a directory (and missing parents).")
     appendLine("  - `workspace_read_folder`: recursively list a directory as an indented tree.")

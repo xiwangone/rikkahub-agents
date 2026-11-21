@@ -12,7 +12,10 @@ import java.util.Base64 as JBase64
 import me.rerere.common.http.optBoolean
 import me.rerere.common.http.optInt
 import me.rerere.common.http.optString
+import me.rerere.rikkahub.data.ai.tools.CREDENTIAL_WITHHELD_NOTE
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.rikkahub.data.ai.tools.isSensitiveCredentialPath
+import me.rerere.rikkahub.data.ai.tools.redactCredentialFileText
 
 /**
  * Phase 25 — content:// branches for the file-manager tools. Routed in from
@@ -88,24 +91,43 @@ internal fun readFileContent(context: Context, raw: String, obj: JsonObject): Li
         return fmTextPart(fmErrEnvelope("io_error", e.message ?: "IO error"))
     }
     // total size for the truncation flag
-    val totalSize = ContentUriResolver.resolve(context, raw)?.length() ?: bytes.size.toLong()
+    val doc = ContentUriResolver.resolve(context, raw)
+    val totalSize = doc?.length() ?: bytes.size.toLong()
     val truncated = totalSize > maxBytes || overflow
     val sample = bytes.take(minOf(512, bytes.size))
     val nonPrintable = countNonPrintable(sample)
     val isBinary = sample.isNotEmpty() && (nonPrintable.toDouble() / sample.size) > 0.15
+    // A content:// URI has no filesystem path, so the credential check falls back to the
+    // DocumentsProvider display name (same rule set as the file:// branch).
+    val sensitive = isSensitiveCredentialPath(doc?.name ?: raw)
     return if (isBinary) {
-        fmTextPart(buildJsonObject {
-            put("content_base64", JBase64.getEncoder().encodeToString(bytes))
-            put("binary", true)
-            put("bytes_read", bytes.size)
-            put("truncated", truncated)
-        }.toString())
+        if (sensitive) {
+            // 二进制凭据整个文件就是机密：不外带 base64，只回脱敏标记。
+            fmTextPart(buildJsonObject {
+                put("path", raw)
+                put("binary", true)
+                put("redacted", true)
+                put("bytes_read", bytes.size)
+                put("truncated", truncated)
+                put("note", CREDENTIAL_WITHHELD_NOTE)
+            }.toString())
+        } else {
+            fmTextPart(buildJsonObject {
+                put("content_base64", JBase64.getEncoder().encodeToString(bytes))
+                put("binary", true)
+                put("bytes_read", bytes.size)
+                put("truncated", truncated)
+            }.toString())
+        }
     } else {
+        val text = String(bytes, Charsets.UTF_8)
+        val safeText = if (sensitive) redactCredentialFileText(text) else text
         fmTextPart(buildJsonObject {
-            put("content", String(bytes, Charsets.UTF_8))
+            put("content", safeText)
             put("truncated", truncated)
             put("bytes_read", bytes.size)
             put("encoding", "UTF-8")
+            if (sensitive) put("redacted", true)
         }.toString())
     }
 }
