@@ -4567,4 +4567,6 @@
 <string name="workspace_background_task_stop">Stop</string>
 <string name="workspace_background_task_output">Output</string>
 <string name="workspace_background_task_refresh">Refresh</string>
+<string name="developer_page_title">Developer</string>
+<string name="ai_log_level">AI Log Level</string>
 </resources>

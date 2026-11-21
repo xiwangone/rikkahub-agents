@@ -74,3 +74,5 @@ agent-tools/build/
 
 # Python 工具缓存
 .ruff_cache/
+__pycache__/
+*.pyc

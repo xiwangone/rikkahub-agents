@@ -87,6 +87,20 @@ ALLOWLIST_TOKENS = (
     "随想",
 )
 
+# Brand / platform proper nouns (English form). Same nature as the CJK brand tokens above:
+# used for name mapping and display constants, never translated.
+BRAND_TOKENS = {
+    "DashScope", "Volcengine", "MiMo", "Step", "Linux", "Windows", "macOS",
+    "Android", "iOS", "OpenAI", "Anthropic", "Gemini", "Claude",
+}
+
+# Design tokens are colour expressions, not prose: hsl()/rgb()/oklch()/#RRGGBB.
+DESIGN_TOKEN_RE = re.compile(r"^(?:hsl|hsla|rgb|rgba|oklch|oklab)\(|^#[0-9A-Fa-f]{3,8}$")
+
+# Diagnostic log calls: AppLog / AppLogger / android.util.Log prose is developer-facing
+# and never UI text, including multi-line argument lists.
+LOG_CALL_RE = re.compile(r"(?:\bAppLog(?:ger)?|\bLog)\s*\.\s*[weidv]\s*\(")
+
 UI_TRIGGER_RE = re.compile(
     r"(?<![A-Za-z0-9_.])"
     r"(Text\(|title =|description =|label =|contentDescription =|toaster\.show\()"
@@ -132,6 +146,8 @@ def check_ui_literals(diff):
         if not UI_TRIGGER_RE.search(line):
             continue
         for v in re.findall(r'"([A-Za-z][^"\\]{2,})"', line):
+            if v in BRAND_TOKENS or DESIGN_TOKEN_RE.match(v):
+                continue
             if not PROTOCOL.search(v):
                 missing.append("hardcoded UI text: " + v)
     return missing
@@ -194,6 +210,29 @@ def extract_string_literals(added_lines):
     return out
 
 
+def _blank_log_calls(lines):
+    """Blank log-call lines, including their multi-line argument lists.
+
+    The returned list keeps the original line count so cross-line string parsing
+    and reported positions stay stable. A log call whose parentheses never
+    balance is given up after 20 lines instead of swallowing the rest of a file.
+    """
+    out = []
+    depth = 0
+    consumed = 0
+    for ln in lines:
+        if depth > 0 or LOG_CALL_RE.search(ln):
+            depth += ln.count("(") - ln.count(")")
+            consumed += 1
+            if depth <= 0 or consumed > 20:
+                depth = 0
+                consumed = 0
+            out.append("")
+            continue
+        out.append(ln)
+    return out
+
+
 def check_cjk_literals(diff):
     """Per-file: collect added lines, extract literals, flag remaining CJK."""
     missing = []
@@ -203,7 +242,7 @@ def check_cjk_literals(diff):
     def flush():
         if current is None:
             return
-        for lit in extract_string_literals(added[current]):
+        for lit in extract_string_literals(_blank_log_calls(added[current])):
             stripped = lit
             for tok in ALLOWLIST_TOKENS:
                 stripped = stripped.replace(tok, "")

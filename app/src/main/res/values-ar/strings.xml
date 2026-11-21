@@ -4578,4 +4578,6 @@
 <string name="workspace_background_task_stop">إيقاف</string>
 <string name="workspace_background_task_output">الإخراج</string>
 <string name="workspace_background_task_refresh">تحديث</string>
+<string name="developer_page_title">المطوّر</string>
+<string name="ai_log_level">مستوى سجل الذكاء الاصطناعي</string>
 </resources>

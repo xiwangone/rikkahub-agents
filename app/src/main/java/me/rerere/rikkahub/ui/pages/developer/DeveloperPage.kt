@@ -21,11 +21,13 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileScript
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.AILogging
 import me.rerere.rikkahub.data.datastore.AiLogLevel
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -59,7 +61,7 @@ fun DeveloperPage(vm: DeveloperVM = koinViewModel()) {
                     selected = pager.currentPage == 0,
                     onClick = { scope.launch { pager.animateScrollToPage(0) } },
                     label = {
-                        Text(text = "Developer")
+                        Text(text = stringResource(R.string.developer_page_title))
                     },
                     icon = {
                         Icon(HugeIcons.FileScript, null)
@@ -94,7 +96,7 @@ fun LoggingPaging(vm: DeveloperVM) {
         items(1) {
             CardGroup(
                 modifier = Modifier.fillMaxWidth(),
-                title = { Text(text = "AI Log Level") },
+                title = { Text(text = stringResource(R.string.ai_log_level)) },
             ) {
                 AiLogLevel.entries.forEach { item ->
                     item(

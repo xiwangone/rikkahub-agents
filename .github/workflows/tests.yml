@@ -45,11 +45,19 @@ jobs:
             BASE="${{ github.event.before }}"
             HEAD="${{ github.sha }}"
           fi
-          # 浅克隆里 base/head 可能不在本地：按 SHA 拉一次，拉不到就跳过本项检查。
-          if git fetch --depth=1 origin "$BASE" "$HEAD" 2>/dev/null; then
+          # 浅克隆里 base 可能不在本地：按 SHA 拉一次。取不到（如首推时 event.before 为全零）
+          # 就退回与父提交比较；连父提交都拿不到则失败，不静默放行。
+          if git fetch --depth=1 origin "$BASE" 2>/dev/null; then
             python3 .github/scripts/check-new-localization.py "$BASE" "$HEAD"
           else
-            echo "⚠️ base/head 拉取失败，跳过新增文案检查"
+            git rev-parse --verify --quiet "${HEAD}~1" >/dev/null || git fetch --deepen=20 2>/dev/null || true
+            if git rev-parse --verify --quiet "${HEAD}~1" >/dev/null; then
+              echo "::warning::base 提交不可取（可能为全零 SHA），改用 ${HEAD}~1 作为比较基线"
+              python3 .github/scripts/check-new-localization.py "${HEAD}~1" "$HEAD"
+            else
+              echo "::error::无法取得比较基线，新增文案检查未能执行"
+              exit 1
+            fi
           fi
       - name: 缓存 Gradle 依赖（libs 变化才重建）
         uses: actions/cache@v4

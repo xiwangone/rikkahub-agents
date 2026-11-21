@@ -4571,4 +4571,6 @@
 <string name="workspace_background_task_stop">停止</string>
 <string name="workspace_background_task_output">出力</string>
 <string name="workspace_background_task_refresh">更新</string>
+<string name="developer_page_title">開発者</string>
+<string name="ai_log_level">AIログレベル</string>
 </resources>
