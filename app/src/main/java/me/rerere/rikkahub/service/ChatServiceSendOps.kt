@@ -138,6 +138,7 @@ internal fun ChatService.sendMessageNowImpl(
             appScope.launch {
                 try {
                     runCatching { previousJob?.join() }
+                        .onFailure { if (it is CancellationException) throw it }
                     // Do not let a final chunk from the replaced job overwrite this turn's binding.
                     session.beginFloatingTurn()
                     finishInterruptedPendingTools(conversationId)

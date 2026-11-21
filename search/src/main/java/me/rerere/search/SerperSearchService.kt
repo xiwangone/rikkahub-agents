@@ -5,6 +5,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -106,7 +107,7 @@ object SerperSearchService : SearchService<SearchServiceOptions.SerperOptions> {
                 } else {
                     error("Serper search failed with code ${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(

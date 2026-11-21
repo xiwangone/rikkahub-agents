@@ -505,13 +505,16 @@ private fun WorkspaceTerminalTabContent(
 ) {
     val context = LocalContext.current
     val terminalTextSizePx = with(LocalDensity.current) {
-        LocalSettings.current.displaySetting.terminalTextSize.sp.roundToPx()
+        LocalSettings.current.displaySetting.terminalTextSize.coerceIn(10, 24).sp.roundToPx()
     }
     val terminalTypeface =
         remember(context) {
             ResourcesCompat.getFont(context, R.font.jetbrains_mono) ?: Typeface.MONOSPACE
         }
     var controlDown by remember(tab.id) { mutableStateOf(false) }
+    // 上次已应用到 terminalView 的字号（px）：字号是可变状态而非会话初始化参数，
+    // 设置变化时即应用，不必等会话切换。
+    var lastAppliedTextSizePx by remember(tab.id) { mutableStateOf(-1) }
     var altDown by remember(tab.id) { mutableStateOf(false) }
     val viewClient =
         remember(tab.id) {
@@ -571,10 +574,14 @@ private fun WorkspaceTerminalTabContent(
                         tab.client.terminalView = terminalView
                         viewClient.terminalView = terminalView
                         if (terminalView.currentSession !== tab.session) {
-                            terminalView.setTextSize(terminalTextSizePx)
                             terminalView.setTypeface(terminalTypeface)
                             terminalView.setTerminalViewClient(viewClient)
                             terminalView.attachSession(tab.session)
+                            terminalView.onScreenUpdated()
+                        }
+                        if (lastAppliedTextSizePx != terminalTextSizePx) {
+                            terminalView.setTextSize(terminalTextSizePx)
+                            lastAppliedTextSizePx = terminalTextSizePx
                             terminalView.onScreenUpdated()
                         }
                     },

@@ -188,6 +188,8 @@ class WorkspaceSshEditorVM(
         val credentialOk = when (draft.authType) {
             SshAuthType.PASSWORD -> draft.passwordRef.isNotBlank()
             SshAuthType.PRIVATE_KEY -> draft.privateKeyRef.isNotBlank()
+            // NONE 不需要任何凭证材料（编辑页不提供该选项，此分支只为穷举）。
+            SshAuthType.NONE -> true
         }
         if (!credentialOk) blockers += SubmitBlocker.CREDENTIAL_MISSING
         return blockers

@@ -65,7 +65,10 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.core.content.FileProvider
 import androidx.core.net.toUri
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import androidx.lifecycle.repeatOnLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
@@ -414,6 +417,33 @@ internal fun TopBar(
             onUpdateTitle(it)
         }
 
+    // 隧道状态共享轮询：连接对象标签与状态徽标原来各跑一个 10 秒轮询，重复拉同一份状态；
+    // 合并成一处，只在 App 前台（RESUMED）时跑，后台停。
+    // ⚠ 必须轮询：`active` 表示“最近 2 分钟有流量”，隧道状态不变时只拉一次会让
+    // 这一行永远停在建连那一刻的状态。解析失败保留上一份快照，不置 null。
+    val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
+    var tunnelStatus by remember { mutableStateOf<TunnelStatus?>(null) }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    LaunchedEffect(tunnelState) {
+        if (tunnelState !is TunnelState.Connected) {
+            tunnelStatus = null
+            return@LaunchedEffect
+        }
+        lifecycleOwner.lifecycle.repeatOnLifecycle(Lifecycle.State.RESUMED) {
+            while (true) {
+                // 轮询不能因一次桥接失败就死掉：失败只记日志，下轮继续。
+                // parseTunnelStatus 内部已包 runCatching、永不抛；这里守的是 statusJson()。
+                runCatching { parseTunnelStatus(TsnetBridge.statusJson()) }
+                    .onSuccess { it?.let { tunnelStatus = it } }
+                    .onFailure { e ->
+                        if (e is CancellationException) throw e
+                        AppLog.w("TopBar", "Failed to refresh tunnel status", e)
+                    }
+                delay(10_000)
+            }
+        }
+    }
+
     Surface(
         color = CustomColors.topBarColors.containerColor,
         modifier = Modifier.fillMaxWidth(),
@@ -492,7 +522,7 @@ internal fun TopBar(
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f),
                     )
-                    TopBarTunnelStatusBadge(settings = settings)
+                    TopBarTunnelStatusBadge(settings = settings, nodeStatus = tunnelStatus)
                 }
 
                 // 行 3：模型名 + 隧道（同一 Row，天然对齐）
@@ -510,9 +540,9 @@ internal fun TopBar(
                         style = MaterialTheme.typography.labelSmall,
                         modifier = Modifier.weight(1f),
                     )
-                    // 当前连接对象：最近 2 分钟有流量的 peer，显示「圆点 + 设备名 (p2p)/(relay)」；
-                    // 没有实时路径就不显示（relay 是归属 DERP，空闲时也填着，不能当“正在走”）
-                    TopBarTunnelPeerLabel()
+                    // 当前连接对象：最近 2 分钟有流量的 peer，显示「圆点 + 设备名」；
+                    // 有实时路径时后缀注明直连/中继，无路径信息时只显示设备名（灰点表示空闲）
+                    TopBarTunnelPeerLabel(status = tunnelStatus)
                 }
             }
         }
@@ -561,34 +591,25 @@ internal fun TopBar(
  * 区域名不显示（中继归属的主机名过长，显示会挤掉设备名）。
  */
 @Composable
-private fun TopBarTunnelPeerLabel() {
-    val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
-    var status by remember { mutableStateOf<TunnelStatus?>(null) }
-    // ⚠ 必须轮询：`active` 表示“最近 2 分钟有流量”，隧道状态不变时 LaunchedEffect(tunnelState)
-    // 不会重跑，只拉一次会让这一行永远停在建连那一刻的状态。
-    LaunchedEffect(tunnelState) {
-        if (tunnelState !is TunnelState.Connected) {
-            status = null
-            return@LaunchedEffect
-        }
-        while (true) {
-            status = parseTunnelStatus(TsnetBridge.statusJson())
-            delay(10_000)
-        }
-    }
-    val peer = status?.peers?.firstOrNull { it.online && it.active } ?: return
+private fun TopBarTunnelPeerLabel(status: TunnelStatus?) {
+    // 状态由 TopBar 共享轮询提供（与状态徽标同一份快照）。
+    // Go 侧 peers 是 map 遍历顺序：直接 firstOrNull 每次轮询都可能换一台，顶栏 10 秒一跳。
+    // 与聊天页卡片预览同口径——在线、active 优先、再按 IP 排，取第一台（previewPeers 已排好序）。
+    val peer = status?.peers?.previewPeers()?.firstOrNull { it.active } ?: return
     val isDirect = peer.curAddr.isNotBlank()
-    if (!isDirect && peer.relay.isBlank()) return
+    // 有流量但无路径信息的 peer 也显示（只显示设备名、灰点表示空闲），与卡片口径一致：
+    // 卡片的 tunnelPeerPathText 同情况返回空串、仍列出该 peer；顶栏此前直接 return，
+    // 导致同一台设备在卡片出现、顶栏消失。
     // 顶栏空间小：优先控制面给的终端名（MagicDNS 名第一段），主机名兜底。
     val name = peer.dnsName.trimEnd('.').substringBefore('.').ifBlank { peer.hostName }
+    if (name.isBlank()) return
     // 与卡片/弹窗共用同一套路径资源；中继不带区域名（区域主机名过长会挤掉设备名）。
-    val pathLabel = if (isDirect) {
-        stringResource(R.string.tunnel_path_direct)
-    } else {
-        stringResource(R.string.tunnel_path_relay, "").trim()
+    val pathSuffix = when {
+        isDirect -> " (${stringResource(R.string.tunnel_path_direct)})"
+        peer.relay.isNotBlank() -> " (${stringResource(R.string.tunnel_path_relay_short)})"
+        else -> ""
     }
-    val pathSuffix = " ($pathLabel)"
-    // 圆点色与设备列表共用 tunnelPeerDotColor：绿=直连 / 黄=中继。
+    // 圆点色与设备列表共用 tunnelPeerDotColor：绿=直连 / 黄=中继 / 灰=空闲（有流量但无实时路径）。
     val dotColor = tunnelPeerDotColor(peer)
     Row(
         verticalAlignment = Alignment.CenterVertically,
@@ -609,18 +630,21 @@ private fun TopBarTunnelPeerLabel() {
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
-        Text(
-            text = pathSuffix,
-            maxLines = 1,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
+        if (pathSuffix.isNotEmpty()) {
+            Text(
+                text = pathSuffix,
+                maxLines = 1,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
     }
 }
 
 @Composable
 private fun TopBarTunnelStatusBadge(
     settings: Settings,
+    nodeStatus: TunnelStatus?,
 ) {
     val tunnelState by TsnetBridge.state.collectAsStateWithLifecycle()
     val network = settings.networkSetting
@@ -637,20 +661,8 @@ private fun TopBarTunnelStatusBadge(
             is TunnelState.Failed -> MaterialTheme.colorScheme.error
             is TunnelState.Off -> MaterialTheme.colorScheme.outline
         }
-    // 设备状态 10 秒轮询：`active` 表示"最近 2 分钟有流量"，只拉一次会让卡片里的
-    // 设备列表、圆点颜色、路径文字永远停在建连那一刻的状态（与弹窗 5 秒轮询看到的不一致）。
-    var nodeStatus by remember { mutableStateOf<TunnelStatus?>(null) }
+    // 设备状态由 TopBar 共享轮询提供（与连接对象标签同一份快照）。
     var showDevices by remember { mutableStateOf(false) }
-    LaunchedEffect(tunnelState) {
-        if (tunnelState !is TunnelState.Connected) {
-            nodeStatus = null
-            return@LaunchedEffect
-        }
-        while (true) {
-            nodeStatus = parseTunnelStatus(TsnetBridge.statusJson())
-            delay(10_000)
-        }
-    }
     val connectedLabel = (tunnelState as? TunnelState.Connected)?.let { s ->
         nodeStatus?.dnsName?.takeIf { it.isNotBlank() }?.let { "${s.ip} · $it" } ?: s.ip
     }

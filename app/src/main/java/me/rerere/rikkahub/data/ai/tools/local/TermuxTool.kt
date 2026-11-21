@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.os.Build
 import android.os.Bundle
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.withTimeoutOrNull
 import kotlinx.serialization.json.buildJsonObject
@@ -352,7 +353,8 @@ internal suspend fun runCommandCapture(
         }
     } catch (t: SecurityException) {
         CaptureResult.Denied
-    // cancel-guard-ok: 非挂起调用，返回错误结果
+    } catch (t: CancellationException) {
+        throw t
     } catch (t: Throwable) {
         CaptureResult.OtherError(t.message ?: t::class.java.simpleName)
     } finally {

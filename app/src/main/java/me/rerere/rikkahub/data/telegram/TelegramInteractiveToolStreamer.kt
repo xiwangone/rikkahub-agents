@@ -80,7 +80,9 @@ class TelegramInteractiveToolStreamer(
 
         // Gate 2: honour the user's `/stream off` toggle. Read every send so the new value
         // takes effect on the next tool firing without restarting the bot.
-        val enabled = runCatching { prefs.current().streamScreenshots }.getOrDefault(true)
+        val enabled = runCatching { prefs.current().streamScreenshots }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(true)
         if (!enabled) return
 
         val convId = invocationContext.callerConversationId ?: return

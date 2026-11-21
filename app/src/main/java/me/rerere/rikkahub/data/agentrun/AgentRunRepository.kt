@@ -133,25 +133,39 @@ class AgentRunRepository(private val dao: AgentRunDao) {
     fun observeRecent(limit: Int = 50): Flow<List<AgentRun>> = dao.observeRecent(limit)
 
     suspend fun getRecent(limit: Int = 50): List<AgentRun> =
-        runCatching { dao.getRecent(limit) }.getOrDefault(emptyList())
+        runCatching { dao.getRecent(limit) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(emptyList())
 
     suspend fun getByDomainId(kind: AgentRunKind, domainId: String, limit: Int = 100): List<AgentRun> =
-        runCatching { dao.getByDomainId(kind.wire, domainId, limit) }.getOrDefault(emptyList())
+        runCatching { dao.getByDomainId(kind.wire, domainId, limit) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(emptyList())
 
     suspend fun getChildren(parentRunId: String): List<AgentRun> =
-        runCatching { dao.getChildren(parentRunId) }.getOrDefault(emptyList())
+        runCatching { dao.getChildren(parentRunId) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(emptyList())
 
     /** In-flight rows untouched since [beforeMs] — for boot recovery. */
     suspend fun getStranded(beforeMs: Long): List<AgentRun> =
-        runCatching { dao.findStranded(beforeMs) }.getOrDefault(emptyList())
+        runCatching { dao.findStranded(beforeMs) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(emptyList())
 
     suspend fun getById(id: String): AgentRun? =
-        runCatching { dao.getById(id) }.getOrNull()
+        runCatching { dao.getById(id) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
 
-    suspend fun count(): Int = runCatching { dao.count() }.getOrDefault(0)
+    suspend fun count(): Int = runCatching { dao.count() }
+        .onFailure { if (it is CancellationException) throw it }
+        .getOrDefault(0)
 
     suspend fun countByStatusSince(status: AgentRunStatus, sinceMs: Long): Int =
-        runCatching { dao.countByStatusSince(status.name, sinceMs) }.getOrDefault(0)
+        runCatching { dao.countByStatusSince(status.name, sinceMs) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(0)
 
     /**
      * Flip every supplied row to [AgentRunStatus.process_lost] under the lock. Used by

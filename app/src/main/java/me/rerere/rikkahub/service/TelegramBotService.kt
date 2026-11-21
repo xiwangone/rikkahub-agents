@@ -244,7 +244,9 @@ class TelegramBotService : Service() {
         // the updates that arrived in the gap. Without this, an OEM kill -> next boot
         // re-processes up to 24 h of cached updates (Telegram retains unconfirmed
         // server-side) and the bot replies to ancient messages.
-        var offset = runCatching { prefs.lastOffset() }.getOrDefault(0L)
+        var offset = runCatching { prefs.lastOffset() }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(0L)
         AppLog.i(TAG, "pollLoop: starting at offset=$offset")
         var cycle = 0L
         // Exponential backoff state. Bumped on every transient error, reset on every
@@ -293,6 +295,7 @@ class TelegramBotService : Service() {
                 AppLog.i(TAG, "pollLoop: token changed; resetting offset")
                 offset = 0L
                 runCatching { prefs.setLastOffset(0L) }
+                    .onFailure { if (it is CancellationException) throw it }
                 consecutiveErrors = 0
             }
             lastTokenSeen = cfg.token
@@ -395,6 +398,7 @@ class TelegramBotService : Service() {
                 // Only when it actually advanced — idle cycles don't need the disk hit.
                 if (offset != offsetBefore) {
                     runCatching { prefs.setLastOffset(offset) }
+                        .onFailure { if (it is CancellationException) throw it }
                 }
                 // Successful cycle: reset the backoff counter so a transient blip doesn't
                 // permanently elevate the retry delay.
@@ -408,6 +412,7 @@ class TelegramBotService : Service() {
                     // stop the service cleanly.
                     AppLog.w(TAG, "pollLoop: bailing out; bot token rejected (${e.errorCode})")
                     runCatching { prefs.update { it.copy(enabled = false) } }
+                        .onFailure { if (it is CancellationException) throw it }
                     postTokenInvalidNotification(e.errorCode, e.description)
                     stopSelf()
                     return
@@ -489,6 +494,7 @@ class TelegramBotService : Service() {
             // conv; nothing to do.
             val mapping =
                 runCatching { chatRepo.getByConversationId(convId.toString()) }
+                    .onFailure { if (it is CancellationException) throw it }
                     .getOrNull() ?: return@collect
 
             // Harvest the most-recent assistant text. Mirrors SubAgentEngine.harvestFinalText
@@ -536,10 +542,14 @@ class TelegramBotService : Service() {
         val terminal = update.newStatus == "kicked" || update.newStatus == "left"
         if (!terminal) return
         // Cancel any parked turn for this chat so the per-chat mutex releases.
-        turnJobs.remove(update.chatId)?.let { runCatching { it.cancelAndJoin() } }
+        turnJobs.remove(update.chatId)?.let {
+            runCatching { it.cancelAndJoin() }
+                .onFailure { if (it is CancellationException) throw it }
+        }
         // Drop the chat -> conversation mapping. Conversation rows stay in the DB so the
         // user can still browse history in-app; only the Telegram routing breaks.
         runCatching { chatRepo.deleteByChatId(update.chatId) }
+            .onFailure { if (it is CancellationException) throw it }
         // Stale approval keyboards in this chat are now orphan; their messageIds belong to
         // a chat we can no longer edit. Drop them from the registry so no future cancellation
         // sweep tries (and fails) to edit them.

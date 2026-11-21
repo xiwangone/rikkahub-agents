@@ -4200,6 +4200,7 @@
   <string name="tunnel_ephemeral_desc">プロセス終了後にコントロールプレーンがこの端末を削除します。初回登録前のみ有効。</string>
   <string name="tunnel_path_direct">直接接続</string>
   <string name="tunnel_path_relay">リレー %1$s</string>
+  <string name="tunnel_path_relay_short">リレー</string>
   <string name="tunnel_diag_title">ネットワーク診断</string>
   <string name="tunnel_diag_rerun">再診断</string>
   <string name="tunnel_diag_copy">結果をコピー</string>
@@ -4238,7 +4239,7 @@
   <string name="tunnel_diag_detail_direct_ok">example.com に直接接続できました（HTTP %1$d、%2$dms）</string>
   <string name="tunnel_diag_detail_direct_fail_http">example.com への直接接続に失敗しました（HTTP %1$d）</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">example.com への直接接続に失敗しました（接続できません）</string>
-  <string name="tunnel_diag_detail_control_ok">コントロールプレーン %1$s に到達できます（HTTP %2$d、%3$dms）</string>
+  <string name="tunnel_diag_detail_control_ok">コントロールプレーン %1$s から応答あり（HTTP %2$d、%3$dms）、身元は未確認</string>
   <string name="tunnel_diag_detail_control_fail">コントロールプレーン %1$s に到達できません</string>
   <string name="tunnel_diag_detail_no_peer">オンラインのピアがありません</string>
   <string name="tunnel_diag_detail_magic_missing">ピア %1$s に MagicDNS レコードがありません</string>
@@ -4283,7 +4284,6 @@
   <string name="tunnel_diag_detail_transport_other">その他</string>
   <string name="tunnel_diag_detail_control_invalid">コントロールプレーンのアドレスが無効です：%1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">DNS プロキシの確立に失敗しました</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">解決に失敗しました（転送エラー%1$s）</string>
   <string name="tunnel_diag_detail_proxy_fail">プロキシの確立に失敗しました</string>
   <string name="tunnel_path_idle">アイドル</string>
   <string name="tunnel_console_hostname">コンソール名：%1$s</string>

@@ -250,19 +250,10 @@ suspend fun ChatService.compressConversation(
             AppLog.d(TAG, "压缩开始: total=${allMessages.size} targetTokens=$targetTokens keepRecent=$keepRecentMessages model=${model.id}")
 
             // Split messages into those to compress and those to keep
-            val messagesToCompress: List<UIMessage>
-            val messagesToKeep: List<UIMessage>
-
-            if (keepRecentMessages > 0 && allMessages.size > keepRecentMessages) {
-                messagesToCompress = allMessages.dropLast(keepRecentMessages)
-                messagesToKeep = allMessages.takeLast(keepRecentMessages)
-            } else if (keepRecentMessages > 0) {
-                // Not enough messages to compress while keeping recent ones
-                throw IllegalStateException(str(R.string.chat_page_compress_not_enough_messages))
-            } else {
-                messagesToCompress = allMessages
-                messagesToKeep = emptyList()
-            }
+            val (messagesToCompress, messagesToKeep) =
+                splitForCompression(allMessages, keepRecentMessages) {
+                    str(R.string.chat_page_compress_not_enough_messages)
+                }
 
             requireNoPendingToolCalls(messagesToCompress)
 
@@ -316,6 +307,7 @@ suspend fun ChatService.compressConversation(
                     )
                 result.usage?.let { compressUsage ->
                     runCatching { settingsStore.accumulateConvUsage(conversationId.toString(), compressUsage) }
+                        .onFailure { if (it is CancellationException) throw it }
                 }
 
                 return result.message.toText()
@@ -404,7 +396,7 @@ private suspend fun ChatService.seedLifetimeUsageBeforeCompaction(
                 costUsd = preTotals.costUsd,
             ),
         )
-    }
+    }.onFailure { if (it is CancellationException) throw it }
 }
 
 private suspend fun ChatService.recordAgentTraceMemoryOnCompaction(
@@ -457,4 +449,15 @@ private fun buildAgentExecutionTraceDigest(
             .joinToString(" -> ")
     val titleLabel = conversationTitle.trim().ifBlank { "Untitled task" }.take(60)
     return "[Agent Trace · $titleLabel] Executed ${executedTools.size} tool steps ($distinctChain)"
+}
+
+/** 压缩前切分：保留最近 N 条，其余参与压缩。条数不足时按调用方给的文案报错。 */
+private fun splitForCompression(
+    all: List<UIMessage>,
+    keepRecent: Int,
+    notEnoughMessage: () -> String,
+): Pair<List<UIMessage>, List<UIMessage>> = when {
+    keepRecent > 0 && all.size > keepRecent -> all.dropLast(keepRecent) to all.takeLast(keepRecent)
+    keepRecent > 0 -> throw IllegalStateException(notEnoughMessage())
+    else -> all to emptyList()
 }

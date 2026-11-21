@@ -125,6 +125,33 @@ internal sealed interface JumpResolution {
 }
 
 /**
+ * 解析主 host 的 jumpHost 名 → 跳板实体 + 凭证。跳板自身不再递归跳板（一层足够）。
+ * 区分“没配跳板”（正常）与“配了但不可用”（要报原因，否则只看到连不上）。
+ * exec 与 SFTP 共用：两者都必须走跳板，否则 SFTP 会绕过跳板直连目标。
+ */
+internal suspend fun resolveJump(
+    cand: SshHostEntity,
+    repo: SshHostRepository,
+    vaultRepository: CredentialVaultRepository,
+    context: Context,
+): JumpResolution {
+    val jh = cand.jumpHost?.trim().orEmpty()
+    if (jh.isEmpty()) return JumpResolution.NotConfigured
+    if (jh == cand.name) {
+        return JumpResolution.Unusable("saved host '${cand.name}' jumps to itself (jump_host = $jh)")
+    }
+    val jEntity = repo.getByName(jh)
+        ?: return JumpResolution.Unusable("Jump host '$jh' does not exist (use list_ssh_hosts to list available names)")
+    val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository, context)) {
+        is HostAuthResolution.Ready -> r.auth
+        is HostAuthResolution.Unusable -> return JumpResolution.Unusable(r.reason)
+    }
+    return JumpResolution.Ready(
+        JumpSpec(host = jEntity.host, port = jEntity.port, user = jEntity.user, auth = jAuth),
+    )
+}
+
+/**
  * 解析主机认证（**带原因**版）。
  *
  * 无任何凭证材料 = none 认证（返回 Ready，连接时服务端接受即可）；证书走
@@ -652,24 +679,7 @@ fun sshExecSavedTool(
             }
         }
 
-        // 跳板解析：主 host 的 jumpHost 名 → 跳板实体 + 凭证。跳板自身不再递归跳板（一层足够）。
-        // 跳板解析：区分“没配跳板”（正常）与“配了但不可用”（要报原因，否则只看到连不上）
-        suspend fun resolveJump(cand: SshHostEntity): JumpResolution {
-            val jh = cand.jumpHost?.trim().orEmpty()
-            if (jh.isEmpty()) return JumpResolution.NotConfigured
-            if (jh == cand.name) {
-                return JumpResolution.Unusable("saved host '${cand.name}' jumps to itself (jump_host = $jh)")
-            }
-            val jEntity = repo.getByName(jh)
-                ?: return JumpResolution.Unusable("Jump host '$jh' does not exist (use list_ssh_hosts to list available names)")
-            val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepository, context)) {
-                is HostAuthResolution.Ready -> r.auth
-                is HostAuthResolution.Unusable -> return JumpResolution.Unusable(r.reason)
-            }
-            return JumpResolution.Ready(
-                JumpSpec(host = jEntity.host, port = jEntity.port, user = jEntity.user, auth = jAuth),
-            )
-        }
+        // 跳板解析：主 host 的 jumpHost 名 → 跳板实体 + 凭证（顶层共享函数，SFTP 共用）。
 
         var lastError: String? = null
         // 记录每次尝试（host → 失败类别），使「到底切到了哪条通道」可见
@@ -687,7 +697,7 @@ fun sshExecSavedTool(
                     continue
                 }
             }
-            val jumpSpec = when (val jr = resolveJump(cand)) {
+            val jumpSpec = when (val jr = resolveJump(cand, repo, vaultRepository, context)) {
                 is JumpResolution.Ready -> jr.spec
                 JumpResolution.NotConfigured -> null
                 is JumpResolution.Unusable -> {

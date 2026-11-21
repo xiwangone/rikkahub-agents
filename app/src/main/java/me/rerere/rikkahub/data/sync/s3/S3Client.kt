@@ -13,6 +13,7 @@ import io.ktor.http.HttpMethod
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.xmlpull.v1.XmlPullParser
@@ -64,7 +65,7 @@ class S3Client(
                 AppLog.d(TAG, "putObject success: $key")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun putObject(
@@ -103,7 +104,7 @@ class S3Client(
                 AppLog.d(TAG, "putObject(file) success: $key (${file.length()} bytes)")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun getObject(key: String): Result<ByteArray> = withContext(Dispatchers.IO) {
@@ -130,7 +131,7 @@ class S3Client(
 
             val channel = response.bodyAsChannel()
             channel.toInputStream().readBytes()
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun getObjectStream(key: String): Result<InputStream> = withContext(Dispatchers.IO) {
@@ -156,7 +157,7 @@ class S3Client(
             }
 
             response.bodyAsChannel().toInputStream()
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun downloadObjectToFile(key: String, targetFile: File): Result<Unit> = withContext(Dispatchers.IO) {
@@ -194,7 +195,7 @@ class S3Client(
                 }
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun deleteObject(key: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -223,7 +224,7 @@ class S3Client(
                 AppLog.d(TAG, "deleteObject success: $key")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun headObject(key: String): Result<S3ObjectMetadata> = withContext(Dispatchers.IO) {
@@ -253,7 +254,7 @@ class S3Client(
                 etag = response.headers["etag"]?.trim('"'),
                 lastModified = response.headers["last-modified"],
             )
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun listObjects(
@@ -293,7 +294,7 @@ class S3Client(
 
             val xmlBody = response.bodyAsText()
             parseListObjectsResponse(xmlBody)
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun objectExists(key: String): Boolean {

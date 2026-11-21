@@ -4207,6 +4207,7 @@
   <string name="tunnel_ephemeral_desc">تزيل لوحة التحكم هذا الجهاز بعد خروج العملية. يُطبَّق قبل التسجيل الأول فقط.</string>
   <string name="tunnel_path_direct">مباشر</string>
   <string name="tunnel_path_relay">ترحيل %1$s</string>
+  <string name="tunnel_path_relay_short">ترحيل</string>
   <string name="tunnel_diag_title">تشخيص الشبكة</string>
   <string name="tunnel_diag_rerun">إعادة التشخيص</string>
   <string name="tunnel_diag_copy">نسخ النتيجة</string>
@@ -4245,7 +4246,7 @@
   <string name="tunnel_diag_detail_direct_ok">تم الاتصال المباشر بـ example.com (HTTP %1$d، ‏%2$d مللي ثانية)</string>
   <string name="tunnel_diag_detail_direct_fail_http">تعذّر الاتصال المباشر بـ example.com (HTTP %1$d)</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">تعذّر الاتصال المباشر بـ example.com (يتعذر الوصول)</string>
-  <string name="tunnel_diag_detail_control_ok">مستوى التحكم %1$s متاح (HTTP %2$d، ‏%3$d مللي ثانية)</string>
+  <string name="tunnel_diag_detail_control_ok">مستوى التحكم %1$s يستجيب (HTTP %2$d، ‏%3$d مللي ثانية)، ولم يتم التحقق من الهوية</string>
   <string name="tunnel_diag_detail_control_fail">مستوى التحكم %1$s غير متاح</string>
   <string name="tunnel_diag_detail_no_peer">لا توجد نظائر متصلة</string>
   <string name="tunnel_diag_detail_magic_missing">النظير %1$s ليس لديه سجل MagicDNS</string>
@@ -4290,7 +4291,6 @@
   <string name="tunnel_diag_detail_transport_other">أخرى</string>
   <string name="tunnel_diag_detail_control_invalid">عنوان مستوى التحكم غير صالح: %1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">تعذّر إنشاء وكيل DNS</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">تعذّر الحل (خطأ في النقل%1$s)</string>
   <string name="tunnel_diag_detail_proxy_fail">تعذّر إنشاء الوكيل</string>
   <string name="tunnel_path_idle">خامل</string>
   <string name="tunnel_console_hostname">اسم وحدة التحكم: %1$s</string>

@@ -241,9 +241,11 @@ internal fun SshHostEditDialog(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 // 跳板机：与 SSH 工作区同一套交互——下拉选已保存主机，也可手写主机名。
+                // 自排除用原始名（initial?.name）：按实时输入的 name 过滤时，把 A 改名成 B
+                // 的过程中下拉会短暂出现 A（改名前的自己），选上即构成自指。
                 SelectTextField(
                     value = jumpHost,
-                    options = savedHosts.filter { it.name != name },
+                    options = savedHosts.filter { it.name != (initial?.name ?: "") },
                     onOptionSelected = { entity -> jumpHost = entity.name },
                     onValueChange = { jumpHost = it },
                     label = { Text(stringResource(R.string.workspace_ssh_jump_host)) },

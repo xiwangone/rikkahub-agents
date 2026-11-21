@@ -1,7 +1,6 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
-import me.rerere.workspace.ssh.JumpHostProxy
 import me.rerere.rikkahub.data.log.AppLog
 
 import me.rerere.rikkahub.data.vault.message
@@ -9,7 +8,6 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import com.jcraft.jsch.ChannelDirectTCPIP
 import com.jcraft.jsch.JSch
 import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.Proxy

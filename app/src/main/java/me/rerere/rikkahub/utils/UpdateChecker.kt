@@ -6,6 +6,7 @@ import android.os.Environment
 import android.widget.Toast
 import androidx.core.net.toUri
 import java.io.IOException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
@@ -100,6 +101,7 @@ class UpdateChecker(
             // null = A 类「暂无可安装发布」：走静默态，不弹失败横幅
             emit(UiState.Success(data = fetchUpdateInfo() ?: noReleaseInfo()))
         }.catch {
+            if (it is CancellationException) throw it
             // B 类的原因已在分类处写过一次日志，这里只兜住「未预期失败」
             if (it !is UpdateCheckUnavailableException) {
                 AppLog.w(TAG, "update check ended in unexpected error: ${it.javaClass.simpleName}: ${it.message}")

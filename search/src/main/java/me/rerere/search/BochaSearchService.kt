@@ -5,6 +5,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -114,7 +115,7 @@ object BochaSearchService : SearchService<SearchServiceOptions.BochaOptions> {
                     AppLogger.w(TAG, "response failed #${response.code}, body: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                     error("response failed #${response.code}")
                 }
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(

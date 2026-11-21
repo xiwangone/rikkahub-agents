@@ -44,12 +44,14 @@ internal data class TunnelStatus(
 /**
  * 聊天页卡片预览：只列在线、最近活跃排前、再按 IP，取前 5 台。
  * Go 侧 peers 是 map 遍历顺序，不排每次刷新都会乱跳。
+ * IP 平局时按域名/主机名再排一轮（与 dialogPeers 同口径），否则回落 Go map 顺序。
  */
 internal fun List<TunnelPeer>.previewPeers(): List<TunnelPeer> =
     filter { it.online }
         .sortedWith(
             compareByDescending<TunnelPeer> { it.active }
-                .thenBy { it.sortIp() },
+                .thenBy { it.sortIp() }
+                .thenBy { it.dnsName.trimEnd('.').ifBlank { it.hostName }.lowercase() },
         )
         .take(5)
 

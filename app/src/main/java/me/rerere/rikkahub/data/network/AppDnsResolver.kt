@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.network
 import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.tunnel.TsnetBridge
+import me.rerere.rikkahub.data.tunnel.isTailnetMagicDnsHost
 import okhttp3.Dns
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
@@ -174,6 +175,10 @@ object AppDnsResolver {
             ?.hostAddress
         if (!overrideIpv4.isNullOrBlank()) return overrideIpv4
         if (setting.dnsMode == NetworkSetting.DNS_MODE_SYSTEM) return null
+        // 尾网 MagicDNS 域名（*.ts.net）不发给公共 DNS：除非用户选了「尾网 DNS」预设
+        // （100.100.100.100，经隧道 proxy 路由），否则直接跳过，调用方按原主机名走隧道拨号。
+        // 与 OkHttp 侧 HostOverrideDns 的守卫同口径。
+        if (shouldSkipPublicDnsForTailnetHost(cleanHost, setting)) return null
         return runCatching {
             resolve(cleanHost, setting, fallbackDns = Dns { emptyList() })
                 .firstOrNull { it is java.net.Inet4Address }
@@ -188,7 +193,9 @@ object AppDnsResolver {
     fun parseServerList(raw: String): List<String> =
         raw.split(',', ';', ' ', '\n', '\t')
             .map { it.trim() }
-            .filter { parseFixedAddress(it) != null }
+            .mapNotNull { token ->
+                if (parseFixedAddress(token) != null) token else stripServerPort(token)
+            }
             .distinct()
 
     fun resolve(
@@ -242,6 +249,18 @@ object AppDnsResolver {
     ): DnsTestOutcome {
         invalidateCache()
         val target = domain.trim().ifEmpty { NetworkSetting.DEFAULT_DNS_TEST_DOMAIN }
+        // MagicDNS 域名（*.ts.net）不发给公共 DNS：除非当前配置就是尾网 DNS
+        // （自定义模式 + 服务器含 100.100.100.100，此时只问尾网服务器，见
+        // resolveViaCustomServers），否则拒绝测试并说明原因；系统模式除外——
+        // 系统解析可能经本机隧道解析 MagicDNS，交给系统处理。
+        if (isTailnetMagicDnsHost(target) && setting.dnsMode != NetworkSetting.DNS_MODE_SYSTEM &&
+            !usesTailnetDns(setting)
+        ) {
+            throw UnknownHostException(
+                "MagicDNS domain $target cannot be tested with public DNS; " +
+                    "use Tailnet DNS (${TAILNET_DNS_SERVER}) to resolve tailnet names",
+            )
+        }
         val start = System.nanoTime()
         val bootstrapServers = parseServerList(setting.customDnsServers)
             .ifEmpty { listOf("223.5.5.5", "119.29.29.29", "1.1.1.1", "8.8.8.8") }
@@ -252,8 +271,16 @@ object AppDnsResolver {
             NetworkSetting.DNS_MODE_CUSTOM -> bootstrapServers.joinToString(", ")
             else -> "System DNS"
         }
-        val addresses = resolveByMode(setting, bootstrapServers, target, qtypes)?.first
-            ?: Dns.SYSTEM.lookup(target)
+        val resolved = resolveByMode(setting, bootstrapServers, target, qtypes)?.first
+        // 与 resolve() 同口径：独立 DNS 无结果时按 dnsFallbackToSystem 回退系统 DNS。
+        // 原先 resolveByMode 返回空列表（非 null）时 `?:` 不触发，测试比运行时更严。
+        val addresses = if (!resolved.isNullOrEmpty()) {
+            resolved
+        } else if (setting.dnsFallbackToSystem || setting.dnsMode == NetworkSetting.DNS_MODE_SYSTEM) {
+            Dns.SYSTEM.lookup(target)
+        } else {
+            throw UnknownHostException("No A/AAAA record returned for $target via $endpoint")
+        }
         if (addresses.isEmpty()) {
             throw UnknownHostException("No A/AAAA record returned for $target via $endpoint")
         }
@@ -295,6 +322,10 @@ internal fun usesTailnetDns(setting: NetworkSetting): Boolean =
     setting.dnsMode == NetworkSetting.DNS_MODE_CUSTOM &&
         AppDnsResolver.parseServerList(setting.customDnsServers).contains(AppDnsResolver.TAILNET_DNS_SERVER)
 
+/** 尾网 MagicDNS 域名（*.ts.net）是否应跳过公共 DNS 解析。当前配置不是尾网 DNS 时跳过，调用方按原主机名走隧道拨号。 */
+internal fun shouldSkipPublicDnsForTailnetHost(host: String, setting: NetworkSetting): Boolean =
+    isTailnetMagicDnsHost(host) && !usesTailnetDns(setting)
+
 private fun dnsConfigKey(setting: NetworkSetting): String =
     "${setting.dnsMode}|${setting.dohUrl.trim()}|${setting.dotHost.trim()}|${setting.customDnsServers.trim()}|${setting.dnsEnableIpv6}"
 
@@ -325,14 +356,41 @@ private fun resolveByMode(
         else -> null
     }
 
+/**
+ * 自定义 DNS 服务器过滤：MagicDNS 域名（*.ts.net）只问尾网 DNS。
+ * 用户在自定义服务器里混写 "1.1.1.1, 100.100.100.100" 时，按列表顺序逐个试会把
+ * 尾网主机名先发给排在前面的公共 DNS（明文 UDP），公共侧返回任何答案还会被当成真解析结果。
+ * 尾网服务器一条都没有时返回空列表，由调用方按“解析失败”处理（不再问公共 DNS）。
+ */
+/**
+ * "100.100.100.100:53" 取 IP 部分：自定义服务器常被写成 `IP:端口`，
+ * 原先整条被静默丢弃（parseFixedAddress 只认纯字面量），尾网预设随之无声失效。
+ * 查询一律走 53 端口（resolveViaCustomServers 写死），端口后缀只接受写法、不区分端口。
+ * IPv6 字面量含冒号，但冒号前部分不是合法地址，自然返回 null，不做剥离。
+ */
+private fun stripServerPort(token: String): String? {
+    val lastColon = token.lastIndexOf(':')
+    if (lastColon <= 0) return null
+    val hostPart = token.substring(0, lastColon)
+    val portPart = token.substring(lastColon + 1)
+    val port = portPart.toIntOrNull() ?: return null
+    if (port !in 1..65535) return null
+    if (parseFixedAddress(hostPart) == null) return null
+    return hostPart
+}
+
+internal fun effectiveCustomServers(servers: List<String>, hostname: String): List<String> =
+    if (isTailnetMagicDnsHost(hostname)) servers.filter { isTailnetDnsServer(it) } else servers
+
 private fun resolveViaCustomServers(
     servers: List<String>,
     hostname: String,
     qtypes: List<Int>,
 ): Pair<List<InetAddress>, Long> {
+    val effectiveServers = effectiveCustomServers(servers, hostname)
     val allAddresses = mutableListOf<InetAddress>()
     var minTtl = 300L
-    for (server in servers) {
+    for (server in effectiveServers) {
         var serverSucceeded = false
         for (qtype in qtypes) {
             val parsed = runCatching { queryDnsUdpOrTcp(server, 53, hostname, qtype) }.getOrNull()

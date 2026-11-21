@@ -38,7 +38,9 @@ class TelegramBrowserScreenshotStreamer(
     ) {
         // Honour the user's `/stream off` toggle. Read every send so the user gets the new
         // value next action without restarting the bot.
-        val enabled = runCatching { prefs.current().streamScreenshots }.getOrDefault(true)
+        val enabled = runCatching { prefs.current().streamScreenshots }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(true)
         if (!enabled) return
 
         // Resolve the Telegram chat id from the conversation id. If the mapping doesn't

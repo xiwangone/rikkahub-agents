@@ -5,6 +5,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -186,7 +187,7 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
                 SearchResult(
                     items = result,
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(
@@ -250,7 +251,7 @@ object FirecrawlSearchService : SearchService<SearchServiceOptions.FirecrawlOpti
                             ),
                         ),
                 )
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     private fun JsonElement?.asStringList(): List<String>? =

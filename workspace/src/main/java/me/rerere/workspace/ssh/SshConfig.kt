@@ -8,6 +8,24 @@ import java.util.Base64
 enum class SshAuthType {
     PASSWORD,
     PRIVATE_KEY,
+    /**
+     * 无凭证材料（token 用户名中继等 none 认证场景）：不加载任何身份，
+     * 认证方法由 PreferredAuthentications 决定（"none" 在首位）。
+     * 工作区目标主机的编辑页不提供该选项（只列口令/私钥），
+     * NONE 只由跳板解析（无凭证的已保存主机）在运行时推导出来。
+     */
+    NONE,
+}
+
+/**
+ * 按实际凭证材料推导认证类型：有私钥走私钥，有口令走口令，两者都没有是 none 认证
+ * （token 用户名中继场景）。工作区跳板解析用它，不能默认落到 PASSWORD——
+ * 否则 newJSch 会报“SSH password is required”。
+ */
+fun authTypeForCredentials(privateKey: String?, password: String?): SshAuthType = when {
+    !privateKey.isNullOrBlank() -> SshAuthType.PRIVATE_KEY
+    !password.isNullOrBlank() -> SshAuthType.PASSWORD
+    else -> SshAuthType.NONE
 }
 
 /** 已信任的主机公钥 */

@@ -4204,6 +4204,7 @@
   <string name="tunnel_ephemeral_desc">Контрольная панель удалит это устройство после завершения процесса. Действует только до первой регистрации.</string>
   <string name="tunnel_path_direct">Прямое</string>
   <string name="tunnel_path_relay">Ретранслятор %1$s</string>
+  <string name="tunnel_path_relay_short">Ретранслятор</string>
   <string name="tunnel_diag_title">Диагностика сети</string>
   <string name="tunnel_diag_rerun">Повторить диагностику</string>
   <string name="tunnel_diag_copy">Копировать результат</string>
@@ -4242,7 +4243,7 @@
   <string name="tunnel_diag_detail_direct_ok">Прямое подключение к example.com (HTTP %1$d, %2$d мс)</string>
   <string name="tunnel_diag_detail_direct_fail_http">Прямое подключение к example.com не удалось (HTTP %1$d)</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">Прямое подключение к example.com не удалось (недоступно)</string>
-  <string name="tunnel_diag_detail_control_ok">Панель управления %1$s доступна (HTTP %2$d, %3$d мс)</string>
+  <string name="tunnel_diag_detail_control_ok">Панель управления %1$s ответила (HTTP %2$d, %3$d мс), подлинность не проверена</string>
   <string name="tunnel_diag_detail_control_fail">Панель управления %1$s недоступна</string>
   <string name="tunnel_diag_detail_no_peer">Нет пиров в сети</string>
   <string name="tunnel_diag_detail_magic_missing">У пира %1$s нет записи MagicDNS</string>
@@ -4287,7 +4288,6 @@
   <string name="tunnel_diag_detail_transport_other">Другое</string>
   <string name="tunnel_diag_detail_control_invalid">Недопустимый адрес панели управления: %1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">Не удалось установить DNS-прокси</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">Разрешение не удалось (ошибка передачи%1$s)</string>
   <string name="tunnel_diag_detail_proxy_fail">Не удалось установить прокси</string>
   <string name="tunnel_path_idle">Неактивен</string>
   <string name="tunnel_console_hostname">Имя в консоли: %1$s</string>

@@ -15,6 +15,7 @@ import io.ktor.server.engine.embeddedServer
 import io.ktor.server.response.respondText
 import io.ktor.server.routing.get
 import io.ktor.server.routing.routing
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -135,6 +136,7 @@ class CodexOAuthManager(
                                             val account = exchangeCode(code, session)
                                             _status.value = CodexOAuthStatus.Success(account.id)
                                             runCatching { repository.refreshAccount(account.id) }
+                                                .onFailure { if (it is CancellationException) throw it }
                                         } catch (ce: kotlinx.coroutines.CancellationException) {
                                             throw ce
                                         } catch (error: Throwable) {

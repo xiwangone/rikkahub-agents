@@ -59,6 +59,9 @@ class HostOverrideDns(
         // Tailscale 隧道开启时，MagicDNS (*.ts.net) 域名：
         // 用户选了「尾网 DNS」预设时先走尾网 DNS 真解析，拿到真实 tailnet IP；
         // 查不到 / 超时 / 异常时回退合成占位地址（原有行为），拨号阶段仍由 TsnetSocketFactory 按主机名走隧道直连。
+        // 注意：合成地址落在真实可分配的 CGNAT 段内，不可按字面量拨号——
+        // TsnetSocketFactory 只认 hostString，代理失败即报错、永不直连该地址；调用方拿到它时
+        // 无法区分“真解析到”还是“占位”，只能按主机名走隧道。
         if (TsnetBridge.isRunning && isTailnetMagicDnsHost(cleanHost)) {
             if (usesTailnetDns(networkSetting)) {
                 val real = runCatching {

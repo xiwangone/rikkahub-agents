@@ -65,6 +65,11 @@ class TsnetSocketFactory(
                         super.connect(InetSocketAddress("127.0.0.1", localPort), timeout)
                         return
                     }
+                    // 尾网目标但代理建不起来时直接报错、不 fall-through：
+                    // 此时 endpoint 的地址可能是 HostOverrideDns 合成的占位地址
+                    // （合成地址，落在真实可分配的 CGNAT 段内），直连它可能连到
+                    // 另一台真实节点；即使是真实尾网 IP，本进程没有 TUN 接口也直连不通。
+                    throw IOException("Tailnet proxy unavailable for $target:${endpoint.port}")
                 }
             }
             super.connect(endpoint, timeout)

@@ -76,7 +76,6 @@ enum class DiagStringKey {
     TRANSPORT_OTHER,
     CONTROL_INVALID,
     DNS_PROXY_FAIL,
-    RESOLVE_TRANSPORT_ERROR,
     PROXY_FAIL,
     STATUS_PASS,
     STATUS_FAIL,
@@ -183,11 +182,18 @@ fun DiagPeer.firstIpv4(): String =
 fun pickProbeTarget(peers: List<DiagPeer>): DiagPeer? =
     peers.firstOrNull { it.online && it.active } ?: peers.firstOrNull { it.online }
 
+/**
+ * 异常信息进明细/复制文本前截断并去换行：当前错误源不回显密钥，但无截断、无白名单，
+ * 若错误源某天在错误串里带上主机/路径/配置片段会直接外泄；snapshot.error 同理。
+ */
+internal fun errorDetail(error: String): String =
+    error.replace('\n', ' ').replace('\r', ' ').trim().take(120)
+
 /** 1.1 模块状态：后端必须是 Running 才算通过。 */
 fun decideModule(strings: DiagStrings, running: Boolean, backendState: String, error: String?): Pair<DiagStatus, String> =
     when {
         !running -> DiagStatus.FAIL to strings.get(DiagStringKey.MODULE_NOT_STARTED) +
-            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) }
+            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) }
                 ?: backendState.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.PAREN_SUFFIX, it) }
                 ?: "")
         backendState == "Running" -> DiagStatus.PASS to strings.get(DiagStringKey.MODULE_RUNNING)
@@ -203,7 +209,7 @@ fun decideDeviceNetwork(strings: DiagStrings, connected: Boolean, transport: Str
 fun decideSystemDns(strings: DiagStrings, ok: Boolean, latencyMs: Long?, error: String?): Pair<DiagStatus, String> =
     if (ok) DiagStatus.PASS to strings.get(DiagStringKey.DNS_OK, latencyMs ?: 0)
     else DiagStatus.FAIL to strings.get(DiagStringKey.DNS_FAIL) +
-        (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+        (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
 
 /** 1.4 直连目标站：HTTPS GET example.com。 */
 fun decideDirect(strings: DiagStrings, httpStatus: Int?, latencyMs: Long?): Pair<DiagStatus, String> =
@@ -219,7 +225,7 @@ fun decideControlPlane(strings: DiagStrings, host: String, httpStatus: Int?, lat
     when {
         httpStatus != null -> DiagStatus.PASS to strings.get(DiagStringKey.CONTROL_OK, host, httpStatus, latencyMs ?: 0)
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.CONTROL_FAIL, host) +
-            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
     }
 
 /** 1.6 MagicDNS 记录：只查 netmap 里有没有该对端的记录，不做真解析。 */
@@ -253,7 +259,9 @@ fun decideDnsResolve(
         val inRange = addresses.firstOrNull { isTailnetIpv4(it) }
         if (inRange == null) DiagStatus.FAIL to strings.get(DiagStringKey.RESOLVE_OUTSIDE, domain, addresses.first())
         else if (inRange == netmapIp) DiagStatus.PASS to strings.get(DiagStringKey.RESOLVE_MATCH, domain, inRange)
-        else DiagStatus.PASS to strings.get(DiagStringKey.RESOLVE_MISMATCH, domain, inRange, netmapIp)
+        // 解析到尾网段内、但与 netmap 记录不一致的地址：DNS 答案是错的（过期/配错），
+        // 按它拨号会连到错误的对端，不能判 PASS。
+        else DiagStatus.FAIL to strings.get(DiagStringKey.RESOLVE_MISMATCH, domain, inRange, netmapIp)
     }
 }
 
@@ -288,14 +296,14 @@ fun decideTailnetTcp(strings: DiagStrings, ok: Boolean, banner: String?, error: 
         // 连上就算通：对面不是 HTTP 服务（读不到响应）不影响「尾网 TCP 可达」这个结论。
         ok -> DiagStatus.PASS to strings.get(DiagStringKey.TCP_NO_BANNER)
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.TCP_FAIL) +
-            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+            (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
     }
 
 /** 1.10 尾网 Ping（TSMP）。 */
 fun decideTailnetPing(strings: DiagStrings, ok: Boolean, latencyMs: Long?, error: String?): Pair<DiagStatus, String> =
     if (ok) DiagStatus.PASS to strings.get(DiagStringKey.PING_OK, latencyMs ?: 0)
     else DiagStatus.FAIL to strings.get(DiagStringKey.PING_FAIL) +
-        (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+        (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
 
 /** 解析 Go 侧 StatusJSON；字段缺失取默认值，解析失败返回 null。 */
 fun parseDiagStatusJson(raw: String?): DiagSnapshot? {
@@ -347,7 +355,9 @@ private fun statusWord(strings: DiagStrings, status: DiagStatus): String = when 
 
 /**
  * 复制文本：标题取调用方传入的本地化标题（titles 缺失时退化到英文 id 名）；
- * 只写对端短名 + 尾网 IP，不写控制面 URL、auth key 与凭证名。
+ * 只写对端短名 + 尾网 IP；控制面只出现 host，不含完整 URL / path / query / 密钥
+ * （CONTROL_INVALID 的地址已在 controlPlane() 里只取 host，解析不出 host 时
+ * 截断 64 字符并去 query/fragment）；不写 auth key 与凭证名。
  */
 fun buildCopyText(
     strings: DiagStrings,

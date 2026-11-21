@@ -65,7 +65,6 @@ private val RES_IDS: Map<DiagStringKey, Int> = mapOf(
     DiagStringKey.TRANSPORT_OTHER to R.string.tunnel_diag_detail_transport_other,
     DiagStringKey.CONTROL_INVALID to R.string.tunnel_diag_detail_control_invalid,
     DiagStringKey.DNS_PROXY_FAIL to R.string.tunnel_diag_detail_dns_proxy_fail,
-    DiagStringKey.RESOLVE_TRANSPORT_ERROR to R.string.tunnel_diag_detail_resolve_transport_error,
     DiagStringKey.PROXY_FAIL to R.string.tunnel_diag_detail_proxy_fail,
     DiagStringKey.STATUS_PASS to R.string.tunnel_diag_status_pass,
     DiagStringKey.STATUS_FAIL to R.string.tunnel_diag_status_fail,

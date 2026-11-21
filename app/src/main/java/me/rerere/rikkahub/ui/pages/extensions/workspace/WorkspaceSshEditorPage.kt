@@ -174,20 +174,19 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                 )
             }
             SingleChoiceSegmentedButtonRow(modifier = Modifier.fillMaxWidth()) {
-                SshAuthType.entries.forEachIndexed { index, type ->
+                // 目标主机只提供口令/私钥两项：NONE 是跳板解析在运行时推导的，不进编辑页。
+                listOf(
+                    SshAuthType.PASSWORD to R.string.workspace_ssh_auth_password,
+                    SshAuthType.PRIVATE_KEY to R.string.workspace_ssh_auth_private_key,
+                ).forEachIndexed { index, (type, labelRes) ->
                     SegmentedButton(
-                        shape = SegmentedButtonDefaults.itemShape(index = index, count = SshAuthType.entries.size),
+                        shape = SegmentedButtonDefaults.itemShape(index = index, count = 2),
                         selected = draft.authType == type,
                         enabled = !state.busy,
                         onClick = { vm.setAuthType(type) },
                     ) {
                         Text(
-                            stringResource(
-                                when (type) {
-                                    SshAuthType.PASSWORD -> R.string.workspace_ssh_auth_password
-                                    SshAuthType.PRIVATE_KEY -> R.string.workspace_ssh_auth_private_key
-                                },
-                            ),
+                            stringResource(labelRes),
                         )
                     }
                 }
@@ -230,6 +229,9 @@ fun WorkspaceSshEditorPage(id: String? = null) {
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
+
+                // NONE 不进编辑页，此分支只为穷举。
+                SshAuthType.NONE -> Unit
             }
             if (WorkspaceSshEditorVM.SubmitBlocker.CREDENTIAL_MISSING in blockers) {
                 Text(

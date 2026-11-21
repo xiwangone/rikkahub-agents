@@ -11,6 +11,7 @@ import kotlinx.coroutines.withContext
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.data.datastore.NetworkSetting
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.network.AppDnsResolver
 import java.io.DataInputStream
 import java.io.DataOutputStream
@@ -29,6 +30,10 @@ import kotlin.random.Random
  * TCP 传输（与 AppDnsResolver.queryDnsTcp 同口径：2 字节长度前缀）。
  * 探针连完即关并 stopProxy，不留监听。
  */
+
+/** 整轮总预算（毫秒）：单项超时加起来最坏约 69 秒，整轮再设 45 秒上限。 */
+private const val DIAG_TOTAL_BUDGET_MS = 45_000L
+
 class TunnelDiagnosticsRunner(
     private val bridge: TsnetBridge,
     private val settingsStore: SettingsStore,
@@ -48,40 +53,61 @@ class TunnelDiagnosticsRunner(
         }.throwIfCancelled().getOrNull()
         val target = snapshot?.takeIf { it.running }?.let { pickProbeTarget(it.peers) }
 
-        runItem(DiagItemId.MODULE, emit) { moduleDecision(snapshot) }
-        currentCoroutineContext().ensureActive()
+        // 整轮总预算：单项超时累加最坏约 68 秒，整轮再设 45 秒上限；超时后未出结果的项
+        // 标 FAIL（超时），页面不永远停在 PENDING，用户也不必干等满 68 秒。
+        val finished = withTimeoutOrNull(DIAG_TOTAL_BUDGET_MS) {
+            runItem(DiagItemId.MODULE, emit) { moduleDecision(snapshot) }
+            currentCoroutineContext().ensureActive()
 
-        runItem(DiagItemId.DEVICE_NETWORK, emit) { deviceNetwork() }
-        currentCoroutineContext().ensureActive()
+            runItem(DiagItemId.DEVICE_NETWORK, emit) { deviceNetwork() }
+            currentCoroutineContext().ensureActive()
 
-        runItem(DiagItemId.SYSTEM_DNS, emit) { systemDns() }
-        currentCoroutineContext().ensureActive()
+            runItem(DiagItemId.SYSTEM_DNS, emit) { systemDns() }
+            currentCoroutineContext().ensureActive()
 
-        runItem(DiagItemId.DIRECT, emit) {
-            val (status, ms, _) = probeHttp("https://example.com")
-            decideDirect(strings, status, ms)
+            runItem(DiagItemId.DIRECT, emit) {
+                val (status, ms, _) = probeHttp("https://example.com")
+                decideDirect(strings, status, ms)
+            }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.CONTROL_PLANE, emit) { controlPlane() }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.MAGIC_DNS, emit) { magicDnsDecision(snapshot, target) }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.MAGIC_DNS_RESOLVE, emit) { magicDnsResolveDecision(snapshot, target) }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.PEERS, emit) { peersDecision(snapshot) }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.ROUTES, emit) { routesDecision(snapshot) }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.TAILNET_TCP, emit) { tailnetTcpDecision(snapshot, target) }
+            currentCoroutineContext().ensureActive()
+
+            runItem(DiagItemId.TAILNET_PING, emit) { tailnetPingDecision(snapshot, target) }
+            true
         }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.CONTROL_PLANE, emit) { controlPlane() }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.MAGIC_DNS, emit) { magicDnsDecision(snapshot, target) }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.MAGIC_DNS_RESOLVE, emit) { magicDnsResolveDecision(snapshot, target) }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.PEERS, emit) { peersDecision(snapshot) }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.ROUTES, emit) { routesDecision(snapshot) }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.TAILNET_TCP, emit) { tailnetTcpDecision(snapshot, target) }
-        currentCoroutineContext().ensureActive()
-
-        runItem(DiagItemId.TAILNET_PING, emit) { tailnetPingDecision(snapshot, target) }
+        if (finished == null) {
+            for (id in DiagItemId.entries) {
+                if (collected.none { it.id == id }) {
+                    emit(DiagItemState(id, DiagStatus.FAIL, strings.get(DiagStringKey.CHECK_TIMEOUT, DIAG_TOTAL_BUDGET_MS / 1000)))
+                }
+            }
+        }
+        // 失败只留日志汇总（通过/失败/跳过数 + 各 FAIL 项 id，不含明细里的 IP/域名原文），
+        // 页面切走后仍有据可查；此前诊断失败只有页面状态，无任何留痕。
+        val failedIds = collected.filter { it.status == DiagStatus.FAIL }.map { it.id }
+        AppLog.i(
+            "TunnelDiag",
+            "diagnostics finished: pass=${collected.count { it.status == DiagStatus.PASS }} " +
+                "fail=${failedIds.size} skip=${collected.count { it.status == DiagStatus.SKIP }} " +
+                "failed=$failedIds",
+        )
         return DiagResult(
             items = collected,
             startedAtMs = startedAtMs,
@@ -101,11 +127,14 @@ class TunnelDiagnosticsRunner(
         }
 
     /**
-     * 是否官方 Tailscale 控制面：控制面 URL 留空即用默认官方地址，填了就是自建控制面。
+     * 是否官方 Tailscale 控制面：控制面 URL 留空即用默认官方地址；手填官方地址也算官方。
      * 内置 DNS（100.100.100.100）只有官方提供，自建控制面一律没有。
      */
-    private fun usesOfficialControlPlane(): Boolean =
-        settingsStore.settingsFlow.value.networkSetting.tailscaleControlUrl.isBlank()
+    private fun usesOfficialControlPlane(): Boolean {
+        val raw = settingsStore.settingsFlow.value.networkSetting.tailscaleControlUrl.trim()
+        if (raw.isBlank()) return true
+        return controlPlaneHost(raw) == controlPlaneHost(NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL)
+    }
 
     private suspend fun magicDnsResolveDecision(
         snapshot: DiagSnapshot?,
@@ -173,7 +202,8 @@ class TunnelDiagnosticsRunner(
                     DiagStatus.FAIL,
                     strings.get(
                         DiagStringKey.CHECK_ERROR,
-                        result.exceptionOrNull()?.message ?: strings.get(DiagStringKey.UNKNOWN_ERROR),
+                        result.exceptionOrNull()?.message?.let { errorDetail(it) }
+                            ?: strings.get(DiagStringKey.UNKNOWN_ERROR),
                     ),
                 )
             else -> DiagItemState(id, DiagStatus.FAIL, strings.get(DiagStringKey.CHECK_TIMEOUT, id.timeoutMs / 1000))
@@ -229,10 +259,15 @@ class TunnelDiagnosticsRunner(
     private suspend fun controlPlane(): Pair<DiagStatus, String> {
         val raw = settingsStore.settingsFlow.value.networkSetting.tailscaleControlUrl
             .ifBlank { NetworkSetting.DEFAULT_TUNNEL_CONTROL_URL }
+        // 控制面地址无效时只展示 host：原样回显完整 URL 会把控制面 path/query/密钥
+        // 原样写进明细与复制文本（buildCopyText 的承诺是“只含控制面 host”）。
+        val displayUrl = controlPlaneHost(raw)
+            ?.takeIf { it.isNotBlank() }
+            ?: raw.substringBefore('?').substringBefore('#').take(64)
         val url = runCatching { URL(raw) }.getOrNull()
-            ?: return DiagStatus.FAIL to strings.get(DiagStringKey.CONTROL_INVALID, raw)
+            ?: return DiagStatus.FAIL to strings.get(DiagStringKey.CONTROL_INVALID, displayUrl)
         val host = url.host.takeIf { it.isNotBlank() }
-            ?: return DiagStatus.FAIL to strings.get(DiagStringKey.CONTROL_INVALID, raw)
+            ?: return DiagStatus.FAIL to strings.get(DiagStringKey.CONTROL_INVALID, displayUrl)
         val displayHost = if (url.port != -1 && url.port != url.defaultPort) "$host:${url.port}" else host
         val probeUrl = URL(url.protocol, host, url.port, "/").toString()
         val (status, ms, error) = probeHttp(probeUrl)
@@ -250,7 +285,7 @@ class TunnelDiagnosticsRunner(
                 ?: return@withContext DiagStatus.FAIL to
                     strings.get(DiagStringKey.DNS_PROXY_FAIL) +
                         (proxy.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-                            ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+                            ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
             try {
                 val txid = Random.nextInt(1, 0xFFFF)
                 val query = AppDnsResolver.buildQuery(txid, domain, AppDnsResolver.QTYPE_A)
@@ -260,8 +295,8 @@ class TunnelDiagnosticsRunner(
                 val timedOut = outcome.exceptionOrNull() is SocketTimeoutException
                 if (parsed == null && !timedOut) {
                     val msg = outcome.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-                        ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: ""
-                    return@withContext DiagStatus.FAIL to strings.get(DiagStringKey.RESOLVE_TRANSPORT_ERROR, msg)
+                        ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: ""
+                    return@withContext DiagStatus.FAIL to strings.get(DiagStringKey.RESOLVE_NO_RESPONSE, msg)
                 }
                 val rcode = parsed?.rcode
                 val addresses = parsed?.addresses?.mapNotNull { it.hostAddress } ?: emptyList()
@@ -304,7 +339,7 @@ class TunnelDiagnosticsRunner(
                 ?: return@withContext DiagStatus.FAIL to
                     strings.get(DiagStringKey.PROXY_FAIL) +
                         (proxy.exceptionOrNull()?.message?.takeIf { it.isNotBlank() }
-                            ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, it) } ?: "")
+                            ?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
             try {
                 // 本项验的是「尾网 TCP 是否能连上」：连不上（reset/拒绝/超时）才 FAIL；
                 // 连上但对面不是 HTTP 服务（读不到 HTTP 响应）仍算连通，用 TCP_NO_BANNER 提示。
@@ -342,3 +377,13 @@ private fun <T> Result<T>.throwIfCancelled(): Result<T> {
     if (e is CancellationException) throw e
     return this
 }
+
+/** 控制面 URL 归一化成 host（去 scheme/端口/路径、小写）：无 scheme 时按裸 host 处理。 */
+internal fun controlPlaneHost(raw: String): String =
+    raw.trim()
+        .substringAfter("://", raw.trim())
+        .substringBefore('/')
+        .substringBefore(':')
+        .trim()
+        .trimEnd('.')
+        .lowercase()

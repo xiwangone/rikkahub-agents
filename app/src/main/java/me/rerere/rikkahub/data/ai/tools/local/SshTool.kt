@@ -451,7 +451,7 @@ private fun finishSshSession(
 }
 
 @Suppress("TooGenericExceptionCaught") // JSch and network APIs cross several unchecked/checked failure types; preserve retries without catching cancellation.
-private suspend fun connectSshWithRetry(
+internal suspend fun connectSshWithRetry(
     context: Context,
     host: String,
     port: Int,

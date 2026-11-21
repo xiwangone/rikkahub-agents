@@ -4284,6 +4284,7 @@
   <string name="tunnel_ephemeral_desc">进程退出后由控制面自动移除该设备；仅首次注册前设置才生效。</string>
   <string name="tunnel_path_direct">直连</string>
   <string name="tunnel_path_relay">中继 %1$s</string>
+  <string name="tunnel_path_relay_short">中继</string>
   <string name="tunnel_diag_title">网络诊断</string>
   <string name="tunnel_diag_rerun">重新检测</string>
   <string name="tunnel_diag_copy">复制结果</string>
@@ -4322,7 +4323,7 @@
   <string name="tunnel_diag_detail_direct_ok">example.com 直连成功（HTTP %1$d，%2$dms）</string>
   <string name="tunnel_diag_detail_direct_fail_http">example.com 直连失败（HTTP %1$d）</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">example.com 直连失败（无法连接）</string>
-  <string name="tunnel_diag_detail_control_ok">控制面 %1$s 可达（HTTP %2$d，%3$dms）</string>
+  <string name="tunnel_diag_detail_control_ok">控制面 %1$s 有响应（HTTP %2$d，%3$dms），未验证身份</string>
   <string name="tunnel_diag_detail_control_fail">控制面 %1$s 不可达</string>
   <string name="tunnel_diag_detail_no_peer">无在线对端可查</string>
   <string name="tunnel_diag_detail_magic_missing">对端 %1$s 缺少 MagicDNS 记录</string>
@@ -4367,7 +4368,6 @@
   <string name="tunnel_diag_detail_transport_other">其他</string>
   <string name="tunnel_diag_detail_control_invalid">控制面地址无效：%1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">建立 DNS 代理失败</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">解析失败（传输错误%1$s）</string>
   <string name="tunnel_diag_detail_proxy_fail">建立代理失败</string>
   <string name="tunnel_path_idle">空闲</string>
   <string name="tunnel_console_hostname">控制台名称：%1$s</string>

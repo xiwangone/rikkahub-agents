@@ -53,24 +53,34 @@ private suspend fun withSavedHostSession(
             message = r.reason,
         )
     }
+    // 跳板解析（与 exec 同口径）：配了跳板但不可用时带原因终止，不静默直连。
+    val jumpSpec = when (val jr = resolveJump(h, repo, vaultRepository, context)) {
+        is JumpResolution.Ready -> jr.spec
+        JumpResolution.NotConfigured -> null
+        is JumpResolution.Unusable -> return ToolErrors.envelopeFor(
+            error = ToolErrors.classifyMessage(jr.reason),
+            message = jr.reason,
+        )
+    }
     // Same probe-then-bind path the exec tool uses. Without this, SFTP traffic is left to
     // Android's default-network selection, which on adaptive-routing devices routes the
     // app's outgoing connections away from WiFi LAN even though WiFi is up — meaning every
     // recent fix that gave SSH exec the WiFi-binding behaviour was bypassed for SFTP.
-    val outcome = probeReachability(context, h.host, h.port)
+    // 跳板场景：探测目标是跳板主机（隧道由跳板代达），而非目标本身——目标可能只在
+    // 跳板的内网可达，直连探测必然失败会误报 unreachable（exec 侧同口径）。
+    val (probeHost, probePort) = if (jumpSpec != null) jumpSpec.host to jumpSpec.port else h.host to h.port
+    val outcome = probeReachability(context, probeHost, probePort)
     if (outcome.winningNetwork == null && outcome.failures.isNotEmpty()) {
-        return unreachableEnvelope(h.host, h.port, outcome)
+        return unreachableEnvelope(probeHost, probePort, outcome)
     }
     // Stage 2: 建连。短时会话复用（B-2）：同一主机连续传文件不再每调用一次就
     // newJSch + 完整握手；握手失败不进缓存（acquire 只在 connect() 返回后才存条目）。
-    val cacheKey = SshSessionKey(h.host, h.port, h.user, auth.cacheFingerprint(), jump = null)
+    // 跳板经 connectSshWithRetry 建连（与 exec 同款，跳板优先、代理命令被忽略时记警告），
+    // 缓存键含跳板描述；直连时跳板段为 null。
+    val cacheKey = SshSessionKey(h.host, h.port, h.user, auth.cacheFingerprint(), jumpSpec?.cacheKeyPart())
     val leased = try {
         sharedSshSessionCache.acquire(cacheKey, outcome.winningLabel) {
-            runInterruptible(Dispatchers.IO) {
-                val jsch = newJSch(context)
-                val session = openSshSession(jsch, h.host, h.port, h.user, auth, timeoutMs, network = outcome.winningNetwork)
-                SshConnection(session, null)
-            }
+            connectSshWithRetry(context, h.host, h.port, h.user, auth, timeoutMs, outcome.winningNetwork, jumpSpec, null)
         }
     } catch (ce: kotlinx.coroutines.CancellationException) {
         throw ce

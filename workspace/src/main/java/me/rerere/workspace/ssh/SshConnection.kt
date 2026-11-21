@@ -1,6 +1,5 @@
 package me.rerere.workspace.ssh
 
-import com.jcraft.jsch.Channel as JschChannel
 import com.jcraft.jsch.ChannelExec
 import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.HostKey
@@ -10,7 +9,6 @@ import com.jcraft.jsch.JSchException
 import com.jcraft.jsch.Proxy
 import com.jcraft.jsch.Session
 import com.jcraft.jsch.SftpException
-import com.jcraft.jsch.SocketFactory as JschSocketFactory
 import com.jcraft.jsch.UIKeyboardInteractive
 import com.jcraft.jsch.UserInfo
 import me.rerere.common.log.AppLogger
@@ -19,10 +17,7 @@ import me.rerere.workspace.StreamWriter
 import me.rerere.workspace.WorkspaceCommandResult
 import java.io.Closeable
 import java.io.IOException
-import java.io.InputStream
 import java.io.InterruptedIOException
-import java.io.OutputStream
-import java.net.Socket
 import java.net.SocketTimeoutException
 import java.util.Base64
 import java.util.concurrent.CompletableFuture
@@ -30,8 +25,6 @@ import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.ExecutionException
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
-import java.util.concurrent.LinkedBlockingQueue
-import java.util.concurrent.TimeUnit
 import java.util.concurrent.locks.ReentrantLock
 
 /**
@@ -318,6 +311,11 @@ internal class SshConnection private constructor(
                         throw IOException("Invalid SSH private key or passphrase for $label: ${e.message}", e)
                     }
                 }
+
+                SshAuthType.NONE -> {
+                    // 无凭证材料（token 用户名中继等 none 认证场景）：不加载任何身份，
+                    // 认证方法由 connectSession 的 PreferredAuthentications 决定。
+                }
             }
             return jsch
         }
@@ -342,6 +340,13 @@ internal class SshConnection private constructor(
                     }
 
                     SshAuthType.PRIVATE_KEY -> setConfig("PreferredAuthentications", "publickey")
+
+                    // 无凭证材料时 "none" 在首位（与 App 侧 preferredAuthentications 同口径）：
+                    // 服务器接受 none 认证即直接通过，否则再按序尝试其他方法。
+                    SshAuthType.NONE -> setConfig(
+                        "PreferredAuthentications",
+                        "none,publickey,keyboard-interactive,password",
+                    )
                 }
                 setServerAliveInterval(KEEPALIVE_INTERVAL_MS)
                 serverAliveCountMax = KEEPALIVE_COUNT_MAX

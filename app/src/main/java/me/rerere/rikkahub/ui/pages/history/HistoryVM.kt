@@ -2,6 +2,7 @@ package me.rerere.rikkahub.ui.pages.history
 
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.catch
@@ -36,6 +37,7 @@ class HistoryVM(
             .flatMapLatest { assistant ->
                 conversationRepo.getConversationsOfAssistant(assistant?.id ?: Uuid.random())
             }.catch {
+                if (it is CancellationException) throw it
                 AppLog.e(TAG, "Error: ${it.message}")
             }.stateIn(viewModelScope, SharingStarted.Eagerly, emptyList())
 

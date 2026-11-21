@@ -1,6 +1,7 @@
 package me.rerere.search
 
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -189,7 +190,7 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
             }
 
             classifyDdgResponse(statusCode, html, commonOptions.resultSize.coerceIn(1, 50))
-        }.fold(
+        }.onFailure { if (it is CancellationException) throw it }.fold(
             onSuccess = { outcome ->
                 when (outcome) {
                     is DdgOutcome.Results -> {
@@ -272,7 +273,7 @@ object DuckDuckGoSearchService : SearchService<SearchServiceOptions.DuckDuckGoOp
                     ),
                 )
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     /**

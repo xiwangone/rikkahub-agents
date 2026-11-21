@@ -173,4 +173,23 @@ class TunnelPreviewPeersTest {
     fun `dialog peers with only self returns just self`() {
         assertEquals(listOf("yao"), dialogPeers(emptyList(), self()).map { it.hostName })
     }
+
+    @Test
+    fun `dialog peers keep offline and idle devices`() {
+        // 设备弹窗展示完整列表（含离线红点、空闲灰点），不只列在线设备。
+        // 钉住这条，防止无声翻回只列在线（与卡片预览只列在线不同）。
+        val peers = listOf(
+            peer("online-active", "192.0.2.1", online = true, active = true),
+            peer("online-idle", "192.0.2.2", online = true, active = false),
+            peer("offline", "192.0.2.3", online = false, active = false),
+        )
+        assertEquals(
+            listOf("online-active", "online-idle", "offline"),
+            dialogPeers(peers, null).map { it.hostName },
+        )
+        assertEquals(
+            listOf("yao", "online-active", "online-idle", "offline"),
+            dialogPeers(peers, self()).map { it.hostName },
+        )
+    }
 }

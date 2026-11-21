@@ -16,6 +16,7 @@ import io.ktor.http.isSuccess
 import io.ktor.utils.io.jvm.javaio.toInputStream
 import io.ktor.utils.io.readAvailable
 import io.ktor.util.cio.readChannel
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import me.rerere.rikkahub.data.datastore.WebDavConfig
@@ -106,7 +107,7 @@ class WebDavClient(
                 AppLog.d(TAG, "put success: $path")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun put(
@@ -144,7 +145,7 @@ class WebDavClient(
                 AppLog.d(TAG, "put(file) success: $path (${file.length()} bytes)")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun get(path: String): Result<ByteArray> = withContext(Dispatchers.IO) {
@@ -170,7 +171,7 @@ class WebDavClient(
 
             val channel = response.bodyAsChannel()
             channel.toInputStream().readBytes()
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun getStream(path: String): Result<InputStream> = withContext(Dispatchers.IO) {
@@ -195,7 +196,7 @@ class WebDavClient(
             }
 
             response.bodyAsChannel().toInputStream()
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun downloadToFile(path: String, targetFile: File): Result<Unit> = withContext(Dispatchers.IO) {
@@ -233,7 +234,7 @@ class WebDavClient(
                 }
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun delete(path: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -261,7 +262,7 @@ class WebDavClient(
                 AppLog.d(TAG, "delete success: $path")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun head(path: String): Result<WebDavResourceInfo> = withContext(Dispatchers.IO) {
@@ -291,7 +292,7 @@ class WebDavClient(
                 lastModified = parseLastModified(response.headers["Last-Modified"]),
                 isCollection = false,
             )
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun mkcol(path: String): Result<Unit> = withContext(Dispatchers.IO) {
@@ -320,7 +321,7 @@ class WebDavClient(
                 AppLog.d(TAG, "mkcol success: $path")
             }
             Unit
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun propfind(
@@ -366,7 +367,7 @@ class WebDavClient(
 
             val xmlBody = response.bodyAsText()
             parsePropfindResponse(xmlBody, url)
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun exists(path: String): Boolean {
@@ -391,7 +392,7 @@ class WebDavClient(
 
             // Create collection if not exists
             mkcol(path).getOrThrow()
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun list(path: String = ""): Result<List<WebDavResourceInfo>> = withContext(Dispatchers.IO) {
@@ -403,7 +404,7 @@ class WebDavClient(
             } else {
                 emptyList()
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     private fun parsePropfindResponse(xml: String, baseUrl: String): List<WebDavResourceInfo> {

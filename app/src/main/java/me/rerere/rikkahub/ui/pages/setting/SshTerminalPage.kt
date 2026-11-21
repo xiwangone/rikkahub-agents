@@ -150,8 +150,11 @@ fun SshTerminalPage(hostName: String) {
     viewClient.controlDown = controlDown
     viewClient.altDown = altDown
     val terminalTextSizePx = with(LocalDensity.current) {
-        LocalSettings.current.displaySetting.terminalTextSize.sp.roundToPx()
+        LocalSettings.current.displaySetting.terminalTextSize.coerceIn(10, 24).sp.roundToPx()
     }
+    // 上次已应用到 terminalView 的字号（px）：字号是可变状态而非会话初始化参数，
+    // 设置变化时即应用，不必等会话切换。
+    var lastAppliedTextSizePx by remember { mutableStateOf(-1) }
     val terminalTypeface =
         remember(appContext) {
             ResourcesCompat.getFont(appContext, R.font.jetbrains_mono) ?: Typeface.MONOSPACE
@@ -218,7 +221,9 @@ fun SshTerminalPage(hostName: String) {
             }
             if (trust != null) {
                 try {
-                    trustHostKey(appContext, host.host, trust.actual)
+                    // 待确认的密钥可能属于目标主机，也可能属于跳板机：按记录里的主机名写，
+                    // 不能一律写目标主机（跳板密钥会错写到目标名下）。
+                    trustHostKey(appContext, trust.host, trust.actual)
                 } catch (e: IOException) {
                     connectError = appContext.getString(R.string.ssh_terminal_connect_failed, e.message)
                     AppLog.w("SshTerm", "trust host key failed: ${e.message}")
@@ -236,6 +241,11 @@ fun SshTerminalPage(hostName: String) {
                 return@withContext
             }
             var hostKeyRepo: VerifyingHostKeyRepository? = null
+            // 跳板机自己的主机密钥仓库与待确认信息：跳板未知/变更的密钥也走指纹确认弹窗，
+            // 与目标主机同一套流程（PendingTerminalHostKey 的 host 按跳板主机名记）。
+            var jumpHostKeyRepo: VerifyingHostKeyRepository? = null
+            var jumpPendingHost: String? = null
+            var jumpPendingAddress: String? = null
             var lastError: JSchException? = null
             for (attempt in 0 until 2) {
                 try {
@@ -246,13 +256,21 @@ fun SshTerminalPage(hostName: String) {
                     // 跳板（jumpHost 存已保存主机名）：用独立 JSch 连跳板，避免与目标身份互相覆盖；
                     // 目标 session 走跳板 direct-tcpip，按原始 host:port 寻址（不做隧道解析）。
                     val jumpSession = host.jumpHost?.trim()?.takeIf { it.isNotEmpty() }?.let { jh ->
+                        // 跳板机就是自己时不建连：工具侧同款拒绝（saved host 'X' jumps to itself），
+                        // 否则会经自己连自己，白白多一次握手。
+                        if (jh == hostName) throw JSchException("saved host '$hostName' jumps to itself (jump_host = $jh)")
                         val jEntity = hostRepo.getByName(jh)
-                            ?: error("Jump host '$jh' does not exist")
+                            ?: throw JSchException("Jump host '$jh' does not exist")
                         val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepo, appContext)) {
                             is HostAuthResolution.Ready -> r.auth
-                            is HostAuthResolution.Unusable -> error("Jump host '$jh': ${r.reason}")
+                            is HostAuthResolution.Unusable -> throw JSchException("Jump host '$jh': ${r.reason}")
                         }
                         val jumpJsch = newJSch(appContext)
+                        val jumpRepo = VerifyingHostKeyRepository(jumpJsch.hostKeyRepository)
+                        jumpJsch.hostKeyRepository = jumpRepo
+                        jumpHostKeyRepo = jumpRepo
+                        jumpPendingHost = jEntity.host
+                        jumpPendingAddress = "${jEntity.user}@${jEntity.host}:${jEntity.port}"
                         val (jhHost, jhPort) = if (!jAuth.proxyCommand.isNullOrBlank()) {
                             jEntity.host to jEntity.port
                         } else {
@@ -262,8 +280,20 @@ fun SshTerminalPage(hostName: String) {
                         if (jhHost != jEntity.host) js.setHostKeyAlias(jEntity.host)
                         js.setConfig("StrictHostKeyChecking", "yes")
                         js.setConfig("ServerAliveInterval", "30")
+                        // 跳板会话失联也要有明确放弃上限，与目标会话同口径（30 秒 × 3 次）。
+                        js.setConfig("ServerAliveCountMax", "3")
                         jAuth.password?.let { js.setPassword(it) }
                         installSshIdentity(jumpJsch, jAuth)
+                        // 跳板机自身配了代理命令时（如经 cloudflared）：与工具侧 openSshSession
+                        // 同口径安装代理，否则跳板连接按直连拨号必然失败。
+                        if (!jAuth.proxyCommand.isNullOrBlank()) {
+                            val argv = try {
+                                splitProxyCommand(jAuth.proxyCommand, jEntity.host, jEntity.port)
+                            } catch (e: IllegalArgumentException) {
+                                throw JSchException("invalid proxy command: ${e.message}", e)
+                            }
+                            js.setProxy(ProcessProxyCommand(argv))
+                        }
                         js.connect(10_000)
                         jumpSessionRef.set(js)
                         js
@@ -293,12 +323,18 @@ fun SshTerminalPage(hostName: String) {
                     // 缺私钥都在这里失败），无凭证时不加载任何身份（none 认证）。
                     installSshIdentity(jsch, auth)
                     if (!proxyCommand.isNullOrBlank()) {
-                        val argv = try {
-                            splitProxyCommand(proxyCommand, host.host, host.port)
-                        } catch (e: IllegalArgumentException) {
-                            throw JSchException("invalid proxy command: ${e.message}", e)
+                        if (jumpSession != null) {
+                            // 跳板与代理命令同时配时跳板优先，代理被忽略（两者都是传输层，
+                            // 一个会话只能用一个）：记一条警告，不静默（工具侧同口径）。
+                            AppLog.w("SshTerm", "proxy command ignored for ${host.host}: jump host takes precedence")
+                        } else {
+                            val argv = try {
+                                splitProxyCommand(proxyCommand, host.host, host.port)
+                            } catch (e: IllegalArgumentException) {
+                                throw JSchException("invalid proxy command: ${e.message}", e)
+                            }
+                            session.setProxy(ProcessProxyCommand(argv))
                         }
-                        session.setProxy(ProcessProxyCommand(argv))
                     }
                     session.connect(10000)
                     sessionRef.set(session)
@@ -321,26 +357,40 @@ fun SshTerminalPage(hostName: String) {
                 } catch (e: JSchException) {
                     lastError = e
                     AppLog.w("SshTerm", "connect attempt ${attempt + 1} failed: ${e.message}")
+                    // 本轮失败：断开本轮建的跳板会话。下一轮会重建跳板并覆盖引用，
+                    // 不先断开则上一轮已连上的跳板会话被 orphan、永不关闭。
+                    runCatching { jumpSessionRef.getAndSet(null)?.disconnect() }
                     // Authentication failures are deterministic; only retry transient network failures once.
                     if (e.message?.contains("Auth fail") == true) break
                     // 未知 / 变更的主机密钥走确认弹窗，重试不会改变结果，直接退出循环。
-                    if (hostKeyRepo?.unknownKey != null || hostKeyRepo?.changedKey != null) break
+                    // 目标与跳板各记各的仓库，任一有记录即退出（跳板密钥失败时目标仓库还是空的）。
+                    val keyPending = hostKeyRepo?.unknownKey != null || hostKeyRepo?.changedKey != null ||
+                        jumpHostKeyRepo?.unknownKey != null || jumpHostKeyRepo?.changedKey != null
+                    if (keyPending) break
                     if (attempt == 0) {
                         runCatching { Thread.sleep(800) }
                     }
                 }
             }
             if (!connected) {
-                val unknown = hostKeyRepo?.unknownKey
-                val changed = hostKeyRepo?.changedKey
+                // 跳板密钥优先：失败发生在跳板建连时，目标仓库里还没有记录；反之用目标的。
+                val jumpKeyPending = jumpHostKeyRepo?.unknownKey != null || jumpHostKeyRepo?.changedKey != null
+                val unknown = if (jumpKeyPending) jumpHostKeyRepo?.unknownKey else hostKeyRepo?.unknownKey
+                val changed = if (jumpKeyPending) jumpHostKeyRepo?.changedKey else hostKeyRepo?.changedKey
+                val pendingHost = if (jumpKeyPending) jumpPendingHost ?: host.host else host.host
+                val pendingAddress = if (jumpKeyPending) {
+                    jumpPendingAddress ?: "${host.user}@${host.host}:${host.port}"
+                } else {
+                    "${host.user}@${host.host}:${host.port}"
+                }
                 when {
                     unknown != null -> {
-                        pendingHostKey = PendingTerminalHostKey(host.host, "${host.user}@${host.host}:${host.port}", unknown, null)
+                        pendingHostKey = PendingTerminalHostKey(pendingHost, pendingAddress, unknown, null)
                         AppLog.w("SshTerm", "connect: unknown host key ${unknown.type} ${unknown.fingerprint}")
                     }
                     changed != null -> {
-                        pendingHostKey = PendingTerminalHostKey(host.host, "${host.user}@${host.host}:${host.port}", changed.second, changed.first)
-                        AppLog.w("SshTerm", "connect: host key changed for ${host.host}")
+                        pendingHostKey = PendingTerminalHostKey(pendingHost, pendingAddress, changed.second, changed.first)
+                        AppLog.w("SshTerm", "connect: host key changed for $pendingHost")
                     }
                     lastError != null -> {
                         connectError = appContext.getString(R.string.ssh_terminal_connect_failed, lastError.message)
@@ -504,12 +554,16 @@ fun SshTerminalPage(hostName: String) {
                             viewClient.terminalView = terminalView
                             val session = terminalSession
                             if (session != null && terminalView.currentSession !== session) {
-                                terminalView.setTextSize(terminalTextSizePx)
                                 terminalView.setTypeface(terminalTypeface)
                                 terminalView.setTerminalViewClient(viewClient)
                                 terminalView.attachSession(session)
                                 terminalView.onScreenUpdated()
                                 terminalView.post { viewClient.focusAndShowKeyboard() }
+                            }
+                            if (lastAppliedTextSizePx != terminalTextSizePx) {
+                                terminalView.setTextSize(terminalTextSizePx)
+                                lastAppliedTextSizePx = terminalTextSizePx
+                                terminalView.onScreenUpdated()
                             }
                         },
                     )

@@ -35,7 +35,7 @@ class TunnelDiagnosticsTest {
             DiagStringKey.DIRECT_OK -> "example.com 直连成功（HTTP %1\$d，%2\$dms）"
             DiagStringKey.DIRECT_FAIL_HTTP -> "example.com 直连失败（HTTP %1\$d）"
             DiagStringKey.DIRECT_FAIL_UNREACHABLE -> "example.com 直连失败（无法连接）"
-            DiagStringKey.CONTROL_OK -> "控制面 %1\$s 可达（HTTP %2\$d，%3\$dms）"
+            DiagStringKey.CONTROL_OK -> "控制面 %1\$s 有响应（HTTP %2\$d，%3\$dms），未验证身份"
             DiagStringKey.CONTROL_FAIL -> "控制面 %1\$s 不可达"
             DiagStringKey.NO_PEER -> "无在线对端可查"
             DiagStringKey.MAGIC_MISSING -> "对端 %1\$s 缺少 MagicDNS 记录"
@@ -79,7 +79,6 @@ class TunnelDiagnosticsTest {
             DiagStringKey.TRANSPORT_OTHER -> "其他"
             DiagStringKey.CONTROL_INVALID -> "控制面地址无效：%1\$s"
             DiagStringKey.DNS_PROXY_FAIL -> "建立 DNS 代理失败"
-            DiagStringKey.RESOLVE_TRANSPORT_ERROR -> "解析失败（传输错误%1\$s）"
             DiagStringKey.PROXY_FAIL -> "建立代理失败"
             DiagStringKey.MAGIC_DNS_CUSTOM_SKIP -> "自定义控制面：不使用内置 DNS"
             DiagStringKey.STATUS_PASS -> "通过"
@@ -168,9 +167,25 @@ class TunnelDiagnosticsTest {
     }
 
     @Test
-    fun `decideControlPlane treats any http response as reachable`() {
+    fun `decideControlPlane treats any http response as responded without verifying identity`() {
         assertEquals(DiagStatus.PASS, decideControlPlane(zhStrings, "controlplane.tailscale.com", 404, 90L, null).first)
         assertEquals(DiagStatus.FAIL, decideControlPlane(zhStrings, "controlplane.tailscale.com", null, null, "timeout").first)
+    }
+
+    @Test
+    fun `decideControlPlane detail says responded without verifying identity`() {
+        val (status, detail) = decideControlPlane(zhStrings, "controlplane.tailscale.com", 404, 90L, null)
+        assertEquals(DiagStatus.PASS, status)
+        assertTrue(detail.contains("未验证身份"))
+        assertFalse(detail.contains("可达"))
+    }
+
+    @Test
+    fun `decideDnsResolve labels no valid response as no response not transport error`() {
+        val (status, detail) = decideDnsResolve(zhStrings, null, emptyList(), false, ip2, "host-a.example.ts.net")
+        assertEquals(DiagStatus.FAIL, status)
+        assertTrue(detail.contains("无有效响应"))
+        assertFalse(detail.contains("传输错误"))
     }
 
     @Test
@@ -184,7 +199,7 @@ class TunnelDiagnosticsTest {
     }
 
     @Test
-    fun `decideDnsResolve accepts in-range answer and notes netmap mismatch`() {
+    fun `decideDnsResolve rejects in-range answer that mismatches netmap`() {
         val domain = "host-a.example.ts.net"
         assertEquals(DiagStatus.FAIL, decideDnsResolve(zhStrings, null, emptyList(), true, ip2, domain).first)
         assertEquals(DiagStatus.FAIL, decideDnsResolve(zhStrings, null, emptyList(), false, ip2, domain).first)
@@ -198,7 +213,7 @@ class TunnelDiagnosticsTest {
         assertTrue(matchDetail.contains("与记录一致"))
         val (mismatchStatus, mismatchDetail) =
             decideDnsResolve(zhStrings, 0, listOf(ip6), false, ip2, domain)
-        assertEquals(DiagStatus.PASS, mismatchStatus)
+        assertEquals(DiagStatus.FAIL, mismatchStatus)
         assertTrue(mismatchDetail.contains("不一致"))
     }
 
@@ -251,5 +266,21 @@ class TunnelDiagnosticsTest {
         assertTrue(text.contains("1.10 TAILNET_PING：跳过"))
         assertFalse(text.contains("auth"))
         assertFalse(text.contains("controlplane"))
+    }
+
+    @Test
+    fun `controlPlaneHost normalizes official and custom control plane URLs`() {
+        assertEquals("controlplane.tailscale.com", controlPlaneHost("https://controlplane.tailscale.com"))
+        assertEquals(
+            "controlplane.tailscale.com",
+            controlPlaneHost("https://controlplane.tailscale.com:443/api/v2"),
+        )
+        assertEquals("controlplane.tailscale.com", controlPlaneHost("controlplane.tailscale.com"))
+        assertEquals(
+            "controlplane.tailscale.com",
+            controlPlaneHost("HTTPS://ControlPlane.Tailscale.COM."),
+        )
+        assertEquals("controlplane.example.com", controlPlaneHost("https://controlplane.example.com"))
+        assertEquals("", controlPlaneHost(""))
     }
 }

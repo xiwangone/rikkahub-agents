@@ -1,6 +1,7 @@
 package me.rerere.search
 
 import androidx.compose.runtime.Composable
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.Serializable
@@ -93,7 +94,7 @@ object RikkaHubSearchService : SearchService<SearchServiceOptions.RikkaHubOption
                 } else {
                     error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(

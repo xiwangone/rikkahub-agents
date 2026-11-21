@@ -9,6 +9,9 @@ import androidx.datastore.preferences.preferencesDataStore
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.shizuku.ShizukuManager
+import me.rerere.rikkahub.shizuku.ShizukuStatusMapper
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -73,6 +76,9 @@ class DebugApiManager(context: Context) {
         logsDir = File(context.filesDir, "logs"),
     )
 
+    /** 口令来源（vault=凭证库引用 / plain=明文 / auto=每次启动随机），供 /debug/info 自举 */
+    private val tokenKind = MutableStateFlow("auto")
+
     private val _running = MutableStateFlow(false)
     private val _port = MutableStateFlow(0)
 
@@ -108,6 +114,31 @@ class DebugApiManager(context: Context) {
         // exec 端点：经 Shizuku 以 shell uid 运行（root 由调用方显式 su -c）；权限随 Shizuku 启动方式
         server.commandRunner = { command, timeoutMs ->
             kotlinx.coroutines.runBlocking { ShizukuManager.exec(context, command, timeoutMs) }
+        }
+        // /debug/info 自举信息：版本、运行时长、shizuku 状态、口令来源——外部 AI 一次调用完成引导
+        server.infoProvider = {
+            val pi = runCatching { context.packageManager.getPackageInfo(context.packageName, 0) }.getOrNull()
+            buildJsonObject {
+                put("versionName", pi?.versionName ?: "?")
+                put("versionCode", pi?.let {
+                    if (android.os.Build.VERSION.SDK_INT >= 28) it.longVersionCode
+                    else @Suppress("DEPRECATION") it.versionCode.toLong()
+                } ?: 0L)
+                put("uptimeMs", android.os.SystemClock.elapsedRealtime())
+                put("shizuku", ShizukuManager.status(context).name)
+                put("tokenSource", tokenKind.value)
+            }
+        }
+        // /debug/health 附加检查：shizuku 是否可用于 exec（决定 logcat/exec 能力）
+        server.healthProvider = {
+            val usable = runCatching {
+                ShizukuStatusMapper.errorFor(ShizukuManager.status(context)) == null
+            }.getOrDefault(false)
+            listOf(buildJsonObject {
+                put("name", "shizuku_usable")
+                put("ok", usable)
+                put("detail", if (usable) "" else "exec/logcat unavailable; fall back to read-only endpoints")
+            })
         }
         // 单一驱动协程：enabled/口令/监听档位合并成一条「期望配置」流，任一变更走同一条路径热重启。
         // 不用两个并发 collector：冷启动两者都会 start()，而 start() 的 engine 判空与赋值不原子，
@@ -147,6 +178,12 @@ class DebugApiManager(context: Context) {
                     _startError.value = null
                     // $$条目名在取值时解为真值；明文原样；空 → tokenProvider 返 null 自动生成
                     server.tokenProvider = { VaultProviderKeyRefs.resolveOrNull(token)?.ifBlank { null } }
+                    // 口令来源（/debug/info 自举信息用）：外部 AI 判断口令会不会随重启轮换
+                    tokenKind.value = when {
+                        token.startsWith(VaultProviderKeyRefs.PREFIX) -> "vault"
+                        token.isBlank() -> "auto"
+                        else -> "plain"
+                    }
                     // 监听档位与白名单：loopback 仅本机；其余档 "::" 双栈（IPv6 + IPv4-mapped）
                     server.listenHost = listen.host
                     server.allowedNetworks = listen.cidrs

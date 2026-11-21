@@ -5,6 +5,7 @@ import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -167,7 +168,7 @@ object GrokSearchService : SearchService<SearchServiceOptions.GrokOptions> {
                 } else {
                     error("response failed #${response.code}: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
                 }
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(

@@ -3,6 +3,7 @@ package me.rerere.search
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.JsonObject
@@ -95,7 +96,7 @@ object BingSearchService : SearchService<SearchServiceOptions.BingLocalOptions> 
                 // A genuine empty SERP is a successful empty result, not a failure:
                 // the query was answered, there is just nothing matching it.
                 SearchResult(items = results)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     /**

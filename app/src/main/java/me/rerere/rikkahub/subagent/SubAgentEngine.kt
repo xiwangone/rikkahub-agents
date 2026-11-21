@@ -503,7 +503,11 @@ class SubAgentEngine(
         // 这里复用主聊天同一份提示（buildWorkspaceReminder），让子代理明确知道：
         // 自己被分配到哪个工作区、它的发行版/路径约定、以及未就绪时该怎么让用户把它变就绪。
         val workspacePrompt = workspaceId
-            ?.let { id -> runCatching { workspaceRepository.getById(id) }.getOrNull() }
+            ?.let { id ->
+                runCatching { workspaceRepository.getById(id) }
+                    .onFailure { if (it is CancellationException) throw it }
+                    .getOrNull()
+            }
             ?.let { ws -> buildWorkspaceReminder(workspace = ws, hasAnyWorkspace = true) }
         val basePrompt = listOfNotNull(
             profile?.systemPrompt?.trim()?.takeIf { it.isNotEmpty() }
@@ -760,9 +764,10 @@ class SubAgentEngine(
                 listOf(UIMessagePart.Text(message)),
                 answer = run.runInBackground,
             )
-        }.onFailure {
-            AppLog.w(TAG, "failed to notify parent $parentChatId of subagent completion", it)
-        }
+        }.onFailure { if (it is CancellationException) throw it }
+            .onFailure {
+                AppLog.w(TAG, "failed to notify parent $parentChatId of subagent completion", it)
+            }
     }
 
     /** B2：子代理 run 的用量快照（输入/输出/命中缓存 + trip 数）。 */
@@ -791,7 +796,8 @@ class SubAgentEngine(
                 cachedTokens = totals.cachedTokens,
                 trips = trips,
             )
-        }.getOrDefault(RunUsage())
+        }.onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(RunUsage())
     }
 
     private suspend fun harvestFinalText(conversationId: Uuid): String {

@@ -414,7 +414,7 @@ class WorkspaceRepository(
                 val trimmed = map.entries.sortedByDescending { it.value.at }.take(50).associate { it.toPair() }
                 current.copy(workspaceStatsCache = JsonInstant.encodeToString(trimmed))
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     suspend fun checkIntegrity() = withContext(Dispatchers.IO) {
@@ -886,7 +886,9 @@ class WorkspaceRepository(
         if (workspace.isSsh()) return readRemoteDistroInfo(workspace)
         if (!workspace.capabilities().rootfs) return null
         return withContext(Dispatchers.IO) {
-            runCatching { manager.readDistroInfo(workspace.root) }.getOrNull()
+            runCatching { manager.readDistroInfo(workspace.root) }
+                .onFailure { if (it is CancellationException) throw it }
+                .getOrNull()
         }
     }
 
@@ -1065,6 +1067,7 @@ class WorkspaceRepository(
                 AppLog.w("WorkspaceRepository", "delete: remote background tasks cleanup failed for ${workspace.id}: ${it.message}")
             }
             runCatching { remoteBackgroundTasks.dropAllRecords(workspace.id) }
+                .onFailure { if (it is CancellationException) throw it }
         }
         // 远程工作区在本机没有文件可删; 有本地落点的先删文件再删 DB，
         // 文件删除失败则不删 DB（UI 可重试），避免孤儿目录残留

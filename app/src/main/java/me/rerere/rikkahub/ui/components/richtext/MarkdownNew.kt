@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.TextUnit
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.util.fastForEach
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
@@ -163,7 +164,10 @@ fun MarkdownNew(
                     raw to runCatching { Jsoup.parse(generated) }.getOrElse { Jsoup.parse("") }
                 }
             }
-            .catch { AppLog.e(TAG, "MarkdownNew: failed to generate markdown HTML", it) }
+            .catch { error ->
+                if (error is CancellationException) throw error
+                AppLog.e(TAG, "MarkdownNew: failed to generate markdown HTML", error)
+            }
             .flowOn(Dispatchers.Default)
             .collect { if (it !== parsedDoc) parsedDoc = it }
     }

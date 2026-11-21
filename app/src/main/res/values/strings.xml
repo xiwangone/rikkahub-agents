@@ -4284,6 +4284,7 @@
   <string name="tunnel_ephemeral_desc">The control plane removes this device once the process exits. Applies before the first registration.</string>
   <string name="tunnel_path_direct">Direct</string>
   <string name="tunnel_path_relay">Relay %1$s</string>
+  <string name="tunnel_path_relay_short">Relay</string>
   <string name="tunnel_diag_title">Network Diagnostics</string>
   <string name="tunnel_diag_rerun">Run Again</string>
   <string name="tunnel_diag_copy">Copy Results</string>
@@ -4322,7 +4323,7 @@
   <string name="tunnel_diag_detail_direct_ok">example.com reachable directly (HTTP %1$d, %2$d ms)</string>
   <string name="tunnel_diag_detail_direct_fail_http">example.com direct connection failed (HTTP %1$d)</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">example.com direct connection failed (unreachable)</string>
-  <string name="tunnel_diag_detail_control_ok">Control plane %1$s reachable (HTTP %2$d, %3$d ms)</string>
+  <string name="tunnel_diag_detail_control_ok">Control plane %1$s responded (HTTP %2$d, %3$d ms), identity not verified</string>
   <string name="tunnel_diag_detail_control_fail">Control plane %1$s unreachable</string>
   <string name="tunnel_diag_detail_no_peer">No online peer available</string>
   <string name="tunnel_diag_detail_magic_missing">Peer %1$s has no MagicDNS record</string>
@@ -4367,7 +4368,6 @@
   <string name="tunnel_diag_detail_transport_other">Other</string>
   <string name="tunnel_diag_detail_control_invalid">Invalid control plane address: %1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">Failed to establish DNS proxy</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">Resolution failed (transport error%1$s)</string>
   <string name="tunnel_diag_detail_proxy_fail">Failed to establish proxy</string>
   <string name="tunnel_path_idle">Idle</string>
   <string name="tunnel_console_hostname">Console name: %1$s</string>

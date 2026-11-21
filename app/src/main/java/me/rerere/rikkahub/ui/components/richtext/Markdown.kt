@@ -51,6 +51,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.ui.util.fastForEach
 import androidx.core.net.toUri
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.conflate
@@ -256,7 +257,10 @@ fun MarkdownBlock(
                 val current = data
                 if (current != null && current.rawContent == raw) current else parseMarkdown(raw)
             }
-            .catch { exception -> AppLog.e(TAG, "MarkdownBlock: failed to parse markdown", exception) }
+            .catch { exception ->
+                if (exception is CancellationException) throw exception
+                AppLog.e(TAG, "MarkdownBlock: failed to parse markdown", exception)
+            }
             .flowOn(Dispatchers.Default)
             .collect { if (it !== data) setData(it) }
     }

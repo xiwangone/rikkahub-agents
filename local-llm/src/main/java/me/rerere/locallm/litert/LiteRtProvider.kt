@@ -1,6 +1,7 @@
 package me.rerere.locallm.litert
 
 import me.rerere.common.log.AppLogger
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
@@ -99,7 +100,7 @@ class LiteRtProvider(
         }
 
         // 2. Remove from the installed-models DataStore index.
-        runCatching { prefs.removeInstalledModel(LocalRuntime.LiteRT, fileName) }.onFailure { e ->
+        runCatching { prefs.removeInstalledModel(LocalRuntime.LiteRT, fileName) }.onFailure { if (it is CancellationException) throw it }.onFailure { e ->
             AppLogger.e(TAG, "Failed to remove model from prefs: $fileName", e)
         }
 
@@ -116,7 +117,7 @@ class LiteRtProvider(
                     }
                 }
             }
-        }.onFailure { e ->
+        }.onFailure { if (it is CancellationException) throw it }.onFailure { e ->
             AppLogger.e(TAG, "Failed to remove model from provider settings: $fileName", e)
         }
 
@@ -371,7 +372,7 @@ class LiteRtProvider(
         // Local · LiteRT if they update GPU drivers or move to a capable device.
         val visionPersistentlyUnavailable = runCatching {
             prefs.isVisionUnavailable(LocalRuntime.LiteRT, params.model.modelId)
-        }.getOrDefault(false)
+        }.onFailure { if (it is CancellationException) throw it }.getOrDefault(false)
         // Also honor the per-model config field [LiteRtModelConfig.visionAccelerator] —
         // when null we never try the GPU vision backend even if the model file contains
         // vision tensors. Today this is set to null for Gemma-3n entries and to "gpu"
@@ -424,6 +425,7 @@ class LiteRtProvider(
         // Doctor and Settings UI ("running on CPU because GPU failed at init").
         if (resolvedAccel != cachedAccel) {
             runCatching { prefs.setAccelerator(LocalRuntime.LiteRT, resolvedAccel) }
+                .onFailure { if (it is CancellationException) throw it }
                 .onFailure { AppLogger.e(TAG, "setAccelerator($resolvedAccel) failed", it) }
         }
         // If the runtime had to drop vision to text-only on this load, persist that so the
@@ -434,7 +436,7 @@ class LiteRtProvider(
                 "persisting decision so future loads skip the GPU vision attempt")
             runCatching {
                 prefs.setVisionUnavailable(LocalRuntime.LiteRT, params.model.modelId)
-            }.onFailure { AppLogger.e(TAG, "setVisionUnavailable failed", it) }
+            }.onFailure { if (it is CancellationException) throw it }.onFailure { AppLogger.e(TAG, "setVisionUnavailable failed", it) }
         }
 
         // ---- Stream + cumulative→delta conversion ----
@@ -617,7 +619,7 @@ class LiteRtProvider(
                             sampledAtMs = System.currentTimeMillis(),
                         ),
                     )
-                }.onFailure { AppLogger.e(TAG, "setPerfTelemetry failed", it) }
+                }.onFailure { if (it is CancellationException) throw it }.onFailure { AppLogger.e(TAG, "setPerfTelemetry failed", it) }
                 AppLogger.i(
                     TAG,
                     "telemetry: prefill=${"%.2f".format(tele.prefillTps)} tok/s decode=${"%.2f".format(tele.decodeTps)} tok/s " +

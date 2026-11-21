@@ -4199,6 +4199,7 @@
   <string name="tunnel_ephemeral_desc">程式退出後由控制面自動移除該裝置；僅首次註冊前設定才生效。</string>
   <string name="tunnel_path_direct">直連</string>
   <string name="tunnel_path_relay">中繼 %1$s</string>
+  <string name="tunnel_path_relay_short">中繼</string>
   <string name="tunnel_diag_title">網路診斷</string>
   <string name="tunnel_diag_rerun">重新檢測</string>
   <string name="tunnel_diag_copy">複製結果</string>
@@ -4237,7 +4238,7 @@
   <string name="tunnel_diag_detail_direct_ok">example.com 直連成功（HTTP %1$d，%2$dms）</string>
   <string name="tunnel_diag_detail_direct_fail_http">example.com 直連失敗（HTTP %1$d）</string>
   <string name="tunnel_diag_detail_direct_fail_unreachable">example.com 直連失敗（無法連線）</string>
-  <string name="tunnel_diag_detail_control_ok">控制面 %1$s 可達（HTTP %2$d，%3$dms）</string>
+  <string name="tunnel_diag_detail_control_ok">控制面 %1$s 有回應（HTTP %2$d，%3$dms），未驗證身分</string>
   <string name="tunnel_diag_detail_control_fail">控制面 %1$s 不可達</string>
   <string name="tunnel_diag_detail_no_peer">無在線對端可查</string>
   <string name="tunnel_diag_detail_magic_missing">對端 %1$s 缺少 MagicDNS 記錄</string>
@@ -4282,7 +4283,6 @@
   <string name="tunnel_diag_detail_transport_other">其他</string>
   <string name="tunnel_diag_detail_control_invalid">控制面位址無效：%1$s</string>
   <string name="tunnel_diag_detail_dns_proxy_fail">建立 DNS 代理失敗</string>
-  <string name="tunnel_diag_detail_resolve_transport_error">解析失敗（傳輸錯誤%1$s）</string>
   <string name="tunnel_diag_detail_proxy_fail">建立代理失敗</string>
   <string name="tunnel_path_idle">閒置</string>
   <string name="tunnel_console_hostname">控制台名稱：%1$s</string>

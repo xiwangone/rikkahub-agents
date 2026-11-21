@@ -29,7 +29,6 @@ import me.rerere.rikkahub.data.ai.tools.local.openSshSession
 import me.rerere.rikkahub.data.ai.tools.local.sharedSshSessionCache
 import me.rerere.rikkahub.data.ai.tools.local.hasKnownHostKey
 import me.rerere.rikkahub.data.ai.tools.local.importLegacyVaultKnownHosts
-import me.rerere.rikkahub.data.ai.tools.local.installHostKeyVerification
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.persistKnownHosts
 import me.rerere.rikkahub.data.ai.tools.local.withUtf8ConsoleEncoding

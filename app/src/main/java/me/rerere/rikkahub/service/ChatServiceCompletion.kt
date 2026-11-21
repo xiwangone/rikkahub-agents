@@ -77,6 +77,7 @@ fun ChatService.handleToolApproval(
                             ensureHydrated(conversationId)
                             priorGenerationJob?.let { prev ->
                                 runCatching { withTimeoutOrNull(PREV_JOB_JOIN_TIMEOUT_MS) { prev.join() } }
+                                    .onFailure { if (it is CancellationException) throw it }
                             }
                             applyToolApprovalDecisionInLock(
                                 conversationId = conversationId,
@@ -136,7 +137,10 @@ private fun ChatService.persistToolApprovalScopeGrant(
 
                 ChatService.ApprovalScope.Once -> Unit
             }
-        }.onFailure { AppLog.e(TAG, "approval grant write failed", it) }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            AppLog.e(TAG, "approval grant write failed", it)
+        }
     }
 }
 
@@ -551,7 +555,7 @@ private suspend fun ChatService.onGenerationStreamChunk(
         is GenerationChunk.UsageIncurred -> {
             runCatching {
                 settingsStore.accumulateConvUsage(conversationId.toString(), chunk.usage)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
         is GenerationChunk.Messages -> {
@@ -610,7 +614,7 @@ private suspend fun ChatService.onGenerationStreamChunk(
                     if (!streamState.streamCompleted) {
                         runCatching {
                             saveConversation(conversationId, updatedConversation, syncFts = false)
-                        }
+                        }.onFailure { if (it is CancellationException) throw it }
                     }
                 }
             }

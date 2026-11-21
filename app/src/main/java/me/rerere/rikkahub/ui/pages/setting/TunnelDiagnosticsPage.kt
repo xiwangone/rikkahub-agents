@@ -72,7 +72,10 @@ class TunnelDiagnosticsViewModel(
 ) : ViewModel() {
     private val runner = TunnelDiagnosticsRunner(TsnetBridge, settingsStore, appContext, appContext.diagStrings())
 
-    private val _items = MutableStateFlow(DiagItemId.entries.map { DiagItemState(it, DiagStatus.PENDING) })
+    // 1.9 尾网 TCP 暂时隐藏。
+    private val visibleItems = DiagItemId.entries.filter { it != DiagItemId.TAILNET_TCP }
+
+    private val _items = MutableStateFlow(visibleItems.map { DiagItemState(it, DiagStatus.PENDING) })
     val items: StateFlow<List<DiagItemState>> = _items.asStateFlow()
 
     private val _running = MutableStateFlow(false)
@@ -90,7 +93,7 @@ class TunnelDiagnosticsViewModel(
             _running.value = true
             _startedAtMs.value = System.currentTimeMillis()
             _finishedAtMs.value = 0L
-            _items.value = DiagItemId.entries.map { DiagItemState(it, DiagStatus.PENDING) }
+            _items.value = visibleItems.map { DiagItemState(it, DiagStatus.PENDING) }
             runner.runAll { state ->
                 _items.value = _items.value.map { if (it.id == state.id) state else it }
             }

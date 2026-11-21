@@ -137,11 +137,69 @@ class AppDnsResolverTest {
     }
 
     @Test
+    fun `tailnet MagicDNS names skip public DNS unless tailnet DNS is configured`() {
+        val doh = NetworkSetting(dnsMode = NetworkSetting.DNS_MODE_DOH)
+        assertTrue(shouldSkipPublicDnsForTailnetHost("host.ts.net", doh))
+        assertTrue(shouldSkipPublicDnsForTailnetHost("host.beta.tailscale.net", doh))
+        assertFalse(shouldSkipPublicDnsForTailnetHost("example.com", doh))
+
+        val publicCustom = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_CUSTOM,
+            customDnsServers = "1.1.1.1, 8.8.8.8",
+        )
+        assertTrue(shouldSkipPublicDnsForTailnetHost("host.ts.net", publicCustom))
+
+        val tailnetDns = NetworkSetting(
+            dnsMode = NetworkSetting.DNS_MODE_CUSTOM,
+            customDnsServers = "100.100.100.100",
+        )
+        assertFalse(shouldSkipPublicDnsForTailnetHost("host.ts.net", tailnetDns))
+        assertFalse(shouldSkipPublicDnsForTailnetHost("example.com", tailnetDns))
+    }
+
+    @Test
     fun `tailnet preset is present with the tailnet DNS server and custom-only`() {
         val presets = AppDnsResolver.PRESETS.filter { it.id == AppDnsResolver.TAILNET_PRESET_ID }
         assertEquals(1, presets.size)
         val preset = presets.first()
         assertEquals("100.100.100.100", preset.bootstrapIps)
         assertTrue(preset.customOnly)
+    }
+
+    @Test
+    fun `parseServerList accepts IPv4 with port suffix and ignores the port`() {
+        assertEquals(listOf("100.100.100.100"), AppDnsResolver.parseServerList("100.100.100.100:53"))
+        assertEquals(
+            listOf("1.1.1.1", "8.8.8.8"),
+            AppDnsResolver.parseServerList("1.1.1.1:5353, 8.8.8.8"),
+        )
+        // 非数字端口、超出范围的端口、主机名带端口一律丢弃，不静默吞掉整条配置。
+        assertEquals(emptyList<String>(), AppDnsResolver.parseServerList("1.1.1.1:abc"))
+        assertEquals(emptyList<String>(), AppDnsResolver.parseServerList("1.1.1.1:99999"))
+        assertEquals(emptyList<String>(), AppDnsResolver.parseServerList("example.com:53"))
+        // IPv6 字面量含冒号，不做剥离，原样保留。
+        assertEquals(listOf("2001:db8::1"), AppDnsResolver.parseServerList("2001:db8::1"))
+    }
+
+    @Test
+    fun `MagicDNS names only query tailnet DNS servers in custom mode`() {
+        assertEquals(
+            listOf("100.100.100.100"),
+            effectiveCustomServers(listOf("1.1.1.1", "100.100.100.100"), "host.ts.net"),
+        )
+        assertEquals(
+            listOf("100.100.100.100"),
+            effectiveCustomServers(listOf("1.1.1.1", "100.100.100.100"), "host.beta.tailscale.net"),
+        )
+        // 列表里没有尾网服务器时不问公共 DNS，返回空列表（调用方按解析失败处理）。
+        assertEquals(
+            emptyList<String>(),
+            effectiveCustomServers(listOf("1.1.1.1", "8.8.8.8"), "host.ts.net"),
+        )
+        // 非尾网域名不受影响，全部服务器都问。
+        assertEquals(
+            listOf("1.1.1.1", "8.8.8.8"),
+            effectiveCustomServers(listOf("1.1.1.1", "8.8.8.8"), "example.com"),
+        )
     }
 }

@@ -30,14 +30,21 @@ class JumpHostProxy(private val jumpSession: Session, readTimeoutMillis: Long) :
     private var output: OutputStream? = null
 
     override fun connect(socketFactory: JschSocketFactory?, host: String, port: Int, timeout: Int) {
-        val channel = jumpSession.getStreamForwarder(host, port)
-        this.channel = channel
-        // 收到的数据写进管道；必须在 connect 之前设置，否则开头的数据会丢
-        channel.setOutputStream(input.sink)
-        try {
-            channel.connect(timeout)
+        // getStreamForwarder 也包进同一 try：跳板会话已断时它抛的错同样要带“经跳板”上下文，
+        // 否则日志里难与目标直连失败区分。
+        val channel = try {
+            jumpSession.getStreamForwarder(host, port).also {
+                this.channel = it
+                // 收到的数据写进管道；必须在 connect 之前设置，否则开头的数据会丢
+                it.setOutputStream(input.sink)
+                it.connect(timeout)
+            }
         } catch (e: JSchException) {
-            // 常见原因：跳板机连不到目标主机，或者 sshd 设置了 AllowTcpForwarding no
+            // 常见原因：跳板机连不到目标主机，或者 sshd 设置了 AllowTcpForwarding no。
+            // 建连失败先断开已打开的通道再上抛，否则半开通道留在跳板会话上；
+            // 通道引用一并清掉，失败后的代理仍报告“未连接”。
+            runCatching { this.channel?.disconnect() }
+            this.channel = null
             throw JSchException("jump host could not open a tunnel to $host:$port (${e.message})", e)
         }
         output = channel.outputStream

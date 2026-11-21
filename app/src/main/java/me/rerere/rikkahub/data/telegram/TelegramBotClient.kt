@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.telegram
 import me.rerere.common.android.SafeRequestLoggingInterceptor
 import me.rerere.rikkahub.data.log.AppLog
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
@@ -238,6 +239,8 @@ class TelegramBotClient(
             if (text != null) put("text", text)
             put("show_alert", showAlert)
         }).jsonPrimitive.boolean
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Throwable) {
         false  // best-effort; the flow doesn't depend on the ack
     }
@@ -322,6 +325,8 @@ class TelegramBotClient(
             put("chat_id", chatId)
             put("message_id", messageId)
         }).jsonPrimitive.boolean
+    } catch (e: CancellationException) {
+        throw e
     } catch (_: Throwable) {
         false
     }

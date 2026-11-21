@@ -14,7 +14,7 @@ on:
       - '**.md'
       - '.github/release-notes/**'
   pull_request:
-    branches: [master]
+    branches: [master, test]
     paths-ignore:
       - 'docs/**'
       - '**.md'

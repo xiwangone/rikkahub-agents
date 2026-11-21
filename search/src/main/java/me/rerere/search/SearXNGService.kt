@@ -3,6 +3,7 @@ package me.rerere.search
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.res.stringResource
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -116,7 +117,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                 val bodyRaw = boundedBodyOrFail(response)
                 val searchResponse = runCatching {
                     json.decodeFromString<SearXNGResponse>(bodyRaw)
-                }.onFailure {
+                }.onFailure { if (it is CancellationException) throw it }.onFailure {
                     AppLogger.e(TAG, "Failed to decode SearXNG response: ${bodyPreview(bodyRaw)}", it)
                     error("Failed to decode SearXNG response: ${it.message}")
                 }.getOrThrow()
@@ -138,7 +139,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                 AppLogger.e(TAG, "SearXNG API error: ${response.code} - $errorBody")
                 error("SearXNG request failed with status ${response.code}")
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
     override suspend fun scrape(
@@ -196,7 +197,7 @@ object SearXNGService : SearchService<SearchServiceOptions.SearXNGOptions> {
                     ),
                 )
             }
-        }
+        }.onFailure { if (it is CancellationException) throw it }
     }
 
 

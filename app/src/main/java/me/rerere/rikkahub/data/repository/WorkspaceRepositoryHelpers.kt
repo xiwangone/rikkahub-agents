@@ -42,6 +42,7 @@ import me.rerere.workspace.ssh.SshHostProbe
 import me.rerere.workspace.ssh.SshJumpHostConfig
 import me.rerere.workspace.ssh.SshProbeResult
 import me.rerere.workspace.ssh.SshWorkspaceBackend
+import me.rerere.workspace.ssh.authTypeForCredentials
 import me.rerere.workspace.ssh.probeBudgetMs
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
@@ -143,6 +144,8 @@ internal suspend fun WorkspaceRepository.verifyCredentials(settings: SshWorkspac
                 requireCredential(settings.privateKeyRef)
                 requireCredential(settings.passphraseRef)
             }
+            // NONE 不需要任何凭证材料（编辑页不提供该选项，此分支只为穷举）。
+            SshAuthType.NONE -> Unit
         }
     }
 
@@ -156,19 +159,24 @@ internal fun SshWorkspaceDraft.toSettings(previous: SshWorkspaceSettings?): SshW
         val passwordRef = when (authType) {
             SshAuthType.PASSWORD -> vaultRefInput(passwordRef) { previous?.passwordRef }
             SshAuthType.PRIVATE_KEY -> null
+            SshAuthType.NONE -> null
         }
         val privateKeyRef = when (authType) {
             SshAuthType.PRIVATE_KEY -> vaultRefInput(privateKeyRef) { previous?.privateKeyRef }
             SshAuthType.PASSWORD -> null
+            SshAuthType.NONE -> null
         }
         val passphraseRef = when (authType) {
             SshAuthType.PRIVATE_KEY -> vaultRefInput(passphraseRef) { previous?.passphraseRef }
             SshAuthType.PASSWORD -> null
+            SshAuthType.NONE -> null
         }
         // 必填的凭证位空着（新建、或编辑时被清空）= 连不上又不至于建出一个没有凭据的工作区
         when (authType) {
             SshAuthType.PASSWORD -> require(passwordRef != null) { "Password credential is required" }
             SshAuthType.PRIVATE_KEY -> require(privateKeyRef != null) { "Private key credential is required" }
+            // NONE 不需要任何凭证材料，此分支只为穷举。
+            SshAuthType.NONE -> Unit
         }
         return SshWorkspaceSettings(
             host = host.trim(),
@@ -282,7 +290,9 @@ internal suspend fun WorkspaceRepository.toConnectionConfig(settings: SshWorkspa
             host = entity.host,
             port = entity.port,
             username = entity.user,
-            authType = if (!auth.privateKey.isNullOrBlank()) SshAuthType.PRIVATE_KEY else SshAuthType.PASSWORD,
+            // 按实际材料推导认证类型：无私钥、无口令时是 none 认证（token 用户名中继场景），
+            // 不能落到 PASSWORD——否则 newJSch 会报“SSH password is required”。
+            authType = authTypeForCredentials(auth.privateKey, auth.password),
             password = auth.password,
             privateKey = auth.privateKey?.ensureTrailingNewline(),
             passphrase = auth.passphrase,
@@ -499,12 +509,13 @@ internal var launchHostProbeSupplement: (suspend () -> Unit) -> Unit =
             }
             if (probe == null) {
                 runCatching { store.putFailure(settings.host, settings.port, settings.username) }
+                    .onFailure { if (it is CancellationException) throw it }
                 return@launchHostProbeSupplement
             }
             runCatching {
                 store.put(settings.host, settings.port, probe, settings.username)
                 RemotePlatformStore(context).put(settings.host, settings.port, probe.isWindows)
-            }
+            }.onFailure { if (it is CancellationException) throw it }
             // 成功后刷新环境信息缓存条目的 hostSummary（下次提示词构建即带上）。
             val entry = remoteEnvironments[id]
             val info = entry?.info

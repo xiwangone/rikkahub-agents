@@ -349,12 +349,17 @@ class SshWorkspaceBackend(
     /**
      * Windows 交互终端启动命令：兼容 pwsh 7 / PowerShell 5.1 / cmd。
      * 不假设 pwsh 存在——用 `cmd /c` 串成一条（三种默认 shell 都能解析执行）：
-     * 有 pwsh 用 pwsh，否则退系统自带的 powershell；指令走 EncodedCommand 避免嵌套引号。
+     * 先 `where` 探测再定 shell：有 pwsh 用 pwsh，否则退系统自带的 powershell，
+     * 两者皆无时回退到 cmd 交互 shell。每个交互 shell 后跟 `& exit /b 0`，
+     * 使 shell 以非零码退出（如用户敲 `exit 1`、pwsh 崩溃）时不触发 `||` 回退。
+     * 指令走 EncodedCommand 避免嵌套引号。
      * 远程目录按区配置值处理（不同机器/用户目录不同）：留空 = 不切目录，直接用登录主目录；
-     * 支持 `/C:/Users/x`（sftp 习惯写法）与 `C:\Users\x`、`D:/work` 等。
+     * 支持 `/C:/Users/x`（sftp 习惯写法）与 `C:\Users\x`、`D:/work` 等；UNC 路径（`\\server\share`）
+     * 保留前导反斜杠，不参与首尾修剪。
      */
-    private fun windowsShellCommand(dir: String): String {
-        val winDir = dir.trim().removePrefix("/").replace('/', '\\').trim('\\')
+    internal fun windowsShellCommand(dir: String): String {
+        val winDir = dir.trim().removePrefix("/").replace('/', '\\')
+            .let { if (it.startsWith("\\\\")) it.trimEnd('\\') else it.trim('\\') }
         fun forShell(exe: String): String =
             if (winDir.isBlank()) {
                 "$exe -NoLogo -NoProfile -NoExit"
@@ -363,7 +368,7 @@ class SshWorkspaceBackend(
                 val enc = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
                 "$exe -NoLogo -NoProfile -NoExit -EncodedCommand $enc"
             }
-        return "cmd /c where pwsh >nul 2>&1 && ${forShell("pwsh")} || ${forShell("powershell")}"
+        return "cmd /c where pwsh >nul 2>&1 && (${forShell("pwsh")} & exit /b 0) || (where powershell >nul 2>&1 && (${forShell("powershell")} & exit /b 0) || cmd)"
     }
 
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */

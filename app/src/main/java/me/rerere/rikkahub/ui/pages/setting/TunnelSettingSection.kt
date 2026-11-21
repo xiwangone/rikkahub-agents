@@ -144,21 +144,22 @@ fun TunnelSettingSection(vm: SettingVM) {
         tunnelState is TunnelState.Failed
 
     // 节点与 peer 列表只在已连上时拉取（设置页打开时一次，连上/断开时再一次）。
+    // 解析失败保留上一份快照，不置 null：否则卡片设备区整段消失。
     LaunchedEffect(tunnelState) {
-        nodeStatus = if (tunnelState is TunnelState.Connected) {
-            parseTunnelStatus(TsnetBridge.statusJson())
+        if (tunnelState is TunnelState.Connected) {
+            parseTunnelStatus(TsnetBridge.statusJson())?.let { nodeStatus = it }
         } else {
-            null
+            nodeStatus = null
         }
     }
 
     // 设备弹窗打开期间每 5 秒刷新一次节点状态，圆点随连接状态实时变化；
-    // 关掉弹窗即停，不在后台空转。
+    // 关掉弹窗即停，不在后台空转。解析失败保留上一份快照，不置 null。
     LaunchedEffect(showDevicesDialog) {
         if (!showDevicesDialog) return@LaunchedEffect
         while (true) {
             if (tunnelState is TunnelState.Connected) {
-                nodeStatus = parseTunnelStatus(TsnetBridge.statusJson())
+                parseTunnelStatus(TsnetBridge.statusJson())?.let { nodeStatus = it }
             }
             delay(5000)
         }
@@ -877,6 +878,9 @@ internal fun parseTunnelStatus(raw: String?): TunnelStatus? {
             acceptRoutes = o.optBoolean("acceptRoutes"),
             exitNodeIp = o.optString("exitNodeIP"),
         )
+    }.onFailure {
+        // 解析失败不静默吞掉：否则叠加轮询会让卡片设备区整段消失且无任何留痕。
+        AppLog.w("TunnelSetting", "failed to parse tunnel status json: ${it.message}")
     }.getOrNull()
 }
 
@@ -912,7 +916,7 @@ internal fun TunnelDevicesDialog(
     val copiedLabel = stringResource(R.string.copied)
     val clipboard = LocalClipboardManager.current
     val toaster = LocalToaster.current
-    // 按 IP 数字顺序排：100.66.66.9 < 100.66.66.10（字符串排会把 .10 排到 .9 前面）；
+    // 按 IP 数字顺序排：192.0.2.9 < 192.0.2.10（字符串排会把 .10 排到 .9 前面）；
     // 没 IP 的排最后，短名兜底；固定顺序，刷新不再跳动。本机合成行置顶。
     val devicePeers = dialogPeers(peers, selfPeer)
     AlertDialog(
@@ -945,7 +949,7 @@ internal fun TunnelDevicesDialog(
                     devicePeers.forEach { peer ->
                         val name = peer.hostName.ifBlank { peer.ips.firstOrNull().orEmpty() }
                         val ip = peer.ips.firstOrNull().orEmpty()
-                        // 第一行只放短名（MagicDNS 名去掉尾网后缀，如 minis）；完整域名另起一行，
+                        // 第一行只放短名（MagicDNS 名去掉尾网后缀，如 node-1）；完整域名另起一行，
                         // 放 IP 行下面：同尾网后缀都一样、放上面是重复噪音，跨尾网共享节点靠它区分才有用。
                         // 换 IP/重连不变；短名为空时回落到主机名，第二行只剩 IP，不重复。
                         val domain = peer.dnsName.trimEnd('.')

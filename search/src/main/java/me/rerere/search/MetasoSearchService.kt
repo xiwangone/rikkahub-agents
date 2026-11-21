@@ -6,6 +6,7 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.SerialName
@@ -114,7 +115,7 @@ object MetasoSearchService : SearchService<SearchServiceOptions.MetasoOptions> {
                     AppLogger.w(TAG, "Metaso search failed with code ${response.code}: $errorBody")
                     error("Search request failed with code ${response.code}: $errorBody")
                 }
-            }
+            }.onFailure { if (it is CancellationException) throw it }
         }
 
     override suspend fun scrape(

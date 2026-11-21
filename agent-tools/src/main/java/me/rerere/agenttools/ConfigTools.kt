@@ -8,6 +8,7 @@ import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
@@ -135,7 +136,9 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
      */
     private suspend fun fileExists(path: String): Boolean {
         val dir = path.substringBeforeLast('/', "")
-        return runCatching { io.listFiles(dir) }.getOrElse {
+        return runCatching { io.listFiles(dir) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrElse {
             // 列表失败时无法区分「文件不存在」与「读失败」：按不存在处理，
             // 但记一条 w，否则损坏的配置会被静默当成空配置。
             AppLogger.w(TAG, "fileExists check failed for $path, treating as not-exists", it)
@@ -251,7 +254,9 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
      * 全量写回配置. 覆盖前先把旧文件原样备份, 写入中途失败时旧内容仍可找回.
      */
     private suspend fun save(map: Map<String, JsonElement>) {
-        val existing = runCatching { io.readText(SETTINGS_PATH) }.getOrNull()
+        val existing = runCatching { io.readText(SETTINGS_PATH) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrNull()
         if (existing == null && fileExists(SETTINGS_PATH)) {
             // 旧配置存在但读不出来：备份跳过，本次覆盖会丢旧内容，记一条 w。
             AppLogger.w(TAG, "save: existing config could not be read, skipping backup before overwrite")

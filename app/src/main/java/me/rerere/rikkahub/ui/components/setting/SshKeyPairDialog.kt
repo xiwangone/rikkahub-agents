@@ -111,7 +111,7 @@ fun SshKeyPairDialog(
                     )
                     // 算法选择（三选一，FlowRow 换行防止按钮溢出屏幕）
                     Text(stringResource(R.string.ssh_key_type_label), style = MaterialTheme.typography.labelMedium)
-                    androidx.compose.foundation.layout.FlowRow(
+                    FlowRow(
                         horizontalArrangement = Arrangement.spacedBy(8.dp),
                         verticalArrangement = Arrangement.spacedBy(8.dp),
                     ) {

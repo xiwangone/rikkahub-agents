@@ -356,7 +356,7 @@ class LiteRtRuntime(private val context: Context) {
             val textOnlyKey = desiredEngineKey.copy(supportImage = false)
             return runCatching {
                 tryLoadWithBackend(textOnlyKey, accel, desiredConversationSpec)
-            }.getOrElse { retryError ->
+            }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrElse { retryError ->
                 throw classifyEngineError(
                     modelPath,
                     RuntimeException(
@@ -387,7 +387,7 @@ class LiteRtRuntime(private val context: Context) {
         )
         return runCatching {
             tryLoadWithBackend(desiredEngineKey.copy(accelerator = "CPU"), "CPU", desiredConversationSpec)
-        }.getOrElse { cpuError ->
+        }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrElse { cpuError ->
             fallbackLoadCpuTextOnlyOrThrow(modelPath, desiredEngineKey, desiredConversationSpec, cpuError)
         }
     }
@@ -407,7 +407,7 @@ class LiteRtRuntime(private val context: Context) {
             val textOnlyCpuKey = desiredEngineKey.copy(accelerator = "CPU", supportImage = false)
             return runCatching {
                 tryLoadWithBackend(textOnlyCpuKey, "CPU", desiredConversationSpec)
-            }.getOrElse { lastError ->
+            }.onFailure { if (it is kotlinx.coroutines.CancellationException) throw it }.getOrElse { lastError ->
                 throw classifyEngineError(
                     modelPath,
                     RuntimeException(
