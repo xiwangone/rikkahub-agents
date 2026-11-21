@@ -46,7 +46,23 @@ class SshWorkspaceBackendTest {
         // powershell 与 cmd 仍在命令里当回退
         assertTrue(command.contains("where powershell >nul 2>&1"))
         assertTrue(command.contains("powershell -NoLogo -NoProfile -NoExit"))
-        assertTrue(command.endsWith("|| cmd)"))
+        assertTrue(command.endsWith("|| cmd)\""))
+    }
+
+    @Test
+    fun `windows shell command is quoted so a pwsh default shell cannot parse it`() {
+        val command = backend.windowsShellCommand("C:\\Users\\x")
+        // Windows 上 sshd 默认 shell 可能是 pwsh：裸 cmd 语法会被 pwsh 当表达式解析报
+        // "表达式中缺少右括号" → 终端一开就死。整条必须包在双引号里。
+        assertTrue(command.startsWith("cmd /c \""))
+        assertTrue(command.endsWith("\""))
+    }
+
+    @Test
+    fun `windows dir conversion supports sftp style`() {
+        assertEquals("C:\\Users\\x", backend.toWindowsDir("/C:/Users/x"))
+        assertEquals("D:\\work", backend.toWindowsDir("D:/work"))
+        assertEquals("", backend.toWindowsDir(""))
     }
 
     @Test

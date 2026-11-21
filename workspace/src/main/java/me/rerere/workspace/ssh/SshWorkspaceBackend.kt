@@ -285,6 +285,9 @@ class SshWorkspaceBackend(
     // 脚本经 -EncodedCommand base64 编码后才上命令行，ps 上看不到明文值，
     // 但 base64 一解即得——同机用户可解码，残余风险见 P2-11 说明，未改此分支。
     private fun buildWindowsCommand(workingDir: String, command: String, env: Map<String, String>): String {
+        // 路径必须先归一化：区配置里 remoteDir 常是 SFTP 习惯写法 `/C:/Users/x`，
+        // 直接塞给 Set-Location 会报「找不到驱动器 /C」。
+        val winDir = toWindowsDir(workingDir)
         val envAssignments = buildEnvAssignments(env).joinToString("") { assignment ->
             val key = assignment.substringBefore('=')
             val value = assignment.substringAfter('=', "")
@@ -292,7 +295,7 @@ class SshWorkspaceBackend(
         }
         return "\$env:CI='true'; \$env:NO_COLOR='1'; \$env:PAGER='cat'; " +
             envAssignments +
-            "Set-Location -LiteralPath '${workingDir.replace("'", "''")}'; $command"
+            "Set-Location -LiteralPath '${winDir.replace("'", "''")}'; $command"
     }
 
     // 非登录 shell：远程登录 shell 会 source /etc/profile、~/.profile，
@@ -357,9 +360,13 @@ class SshWorkspaceBackend(
      * 支持 `/C:/Users/x`（sftp 习惯写法）与 `C:\Users\x`、`D:/work` 等；UNC 路径（`\\server\share`）
      * 保留前导反斜杠，不参与首尾修剪。
      */
-    internal fun windowsShellCommand(dir: String): String {
-        val winDir = dir.trim().removePrefix("/").replace('/', '\\')
+    /** SFTP 习惯写法 `/C:/Users/x` → `C:\Users\x`；UNC 保留前导 `\\`；空串原样。 */
+    internal fun toWindowsDir(dir: String): String =
+        dir.trim().removePrefix("/").replace('/', '\\')
             .let { if (it.startsWith("\\\\")) it.trimEnd('\\') else it.trim('\\') }
+
+    internal fun windowsShellCommand(dir: String): String {
+        val winDir = toWindowsDir(dir)
         fun forShell(exe: String): String =
             if (winDir.isBlank()) {
                 "$exe -NoLogo -NoProfile -NoExit"
@@ -368,7 +375,10 @@ class SshWorkspaceBackend(
                 val enc = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
                 "$exe -NoLogo -NoProfile -NoExit -EncodedCommand $enc"
             }
-        return "cmd /c where pwsh >nul 2>&1 && (${forShell("pwsh")} & exit /b 0) || (where powershell >nul 2>&1 && (${forShell("powershell")} & exit /b 0) || cmd)"
+        // 整条 cmd 语法必须用双引号包住：Windows 上 sshd 的默认 shell 常是 pwsh，
+        // 裸 cmd 语法里的 `(` / `&` 会被 pwsh 当表达式解析 → ParserError，交互终端直接打挂。
+        // 加引号后两种默认 shell 都成立：pwsh 把引号内容原样交给 cmd，cmd 剥引号后按原语义执行。
+        return "cmd /c \"where pwsh >nul 2>&1 && (${forShell("pwsh")} & exit /b 0) || (where powershell >nul 2>&1 && (${forShell("powershell")} & exit /b 0) || cmd)\""
     }
 
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
