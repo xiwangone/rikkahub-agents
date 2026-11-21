@@ -47,6 +47,7 @@ import me.rerere.rikkahub.data.datastore.SshPlatform
 import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.setting.SshKeyPairDialog
+import me.rerere.rikkahub.ui.components.ui.SelectTextField
 import me.rerere.rikkahub.ui.components.setting.sshKeyChoiceAvailability
 import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
@@ -56,6 +57,8 @@ import me.rerere.rikkahub.ui.components.vault.VaultCredentialPickerDialog
 internal fun SshHostEditDialog(
     initial: SshHostEntity?,
     vaultRepo: me.rerere.rikkahub.data.vault.CredentialVaultRepository,
+    /** 已保存主机列表：跳板机下拉用（与 SSH 工作区编辑页同一个交互） */
+    savedHosts: List<SshHostEntity> = emptyList(),
     onDismiss: () -> Unit,
     onSave: (SshHostEntity) -> Unit,
 ) {
@@ -70,6 +73,7 @@ internal fun SshHostEditDialog(
     var certificate by remember { mutableStateOf(initial?.certificate ?: "") }
     var vaultCertificateRef by remember { mutableStateOf(initial?.vaultCertificateRef) }
     var proxyCommand by remember { mutableStateOf(initial?.proxyCommand ?: "") }
+    var jumpHost by remember { mutableStateOf(initial?.jumpHost ?: "") }
     var showCertVaultPicker by remember { mutableStateOf(false) }
     var templateRef by remember { mutableStateOf(initial?.templateRef) }
     var platform by remember { mutableStateOf(SshPlatform.fromPreference(initial?.platform)) }
@@ -234,6 +238,18 @@ internal fun SshHostEditDialog(
                     supportingText = {
                         Text(stringResource(R.string.setting_ssh_host_proxy_command_hint))
                     },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                // 跳板机：与 SSH 工作区同一套交互——下拉选已保存主机，也可手写主机名。
+                SelectTextField(
+                    value = jumpHost,
+                    options = savedHosts.filter { it.name != name },
+                    onOptionSelected = { entity -> jumpHost = entity.name },
+                    onValueChange = { jumpHost = it },
+                    label = { Text(stringResource(R.string.workspace_ssh_jump_host)) },
+                    optionToString = { "${it.name} (${it.user}@${it.host})" },
+                    singleLine = true,
+                    supportingText = { Text(stringResource(R.string.workspace_ssh_jump_host_desc)) },
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Text(
@@ -438,7 +454,7 @@ internal fun SshHostEditDialog(
                             // 编辑保存是整行 upsert：未在界面上编辑的字段必须从原实体带回，
                             // 否则一次保存会把它们悄悄清成 null。
                             fallbackHostsJson = initial?.fallbackHostsJson,
-                            jumpHost = initial?.jumpHost,
+                            jumpHost = jumpHost.ifBlank { null },
                             sshOptions = initial?.sshOptions,
                             platform = platform.preferenceName,
                             allowHostKeyRotation = allowHostKeyRotation,

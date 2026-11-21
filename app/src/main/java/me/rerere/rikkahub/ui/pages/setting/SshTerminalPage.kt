@@ -61,6 +61,7 @@ import me.rerere.rikkahub.data.ai.tools.local.HostAuthResolution
 import me.rerere.rikkahub.data.ai.tools.local.ProcessProxyCommand
 import me.rerere.rikkahub.data.ai.tools.local.RemotePlatform
 import me.rerere.rikkahub.data.ai.tools.local.installSshIdentity
+import me.rerere.workspace.ssh.JumpHostProxy
 import me.rerere.rikkahub.data.ai.tools.local.knownHostsFile
 import me.rerere.rikkahub.data.ai.tools.local.newJSch
 import me.rerere.rikkahub.data.ai.tools.local.preferredAuthentications
@@ -141,6 +142,8 @@ fun SshTerminalPage(hostName: String) {
     val terminalSessionRef = remember { AtomicReference<TerminalSession?>(null) }
     val terminalClientRef = remember { AtomicReference<WorkspaceTerminalSessionClient?>(null) }
     val sessionRef = remember { AtomicReference<Session?>(null) }
+    // 跳板 session：目标断开后必须显式断它，否则跳板机会残留一条会话
+    val jumpSessionRef = remember { AtomicReference<Session?>(null) }
     val viewClient = remember { WorkspaceTerminalViewClient(appContext) }
     var controlDown by remember { mutableStateOf(false) }
     var altDown by remember { mutableStateOf(false) }
@@ -193,6 +196,7 @@ fun SshTerminalPage(hostName: String) {
             finishTerminalSession()
             viewClient.terminalView = null
             runCatching { sessionRef.getAndSet(null)?.disconnect() }
+            runCatching { jumpSessionRef.getAndSet(null)?.disconnect() }
         }
     }
 
@@ -205,6 +209,7 @@ fun SshTerminalPage(hostName: String) {
             terminalFinished = false
             finishTerminalSession()
             runCatching { sessionRef.getAndSet(null)?.disconnect() }
+            runCatching { jumpSessionRef.getAndSet(null)?.disconnect() }
             val host = hostRepo.getByName(hostName)
             if (host == null) {
                 AppLog.w("SshTerm", "connect: host not found $hostName")
@@ -238,14 +243,42 @@ fun SshTerminalPage(hostName: String) {
                     val repo = VerifyingHostKeyRepository(jsch.hostKeyRepository)
                     hostKeyRepo = repo
                     jsch.hostKeyRepository = repo
+                    // 跳板（jumpHost 存已保存主机名）：用独立 JSch 连跳板，避免与目标身份互相覆盖；
+                    // 目标 session 走跳板 direct-tcpip，按原始 host:port 寻址（不做隧道解析）。
+                    val jumpSession = host.jumpHost?.trim()?.takeIf { it.isNotEmpty() }?.let { jh ->
+                        val jEntity = hostRepo.getByName(jh)
+                            ?: error("Jump host '$jh' does not exist")
+                        val jAuth = when (val r = resolveHostAuthDetailed(jEntity, vaultRepo, appContext)) {
+                            is HostAuthResolution.Ready -> r.auth
+                            is HostAuthResolution.Unusable -> error("Jump host '$jh': ${r.reason}")
+                        }
+                        val jumpJsch = newJSch(appContext)
+                        val (jhHost, jhPort) = if (!jAuth.proxyCommand.isNullOrBlank()) {
+                            jEntity.host to jEntity.port
+                        } else {
+                            me.rerere.workspace.ssh.TunnelRouter.resolve(jEntity.host, jEntity.port)
+                        }
+                        val js = jumpJsch.getSession(jEntity.user, jhHost, jhPort)
+                        if (jhHost != jEntity.host) js.setHostKeyAlias(jEntity.host)
+                        js.setConfig("StrictHostKeyChecking", "yes")
+                        js.setConfig("ServerAliveInterval", "30")
+                        jAuth.password?.let { js.setPassword(it) }
+                        installSshIdentity(jumpJsch, jAuth)
+                        js.connect(10_000)
+                        jumpSessionRef.set(js)
+                        js
+                    }
                     // 代理命令自己负责寻址：配了 proxyCommand 时不走隧道解析。
                     val proxyCommand = auth.proxyCommand
-                    val (dialHost, dialPort) = if (!proxyCommand.isNullOrBlank()) {
+                    val (dialHost, dialPort) = if (jumpSession != null || !proxyCommand.isNullOrBlank()) {
                         host.host to host.port
                     } else {
                         me.rerere.workspace.ssh.TunnelRouter.resolve(host.host, host.port)
                     }
                     val session = jsch.getSession(host.user, dialHost, dialPort)
+                    if (jumpSession != null) {
+                        session.setProxy(JumpHostProxy(jumpSession, 30_000L))
+                    }
                     // 拨号地址可能是隧道分配的本地地址，主机密钥仍按用户填的主机名比对，
                     // 否则同一主机的密钥变更会被当成新主机放过。
                     if (dialHost != host.host) session.setHostKeyAlias(host.host)
@@ -386,6 +419,7 @@ fun SshTerminalPage(hostName: String) {
                             onClick = {
                                 finishTerminalSession()
                                 runCatching { sessionRef.getAndSet(null)?.disconnect() }
+                                runCatching { jumpSessionRef.getAndSet(null)?.disconnect() }
                                 connected = false
                                 terminalFinished = true
                             },

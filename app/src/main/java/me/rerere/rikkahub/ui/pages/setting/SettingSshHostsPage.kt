@@ -344,6 +344,7 @@ fun SettingSshHostsPage() {
         SshHostEditDialog(
             initial = editing,
             vaultRepo = vaultRepo,
+            savedHosts = hosts,
             onDismiss = { showEdit = false },
             onSave = { entity ->
                 scope.launch {

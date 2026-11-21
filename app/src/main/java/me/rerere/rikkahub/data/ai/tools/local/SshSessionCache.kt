@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import com.jcraft.jsch.Session
+import me.rerere.workspace.ssh.JumpHostProxy
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import java.util.concurrent.ConcurrentHashMap
@@ -37,7 +38,7 @@ internal data class SshSessionKey(
 /** [SshSessionCache.acquire] 的一次租用结果。 */
 internal data class CachedSshSession(
     val session: Session,
-    val tunnel: JumpTunnelProxy?,
+    val tunnel: JumpHostProxy?,
     val fromCache: Boolean,
 )
 
@@ -47,7 +48,7 @@ internal data class CachedSshSession(
  */
 internal data class SshConnection(
     val session: Session,
-    val tunnel: JumpTunnelProxy?,
+    val tunnel: JumpHostProxy?,
 )
 
 /** 把跳板描述折成缓存键里的一段；直连为 null。 */
@@ -88,7 +89,7 @@ internal class SshSessionCache(
 ) {
     private data class Entry(
         val session: Session,
-        val tunnel: JumpTunnelProxy?,
+        val tunnel: JumpHostProxy?,
         val networkLabel: String?,
         @Volatile var lastUsedMs: Long,
     )

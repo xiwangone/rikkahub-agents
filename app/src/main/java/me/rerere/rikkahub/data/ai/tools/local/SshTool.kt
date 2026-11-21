@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.common.http.optInt
+import me.rerere.workspace.ssh.JumpHostProxy
 import me.rerere.common.http.optString
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.datastore.SettingsStore
@@ -438,7 +439,7 @@ internal suspend fun execOneShot(
 private fun finishSshSession(
     cacheKey: SshSessionKey?,
     session: Session,
-    tunnel: JumpTunnelProxy?,
+    tunnel: JumpHostProxy?,
     keepIfAlive: Boolean,
 ) {
     if (cacheKey == null) {
@@ -507,13 +508,13 @@ private fun connectSingleSshAttempt(
     jump: JumpSpec?,
     extraOptions: String?,
 ): SshConnection {
-    var tunnel: JumpTunnelProxy? = null
+    var tunnel: JumpHostProxy? = null
     var session: com.jcraft.jsch.Session? = null
     var keepResources = false
     try {
         val connected = if (jump != null) {
             val jumpSession = openSshSession(jsch, jump.host, jump.port, jump.user, jump.auth, timeoutMs, network = network)
-            val jumpTunnel = JumpTunnelProxy(jumpSession, host, port)
+            val jumpTunnel = JumpHostProxy(jumpSession, 30_000L)
             tunnel = jumpTunnel
             jsch.getSession(user, host, port).also { target ->
                 session = target
@@ -559,7 +560,7 @@ private fun connectSingleSshAttempt(
  */
 private suspend fun connectJumpTarget(
     session: com.jcraft.jsch.Session,
-    tunnel: JumpTunnelProxy?,
+    tunnel: JumpHostProxy?,
     timeoutMs: Int,
 ) {
     try {

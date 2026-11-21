@@ -432,41 +432,6 @@ private class ConnectedSession(val session: Session, val hostKey: SshHostKey)
  * 跳板机还在而目标主机失联时发现不了。所以接收数据的管道自带 [readTimeoutMillis] 读超时，
  * 抛出的 [SocketTimeoutException] 在 JSch 看来和 socket 读超时一样：握手时连接失败，连上之后发送 keepalive。
  */
-private class JumpHostProxy(private val jumpSession: Session, readTimeoutMillis: Long) : Proxy {
-    private val input = TunnelInputStream(readTimeoutMillis)
-
-    @Volatile
-    private var channel: JschChannel? = null
-
-    @Volatile
-    private var output: OutputStream? = null
-
-    override fun connect(socketFactory: JschSocketFactory?, host: String, port: Int, timeout: Int) {
-        val channel = jumpSession.getStreamForwarder(host, port)
-        this.channel = channel
-        // 收到的数据写进管道；必须在 connect 之前设置，否则开头的数据会丢
-        channel.setOutputStream(input.sink)
-        try {
-            channel.connect(timeout)
-        } catch (e: JSchException) {
-            // 常见原因：跳板机连不到目标主机，或者 sshd 设置了 AllowTcpForwarding no
-            throw JSchException("jump host could not open a tunnel to $host:$port (${e.message})", e)
-        }
-        output = channel.outputStream
-    }
-
-    override fun getInputStream(): InputStream = input
-
-    override fun getOutputStream(): OutputStream = output ?: throw IOException("Tunnel is not connected")
-
-    override fun getSocket(): Socket? = null
-
-    override fun close() {
-        channel?.disconnect()
-        jumpSession.disconnect()
-        input.close()
-    }
-}
 
 /**
  * 隧道收到的数据：跳板机会话的读线程写入 [sink]，目标会话从这里读取。
@@ -475,79 +440,6 @@ private class JumpHostProxy(private val jumpSession: Session, readTimeoutMillis:
  * 堆积的数据受目标会话各 channel 的窗口限制，不会无限增长。
  * 和 socket 一样不响应线程中断，断开时靠 [close] 唤醒读取方。
  */
-private class TunnelInputStream(private val readTimeoutMillis: Long) : InputStream() {
-    private val chunks = LinkedBlockingQueue<ByteArray>()
-    private var current: ByteArray = EMPTY
-    private var position = 0
-
-    @Volatile
-    private var closed = false
-
-    val sink: OutputStream = object : OutputStream() {
-        override fun write(b: Int) = write(byteArrayOf(b.toByte()), 0, 1)
-
-        override fun write(b: ByteArray, off: Int, len: Int) {
-            if (closed) throw IOException("Tunnel closed")
-            if (len > 0) chunks.put(b.copyOfRange(off, off + len))
-        }
-
-        override fun close() = this@TunnelInputStream.close()
-    }
-
-    override fun read(): Int {
-        val one = ByteArray(1)
-        return if (read(one, 0, 1) < 0) -1 else one[0].toInt() and 0xff
-    }
-
-    override fun read(b: ByteArray, off: Int, len: Int): Int {
-        if (len == 0) return 0
-        if (position == current.size) {
-            current = nextChunk() ?: return -1
-            position = 0
-        }
-        val count = minOf(len, current.size - position)
-        System.arraycopy(current, position, b, off, count)
-        position += count
-        return count
-    }
-
-    override fun available(): Int = current.size - position
-
-    override fun close() {
-        closed = true
-        chunks.offer(END)
-    }
-
-    private fun nextChunk(): ByteArray? {
-        val deadline = System.nanoTime() + TimeUnit.MILLISECONDS.toNanos(readTimeoutMillis)
-        var interrupted = false
-        try {
-            while (true) {
-                val remaining = deadline - System.nanoTime()
-                if (remaining <= 0) throw SocketTimeoutException("Read timed out")
-                val chunk = try {
-                    chunks.poll(remaining, TimeUnit.NANOSECONDS)
-                } catch (e: InterruptedException) {
-                    interrupted = true
-                    continue
-                } ?: continue
-                if (chunk === END) {
-                    // 之后的读取同样返回 EOF
-                    chunks.offer(END)
-                    return null
-                }
-                return chunk
-            }
-        } finally {
-            if (interrupted) Thread.currentThread().interrupt()
-        }
-    }
-
-    private companion object {
-        val EMPTY = ByteArray(0)
-        val END = ByteArray(0)
-    }
-}
 
 // JSch 等服务器回应时会吞掉线程中断, 这类步骤放到这里的线程上执行, 见 awaitInterruptibly
 // 有界线程池：JSch 阻塞步骤（建连/开 channel/等回应）各占一个线程，

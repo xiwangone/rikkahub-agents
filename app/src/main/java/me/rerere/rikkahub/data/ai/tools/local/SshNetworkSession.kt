@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.data.ai.tools.local
 
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
+import me.rerere.workspace.ssh.JumpHostProxy
 import me.rerere.rikkahub.data.log.AppLog
 
 import me.rerere.rikkahub.data.vault.message
@@ -339,54 +340,6 @@ internal fun openSshSession(
  * 生命周期：跳板 Session 与 Channel 由调用方持有，用毕必须 [close]。
  * [Proxy.connect] 由 JSch 在目标 session.connect() 时调用一次。
  */
-internal class JumpTunnelProxy(
-    private val jumpSession: Session,
-    private val targetHost: String,
-    private val targetPort: Int,
-) : Proxy {
-    private var channel: ChannelDirectTCPIP? = null
-    private var input: java.io.InputStream? = null
-    private var jumpOutStream: java.io.OutputStream? = null
-
-    /** JSch 在目标 session.connect() 时调用。socketFactory/host/port 由 Proxy 语义传入，
-     *  但隧道已固定到 targetHost:targetPort，故忽略形参，只开 direct-tcpip 通道。 */
-    override fun connect(socketFactory: com.jcraft.jsch.SocketFactory?, host: String, port: Int, connectTimeout: Int) {
-        val ch = jumpSession.openChannel("direct-tcpip") as ChannelDirectTCPIP
-        ch.setHost(targetHost)
-        ch.setPort(targetPort)
-        // 流必须在 connect 之前取：JSch 的约定是 getInputStream()/getOutputStream()
-        // 在 connect() 之前调用（晚了库内会记 "should be called before connect()"，
-        // 开头的握手字节也可能丢）；同仓 SshConnection.openShell 与 JumpHostProxy
-        // 都是先取流再 connect。
-        input = ch.inputStream
-        jumpOutStream = ch.outputStream
-        try {
-            ch.connect(connectTimeout.coerceAtLeast(10_000))
-        } catch (e: com.jcraft.jsch.JSchException) {
-            // 建连失败：断开已打开的通道再上抛，否则半开通道留在跳板会话上
-            // （channel 尚未赋值，close() 收不到它）；流引用一并清掉，失败后
-            // 的代理仍报告"未连接"。
-            runCatching { ch.disconnect() }
-            input = null
-            jumpOutStream = null
-            throw e
-        }
-        channel = ch
-    }
-
-    override fun getInputStream(): java.io.InputStream = input ?: error("jump proxy not connected")
-    override fun getOutputStream(): java.io.OutputStream = jumpOutStream ?: error("jump proxy not connected")
-    // JSch 允许返回 null：Session.connect() 里 `socket = proxy.getSocket()` 之后紧跟
-    // `if (connectTimeout > 0 && socket != null)` 判空，握手只靠 getInputStream/getOutputStream
-    // 的两个流；标准源码注释里的 ProxyCommand 示例同样是 `return null`。
-    // （此前这里 direct error() → 跳板握手必定失败："jump proxy has no raw socket"）
-    override fun getSocket(): java.net.Socket? = null
-
-    override fun close() {
-        runCatching { channel?.disconnect() }
-        runCatching { jumpSession.disconnect() }
-    }
-}
 
 /**
  * 重试前的重新选网：网络可能已切换（WiFi↔蜂窝），首次探测选出的 Network 可能已失效，
@@ -400,7 +353,7 @@ internal suspend fun probeNetworkForRetry(context: Context, jump: JumpSpec?, hos
     else probeReachability(context, host, port).winningNetwork
 
 /**
- * 建立到跳板主机的会话（用于 JumpTunnelProxy）。跳板自身的认证与 keepalive
+ * 建立到跳板主机的会话（用于 JumpHostProxy）。跳板自身的认证与 keepalive
  * 走与直连相同的 openSshSession 逻辑，network 绑定同一传输。
  */
 internal fun openJumpSession(
