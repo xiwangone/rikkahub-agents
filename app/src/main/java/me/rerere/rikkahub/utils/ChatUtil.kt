@@ -112,6 +112,8 @@ private val ALLOWED_FILE_EXTENSIONS =
         "gql",
         "yml",
         "yaml",
+        "patch",
+        "diff",
     )
 
 fun isAllowedFileType(

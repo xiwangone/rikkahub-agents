@@ -59,4 +59,18 @@ class SshWorkspaceEnvTest {
         assertTrue(first.startsWith(".rikkahub-env-"))
         assertFalse(first == second)
     }
+
+    /** 异常终止（SIGHUP）时非交互 sh 不跑 EXIT trap，信号分支必须显式覆盖。 */
+    @Test
+    fun `trap covers EXIT INT TERM HUP for env file cleanup`() {
+        val command = buildRemotePosixCommand("sh", "/remote/ws", "echo hi", ".rikkahub-env-123")
+        assertTrue(command.contains("' EXIT"))
+        assertTrue(command.contains("' INT"))
+        assertTrue(command.contains("' TERM"))
+        assertTrue(command.contains("' HUP"))
+        // 信号分支带显式 exit，trap 处理后不再继续跑剩余命令
+        assertTrue(command.contains("exit 130"))
+        assertTrue(command.contains("exit 143"))
+        assertTrue(command.contains("exit 129"))
+    }
 }

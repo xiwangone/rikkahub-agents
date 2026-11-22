@@ -85,21 +85,21 @@ ALLOWLIST_TOKENS = (
     "阿里云百炼",
     "百炼",
     "随想",
+    # 英文产品名 / 平台名：ASR provider 名称与 OS 标签，属标识符不翻译。
+    # 白名单按「整串去干净才算放行」，所以 "Step 1 of 3"、"DashScope 语音" 这类仍会被报。
+    "DashScope", "Volcengine", "MiMo", "Step", "Linux", "Windows",
 )
 
-# Brand / platform proper nouns (English form). Same nature as the CJK brand tokens above:
-# used for name mapping and display constants, never translated.
-BRAND_TOKENS = {
-    "DashScope", "Volcengine", "MiMo", "Step", "Linux", "Windows", "macOS",
-    "Android", "iOS", "OpenAI", "Anthropic", "Gemini", "Claude",
-}
-
 # Design tokens are colour expressions, not prose: hsl()/rgb()/oklch()/#RRGGBB.
-DESIGN_TOKEN_RE = re.compile(r"^(?:hsl|hsla|rgb|rgba|oklch|oklab)\(|^#[0-9A-Fa-f]{3,8}$")
+DESIGN_TOKEN_RE = re.compile(
+    r"^(?:hsl|hsla|hsv|rgb|rgba|oklch|oklab|lab)\(|^#[0-9A-Fa-f]{3,8}$"
+)
 
 # Diagnostic log calls: AppLog / AppLogger / android.util.Log prose is developer-facing
 # and never UI text, including multi-line argument lists.
-LOG_CALL_RE = re.compile(r"(?:\bAppLog(?:ger)?|\bLog)\s*\.\s*[weidv]\s*\(")
+LOG_CALL_RE = re.compile(
+    r"(?:AppLog(?:ger)?|(?:android\.util\.)?Log)\s*\.\s*(?:v|d|i|w|e|wtf)\s*\("
+)
 
 UI_TRIGGER_RE = re.compile(
     r"(?<![A-Za-z0-9_.])"
@@ -146,10 +146,15 @@ def check_ui_literals(diff):
         if not UI_TRIGGER_RE.search(line):
             continue
         for v in re.findall(r'"([A-Za-z][^"\\]{2,})"', line):
-            if v in BRAND_TOKENS or DESIGN_TOKEN_RE.match(v):
+            if PROTOCOL.search(v) or DESIGN_TOKEN_RE.match(v):
                 continue
-            if not PROTOCOL.search(v):
-                missing.append("hardcoded UI text: " + v)
+            # 品牌 / 平台标识符：去掉白名单后没有剩余内容就不算可译文案
+            stripped = v
+            for tok in ALLOWLIST_TOKENS:
+                stripped = stripped.replace(tok, "")
+            if not stripped.strip():
+                continue
+            missing.append("hardcoded UI text: " + v)
     return missing
 
 
@@ -210,27 +215,42 @@ def extract_string_literals(added_lines):
     return out
 
 
-def _blank_log_calls(lines):
-    """Blank log-call lines, including their multi-line argument lists.
+def strip_log_calls(lines):
+    """Blank log-call spans (AppLog / AppLogger / android.util.Log) keeping line count.
 
-    The returned list keeps the original line count so cross-line string parsing
-    and reported positions stay stable. A log call whose parentheses never
-    balance is given up after 20 lines instead of swallowing the rest of a file.
+    Logs are developer-facing, not user copy: the project writes them in Chinese
+    throughout, so those literals must not trip the localization gate. Only the log
+    call span is blanked — UI text on the same line is still checked. Multi-line
+    argument lists are handled by bracket matching that skips brackets inside strings.
     """
-    out = []
-    depth = 0
-    consumed = 0
-    for ln in lines:
-        if depth > 0 or LOG_CALL_RE.search(ln):
-            depth += ln.count("(") - ln.count(")")
-            consumed += 1
-            if depth <= 0 or consumed > 20:
-                depth = 0
-                consumed = 0
-            out.append("")
+    src = "\n".join(lines)
+    out = list(src)
+    n = len(src)
+    for m in LOG_CALL_RE.finditer(src):
+        i = src.find("(", m.start())
+        if i < 0:
             continue
-        out.append(ln)
-    return out
+        depth = 0
+        j = i
+        while j < n:
+            c = src[j]
+            if c == '"':
+                j += 1
+                while j < n and src[j] != '"':
+                    if src[j] == "\\":
+                        j += 1
+                    j += 1
+            elif c == "(":
+                depth += 1
+            elif c == ")":
+                depth -= 1
+                if depth == 0:
+                    break
+            j += 1
+        for k in range(m.start(), min(j + 1, n)):
+            if out[k] != "\n":
+                out[k] = " "
+    return "".join(out).split("\n")
 
 
 def check_cjk_literals(diff):
@@ -242,7 +262,7 @@ def check_cjk_literals(diff):
     def flush():
         if current is None:
             return
-        for lit in extract_string_literals(_blank_log_calls(added[current])):
+        for lit in extract_string_literals(strip_log_calls(added[current])):
             stripped = lit
             for tok in ALLOWLIST_TOKENS:
                 stripped = stripped.replace(tok, "")
@@ -273,7 +293,11 @@ def main():
     missing = []
     missing += check_resource_zh(
         git_diff(base, head, ["*/src/main/res/values/strings.xml"]))
-    kd = git_diff(base, head, ["*.kt", ":!*/src/test/*", ":!stale-tests/*"])
+    # 测试断言里的中文不是用户文案，与 src/test 同口径排除 androidTest；
+    # 否则新增一条仪器测试就会因断言中文被门禁拦（改生产文案时仍需同步 grep 断言）。
+    kd = git_diff(
+        base, head, ["*.kt", ":!*/src/test/*", ":!*/src/androidTest/*", ":!stale-tests/*"]
+    )
     missing += check_ui_literals(kd)
     missing += check_cjk_literals(kd)
     if missing:

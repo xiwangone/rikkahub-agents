@@ -229,6 +229,10 @@ fun sshExecTool(context: Context, settingsStore: SettingsStore? = null): Tool = 
         // 统一注入服务：解析 + 旧写法护栏 + 凭证解析；injected 同时用于下方输出脱敏（方案 C）
         val injected = readInjectedEnv(p)
         val env = injected.env
+        // 按 host 登记注入值：ssh_job_poll 是独立调用拿不到本次记录，靠这份登记脱敏
+        if (injected.secrets.isNotEmpty()) {
+            me.rerere.rikkahub.data.ai.tools.inject.SshInjectedSecrets.register(host, injected.secrets)
+        }
         // 远端平台无法从命令内容可靠推断（验证：`cmd /c ...` 曾被判成 POSIX → 远端 pwsh 报错），
         // 因此默认按 Windows($env:) 处理，Linux 远端显式传 env_style=posix。
         // env_style 未显式指定时用已解析的平台（显式参数/缓存/全局默认）决定默认语法，
@@ -717,13 +721,17 @@ private fun forgetHostKeyFromFile(
     if (!parent.exists() && !parent.mkdirs()) {
         throw IOException("Could not create known_hosts directory ${parent.absolutePath}")
     }
-    val temp = File(parent, "${file.name}.tmp-${System.nanoTime()}")
-    try {
-        writeKnownHostsWithoutHost(temp, currentKeys, host)
-        replaceFilePreservingTarget(temp, file)
-    } finally {
-        if (temp.exists() && !runCatching { temp.delete() }.getOrDefault(false)) {
-            AppLog.w(TAG_SSH, "Could not remove temporary known_hosts file ${temp.name}")
+    // 与 persistKnownHosts 同一把跨实例锁：并发首连的持久化不会被这里的
+    // 全量重写覆盖掉刚写入的记录。
+    synchronized(knownHostsLock(file)) {
+        val temp = File(parent, "${file.name}.tmp-${System.nanoTime()}")
+        try {
+            writeKnownHostsWithoutHost(temp, currentKeys, host)
+            replaceFilePreservingTarget(temp, file)
+        } finally {
+            if (temp.exists() && !runCatching { temp.delete() }.getOrDefault(false)) {
+                AppLog.w(TAG_SSH, "Could not remove temporary known_hosts file ${temp.name}")
+            }
         }
     }
 

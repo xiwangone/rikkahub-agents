@@ -98,6 +98,13 @@ fun sshJobPollTool(
         val payload = runCancellableSshOp(20_000L) { sessionRef ->
             execOneShot(context, h.host, h.port, h.user, auth, pollCmd, 20_000, sessionRef, null, allowHostKeyRotation = h.allowHostKeyRotation)
         }
-        listOf(UIMessagePart.Text(payload.toString()))
+        // 日志尾部可能含此前 ssh_exec 注入的凭证值（命令 echo/写日志）：poll 是独立调用
+        // 拿不到当次注入记录，按 host 维度的登记表 + 永久掩码集兜底。
+        val masked = me.rerere.rikkahub.data.ai.tools.inject.maskInjectedValues(
+            payload.toString(),
+            me.rerere.rikkahub.data.ai.tools.inject.SshInjectedSecrets.get(h.host),
+            me.rerere.rikkahub.data.ai.tools.inject.SshInjectedSecrets.retainedRules(),
+        )
+        listOf(UIMessagePart.Text(masked))
     },
 )

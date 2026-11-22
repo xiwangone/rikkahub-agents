@@ -27,35 +27,31 @@ class SshWorkspaceBackendTest {
         ),
     )
 
-    /** 从命令里取出 -EncodedCommand 的值并按 UTF-16LE 解码，还原 Set-Location 脚本。 */
+    /** 从命令里取出 -EncodedCommand 的值并按 UTF-16LE 解码，剥掉固定的编码设置前缀。 */
     private fun decodedScript(command: String): String {
-        val encoded = command.substringAfter("-EncodedCommand ").substringBefore(" ")
-            .substringBefore(")").trim()
-        return String(Base64.getDecoder().decode(encoded), Charsets.UTF_16LE)
+        val encoded = command.substringAfter("-EncodedCommand ").substringBefore(" ").trim()
+        val full = String(Base64.getDecoder().decode(encoded), Charsets.UTF_16LE)
+        return full.substringAfter("[Console]::OutputEncoding=[Text.Encoding]::UTF8", full)
+            .trim().removePrefix(";").trim()
     }
 
     @Test
-    fun `pwsh present uses pwsh and guards exit code`() {
+    fun `pwsh is launched directly without cmd shell operators`() {
         val command = backend.windowsShellCommand("C:\\Users\\x")
-        assertTrue(command.startsWith("cmd /c "))
-        assertTrue(command.contains("where pwsh >nul 2>&1"))
-        assertTrue(command.contains("pwsh -NoLogo -NoProfile -NoExit"))
-        // shell 退出码不触发回退
-        assertTrue(command.contains("pwsh -NoLogo -NoProfile -NoExit -EncodedCommand"))
-        assertTrue(command.contains("& exit /b 0"))
-        // powershell 与 cmd 仍在命令里当回退
-        assertTrue(command.contains("where powershell >nul 2>&1"))
-        assertTrue(command.contains("powershell -NoLogo -NoProfile -NoExit"))
-        assertTrue(command.endsWith("|| cmd)\""))
+        assertTrue(command.startsWith("pwsh -NoLogo -NoProfile -NoExit -EncodedCommand "))
+        // 关键：不能出现任何 shell 运算符 —— 分配 PTY 时命令由远端默认 shell 解析，
+        // Windows 上它常是 pwsh，cmd 语法的 `(`/`&` 会直接报 ParserError。
+        listOf("cmd /c", "&&", "||", "& exit", ">nul", "where pwsh").forEach {
+            assertFalse("命令不应含 $it: $command", command.contains(it))
+        }
     }
 
     @Test
-    fun `windows shell command is quoted so a pwsh default shell cannot parse it`() {
+    fun `windows shell command has no parentheses or operators`() {
         val command = backend.windowsShellCommand("C:\\Users\\x")
-        // Windows 上 sshd 默认 shell 可能是 pwsh：裸 cmd 语法会被 pwsh 当表达式解析报
-        // "表达式中缺少右括号" → 终端一开就死。整条必须包在双引号里。
-        assertTrue(command.startsWith("cmd /c \""))
-        assertTrue(command.endsWith("\""))
+        listOf("(", ")", "&", "|", ">").forEach {
+            assertFalse("命令不应含 $it: $command", command.contains(it))
+        }
     }
 
     @Test
@@ -68,9 +64,9 @@ class SshWorkspaceBackendTest {
     @Test
     fun `empty dir does not change directory`() {
         val command = backend.windowsShellCommand("")
-        assertFalse(command.contains("-EncodedCommand"))
-        assertFalse(command.contains("Set-Location"))
-        assertTrue(command.contains("pwsh -NoLogo -NoProfile -NoExit"))
+        // 空目录仍然走 EncodedCommand（脚本里带 UTF-8 编码设置），但不含 Set-Location。
+        assertFalse(decodedScript(command).contains("Set-Location"))
+        assertTrue(command.startsWith("pwsh -NoLogo -NoProfile -NoExit -EncodedCommand "))
     }
 
     @Test

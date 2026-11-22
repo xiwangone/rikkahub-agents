@@ -586,6 +586,10 @@ internal fun isSensitiveCredentialPath(path: String): Boolean {
     val name = normalized.substringAfterLast('/')
     // 公钥先判：`id_ed25519.pub` 会被下面的 `id_ed25519` 前缀规则误命中。
     if (name.endsWith(".pub")) return false
+    // 远程 env 临时文件（`.rikkahub-env-<nanoTime>`，0600 存 `$$` 解析出的凭证明文）：
+    // 文件名前缀可预测、目录树列表不过滤 dotfile，不拦的话并发会话/后续轮次可把它当
+    // 普通文件读出注入值明文，绕过「注入值只进进程环境、不给模型」的设计。
+    if (name.startsWith(".rikkahub-env-")) return true
     if (SENSITIVE_FILE_NAMES.any { name == it || name.startsWith("$it.") }) return true
     if (SENSITIVE_FILE_SUFFIXES.any { name.endsWith(it, ignoreCase = true) }) return true
     // `.ssh/` 下区分对待：**公钥与主机指纹本就是公开贴的**（authorized_keys / known_hosts / *.pub），
@@ -628,29 +632,76 @@ internal fun redactCredentialFileText(text: String): String {
 /** 长 base64/hex 形态的不透明串（无 `=`/`:` 分隔的行也要掩，如裸密钥串）。 */
 private val LONG_OPAQUE_TOKEN = Regex("""[A-Za-z0-9+/=_\-]{20,}""")
 
+/**
+ * 键名里的敏感词提示：命中即视为敏感键（值无条件掩）。
+ * 覆盖 JSON 引号键（`"password"`）、`.npmrc` 路径形键（`//host/:_authToken`）等
+ * 基本键名正则放不下的形态；`auth` 只与 token 连用，避免误伤 AUTHOR 之类的普通键。
+ */
+private val SENSITIVE_KEY_HINT = Regex(
+    """(?i)(?:password|passwd|pwd|secret|token|api[_-]?key|access[_-]?key|private[_-]?key|credential|auth[_-]?token|authorization)""",
+)
+
+/** 值形如 `scheme://…` 的纯 URL（无内嵌凭证时不掩，避免文档里的链接全变 ***）。 */
+private val PLAIN_URL = Regex("""[a-zA-Z][a-zA-Z0-9+.\-]*://\S*""")
+
+/** URL 内嵌凭证形态：`scheme://user:pass@…`（这类该掩）。 */
+private val URL_WITH_CREDENTIALS = Regex("""[a-zA-Z][a-zA-Z0-9+.\-]*://[^\s/@]+:[^\s/@]+@""")
+
+/** `machine x login u password p` 这类同行多键值行（.netrc / .pgpass 风格）：掩敏感关键词后的值。 */
+private val KEYWORD_VALUE = Regex("""(?i)\b(password|passwd|pwd|token|secret|api[_-]?key)\b([\s=:]+)(\S+)""")
+
 /** `KEY = value` / `KEY: value`（含 `export KEY=value`）→ 保留键、掩值；没分隔符则掩长 token。 */
 private fun redactValueInLine(line: String): String {
     val byKeyValue = redactKeyValue(line)
     if (byKeyValue != null) return byKeyValue
+    // .netrc 风格的同行多键值行：没有单一分隔符可依，按敏感关键词掩其后的值。
+    // 只在敏感文件里跑，短密码（如 `password hunter2`）也该掩，不设长度门槛。
+    val byKeyword = KEYWORD_VALUE.replace(line) { m ->
+        "${m.groupValues[1]}${m.groupValues[2]}***"
+    }
+    if (byKeyword != line) return byKeyword
     // 兜底：没有分隔符的行（ssh 公钥的 base64 段、裸密钥串）按长 token 掩。
     // 注意：只处理 KEY=VALUE 时，`.ssh/` 下的行会被标 redacted 却一字未掩。
     return LONG_OPAQUE_TOKEN.replace(line) { if (it.value.length >= 20) "***" else it.value }
 }
 
-/** 命中 `KEY=VALUE` / `KEY: VALUE` 形态则返回掩码结果；否则返回 null 交给 token 兜底。 */
+/**
+ * 命中 `KEY=VALUE` / `KEY: VALUE` 形态则返回掩码结果；否则返回 null 交给关键词/token 兜底。
+ *
+ * 掩码口径：
+ * - 键名放宽：JSON 引号键（`"password": …`）与 `.npmrc` 路径形键（`//host/:_authToken=…`）也认；
+ * - 键名带敏感词（PASSWORD/TOKEN/…）时值无条件掩；
+ * - 其余键的值是**无内嵌凭证的纯 URL** 时不掩（`REPO_URL=https://…` 保持原样），
+ *   URL 里带 `user:pass@` 的照掩（`DATABASE_URL=postgres://u:p@h`）——
+ *   旧实现只放过以 `//` 开头的值，注释里说的「URL 别掩」实际从未生效。
+ */
 private fun redactKeyValue(line: String): String? {
     // 剥掉 shell 前缀（export / set 之类），键名仍按裸键判
     val m = Regex("""^(\s*(?:export\s+)?)(.*)$""").find(line) ?: return null
     val prefix = m.groupValues[1]
     val body = m.groupValues[2]
-    val sepIdx = listOf(body.indexOf('='), body.indexOf(':')).filter { it > 0 }.minOrNull() ?: return null
-    val key = body.substring(0, sepIdx).trim()
-    if (!key.matches(Regex("""[A-Za-z_][A-Za-z0-9_.-]*"""))) return null
-    val rawValue = body.substring(sepIdx + 1)
-    if (rawValue.isBlank()) return null
-    // URL 的 `https://…` / `redis://…` 不是配置值，别掩（否则文档里的链接全变 ***）
-    if (rawValue.trimStart().startsWith("//")) return null
-    return "$prefix$key=***"
+    // 先试 `=`（KEY=VALUE），再试 `:`（KEY: VALUE / JSON）：`.npmrc` 的 `//host/:_authToken=x`
+    // 若按最近的 `:` 切会把键切坏，按 `=` 切键名完整。
+    for (sep in charArrayOf('=', ':')) {
+        val idx = body.indexOf(sep)
+        if (idx <= 0) continue
+        val rawKey = body.substring(0, idx).trim()
+        val key = rawKey.trim('"', '\'')
+        val keyIsSensitive = key.matches(Regex("""[A-Za-z_][A-Za-z0-9_.\-]*""")) ||
+            SENSITIVE_KEY_HINT.containsMatchIn(rawKey)
+        if (!keyIsSensitive) continue
+        val rawValue = body.substring(idx + 1)
+        if (rawValue.isBlank()) continue
+        val value = rawValue.trim()
+        val keyHinted = SENSITIVE_KEY_HINT.containsMatchIn(rawKey)
+        if (!keyHinted && PLAIN_URL.matches(value) && !URL_WITH_CREDENTIALS.containsMatchIn(value)) continue
+        // 值以 `//` 开头：多半是 `https://…` 被按 `:` 切坏了键（如裸 URL 行、`//host/:_authToken` 之外的
+        // 协议相对写法），恢复旧豁免语义，不掩。
+        if (!keyHinted && value.startsWith("//")) continue
+        // 分隔符归一化为 `=`（旧实现口径，钉在 `values are masked but keys survive`）
+        return "$prefix$rawKey=***"
+    }
+    return null
 }
 
 internal fun formatReadFileTextResult(

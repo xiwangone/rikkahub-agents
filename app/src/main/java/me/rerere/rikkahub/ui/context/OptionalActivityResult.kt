@@ -16,13 +16,21 @@ import androidx.core.app.ActivityOptionsCompat
  * `IllegalStateException: No ActivityResultRegistryOwner was provided`。
  */
 private object NoopActivityResultRegistry : ActivityResultRegistry() {
+    private const val TAG = "NoopActivityResult"
+
     override fun <I, O> onLaunch(
         requestCode: Int,
         contract: ActivityResultContract<I, O>,
         input: I,
         options: ActivityOptionsCompat?,
     ) {
-        // 无处投递：静默丢弃
+        // 无处投递：记录后丢弃。此前是纯静默——悬浮窗里点文件选择/分享没反应，
+        // 排查时连一条日志都没有（3.0.3 基线核查隐患 #2）。
+        me.rerere.rikkahub.data.log.AppLog.w(
+            TAG,
+            "ActivityResult launch dropped in detached UI (no host activity): " +
+                "contract=${contract::class.java.simpleName}, requestCode=$requestCode, input=$input",
+        )
     }
 }
 

@@ -14,6 +14,10 @@ object AgentTurnTracker {
      * Per-conversation state slot. Automation tools have no conversationId, so their
      * writes/reads land on [activeSlot] — the conversation currently generating. Two
      * concurrent generations therefore never overwrite each other's navigation facts.
+     *
+     * 已知边界（未改）：[activeSlot] 是单一 volatile，两会话**同时**生成时后激活者
+     * 接管，先激活会话的自动化事件会落错槽。彻底修复需要把 conversationId 传进工具执行
+     * 上下文（跨工具层改造）；当前以「每会话槽 + 显式 reset/release」收窄影响面。
      */
     private class TurnState {
         @Volatile var navigatedAway: Boolean = false
@@ -48,6 +52,14 @@ object AgentTurnTracker {
         st.didAutomate = false
         // Don't clear touchedPackages — the suppression window outlives the turn so the
         // last few flaps after the turn ends also get filtered.
+    }
+
+    /**
+     * 会话收尾后摘掉它的槽位（快照已取，状态不再需要）：states 表不随会话数缓慢泄漏。
+     * 活跃 slot 若仍指向该会话也无妨——下次 onStart 会重新 setActive + reset，按需重建。
+     */
+    fun release(conversationId: String?) {
+        states.remove(conversationId ?: "")
     }
 
     fun recordNavigatedAway(packageName: String?) {

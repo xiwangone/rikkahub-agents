@@ -643,6 +643,11 @@ fun sshExecSavedTool(
             ?: return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "no saved host: $name", hint = "Check the parameter values and retry with corrected arguments.").toString()
             ))
+        // 按 host 登记注入值：ssh_job_poll 是独立调用拿不到本次记录，靠这份登记脱敏。
+        // 键用 h.host（poll 侧按同一字段取），与 ssh_exec 的裸 host 参数口径对齐。
+        if (injected.secrets.isNotEmpty()) {
+            me.rerere.rikkahub.data.ai.tools.inject.SshInjectedSecrets.register(h.host, injected.secrets)
+        }
         if (background && stdin != null) {
             return@Tool listOf(UIMessagePart.Text(
                 ToolErrors.envelopeFor(error = "invalid_argument", message = "stdin and background are mutually exclusive (a detached command reads from /dev/null)", hint = "Check the parameter values and retry with corrected arguments.").toString()

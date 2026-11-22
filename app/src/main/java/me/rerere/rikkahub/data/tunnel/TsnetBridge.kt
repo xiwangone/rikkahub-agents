@@ -1,12 +1,16 @@
 package me.rerere.rikkahub.data.tunnel
 
 import android.content.Context
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
+import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.rikkahub.data.log.AppLog
 import tsnetlib.Tsnetlib
 import java.io.File
@@ -243,30 +247,55 @@ object TsnetBridge {
 
     /** 用户主动停止隧道：清空期望状态并释放全部本地代理端口缓存。 */
     suspend fun stop(): Result<Unit> = withContext(Dispatchers.IO) {
-        lifecycleMutex.withLock {
-            desiredRunning = false
-            runCatching {
+        // 先落期望状态：即使锁被 start 握手占着，守护循环看到 false 也不会再重连。
+        desiredRunning = false
+        // stop 等锁上限（3.0.3 核查隐患 #1）：native Tsnetlib.start 握手可长时间阻塞，
+        // 无超时的 withLock 会让「停止」按钮感知上无响应。等不到锁就先回 UI。
+        val acquired = withTimeoutOrNull(STOP_LOCK_TIMEOUT_MS) { lifecycleMutex.lock() } != null
+        try {
+            if (acquired) {
+                performStop()
+            } else {
+                // 握手占着锁：立即按「已停」回状态，真正的 native 停止由排队协程
+                // 在握手结束后补做（无论握手成败，收尾都归 performStop）。
                 proxyCache.clear()
-                if (!isRunning) {
-                    publish(TunnelState.Off)
-                    return@runCatching
-                }
-                // 先停探测，避免回调打到正在关闭的 server 上。
-                runCatching { TsnetPathMonitor.stop() }
-                    .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
-                try {
-                    Tsnetlib.stop()
-                } finally {
-                    // 停 native 是尽力而为：无论成功与否，本端状态都按"已停"算，
-                    // 否则 isRunning 残留 true，下次 start 会直接返回旧 IP 而不真建连。
-                    isRunning = false
-                    nodeIp = null
-                }
                 publish(TunnelState.Off)
-                AppLog.i(TAG, "tunnel stopped")
-            }.onFailure { AppLog.e(TAG, "tunnel stop failed: ${it.message}", it) }
+                AppLog.i(TAG, "tunnel stop: start handshake holds the lifecycle lock, native stop deferred")
+                deferredStopScope.launch { lifecycleMutex.withLock { performStop() } }
+            }
+            Result.success(Unit)
+        } finally {
+            if (acquired) lifecycleMutex.unlock()
         }
     }
+
+    /** stop 等锁超时（毫秒）：超过即先回 UI，native 停止转排队补做。 */
+    private const val STOP_LOCK_TIMEOUT_MS = 3_000L
+
+    /** 排队停止用的独立作用域：不阻塞调用方（UI），也不依赖调用协程的生命周期。 */
+    private val deferredStopScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+
+    /** 停止的公共收尾（持锁调用）：停探测、停 native、按「已停」清本端状态。 */
+    private suspend fun performStop(): Result<Unit> = runCatching {
+        proxyCache.clear()
+        if (!isRunning) {
+            publish(TunnelState.Off)
+            return@runCatching
+        }
+        // 先停探测，避免回调打到正在关闭的 server 上。
+        runCatching { TsnetPathMonitor.stop() }
+            .onFailure { AppLog.w(TAG, "path monitor stop failed: ${it.message}", it) }
+        try {
+            Tsnetlib.stop()
+        } finally {
+            // 停 native 是尽力而为：无论成功与否，本端状态都按"已停"算，
+            // 否则 isRunning 残留 true，下次 start 会直接返回旧 IP 而不真建连。
+            isRunning = false
+            nodeIp = null
+        }
+        publish(TunnelState.Off)
+        AppLog.i(TAG, "tunnel stopped")
+    }.onFailure { AppLog.e(TAG, "tunnel stop failed: ${it.message}", it) }
 
     /**
      * 守护协程掉线重连前的底层复位：保留 [desiredRunning] = true，

@@ -349,36 +349,35 @@ class SshWorkspaceBackend(
         runCatching { connection.sftp { it.rm(path.sftpQuote()) } }
     }
 
-    /**
-     * Windows 交互终端启动命令：兼容 pwsh 7 / PowerShell 5.1 / cmd。
-     * 不假设 pwsh 存在——用 `cmd /c` 串成一条（三种默认 shell 都能解析执行）：
-     * 先 `where` 探测再定 shell：有 pwsh 用 pwsh，否则退系统自带的 powershell，
-     * 两者皆无时回退到 cmd 交互 shell。每个交互 shell 后跟 `& exit /b 0`，
-     * 使 shell 以非零码退出（如用户敲 `exit 1`、pwsh 崩溃）时不触发 `||` 回退。
-     * 指令走 EncodedCommand 避免嵌套引号。
-     * 远程目录按区配置值处理（不同机器/用户目录不同）：留空 = 不切目录，直接用登录主目录；
-     * 支持 `/C:/Users/x`（sftp 习惯写法）与 `C:\Users\x`、`D:/work` 等；UNC 路径（`\\server\share`）
-     * 保留前导反斜杠，不参与首尾修剪。
-     */
     /** SFTP 习惯写法 `/C:/Users/x` → `C:\Users\x`；UNC 保留前导 `\\`；空串原样。 */
     internal fun toWindowsDir(dir: String): String =
         dir.trim().removePrefix("/").replace('/', '\\')
             .let { if (it.startsWith("\\\\")) it.trimEnd('\\') else it.trim('\\') }
 
-    internal fun windowsShellCommand(dir: String): String {
+    /**
+     * Windows 交互终端启动命令。
+     *
+     * ⚠ **不能经 `cmd /c … && (…) || (…)` 中转**：分配 PTY 时 sshd 把命令交给**当前默认 shell**
+     * 解析，而 Windows 上 sshd 的 DefaultShell 常是 pwsh —— 裸 cmd 语法里的 `(`/`&` 会被当
+     * PowerShell 表达式 → `ParserError: 表达式中缺少右括号`，交互终端无法启动。
+     * 加双引号也救不了：PTY 路径下引号同样由默认 shell 预处理。
+     *
+     * 所以只发「exe + 参数」形式（无 `()&|>` 任何运算符），任何默认 shell 都只当普通命令执行；
+     * 切目录放进 EncodedCommand 的脚本里，不依赖 shell 语法。
+     *
+     * @param exe 目标解释器，默认 pwsh（Windows Server / Win10+ 可装）；只有 powershell 5.1
+     *   的机器可传 "powershell"（同样支持 -EncodedCommand）。
+     */
+    internal fun windowsShellCommand(dir: String, exe: String = "pwsh"): String {
         val winDir = toWindowsDir(dir)
-        fun forShell(exe: String): String =
-            if (winDir.isBlank()) {
-                "$exe -NoLogo -NoProfile -NoExit"
-            } else {
-                val script = "Set-Location -LiteralPath '" + winDir.replace("'", "''") + "'"
-                val enc = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
-                "$exe -NoLogo -NoProfile -NoExit -EncodedCommand $enc"
+        val script = buildString {
+            append("[Console]::OutputEncoding=[Text.Encoding]::UTF8")
+            if (winDir.isNotBlank()) {
+                append("; Set-Location -LiteralPath '").append(winDir.replace("'", "''")).append("'")
             }
-        // 整条 cmd 语法必须用双引号包住：Windows 上 sshd 的默认 shell 常是 pwsh，
-        // 裸 cmd 语法里的 `(` / `&` 会被 pwsh 当表达式解析 → ParserError，交互终端直接打挂。
-        // 加引号后两种默认 shell 都成立：pwsh 把引号内容原样交给 cmd，cmd 剥引号后按原语义执行。
-        return "cmd /c \"where pwsh >nul 2>&1 && (${forShell("pwsh")} & exit /b 0) || (where powershell >nul 2>&1 && (${forShell("powershell")} & exit /b 0) || cmd)\""
+        }
+        val enc = java.util.Base64.getEncoder().encodeToString(script.toByteArray(Charsets.UTF_16LE))
+        return "$exe -NoLogo -NoProfile -NoExit -EncodedCommand $enc"
     }
 
     /** 打开交互式终端: 在工作目录下启动用户的登录 shell */
@@ -904,9 +903,10 @@ internal fun buildEnvFileContent(env: Map<String, String>): String =
  *
  * env 为空时保持旧形态（`env CI=true ... shell -c 'cd -- "$1" && eval "$2"'`）；
  * env 非空时 [envFile] 为已上传的 0600 临时文件路径，命令改为
- * `shell -c 'trap ... EXIT; set -a; . "$1"; set +a; cd -- "$2" && eval "$3"'`，
+ * `shell -c 'trap ... EXIT/INT/TERM/HUP; set -a; . "$1"; set +a; cd -- "$2" && eval "$3"'`，
  * env 值只进文件、不进命令行（同台机器的其他用户 ps 不可见）。
- * trap 在 shell 退出时删文件；调用方另有 SFTP 兜底删除。
+ * trap 在 shell 退出或收到 INT/TERM/HUP 时删文件（非交互 sh 收 SIGHUP 不跑 EXIT trap，
+ * 调用方另有 SFTP 兜底删除。
  */
 internal fun buildRemotePosixCommand(
     shell: String,
@@ -935,7 +935,14 @@ internal fun buildRemotePosixCommand(
             listOf(
                 shell,
                 "-c",
-                "trap 'rm -f -- \"\$1\"' EXIT; set -a; . \"\$1\"; set +a; cd -- \"\$2\" && eval \"\$3\"",
+                // trap 覆盖 EXIT/INT/TERM/HUP：异常终止（app 被杀/断连）时远端
+                // shell 收 SIGHUP，非交互 sh 的 EXIT trap 不执行，含密文件残留远端。
+                // 信号分支显式 exit，避免 trap 处理后 shell 继续跑剩余命令。
+                "trap 'rm -f -- \"\$1\"' EXIT; " +
+                    "trap 'rm -f -- \"\$1\"; exit 130' INT; " +
+                    "trap 'rm -f -- \"\$1\"; exit 143' TERM; " +
+                    "trap 'rm -f -- \"\$1\"; exit 129' HUP; " +
+                    "set -a; . \"\$1\"; set +a; cd -- \"\$2\" && eval \"\$3\"",
                 "rikkahub",
                 envFile,
                 workingDir,

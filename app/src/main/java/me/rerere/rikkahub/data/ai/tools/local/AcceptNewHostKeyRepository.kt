@@ -218,26 +218,50 @@ internal fun persistKnownHosts(jsch: JSch) {
 }
 
 /**
+ * Per-file cross-instance lock：并发首连各自全量重写是 last-writer-wins，
+ * 后写者丢先者记录、下次再走一次 TOFU（MITM 窗口重开）。同一文件的持久化串行化。
+ */
+private val knownHostsLocks = java.util.concurrent.ConcurrentHashMap<String, Any>()
+
+/** 同一 known_hosts 文件的跨实例持久化锁；forget 路径（SshTool）也用它串行化。 */
+internal fun knownHostsLock(file: File): Any =
+    knownHostsLocks.computeIfAbsent(file.canonicalPath) { Any() }
+
+/**
  * Atomically rewrite [file] from [repository]'s in-memory keys (known_hosts(5)
  * format). Same serialisation as the forget-host-key path: optional @marker,
  * host, type, base64 key, one line per key. Temp file + atomic replace, so a
  * crash mid-write never leaves a half-written trust store.
+ *
+ * 合并写入：每个 JSch 实例的内存表只含「自己加载过的 + 自己新加的」，
+ * 全量重写会丢掉其他实例并发新加的记录。这里先读盘上现有行、并入自己内存里
+ * 尚不存在的键，再整体替换——并发首连的记录互相保留。移除键走
+ * `forgetHostKeyFromFile`（有意全量重写），不受合并影响。
  */
 internal fun persistKnownHosts(file: File, repository: HostKeyRepository) {
-    val parent = file.parentFile
-    if (parent != null && !parent.exists() && !parent.mkdirs()) {
-        throw IOException("Could not create known_hosts directory ${parent.absolutePath}")
-    }
-    val temp = File(parent, "${file.name}.tmp-${System.nanoTime()}")
-    try {
-        FileOutputStream(temp).bufferedWriter(Charsets.UTF_8).use { writer ->
-            for (key in repository.hostKey ?: emptyArray()) {
-                writer.appendLine(knownHostsLine(key))
-            }
+    synchronized(knownHostsLock(file)) {
+        val parent = file.parentFile
+        if (parent != null && !parent.exists() && !parent.mkdirs()) {
+            throw IOException("Could not create known_hosts directory ${parent.absolutePath}")
         }
-        replaceFilePreservingTarget(temp, file)
-    } finally {
-        if (temp.exists()) runCatching { temp.delete() }
+        val ours = LinkedHashSet<String>()
+        for (key in repository.hostKey ?: emptyArray()) ours.add(knownHostsLine(key))
+        val merged = LinkedHashSet<String>()
+        if (file.exists()) {
+            file.readLines(Charsets.UTF_8).forEach { line -> if (line.isNotBlank()) merged.add(line) }
+        }
+        merged.addAll(ours)
+        val temp = File(parent, "${file.name}.tmp-${System.nanoTime()}")
+        try {
+            FileOutputStream(temp).bufferedWriter(Charsets.UTF_8).use { writer ->
+                for (line in merged) {
+                    writer.appendLine(line)
+                }
+            }
+            replaceFilePreservingTarget(temp, file)
+        } finally {
+            if (temp.exists()) runCatching { temp.delete() }
+        }
     }
 }
 

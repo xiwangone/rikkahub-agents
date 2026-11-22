@@ -519,13 +519,18 @@ class GenerationLoop(
             // 收尾（纯 UI）——不再拿它决定 auto-return，否则先结束的会话会永远不触发。
             ACTIVE_GENERATIONS.incrementAndGet()
             AgentTurnTracker.setActive(conversationId?.toString())
-            AgentTurnTracker.reset()
+            // 必须显式传本会话 id：无参 reset 清的是空串槽，本会话槽不清，
+            // 上一轮 navigatedAway/didAutomate 残留会让 auto-return 判定失真。
+            AgentTurnTracker.reset(conversationId?.toString())
             AgentOverlay.show(context)
         }
         .onCompletion { cause ->
             // auto-return 判定每个会话都做，用「本会话 slot」的快照——并发下先结束的
             // 会话不再被后结束会话的状态顶掉。
             val mySnapshot = AgentTurnTracker.snapshot(conversationId?.toString())
+            // 本会话槽的使命结束（快照已取）：摘掉条目，states 表不随会话数缓慢泄漏。
+            // 活跃 slot 若仍是本会话也无妨——下次 onStart 会重新 setActive + reset。
+            AgentTurnTracker.release(conversationId?.toString())
             if (ACTIVE_GENERATIONS.decrementAndGet() <= 0) {
                 ACTIVE_GENERATIONS.set(0)
                 AgentOverlay.hide(context)

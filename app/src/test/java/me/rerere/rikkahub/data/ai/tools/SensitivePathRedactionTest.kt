@@ -113,4 +113,57 @@ class SensitivePathRedactionTest {
         val src = "https://example.com:8080/path"
         assertEquals(src, redactCredentialFileText(src))
     }
+
+    /**
+     * （凭证行掩码盲区）与 #6（URL 误掩/漏掩）的口径钉：
+     * - `.netrc` 同行多键值行，短密码也掩；
+     * - JSON 引号键、`.npmrc` 路径形键照样命中；
+     * - 无内嵌凭证的纯 URL 不掩（`REPO_URL=…`、裸 URL 行、协议相对 `//` 值）；
+     * - URL 内嵌 `user:pass@` 照掩；
+     * - 远程 env 临时文件路径命中敏感判定（修 #4 读侧）。
+     */
+    @Test
+    fun `netrc keyword lines mask short passwords`() {
+        val out = redactCredentialFileText("machine example.com login alice password hunter2")
+        assertFalse(out.contains("hunter2"))
+        assertTrue(out.contains("password ***"))
+        assertTrue(out.contains("machine example.com login alice"))
+    }
+
+    @Test
+    fun `json quoted keys are masked`() {
+        val out = redactCredentialFileText("""{"password": "s3cret", "name": "app"}""")
+        assertFalse(out.contains("s3cret"))
+        assertTrue(out.contains("password"))
+    }
+
+    @Test
+    fun `npmrc path keys are masked`() {
+        val out = redactCredentialFileText("//registry.npmjs.org/:_authToken=npm_abc123")
+        assertFalse(out.contains("npm_abc123"))
+        assertTrue(out.contains("_authToken=***"))
+    }
+
+    @Test
+    fun `plain urls without credentials stay readable`() {
+        // 注意：路径段 ≥20 字符会命中既有的长 token 兜底（与 URL 豁免无关），用短段 URL 钉口径
+        val src = """
+            REPO_URL=https://git.example.com/proj
+            DOCS=https://example.com:8080/path
+        """.trimIndent()
+        assertEquals(src, redactCredentialFileText(src))
+    }
+
+    @Test
+    fun `urls with embedded credentials are masked`() {
+        val out = redactCredentialFileText("DATABASE_URL=postgres://alice:hunter2@db.internal:5432/app")
+        assertFalse(out.contains("hunter2"))
+        assertTrue(out.contains("DATABASE_URL=***"))
+    }
+
+    @Test
+    fun `remote env temp files are sensitive`() {
+        assertTrue(isSensitiveCredentialPath("/tmp/.rikkahub-env-123456"))
+        assertTrue(isSensitiveCredentialPath("/home/u/.cache/.rikkahub-env-abcdef"))
+    }
 }
