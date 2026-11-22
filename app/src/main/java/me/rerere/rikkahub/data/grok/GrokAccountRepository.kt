@@ -116,12 +116,15 @@ class GrokAccountRepository internal constructor(
         val account = state.accounts.firstOrNull { it.id == accountId }
             ?: error("Grok account not found")
         val fresh = ensureFreshLocked(account, force = true)
-        runCatching { fetchUsageLocked(fresh) }.getOrDefault(fresh)
+        runCatching { fetchUsageLocked(fresh) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(fresh)
     }
 
     suspend fun refreshAll() {
         accounts.value.forEach { account ->
             runCatching { refreshAccount(account.id) }
+                .onFailure { if (it is CancellationException) throw it }
         }
     }
 
@@ -195,7 +198,7 @@ class GrokAccountRepository internal constructor(
             } else {
                 null
             }
-        }.getOrNull()
+        }.onFailure { if (it is CancellationException) throw it }.getOrNull()
         val updated = account.copy(
             tokenStatus = GrokTokenStatus.AVAILABLE,
             usage = snapshot.copy(planName = planName ?: account.usage?.planName),

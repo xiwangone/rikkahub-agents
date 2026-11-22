@@ -131,12 +131,15 @@ class GeminiAccountRepository internal constructor(
         val fresh = ensureFreshLocked(account, force = true)
         // Quota is informational, so a backend that will not report it must not turn a perfectly
         // good token refresh into a failure.
-        runCatching { fetchUsageLocked(fresh) }.getOrDefault(fresh)
+        runCatching { fetchUsageLocked(fresh) }
+            .onFailure { if (it is CancellationException) throw it }
+            .getOrDefault(fresh)
     }
 
     suspend fun refreshAll() {
         accounts.value.forEach { account ->
             runCatching { refreshAccount(account.id) }
+                .onFailure { if (it is CancellationException) throw it }
         }
     }
 

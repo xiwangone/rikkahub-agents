@@ -13,6 +13,10 @@ Usage: check-new-localization.py <base> [head]
   characters, except the allowlisted identifier tokens below (preset keys
   the model must type verbatim, and the `# SSH公钥:` file-format marker).
   Comments are not string literals and are ignored.
+  A file whose literals are matched against server-returned text verbatim
+  (not user-visible copy) may opt out of Part 3 with a marker comment on
+  one of its first lines, e.g. `// l10n-allow: matches server error text
+  verbatim` (see L10N_ALLOW_RE). The marker is per-file and permanent.
 - Only *added* lines are checked: pre-existing hardcoded text is
   grandfathered, so this script never blocks unrelated old code.
 """
@@ -22,6 +26,37 @@ import sys
 from pathlib import Path
 
 CJK = re.compile(r"[\u4e00-\u9fff]")
+
+# Per-file opt-out of the Part 3 CJK check: a file whose literals are matched
+# against server-returned text verbatim (not user-visible copy) may carry a
+# marker comment on one of its first lines, e.g.:
+#   // l10n-allow: matches server error text verbatim
+# The marker is permanent for the file: later additions stay exempt, so only
+# put it on files whose literals are all server-text keywords. Do not add
+# ordinary Chinese words to ALLOWLIST_TOKENS instead: a global token would
+# also exempt short user-visible strings made only of those words (e.g. a
+# bare "超时" label), and the gate would loosen a little with every addition.
+L10N_ALLOW_RE = re.compile(r"l10n-allow\s*:")
+
+
+def file_has_l10n_marker(path, head):
+    """True if the file carries the l10n-allow marker in its first 5 lines.
+
+    head is a git revision, or None for WORKTREE (read from disk). A marker
+    added in the same diff is also honored via the added-lines check in
+    check_cjk_literals, so a brand new file carrying the marker is exempt
+    in the same diff.
+    """
+    try:
+        if head is None:
+            text = Path(path).read_text(errors="ignore")
+        else:
+            text = subprocess.check_output(
+                ["git", "show", "%s:%s" % (head, path)], text=True, errors="ignore"
+            )
+    except (OSError, subprocess.CalledProcessError):
+        return False
+    return any(L10N_ALLOW_RE.search(line) for line in text.splitlines()[:5])
 
 # Identifier tokens that must stay verbatim (never translated): model-facing
 # preset keys and the load-creds file-format marker. A literal is allowed
@@ -256,7 +291,7 @@ def strip_log_calls(lines):
     return "".join(out).split("\n")
 
 
-def check_cjk_literals(diff):
+def check_cjk_literals(diff, head):
     """Per-file: collect added lines, extract literals, flag remaining CJK."""
     missing = []
     current = None
@@ -265,7 +300,14 @@ def check_cjk_literals(diff):
     def flush():
         if current is None:
             return
-        for lit in extract_string_literals(strip_log_calls(added[current])):
+        lines = added[current]
+        # Marker in the added lines themselves (new file, or marker added in
+        # this diff) or in the file's head (marker added in an earlier commit).
+        if any(L10N_ALLOW_RE.search(line) for line in lines):
+            return
+        if file_has_l10n_marker(current, head):
+            return
+        for lit in extract_string_literals(strip_log_calls(lines)):
             stripped = lit
             for tok in ALLOWLIST_TOKENS:
                 stripped = stripped.replace(tok, "")
@@ -302,7 +344,7 @@ def main():
         base, head, ["*.kt", ":!*/src/test/*", ":!*/src/androidTest/*", ":!stale-tests/*"]
     )
     missing += check_ui_literals(kd)
-    missing += check_cjk_literals(kd)
+    missing += check_cjk_literals(kd, head)
     if missing:
         print("\n".join(sorted(set(missing))))
         return 1

@@ -131,6 +131,7 @@ class CodexAccountRepository internal constructor(
     suspend fun refreshAll() {
         accounts.value.forEach { account ->
             runCatching { refreshAccount(account.id) }
+                .onFailure { if (it is CancellationException) throw it }
         }
     }
 

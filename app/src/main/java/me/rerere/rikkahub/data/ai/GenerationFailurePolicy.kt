@@ -1,3 +1,4 @@
+// l10n-allow: matches server error text verbatim
 package me.rerere.rikkahub.data.ai
 
 import android.content.Context
