@@ -85,6 +85,9 @@ ALLOWLIST_TOKENS = (
     "阿里云百炼",
     "百炼",
     "随想",
+    # 商汤日日新 / NVIDIA 中文名（与 utils/AIIconMatcher.kt 的别名同源）
+    "日日新",
+    "英伟达",
     # 英文产品名 / 平台名：ASR provider 名称与 OS 标签，属标识符不翻译。
     # 白名单按「整串去干净才算放行」，所以 "Step 1 of 3"、"DashScope 语音" 这类仍会被报。
     "DashScope", "Volcengine", "MiMo", "Step", "Linux", "Windows",

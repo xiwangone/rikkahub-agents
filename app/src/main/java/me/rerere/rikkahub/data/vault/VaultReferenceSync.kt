@@ -104,6 +104,7 @@ object VaultReferenceSync {
                 is ASRProviderSetting.Volcengine -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is ASRProviderSetting.MiMo -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is ASRProviderSetting.Step -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
+                is ASRProviderSetting.DeepSeek -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
             }
             if (renamed != provider) changed++
             renamed
@@ -114,6 +115,7 @@ object VaultReferenceSync {
                 is TTSProviderSetting.Gemini -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is TTSProviderSetting.MiniMax -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is TTSProviderSetting.SystemTTS -> provider
+                is TTSProviderSetting.DeepSeek -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is TTSProviderSetting.Qwen -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is TTSProviderSetting.Groq -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
                 is TTSProviderSetting.XAI -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))

@@ -1164,6 +1164,9 @@
   <string name="setting_tts_page_title">テキスト読み上げ</string>
   <string name="setting_tts_page_voice">音声</string>
   <string name="setting_tts_page_voice_description">音声合成に使用する声</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella（女性、デフォルト）または tide（男性）</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">リクエストは {Base URL}/v1/tools/tts に送信されます</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">DeepSeek プラットフォームの API キー</string>
   <string name="setting_tts_page_voice_id">音声ID</string>
   <string name="setting_tts_page_voice_id_description">音声合成用のボイスID</string>
   <string name="setting_tts_page_voice_name">音声名</string>
@@ -2064,6 +2067,10 @@
   <string name="setting_asr_configure_mimo_language_desc">任意の言語ヒント: auto、zh、en。空欄の場合はサーバー既定値（auto）を使用します</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">PCM 録音のサンプルレート（Hz）。ASR には 16000 を推奨します</string>
   <string name="setting_asr_configure_mimo_segment_desc">録音中に N 秒ごとにバッファ済み音声を自動アップロードして認識します。0 にすると自動分割を無効化します（stop 時に一括送信、16kHz で最大約 3.9 分）</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">録音が N 秒に達するごとに区切りをアップロードします。0 は停止時にのみアップロード。1 区切りの上限は約 110 秒で、超過分は自動的に分割されます</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">録音のサンプルレート（Hz）。ASR には 16000 で十分です</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">リクエストは {Base URL}/v1/tools/asr に送信されます</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">DeepSeek プラットフォームの API キー</string>
   <string name="setting_asr_configure_step_api_key_desc">StepFun（階躍星辰）API キー。https://platform.stepfun.com/interface-key から取得します</string>
   <string name="setting_asr_configure_step_base_url_desc">Step ASR の Base URL。中国では https://api.stepfun.com、海外では https://api.stepfun.ai を使用します</string>
   <string name="setting_asr_configure_step_model_desc">Step ASR モデル名。例: stepaudio-2.5-asr（フラッグシップ、最安）または step-asr</string>
@@ -4158,6 +4165,7 @@
   <string name="media_creation_page_saved_files_partial">ファイルを %1$d 件保存しました。%2$d 件失敗: %3$s</string>
   <string name="media_creation_page_delete_failed">選択した項目を削除できませんでした</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（ベータ版）</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">Vertex AI は global/us/eu ロケーションのみ対応。その他のロケーションでは generateContent を使用します</string>
   <string name="notification_channel_generation">返信生成</string>
   <string name="generation_foreground_title">返信を生成中</string>
   <string name="chat_input_tool_surface_summary">有効なツール面: %1$d 個のツール（ターンあたり約 ~%2$s スキーマトークン）</string>
@@ -4330,6 +4338,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

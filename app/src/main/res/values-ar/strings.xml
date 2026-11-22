@@ -1196,6 +1196,9 @@
   <string name="setting_tts_page_title">تحويل النص إلى كلام</string>
   <string name="setting_tts_page_voice">الصوت</string>
   <string name="setting_tts_page_voice_description">الصوت المُستخدم لتركيب الكلام</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella (صوت أنثوي، افتراضي) أو tide (صوت ذكوري)</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">تُرسل الطلبات إلى {Base URL}/v1/tools/tts</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">مفتاح API لمنصة DeepSeek</string>
   <string name="setting_tts_page_voice_id">معرّف الصوت</string>
   <string name="setting_tts_page_voice_id_description">معرّف الصوت لتركيب الكلام</string>
   <string name="setting_tts_page_voice_name">اسم الصوت</string>
@@ -3127,6 +3130,10 @@
   <string name="setting_asr_configure_mimo_language_desc">تلميح اللغة اختياري: auto / zh / en. وإن تُرك فارغًا يُستخدم الافتراضي من الخادم (auto)</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">معدل عينات تسجيل PCM (هرتز)، ويُوصى بـ 16000 لتحويل الكلام إلى نص</string>
   <string name="setting_asr_configure_mimo_segment_desc">أثناء التسجيل يُرفع مقطع صوتي كل N ثانية للتعرف عليه، و0 يعطّل التقسيم التلقائي (يُرفع الكل عند الإيقاف، وبحد أقصى نحو 3.9 دقيقة بمعدل 16kHz)</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">يُرفع مقطع كل N ثانية؛ و0 يعني الرفع عند الإيقاف فقط. الحد الأقصى للمقطع نحو 110 ثانية ويُقسَّم تلقائيًا</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">معدل عينات التسجيل بالهرتز، و16000 كافٍ لتحويل الكلام إلى نص</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">تُرسل الطلبات إلى {Base URL}/v1/tools/asr</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">مفتاح API لمنصة DeepSeek</string>
   <string name="setting_asr_configure_step_api_key_desc">مفتاح API لـ StepFun، يُنشأ من https://platform.stepfun.com/interface-key</string>
   <string name="setting_asr_configure_step_base_url_desc">عنوان أساس Step ASR. داخل الصين استخدم https://api.stepfun.com وخارجها https://api.stepfun.ai</string>
   <string name="setting_asr_configure_step_model_desc">اسم نموذج Step ASR، مثل stepaudio-2.5-asr (الرائد والأرخص) أو step-asr</string>
@@ -4165,6 +4172,7 @@
   <string name="media_creation_page_saved_files_partial">تم حفظ %1$d من الملفات، وفشل %2$d: %3$s</string>
   <string name="media_creation_page_delete_failed">تعذر حذف العناصر المحددة</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (تجريبي)</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">يدعم Vertex AI مناطق global وus وeu فقط؛ والمناطق الأخرى تستخدم generateContent</string>
   <string name="notification_channel_generation">إنشاء الرد</string>
   <string name="generation_foreground_title">جارٍ إنشاء الرد</string>
   <string name="chat_input_tool_surface_summary">سطح الأدوات النشط: %1$d أداة (~%2$s رمز مخطط لكل جولة)</string>
@@ -4337,6 +4345,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

@@ -154,6 +154,10 @@ internal fun TTSProviderItem(
                                         R.string.setting_tts_page_provider_volcengine,
                                     )
                                 }
+
+                                is TTSProviderSetting.DeepSeek -> {
+                                    "DeepSeek"
+                                }
                             },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -304,6 +308,7 @@ internal fun ASRProviderItem(
                                 is ASRProviderSetting.Volcengine -> "Volcengine"
                                 is ASRProviderSetting.MiMo -> "MiMo"
                                 is ASRProviderSetting.Step -> "Step"
+                                is ASRProviderSetting.DeepSeek -> "DeepSeek"
                             },
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,

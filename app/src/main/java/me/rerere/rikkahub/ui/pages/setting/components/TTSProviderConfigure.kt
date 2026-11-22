@@ -64,6 +64,7 @@ fun TTSProviderConfigure(
                             is TTSProviderSetting.ElevenLabs -> "ElevenLabs"
                             is TTSProviderSetting.FishAudio -> "Fish Audio"
                             is TTSProviderSetting.Volcengine -> stringResource(R.string.setting_tts_page_provider_volcengine)
+                            is TTSProviderSetting.DeepSeek -> "DeepSeek"
                         },
                     onValueChange = {},
                     readOnly = true,
@@ -96,6 +97,7 @@ fun TTSProviderConfigure(
                                         "fish-audio" -> "Fish Audio"
                                         "step" -> "Step"
                                         "volcengine" -> stringResource(R.string.setting_tts_page_provider_volcengine)
+                                        "deepseek" -> "DeepSeek"
                                         else -> typeKey
                                     },
                                 )
@@ -188,6 +190,13 @@ fun TTSProviderConfigure(
                                             )
                                         }
 
+                                        "deepseek" -> {
+                                            TTSProviderSetting.DeepSeek(
+                                                id = setting.id,
+                                                name = "DeepSeek TTS",
+                                            )
+                                        }
+
                                         else -> {
                                             setting
                                         }
@@ -229,6 +238,7 @@ fun TTSProviderConfigure(
             is TTSProviderSetting.FishAudio -> FishAudioTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Step -> StepTTSConfiguration(setting, onValueChange)
             is TTSProviderSetting.Volcengine -> VolcengineTTSConfiguration(setting, onValueChange)
+            is TTSProviderSetting.DeepSeek -> DeepSeekTTSConfiguration(setting, onValueChange)
         }
     }
 }
@@ -875,6 +885,77 @@ private fun GroqTTSConfiguration(
                         onClick = {
                             voiceExpanded = false
                             onValueChange(setting.copy(voice = voice))
+                        },
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun DeepSeekTTSConfiguration(
+    setting: TTSProviderSetting.DeepSeek,
+    onValueChange: (TTSProviderSetting) -> Unit,
+) {
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_api_key)) },
+        description = { Text(stringResource(R.string.setting_tts_configure_deepseek_api_key_desc)) },
+    ) {
+        SecretRefField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = stringResource(R.string.provider_api_key_placeholder_sk),
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_base_url)) },
+        description = { Text(stringResource(R.string.setting_tts_configure_deepseek_base_url_desc)) },
+    ) {
+        SettingTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.deepseek.com") },
+        )
+    }
+
+    // Voice
+    var voiceExpanded by remember { mutableStateOf(false) }
+    val voices = listOf("stella", "tide")
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_tts_page_voice)) },
+        description = { Text(stringResource(R.string.setting_tts_configure_deepseek_voice_desc)) },
+    ) {
+        ExposedDropdownMenuBox(
+            expanded = voiceExpanded,
+            onExpandedChange = { voiceExpanded = !voiceExpanded },
+        ) {
+            SettingTextField(
+                value = setting.voiceId,
+                onValueChange = { onValueChange(setting.copy(voiceId = it)) },
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .menuAnchor(ExposedDropdownMenuAnchorType.PrimaryNotEditable),
+                trailingIcon = {
+                    ExposedDropdownMenuDefaults.TrailingIcon(expanded = voiceExpanded)
+                },
+            )
+            ExposedDropdownMenu(
+                expanded = voiceExpanded,
+                onDismissRequest = { voiceExpanded = false },
+            ) {
+                voices.forEach { voice ->
+                    DropdownMenuItem(
+                        text = { Text(voice) },
+                        onClick = {
+                            voiceExpanded = false
+                            onValueChange(setting.copy(voiceId = voice))
                         },
                     )
                 }

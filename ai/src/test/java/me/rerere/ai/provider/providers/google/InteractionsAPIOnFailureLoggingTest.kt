@@ -7,7 +7,6 @@ import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.provider.TextGenerationParams
 import me.rerere.ai.ui.UIMessage
-import me.rerere.ai.util.KeyRoulette
 import me.rerere.common.log.AppLogger
 import okhttp3.OkHttpClient
 import okhttp3.Protocol
@@ -129,7 +128,7 @@ class InteractionsAPIOnFailureLoggingTest {
             .build()
 
     private fun streamTextWith(client: OkHttpClient) = runBlocking {
-        val api = InteractionsAPI(client, KeyRoulette.default())
+        val api = InteractionsAPI(client)
         runCatching {
             api.streamText(
                 providerSetting = ProviderSetting.Google(

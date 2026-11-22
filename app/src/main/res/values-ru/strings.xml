@@ -1159,6 +1159,9 @@
   <string name="setting_tts_page_title">Преобразование текста в речь</string>
   <string name="setting_tts_page_voice">Голос</string>
   <string name="setting_tts_page_voice_description">Голос для синтеза речи</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella (женский, по умолчанию) или tide (мужской)</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">Запросы отправляются на {Base URL}/v1/tools/tts</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">API-ключ платформы DeepSeek</string>
   <string name="setting_tts_page_voice_id">ID голоса</string>
   <string name="setting_tts_page_voice_id_description">Идентификатор голоса для синтеза речи</string>
   <string name="setting_tts_page_voice_name">Название голоса</string>
@@ -2059,6 +2062,10 @@
   <string name="setting_asr_configure_mimo_language_desc">Необязательная подсказка языка: auto, zh или en. Оставьте пустым, чтобы использовать значение сервера по умолчанию (auto)</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">Частота дискретизации записи PCM в Гц; для ASR рекомендуется 16000</string>
   <string name="setting_asr_configure_mimo_segment_desc">Автоматически отправлять буферизованный звук каждые N секунд во время записи. 0 отключает авторазбиение (один запрос при stop, максимум около 3,9 мин при 16 кГц)</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">Отправлять фрагмент каждые N секунд; 0 — отправлять только при остановке. Фрагмент ограничен ~110 с и разбивается автоматически</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">Частота дискретизации записи в Гц; для ASR достаточно 16000</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">Запросы отправляются на {Base URL}/v1/tools/asr</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">API-ключ платформы DeepSeek</string>
   <string name="setting_asr_configure_step_api_key_desc">API-ключ StepFun (阶跃星辰), полученный на https://platform.stepfun.com/interface-key</string>
   <string name="setting_asr_configure_step_base_url_desc">Base URL для Step ASR. Для Китая используйте https://api.stepfun.com, для других регионов — https://api.stepfun.ai</string>
   <string name="setting_asr_configure_step_model_desc">Имя модели Step ASR, например stepaudio-2.5-asr (флагманская, самая дешёвая) или step-asr</string>
@@ -4162,6 +4169,7 @@
   <string name="media_creation_page_saved_files_partial">Сохранено %1$d файлов, %2$d не удалось: %3$s</string>
   <string name="media_creation_page_delete_failed">Не удалось удалить выбранные элементы</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (бета)</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">Vertex AI поддерживает только расположения global, us и eu; остальные используют generateContent</string>
   <string name="notification_channel_generation">Генерация ответа</string>
   <string name="generation_foreground_title">Генерация ответа…</string>
   <string name="chat_input_tool_surface_summary">Активные инструменты: %1$d (~%2$s токенов схемы за ход)</string>
@@ -4334,6 +4342,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

@@ -120,10 +120,11 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
     private val serviceAccountTokenProvider by lazy {
         ServiceAccountTokenProvider(client)
     }
-    private val interactionsAPI = InteractionsAPI(client = client, keyRoulette = keyRoulette)
+    private val interactionsAPI = InteractionsAPI(client = client, authorize = ::transformRequest)
 
-    // Interactions API is available on Gemini Developer API only; Vertex keeps generateContent.
-    private fun ProviderSetting.Google.usesInteractionsApi() = useInteractionsApi && !vertexAI
+    // Vertex AI only uses Interactions with a service account, and only in global/us/eu locations; otherwise generateContent.
+    private fun ProviderSetting.Google.usesInteractionsApi() = useInteractionsApi &&
+        (!vertexAI || (useServiceAccount && location in VERTEX_INTERACTIONS_LOCATIONS))
 
     private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
         return if (!providerSetting.vertexAI) {
@@ -240,8 +241,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
 
                     val modelName =
                         (modelObject["name"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNullTo null
+                    // 部分兼容 Gemini 格式的接口不返回 displayName，回退到 modelId
                     val displayName =
-                        (modelObject["displayName"] as? JsonPrimitive)?.contentOrNull ?: return@mapNotNullTo null
+                        (modelObject["displayName"] as? JsonPrimitive)?.contentOrNull
+                            ?.takeIf { it.isNotBlank() } ?: modelName.substringAfter("/")
 
                     Model(
                         modelId = modelName.substringAfter("/"),

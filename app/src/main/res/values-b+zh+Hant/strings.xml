@@ -1166,6 +1166,9 @@
   <string name="setting_tts_page_title">語音合成</string>
   <string name="setting_tts_page_voice">語音</string>
   <string name="setting_tts_page_voice_description">用於語音合成的聲音</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella 為女聲（預設），tide 為男聲</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">請求位址為 {Base URL}/v1/tools/tts</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">DeepSeek 開放平台的 API Key</string>
   <string name="setting_tts_page_voice_id">語音 ID</string>
   <string name="setting_tts_page_voice_id_description">語音合成使用的語音 ID</string>
   <string name="setting_tts_page_voice_name">語音名稱</string>
@@ -2080,6 +2083,10 @@
   <string name="setting_asr_configure_mimo_language_desc">可選語言提示：auto、zh 或 en。留空則使用服務端預設值（auto）</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">PCM 錄音取樣率（Hz），ASR 建議使用 16000</string>
   <string name="setting_asr_configure_mimo_segment_desc">錄音期間每 N 秒自動上傳一段音訊進行辨識。0 表示停用自動分段（僅在 stop 時整體上傳，16kHz 下最長約 3.9 分鐘）</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">錄音每滿多少秒上傳辨識一段，0 表示停止錄音時才上傳。單段最長約 110 秒，超出會自動切段</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">錄音取樣率，16000 Hz 即可滿足辨識</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">請求位址為 {Base URL}/v1/tools/asr</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">DeepSeek 開放平台的 API Key</string>
   <string name="setting_asr_configure_step_api_key_desc">StepFun（階躍星辰）API Key，可從 https://platform.stepfun.com/interface-key 取得</string>
   <string name="setting_asr_configure_step_base_url_desc">Step ASR Base URL。中國大陸使用 https://api.stepfun.com，海外使用 https://api.stepfun.ai</string>
   <string name="setting_asr_configure_step_model_desc">Step ASR 模型名稱，例如 stepaudio-2.5-asr（旗艦，最便宜）或 step-asr</string>
@@ -4157,6 +4164,7 @@
   <string name="media_creation_page_saved_files_partial">已儲存 %1$d 個檔案，%2$d 個失敗：%3$s</string>
   <string name="media_creation_page_delete_failed">無法刪除所選項目</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API（測試版）</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">Vertex AI 僅支援 global/us/eu 區域，其它區域仍走 generateContent</string>
   <string name="notification_channel_generation">回覆生成</string>
   <string name="generation_foreground_title">正在生成回覆</string>
   <string name="chat_input_tool_surface_summary">目前啟用工具面：%1$d 個工具（每輪約佔 ~%2$s Schema Tokens）</string>
@@ -4329,6 +4337,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

@@ -29,6 +29,7 @@ internal fun ASRProviderSetting.withResolvedVaultCredentials(
     is ASRProviderSetting.Volcengine -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is ASRProviderSetting.MiMo -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is ASRProviderSetting.Step -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
+    is ASRProviderSetting.DeepSeek -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
 }
 
 internal fun TTSProviderSetting.withResolvedVaultCredentials(
@@ -37,6 +38,7 @@ internal fun TTSProviderSetting.withResolvedVaultCredentials(
     is TTSProviderSetting.OpenAI -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is TTSProviderSetting.Gemini -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is TTSProviderSetting.SystemTTS -> this
+    is TTSProviderSetting.DeepSeek -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is TTSProviderSetting.MiniMax -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is TTSProviderSetting.Qwen -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))
     is TTSProviderSetting.Groq -> copy(apiKey = resolveVaultCredentialValue(apiKey, resolve))

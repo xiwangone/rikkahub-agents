@@ -122,6 +122,8 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "硅基流动" to "siliconflow",
     "秘塔" to "metaso",
     "商汤" to "sensenova",
+    "日日新" to "sensenova",
+    "英伟达" to "nvidia",
     "阶跃星辰" to "stepfun",
     "阶跃" to "stepfun",
     "七牛云" to "qiniu",
@@ -180,6 +182,8 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     // 金山云英文名、天数智芯英文品牌
     "01ai" to "zeroone",
     "sensetime" to "sensenova",
+    "sensechat" to "sensenova",
+    "nemotron" to "nvidia",
     "qianfan" to "baiducloud",
     "genspi" to "shengshu",
     "luchentech" to "colossalai",

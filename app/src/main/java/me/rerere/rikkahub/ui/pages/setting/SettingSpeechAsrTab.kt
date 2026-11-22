@@ -193,6 +193,14 @@ internal fun AddASRProviderButton(onAdd: (ASRProviderSetting) -> Unit) {
                     showBottomSheet = true
                 },
             )
+            DropdownMenuItem(
+                text = { Text(stringResource(R.string.asr_provider_deepseek)) },
+                onClick = {
+                    currentProvider = ASRProviderSetting.DeepSeek()
+                    showTypeMenu = false
+                    showBottomSheet = true
+                },
+            )
         }
     }
 

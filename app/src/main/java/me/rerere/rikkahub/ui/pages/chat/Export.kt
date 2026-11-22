@@ -71,6 +71,7 @@ import me.rerere.rikkahub.utils.JsonInstantPretty
 import me.rerere.rikkahub.utils.exportImage
 import me.rerere.rikkahub.utils.getActivity
 import me.rerere.rikkahub.utils.toLocalString
+import kotlinx.datetime.toJavaLocalDateTime
 import org.koin.compose.koinInject
 import java.io.FileOutputStream
 import java.io.IOException
@@ -355,7 +356,7 @@ private fun exportToMarkdown(
 
             messages.forEach { message ->
                 val role = if (message.role == MessageRole.USER) "**User**" else "**Assistant**"
-                append("$role:\n\n")
+                append("$role · *${message.createdAt.toJavaLocalDateTime().toLocalString()}*:\n\n")
                 message.parts.forEach { part ->
                     when (part) {
                         is UIMessagePart.Text -> {

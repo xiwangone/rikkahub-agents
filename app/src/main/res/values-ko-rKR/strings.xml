@@ -1164,6 +1164,9 @@
   <string name="setting_tts_page_title">텍스트-음성</string>
   <string name="setting_tts_page_voice">음성</string>
   <string name="setting_tts_page_voice_description">음성 합성에 사용할 음성</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella(여성, 기본값) 또는 tide(남성)</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">요청은 {Base URL}/v1/tools/tts(으)로 전송됩니다</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">DeepSeek 플랫폼 API 키</string>
   <string name="setting_tts_page_voice_id">음성 ID</string>
   <string name="setting_tts_page_voice_id_description">음성 합성을 위한 음성 ID</string>
   <string name="setting_tts_page_voice_name">음성 이름</string>
@@ -2061,6 +2064,10 @@
   <string name="setting_asr_configure_mimo_language_desc">선택 사항 언어 힌트: auto, zh 또는 en. 비워 두면 서버 기본값(auto)을 사용합니다</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">PCM 녹음 샘플 레이트(Hz)입니다. ASR에는 16000을 권장합니다</string>
   <string name="setting_asr_configure_mimo_segment_desc">녹음 중 N초마다 버퍼된 오디오를 자동 업로드해 인식합니다. 0은 자동 분할을 비활성화합니다(stop 시 한 번에 전송, 16kHz 기준 최대 약 3.9분)</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">녹음이 N초마다 구간을 업로드합니다. 0이면 중지 시에만 업로드합니다. 구간은 최대 약 110초이며 초과 시 자동 분할됩니다</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">녹음 샘플 레이트(Hz)입니다. ASR에는 16000이면 충분합니다</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">요청은 {Base URL}/v1/tools/asr(으)로 전송됩니다</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">DeepSeek 플랫폼 API 키</string>
   <string name="setting_asr_configure_step_api_key_desc">StepFun(阶跃星辰) API 키입니다. https://platform.stepfun.com/interface-key 에서 발급받을 수 있습니다</string>
   <string name="setting_asr_configure_step_base_url_desc">Step ASR Base URL입니다. 중국에서는 https://api.stepfun.com, 해외에서는 https://api.stepfun.ai 를 사용하세요</string>
   <string name="setting_asr_configure_step_model_desc">Step ASR 모델 이름입니다. 예: stepaudio-2.5-asr(플래그십, 최저가) 또는 step-asr</string>
@@ -4158,6 +4165,7 @@
   <string name="media_creation_page_saved_files_partial">파일 %1$d개 저장됨, %2$d개 실패: %3$s</string>
   <string name="media_creation_page_delete_failed">선택한 항목을 삭제하지 못했습니다</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API(베타)</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">Vertex AI는 global/us/eu 위치만 지원하며, 다른 위치는 generateContent를 사용합니다</string>
   <string name="notification_channel_generation">답변 생성</string>
   <string name="generation_foreground_title">답변 생성 중</string>
   <string name="chat_input_tool_surface_summary">활성 도구 표면: 도구 %1$d개(턴당 약 ~%2$s 스키마 토큰)</string>
@@ -4330,6 +4338,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

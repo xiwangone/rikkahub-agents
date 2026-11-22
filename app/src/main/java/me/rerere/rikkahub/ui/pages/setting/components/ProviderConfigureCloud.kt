@@ -223,11 +223,17 @@ internal fun ProviderConfigureGoogle(
                 onCheckedChange = { onEdit(provider.copy(useServiceAccount = it)) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_use_service_account)) },
             )
-        } else {
+        }
+        if (!provider.vertexAI || useServiceAccount) {
             switchItem(
                 checked = provider.useInteractionsApi,
                 onCheckedChange = { onEdit(provider.copy(useInteractionsApi = it)) },
                 headlineContent = { Text(stringResource(R.string.setting_provider_page_google_interactions_api)) },
+                supportingContent = if (useServiceAccount) {
+                    { Text(stringResource(R.string.setting_provider_page_interactions_vertex_location_hint)) }
+                } else {
+                    null
+                },
             )
         }
     }

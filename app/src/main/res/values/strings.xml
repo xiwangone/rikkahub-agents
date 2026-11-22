@@ -868,6 +868,10 @@
   <string name="setting_asr_configure_mimo_language_desc">Optional language hint: auto, zh, or en. Leave empty to use server default (auto)</string>
   <string name="setting_asr_configure_mimo_sample_rate_desc">PCM recording sample rate in Hz, 16000 is recommended for ASR</string>
   <string name="setting_asr_configure_mimo_segment_desc">Auto-flush buffered audio every N seconds during recording. 0 disables auto-segmentation (single request on stop, max ~3.9 min at 16kHz)</string>
+  <string name="setting_asr_configure_deepseek_api_key_desc">DeepSeek Platform API Key</string>
+  <string name="setting_asr_configure_deepseek_base_url_desc">Requests go to {Base URL}/v1/tools/asr</string>
+  <string name="setting_asr_configure_deepseek_sample_rate_desc">Recording sample rate in Hz, 16000 is enough for ASR</string>
+  <string name="setting_asr_configure_deepseek_segment_duration_desc">Upload a segment every N seconds; 0 means upload only on stop. A segment is capped at ~110s and split automatically</string>
   <string name="setting_asr_configure_step_api_key_desc">StepFun API key, obtained from https://platform.stepfun.com/interface-key</string>
   <string name="setting_asr_configure_step_base_url_desc">Step ASR base URL. Use https://api.stepfun.com for China, https://api.stepfun.ai for international</string>
   <string name="setting_asr_configure_step_model_desc">Step ASR model name, e.g. stepaudio-2.5-asr (flagship, cheapest) or step-asr</string>
@@ -1413,6 +1417,9 @@
   <string name="setting_tts_page_title">Text-to-Speech</string>
   <string name="setting_tts_page_voice">Voice</string>
   <string name="setting_tts_page_voice_description">Voice to use for speech synthesis</string>
+  <string name="setting_tts_configure_deepseek_api_key_desc">DeepSeek Platform API Key</string>
+  <string name="setting_tts_configure_deepseek_base_url_desc">Requests go to {Base URL}/v1/tools/tts</string>
+  <string name="setting_tts_configure_deepseek_voice_desc">stella (female, default) or tide (male)</string>
   <string name="setting_tts_page_voice_id">Voice ID</string>
   <string name="setting_tts_page_voice_id_description">Voice ID for speech synthesis</string>
   <string name="setting_tts_page_voice_name">Voice Name</string>
@@ -4242,6 +4249,7 @@
   <string name="media_creation_page_saved_files_partial">Saved %1$d files, %2$d failed: %3$s</string>
   <string name="media_creation_page_delete_failed">Failed to delete selected items</string>
   <string name="setting_provider_page_google_interactions_api">Gemini Interactions API (Beta)</string>
+  <string name="setting_provider_page_interactions_vertex_location_hint">Vertex AI only supports the global, us and eu locations; other locations use generateContent</string>
   <string name="notification_channel_generation">Reply generation</string>
   <string name="generation_foreground_title">Generating reply</string>
   <string name="chat_input_tool_surface_summary">Active tool surface: %1$d tools (~%2$s schema tokens per turn)</string>
@@ -4414,6 +4422,7 @@
   <string name="tts_placeholder_mimo_model">mimo-v2-tts</string>
   <string name="tts_placeholder_qwen_model">qwen-audio-3.0-tts-flash</string>
   <string name="asr_provider_openai_realtime">OpenAI Realtime</string>
+  <string name="asr_provider_deepseek">DeepSeek</string>
   <string name="asr_placeholder_mimo_model">mimo-v2.5-asr</string>
   <string name="asr_placeholder_qwen_model">qwen3-asr-flash-realtime-2026-02-10</string>
   <string name="asr_placeholder_volc_resource_id">volc.bigasr.sauc.duration</string>

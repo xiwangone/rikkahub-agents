@@ -111,6 +111,7 @@ object VaultReferenceLocator {
         is ASRProviderSetting.Volcengine -> provider.apiKey
         is ASRProviderSetting.MiMo -> provider.apiKey
         is ASRProviderSetting.Step -> provider.apiKey
+        is ASRProviderSetting.DeepSeek -> provider.apiKey
     }
 
     fun ttsSecrets(provider: TTSProviderSetting): String = when (provider) {
@@ -118,6 +119,7 @@ object VaultReferenceLocator {
         is TTSProviderSetting.Gemini -> provider.apiKey
         is TTSProviderSetting.MiniMax -> provider.apiKey
         is TTSProviderSetting.SystemTTS -> ""
+        is TTSProviderSetting.DeepSeek -> provider.apiKey
         is TTSProviderSetting.Qwen -> provider.apiKey
         is TTSProviderSetting.Groq -> provider.apiKey
         is TTSProviderSetting.XAI -> provider.apiKey

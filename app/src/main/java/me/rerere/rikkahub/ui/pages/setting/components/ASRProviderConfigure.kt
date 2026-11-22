@@ -39,6 +39,7 @@ fun ASRProviderConfigure(
                         is ASRProviderSetting.Volcengine -> "Volcengine"
                         is ASRProviderSetting.MiMo -> "MiMo"
                         is ASRProviderSetting.Step -> "Step"
+                        is ASRProviderSetting.DeepSeek -> "DeepSeek"
                     },
                 onValueChange = {},
                 readOnly = true,
@@ -64,6 +65,7 @@ fun ASRProviderConfigure(
             is ASRProviderSetting.Volcengine -> VolcengineASRConfiguration(setting, onValueChange)
             is ASRProviderSetting.MiMo -> MiMoASRConfiguration(setting, onValueChange)
             is ASRProviderSetting.Step -> StepASRConfiguration(setting, onValueChange)
+            is ASRProviderSetting.DeepSeek -> DeepSeekASRConfiguration(setting, onValueChange)
         }
     }
 }
@@ -541,6 +543,70 @@ private fun StepASRConfiguration(
             },
             modifier = Modifier.fillMaxWidth(),
             placeholder = { Text(stringResource(R.string.asr_hotwords_placeholder)) },
+        )
+    }
+}
+
+@Composable
+private fun DeepSeekASRConfiguration(
+    setting: ASRProviderSetting.DeepSeek,
+    onValueChange: (ASRProviderSetting) -> Unit,
+) {
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_api_key)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_deepseek_api_key_desc)) },
+    ) {
+        SecretRefField(
+            value = setting.apiKey,
+            onValueChange = { onValueChange(setting.copy(apiKey = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            nameHint = "${setting.name}_API_KEY",
+            singleLine = true,
+            placeholder = stringResource(R.string.provider_api_key_placeholder_sk),
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_base_url)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_deepseek_base_url_desc)) },
+    ) {
+        SettingTextField(
+            value = setting.baseUrl,
+            onValueChange = { onValueChange(setting.copy(baseUrl = it)) },
+            modifier = Modifier.fillMaxWidth(),
+            placeholder = { Text("https://api.deepseek.com") },
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_sample_rate)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_deepseek_sample_rate_desc)) },
+    ) {
+        OutlinedNumberInput(
+            value = setting.sampleRate,
+            onValueChange = { value ->
+                if (value in 8000..48000) {
+                    onValueChange(setting.copy(sampleRate = value))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.setting_asr_configure_sample_rate),
+        )
+    }
+
+    FormItem(
+        label = { Text(stringResource(R.string.setting_asr_configure_segment_duration)) },
+        description = { Text(stringResource(R.string.setting_asr_configure_deepseek_segment_duration_desc)) },
+    ) {
+        OutlinedNumberInput(
+            value = setting.segmentDurationSec,
+            onValueChange = { value ->
+                if (value in 0..110) {
+                    onValueChange(setting.copy(segmentDurationSec = value))
+                }
+            },
+            modifier = Modifier.fillMaxWidth(),
+            label = stringResource(R.string.setting_asr_configure_segment_duration),
         )
     }
 }
