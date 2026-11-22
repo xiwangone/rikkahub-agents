@@ -42,3 +42,15 @@ d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui
 d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:72
 d55bb0596faf2a37577ad8ddd9a4ab2589b7c4c7:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:78
 dbccc68c7b7a28e815a35af634d365db24b1548f:app/src/test/java/me/rerere/rikkahub/web/WebJwtTest.kt:generic-api-key:41
+1f7e3e5f900fd8b76fa900bb003c22e35c65d1a4:app/src/test/java/me/rerere/rikkahub/data/ai/tools/EnvInjectionSafetyTest.kt:generic-api-key:71
+1f7e3e5f900fd8b76fa900bb003c22e35c65d1a4:app/src/test/java/me/rerere/rikkahub/data/ai/tools/EnvInjectionSafetyTest.kt:generic-api-key:72
+1f7e3e5f900fd8b76fa900bb003c22e35c65d1a4:app/src/test/java/me/rerere/rikkahub/data/ai/tools/EnvInjectionSafetyTest.kt:generic-api-key:121
+1f7e3e5f900fd8b76fa900bb003c22e35c65d1a4:app/src/test/java/me/rerere/rikkahub/data/ai/tools/EnvInjectionSafetyTest.kt:generic-api-key:129
+1f7e3e5f900fd8b76fa900bb003c22e35c65d1a4:app/src/test/java/me/rerere/rikkahub/data/ai/tools/EnvInjectionSafetyTest.kt:generic-api-key:139
+a35e0b4f7b0d13f42610abefe98473e63102e845:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:90
+a35e0b4f7b0d13f42610abefe98473e63102e845:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:100
+a35e0b4f7b0d13f42610abefe98473e63102e845:app/src/test/java/me/rerere/rikkahub/data/repository/SshHostRepositoryTest.kt:generic-api-key:116
+db07c2e9faa9d84d030b71416a4c6d77f03d3967:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:64
+db07c2e9faa9d84d030b71416a4c6d77f03d3967:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:72
+db07c2e9faa9d84d030b71416a4c6d77f03d3967:app/src/test/java/me/rerere/rikkahub/ui/pages/log/LogRevealStateTest.kt:generic-api-key:78
+7ec878979d50745dee73551795ad1582addd0cdf:ai/src/test/java/me/rerere/ai/provider/providers/chatgpt/ChatGPTProviderTest.kt:generic-api-key:96

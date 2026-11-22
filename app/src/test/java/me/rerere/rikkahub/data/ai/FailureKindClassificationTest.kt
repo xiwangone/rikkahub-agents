@@ -139,4 +139,25 @@ class FailureKindClassificationTest {
             ),
         )
     }
+
+    @Test
+    fun `中文服务端报错按关键词分类`() {
+        // 分类器里的中文关键词是拿来匹配服务端原文的，必须保持原文：
+        // 翻译或资源化都会让中文报错落到 UNKNOWN，诊断标签跟着降级。
+        assertEquals(FailureKind.AUTH, kind("API 密钥无效，请检查配置"))
+        assertEquals(FailureKind.AUTH, kind("鉴权失败"))
+        assertEquals(FailureKind.QUOTA, kind("账户余额不足"))
+        assertEquals(FailureKind.QUOTA, kind("额度已用完"))
+        assertEquals(FailureKind.RATE_LIMIT, kind("请求过于频繁，已限流"))
+        assertEquals(FailureKind.NETWORK, kind("网络超时，请重试"))
+        assertEquals(FailureKind.NETWORK, kind("连接超时"))
+        assertEquals(FailureKind.CONTEXT_LENGTH, kind("上下文超长"))
+        assertEquals(FailureKind.BAD_REQUEST, kind("参数错误"))
+        assertEquals(FailureKind.UNSUPPORTED, kind("该模型格式不支持"))
+        assertEquals(FailureKind.PERMISSION, kind("权限不足，拒绝访问"))
+        assertEquals(FailureKind.STORAGE, kind("存储空间不足"))
+        assertEquals(FailureKind.SERVER, kind("服务端错误"))
+        assertEquals(FailureKind.CONTENT_SAFETY, kind("内容包含敏感信息"))
+        assertEquals(FailureKind.CONTENT_SAFETY, kind("请求涉及安全风险"))
+    }
 }
