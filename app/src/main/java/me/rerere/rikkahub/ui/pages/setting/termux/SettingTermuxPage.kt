@@ -1,5 +1,8 @@
 package me.rerere.rikkahub.ui.pages.setting.termux
 
+import android.content.ClipData
+import android.content.ClipboardManager
+import android.content.Context
 import android.content.Intent
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -13,6 +16,8 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -38,6 +43,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlinx.coroutines.launch
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.local.PermissionHelper
 import me.rerere.rikkahub.data.ai.tools.local.TermuxIntegration
@@ -52,10 +59,28 @@ import org.koin.androidx.compose.koinViewModel
  *
  *  1. Status — integration indicators with tap actions (Termux installed, RUN_COMMAND
  *     permission request, Open Termux, verify smoke test).
- *  2. Timeouts — command timeout, per-turn budget (all tools), verify smoke-test timeout.
- *  3. Defaults & limits — working directory, stdout/stderr caps, apt-wrap toggle.
- *  4. Help — expandable setup instructions for allow-external-apps=true.
+ *  2. Help — setup instructions for allow-external-apps=true, with a copy button for
+ *     the two shell lines. Kept next to Status so the flow reads top-down.
+ *  3. Timeouts — command timeout, per-turn budget (all tools), verify smoke-test timeout.
+ *  4. Defaults & limits — working directory, stdout/stderr caps, apt-wrap toggle.
  */
+/**
+ * The two shell lines that enable Termux allow-external-apps. Copied to the clipboard by
+ * the help card's copy button and by the RUN_COMMAND permission-grant flow, so the user
+ * can paste them in Termux without typing.
+ */
+private const val TERMUX_SETUP_COMMANDS =
+    "mkdir -p ~/.termux\necho 'allow-external-apps=true' >> ~/.termux/termux.properties"
+
+/** Label for the clipboard entry carrying the setup commands. Not user-visible text. */
+private const val TERMUX_CLIPBOARD_TAG = "termux-setup"
+
+/** Copy the allow-external-apps setup commands to the system clipboard. */
+private fun copyTermuxSetupCommands(context: Context) {
+    val clipboard = context.getSystemService(Context.CLIPBOARD_SERVICE) as ClipboardManager
+    clipboard.setPrimaryClip(ClipData.newPlainText(TERMUX_CLIPBOARD_TAG, TERMUX_SETUP_COMMANDS))
+}
+
 @Composable
 fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
     val ctx = LocalContext.current
@@ -83,7 +108,11 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
             val denied = results.filter { !it.value }.keys
             if (denied.isEmpty()) {
                 integrationState = TermuxIntegration.state(ctx)
-                toaster.show(resources.getString(R.string.setting_termux_toast_permission_granted), type = ToastType.Success)
+                // Permission granted: copy the setup commands so the user can paste
+                // them in Termux right away. The help card's manual copy button stays
+                // as a fallback in case this automatic copy is blocked or dismissed.
+                copyTermuxSetupCommands(ctx)
+                toaster.show(resources.getString(R.string.setting_termux_toast_permission_granted_copied), type = ToastType.Success)
             } else {
                 toaster.show(resources.getString(R.string.setting_termux_status_permission_missing), type = ToastType.Error)
             }
@@ -285,7 +314,34 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                 )
             }
 
-            // Section 2: Timeouts
+            // Section 2: Help — setup instructions for allow-external-apps, next to
+            // Status so the flow reads top-down: see status, copy, open Termux, paste, verify.
+            CardGroup(
+                title = { Text(stringResource(R.string.setting_termux_section_help)) },
+            ) {
+                item(
+                    headlineContent = { Text(stringResource(R.string.setting_termux_help_allow_external_apps_title)) },
+                    supportingContent = { Text(stringResource(R.string.setting_termux_help_allow_external_apps_body)) },
+                    trailingContent = {
+                        IconButton(
+                            onClick = {
+                                copyTermuxSetupCommands(ctx)
+                                toaster.show(
+                                    resources.getString(R.string.setting_termux_toast_commands_copied),
+                                    type = ToastType.Success,
+                                )
+                            },
+                        ) {
+                            Icon(
+                                imageVector = HugeIcons.Copy01,
+                                contentDescription = stringResource(R.string.setting_termux_help_copy_commands),
+                            )
+                        }
+                    },
+                )
+            }
+
+            // Section 3: Timeouts
             CardGroup(
                 title = { Text(stringResource(R.string.setting_termux_section_timeouts)) },
             ) {
@@ -313,7 +369,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                 )
             }
 
-            // Section 3: Defaults & limits
+            // Section 4: Defaults & limits
             CardGroup(
                 title = { Text(stringResource(R.string.setting_termux_section_defaults)) },
             ) {
@@ -361,15 +417,6 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
                 )
             }
 
-            // Section 4: Help
-            CardGroup(
-                title = { Text(stringResource(R.string.setting_termux_section_help)) },
-            ) {
-                item(
-                    headlineContent = { Text(stringResource(R.string.setting_termux_help_allow_external_apps_title)) },
-                    supportingContent = { Text(stringResource(R.string.setting_termux_help_allow_external_apps_body)) },
-                )
-            }
         }
     }
 }

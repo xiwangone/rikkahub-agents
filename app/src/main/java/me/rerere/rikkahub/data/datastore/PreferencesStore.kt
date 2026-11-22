@@ -7,7 +7,9 @@ import me.rerere.rikkahub.data.workspace.WorkspaceMountSwitch
 import android.content.Context
 import androidx.datastore.core.IOException
 import androidx.datastore.core.DataStore
+import androidx.datastore.core.handlers.ReplaceFileCorruptionHandler
 import androidx.datastore.preferences.core.Preferences
+import androidx.datastore.preferences.core.emptyPreferences
 import androidx.datastore.preferences.core.PreferenceDataStoreFactory
 import java.io.File
 import androidx.datastore.preferences.core.booleanPreferencesKey
@@ -70,8 +72,21 @@ private const val SETTINGS_READ_RETRIES = 3
 /** 消费者等待设置就绪的上限；初始化永久失败时避免协程无限挂起 */
 private const val SETTINGS_READY_TIMEOUT_MS = 20_000L
 
+/**
+ * Corruption handler for the settings file: a corrupted file must not take the
+ * providers with it. The handler receives no Context so it cannot read the backup
+ * itself; it yields an empty set and the startup restore repopulates the providers
+ * from the encrypted snapshot. Settings other than providers in a corrupted file
+ * are unrecoverable by definition.
+ */
+internal val settingsCorruptionHandler = ReplaceFileCorruptionHandler<Preferences> { exception ->
+    AppLog.e(TAG, "Settings file corrupted; starting from empty preferences", exception)
+    emptyPreferences()
+}
+
 private val Context.settingsStore by preferencesDataStore(
     name = "settings",
+    corruptionHandler = settingsCorruptionHandler,
     produceMigrations = { context ->
         listOf(
             PreferenceStoreV1Migration(),
@@ -636,6 +651,7 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
     init {
         scope.launch {
             try {
+                restoreProvidersFromBackup(dataStore, appContext)
                 settingsFlowRaw.distinctUntilChanged().collect { decoded ->
                     val observedRevision = memoryRevision.get()
                     transformLock.withLock {
@@ -728,6 +744,12 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
             memoryRevision.incrementAndGet()
             throw failure
         }
+        // Providers are the only setting whose loss strands the user without any
+        // configured model endpoint, so keep an encrypted copy in a separate file.
+        // Only when the list actually changed: unrelated settings writes must not
+        // re-encrypt and rewrite the snapshot. Best-effort: a failed snapshot
+        // must never fail the settings save itself.
+        maybeWriteProvidersBackup(appContext, previous.providers, settings.providers)
     }
 
     // ---------- 会话累计用量（与压缩解耦，见 LifetimeUsage 注释） ----------

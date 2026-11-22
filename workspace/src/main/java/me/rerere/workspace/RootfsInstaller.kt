@@ -156,10 +156,7 @@ class RootfsInstaller(
             if (shouldOverlay) {
                 totalEntries += overlayDirectory(stagingDir, linuxDir, stagingDir, totalEntries, onProgress)
             } else {
-                linuxDir.deleteRecursively()
-                require(stagingDir.renameTo(linuxDir)) {
-                    "Failed to move rootfs into workspace"
-                }
+                replaceRootfs(stagingDir, linuxDir)
             }
             // 补丁阶段也发进度事件，否则 UI 会在上一步的末尾长时间卡住
             onProgress(
@@ -183,6 +180,56 @@ class RootfsInstaller(
             onProgress(RootfsInstallProgress(stage = RootfsInstallStage.INSTALLED))
         } finally {
             stagingDir.deleteRecursively()
+        }
+    }
+
+    /**
+     * Removes the previous rootfs and moves the staged one into place.
+     * Shared by URL and local-file install so both fail the same way.
+     */
+    private fun replaceRootfs(stagingDir: File, linuxDir: File) {
+        removeOldRootfs(linuxDir)
+        moveStagedIntoPlace(stagingDir, linuxDir)
+    }
+
+    /**
+     * Removes the previous rootfs, if any. A plain recursive delete stops
+     * at the first read-only directory it cannot remove, leaving the old
+     * rootfs behind; make the tree writable and retry once before giving
+     * up, and say so instead of failing silently.
+     */
+    private fun removeOldRootfs(linuxDir: File) {
+        if (!linuxDir.exists()) return
+        if (linuxDir.deleteRecursively()) return
+        makeWritableRecursively(linuxDir)
+        if (linuxDir.deleteRecursively()) return
+        throw IllegalStateException(
+            "Failed to remove old rootfs at ${linuxDir.absolutePath}: " +
+                "the directory could not be deleted, so the new rootfs cannot be installed over it",
+        )
+    }
+
+    /** Makes every entry under [root] writable so a retry delete can remove it. */
+    private fun makeWritableRecursively(root: File) {
+        runCatching {
+            root.walkTopDown().forEach { file ->
+                runCatching { file.setWritable(true) }
+            }
+        }
+    }
+
+    /**
+     * Moves the staged rootfs into place. Unlike `File.renameTo`, which
+     * only returns false, this reports why the move failed.
+     */
+    private fun moveStagedIntoPlace(stagingDir: File, linuxDir: File) {
+        try {
+            Files.move(stagingDir.toPath(), linuxDir.toPath())
+        } catch (e: IOException) {
+            throw IllegalStateException(
+                "Failed to move rootfs into workspace: ${e.message}",
+                e,
+            )
         }
     }
 

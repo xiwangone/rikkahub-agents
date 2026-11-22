@@ -2136,7 +2136,10 @@
   <string name="setting_termux_apt_wrap_desc">Prepend DEBIAN_FRONTEND=noninteractive so apt upgrades do not hang waiting for interactive prompts.</string>
   <string name="setting_termux_section_help">Setup help</string>
   <string name="setting_termux_help_allow_external_apps_title">How to enable allow-external-apps</string>
-  <string name="setting_termux_help_allow_external_apps_body">In Termux, run:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' >> ~/.termux/termux.properties\n\nThen force-stop Termux from Android App Info and reopen it. After that, tap the verify row above to confirm the link is working.</string>
+  <string name="setting_termux_help_allow_external_apps_body">Tap Copy to copy the two lines below, then paste them in Termux to run:\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' >> ~/.termux/termux.properties\n\nThen force-stop Termux from Android App Info and reopen it. After that, tap the verify row above to confirm.</string>
+  <string name="setting_termux_help_copy_commands">Copy setup commands</string>
+  <string name="setting_termux_toast_commands_copied">Setup commands copied. Paste them in Termux to run.</string>
+  <string name="setting_termux_toast_permission_granted_copied">Permission granted. Setup commands copied — paste them in Termux to run.</string>
   <string name="browser_address_bar_close">Close browser</string>
   <string name="browser_address_bar_back">Browser back</string>
   <string name="browser_address_bar_forward">Browser forward</string>

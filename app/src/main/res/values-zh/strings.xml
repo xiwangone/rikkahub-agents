@@ -2539,7 +2539,10 @@
   <string name="setting_termux_apt_wrap_desc">自动添加 DEBIAN_FRONTEND=noninteractive，防止 apt 升级因等待交互提示而卡住。</string>
   <string name="setting_termux_command_timeout">默认命令超时</string>
   <string name="setting_termux_command_timeout_desc">等待后台 Shell 命令返回输出的最长时间。范围 5 秒至 600 秒。</string>
-  <string name="setting_termux_help_allow_external_apps_body">在 Termux 中运行：\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' >> ~/.termux/termux.properties\n\n然后通过 Android 应用信息强制停止 Termux 并重新打开。完成后点击下方的验证按钮。</string>
+  <string name="setting_termux_help_allow_external_apps_body">点「复制」把下面两行拷走，到 Termux 里粘贴运行：\n\n  mkdir -p ~/.termux\n  echo \'allow-external-apps=true\' >> ~/.termux/termux.properties\n\n然后去 Android 应用信息里强制停止 Termux 再重新打开，回来点上面的验证行确认。</string>
+  <string name="setting_termux_help_copy_commands">复制设置命令</string>
+  <string name="setting_termux_toast_commands_copied">设置命令已复制，到 Termux 里粘贴运行。</string>
+  <string name="setting_termux_toast_permission_granted_copied">权限已授予，设置命令已复制，到 Termux 里粘贴运行。</string>
   <string name="setting_termux_help_allow_external_apps_title">如何启用 allow-external-apps</string>
   <string name="setting_termux_max_stderr">标准错误捕获上限</string>
   <string name="setting_termux_max_stderr_desc">每次命令返回给 AI 的 stderr 最大字节数。范围 500 至 16,000。</string>

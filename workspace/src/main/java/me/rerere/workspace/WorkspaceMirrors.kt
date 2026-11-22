@@ -195,15 +195,9 @@ internal fun readRootfsDistro(linuxDir: File): RootfsDistro? {
     return RootfsDistro(id, codename)
 }
 
-/**
- * 运行设备是否 x86 —— apt 源路径 `/ubuntu/` 与 `/ubuntu-ports/` 的分界。
- * rootfs 必须匹配设备 ABI，故直接取进程架构即可。
- */
-private fun isX86Host(): Boolean =
-    System.getProperty("os.arch").orEmpty().lowercase().let { it == "x86_64" || it == "amd64" }
-
 /** Ubuntu 的 deb822 源内容（主源含 updates / security / backports）。 */
 private fun ubuntuSources(base: String, codename: String): String {
+    // x86 rootfs 用 /ubuntu/；ARM rootfs 用 /ubuntu-ports/。
     val path = if (isX86Host()) "/ubuntu/" else "/ubuntu-ports/"
     return buildString {
         appendLine(MIRROR_MARKER)

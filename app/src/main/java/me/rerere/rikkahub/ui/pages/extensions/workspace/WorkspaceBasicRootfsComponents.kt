@@ -57,6 +57,7 @@ import me.rerere.workspace.WorkspaceDistroInfo
 import me.rerere.workspace.WorkspaceMirrorPreset
 import me.rerere.workspace.WorkspaceMirrorPresets
 import me.rerere.workspace.WorkspaceShellStatus
+import me.rerere.workspace.isArm64Host
 import java.io.File
 
 /** 归档文件名是否合法：以 .tar.gz/.tar.xz/.txz 结尾。 */
@@ -416,9 +417,9 @@ private data class PresetRootfsUrl(
     val lxcDebian: Boolean = false,
 )
 
+/** 运行设备是否为 arm64 —— 预置 rootfs 需按物理 CPU 选地址（rootfs 必须匹配物理 CPU）。 */
 private val isArm64Device: Boolean
-    get() =
-        System.getProperty("os.arch").orEmpty().lowercase().let { it == "aarch64" || it == "arm64" }
+    get() = isArm64Host()
 
 private fun presetRootfs(label: String, arm64: String, amd64: String, lxcDebian: Boolean = false) =
     PresetRootfsUrl(label, if (isArm64Device) arm64 else amd64, lxcDebian)

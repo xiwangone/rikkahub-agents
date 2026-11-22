@@ -69,6 +69,35 @@ class RootfsInstallerTest {
         assertEquals("content", File(target, "dir/file.txt").readText())
     }
 
+    @Test
+    fun `reinstall over old rootfs with read-only directory succeeds`() {
+        val manager = WorkspaceManager(tmp.newFolder())
+        val installer = RootfsInstaller(manager)
+        val root = "test"
+        manager.ensureWorkspace(root)
+        val linuxDir = manager.linuxDir(root)
+        // Old rootfs whose tree contains a read-only directory: a plain
+        // recursive delete stops at the first entry it cannot remove.
+        val readOnlyDir = File(linuxDir, "usr/lib")
+        readOnlyDir.mkdirs()
+        File(readOnlyDir, "old.txt").writeText("old")
+        File(linuxDir, "bin").mkdirs()
+        File(linuxDir, "bin/sh").writeText("old sh")
+        readOnlyDir.setWritable(false)
+        File(linuxDir, "usr").setWritable(false)
+
+        val archive = tmp.newFile("rootfs.tar.gz")
+        GZIPOutputStream(archive.outputStream()).use { out ->
+            out.writeTarEntry("bin/sh", '0', "new sh".toByteArray())
+            out.write(ByteArray(TAR_BLOCK * 2))
+        }
+
+        installer.installFromFile(root, archive) {}
+
+        assertEquals("new sh", File(linuxDir, "bin/sh").readText())
+        assertFalse(File(linuxDir, "usr/lib/old.txt").exists())
+    }
+
     private fun createInstaller() = RootfsInstaller(WorkspaceManager(tmp.newFolder()))
 
     private fun OutputStream.writeTarEntry(
