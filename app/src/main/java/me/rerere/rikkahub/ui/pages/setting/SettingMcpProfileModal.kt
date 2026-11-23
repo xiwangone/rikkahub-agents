@@ -38,7 +38,8 @@ import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 
-private val ALL_LOCAL_TOOLS: List<LocalToolOption> = LocalToolCatalog.all
+/** 本地 MCP 可暴露的安全子集（新建默认全选；高风险工具不在此列，也不提供勾选）。 */
+private val SAFE_LOCAL_TOOLS: List<LocalToolOption> = LocalToolCatalog.mcpExposed
 
 @Composable
 internal fun LocalMcpProfileModal(
@@ -50,7 +51,9 @@ internal fun LocalMcpProfileModal(
 ) {
     var name by remember { mutableStateOf(initial?.name ?: "") }
     var port by remember { mutableStateOf(initial?.port?.toString() ?: "8788") }
-    var selected by remember { mutableStateOf(initial?.allowedTools ?: emptyList()) }
+    var selected by remember {
+        mutableStateOf((initial?.allowedTools ?: SAFE_LOCAL_TOOLS).filter { it in SAFE_LOCAL_TOOLS })
+    }
     var expandedCategories by remember { mutableStateOf(setOf<LocalToolCategory>()) }
     var listenScope by remember { mutableStateOf(initial?.listenScope ?: "loopback") }
     var allowedNetworks by remember { mutableStateOf(initial?.allowedNetworks ?: "") }
@@ -107,11 +110,11 @@ internal fun LocalMcpProfileModal(
                     ) {
                         Text(stringResource(R.string.mcp_page_tools_header), style = MaterialTheme.typography.labelLarge)
                         Row {
-                            TextButton(onClick = { selected = ALL_LOCAL_TOOLS }) { Text(stringResource(R.string.mcp_page_select_all)) }
+                            TextButton(onClick = { selected = SAFE_LOCAL_TOOLS }) { Text(stringResource(R.string.mcp_page_select_all)) }
                             TextButton(onClick = { selected = emptyList() }) { Text(stringResource(R.string.mcp_page_clear)) }
                         }
                     }
-                LocalToolCatalog.groups().forEach { (category, tools) ->
+                LocalToolCatalog.groups(SAFE_LOCAL_TOOLS).forEach { (category, tools) ->
                     val expanded = category in expandedCategories
                     val pickedCount = tools.count { it in selected }
                     Surface(

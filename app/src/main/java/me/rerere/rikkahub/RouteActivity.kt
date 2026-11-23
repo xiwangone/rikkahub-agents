@@ -119,6 +119,7 @@ import me.rerere.rikkahub.ui.pages.setting.SettingFilesPage
 import me.rerere.rikkahub.ui.pages.setting.SettingUsagePricingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingUsageStatsPage
 import me.rerere.rikkahub.ui.pages.setting.SettingMcpPage
+import me.rerere.rikkahub.ui.pages.setting.SettingModelCapabilityEditorPage
 import me.rerere.rikkahub.ui.pages.setting.SettingModelPage
 import me.rerere.rikkahub.ui.pages.setting.SettingPage
 import me.rerere.rikkahub.ui.pages.setting.SettingProviderDetailPage
@@ -553,6 +554,10 @@ class RouteActivity : ComponentActivity() {
                                 SettingModelPage()
                             }
 
+                            entry<Screen.SettingModelCapabilityEditor> {
+                                SettingModelCapabilityEditorPage()
+                            }
+
                             entry<Screen.SettingAbout> {
                                 SettingAboutPage()
                             }
@@ -871,6 +876,9 @@ sealed interface Screen : NavKey {
 
     @Serializable
     data object SettingModels : Screen
+
+    @Serializable
+    data object SettingModelCapabilityEditor : Screen
 
     @Serializable
     data object SettingAbout : Screen

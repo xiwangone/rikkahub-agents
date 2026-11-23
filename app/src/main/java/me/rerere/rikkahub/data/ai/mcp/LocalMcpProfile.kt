@@ -16,7 +16,11 @@ data class LocalMcpProfile(
     val id: String,
     val name: String,
     val port: Int = 8788,
-    /** 暴露的工具子集；默认空——用户自填。为空时启动后暴露 0 个工具。 */
+    /**
+     * 暴露的工具子集；新建 profile 时设置页默认填精选子集，保存后按此集暴露。
+     * 为空时启动后暴露 0 个工具。启动时还会按精选子集钳制（见 LocalMcpServerManager），
+     * 旧 profile 里保存的高风险工具不会实际暴露。
+     */
     @Serializable(with = LenientLocalToolListSerializer::class)
     val allowedTools: List<LocalToolOption> = emptyList(),
     /** 监听范围：loopback（仅本机，默认）/ lan / any（所有接口） */

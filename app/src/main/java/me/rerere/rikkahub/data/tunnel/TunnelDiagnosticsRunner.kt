@@ -24,9 +24,9 @@ import java.net.URL
 import kotlin.random.Random
 
 /**
- * 隧道网络诊断执行器：按 1.1–1.10 顺序跑，每项独立超时、独立失败，不互相拖垮。
+ * 隧道网络诊断执行器：按声明顺序跑，每项独立超时、独立失败，不互相拖垮。
  * 取消只认 CancellationException（重抛），其余异常收敛为该项 FAIL。
- * DNS 真解析（1.6b）复用 AppDnsResolver.buildQuery / parseResponse，只自己做
+ * DNS 真解析（MagicDNS 真实解析）复用 AppDnsResolver.buildQuery / parseResponse，只自己做
  * TCP 传输（与 AppDnsResolver.queryDnsTcp 同口径：2 字节长度前缀）。
  * 探针连完即关并 stopProxy，不留监听。
  */
@@ -275,7 +275,7 @@ class TunnelDiagnosticsRunner(
     }
 
     /**
-     * 1.6b：经 100.100.100.100:53 的本地代理端口发 TCP DNS A 查询。
+     * MagicDNS 真实解析：经 100.100.100.100:53 的本地代理端口发 TCP DNS A 查询。
      * 编解码复用 AppDnsResolver；传输失败（非超时）直接报传输错误。
      */
     private suspend fun probeMagicDnsResolve(domain: String, netmapIp: String): Pair<DiagStatus, String> =
@@ -331,7 +331,7 @@ class TunnelDiagnosticsRunner(
         }
     }
 
-    /** 1.9：经对端 :80 的本地代理端口发 HTTP 请求，必须读到横幅才算通过。 */
+    /** 尾网 TCP：经对端 :80 的本地代理端口发 HTTP 请求，必须读到横幅才算通过。 */
     private suspend fun probeTailnetTcp(targetIp: String): Pair<DiagStatus, String> =
         withContext(Dispatchers.IO) {
             val proxy = bridge.proxyTo(targetIp, 80)

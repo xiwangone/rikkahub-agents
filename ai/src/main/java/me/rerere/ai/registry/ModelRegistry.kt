@@ -317,27 +317,27 @@ object ModelRegistry {
     private val DEEPSEEK_V4_FLASH = defineModel {
         tokens("deepseek", "v", "4", "flash")
         toolReasoningAbility()
-        contextLength(1.m)
+        contextLength(1048576)
     }
 
     private val DEEPSEEK_V4_FLASH_VISION_EXP = defineModel {
         tokens("deepseek", "v", "4", "flash", "vision", "exp")
         visionInput()
         toolReasoningAbility()
-        contextLength(1.m)
+        contextLength(1048576)
     }
 
     private val DEEPSEEK_V4_1_FLASH = defineModel {
         tokens("deepseek", "v", "4", "1", "flash")
         visionInput()
         toolReasoningAbility()
-        contextLength(1.m)
+        contextLength(1048576)
     }
 
     private val DEEPSEEK_V4_PRO = defineModel {
         tokens("deepseek", "v", "4", "pro")
         toolReasoningAbility()
-        contextLength(1.m)
+        contextLength(1048576)
     }
 
     private val DEEPSEEK_V3_1 = defineModel {
@@ -778,6 +778,23 @@ object ModelRegistry {
         videoOutput()
     }
 
+    private val AGNES_VIDEO = defineModel {
+        tokens("agnes", "video")
+        videoOutput()
+    }
+
+    // Gemini Omni 是 Google 的原生多模态视频生成/编辑模型（gemini-omni-1.1/1.2-flash）：
+    // OpenRouter 官方声明 output_modalities 含 video，但名字里没有 video token，
+    // 通用兜底规则覆盖不到；models.dev 目录也未声明其视频输出，故单列一条家族规则。
+    // 通用机制（OpenRouterRequestBuilder 解析 API 的 output_modalities）已存在，
+    // 但只在 listModels 拉取成功时生效，OpenRouter 拉列表目前失败（另案），
+    // 手动添加的模型走不到那条线；待拉列表修好后，拉取的模型自动带视频模态，
+    // 本规则作为手动添加模型与非 OpenRouter 提供商的兜底。
+    private val GEMINI_OMNI_VIDEO = defineModel {
+        tokens("gemini", "omni")
+        videoOutput()
+    }
+
     // Wan 视频模型分两种命名：wan*-video（完整 video token）与 wan*-t2v/i2v/s2v。
     // 分词器按字母/数字边界切分，t2v 会切成 t、2、v 三个 token，单 token 匹配不到，
     // 所以第二种形态要拆成三个 token 的序列另写一条规则。
@@ -788,6 +805,15 @@ object ModelRegistry {
 
     private val WAN_VIDEO_T2V = defineModel {
         tokens("wan|wanx", "t|i|s", "2", "v")
+        videoOutput()
+    }
+
+    // 通用兜底：名字里带 video token、但未命中任何家族规则的模型，认作视频输出。
+    // 计分最低（1 个 token）：任何家族规则（≥2 个 token，如 agnes+video）都优先于它，
+    // 只有无任何家族规则命中时才生效；同分并列只会与其他单 token 视频家族规则合并，
+    // 那些规则输出相同（TEXT+VIDEO、无能力），合并结果不变。
+    private val GENERIC_VIDEO = defineModel {
+        tokens("video")
         videoOutput()
     }
 
@@ -918,8 +944,11 @@ object ModelRegistry {
         SEEDANCE_VIDEO,
         HUNYUAN_VIDEO,
         MINIMAX_VIDEO,
+        AGNES_VIDEO,
+        GEMINI_OMNI_VIDEO,
         WAN_VIDEO,
         WAN_VIDEO_T2V,
+        GENERIC_VIDEO,
     )
 
     @Volatile
@@ -983,7 +1012,8 @@ object ModelRegistry {
     }
 
     val MODEL_CONTEXT_LENGTH = ModelData { modelId ->
-        modelsDevCatalog?.find(modelId)?.contextLength
+        ModelCatalogBridge.overrideContextLength(modelId)
+            ?: modelsDevCatalog?.find(modelId)?.contextLength
             ?: resolveModels(modelId).firstNotNullOfOrNull { it.contextLength }
     }
 

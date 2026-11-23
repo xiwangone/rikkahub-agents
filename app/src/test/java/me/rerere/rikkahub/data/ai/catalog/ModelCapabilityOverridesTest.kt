@@ -79,4 +79,55 @@ class ModelCapabilityOverridesTest {
         val e = parse("""{"models":[{"match":"m","input":["text","hologram"]}]}""")!!.first()
         assertEquals(setOf(Modality.TEXT), e.input)
     }
+
+    @Test
+    fun serializeRoundTripsEntries() {
+        val original = listOf(
+            ModelCapabilityOverrides.Entry(
+                match = "sensenova-6.8-flash",
+                input = setOf(Modality.TEXT, Modality.IMAGE),
+                output = setOf(Modality.TEXT),
+                abilities = setOf(ModelAbility.TOOL, ModelAbility.REASONING),
+                contextLength = 262144,
+            ),
+            ModelCapabilityOverrides.Entry(match = "only-abilities", abilities = setOf(ModelAbility.REASONING)),
+        )
+        val text = ModelCapabilityOverrides.serializeEntries(original)
+        assertEquals(original, parse(text))
+    }
+
+    @Test
+    fun upsertReplacesSameMatchIgnoringCaseAndTrims() {
+        val base = listOf(
+            ModelCapabilityOverrides.Entry(match = "gpt-4o", input = setOf(Modality.TEXT)),
+            ModelCapabilityOverrides.Entry(match = "kimi-k3", input = setOf(Modality.TEXT)),
+        )
+        val updated = ModelCapabilityOverrides.upsertInList(
+            base,
+            ModelCapabilityOverrides.Entry(
+                match = "  GPT-4o ",
+                input = setOf(Modality.TEXT, Modality.IMAGE),
+            ),
+        )
+        assertEquals(2, updated.size)
+        assertEquals(setOf(Modality.TEXT, Modality.IMAGE), updated.first().input)
+        assertEquals("GPT-4o", updated.first().match)
+        val appended = ModelCapabilityOverrides.upsertInList(
+            updated,
+            ModelCapabilityOverrides.Entry(match = "new-model", abilities = setOf(ModelAbility.TOOL)),
+        )
+        assertEquals(3, appended.size)
+        assertEquals("new-model", appended.last().match)
+    }
+
+    @Test
+    fun removeDropsMatchingEntryIgnoringCase() {
+        val base = listOf(
+            ModelCapabilityOverrides.Entry(match = "gpt-4o", input = setOf(Modality.TEXT)),
+            ModelCapabilityOverrides.Entry(match = "kimi-k3", input = setOf(Modality.TEXT)),
+        )
+        val removed = ModelCapabilityOverrides.removeFromList(base, " GPT-4O ")
+        assertEquals(listOf(base[1]), removed)
+        assertEquals(base, ModelCapabilityOverrides.removeFromList(base, "not-there"))
+    }
 }

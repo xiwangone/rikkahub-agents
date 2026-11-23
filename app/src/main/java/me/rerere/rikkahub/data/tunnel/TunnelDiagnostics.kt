@@ -6,12 +6,12 @@ import org.json.JSONObject
  * 隧道网络诊断：纯类型与纯判定（零 Android 依赖，本地 kotlinc 可直编）。
  *
  * 检查项（按执行顺序，超时为单项预算）：
- * 1.1 模块状态 / 1.2 本机联网 / 1.3 系统 DNS / 1.4 直连目标站 / 1.5 控制面连通 /
- * 1.6 MagicDNS 记录 / 1.6b MagicDNS 真实解析 / 1.7 对端列表 / 1.8 出口与路由 /
- * 1.9 尾网 TCP / 1.10 尾网 Ping。
- * 1.6 只查 netmap 记录存在（标题写「记录」不写「解析成功」）；真解析是 1.6b 的事，
- * 它复用 AppDnsResolver 的 buildQuery / parseResponse，只自己做 TCP 传输
- * （Socket + 2 字节长度前缀，与 AppDnsResolver.queryDnsTcp 同口径）。
+ * 模块状态 / 本机联网 / 系统 DNS / 直连目标站 / 控制面连通 /
+ * MagicDNS 记录 / MagicDNS 真实解析 / 对端列表 / 出口与路由 /
+ * 尾网 TCP / 尾网 Ping。
+ * MagicDNS 记录只查 netmap 记录存在（标题写「记录」不写「解析成功」）；真解析是
+ * MagicDNS 真实解析的事，它复用 AppDnsResolver 的 buildQuery / parseResponse，
+ * 只自己做 TCP 传输（Socket + 2 字节长度前缀，与 AppDnsResolver.queryDnsTcp 同口径）。
  * 明细文案经 DiagStrings 解析（调用方传入实现），复制文本跟系统语言走。
  */
 enum class DiagStatus { PASS, FAIL, SKIP, RUNNING, PENDING }
@@ -93,18 +93,18 @@ fun interface DiagStrings {
 }
 
 /** 超时为单项预算（毫秒）；0 表示纯读快照、不设超时。 */
-enum class DiagItemId(val displayNo: String, val timeoutMs: Long) {
-    MODULE("1.1", 8_000),
-    DEVICE_NETWORK("1.2", 1_000),
-    SYSTEM_DNS("1.3", 5_000),
-    DIRECT("1.4", 8_000),
-    CONTROL_PLANE("1.5", 8_000),
-    MAGIC_DNS("1.6", 0),
-    MAGIC_DNS_RESOLVE("1.6b", 10_000),
-    PEERS("1.7", 0),
-    ROUTES("1.8", 0),
-    TAILNET_TCP("1.9", 10_000),
-    TAILNET_PING("1.10", 10_000),
+enum class DiagItemId(val timeoutMs: Long) {
+    MODULE(8_000),
+    DEVICE_NETWORK(1_000),
+    SYSTEM_DNS(5_000),
+    DIRECT(8_000),
+    CONTROL_PLANE(8_000),
+    MAGIC_DNS(0),
+    MAGIC_DNS_RESOLVE(10_000),
+    PEERS(0),
+    ROUTES(0),
+    TAILNET_TCP(10_000),
+    TAILNET_PING(10_000),
 }
 
 data class DiagItemState(
@@ -177,7 +177,7 @@ fun DiagPeer.firstIpv4(): String =
 
 /**
  * 探针目标：首个在线且最近活跃的对端；没有活跃的退化到首个在线对端；全离线返回 null。
- * 1.6 / 1.6b / 1.9 / 1.10 共用同一目标，诊断口径一致。
+ * MagicDNS 记录 / MagicDNS 真实解析 / 尾网 TCP / 尾网 Ping 共用同一目标，诊断口径一致。
  */
 fun pickProbeTarget(peers: List<DiagPeer>): DiagPeer? =
     peers.firstOrNull { it.online && it.active } ?: peers.firstOrNull { it.online }
@@ -189,7 +189,7 @@ fun pickProbeTarget(peers: List<DiagPeer>): DiagPeer? =
 internal fun errorDetail(error: String): String =
     error.replace('\n', ' ').replace('\r', ' ').trim().take(120)
 
-/** 1.1 模块状态：后端必须是 Running 才算通过。 */
+/** 模块状态：后端必须是 Running 才算通过。 */
 fun decideModule(strings: DiagStrings, running: Boolean, backendState: String, error: String?): Pair<DiagStatus, String> =
     when {
         !running -> DiagStatus.FAIL to strings.get(DiagStringKey.MODULE_NOT_STARTED) +
@@ -200,18 +200,18 @@ fun decideModule(strings: DiagStrings, running: Boolean, backendState: String, e
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.MODULE_BAD_STATE, backendState)
     }
 
-/** 1.2 本机联网。 */
+/** 本机联网。 */
 fun decideDeviceNetwork(strings: DiagStrings, connected: Boolean, transport: String): Pair<DiagStatus, String> =
     if (connected) DiagStatus.PASS to strings.get(DiagStringKey.DEVICE_CONNECTED, transport)
     else DiagStatus.FAIL to strings.get(DiagStringKey.DEVICE_OFFLINE)
 
-/** 1.3 系统 DNS：解析 example.com。 */
+/** 系统 DNS：解析 example.com。 */
 fun decideSystemDns(strings: DiagStrings, ok: Boolean, latencyMs: Long?, error: String?): Pair<DiagStatus, String> =
     if (ok) DiagStatus.PASS to strings.get(DiagStringKey.DNS_OK, latencyMs ?: 0)
     else DiagStatus.FAIL to strings.get(DiagStringKey.DNS_FAIL) +
         (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
 
-/** 1.4 直连目标站：HTTPS GET example.com。 */
+/** 直连目标站：HTTPS GET example.com。 */
 fun decideDirect(strings: DiagStrings, httpStatus: Int?, latencyMs: Long?): Pair<DiagStatus, String> =
     when {
         httpStatus != null && httpStatus in 200..299 ->
@@ -220,7 +220,7 @@ fun decideDirect(strings: DiagStrings, httpStatus: Int?, latencyMs: Long?): Pair
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.DIRECT_FAIL_UNREACHABLE)
     }
 
-/** 1.5 控制面连通：任意 HTTP 响应都算可达（根路径不保证返回 200）。 */
+/** 控制面连通：任意 HTTP 响应都算可达（根路径不保证返回 200）。 */
 fun decideControlPlane(strings: DiagStrings, host: String, httpStatus: Int?, latencyMs: Long?, error: String?): Pair<DiagStatus, String> =
     when {
         httpStatus != null -> DiagStatus.PASS to strings.get(DiagStringKey.CONTROL_OK, host, httpStatus, latencyMs ?: 0)
@@ -228,7 +228,7 @@ fun decideControlPlane(strings: DiagStrings, host: String, httpStatus: Int?, lat
             (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
     }
 
-/** 1.6 MagicDNS 记录：只查 netmap 里有没有该对端的记录，不做真解析。 */
+/** MagicDNS 记录：只查 netmap 里有没有该对端的记录，不做真解析。 */
 fun decideMagicDns(strings: DiagStrings, target: DiagPeer?): Pair<DiagStatus, String> =
     if (target == null) DiagStatus.SKIP to strings.get(DiagStringKey.NO_PEER)
     else {
@@ -239,7 +239,7 @@ fun decideMagicDns(strings: DiagStrings, target: DiagPeer?): Pair<DiagStatus, St
     }
 
 /**
- * 1.6b MagicDNS 真实解析：对 1.6 的目标发 A 查询。
+ * MagicDNS 真实解析：对 MagicDNS 记录的目标发 A 查询。
  * rcode: null = 无有效响应；3 = NXDOMAIN。addresses 为解析到的地址（hostAddress 串）。
  */
 fun decideDnsResolve(
@@ -265,7 +265,7 @@ fun decideDnsResolve(
     }
 }
 
-/** 1.7 对端列表。 */
+/** 对端列表。 */
 fun decidePeers(strings: DiagStrings, peers: List<DiagPeer>): Pair<DiagStatus, String> =
     when {
         peers.isEmpty() -> DiagStatus.FAIL to strings.get(DiagStringKey.PEERS_NONE)
@@ -276,7 +276,7 @@ fun decidePeers(strings: DiagStrings, peers: List<DiagPeer>): Pair<DiagStatus, S
         else -> DiagStatus.FAIL to strings.get(DiagStringKey.PEERS_ALL_OFFLINE, peers.size)
     }
 
-/** 1.8 出口与路由：回读守护进程的生效设置（只展示，不做价值判断）。 */
+/** 出口与路由：回读守护进程的生效设置（只展示，不做价值判断）。 */
 fun decideRoutes(strings: DiagStrings, peers: List<DiagPeer>, acceptRoutes: Boolean, exitNodeIP: String): Pair<DiagStatus, String> {
     val ip = exitNodeIP.trim().takeIf { it.isNotBlank() && it != "<nil>" && it != "invalid IP" }
     val exitPart = if (ip == null) strings.get(DiagStringKey.ROUTES_EXIT_UNSET)
@@ -289,7 +289,7 @@ fun decideRoutes(strings: DiagStrings, peers: List<DiagPeer>, acceptRoutes: Bool
     return DiagStatus.PASS to strings.get(DiagStringKey.ROUTES, exitPart, routesPart)
 }
 
-/** 1.9 尾网 TCP：必须读到 HTTP 横幅才算通过（StartProxy 是懒拨号，连上不代表通）。 */
+/** 尾网 TCP：必须读到 HTTP 横幅才算通过（StartProxy 是懒拨号，连上不代表通）。 */
 fun decideTailnetTcp(strings: DiagStrings, ok: Boolean, banner: String?, error: String?): Pair<DiagStatus, String> =
     when {
         ok && banner != null -> DiagStatus.PASS to strings.get(DiagStringKey.TCP_BANNER, banner.take(40))
@@ -299,7 +299,7 @@ fun decideTailnetTcp(strings: DiagStrings, ok: Boolean, banner: String?, error: 
             (error?.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.ERROR_SUFFIX, errorDetail(it)) } ?: "")
     }
 
-/** 1.10 尾网 Ping（TSMP）。 */
+/** 尾网 Ping（TSMP）。 */
 fun decideTailnetPing(strings: DiagStrings, ok: Boolean, latencyMs: Long?, error: String?): Pair<DiagStatus, String> =
     if (ok) DiagStatus.PASS to strings.get(DiagStringKey.PING_OK, latencyMs ?: 0)
     else DiagStatus.FAIL to strings.get(DiagStringKey.PING_FAIL) +
@@ -380,7 +380,7 @@ fun buildCopyText(
         for (item in items) {
             val title = titles[item.id] ?: item.id.name
             val detail = item.detail.takeIf { it.isNotBlank() }?.let { strings.get(DiagStringKey.PAREN_SUFFIX, it) } ?: ""
-            appendLine(strings.get(DiagStringKey.COPY_ITEM, item.id.displayNo, title, statusWord(strings, item.status), detail))
+            appendLine(strings.get(DiagStringKey.COPY_ITEM, title, statusWord(strings, item.status), detail))
         }
     }.trimEnd()
 }

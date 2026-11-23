@@ -1,13 +1,18 @@
 package me.rerere.rikkahub.data.ai.catalog
 
 import android.content.Context
+import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.add
+import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
 import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.rikkahub.data.log.AppLog
@@ -41,6 +46,12 @@ class ModelCapabilityOverrides(
     private var overrideEntries: List<Entry> = emptyList()
 
     @Volatile
+    private var localParsed: List<Entry> = emptyList()
+
+    @Volatile
+    private var baselineParsed: List<Entry> = emptyList()
+
+    @Volatile
     private var loadedLocalCount: Int = 0
 
     @Volatile
@@ -50,11 +61,19 @@ class ModelCapabilityOverrides(
     fun load() {
         val local = readLocal()?.let { parseOverrideTable(it, "local") }.orEmpty()
         val baseline = readBaseline()?.let { parseOverrideTable(it, "baseline") }.orEmpty()
+        localParsed = local
+        baselineParsed = baseline
         overrideEntries = local + baseline
         loadedLocalCount = local.size
         loadedBaselineCount = baseline.size
         AppLog.i(TAG, "overrides loaded: local=${local.size} baseline=${baseline.size}")
     }
+
+    /** 本机表当前条目（快照；编辑器据此展示与修改）。 */
+    fun localEntries(): List<Entry> = localParsed
+
+    /** 基线表当前条目（快照；编辑器据此标注来源）。 */
+    fun baselineEntries(): List<Entry> = baselineParsed
 
     /** 本机表条目数（供 UI 展示）。 */
     fun localEntryCount(): Int = loadedLocalCount
@@ -87,6 +106,38 @@ class ModelCapabilityOverrides(
             load()
             deleted
         }.onFailure { AppLog.w(TAG, "clear local overrides failed: ${it.message}", it) }.getOrDefault(false)
+
+    /**
+     * 写入/更新本机表里的一条：`match` 相同（去空白、忽略大小写）即替换，
+     * 否则追加。写盘前先从磁盘重载，避免覆盖启动后被外部改过的内容。
+     * 空 `match` 拒绝写入。
+     */
+    fun upsertLocal(entry: Entry): Boolean {
+        val normalized = entry.copy(match = entry.match.trim())
+        if (normalized.match.isEmpty()) return false
+        load()
+        return runCatching {
+            val updated = upsertInList(localParsed, normalized)
+            File(context.filesDir, FILE_NAME).writeText(serializeEntries(updated))
+            load()
+            true
+        }.onFailure { AppLog.w(TAG, "upsert local override failed: ${it.message}", it) }.getOrDefault(false)
+    }
+
+    /**
+     * 删除本机表里的一条（`match` 去空白、忽略大小写）。无匹配条目时返回 false，
+     * 不动文件。
+     */
+    fun removeLocal(match: String): Boolean {
+        load()
+        val updated = removeFromList(localParsed, match)
+        if (updated.size == localParsed.size) return false
+        return runCatching {
+            File(context.filesDir, FILE_NAME).writeText(serializeEntries(updated))
+            load()
+            true
+        }.onFailure { AppLog.w(TAG, "remove local override failed: ${it.message}", it) }.getOrDefault(false)
+    }
 
     fun inputModalities(modelId: String): Set<Modality>? = lookup(modelId)?.input
 
@@ -138,6 +189,49 @@ class ModelCapabilityOverrides(
                 val models = root["models"] as? JsonArray ?: error("no 'models' array")
                 models.mapNotNull { (it as? JsonObject)?.toEntry() }
             }.getOrNull()
+
+        /** 纯序列化（无 IO）：与 [parseEntries] 互逆；空字段不写入（即该项不覆盖）。 */
+        internal fun serializeEntries(entries: List<Entry>): String {
+            val root = buildJsonObject {
+                put("version", 1)
+                putJsonArray("models") {
+                    entries.forEach { add(it.toJsonObject()) }
+                }
+            }
+            return json.encodeToString(JsonObject.serializer(), root)
+        }
+
+        /** 纯列表操作：`match` 相同（去空白、忽略大小写）即替换，否则追加。 */
+        internal fun upsertInList(entries: List<Entry>, entry: Entry): List<Entry> {
+            val match = entry.match.trim()
+            val normalized = entry.copy(match = match)
+            val idx = entries.indexOfFirst { it.match.trim().equals(match, ignoreCase = true) }
+            return if (idx >= 0) {
+                entries.toMutableList().also { it[idx] = normalized }
+            } else {
+                entries + normalized
+            }
+        }
+
+        /** 纯列表操作：删除 `match` 相同（去空白、忽略大小写）的条目。 */
+        internal fun removeFromList(entries: List<Entry>, match: String): List<Entry> {
+            val target = match.trim()
+            return entries.filterNot { it.match.trim().equals(target, ignoreCase = true) }
+        }
+
+        private fun Entry.toJsonObject(): JsonObject = buildJsonObject {
+            put("match", match)
+            input?.let { modalities ->
+                putJsonArray("input") { modalities.forEach { add(it.name.lowercase()) } }
+            }
+            output?.let { modalities ->
+                putJsonArray("output") { modalities.forEach { add(it.name.lowercase()) } }
+            }
+            abilities?.let { abilities ->
+                putJsonArray("abilities") { abilities.forEach { add(it.name.lowercase()) } }
+            }
+            contextLength?.let { put("contextLength", it) }
+        }
 
         private fun JsonObject.stringList(key: String): List<String>? =
             (this[key] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull?.lowercase() }

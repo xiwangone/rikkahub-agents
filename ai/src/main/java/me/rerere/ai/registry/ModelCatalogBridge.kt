@@ -31,6 +31,9 @@ object ModelCatalogBridge {
         fun overrideOutputModalities(modelId: String): Set<Modality>? = null
 
         fun overrideAbilities(modelId: String): Set<ModelAbility>? = null
+
+        /** 强覆盖层：上下文长度，返回非 null 时直接采用。默认不参与。 */
+        fun overrideContextLength(modelId: String): Int? = null
     }
 
     @Volatile
@@ -55,4 +58,7 @@ object ModelCatalogBridge {
 
     internal fun overrideAbilities(modelId: String): Set<ModelAbility>? =
         provider?.overrideAbilities(modelId)
+
+    internal fun overrideContextLength(modelId: String): Int? =
+        provider?.overrideContextLength(modelId)
 }

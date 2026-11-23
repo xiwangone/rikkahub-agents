@@ -158,6 +158,62 @@ object LocalToolCatalog {
     /** 全量列表（按分类顺序展开） */
     val all: List<LocalToolOption> = LocalToolCategory.entries.flatMap { byCategory[it].orEmpty() }
 
+    /**
+     * 可暴露给本地 MCP Server 的设备工具子集：覆盖设备操作、文件、媒体、通信与自动化基础。
+     *
+     * 有意排除需要交互界面/会话归属/高风险的组（ask_user、javascript_engine、
+     * telegram_bot、cron_jobs、workflows、sub_agents、vault_tools、mcp_control、
+     * shizuku、js_skills 等）——它们要么在无 UI 的 MCP 上下文无意义，要么与
+     * 现有对话/后台会话冲突。新建 profile 默认勾选本子集；[me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager]
+     * 启动时也会按本子集钳制 profile 里保存的工具。
+     */
+    val mcpExposed: List<LocalToolOption> =
+        listOf(
+            LocalToolOption.TimeInfo,
+            LocalToolOption.Clipboard,
+            LocalToolOption.DeviceInfo,
+            LocalToolOption.Toast,
+            LocalToolOption.Notification,
+            LocalToolOption.Share,
+            LocalToolOption.Torch,
+            LocalToolOption.Vibrate,
+            LocalToolOption.Brightness,
+            LocalToolOption.Volume,
+            LocalToolOption.MediaPlayer,
+            LocalToolOption.MediaScanner,
+            LocalToolOption.Download,
+            LocalToolOption.Location,
+            LocalToolOption.Contacts,
+            LocalToolOption.CallLog,
+            LocalToolOption.SmsInbox,
+            LocalToolOption.CameraPhoto,
+            LocalToolOption.MicRecorder,
+            LocalToolOption.SpeechToText,
+            LocalToolOption.Fingerprint,
+            LocalToolOption.Ssh,
+            LocalToolOption.ScreenAutomation,
+            LocalToolOption.NotificationListener,
+            LocalToolOption.Files,
+            LocalToolOption.WebFetch,
+            LocalToolOption.Browser,
+            LocalToolOption.ExternalStorage,
+            LocalToolOption.Archive,
+            LocalToolOption.Nfc,
+            LocalToolOption.AppLauncher,
+            LocalToolOption.SystemIntents,
+            LocalToolOption.Termux,
+            LocalToolOption.SmsSend,
+            LocalToolOption.Wallpaper,
+            LocalToolOption.Keystore,
+            LocalToolOption.KeyboardControl,
+        )
+
+    /** 给定选项集合内的非空分组，供界面按类别渲染（不在集合内的工具不出现）。 */
+    fun groups(options: List<LocalToolOption>): List<Pair<LocalToolCategory, List<LocalToolOption>>> =
+        LocalToolCategory.entries.map { category ->
+            category to byCategory[category].orEmpty().filter { it in options }
+        }.filter { it.second.isNotEmpty() }
+
     /** 工具的展示名资源 id（界面显示功能名，而不是类名）。 */
     fun labelRes(tool: LocalToolOption): Int =
         when (tool) {

@@ -72,7 +72,7 @@ class TunnelDiagnosticsViewModel(
 ) : ViewModel() {
     private val runner = TunnelDiagnosticsRunner(TsnetBridge, settingsStore, appContext, appContext.diagStrings())
 
-    // 1.9 尾网 TCP 暂时隐藏。
+    // 尾网 TCP 暂时隐藏。
     private val visibleItems = DiagItemId.entries.filter { it != DiagItemId.TAILNET_TCP }
 
     private val _items = MutableStateFlow(visibleItems.map { DiagItemState(it, DiagStatus.PENDING) })
@@ -292,7 +292,7 @@ private fun DiagItemRow(state: DiagItemState, title: String) {
         Column(modifier = Modifier.weight(1f)) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
-                    text = "${state.id.displayNo} $title",
+                    text = title,
                     style = MaterialTheme.typography.bodyMedium,
                 )
                 Text(

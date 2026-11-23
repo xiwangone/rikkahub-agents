@@ -64,7 +64,7 @@ class TunnelDiagnosticsTest {
             DiagStringKey.ERROR_SUFFIX -> "：%1\$s"
             DiagStringKey.PAREN_SUFFIX -> "（%1\$s）"
             DiagStringKey.COPY_HEADER -> "网络诊断 %1\$s（用时 %2\$d 秒，通过 %3\$d / 失败 %4\$d / 跳过 %5\$d）"
-            DiagStringKey.COPY_ITEM -> "%1\$s %2\$s：%3\$s%4\$s"
+            DiagStringKey.COPY_ITEM -> "%1\$s：%2\$s%3\$s"
             DiagStringKey.SNAPSHOT_FAIL -> "读取隧道状态失败"
             DiagStringKey.SNAPSHOT_UNKNOWN -> "隧道状态未知"
             DiagStringKey.SNAPSHOT_NOT_RUNNING -> "隧道未运行"
@@ -254,7 +254,7 @@ class TunnelDiagnosticsTest {
     }
 
     @Test
-    fun `buildCopyText lists every item with number and status`() {
+    fun `buildCopyText lists every item with status`() {
         val items = DiagItemId.entries.map { id ->
             DiagItemState(id, if (id == DiagItemId.MODULE) DiagStatus.PASS else DiagStatus.SKIP, "ok")
         }
@@ -262,8 +262,8 @@ class TunnelDiagnosticsTest {
         val text = buildCopyText(zhStrings, items, titles, 1_000L, 13_000L)
         assertTrue(text.startsWith("网络诊断 "))
         assertTrue(text.contains("通过 1 / 失败 0 / 跳过 10"))
-        assertTrue(text.contains("1.6b MAGIC_DNS_RESOLVE：跳过"))
-        assertTrue(text.contains("1.10 TAILNET_PING：跳过"))
+        assertTrue(text.contains("MAGIC_DNS_RESOLVE：跳过"))
+        assertTrue(text.contains("TAILNET_PING：跳过"))
         assertFalse(text.contains("auth"))
         assertFalse(text.contains("controlplane"))
     }

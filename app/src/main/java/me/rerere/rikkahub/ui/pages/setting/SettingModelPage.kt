@@ -50,6 +50,7 @@ import me.rerere.hugeicons.stroke.ScanImage
 import me.rerere.hugeicons.stroke.Translate
 import me.rerere.hugeicons.stroke.Zap
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.catalog.ModelCapabilityOverrides
 import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
 import me.rerere.rikkahub.data.datastore.Settings
@@ -65,6 +66,7 @@ import me.rerere.rikkahub.ui.components.ui.PagerTab
 import me.rerere.rikkahub.ui.components.ui.PagerTabs
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.switchItem
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
@@ -347,6 +349,7 @@ private fun CardGroupScope.modelItem(
 @Composable
 private fun CapabilityTableSettingItem() {
     val overrides = koinInject<ModelCapabilityOverrides>()
+    val navController = LocalNavController.current
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
@@ -409,6 +412,11 @@ private fun CapabilityTableSettingItem() {
                     ),
                 )
             },
+        )
+        item(
+            onClick = { navController.navigate(Screen.SettingModelCapabilityEditor) },
+            leadingContent = { CardGroupIcon(HugeIcons.AiEditing, containerColor = containerColor, contentColor = contentColor) },
+            headlineContent = { Text(stringResource(R.string.setting_model_page_capability_editor_edit_entry)) },
         )
         item(
             onClick = { importLauncher.launch(arrayOf("application/json", "text/plain", "*/*")) },

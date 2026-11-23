@@ -197,7 +197,7 @@ class ModelsDevCatalogTest {
                 listOf(ModelAbility.TOOL, ModelAbility.REASONING),
                 ModelRegistry.MODEL_ABILITIES.getData("qwen3-8b")
             )
-            assertEquals(1_000_000, ModelRegistry.MODEL_CONTEXT_LENGTH.getData("deepseek-v4-flash"))
+            assertEquals(1_048_576, ModelRegistry.MODEL_CONTEXT_LENGTH.getData("deepseek-v4-flash"))
             // 目录里有但缺上下文长度时，上下文长度回落到 token 规则
             assertNull(ModelRegistry.MODEL_CONTEXT_LENGTH.getData("kimi-k3"))
         } finally {

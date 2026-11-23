@@ -68,13 +68,18 @@ import me.rerere.hugeicons.stroke.McpServer
 import me.rerere.hugeicons.stroke.MessageBlocked
 import me.rerere.hugeicons.stroke.Settings03
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
+import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager
+import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerState
+import me.rerere.rikkahub.data.ai.tools.LocalToolCatalog
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
+import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.components.ui.Tag
 import me.rerere.rikkahub.ui.components.ui.TagType
@@ -88,6 +93,17 @@ import org.koin.compose.koinInject
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
+    val ctx = LocalContext.current
+    // profile 改动后通知服务应用新配置（总开关关着时不发，服务本就没在跑）。
+    val applyLocalMcpProfile: () -> Unit = {
+        if (settings.localMcpServerEnabled) {
+            ctx.startService(
+                Intent(ctx, LocalMcpServerService::class.java).apply {
+                    action = LocalMcpServerService.ACTION_APPLY
+                },
+            )
+        }
+    }
     val mcpConfigs = settings.mcpServers
     val creationState =
         useEditState<McpServerConfig> {
@@ -186,11 +202,15 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                     ),
             ) {
                 item(key = "local_mcp") {
-                    val ctx = LocalContext.current
+                    val navController = LocalNavController.current
+                    val mcpServerManager = koinInject<LocalMcpServerManager>()
+                    val mcpServerState by mcpServerManager.state.collectAsStateWithLifecycle()
                     LocalMcpServerSection(
                         profiles = localMcpProfiles,
                         activeId = settings.activeLocalMcpProfileId,
                         enabled = settings.localMcpServerEnabled,
+                        serverState = mcpServerState,
+                        onOpenCapabilityEditor = { navController.navigate(Screen.SettingModels) },
                         onEnable = { en ->
                             ctx.startService(
                                 Intent(ctx, LocalMcpServerService::class.java).apply {
@@ -199,14 +219,21 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                             )
                             vm.updateSettings { current -> current.copy(localMcpServerEnabled = en) }
                         },
-                        onAdd = { editingProfile = LocalMcpProfile(id = "local-mcp-${System.currentTimeMillis()}", name = ""); showProfileDialog = true },
+                        onAdd = {
+                            editingProfile = LocalMcpProfile(
+                                id = "local-mcp-${System.currentTimeMillis()}",
+                                name = "",
+                                allowedTools = LocalToolCatalog.mcpExposed,
+                            )
+                            showProfileDialog = true
+                        },
                         onEdit = { p -> editingProfile = p; showProfileDialog = true },
                         onDelete = { p -> vm.updateSettings { current ->
             current.copy(localMcpProfiles = current.localMcpProfiles.filter { it.id != p.id })
-        } },
+        }; applyLocalMcpProfile() },
                         onSetActive = { p -> vm.updateSettings { current ->
             current.copy(activeLocalMcpProfileId = p.id)
-        } },
+        }; applyLocalMcpProfile() },
                     )
                 }
 
@@ -255,6 +282,7 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                     val updated = if (profiles.any { it.id == p.id }) profiles.map { if (it.id == p.id) p else it } else profiles + p
                     current.copy(localMcpProfiles = updated, activeLocalMcpProfileId = current.activeLocalMcpProfileId ?: p.id)
                 }
+                applyLocalMcpProfile()
                 showProfileDialog = false
             },
             onDismiss = { showProfileDialog = false },
@@ -287,6 +315,8 @@ private fun LocalMcpServerSection(
     profiles: List<LocalMcpProfile>,
     activeId: String?,
     enabled: Boolean,
+    serverState: LocalMcpServerState,
+    onOpenCapabilityEditor: () -> Unit,
     onEnable: (Boolean) -> Unit,
     onAdd: () -> Unit,
     onEdit: (LocalMcpProfile) -> Unit,
@@ -294,12 +324,50 @@ private fun LocalMcpServerSection(
     onSetActive: (LocalMcpProfile) -> Unit,
 ) {
     var profileToDelete by remember { mutableStateOf<LocalMcpProfile?>(null) }
+    var toolsExpanded by remember { mutableStateOf(false) }
+    val exposedToolNames = mutableListOf<String>()
+    for (tool in serverState.exposedTools) {
+        exposedToolNames += stringResource(LocalToolCatalog.labelRes(tool))
+    }
     CardGroup {
         switchItem(
             checked = enabled,
             onCheckedChange = onEnable,
             headlineContent = { Text(stringResource(R.string.mcp_page_local_server_title)) },
-            supportingContent = { Text(stringResource(R.string.mcp_page_local_server_desc)) },
+            supportingContent = {
+                Text(
+                    when {
+                        serverState.error != null && !serverState.isRunning ->
+                            stringResource(R.string.mcp_page_local_server_error, serverState.error)
+
+                        serverState.isRunning ->
+                            stringResource(
+                                R.string.mcp_page_local_server_running,
+                                serverState.host,
+                                serverState.port,
+                                serverState.toolCount,
+                            )
+
+                        else -> stringResource(R.string.mcp_page_local_server_stopped)
+                    },
+                )
+            },
+        )
+        if (serverState.isRunning && serverState.exposedTools.isNotEmpty()) {
+            item(
+                onClick = { toolsExpanded = !toolsExpanded },
+                headlineContent = { Text(stringResource(R.string.mcp_page_exposed_tools, serverState.exposedTools.size)) },
+                supportingContent = {
+                    Text(
+                        if (toolsExpanded) exposedToolNames.joinToString(", ") else stringResource(R.string.mcp_page_exposed_tools_hint),
+                    )
+                },
+            )
+        }
+        item(
+            onClick = onOpenCapabilityEditor,
+            headlineContent = { Text(stringResource(R.string.mcp_page_capability_editor_title)) },
+            supportingContent = { Text(stringResource(R.string.mcp_page_capability_editor_desc)) },
         )
         profiles.forEach { p ->
             val displayName = p.name.ifBlank { stringResource(R.string.mcp_page_unnamed) }

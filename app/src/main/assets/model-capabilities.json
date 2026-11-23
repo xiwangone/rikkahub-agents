@@ -20,6 +20,103 @@
       "input": ["text", "image"],
       "output": ["text"],
       "abilities": ["tool", "reasoning"]
+    },
+    {
+      "match": "sensenova-6.8-flash-lite",
+      "input": ["text", "image"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 262144
+    },
+    {
+      "match": "sensenova-6.8-flash",
+      "input": ["text", "image"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 262144
+    },
+    {
+      "match": "sensenova-u1.5-lite",
+      "input": ["text"],
+      "output": ["image"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 262144
+    },
+    {
+      "match": "deepseek-flash",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 1048576
+    },
+    {
+      "match": "deepseek-v4-flash",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 1048576
+    },
+    {
+      "match": "kimi-k3",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 1048576
+    },
+    {
+      "match": "glm-5.3",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool", "reasoning"],
+      "contextLength": 1048576
+    },
+    {
+      "match": "qwen3-coder",
+      "abilities": ["tool"]
+    },
+    {
+      "match": "qwen3-vl",
+      "abilities": ["tool"]
+    },
+    {
+      "match": "qwen3-next-80b-a3b-instruct",
+      "abilities": ["tool"]
+    },
+    {
+      "match": "qwen3-235b-a22b-2507",
+      "abilities": ["tool"]
+    },
+    {
+      "match": "qwen3-30b-a3b-instruct-2507",
+      "abilities": ["tool"]
+    },
+    {
+      "match": "gpt-3.5-turbo-0613",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool"],
+      "contextLength": 4095
+    },
+    {
+      "match": "gpt-3.5-turbo-16k",
+      "input": ["text"],
+      "output": ["text"],
+      "abilities": ["tool"],
+      "contextLength": 16385
+    },
+    {
+      "match": "gpt-5-image",
+      "input": ["text", "image"],
+      "output": ["text", "image"],
+      "abilities": ["reasoning"],
+      "contextLength": 400000
+    },
+    {
+      "match": "gpt-5.4-image-2",
+      "input": ["text", "image"],
+      "output": ["text", "image"],
+      "abilities": ["reasoning"],
+      "contextLength": 272000
     }
   ]
 }

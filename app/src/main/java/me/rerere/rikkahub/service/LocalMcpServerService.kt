@@ -18,7 +18,9 @@ import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerManager
+import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import org.koin.android.ext.android.inject
 import me.rerere.rikkahub.data.log.AppLog
@@ -37,6 +39,8 @@ class LocalMcpServerService : Service() {
     companion object {
         const val ACTION_START = "me.rerere.rikkahub.action.MCP_SERVER_START"
         const val ACTION_STOP = "me.rerere.rikkahub.action.MCP_SERVER_STOP"
+        /** 设置改动后应用活动 profile：仅改工具走热重同步，改绑定参数走重启。 */
+        const val ACTION_APPLY = "me.rerere.rikkahub.action.MCP_SERVER_APPLY"
         const val NOTIFICATION_ID = 2007
         const val CHANNEL_ID = "mcp_server"
     }
@@ -71,6 +75,12 @@ class LocalMcpServerService : Service() {
                 // 开关由设置页/启动链维护；服务只负责生命周期，停止后由状态流触发 stopSelf
             }
 
+            ACTION_APPLY -> {
+                serviceScope.launch {
+                    applyActiveProfile()
+                }
+            }
+
             null -> {
                 // 兜底：intent 为 null（系统重启重投）时按设置决定
                 if (!startForegroundCompat()) {
@@ -92,9 +102,35 @@ class LocalMcpServerService : Service() {
     }
 
     private suspend fun startWithActiveProfile() {
-        val s = settingsStore.settingsFlowRaw.first()
-        val profile = s.activeLocalMcpProfileId?.let { id -> s.localMcpProfiles.firstOrNull { it.id == id } }
+        val profile = resolveActiveProfile(settingsStore.settingsFlowRaw.first())
         if (profile != null) manager.start(profile) else manager.start()
+    }
+
+    /**
+     * 应用设置里的活动 profile：总开关关着时不动；服务已在跑则按 profile
+     * 热重同步或重启；服务没在跑则按 ACTION_START 的流程拉起来。
+     */
+    private suspend fun applyActiveProfile() {
+        val settings = settingsStore.settingsFlowRaw.first()
+        if (!settings.localMcpServerEnabled) return
+        val profile = resolveActiveProfile(settings)
+        if (manager.state.value.isRunning) {
+            manager.applyProfile(profile)
+        } else {
+            if (!startForegroundCompat()) {
+                stopSelf()
+                return
+            }
+            startObservingState()
+            if (profile != null) manager.start(profile) else manager.start()
+        }
+    }
+
+    private fun resolveActiveProfile(
+        settings: Settings,
+    ): LocalMcpProfile? {
+        val id = settings.activeLocalMcpProfileId ?: return null
+        return settings.localMcpProfiles.firstOrNull { it.id == id }
     }
 
     override fun onDestroy() {

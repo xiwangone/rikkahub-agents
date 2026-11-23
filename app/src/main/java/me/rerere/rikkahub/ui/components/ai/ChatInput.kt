@@ -73,8 +73,11 @@ import dev.chrisbanes.haze.blur.blurEffect
 import dev.chrisbanes.haze.blur.materials.HazeMaterials
 import dev.chrisbanes.haze.hazeEffect
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.collectLatest
+import kotlinx.coroutines.flow.debounce
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.withContext
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ModelAbility
 import me.rerere.ai.provider.ModelType
@@ -616,6 +619,9 @@ internal fun ActionIconButton(
     }
 }
 
+/** @ 补全求值防抖：快速输入时等按键停稳后再跑一次 provider 求值。 */
+private const val COMPLETION_DEBOUNCE_MILLIS = 150L
+
 @Composable
 private fun TextInputRow(
     state: ChatInputState,
@@ -728,19 +734,27 @@ private fun TextInputRow(
                     text = state.textContent.text.toString(),
                     selection = state.textContent.selection,
                 )
-            }.collectLatest { context ->
-                val lists =
-                    completionProviders.mapNotNull { provider ->
-                        try {
-                            provider
-                                .complete(context)
-                                ?.takeIf { it.items.isNotEmpty() }
-                        } catch (e: CancellationException) {
-                            throw e
-                        } catch (_: Exception) {
-                            null
+            }
+                // 快速输入时把连续按键合并成一次补全求值：每次按键都在主线程
+                // 跑全量 provider，@ 补全首次求值还会走工作区文件扫描（磁盘 I/O），
+                // 主线程被占满时会拖慢按键事件消费。防抖只推迟弹窗出现，不丢求值。
+                .debounce(COMPLETION_DEBOUNCE_MILLIS)
+                .collectLatest { context ->
+                    // 补全求值（含磁盘 I/O）放后台线程，主线程只留合并与状态写回。
+                    val lists =
+                        withContext(Dispatchers.Default) {
+                            completionProviders.mapNotNull { provider ->
+                                try {
+                                    provider
+                                        .complete(context)
+                                        ?.takeIf { it.items.isNotEmpty() }
+                                } catch (e: CancellationException) {
+                                    throw e
+                                } catch (_: Exception) {
+                                    null
+                                }
+                            }
                         }
-                    }
                 val primary = lists.firstOrNull()
                 completionList =
                     primary?.let { list ->

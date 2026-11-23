@@ -4,6 +4,7 @@ import me.rerere.ai.provider.Modality
 import me.rerere.ai.provider.ModelAbility
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -219,6 +220,27 @@ class ModelRegistryTest {
         assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wan2.6-t2v"))
         assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wanx2.1-i2v-plus"))
         assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("cogvideox-5b"))
+        // agnes 视频模型：专用规则（agnes+video，2 个 token）优先于通用兜底（video，1 个 token），
+        // 两者输出相同；断言能力为空可确认没有其他规则并入
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-video-2.5"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-video-2.5-flash"))
+        assertEquals(emptyList<ModelAbility>(), ModelRegistry.MODEL_ABILITIES.getData("agnes-video-2.5"))
+        // Gemini Omni 视频模型：OpenRouter 官方声明输出含 video，但名字里没有 video token，
+        // 通用兜底覆盖不到；models.dev 目录也未声明视频输出，故单列家族规则（gemini+omni，2 个 token）
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("google/gemini-omni-1.2-flash"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("google/gemini-omni-1.1-flash"))
+        assertEquals(emptyList<ModelAbility>(), ModelRegistry.MODEL_ABILITIES.getData("google/gemini-omni-1.2-flash"))
+        // Gemini 文本同门不挂视频：2.5-flash / 3-pro 等名字里无 omni，不命中本规则
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("google/gemini-2.5-flash"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("google/gemini-3-pro"))
+        // 通用兜底：名字带 video token、但无任何家族规则命中的模型，也认作视频输出
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("acme-video-1.0"))
+        // agnes 非视频模型不受影响：文本 / 图像 / 系统模型均无 video token
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-3.0-flash"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-3.0-pro"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-image-2.1-flash"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-image-2.5-flash"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("agnes-sys1-1.0"))
         // 文本同门不挂视频：混元文本模型、MiniMax 文本模型
         assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("hunyuan-a13b"))
         assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("minimax-m2.5"))
@@ -290,6 +312,30 @@ class ModelRegistryTest {
                 listOf(Modality.TEXT, Modality.IMAGE),
                 ModelRegistry.MODEL_INPUT_MODALITIES.getData("mimo-v2.6-flash"),
             )
+        } finally {
+            installEmptyCatalog()
+        }
+    }
+
+    @Test
+    fun testCatalogBridgeContextLengthOverride() {
+        // 上下文长度覆盖层命中时直接采用（编辑器保存的本机表经桥进入此处），
+        // 未命中仍走 models.dev / 内置表。
+        ModelCatalogBridge.install(
+            object : ModelCatalogBridge.Provider {
+                override fun inputModalities(modelId: String) = null
+
+                override fun outputModalities(modelId: String) = null
+
+                override fun abilities(modelId: String) = null
+
+                override fun overrideContextLength(modelId: String) =
+                    if (modelId == "kimi-k3") 500_000 else null
+            },
+        )
+        try {
+            assertEquals(500_000, ModelRegistry.MODEL_CONTEXT_LENGTH.getData("kimi-k3"))
+            assertNull(ModelRegistry.MODEL_CONTEXT_LENGTH.getData("zzz-unknown-model-qqq"))
         } finally {
             installEmptyCatalog()
         }

@@ -262,6 +262,8 @@ class ModelCatalogRepository(
                 override fun overrideOutputModalities(modelId: String): Set<Modality>? = overrides?.outputModalities(modelId)
 
                 override fun overrideAbilities(modelId: String): Set<ModelAbility>? = overrides?.abilities(modelId)
+
+                override fun overrideContextLength(modelId: String): Int? = overrides?.contextLength(modelId)
             },
         )
     }
