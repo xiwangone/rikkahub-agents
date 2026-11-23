@@ -716,6 +716,81 @@ object ModelRegistry {
         toolReasoningAbility()
     }
 
+    // 视频生成模型：只按家族名匹配，不按提供商名一刀切。名字里带 video 但未必输出视频的
+    // 模型（如视频理解）不在这里，避免错挂；未命中的模型走表单手动设置或外置能力表。
+    private val SORA_VIDEO = defineModel {
+        tokens("sora")
+        videoOutput()
+    }
+
+    private val VEO_VIDEO = defineModel {
+        tokens("veo")
+        videoOutput()
+    }
+
+    private val KLING_VIDEO = defineModel {
+        tokens("kling")
+        videoOutput()
+    }
+
+    private val HAILUO_VIDEO = defineModel {
+        tokens("hailuo")
+        videoOutput()
+    }
+
+    private val LUMA_VIDEO = defineModel {
+        tokens("luma")
+        videoOutput()
+    }
+
+    private val RUNWAY_VIDEO = defineModel {
+        tokens("runway")
+        videoOutput()
+    }
+
+    private val PIKA_VIDEO = defineModel {
+        tokens("pika")
+        videoOutput()
+    }
+
+    private val COGVIDEO_VIDEO = defineModel {
+        tokens("cogvideo|cogvideox")
+        videoOutput()
+    }
+
+    private val VIDU_VIDEO = defineModel {
+        tokens("vidu")
+        videoOutput()
+    }
+
+    private val SEEDANCE_VIDEO = defineModel {
+        tokens("seedance")
+        videoOutput()
+    }
+
+    private val HUNYUAN_VIDEO = defineModel {
+        tokens("hunyuan", "video")
+        videoOutput()
+    }
+
+    private val MINIMAX_VIDEO = defineModel {
+        tokens("minimax", "video")
+        videoOutput()
+    }
+
+    // Wan 视频模型分两种命名：wan*-video（完整 video token）与 wan*-t2v/i2v/s2v。
+    // 分词器按字母/数字边界切分，t2v 会切成 t、2、v 三个 token，单 token 匹配不到，
+    // 所以第二种形态要拆成三个 token 的序列另写一条规则。
+    private val WAN_VIDEO = defineModel {
+        tokens("wan|wanx", "video")
+        videoOutput()
+    }
+
+    private val WAN_VIDEO_T2V = defineModel {
+        tokens("wan|wanx", "t|i|s", "2", "v")
+        videoOutput()
+    }
+
     private val ALL_MODELS = listOf(
         GPT4O,
         GPT_4_1,
@@ -830,7 +905,21 @@ object ModelRegistry {
         LONGCAT_2,
         MUSE_SPARK,
         MUSE_GLIMMER,
-        QWEN_MT
+        QWEN_MT,
+        SORA_VIDEO,
+        VEO_VIDEO,
+        KLING_VIDEO,
+        HAILUO_VIDEO,
+        LUMA_VIDEO,
+        RUNWAY_VIDEO,
+        PIKA_VIDEO,
+        COGVIDEO_VIDEO,
+        VIDU_VIDEO,
+        SEEDANCE_VIDEO,
+        HUNYUAN_VIDEO,
+        MINIMAX_VIDEO,
+        WAN_VIDEO,
+        WAN_VIDEO_T2V,
     )
 
     @Volatile
@@ -854,28 +943,28 @@ object ModelRegistry {
         val override = ModelCatalogBridge.overrideInputModalities(modelId)
         if (override != null) {
             // 外置表（人工可编辑）命中：直接采用 —— 并集只能"补"，覆盖才能"纠错"
-            listOf(Modality.TEXT, Modality.IMAGE).filter { it in override }
+            listOf(Modality.TEXT, Modality.IMAGE, Modality.VIDEO).filter { it in override }
         } else {
             val merged = buildSet {
                 addAll(resolveModalities(modelId) { it.inputModalities })
                 addAll(ModelCatalogBridge.inputModalities(modelId).orEmpty())
                 addAll(modelsDevCatalog?.find(modelId)?.inputModalities.orEmpty())
             }
-            listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
+            listOf(Modality.TEXT, Modality.IMAGE, Modality.VIDEO).filter { it in merged }
         }
     }
 
     val MODEL_OUTPUT_MODALITIES = ModelData { modelId ->
         val override = ModelCatalogBridge.overrideOutputModalities(modelId)
         if (override != null) {
-            listOf(Modality.TEXT, Modality.IMAGE).filter { it in override }
+            listOf(Modality.TEXT, Modality.IMAGE, Modality.VIDEO).filter { it in override }
         } else {
             val merged = buildSet {
                 addAll(resolveModalities(modelId) { it.outputModalities })
                 addAll(ModelCatalogBridge.outputModalities(modelId).orEmpty())
                 addAll(modelsDevCatalog?.find(modelId)?.outputModalities.orEmpty())
             }
-            listOf(Modality.TEXT, Modality.IMAGE).filter { it in merged }
+            listOf(Modality.TEXT, Modality.IMAGE, Modality.VIDEO).filter { it in merged }
         }
     }
 
@@ -927,7 +1016,7 @@ object ModelRegistry {
         return if (modalities.isEmpty()) {
             listOf(Modality.TEXT)
         } else {
-            listOf(Modality.TEXT, Modality.IMAGE).filter { it in modalities }
+            listOf(Modality.TEXT, Modality.IMAGE, Modality.VIDEO).filter { it in modalities }
         }
     }
 
@@ -937,6 +1026,10 @@ object ModelRegistry {
 
     private fun ModelDefinitionBuilder.imageOutput() {
         output(Modality.TEXT, Modality.IMAGE)
+    }
+
+    private fun ModelDefinitionBuilder.videoOutput() {
+        output(Modality.TEXT, Modality.VIDEO)
     }
 
     private fun ModelDefinitionBuilder.toolAbility() {

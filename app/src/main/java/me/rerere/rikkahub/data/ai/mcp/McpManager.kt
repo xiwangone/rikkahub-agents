@@ -51,6 +51,9 @@ import me.rerere.rikkahub.data.files.saveUploadFromBytes
 import me.rerere.rikkahub.utils.JsonInstant
 import me.rerere.rikkahub.utils.checkDifferent
 import me.rerere.rikkahub.data.ai.LoggedOkHttpClients
+import me.rerere.rikkahub.data.network.NetworkScope
+import me.rerere.rikkahub.data.network.routingProxySelectorForScope
+import me.rerere.rikkahub.data.tunnel.TsnetSocketFactory
 import okhttp3.OkHttpClient
 import java.util.concurrent.ConcurrentHashMap
 import java.util.concurrent.TimeUnit
@@ -74,6 +77,13 @@ class McpManager(
     private val filesManager: FilesManager,
 ) {
     private val okHttpClient: OkHttpClient = LoggedOkHttpClients.builder()
+        // MCP route: MCP servers (and their OAuth flows, which share this client)
+        // follow the MCP scope's route. The tunnel socket factory lets tailnet
+        // MCP servers connect; previously this client had neither a proxy
+        // selector nor a tunnel socket factory, so MCP traffic ignored both
+        // the configured proxy and the tunnel entirely.
+        .proxySelector(routingProxySelectorForScope(settingsStore, NetworkScope.MCP))
+        .socketFactory(TsnetSocketFactory())
         .connectTimeout(20, TimeUnit.SECONDS)
         .readTimeout(10, TimeUnit.MINUTES)
         .writeTimeout(120, TimeUnit.SECONDS)

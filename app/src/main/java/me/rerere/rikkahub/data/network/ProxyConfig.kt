@@ -2,12 +2,9 @@ package me.rerere.rikkahub.data.network
 
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
-import java.io.IOException
 import java.net.InetSocketAddress
 import java.net.PasswordAuthentication
 import java.net.Proxy
-import java.net.ProxySelector
-import java.net.SocketAddress
 import java.net.URI
 import okhttp3.Authenticator as OkHttpAuthenticator
 import okhttp3.Credentials
@@ -77,26 +74,5 @@ class SettingsSocks5Authenticator(
         val password = resolveProxyPasswordForAuth(setting.proxyPassword) ?: return null
 
         return PasswordAuthentication(setting.proxyUsername, password.toCharArray())
-    }
-}
-
-class SettingsProxySelector(
-    private val settingsStore: SettingsStore,
-    private val systemProxySelector: ProxySelector? = ProxySelector.getDefault(),
-) : ProxySelector() {
-    override fun select(uri: URI): List<Proxy> {
-        settingsStore.settingsFlow.value.networkSetting.proxyUrl.toProxyOrNull()?.let { proxy ->
-            return listOf(proxy)
-        }
-        return runCatching { systemProxySelector?.select(uri) }
-            .getOrNull()
-            .orEmpty()
-            .ifEmpty { listOf(Proxy.NO_PROXY) }
-    }
-
-    override fun connectFailed(uri: URI, socketAddress: SocketAddress, exception: IOException) {
-        if (settingsStore.settingsFlow.value.networkSetting.proxyUrl.toProxyOrNull() == null) {
-            systemProxySelector?.connectFailed(uri, socketAddress, exception)
-        }
     }
 }

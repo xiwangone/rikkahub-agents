@@ -40,6 +40,12 @@ internal fun createWorkspaceTerminalSession(
     client: TerminalSessionClient,
     shellCompatibilityMode: Boolean,
     extraMounts: List<WorkspaceBindMount> = emptyList(),
+    /**
+     * Proxy environment entries (`KEY=value`) for the shell scope, e.g. `ALL_PROXY=...`.
+     * Empty when the shell route is not PROXY or no proxy is configured; a running
+     * shell does not pick up later route changes (new terminals do).
+     */
+    proxyEnv: List<String> = emptyList(),
 ): TerminalSession {
     val appContext = context.applicationContext
     val workspaceDir = File(File(appContext.filesDir, "workspaces"), root)
@@ -93,8 +99,14 @@ internal fun createWorkspaceTerminalSession(
             "LC_ALL=C.UTF-8",
             "USER=root",
             "SHELL=$shellPath",
-            shellPath,
         )
+    // Shell route: proxy variables go into the clean env (after /usr/bin/env -i),
+    // next to HOME/PATH/TERM and before the shell path — /usr/bin/env treats
+    // everything before the command as assignments. Only the entries the caller
+    // computed for the current shell route are added; nothing is injected for
+    // other routes.
+    args += proxyEnv
+    args += shellPath
 
     val env = mutableListOf(
         "PROOT_LOADER=${loader.absolutePath}",

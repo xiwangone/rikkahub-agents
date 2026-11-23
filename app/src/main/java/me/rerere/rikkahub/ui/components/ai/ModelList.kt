@@ -83,6 +83,7 @@ import me.rerere.hugeicons.stroke.Image03
 import me.rerere.hugeicons.stroke.Search01
 import me.rerere.hugeicons.stroke.Text
 import me.rerere.hugeicons.stroke.Tools
+import me.rerere.hugeicons.stroke.Video01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
 import me.rerere.rikkahub.data.datastore.DEFAULT_AUTO_MODEL_ID
@@ -105,10 +106,12 @@ import kotlin.uuid.Uuid
 
 // The image-generation picker should surface any model that can OUTPUT images, not only ones
 // explicitly typed IMAGE: a model added before its type was known, or one the user tagged with an
-// image output modality by hand, still belongs there. Chat/embedding pickers stay an exact match.
+// image output modality by hand, still belongs there. The video picker mirrors this.
+// Chat/embedding pickers stay an exact match.
 internal fun Model.matchesPickerType(pickerType: ModelType): Boolean =
     type == pickerType ||
-        (pickerType == ModelType.IMAGE && Modality.IMAGE in outputModalities)
+        (pickerType == ModelType.IMAGE && Modality.IMAGE in outputModalities) ||
+        (pickerType == ModelType.VIDEO && Modality.VIDEO in outputModalities)
 
 class ModelListState internal constructor(
     modelId: Uuid?,
@@ -957,6 +960,7 @@ fun ModelTypeTag(model: Model) {
                         ModelType.CHAT -> R.string.setting_provider_page_chat_model
                         ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
                         ModelType.IMAGE -> R.string.setting_provider_page_image_model
+                        ModelType.VIDEO -> R.string.setting_provider_page_video_model
                     },
                 ),
         )
@@ -974,6 +978,7 @@ fun ModelModalityTag(model: Model) {
                     when (modality) {
                         Modality.TEXT -> HugeIcons.Text
                         Modality.IMAGE -> HugeIcons.Image03
+                        Modality.VIDEO -> HugeIcons.Video01
                     },
                 contentDescription = null,
                 modifier =
@@ -993,6 +998,7 @@ fun ModelModalityTag(model: Model) {
                     when (modality) {
                         Modality.TEXT -> HugeIcons.Text
                         Modality.IMAGE -> HugeIcons.Image03
+                        Modality.VIDEO -> HugeIcons.Video01
                     },
                 contentDescription = null,
                 modifier =

@@ -21,6 +21,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.produceState
@@ -40,11 +41,16 @@ import me.rerere.hugeicons.stroke.Bug01
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.MoreVertical
 import me.rerere.hugeicons.stroke.Refresh01
+import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.network.NetworkScope
+import me.rerere.rikkahub.data.network.WebViewProxy
+import me.rerere.rikkahub.data.network.resolveProxyPasswordForAuth
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.webview.WEB_VIEW_BASE_URL
 import me.rerere.rikkahub.ui.components.webview.WebView
 import me.rerere.rikkahub.ui.components.webview.WebViewContentCache
 import me.rerere.rikkahub.ui.components.webview.rememberWebViewState
+import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -54,6 +60,19 @@ fun WebViewPage(
     contentId: String,
 ) {
     val context = LocalContext.current
+    // Browser route: apply the current browser scope's proxy to the app-wide
+    // WebView proxy override when the page opens. A route change while the page
+    // is open only takes effect on the next open (the override is app-wide).
+    val settingsStore = koinInject<SettingsStore>()
+    LaunchedEffect(Unit) {
+        val net = settingsStore.settingsFlow.value.networkSetting
+        WebViewProxy.apply(
+            route = net.routing.resolveRoute(scope = NetworkScope.BROWSER),
+            proxyUrl = net.proxyUrl,
+            proxyUsername = net.proxyUsername,
+            proxyPassword = resolveProxyPasswordForAuth(net.proxyPassword),
+        )
+    }
     // 缓存 HTML 在 IO 线程读盘，组合期不再主线程读文件。
     val content by produceState(initialValue = "", contentId) {
         value = withContext(Dispatchers.IO) {

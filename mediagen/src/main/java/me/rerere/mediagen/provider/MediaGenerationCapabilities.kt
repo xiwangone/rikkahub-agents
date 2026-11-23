@@ -57,7 +57,7 @@ fun MediaGenerationProviderSetting.capabilities(kind: MediaKind): MediaGeneratio
     when (this) {
         is MediaGenerationProviderSetting.OpenAI -> when (kind) {
             MediaKind.IMAGE -> OPENAI_IMAGE
-            MediaKind.VIDEO -> null
+            MediaKind.VIDEO -> OPENAI_VIDEO
         }
 
         is MediaGenerationProviderSetting.Aliyun -> when (kind) {
@@ -88,6 +88,19 @@ private val ALL_IMAGE_ROLES = ImageRole.entries.toSet()
 private val OPENAI_IMAGE = MediaGenerationCapabilities(
     parameters = setOf(MediaGenerationParameter.COUNT, MediaGenerationParameter.RESOLUTION),
     imageRoles = REFERENCE_ONLY,
+    requiresPrompt = true,
+)
+
+// OpenAI 兼容的视频接口（Sora 协议，POST /videos + 轮询）：文生视频为主，时长、清晰度、
+// 画幅与种子由服务端给默认值；图片输入暂不支持，带图生成的模型走 Aliyun / Volcengine / MiniMax。
+private val OPENAI_VIDEO = MediaGenerationCapabilities(
+    parameters = setOf(
+        MediaGenerationParameter.RESOLUTION,
+        MediaGenerationParameter.ASPECT_RATIO,
+        MediaGenerationParameter.DURATION,
+        MediaGenerationParameter.SEED,
+    ),
+    imageRoles = emptySet(),
     requiresPrompt = true,
 )
 

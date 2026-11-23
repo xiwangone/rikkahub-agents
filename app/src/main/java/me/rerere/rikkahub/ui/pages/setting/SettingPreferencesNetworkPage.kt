@@ -34,6 +34,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Internet
 import me.rerere.hugeicons.stroke.Refresh
+import me.rerere.hugeicons.stroke.Route01
 import me.rerere.hugeicons.stroke.Router
 import me.rerere.hugeicons.stroke.ServerStack01
 import me.rerere.hugeicons.stroke.Shield01
@@ -198,6 +199,22 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
                 CardGroup(
                     modifier = Modifier.padding(horizontal = 8.dp),
                 ) {
+                    item(
+                        onClick = { nav.navigate(Screen.SettingNetworkRouting) },
+                        leadingContent = {
+                            CardGroupIcon(
+                                icon = HugeIcons.Route01,
+                                containerColor = MaterialTheme.colorScheme.tertiaryContainer,
+                                contentColor = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
+                        },
+                        headlineContent = {
+                            Text(stringResource(R.string.setting_page_preferences_network_routing))
+                        },
+                        trailingContent = {
+                            Icon(HugeIcons.ArrowRight01, contentDescription = null)
+                        },
+                    )
                     item(
                         onClick = { nav.navigate(Screen.SettingNetworkProxy) },
                         leadingContent = {

@@ -201,6 +201,34 @@ class ModelRegistryTest {
         assertEquals(toolReasoning, ModelRegistry.MODEL_ABILITIES.getData("mimo-v2-pro"))
     }
 
+    @Test
+    fun testVideoModels() {
+        installEmptyCatalog()
+        val videoOutput = listOf(Modality.TEXT, Modality.VIDEO)
+        // 主流视频家族：按名字匹配到 VIDEO 输出
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("openai/sora-2"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("openai/sora-2-pro"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("google/veo-3.1"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("klingai/kling-v2.1-master"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("minimax/hailuo-02"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("luma/ray-2"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("doubao-seedance-1-0-pro-250528"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("hunyuan-video"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("minimax-video-01"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wan3.0-video"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wan2.6-t2v"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wanx2.1-i2v-plus"))
+        assertEquals(videoOutput, ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("cogvideox-5b"))
+        // 文本同门不挂视频：混元文本模型、MiniMax 文本模型
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("hunyuan-a13b"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("minimax-m2.5"))
+        // 图像同门不挂视频：Wan 图像模型、Seedream 图像模型
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("wan2.7-image"))
+        assertFalse(Modality.VIDEO in ModelRegistry.MODEL_OUTPUT_MODALITIES.getData("doubao-seedream-4-0-250828"))
+        // 视频模型不带工具/推理能力
+        assertEquals(emptyList<ModelAbility>(), ModelRegistry.MODEL_ABILITIES.getData("openai/sora-2"))
+    }
+
     /** 把外部目录的来源换成空实现，供用例在 finally 里还原全局单例。 */
     private fun installEmptyCatalog() {
         ModelCatalogBridge.install(

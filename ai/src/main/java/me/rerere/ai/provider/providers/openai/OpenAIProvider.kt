@@ -112,9 +112,10 @@ class OpenAIProvider(
             val shortClient = client.shortRequestClient()
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             // OpenRouter's /models returns text-output models only by default, which hides the
-            // image-only models (FLUX, Recraft, Seedream, ...). Ask for text and image explicitly.
+            // image-only models (FLUX, Recraft, Seedream, ...) and the video-only models
+            // (Sora, Veo, ...). Ask for text, image and video explicitly.
             val modelsUrl = if (providerSetting.baseUrl.contains("openrouter.ai")) {
-                "${providerSetting.baseUrl}/models?output_modalities=text,image"
+                "${providerSetting.baseUrl}/models?output_modalities=text,image,video"
             } else {
                 "${providerSetting.baseUrl}/models"
             }

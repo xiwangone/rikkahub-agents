@@ -106,6 +106,7 @@ private fun unionModalities(raw: List<String>, known: List<Modality>): List<Moda
     buildList {
         add(Modality.TEXT)
         if ("image" in raw || Modality.IMAGE in known) add(Modality.IMAGE)
+        if ("video" in raw || Modality.VIDEO in known) add(Modality.VIDEO)
     }.distinct()
 
 /**
@@ -137,7 +138,14 @@ fun openRouterModelFromJson(modelObj: JsonObject): Model? {
     // model picker (which filters strictly by ModelType.IMAGE); others stay CHAT. Recraft's
     // *-vector models only output SVG, which Android can't rasterize, so they're excluded
     // from the image picker even though OpenRouter lists "image" in their output_modalities.
-    val type = if ("image" in outMods && !isSvgOnlyImageModel(id)) ModelType.IMAGE else ModelType.CHAT
+    // Video mirrors this: a model listing "video" (and not "image") is typed VIDEO so it
+    // appears in the video picker. A model listing both keeps IMAGE and still reaches the
+    // video picker through the output-modality fallback in matchesPickerType.
+    val type = when {
+        "image" in outMods && !isSvgOnlyImageModel(id) -> ModelType.IMAGE
+        "video" in outMods -> ModelType.VIDEO
+        else -> ModelType.CHAT
+    }
 
     return Model(
         modelId = id,

@@ -52,10 +52,15 @@ sealed class MediaGenerationProviderSetting {
         override val baseUrl: String = "https://api.openai.com/v1",
         override val models: List<MediaGenerationModel> = listOf(
             MediaGenerationModel(modelId = "gpt-image-2", kind = MediaKind.IMAGE),
+            MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO),
+            MediaGenerationModel(modelId = "sora-2-pro", kind = MediaKind.VIDEO),
         ),
     ) : MediaGenerationProviderSetting() {
         override val supportedKinds: Set<MediaKind>
-            get() = setOf(MediaKind.IMAGE)
+            get() = setOf(MediaKind.IMAGE, MediaKind.VIDEO)
+
+        // 视频完成态地址是同源的 /videos/{id}/content，下载时要带 API Key
+        override fun downloadHeaders(url: String): Map<String, String> = sameOriginBearer(url)
 
         override fun copyProvider(
             id: Uuid,

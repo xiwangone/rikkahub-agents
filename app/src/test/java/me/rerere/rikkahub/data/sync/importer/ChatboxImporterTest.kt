@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.sync.importer
 
 import kotlinx.coroutines.runBlocking
+import me.rerere.ai.provider.ModelType
+import me.rerere.ai.provider.ProviderSetting
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.model.Conversation
 import org.junit.Assert.assertArrayEquals
@@ -56,6 +58,10 @@ class ChatboxImporterTest {
                         "modelId": "deepseek-test",
                         "nickname": "DeepSeek Test",
                         "capabilities": ["vision", "tool_use", "reasoning"]
+                      }, {
+                        "modelId": "sora-2-test",
+                        "nickname": "Sora 2 Test",
+                        "type": "video"
                       }]
                     }
                   }
@@ -113,6 +119,11 @@ class ChatboxImporterTest {
         assertEquals(1, result.importedImageParts)
         assertEquals(0, result.skippedImageParts)
         assertArrayEquals(imageBytes, savedImage?.bytes)
+
+        // type 字段映射：video 模型进 VIDEO，缺省进 CHAT
+        val openAI = result.providers.single() as ProviderSetting.OpenAI
+        assertEquals(ModelType.VIDEO, openAI.models.single { it.modelId == "sora-2-test" }.type)
+        assertEquals(ModelType.CHAT, openAI.models.single { it.modelId == "deepseek-test" }.type)
 
         val conversation = assertNotNull(importedConversation).let { importedConversation!! }
         assertEquals("Thread title", conversation.title)

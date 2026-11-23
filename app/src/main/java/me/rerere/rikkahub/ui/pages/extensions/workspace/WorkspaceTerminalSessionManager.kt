@@ -19,7 +19,11 @@ import me.rerere.rikkahub.AppScope
 import me.rerere.rikkahub.R
 import java.util.concurrent.atomic.AtomicLong
 import me.rerere.rikkahub.data.db.entity.WorkspaceEntity
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.network.NetworkScope
+import me.rerere.rikkahub.data.network.proxyShellEnvVars
+import me.rerere.rikkahub.data.network.resolveProxyPasswordForAuth
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceMountUnavailableException
 
@@ -37,6 +41,7 @@ class WorkspaceTerminalSessionManager internal constructor(
     context: Context,
     private val appScope: AppScope,
     private val workspaceRepository: WorkspaceRepository,
+    private val settingsStore: SettingsStore,
 ) {
     private val appContext = context.applicationContext
     private val workspaceStates = MutableStateFlow<Map<String, WorkspaceTerminalTabsState>>(emptyMap())
@@ -192,6 +197,7 @@ class WorkspaceTerminalSessionManager internal constructor(
                     client = client,
                     shellCompatibilityMode = workspace.shellCompatibilityMode,
                     extraMounts = workspace.extraBindMounts(),
+                    proxyEnv = shellProxyEnv(),
                 )
             }
         }.onFailure { error ->
@@ -232,6 +238,20 @@ class WorkspaceTerminalSessionManager internal constructor(
                 nextTabNumber = tabNumber + 1,
             )
         }
+    }
+
+    /**
+     * Proxy environment entries for a new local shell, from the current shell
+     * route. Empty unless the shell route is PROXY and a proxy is configured.
+     * Read live at session creation; a running shell does not pick up later
+     * route changes (new terminals do).
+     */
+    private fun shellProxyEnv(): List<String> {
+        val net = settingsStore.settingsFlow.value.networkSetting
+        val route = net.routing.resolveRoute(scope = NetworkScope.SHELL)
+        val password = resolveProxyPasswordForAuth(net.proxyPassword)
+        return proxyShellEnvVars(route, net.proxyUrl, net.proxyUsername, password)
+            .map { (key, value) -> "$key=$value" }
     }
 
     private fun updateTitle(root: String, tabId: Long, title: String?) {

@@ -27,6 +27,7 @@ import me.rerere.rikkahub.data.model.Lorebook
 import me.rerere.rikkahub.data.model.PromptInjection
 import me.rerere.rikkahub.data.model.QuickMessage
 import me.rerere.rikkahub.data.model.Tag
+import me.rerere.rikkahub.data.network.NetworkRoutingSettings
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
@@ -361,6 +362,9 @@ data class NetworkSetting(
     val dnsEnableIpv6: Boolean = false,
     /** 「测试连接」用的域名（用户可自定义并保存；默认用 IANA 保留域名，全球可解析且带 AAAA）。 */
     val dnsTestDomain: String = DEFAULT_DNS_TEST_DOMAIN,
+    // ── 网络路由（默认路由 + 按范围/按提供商 + 一键恢复直连；见 NetworkRouting.kt）──
+    /** 路由设置；默认 defaultRoute=PROXY 以保留旧版全局代理行为（见 NetworkRoutingSettings）。 */
+    val routing: NetworkRoutingSettings = NetworkRoutingSettings(),
 ) {
     companion object {
         const val DNS_MODE_SYSTEM = "system"

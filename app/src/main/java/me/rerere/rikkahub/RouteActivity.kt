@@ -646,6 +646,9 @@ class RouteActivity : ComponentActivity() {
                             entry<Screen.SettingNetworkTunnel> {
                                 me.rerere.rikkahub.ui.pages.setting.SettingNetworkTunnelPage()
                             }
+                            entry<Screen.SettingNetworkRouting> {
+                                me.rerere.rikkahub.ui.pages.setting.SettingNetworkRoutingPage()
+                            }
                             entry<Screen.TunnelDiagnostics> {
                                 me.rerere.rikkahub.ui.pages.setting.TunnelDiagnosticsPage()
                             }
@@ -938,6 +941,8 @@ sealed interface Screen : NavKey {
     data object SettingNetworkHostOverrides : Screen
     @Serializable
     data object SettingNetworkTunnel : Screen
+    @Serializable
+    data object SettingNetworkRouting : Screen
     @Serializable
     data object TunnelDiagnostics : Screen
     @Serializable

@@ -43,6 +43,7 @@ fun List<Model>.filterByKeywords(query: String): List<Model> {
 enum class ModelType {
     CHAT,
     IMAGE,
+    VIDEO,
     EMBEDDING,
 }
 
@@ -50,6 +51,7 @@ enum class ModelType {
 enum class Modality {
     TEXT,
     IMAGE,
+    VIDEO,
 }
 
 @Serializable

@@ -249,13 +249,148 @@ class OpenAIMediaGenerationProviderTest {
     }
 
     @Test
-    fun kindWithoutAdapterIsRejectedBeforeHittingTheNetwork() = runBlocking {
-        val manager = MediaGenerationManager(fakeClient { error("unsupported kind must not hit the network") })
-        val video = MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO)
+    fun videoKindIsSupported() {
+        assertEquals(setOf(MediaKind.IMAGE, MediaKind.VIDEO), setting.supportedKinds)
+    }
 
-        assertEquals(setOf(MediaKind.IMAGE), setting.supportedKinds)
-        val error = manager.create(setting, video, MediaGenerationRequest(prompt = "cat")).exceptionOrNull()
-        assertTrue(error is UnsupportedOperationException)
-        assertEquals("openai does not support VIDEO generation", error!!.message)
+    @Test
+    fun videoCreateBodySendsSoraFields() {
+        val video = MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO)
+        val body = OpenAIVideoGeneration(OkHttpClient()).buildCreateBody(
+            model = video,
+            request = MediaGenerationRequest(
+                prompt = "a cat sailing",
+                durationSeconds = 4,
+                resolution = "720P",
+                aspectRatio = "16:9",
+                seed = 7,
+            ),
+        )
+
+        assertEquals(JsonPrimitive("sora-2"), body["model"])
+        assertEquals(JsonPrimitive("a cat sailing"), body["prompt"])
+        assertEquals(JsonPrimitive("text"), body["mode"])
+        assertEquals(JsonPrimitive("4"), body["seconds"])
+        assertEquals(JsonPrimitive("720P"), body["size"])
+        assertEquals(JsonPrimitive("16:9"), body["aspect_ratio"])
+        assertEquals(JsonPrimitive(7), body["seed"])
+    }
+
+    @Test
+    fun videoCreateBodyOmitsDurationWhenModelDecides() {
+        val video = MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO)
+        val body = OpenAIVideoGeneration(OkHttpClient()).buildCreateBody(
+            model = video,
+            request = MediaGenerationRequest(prompt = "cat", durationSeconds = -1),
+        )
+
+        assertNull(body["seconds"])
+        assertNull(body["size"])
+    }
+
+    @Test
+    fun videoCreateBodyRejectsFieldsTheVideoApiDoesNotExpose() {
+        val video = MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO)
+        val generator = OpenAIVideoGeneration(OkHttpClient())
+
+        assertThrows(IllegalArgumentException::class.java) {
+            generator.buildCreateBody(video, MediaGenerationRequest(prompt = ""))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator.buildCreateBody(video, MediaGenerationRequest(prompt = "cat", count = 2))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator.buildCreateBody(video, MediaGenerationRequest(prompt = "cat", generateAudio = true))
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            generator.buildCreateBody(
+                video,
+                MediaGenerationRequest(
+                    prompt = "cat",
+                    inputs = listOf(MediaGenerationInput.Image("/tmp/a.png")),
+                ),
+            )
+        }
+    }
+
+    @Test
+    fun videoCreatePostsToVideosEndpointAndQueryPollsToContentUrl() = runBlocking {
+        val video = MediaGenerationModel(modelId = "sora-2", kind = MediaKind.VIDEO)
+        val requests = mutableListOf<Request>()
+        val manager = MediaGenerationManager(fakeClient(requests) {
+            when {
+                it.url.toString().endsWith("/videos") -> jsonResponse(
+                    request = it,
+                    body = """{"id":"video_123","status":"queued","created_at":1785125529}""",
+                )
+
+                else -> jsonResponse(
+                    request = it,
+                    body = """{"id":"video_123","status":"completed","created_at":1785125529}""",
+                )
+            }
+        })
+
+        val created = manager.create(
+            setting,
+            video,
+            MediaGenerationRequest(prompt = "a cat sailing", durationSeconds = 4),
+        ).getOrThrow()
+        assertEquals("video_123", created.id)
+        assertEquals(MediaGenerationStatus.QUEUED, created.status)
+        assertTrue(created.outputs.isEmpty())
+
+        val queried = manager.query(setting, video, "video_123").getOrThrow()
+        assertEquals(MediaGenerationStatus.SUCCEEDED, queried.status)
+        val output = queried.outputs.single()
+        assertEquals("https://example.com/v1/videos/video_123/content", output.url)
+        assertEquals("video/mp4", output.mimeType)
+
+        assertEquals(2, requests.size)
+        val createRequest = requests[0]
+        assertEquals("https://example.com/v1/videos", createRequest.url.toString())
+        assertEquals("Bearer sk-test", createRequest.header("Authorization"))
+        val sent = mediaGenerationJson.parseToJsonElement(createRequest.bodyAsString()).jsonObject
+        assertEquals(JsonPrimitive("sora-2"), sent["model"])
+        assertEquals(JsonPrimitive("text"), sent["mode"])
+        assertEquals(JsonPrimitive("4"), sent["seconds"])
+        assertEquals("https://example.com/v1/videos/video_123", requests[1].url.toString())
+    }
+
+    @Test
+    fun videoParseTaskMapsSoraStatuses() {
+        val generator = OpenAIVideoGeneration(OkHttpClient())
+        val setting = MediaGenerationProviderSetting.OpenAI(baseUrl = "https://example.com/v1")
+
+        fun parse(status: String) = generator.parseTask(
+            setting,
+            mediaGenerationJson.parseToJsonElement(
+                """{"id":"video_123","status":"$status","created_at":1785125529}""",
+            ).jsonObject,
+        )
+
+        assertEquals(MediaGenerationStatus.QUEUED, parse("queued").status)
+        assertEquals(MediaGenerationStatus.RUNNING, parse("in_progress").status)
+        assertEquals(MediaGenerationStatus.FAILED, parse("failed").status)
+        assertEquals(MediaGenerationStatus.UNKNOWN, parse("bogus").status)
+
+        val completed = parse("completed")
+        assertEquals(MediaGenerationStatus.SUCCEEDED, completed.status)
+        assertEquals(1785125529L, completed.createdAtEpochSeconds)
+        assertEquals("https://example.com/v1/videos/video_123/content", completed.outputs.single().url)
+    }
+
+    @Test
+    fun videoParseTaskSurfacesErrorMessage() {
+        val root = mediaGenerationJson.parseToJsonElement(
+            """{"id":"video_123","status":"failed","error":{"message":"Prompt was rejected"}}""",
+        ).jsonObject
+        val task = OpenAIVideoGeneration(OkHttpClient()).parseTask(
+            MediaGenerationProviderSetting.OpenAI(baseUrl = "https://example.com/v1"),
+            root,
+        )
+
+        assertEquals(MediaGenerationStatus.FAILED, task.status)
+        assertEquals("Prompt was rejected", task.error?.message)
     }
 }

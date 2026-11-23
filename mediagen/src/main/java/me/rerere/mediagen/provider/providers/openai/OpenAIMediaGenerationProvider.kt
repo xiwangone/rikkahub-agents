@@ -14,6 +14,7 @@ import me.rerere.mediagen.model.MediaGenerationRequest
 import me.rerere.mediagen.model.MediaGenerationStatus
 import me.rerere.mediagen.model.MediaGenerationTask
 import me.rerere.mediagen.model.MediaGenerationUsage
+import me.rerere.mediagen.model.MediaKind
 import me.rerere.mediagen.provider.MediaGenerationProvider
 import me.rerere.mediagen.provider.MediaGenerationProviderSetting
 import me.rerere.mediagen.provider.providers.executeJson
@@ -33,18 +34,41 @@ import kotlin.io.encoding.Base64
 import kotlin.uuid.Uuid
 
 /**
- * 目前只实现了图像：接口同步返回结果，[create] 直接得到终态任务。请求里带图片输入时走编辑接口，否则走生成接口。
+ * 图像接口同步返回结果，[create] 直接得到终态任务；视频是 Sora 协议的异步任务，
+ * 提交后轮询 [query] 到完成。请求里带图片输入时图像走编辑接口，否则走生成接口。
  */
 class OpenAIMediaGenerationProvider(
     private val client: OkHttpClient,
 ) : MediaGenerationProvider<MediaGenerationProviderSetting.OpenAI> {
     override val id: String = PROVIDER_ID
 
+    private val video = OpenAIVideoGeneration(client)
+
     override suspend fun create(
         setting: MediaGenerationProviderSetting.OpenAI,
         model: MediaGenerationModel,
         request: MediaGenerationRequest,
     ): Result<MediaGenerationTask> = runCatching {
+        when (model.kind) {
+            MediaKind.IMAGE -> createImage(setting, model, request)
+            MediaKind.VIDEO -> video.create(setting, model, request)
+        }
+    }
+
+    override suspend fun query(
+        setting: MediaGenerationProviderSetting.OpenAI,
+        model: MediaGenerationModel,
+        taskId: String,
+    ): Result<MediaGenerationTask> = when (model.kind) {
+        MediaKind.IMAGE -> super.query(setting, model, taskId)
+        MediaKind.VIDEO -> runCatching { video.query(setting, model, taskId) }
+    }
+
+    private suspend fun createImage(
+        setting: MediaGenerationProviderSetting.OpenAI,
+        model: MediaGenerationModel,
+        request: MediaGenerationRequest,
+    ): MediaGenerationTask {
         val baseUrl = setting.baseUrl.trimEnd('/')
         val builder = Request.Builder().addHeader("Authorization", "Bearer ${setting.apiKey}")
         val httpRequest = if (request.inputs.isEmpty()) {
@@ -52,7 +76,7 @@ class OpenAIMediaGenerationProvider(
         } else {
             builder.url("$baseUrl/images/edits").post(buildEditBody(setting, model, request))
         }.build()
-        parseTask(client.executeJson(httpRequest, id), model.modelId)
+        return parseTask(client.executeJson(httpRequest, id), model.modelId)
     }
 
     internal fun buildGenerationBody(
@@ -159,7 +183,7 @@ class OpenAIMediaGenerationProvider(
         return host == "x.ai" || host?.endsWith(".x.ai") == true || model.modelId.contains("grok", ignoreCase = true)
     }
 
-    private companion object {
+    internal companion object {
         const val PROVIDER_ID = "openai"
         val EDIT_IMAGE_MEDIA_TYPES = mapOf(
             "png" to "image/png",

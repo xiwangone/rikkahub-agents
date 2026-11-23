@@ -1104,6 +1104,7 @@
   <string name="setting_provider_page_filter_placeholder">أدخل اسم النموذج للتصفية</string>
   <string name="setting_provider_page_image">صورة</string>
   <string name="setting_provider_page_image_model">صورة</string>
+  <string name="setting_provider_page_video_model">فيديو</string>
   <string name="setting_provider_page_image_qr_decode_failed">فشل تحليل رمز QR من الصورة: %s</string>
   <string name="setting_provider_page_import_dialog_message">من فضلك اختر طريقة الاستيراد:</string>
   <string name="setting_provider_page_import_dialog_title">استيراد تكوين المزوّد</string>
@@ -3209,6 +3210,28 @@
   <string name="setting_page_preferences_network_proxy_desc">يدعم عناوين وكيل HTTP و SOCKS5. اتركه فارغًا لاستخدام إعدادات النظام.
 </string>
   <string name="setting_page_preferences_network_proxy_invalid">أدخل عنوان وكيل صالحًا يتضمن المضيف والمنفذ.</string>
+  <string name="setting_page_preferences_network_routing">مسار الشبكة</string>
+  <string name="setting_page_network_routing_title">مسار الشبكة</string>
+  <string name="setting_page_network_routing_default">المسار الافتراضي</string>
+  <string name="setting_page_network_routing_default_desc">يُستخدم عندما لا يكون للنطاق أو المزوّد مسار خاص به. اختيار الوكيل يحافظ على السلوك السابق: تمر الحركة عبر الوكيل المُعدّ، أو مباشرةً عند عدم وجود وكيل.</string>
+  <string name="setting_page_network_routing_scope_title">مسارات حسب النطاق</string>
+  <string name="setting_page_network_routing_provider_title">مسارات حسب المزوّد</string>
+  <string name="setting_page_network_routing_route_direct">مباشر</string>
+  <string name="setting_page_network_routing_route_tailscale">Tailscale</string>
+  <string name="setting_page_network_routing_route_proxy">وكيل</string>
+  <string name="setting_page_network_routing_route_default">افتراضي</string>
+  <string name="setting_page_network_routing_effective">سارٍ: %1$s</string>
+  <string name="setting_page_network_routing_no_proxy">لم يتم إعداد وكيل — سيتم الاتصال مباشرةً.</string>
+  <string name="setting_page_network_routing_tailscale_note">وجهات Tailscale تمر دائمًا عبر النفق؛ أما الوجهات العامة فتتصل مباشرةً حاليًا (توجيه عقدة الخروج غير منفذ بعد).</string>
+  <string name="setting_page_network_routing_force_direct">استعادة الاتصالات المباشرة</string>
+  <string name="setting_page_network_routing_force_direct_desc">تمر كل الحركة مباشرةً. تُحفظ الإعدادات ويمكن استعادتها.</string>
+  <string name="setting_page_network_routing_force_direct_on">تمت استعادة الاتصالات المباشرة</string>
+  <string name="setting_page_network_routing_resume">استعادة المسارات</string>
+  <string name="setting_page_network_routing_scope_shell">الطرفية</string>
+  <string name="setting_page_network_routing_scope_browser">المتصفح</string>
+  <string name="setting_page_network_routing_scope_mcp">MCP</string>
+  <string name="setting_page_network_routing_scope_backup">النسخ الاحتياطي</string>
+  <string name="setting_page_network_routing_webview_unsupported">لا يدعم WebView على هذا الجهاز تجاوز الوكيل؛ المتصفح يتصل مباشرةً دائمًا.</string>
   <string name="setting_page_preferences_network_host_overrides">تجاوز DNS للنطاقات</string>
   <string name="setting_page_preferences_network_host_overrides_desc">يثبّت النطاق على عنوان IP محدد متجاوزًا مُحلِّل النظام، وهو مفيد عندما يكون المسار المُحلَّل بطيئًا أو غير مستقر.</string>
   <string name="setting_page_preferences_network_host_overrides_empty">لا توجد مدخلات بعد</string>

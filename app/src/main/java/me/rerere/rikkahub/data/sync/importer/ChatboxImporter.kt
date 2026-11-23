@@ -240,6 +240,7 @@ object ChatboxImporter {
                 displayName = model["nickname"]?.asString?.takeIf { it.isNotBlank() } ?: modelId,
                 type = when (model["type"]?.asString?.lowercase()) {
                     "image" -> ModelType.IMAGE
+                    "video" -> ModelType.VIDEO
                     "embedding", "embeddings" -> ModelType.EMBEDDING
                     else -> ModelType.CHAT
                 },

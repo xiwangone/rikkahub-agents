@@ -23,10 +23,12 @@ import me.rerere.rikkahub.data.ai.TermuxCliCommandExecutor
 import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.remote.ModelsDevUpdater
 import me.rerere.rikkahub.data.network.HostOverrideDns
-import me.rerere.rikkahub.data.tunnel.TsnetSocketFactory
+import me.rerere.rikkahub.data.network.NetworkScope
 import me.rerere.rikkahub.data.network.SettingsProxyAuthenticator
-import me.rerere.rikkahub.data.network.SettingsProxySelector
 import me.rerere.rikkahub.data.network.SettingsSocks5Authenticator
+import me.rerere.rikkahub.data.network.routingProxySelectorForProviders
+import me.rerere.rikkahub.data.network.routingProxySelectorForScope
+import me.rerere.rikkahub.data.tunnel.TsnetSocketFactory
 import me.rerere.rikkahub.data.ai.transformers.AssistantTemplateLoader
 import me.rerere.rikkahub.data.ai.transformers.TemplateTransformer
 import me.rerere.rikkahub.data.codex.CodexAccountRepository
@@ -258,7 +260,9 @@ val dataSourceModule =
             val appliedNetworkSetting = AtomicReference(initialNetworkSetting)
             lateinit var client: OkHttpClient
             client = OkHttpClient.Builder()
-                .proxySelector(SettingsProxySelector(settingsStore))
+                // Route-aware proxy selection: each request host resolves to its
+                // provider's route (or the default route); see RoutingProxySelector.
+                .proxySelector(routingProxySelectorForProviders(settingsStore))
                 .proxyAuthenticator(SettingsProxyAuthenticator(settingsStore))
                 .dns(HostOverrideDns(settingsStore))
                 .socketFactory(TsnetSocketFactory())
@@ -541,6 +545,13 @@ val dataSourceModule =
             HttpClient(OkHttp) {
                 engine {
                     config {
+                        // Backup route (WebDAV / S3): the Ktor client previously used
+                        // no proxy selector at all, so backup traffic bypassed the
+                        // configured proxy entirely. It now follows the backup scope's
+                        // route, and the tunnel socket factory lets tailnet backup
+                        // targets (e.g. a WebDAV server on the tailnet) connect.
+                        proxySelector(routingProxySelectorForScope(get(), NetworkScope.BACKUP))
+                        socketFactory(TsnetSocketFactory())
                         connectTimeout(20, TimeUnit.SECONDS)
                         readTimeout(10, TimeUnit.MINUTES)
                         writeTimeout(120, TimeUnit.SECONDS)

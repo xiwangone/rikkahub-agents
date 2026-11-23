@@ -705,6 +705,7 @@ private fun ModelTypeSelector(
                         ModelType.CHAT -> R.string.setting_provider_page_chat_model
                         ModelType.EMBEDDING -> R.string.setting_provider_page_embedding_model
                         ModelType.IMAGE -> R.string.setting_provider_page_image_model
+                        ModelType.VIDEO -> R.string.setting_provider_page_video_model
                     },
                 ),
             selected = selected,
@@ -738,6 +739,7 @@ private fun ModelModalitySelector(
                         when (modality) {
                             Modality.TEXT -> R.string.setting_provider_page_text
                             Modality.IMAGE -> R.string.setting_provider_page_image
+                            Modality.VIDEO -> R.string.video
                         },
                     ),
                 selected = selected,
@@ -762,6 +764,7 @@ private fun ModelModalitySelector(
                         when (modality) {
                             Modality.TEXT -> R.string.setting_provider_page_text
                             Modality.IMAGE -> R.string.setting_provider_page_image
+                            Modality.VIDEO -> R.string.video
                         },
                     ),
                 selected = selected,
@@ -830,13 +833,23 @@ fun ModalAbilitySelector(
     }
 }
 
+/**
+ * 没有端点元数据时用注册表（名字匹配）补能力。名字匹配认不出小厂模型时，文本模型默认勾上
+ * 工具与推理：厂商侧能力通常已开，只是名字对不上登记表；用户在表单里确认或取消即可。
+ * 只影响新添加的模型（添加流程与选择器标签展示调用这里），已存模型编辑时不走这里。
+ */
 private fun Model.enrichCapabilities(): Model =
     if (supportedParameters.isNotEmpty()) {
         this
     } else {
+        val abilities = ModelRegistry.MODEL_ABILITIES.getData(modelId)
         copy(
             inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(modelId),
             outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(modelId),
-            abilities = ModelRegistry.MODEL_ABILITIES.getData(modelId),
+            abilities = if (abilities.isEmpty() && type == ModelType.CHAT) {
+                listOf(ModelAbility.TOOL, ModelAbility.REASONING)
+            } else {
+                abilities
+            },
         )
     }

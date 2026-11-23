@@ -7,6 +7,7 @@ import me.rerere.mediagen.provider.providers.aliyun.AliyunImageGeneration
 import me.rerere.mediagen.provider.providers.aliyun.AliyunVideoGeneration
 import me.rerere.mediagen.provider.providers.minimax.MiniMaxMediaGenerationProvider
 import me.rerere.mediagen.provider.providers.openai.OpenAIMediaGenerationProvider
+import me.rerere.mediagen.provider.providers.openai.OpenAIVideoGeneration
 import me.rerere.mediagen.provider.providers.openrouter.OpenRouterImageGeneration
 import me.rerere.mediagen.provider.providers.openrouter.OpenRouterVideoGeneration
 import me.rerere.mediagen.provider.providers.volcengine.VolcengineImageGeneration
@@ -33,8 +34,13 @@ class MediaGenerationCapabilitiesTest {
     private fun buildBody(setting: MediaGenerationProviderSetting, kind: MediaKind, request: MediaGenerationRequest) {
         val model = MediaGenerationModel(modelId = "model", kind = kind)
         when (setting) {
-            is MediaGenerationProviderSetting.OpenAI ->
-                OpenAIMediaGenerationProvider(client).buildGenerationBody(setting, model, request)
+            is MediaGenerationProviderSetting.OpenAI -> when (kind) {
+                MediaKind.IMAGE ->
+                    OpenAIMediaGenerationProvider(client).buildGenerationBody(setting, model, request)
+
+                MediaKind.VIDEO ->
+                    OpenAIVideoGeneration(client).buildCreateBody(model, request)
+            }
 
             is MediaGenerationProviderSetting.Aliyun -> when (kind) {
                 MediaKind.IMAGE -> AliyunImageGeneration(client).buildBody(model, request)

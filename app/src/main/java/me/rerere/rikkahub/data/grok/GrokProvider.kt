@@ -70,6 +70,7 @@ class GrokProvider(
                 // image-generation picker (which filters strictly by ModelType.IMAGE), the same
                 // way an image-capable OpenRouter model does. Classified by name off the live
                 // list, so new Imagine image releases surface automatically with no pinned list.
+                // Video mirrors this: Imagine video models are tagged ModelType.VIDEO.
                 if (isGrokImageModel(id)) {
                     Model(
                         modelId = id,
@@ -77,6 +78,14 @@ class GrokProvider(
                         type = ModelType.IMAGE,
                         inputModalities = listOf(Modality.TEXT),
                         outputModalities = listOf(Modality.IMAGE),
+                    )
+                } else if (isGrokVideoModel(id)) {
+                    Model(
+                        modelId = id,
+                        displayName = id,
+                        type = ModelType.VIDEO,
+                        inputModalities = listOf(Modality.TEXT),
+                        outputModalities = listOf(Modality.VIDEO),
                     )
                 } else {
                     Model(
@@ -262,6 +271,8 @@ class GrokProvider(
 // (e.g. grok-imagine-image, grok-imagine-image-quality). "grok-imagine-video" has no "image"
 // substring, so the video-generation models are naturally excluded.
 internal fun isGrokImageModel(id: String): Boolean = id.contains("image", ignoreCase = true)
+
+internal fun isGrokVideoModel(id: String): Boolean = id.contains("video", ignoreCase = true)
 
 internal fun grokImageAspectRatio(ratio: ImageAspectRatio): String = when (ratio) {
     ImageAspectRatio.SQUARE -> "1:1"

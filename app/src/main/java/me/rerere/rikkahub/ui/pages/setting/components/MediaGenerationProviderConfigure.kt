@@ -571,6 +571,8 @@ internal fun presetMediaModelsFor(setting: MediaGenerationProviderSetting): List
                 MediaGenerationModel("flux-dev", MediaKind.IMAGE, "FLUX.1 Dev"),
                 MediaGenerationModel("flux-schnell", MediaKind.IMAGE, "FLUX.1 Schnell"),
                 MediaGenerationModel("kolors", MediaKind.IMAGE, "Kolors"),
+                MediaGenerationModel("sora-2", MediaKind.VIDEO, "Sora 2"),
+                MediaGenerationModel("sora-2-pro", MediaKind.VIDEO, "Sora 2 Pro"),
             )
 
         is MediaGenerationProviderSetting.Aliyun ->

@@ -80,4 +80,44 @@ class OpenRouterModelParseTest {
         assertTrue(Modality.IMAGE in m.outputModalities)
         assertEquals(ModelType.IMAGE, m.type)
     }
+
+    @Test
+    fun video_model_from_endpoint_metadata_is_typed_video() {
+        val json = """
+            {"id":"openai/sora-2","name":"Sora 2",
+             "architecture":{"input_modalities":["text"],"output_modalities":["video","text"]},
+             "supported_parameters":[]}
+        """.trimIndent()
+        val m = openRouterModelFromJson(Json.parseToJsonElement(json).jsonObject)!!
+        assertEquals(ModelType.VIDEO, m.type)
+        assertTrue(Modality.VIDEO in m.outputModalities)
+        assertTrue(Modality.IMAGE !in m.outputModalities)
+    }
+
+    @Test
+    fun `registry name match adds video output when endpoint metadata is silent`() {
+        // 端点只给了 text，但注册表按名字认出 veo 是视频家族：类型仍是 CHAT（类型只认端点
+        // 元数据），输出模态里补上 VIDEO，选择器兜底会把它放进视频选择器。
+        val json = """
+            {"id":"google/veo-3.1","name":"Veo 3.1",
+             "architecture":{"input_modalities":["text"],"output_modalities":["text"]},
+             "supported_parameters":[]}
+        """.trimIndent()
+        val m = openRouterModelFromJson(Json.parseToJsonElement(json).jsonObject)!!
+        assertEquals(ModelType.CHAT, m.type)
+        assertTrue(Modality.VIDEO in m.outputModalities)
+    }
+
+    @Test
+    fun dual_image_video_model_keeps_image_type_but_lists_video_output() {
+        val json = """
+            {"id":"acme/omni-gen","name":"Omni Gen",
+             "architecture":{"input_modalities":["text"],"output_modalities":["image","video","text"]},
+             "supported_parameters":[]}
+        """.trimIndent()
+        val m = openRouterModelFromJson(Json.parseToJsonElement(json).jsonObject)!!
+        assertEquals(ModelType.IMAGE, m.type)
+        assertTrue(Modality.IMAGE in m.outputModalities)
+        assertTrue(Modality.VIDEO in m.outputModalities)
+    }
 }
