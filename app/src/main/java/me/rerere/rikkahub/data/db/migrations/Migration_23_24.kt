@@ -15,7 +15,7 @@ private const val TAG = "Migration_23_24"
  * run after upgrade).
  *
  * Hand-written rather than an AutoMigration so the table shape is pinned in source and the
- * `Migration_23_24_Test` can assert it directly. The `CREATE TABLE` / `CREATE INDEX`
+ * `Migration_23_24Test` can assert it directly. The `CREATE TABLE` / `CREATE INDEX`
  * statements must match the schema Room generates from the [me.rerere.rikkahub.data.agentrun.AgentRun]
  * `@Entity` exactly, or `runMigrationsAndValidate` fails the test.
  */

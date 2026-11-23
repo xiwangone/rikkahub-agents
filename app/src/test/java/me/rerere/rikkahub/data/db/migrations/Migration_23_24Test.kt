@@ -1,10 +1,10 @@
 package me.rerere.rikkahub.data.db.migrations
 
+import android.app.Application
 import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.rerere.rikkahub.data.db.AppDatabase
 import org.junit.Assert.assertEquals
@@ -14,9 +14,11 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 
 /**
- * Phase 24 — instrumented migration test for v23 → v24 (`agent_runs` ledger table).
+ * Phase 24 — Robolectric migration test for v23 → v24 (`agent_runs` ledger table).
  *
  * Creates a v23 database with sample rows in pre-existing tables, runs [Migration_23_24],
  * and asserts:
@@ -25,8 +27,9 @@ import org.junit.runner.RunWith
  *  - the migration is additive — sample rows inserted at v23 survive
  *  - rows can be inserted into the new table after migration
  */
-@RunWith(AndroidJUnit4::class)
-class Migration_23_24_Test {
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = Application::class)
+class Migration_23_24Test {
     private val TEST_DB = "migration-23-24-test"
 
     @get:Rule

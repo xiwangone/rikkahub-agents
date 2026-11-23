@@ -8,7 +8,7 @@ import java.util.concurrent.ConcurrentHashMap
 /**
  * In-memory [AgentRunDao] for JVM unit tests — no Room, no instrumentation.
  *
- * The real DAO is exercised by the instrumented `Migration_23_24_Test` (table shape) and
+ * The real DAO is exercised by the Robolectric `Migration_23_24Test` (table shape) and
  * by live install testing; this fake lets the repository's Mutex serialisation,
  * boot-recovery logic, and retention behaviour be unit-tested fast on the JVM.
  *

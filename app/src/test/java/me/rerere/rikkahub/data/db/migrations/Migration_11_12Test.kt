@@ -1,11 +1,11 @@
 package me.rerere.rikkahub.data.db.migrations
 
+import android.app.Application
 import android.content.ContentValues
 import android.database.sqlite.SQLiteDatabase
 import android.util.Log
 import androidx.room.testing.MigrationTestHelper
 import androidx.sqlite.db.framework.FrameworkSQLiteOpenHelperFactory
-import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
@@ -20,11 +20,14 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import java.time.Instant
 import kotlin.uuid.Uuid
 
-@RunWith(AndroidJUnit4::class)
-class Migration_11_12_Test {
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [34], manifest = Config.NONE, application = Application::class)
+class Migration_11_12Test {
     private val TEST_DB = "migration-test"
 
     @get:Rule
@@ -526,13 +529,17 @@ class Migration_11_12_Test {
 
         // 如果超大对话被跳过，其 nodes 字段应该仍然保留原始数据
         // 如果成功迁移，nodes 字段应该被清空为 "[]"
+        // 注意：不能直接 SELECT nodes 读出来判断——被跳过时它仍是约 2.5MB 的原始
+        // blob，读进 CursorWindow（2MB 上限）会抛 SQLiteBlobTooBigException（这正是
+        // 迁移跳过它的原因）。LENGTH() 只返回长度，不加载 blob。
         val largeConvCursor = db.query(
-            "SELECT nodes FROM conversationentity WHERE id = ?",
+            "SELECT LENGTH(nodes) FROM conversationentity WHERE id = ?",
             arrayOf(largeConversationId)
         )
         assertTrue(largeConvCursor.moveToFirst())
-        val largeConvNodes = largeConvCursor.getString(0)
+        val largeConvNodesLength = largeConvCursor.getInt(0)
         largeConvCursor.close()
+        val largeConvCleared = largeConvNodesLength == 2 // "[]" 长度为 2
 
         // 验证普通对话的 nodes 应该被清空
         val normalConvCursor = db.query(
@@ -545,8 +552,8 @@ class Migration_11_12_Test {
         normalConvCursor.close()
 
         Log.i(
-            "Migration_11_12_Test",
-            "Large conversation migration result: $largeNodesMigrated nodes migrated, nodes field: ${if (largeConvNodes == "[]") "cleared" else "preserved"}"
+            "Migration_11_12Test",
+            "Large conversation migration result: $largeNodesMigrated nodes migrated, nodes field: ${if (largeConvCleared) "cleared" else "preserved"} (length=$largeConvNodesLength)"
         )
 
         db.close()
