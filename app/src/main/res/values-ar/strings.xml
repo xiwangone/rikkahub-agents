@@ -300,6 +300,7 @@
   <string name="backup_page_backup_oom">حزمة النسخ الاحتياطي كبيرة جدًا فنَفدت الذاكرة. قلّل عناصر النسخ الاحتياطي (مرفقات الدردشة هي الأكبر) ثم أعد المحاولة.</string>
   <string name="backup_page_chat_records">سجلات الدردشة</string>
   <string name="backup_page_connection_failed">فشل الاتصال: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">لا يتم إرسال بيانات اعتماد WebDAV عبر HTTP غير المشفّر. استخدم https:// أو عنوان loopback.</string>
   <string name="backup_page_connection_success">نجح الاتصال</string>
   <string name="backup_page_delete">حذف</string>
   <string name="backup_page_delete_failed">فشل الحذف: %s</string>
@@ -4592,4 +4593,7 @@
 <string name="workspace_background_task_refresh">تحديث</string>
 <string name="developer_page_title">المطوّر</string>
 <string name="ai_log_level">مستوى سجل الذكاء الاصطناعي</string>
+  <string name="chat_message_tool_provider_icon_download">تنزيل الأيقونة: %1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">تعيين أيقونة مضمّنة: %1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">مسح الأيقونة: %1$s</string>
 </resources>

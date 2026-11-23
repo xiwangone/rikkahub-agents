@@ -402,7 +402,9 @@ private val MCP_ADD_DESCRIPTION = """
 
     After registering, the tool waits up to connect_timeout_seconds (default 15, max 60)
     for the first sync to complete and returns the resulting status. If still CONNECTING
-    when the timeout elapses, poll with mcp_test.
+    when the timeout elapses, poll with mcp_test. The new tools become visible to
+    list_tools / get_tool_schema from the next user message: the tool list is snapshotted
+    once per turn, so the current turn still sees the list from before this registration.
 
     Typical flow: install your MCP server in Termux or on a remote box, expose it over
     HTTP/SSE (e.g. via mcp-proxy), then mcp_add with the URL. Loopback URLs (localhost,

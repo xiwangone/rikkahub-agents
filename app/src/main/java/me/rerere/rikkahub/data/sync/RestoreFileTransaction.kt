@@ -3,9 +3,7 @@ package me.rerere.rikkahub.data.sync
 
 import java.io.File
 import java.io.FileOutputStream
-import java.nio.channels.FileChannel
 import java.nio.file.Files
-import java.nio.file.StandardOpenOption.READ
 import java.nio.file.StandardCopyOption.ATOMIC_MOVE
 import java.nio.file.StandardCopyOption.REPLACE_EXISTING
 
@@ -127,10 +125,5 @@ internal object RestoreFileTransaction {
         check(parent.isDirectory || parent.mkdirs())
         try { Files.move(source.toPath(), target.toPath(), ATOMIC_MOVE, REPLACE_EXISTING) }
         catch (_: java.nio.file.AtomicMoveNotSupportedException) { error("Filesystem does not support atomic restore rename") }
-    }
-
-    private fun syncDirectory(directory: File) {
-        try { FileChannel.open(directory.toPath(), READ).use { it.force(true) } }
-        catch (e: Exception) { throw IllegalStateException("Cannot durably sync restore directory", e) }
     }
 }

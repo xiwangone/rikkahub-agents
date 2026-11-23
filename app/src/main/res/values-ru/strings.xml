@@ -181,6 +181,7 @@
   <string name="backup_page_backup_oom">Архив резервной копии слишком велик — не хватает памяти. Уменьшите состав архива (файлы чата занимают больше всего) и повторите попытку.</string>
   <string name="backup_page_chat_records">История чатов</string>
   <string name="backup_page_connection_failed">Не удалось подключиться: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">Учётные данные WebDAV не отправляются по открытому HTTP. Используйте https:// или loopback-адрес.</string>
   <string name="backup_page_connection_success">Соединение успешно</string>
   <string name="backup_page_delete">Удалить</string>
   <string name="backup_page_delete_failed">Не удалось удалить: %s</string>
@@ -4589,4 +4590,7 @@
 <string name="workspace_background_task_refresh">Обновить</string>
 <string name="developer_page_title">Разработчик</string>
 <string name="ai_log_level">Уровень журнала ИИ</string>
+  <string name="chat_message_tool_provider_icon_download">Скачать значок: %1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">Задать встроенный значок: %1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">Очистить значок: %1$s</string>
 </resources>

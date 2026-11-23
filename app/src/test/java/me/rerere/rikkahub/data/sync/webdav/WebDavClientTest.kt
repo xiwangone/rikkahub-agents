@@ -1,6 +1,11 @@
 package me.rerere.rikkahub.data.sync.webdav
 
+import io.ktor.client.HttpClient
+import io.ktor.client.engine.okhttp.OkHttp
+import kotlinx.coroutines.runBlocking
+import me.rerere.rikkahub.data.datastore.WebDavConfig
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertTrue
 import org.junit.Test
 
@@ -45,5 +50,24 @@ class WebDavClientTest {
     @Test
     fun `a blank displayname sanitizes to blank`() {
         assertEquals("", sanitizeWebDavDisplayName(""))
+    }
+
+    @Test
+    fun `put to plain http with credentials is refused before any request`() = runBlocking {
+        val client = WebDavClient(
+            WebDavConfig(url = "http://10.0.2.2:8081/dav/", username = "davtest", password = "davtest123"),
+            HttpClient(OkHttp),
+        )
+        val result = client.put("backup_test.zip", byteArrayOf(1, 2, 3))
+        val error = result.exceptionOrNull()
+        assertTrue(error is WebDavException)
+        assertTrue((error as WebDavException).isPlainHttpCredentialsRefusal)
+    }
+
+    @Test
+    fun `http failures carry a real status code and are not plain http refusals`() {
+        assertFalse(
+            WebDavException("Failed to put: 500 Internal Server Error", 500, "").isPlainHttpCredentialsRefusal,
+        )
     }
 }

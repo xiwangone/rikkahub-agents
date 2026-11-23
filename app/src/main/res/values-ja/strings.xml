@@ -181,6 +181,7 @@
   <string name="backup_page_backup_oom">バックアップサイズが大きすぎてメモリ不足が発生しました。バックアップ項目を減らしてから再試行してください（チャットの添付ファイルが最も容量を圧迫します）。</string>
   <string name="backup_page_chat_records">チャット履歴</string>
   <string name="backup_page_connection_failed">接続失敗: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">WebDAV の認証情報は平文 HTTP では送信されません。https:// またはループバックアドレスを使用してください。</string>
   <string name="backup_page_connection_success">接続成功</string>
   <string name="backup_page_delete">削除</string>
   <string name="backup_page_delete_failed">削除失敗: %s</string>
@@ -4585,4 +4586,7 @@
 <string name="workspace_background_task_refresh">更新</string>
 <string name="developer_page_title">開発者</string>
 <string name="ai_log_level">AIログレベル</string>
+  <string name="chat_message_tool_provider_icon_download">アイコンをダウンロード：%1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">同根アイコンを設定：%1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">アイコンをクリア：%1$s</string>
 </resources>

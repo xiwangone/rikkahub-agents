@@ -177,6 +177,7 @@
   <string name="backup_page_backup_oom">備份包過大導致記憶體不足，建議減少勾選的備份項目（聊天附件佔用最大）後重試。</string>
   <string name="backup_page_chat_records">聊天記錄</string>
   <string name="backup_page_connection_failed">連線失敗: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">WebDAV 憑證不會經明文 HTTP 傳送，請改用 https:// 或迴環位址。</string>
   <string name="backup_page_connection_success">連線成功</string>
   <string name="backup_page_delete">刪除</string>
   <string name="backup_page_delete_failed">刪除失敗: %s</string>
@@ -4584,4 +4585,7 @@
 <string name="workspace_background_task_refresh">重新整理</string>
 <string name="developer_page_title">開發者</string>
 <string name="ai_log_level">AI 日誌等級</string>
+  <string name="chat_message_tool_provider_icon_download">下載圖示：%1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">設為內建圖示：%1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">清除圖示：%1$s</string>
 </resources>

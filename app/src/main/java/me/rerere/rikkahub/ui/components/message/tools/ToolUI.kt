@@ -338,6 +338,7 @@ object ToolUIRegistry {
             CreateContactToolUI,
             SendSmsIntentToolUI,
             SendEmailIntentToolUI,
+            ProviderIconToolUI,
             OpenWifiSettingsToolUI,
             ShowLocationOnMapToolUI,
             WorkspaceApplyEditsToolUI,

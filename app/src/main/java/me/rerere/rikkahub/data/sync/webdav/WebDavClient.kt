@@ -55,9 +55,14 @@ class WebDavClient(
                 authority.substringBefore(':')
             }
             if (bareHost != "localhost" && bareHost != "127.0.0.1" && bareHost != "::1") {
+                AppLog.e(
+                    TAG,
+                    "Refusing to send WebDAV credentials over plain http; " +
+                        "use https:// or a loopback address ($bareHost)",
+                )
                 throw WebDavException(
                     "Refusing to send WebDAV credentials over plain http; use https:// or a loopback address",
-                    0,
+                    WebDavException.STATUS_PLAIN_HTTP_CREDENTIALS_REFUSED,
                     "",
                 )
             }
@@ -529,4 +534,13 @@ class WebDavException(
     message: String,
     val statusCode: Int,
     val responseBody: String,
-) : Exception(message)
+) : Exception(message) {
+    /** True when the client refused to send credentials over plain http before any request. */
+    val isPlainHttpCredentialsRefusal: Boolean
+        get() = statusCode == STATUS_PLAIN_HTTP_CREDENTIALS_REFUSED
+
+    companion object {
+        /** No HTTP request was made: credentials over plain http were refused. */
+        const val STATUS_PLAIN_HTTP_CREDENTIALS_REFUSED = -1
+    }
+}

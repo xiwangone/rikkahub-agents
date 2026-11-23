@@ -108,4 +108,50 @@ class RestoreFileTransactionTest {
             assertEquals("untouched", marker.readText())
         } finally { fixture.deleteRecursively() }
     }
+
+    @Test
+    fun syncDirectoryOnExistingDirectoryDoesNotThrow() {
+        val fixture = Files.createTempDirectory("restore-sync-dir").toFile()
+        try {
+            // 回归：目录同步不得抛错。Android 上 FileChannel 打不开目录（EISDIR），
+            // 共享实现改走目录 fd；JVM 单测里 Os 是 stub，走 FileChannel 兜底。
+            syncDirectory(fixture)
+            syncDirectory(File(fixture, "nested").apply { mkdirs() })
+        } finally { fixture.deleteRecursively() }
+    }
+
+    @Test
+    fun syncDirectoryOnMissingDirectoryThrows() {
+        val fixture = Files.createTempDirectory("restore-sync-missing").toFile()
+        try {
+            assertThrows(IllegalStateException::class.java) {
+                syncDirectory(File(fixture, "no-such-dir"))
+            }
+        } finally { fixture.deleteRecursively() }
+    }
+
+    @Test
+    fun installAndConfirmSucceeds() {
+        org.junit.Assume.assumeFalse(
+            "Windows 上文件删除语义不同，跳过",
+            System.getProperty("os.name").orEmpty().startsWith("Windows"),
+        )
+        val fixture = Files.createTempDirectory("restore-success").toFile()
+        try {
+            val database = File(fixture, "db/rikka_hub.db").apply { parentFile!!.mkdirs(); writeText("old-db") }
+            val stagedDb = File(fixture, "staged/rikka_hub.db").apply { parentFile!!.mkdirs(); writeText("new-db") }
+            val transaction = File(fixture, "installing")
+            val pending = File(fixture, "pending")
+            RestoreFileTransaction.install(
+                transaction, listOf(database), listOf(stagedDb to database),
+                identifyTarget = { it.relativeTo(fixture).invariantSeparatorsPath },
+                resolveTarget = { File(fixture, it) },
+                validateInstalledState = {},
+            )
+            assertEquals("new-db", database.readText())
+            RestoreFileTransaction.confirm(transaction, pending)
+            assertFalse(transaction.exists())
+            assertEquals("new-db", database.readText())
+        } finally { fixture.deleteRecursively() }
+    }
 }

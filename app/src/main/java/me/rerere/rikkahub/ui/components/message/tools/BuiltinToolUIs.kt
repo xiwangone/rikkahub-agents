@@ -36,6 +36,7 @@ import me.rerere.hugeicons.stroke.Chat01
 import me.rerere.hugeicons.stroke.Clipboard
 import me.rerere.hugeicons.stroke.CodeCircle
 import me.rerere.hugeicons.stroke.ContactBook
+import me.rerere.hugeicons.stroke.ImageAdd01
 import me.rerere.hugeicons.stroke.MagicWand01
 import me.rerere.hugeicons.stroke.Mail01
 import me.rerere.hugeicons.stroke.MessageAdd01
@@ -609,5 +610,52 @@ object ShowLocationOnMapToolUI : ToolUIRenderer {
         } else {
             stringResource(R.string.tool_ui_open_map)
         }
+    }
+}
+
+/**
+ * 提供商图标：标题按入参区分「下载 / 内置 / 清除」，摘要显示提供商与来源
+ */
+object ProviderIconToolUI : ToolUIRenderer {
+    private const val TOOL_NAME = "update_provider_icon"
+    private const val ARG_PROVIDER = "provider"
+    private const val ARG_ICON = "icon"
+
+    override val toolName: String = TOOL_NAME
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ImageAdd01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PINK
+
+    @Composable
+    override fun title(context: ToolUIContext): String {
+        val provider = context.arguments.getStringContent(ARG_PROVIDER).orEmpty()
+        val icon = context.arguments.getStringContent(ARG_ICON).orEmpty()
+        return when {
+            icon.isBlank() ->
+                stringResource(R.string.chat_message_tool_provider_icon_clear, provider)
+            icon.startsWith("http://", ignoreCase = true) ||
+                icon.startsWith("https://", ignoreCase = true) ->
+                stringResource(R.string.chat_message_tool_provider_icon_download, provider)
+            else -> stringResource(R.string.chat_message_tool_provider_icon_asset, provider)
+        }
+    }
+
+    override fun hasSummary(context: ToolUIContext): Boolean =
+        context.content?.jsonObjectOrNull?.getStringContent(ARG_PROVIDER) != null
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val obj = context.content?.jsonObjectOrNull ?: return
+        val provider = obj.getStringContent(ARG_PROVIDER).orEmpty()
+        if (provider.isBlank()) return
+        val source = obj.getStringContent("source").orEmpty()
+        Text(
+            text = if (source.isBlank()) provider else "$provider · $source",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
     }
 }

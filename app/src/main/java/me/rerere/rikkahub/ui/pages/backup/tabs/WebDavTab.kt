@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
+import android.content.res.Resources
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -58,6 +59,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
+import me.rerere.rikkahub.data.sync.webdav.WebDavException
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -72,6 +74,18 @@ import me.rerere.rikkahub.utils.onLoading
 import me.rerere.rikkahub.utils.onSuccess
 import me.rerere.rikkahub.utils.toLocalDateTime
 import java.time.Instant
+
+/** 明文拒绝用本地化文案，其他错误沿用原始 message。 */
+private fun webDavErrorText(resources: Resources, error: Throwable?): String {
+    val refusal = generateSequence(error) { it.cause }.firstOrNull {
+        it is WebDavException && it.isPlainHttpCredentialsRefusal
+    }
+    return if (refusal != null) {
+        resources.getString(R.string.backup_page_webdav_plain_http_refused)
+    } else {
+        error?.message ?: resources.getString(R.string.backup_page_unknown_error)
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -355,7 +369,7 @@ fun WebDavTab(
                             toaster.show(
                                 context.getString(
                                     R.string.backup_page_connection_failed,
-                                    e.message ?: "",
+                                    webDavErrorText(resources, e),
                                 ),
                                 type = ToastType.Error,
                             )
@@ -402,8 +416,7 @@ fun WebDavTab(
                             is BackupRunState.Failed -> {
                                 isBackingUp = false
                                 toaster.show(
-                                    state.error?.message
-                                        ?: context.getString(R.string.backup_page_unknown_error),
+                                    webDavErrorText(resources, state.error),
                                     type = ToastType.Error,
                                 )
                             }
@@ -481,7 +494,7 @@ fun WebDavTab(
                                                     toaster.show(
                                                         context.getString(
                                                             R.string.backup_page_delete_failed,
-                                                            state.error?.message ?: "",
+                                                            webDavErrorText(resources, state.error),
                                                         ),
                                                         type = ToastType.Error,
                                                     )
@@ -517,7 +530,7 @@ fun WebDavTab(
                                                     toaster.show(
                                                         context.getString(
                                                             R.string.backup_page_restore_failed,
-                                                            state.error?.message ?: "",
+                                                            webDavErrorText(resources, state.error),
                                                         ),
                                                         type = ToastType.Error,
                                                     )
@@ -588,7 +601,7 @@ fun WebDavTab(
                             toaster.show(
                                 resources.getString(
                                     R.string.backup_page_restore_failed,
-                                    state.error?.message ?: "",
+                                    webDavErrorText(resources, state.error),
                                 ),
                                 type = ToastType.Error,
                             )

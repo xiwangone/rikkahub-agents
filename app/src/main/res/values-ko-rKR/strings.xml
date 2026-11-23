@@ -181,6 +181,7 @@
   <string name="backup_page_backup_oom">백업 파일이 너무 커서 메모리 부족이 발생했습니다. 백업 항목을 줄인 뒤 다시 시도하세요(채팅 첨부 파일이 용량을 가장 많이 차지합니다).</string>
   <string name="backup_page_chat_records">채팅 기록</string>
   <string name="backup_page_connection_failed">연결 실패: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">WebDAV 자격 증명은 일반 HTTP로 전송되지 않습니다. https:// 또는 루프백 주소를 사용하세요.</string>
   <string name="backup_page_connection_success">연결 성공</string>
   <string name="backup_page_delete">삭제</string>
   <string name="backup_page_delete_failed">삭제 실패: %s</string>
@@ -4585,4 +4586,7 @@
 <string name="workspace_background_task_refresh">새로 고침</string>
 <string name="developer_page_title">개발자</string>
 <string name="ai_log_level">AI 로그 수준</string>
+  <string name="chat_message_tool_provider_icon_download">아이콘 다운로드: %1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">내장 아이콘 설정: %1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">아이콘 지우기: %1$s</string>
 </resources>

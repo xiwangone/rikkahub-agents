@@ -293,6 +293,7 @@
   <string name="backup_page_backup_oom">The backup package is too large and the app ran out of memory. Reduce the selected backup items (chat attachments are the biggest) and try again.</string>
   <string name="backup_page_chat_records">Chat Records</string>
   <string name="backup_page_connection_failed">Connection failed: %s</string>
+  <string name="backup_page_webdav_plain_http_refused">WebDAV credentials are not sent over plain HTTP. Use https:// or a loopback address.</string>
   <string name="backup_page_connection_success">Connection successful</string>
   <string name="backup_page_delete">Delete</string>
   <string name="backup_delete_remote_confirm">Delete backup \"%1$s\" from the cloud? Local files are not affected. This action cannot be undone.</string>
@@ -4581,4 +4582,7 @@
 <string name="workspace_background_task_refresh">Refresh</string>
 <string name="developer_page_title">Developer</string>
 <string name="ai_log_level">AI Log Level</string>
+  <string name="chat_message_tool_provider_icon_download">Download icon: %1$s</string>
+  <string name="chat_message_tool_provider_icon_asset">Set bundled icon: %1$s</string>
+  <string name="chat_message_tool_provider_icon_clear">Clear icon: %1$s</string>
 </resources>

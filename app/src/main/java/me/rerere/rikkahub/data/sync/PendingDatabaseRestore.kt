@@ -277,9 +277,4 @@ internal object PendingDatabaseRestore {
         try { Files.move(source.toPath(), target.toPath(), ATOMIC_MOVE, REPLACE_EXISTING) }
         catch (_: java.nio.file.AtomicMoveNotSupportedException) { error("Filesystem does not support atomic restore rename") }
     }
-
-    private fun syncDirectory(directory: File) {
-        try { RandomAccessFile(directory, "r").use { it.fd.sync() } }
-        catch (e: Exception) { throw IllegalStateException("Cannot durably sync restore directory", e) }
-    }
 }
