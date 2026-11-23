@@ -223,11 +223,12 @@ AI 可读取、汇总和转发指定应用的通知。白名单默认全空。
 
 ### 6. 从源码构建（可选）
 
-前置：**JDK 17+**、Android SDK（**API 37**）。
+前置：**JDK 17+**、Android SDK（**API 37**）、Android NDK（**28.2.13676358**，`llama-cpp` 模块含 C++ 代码，需经 CMake 编译；仓内未指定 `ndkVersion`，使用 AGP 9.3 的默认版本即可）。
 
 ```bash
 git clone https://github.com/xiwangone/rikkahub-agents.git
 cd rikkahub-agents
+git submodule update --init --recursive   # 子模块：material3/material-color-utilities、llama-cpp/native/llama.cpp
 ./gradlew :app:assembleDebug          # 产物：app/build/outputs/apk/debug/
 adb install app/build/outputs/apk/debug/app-debug.apk   # 安装到已连接设备
 ```

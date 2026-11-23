@@ -33,10 +33,13 @@
 - 许可：**AGPL-3.0**（Artifex 亦提供商业授权）
 - 说明：Gradle 依赖未声明其许可，特此补注；使用/再分发请遵守 AGPL-3.0 或获取商业许可。
 
-### libsimple（native 辅助库）
-- 文件：`app/src/main/jniLibs/**/libsimple.so`
-- 上游/许可：**待确认**
-- 说明：来源与许尚未在本仓库内标注，请在正式分发前核实并补充。
+### libsimple（SQLite FTS5 中文分词扩展）
+- 文件：`app/src/main/jniLibs/**/libsimple.so`；词典 `app/src/main/assets/simple_dict/`
+- 上游：https://github.com/wangfenjin/simple
+- 许可：**MIT License**（上游双许可 MIT 或 GPL-3.0-or-later，本项目按 MIT 分支使用）
+- 版权：Copyright (c) 2020, 2025 Wang Fenjin；内含 cppjieba（MIT，Copyright YanYi Wu）与 pinyin-data 0.15.0（MIT，Copyright (c) 2016 mozillazg）
+- 版本：当前分发的预编译二进制未标注对应上游版本号（未钉死）；v0.6.1 tag 的 LICENSE 头部双许可声明与 master 逐字一致。
+- 说明：以预编译二进制形式随应用分发；通过 Requery SQLiteCustomExtension 加载，为消息全文检索提供 `simple` 分词器与 `jieba_query` / `simple_query`。MIT 许可全文见 https://github.com/wangfenjin/simple/blob/master/LICENSE ，保留署名。
 
 ### Skills（来自上游仓库）
 - `app/src/main/assets/…/skills/` 及 `skills-lock.json` 指向的 GitHub 技能（anthropics/skills、google-gemini/gemini-skills 等）各带其独立 LICENSE（如 `claude-api` 目录内置 `LICENSE.txt`），以各技能包内许可证为准。
