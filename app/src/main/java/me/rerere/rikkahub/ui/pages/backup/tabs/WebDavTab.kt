@@ -39,6 +39,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.rememberBottomSheetState
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -52,6 +53,8 @@ import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import com.dokar.sonner.ToastType
 import kotlin.uuid.Uuid
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.PlusSign
 import me.rerere.hugeicons.stroke.Upload02
@@ -66,6 +69,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.pages.backup.BackupRunState
 import me.rerere.rikkahub.ui.pages.backup.BackupVM
 import me.rerere.rikkahub.ui.pages.backup.WebDavBackupItemsSelector
+import me.rerere.rikkahub.ui.pages.backup.components.BackupEncryptionDialog
 import me.rerere.rikkahub.ui.pages.backup.components.PasswordPromptDialog
 import me.rerere.rikkahub.utils.UiState
 import me.rerere.rikkahub.utils.fileSizeToString
@@ -113,6 +117,61 @@ fun WebDavTab(
     var pendingPasswordItem by remember { mutableStateOf<WebDavBackupItem?>(null) }
     var pendingPasswordEncFile by remember { mutableStateOf<java.io.File?>(null) }
     var pendingPasswordError by remember { mutableStateOf<String?>(null) }
+    // 备份缺口令：弹加密设置框；设好口令后自动重试备份
+    var showEncryptionDialog by remember { mutableStateOf(false) }
+    var pendingBackupRetryAfterPassword by remember { mutableStateOf(false) }
+
+    /** 发起一次 WebDAV 备份（备份按钮与"设好口令后自动重试"共用）。 */
+    fun startBackup() {
+        isBackingUp = true
+        vm.runBackup { state ->
+            when (state) {
+                is BackupRunState.Running -> isBackingUp = true
+                is BackupRunState.BackupSucceeded -> {
+                    isBackingUp = false
+                    val undecryptable = state.stats.undecryptableCredentials
+                    if (undecryptable > 0) {
+                        toaster.show(
+                            context.getString(
+                                R.string.backup_page_backup_success_partial_credentials,
+                                undecryptable,
+                            ),
+                            type = ToastType.Warning,
+                        )
+                    } else {
+                        toaster.show(
+                            context.getString(R.string.backup_page_backup_success),
+                            type = ToastType.Success,
+                        )
+                    }
+                }
+
+                is BackupRunState.NeedsPassword -> {
+                    isBackingUp = false
+                    showEncryptionDialog = true
+                }
+                is BackupRunState.Failed -> {
+                    isBackingUp = false
+                    toaster.show(
+                        webDavErrorText(resources, state.error),
+                        type = ToastType.Error,
+                    )
+                }
+                else -> {}
+            }
+        }
+    }
+
+    // 设好口令后自动重试备份：等口令真正落盘（DataStore 写是异步的）再发起，
+    // 5 秒内没落盘就放弃重试（用户可手动再点备份），不留悬挂标志。
+    LaunchedEffect(pendingBackupRetryAfterPassword) {
+        if (!pendingBackupRetryAfterPassword) return@LaunchedEffect
+        val saved = withTimeoutOrNull(5_000L) {
+            vm.settings.first { it.backupEncryptionPasswordEnc.isNotBlank() }
+        } != null
+        pendingBackupRetryAfterPassword = false
+        if (saved) startBackup()
+    }
 
     /** 编辑当前配置：同步到列表（存在则更新，否则追加）与单字段兼容槽。 */
     fun updateWebDavConfig(newConfig: WebDavConfig) {
@@ -388,42 +447,7 @@ fun WebDavTab(
                 Text(stringResource(R.string.backup_page_restore))
             }
             Button(
-                onClick = {
-                    isBackingUp = true
-                    vm.runBackup { state ->
-                        when (state) {
-                            is BackupRunState.Running -> isBackingUp = true
-                            is BackupRunState.BackupSucceeded -> {
-                                isBackingUp = false
-                                val undecryptable = state.stats.undecryptableCredentials
-                                if (undecryptable > 0) {
-                                    toaster.show(
-                                        context.getString(
-                                            R.string.backup_page_backup_success_partial_credentials,
-                                            undecryptable,
-                                        ),
-                                        type = ToastType.Warning,
-                                    )
-                                } else {
-                                    toaster.show(
-                                        context.getString(R.string.backup_page_backup_success),
-                                        type = ToastType.Success,
-                                    )
-                                }
-                            }
-
-                            is BackupRunState.NeedsPassword -> isBackingUp = false
-                            is BackupRunState.Failed -> {
-                                isBackingUp = false
-                                toaster.show(
-                                    webDavErrorText(resources, state.error),
-                                    type = ToastType.Error,
-                                )
-                            }
-                            else -> {}
-                        }
-                    }
-                },
+                onClick = { startBackup() },
                 enabled = !isBackingUp,
             ) {
                 if (isBackingUp) {
@@ -611,6 +635,15 @@ fun WebDavTab(
                 }
             },
             errorMessage = pendingPasswordError,
+        )
+    }
+
+    // 备份缺口令：弹加密设置框让用户设口令，设好后自动重试备份。
+    if (showEncryptionDialog) {
+        BackupEncryptionDialog(
+            vm = vm,
+            onDismiss = { showEncryptionDialog = false },
+            onPasswordSaved = { pendingBackupRetryAfterPassword = true },
         )
     }
 }

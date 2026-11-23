@@ -19,10 +19,12 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.data.agentrun.AgentRunKind
 import me.rerere.rikkahub.data.agentrun.AgentRunRepository
 import me.rerere.rikkahub.data.agentrun.AgentRunStatus
+import me.rerere.rikkahub.data.ai.tools.ChatToolFactory
 import me.rerere.rikkahub.data.ai.tools.HeadlessConversations
 import me.rerere.rikkahub.data.ai.tools.LocalTools
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.findAssistantById
+import me.rerere.rikkahub.data.datastore.findChatModelFor
 import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
 import me.rerere.rikkahub.data.db.entity.ScheduledJobRunEntity
 import me.rerere.rikkahub.data.model.Conversation
@@ -160,6 +162,7 @@ class CronJobWorker(
     private val conversationRepo: ConversationRepository by inject()
     private val settingsStore: SettingsStore by inject()
     private val localTools: LocalTools by inject()
+    private val chatToolFactory: ChatToolFactory by inject()
     private val directRunner: DirectModeActionRunner by inject()
     private val agentRunRepo: AgentRunRepository by inject()
 
@@ -408,15 +411,31 @@ class CronJobWorker(
                 ?: return Triple("failed", "assistant_not_found", null)
         // Headless context — sub-agent recursion guard fires from this dispatch path so
         // a cron job's direct-mode action sequence cannot itself spawn a sub-agent.
-        val tools =
-            localTools.getTools(
-                assistant.localTools,
-                me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
-                    callerAssistantId = assistantUuid.toString(),
-                    callerConversationId = null, // direct-mode has no conversation
-                    isHeadless = true,
-                ),
+        val invocationCtx =
+            me.rerere.rikkahub.data.ai.tools.ToolInvocationContext(
+                callerAssistantId = assistantUuid.toString(),
+                callerConversationId = null, // direct-mode has no conversation
+                isHeadless = true,
             )
+        // 工具面与聊天生成走同一条装配（ChatToolFactory.createTools），而非只取本地工具：
+        // 创建时校验已认工作区/技能/MCP 工具，触发时若仍只给本地工具，执行侧
+        // DirectModeActionRunner 会报工具不在列表——校验与执行必须同口径。
+        // 组装失败（如 MCP 服务器名非法、助手未配聊天模型）时回退本地工具并记 warning，
+        // 本地动作仍可执行，不因一个坏服务器名让整个任务失败。
+        val model = settings.findChatModelFor(null, assistantUuid)
+        val tools = if (model != null) {
+            runCatching {
+                chatToolFactory.createTools(settings, assistant, model, invocationCtx)
+            }.onFailure {
+                if (it is CancellationException) throw it
+                AppLog.w(TAG, "runDirect: full tool assembly failed, falling back to local tools", it)
+            }.getOrElse {
+                localTools.getTools(assistant.localTools, invocationCtx)
+            }
+        } else {
+            AppLog.w(TAG, "runDirect: no chat model for assistant $assistantUuid, using local tools only")
+            localTools.getTools(assistant.localTools, invocationCtx)
+        }
         val seq = directRunner.run(parsed, tools)
         return Triple(seq.finalOutcome, seq.errorMessage, null)
     }

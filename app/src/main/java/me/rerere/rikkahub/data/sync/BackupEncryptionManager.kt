@@ -17,9 +17,17 @@ import java.io.File
  *   临时 zip 再交给 restoreFromBackupFile；明文 zip 原样放行。
  *
  * 口令来源：[Settings.backupEncryptionPasswordEnc]（AndroidKeyStore 包裹的"记住口令"）。
- * 启用加密但本机无口令（新设备恢复/用户清除了记住）→ 抛 [IllegalStateException]，
+ * 启用加密但无可用口令（新设备恢复/用户清除了记住）→ 抛 [IllegalStateException]，
  * 由 UI 捕获并弹框要求输入口令后重试（[decryptWithPassword] 走显式口令路径）。
  */
+/**
+ * 备份加密已开启，但没有可用的记住口令（从未设置 / 对话框只开了开关未存口令 /
+ * KeyStore 密钥丢失导致记住的密文解不开）。调用方应把此异常转成"需输口令"状态，
+ * 弹框让用户设置口令后重试，而不是只弹一条 toast 了事。
+ */
+class BackupMissingPassphraseException :
+    IllegalStateException("Backup encryption is on, but no passphrase is stored on this device. Please set a passphrase in \"Backup & Restore → Encryption Settings\" first.")
+
 class BackupEncryptionManager(
     private val settingsStore: SettingsStore,
 ) {
@@ -44,7 +52,7 @@ class BackupEncryptionManager(
         AppLog.i("BackupEnc", "maybeEncrypt: ${plainZip.name} enabled=${isEnabled}")
         if (!isEnabled) return plainZip
         val password = rememberedPassword
-            ?: throw IllegalStateException("Backup encryption is on, but no passphrase is stored on this device. Please set a passphrase in \"Backup & Restore → Encryption Settings\" first.")
+            ?: throw BackupMissingPassphraseException()
         val encFile = File(plainZip.parentFile, plainZip.name + ".enc")
         BackupCrypto.encryptFile(plainZip, encFile, password)
         return encFile

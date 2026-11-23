@@ -82,7 +82,9 @@ class WebDavSync(
 
         try {
             // Ensure the backup directory exists
+            AppLog.i(TAG, "backup: ensuring collection exists for ${file.name}")
             client.ensureCollectionExists().getOrThrow()
+            AppLog.i(TAG, "backup: collection ready, uploading ${file.name} (${file.length().fileSizeToString()})")
 
             // Upload the backup file (加密时为 .zip.enc，明文时为原 .zip)
             client.put(

@@ -14,8 +14,10 @@ import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.WebDavConfig
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.files.saveUploadFromBytes
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.ConversationRepository
 import me.rerere.rikkahub.data.sync.BackupEncryptionManager
+import me.rerere.rikkahub.data.sync.BackupMissingPassphraseException
 import me.rerere.rikkahub.data.sync.BackupNeedsPasswordException
 import me.rerere.rikkahub.data.sync.BackupPasswordCipher
 import me.rerere.rikkahub.data.sync.BackupStats
@@ -33,7 +35,6 @@ import me.rerere.rikkahub.data.sync.webdav.WebDavBackupItem
 import me.rerere.rikkahub.data.sync.webdav.WebDavSync
 import me.rerere.rikkahub.utils.UiState
 import java.io.File
-import me.rerere.rikkahub.data.log.AppLog
 
 private const val TAG = "BackupVM"
 
@@ -163,9 +164,16 @@ class BackupVM(
                 loadBackupFileItems()
                 stats
             }.onFailure { if (it is CancellationException) throw it }
+            val ex = r.exceptionOrNull()
+            if (ex != null) AppLog.w(TAG, "runBackup failed", ex)
             onState(
-                if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
-                else BackupRunState.Failed(r.exceptionOrNull()),
+                when {
+                    r.isSuccess -> BackupRunState.BackupSucceeded(r.getOrThrow())
+                    // 缺记住口令不是普通失败：弹框让用户设口令后重试（此前只弹 toast，
+                    // 测试环境 toast 不可见时看起来像"加密后静默丢弃"）。
+                    ex is BackupMissingPassphraseException -> BackupRunState.NeedsPassword(null)
+                    else -> BackupRunState.Failed(ex)
+                },
             )
         }
     }
@@ -486,9 +494,14 @@ class BackupVM(
                 loadS3BackupFileItems()
                 stats
             }.onFailure { if (it is CancellationException) throw it }
+            val ex = r.exceptionOrNull()
+            if (ex != null) AppLog.w(TAG, "runBackupToS3 failed", ex)
             onState(
-                if (r.isSuccess) BackupRunState.BackupSucceeded(r.getOrThrow())
-                else BackupRunState.Failed(r.exceptionOrNull()),
+                when {
+                    r.isSuccess -> BackupRunState.BackupSucceeded(r.getOrThrow())
+                    ex is BackupMissingPassphraseException -> BackupRunState.NeedsPassword(null)
+                    else -> BackupRunState.Failed(ex)
+                },
             )
         }
     }

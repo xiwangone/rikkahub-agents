@@ -59,7 +59,11 @@ class ChatToolFactory(
         // 当前 UI 场景（默认 UNKNOWN = 纯静态判定）：用于 WARM 档按场景动态调整。
         // 由调用方（ChatService）在装配前从 AppScene.current 读取并传入。
         uiScene: UiScene = UiScene.UNKNOWN,
-    ): List<Tool> = buildList {
+    ): List<Tool> {
+        // schedule_job 校验用的非本地工具名：本次装配一份新的集合，两个会话
+        // 并发装配不会互相串名；provider 是懒求值，装配完填入即可。
+        val cronExtraKnownToolNames = mutableSetOf<String>()
+        return buildList {
         // 统计总开关：**默认关**（普通用户不需要埋点）；开启后 usage / tool_scope 才有数据。
         ToolUsageTracker.setEnabled(settings.displaySetting.toolStatsEnabled)
         // 记忆分层：只注入 core 常驻；conditional 由模型按需检索。
@@ -72,7 +76,7 @@ class ChatToolFactory(
             addAll(createSearchTools(settings))
         }
 
-        addAll(localTools.getTools(assistant.localTools, invocationCtx))
+        addAll(localTools.getTools(assistant.localTools, invocationCtx, cronExtraKnownToolNames))
 
         addAll(workspaceAndSkillTools(assistant, workspaceIdOverride, workspaceCwd))
 
@@ -128,6 +132,10 @@ class ChatToolFactory(
             settings.displaySetting.toolSurfaceTrimming && ToolSurfacePolicy.TRIM_ENABLED
         val (listFiltered, scopeAsTier) =
             resolveToolScope(stableFull, effectiveToolScope, trimEnabled)
+        // 补给 schedule_job 校验的名字集：模型实际看到的工具名（白名单过滤后、
+        // 不含 list_tools/get_tool_schema 等检索元工具）。工作区/技能/MCP
+        // 工具至此才组装完，此前只认本地工具名正是 -32601 的根因。
+        cronExtraKnownToolNames.addAll(listFiltered.map { it.name })
         // 白名单里拼错/过期的名字不会报错, 只会静默失效; 统一算出未匹配项,
         // 记一条日志并透出给 tool_surface_report, 便于事后自查。
         val onlyToolsUnmatched =
@@ -193,6 +201,7 @@ class ChatToolFactory(
             injectedNames.joinToString("\u0000").hashCode().toUInt().toString(16),
         )
         trackUsage(measured)
+    }
     }
 
     /**

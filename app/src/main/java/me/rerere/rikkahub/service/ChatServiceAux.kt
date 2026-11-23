@@ -378,7 +378,11 @@ suspend fun ChatService.compressConversation(
             requireConversationUnchanged(conversationId, allMessages)
 
             saveConversation(conversationId, newConversation)
-        }.onFailure { if (it is CancellationException) throw it }
+        }.onFailure {
+            if (it is CancellationException) throw it
+            // 失败只以 Result 回到调用方时毫无日志：手动/自动压缩都曾因此"点了没反应"。
+            AppLog.w(TAG, "compressConversation failed", it)
+        }
 
 private suspend fun ChatService.seedLifetimeUsageBeforeCompaction(
     conversationId: Uuid,
@@ -450,6 +454,14 @@ private fun buildAgentExecutionTraceDigest(
     val titleLabel = conversationTitle.trim().ifBlank { "Untitled task" }.take(60)
     return "[Agent Trace · $titleLabel] Executed ${executedTools.size} tool steps ($distinctChain)"
 }
+
+/**
+ * 保留条数的有效值：不能超过"总数 - 1"（至少留一条可压缩），否则
+ * [splitForCompression] 会抛错。调用方（对话框/自动确认）在发起前钳制，
+ * splitForCompression 的抛错只作直接调用者的防御兜底。
+ */
+internal fun effectiveKeepRecent(totalMessages: Int, requested: Int = 32): Int =
+    requested.coerceIn(0, maxOf(totalMessages - 1, 0))
 
 /** 压缩前切分：保留最近 N 条，其余参与压缩。条数不足时按调用方给的文案报错。 */
 private fun splitForCompression(

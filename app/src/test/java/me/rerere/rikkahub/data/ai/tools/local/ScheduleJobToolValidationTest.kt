@@ -140,6 +140,41 @@ class ScheduleJobToolValidationTest {
     }
 
     @Test
+    fun `mode direct workspace tool accepted when assembly supplies its name`() {
+        // 定时任务 workspace_write_file -32601 的回归：校验用的名字集必须包含
+        // 工作区/技能/MCP 工具（由 ChatToolFactory 装配后补入），只含本地工具
+        // 的旧口径会把已注册的工具误判为未注册。
+        val known = knownTools + listOf("workspace_write_file", "skill_example_tool", "mcp__server__echo")
+        val r = ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "direct")
+            put("schedule_type", "once"); put("at_unix_ms", 100L)
+            put("actions", buildJsonArray {
+                add(buildJsonObject {
+                    put("tool", "workspace_write_file"); put("args", buildJsonObject { })
+                })
+                add(buildJsonObject {
+                    put("tool", "mcp__server__echo"); put("args", buildJsonObject { })
+                })
+            })
+        }, known, yolo)
+        assertNull(r)
+    }
+
+    @Test
+    fun `mode direct workspace tool rejected when assembly does not supply its name`() {
+        val r = ScheduleJobValidator.validate(buildJsonObject {
+            put("name", "x"); put("mode", "direct")
+            put("schedule_type", "once"); put("at_unix_ms", 100L)
+            put("actions", buildJsonArray {
+                add(buildJsonObject {
+                    put("tool", "workspace_write_file"); put("args", buildJsonObject { })
+                })
+            })
+        }, knownTools, yolo)
+        assertEquals("unknown_tool", r!!.code)
+    }
+
+    @Test
     fun `prompt at limit accepted`() {
         val r = ScheduleJobValidator.validate(buildJsonObject {
             put("name", "x"); put("mode", "llm")

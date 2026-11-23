@@ -52,6 +52,7 @@ import me.rerere.rikkahub.service.ChatService
 import me.rerere.rikkahub.service.clearTranslationField
 import me.rerere.rikkahub.service.compressConversation
 import me.rerere.rikkahub.service.deleteMessage
+import me.rerere.rikkahub.service.effectiveKeepRecent
 import me.rerere.rikkahub.service.editMessage
 import me.rerere.rikkahub.service.forkConversationAtMessage
 import me.rerere.rikkahub.service.generateSuggestion
@@ -387,13 +388,20 @@ class ChatVM(
     fun confirmAutoCompress() {
         pendingAutoCompressConfirm = false
         viewModelScope.launch {
+            val totalMessages = conversation.value.currentMessages.size
+            if (totalMessages == 0) {
+                // 空对话无事可压：直接回落触发点，不发起必定失败的压缩。
+                autoCompressNextTriggerAt = autoCompressTriggerPoint(settings.value)
+                return@launch
+            }
             chatService
                 .compressConversation(
                     _conversationId,
                     conversation.value,
                     additionalPrompt = "",
                     targetTokens = 2000,
-                    keepRecentMessages = 32,
+                    // 硬编码 32 在短对话上必抛错（keepRecent > total）：钳制到 total - 1。
+                    keepRecentMessages = effectiveKeepRecent(totalMessages, 32),
                 ).onSuccess {
                     // 压缩会重写历史，缓存前缀必然失效，提示用户下一条消息缓存将重置
                     compressCacheResetNotice = true

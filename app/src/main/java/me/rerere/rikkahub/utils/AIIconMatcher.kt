@@ -1,9 +1,10 @@
+// l10n-allow: icon alias match keys — Chinese vendor names are lookup data, not UI copy
 package me.rerere.rikkahub.utils
 
 import android.content.Context
 
 // 图标来源：lobehub 静态包 @lobehub/icons-static-svg@1.103.0（MIT，见 assets/icons/，
-// 其中已有 vllm-color.svg 等品牌文件）；另有 44 个库外文件（各品牌官网 /
+// 其中已有 vllm-color.svg 等品牌文件）；另有 60 个库外文件（各品牌官网 /
 // HuggingFace 组织头像 / Wikimedia / 官网 IR 站取回）：
 // mazal.svg、scnet.png、open-design.png、tokenrhythm.png、suixiang.png、
 // ackai.png、minicpm.png（OpenBMB/MiniCPM 官方 lockup 裁出的蓝色 M 标）；
@@ -16,6 +17,9 @@ import android.content.Context
 // chinatelecom、chinaunicom、ucloud、ksyun、paratera）。未补：elorian
 // （官方头像近白色，浅色主题下不可见）、mancer（无官方 logo）、恒创云
 // （官网只有白色版 logo，favicon 不可达）。
+// 2026-11-23 补 OpenRouter 错配缺口 3 个：xiaomi.svg（小米 Mi 标，
+// Simple Icons 取回，lobehub 风格重排）、amazon.svg（亚马逊 a+微笑标，
+// 同上）、radixark.png（RadixArk 火焰标，GitHub 组织头像去黑底抠图）。
 // https://lobehub.com/zh/icons
 
 /**
@@ -124,6 +128,8 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "商汤" to "sensenova",
     "日日新" to "sensenova",
     "英伟达" to "nvidia",
+    "小米" to "xiaomi",
+    "亚马逊" to "amazon",
     "阶跃星辰" to "stepfun",
     "阶跃" to "stepfun",
     "七牛云" to "qiniu",
@@ -267,6 +273,7 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "step" to "stepfun",     // Step-3.7
     "longcat" to "longcat",
     "minicpm" to "minicpm",
+    "nova" to "nova",        // Amazon Nova：补 amazon.svg 后厂商段会抢在模型词前，须显式登记家族
     "d3" to "vllm",          // vLLM Semantic Router 的决策模型
     "vllm" to "vllm",
 ).sortedByDescending { it.first.length }
@@ -419,7 +426,7 @@ private val MODEL_SUBBRAND_WORDS: Set<String> = setOf(
     "codex", "muse", "kimi", "longcat", "minicpm", "d3", "qwq", "gemma", "grok",
     "hy", "seed", "step", "gemini", "qwen", "glm", "deepseek", "doubao", "hunyuan",
     "claude", "llama", "mistral", "mixtral", "command", "phi", "ernie", "baichuan",
-    "intern", "moonshot", "minimax", "mimo", "agnes", "vllm",
+    "intern", "moonshot", "minimax", "mimo", "agnes", "vllm", "nova",
 )
 
 fun computeModelIconByName(

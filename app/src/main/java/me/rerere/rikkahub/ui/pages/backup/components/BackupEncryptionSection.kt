@@ -126,9 +126,12 @@ private fun rememberBringIntoViewModifier(): Modifier {
 }
 
 @Composable
-private fun BackupEncryptionDialog(
+internal fun BackupEncryptionDialog(
     vm: BackupVM,
     onDismiss: () -> Unit,
+    // 口令保存成功时回调：调用方（备份页）据此在口令落盘后自动重试备份。
+    // 与 onDismiss 区分开——用户点取消/点空白处关闭时不触发，不会误重试。
+    onPasswordSaved: (() -> Unit)? = null,
 ) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val enabled = settings.backupEncryptionEnabled
@@ -150,6 +153,7 @@ private fun BackupEncryptionDialog(
             return
         }
         vm.setBackupEncryptionPassword(pwd)
+        onPasswordSaved?.invoke()
         onDismiss()
     }
 

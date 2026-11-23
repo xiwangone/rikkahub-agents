@@ -536,6 +536,7 @@ internal fun FilesPicker(
             onConfirm = { additionalPrompt, targetTokens, keepRecentMessages ->
                 onCompressContext(additionalPrompt, targetTokens, keepRecentMessages)
             },
+            totalMessages = conversation.currentMessages.size,
         )
     }
 }

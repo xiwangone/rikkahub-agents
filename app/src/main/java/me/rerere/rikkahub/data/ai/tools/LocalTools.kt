@@ -205,9 +205,9 @@ class LocalTools(
     }
 
     // 拆分为域分组函数，拼接顺序与原来完全一致，仅为满足行数限制。
-    private fun toolRegistry(): List<ToolEntry> =
+    private fun toolRegistry(cronExtraKnownToolNames: MutableSet<String> = mutableSetOf()): List<ToolEntry> =
         coreDeviceToolEntries() +
-            connectivityToolEntries() +
+            connectivityToolEntries(cronExtraKnownToolNames) +
             fileAndManagementToolEntries() +
             vaultAndWorkflowToolEntries() +
             miscToolEntries()
@@ -303,7 +303,7 @@ class LocalTools(
     },
     )
 
-    private fun connectivityToolEntries(): List<ToolEntry> = listOf(
+    private fun connectivityToolEntries(cronExtraKnownToolNames: MutableSet<String> = mutableSetOf()): List<ToolEntry> = listOf(
     ToolEntry(LocalToolOption.Ssh) { tools, _ ->
         tools.add(sshExecTool(context, settingsStore))
         tools.add(saveSshHostTool(sshHostRepository))
@@ -334,10 +334,17 @@ class LocalTools(
         tools.add(telegramDeleteCommandsTool(telegramBotPreferences, telegramBotClient))
     },
     ToolEntry(LocalToolOption.CronJobs) { tools, _ ->
+        // 校验用的名字集 = 本地工具 + 调用方在装配后补入的非本地工具名
+        // （工作区/技能/MCP）。provider 是懒求值：ChatToolFactory 在组装完
+        // 完整工具面后才填 cronExtraKnownToolNames，模型调 schedule_job
+        // 校验时已填好；直接走 getTools 的调用方（定时触发等）不传该参数，
+        // 仍只认本地工具名，行为不变。
+        val knownToolNamesProvider: () -> List<String> =
+            { tools.map { it.name } + cronExtraKnownToolNames }
         tools.add(
             me.rerere.rikkahub.data.ai.tools.local.scheduleJobDirectTool(
                 scheduledJobRepository, cronJobScheduler, settingsStore,
-                knownToolNamesProvider = { tools.map { it.name } },
+                knownToolNamesProvider = knownToolNamesProvider,
                 approvalSnapshot = approvalSnapshot,
             ),
         )
@@ -349,7 +356,7 @@ class LocalTools(
         tools.add(
             me.rerere.rikkahub.data.ai.tools.local.scheduleJobTool(
                 scheduledJobRepository, cronJobScheduler, settingsStore,
-                knownToolNamesProvider = { tools.map { it.name } },
+                knownToolNamesProvider = knownToolNamesProvider,
                 approvalSnapshot = approvalSnapshot,
             ),
         )
@@ -697,6 +704,9 @@ class LocalTools(
     fun getTools(
         options: List<LocalToolOption>,
         invocationContext: ToolInvocationContext = ToolInvocationContext.EMPTY,
+        // 调用方在装配后补入的非本地工具名（工作区/技能/MCP），供 schedule_job
+        // 校验用；每次装配用一份新的集合，两个会话并发装配不会互相串名。
+        cronExtraKnownToolNames: MutableSet<String> = mutableSetOf(),
     ): List<Tool> {
         val tools = mutableListOf<Tool>()
         val capabilities = ToolCapabilities.of(context)
@@ -705,7 +715,7 @@ class LocalTools(
             options.contains(option) && capabilities.satisfies(LocalToolCatalog.capabilityOf(option))
 
         // 注册表驱动：遍历 toolRegistry()，授权门通过即构建；能力未就绪时记一条诊断日志而非完全静默。
-        for (entry in toolRegistry()) {
+        for (entry in toolRegistry(cronExtraKnownToolNames)) {
             val cap = LocalToolCatalog.capabilityOf(entry.option)
             if (options.contains(entry.option) && !capabilities.satisfies(cap)) {
                 me.rerere.rikkahub.data.log.AppLog.d(

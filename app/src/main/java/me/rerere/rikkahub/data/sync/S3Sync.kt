@@ -71,6 +71,7 @@ class S3Sync(
         val key = "rikkahub_backups/${file.name}"
 
         try {
+            AppLog.i(TAG, "backupToS3: uploading ${file.name} (${file.length().fileSizeToString()})")
             client.putObject(
                 key = key,
                 file = file,

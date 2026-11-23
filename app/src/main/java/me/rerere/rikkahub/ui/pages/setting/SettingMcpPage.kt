@@ -72,6 +72,7 @@ import me.rerere.rikkahub.data.ai.mcp.McpManager
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
 import me.rerere.rikkahub.data.ai.mcp.McpServerConfig
 import me.rerere.rikkahub.data.ai.mcp.McpStatus
+import me.rerere.rikkahub.data.datastore.getCurrentAssistant
 import me.rerere.rikkahub.ui.components.ai.ExtensionEmptyState
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.RikkaDeleteConfirmDialog
@@ -91,10 +92,17 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     val creationState =
         useEditState<McpServerConfig> {
             vm.updateSettings { current ->
-            current.copy(
+                // 新服务器默认归属当前助手：只加配置不同步助手时，服务器能连接、
+                // 工具能列出，但模型调不到（mcp_add 的 #88 同款缺口；
+                // 助手 MCP 页的开关仍可随时取消归属）。
+                val currentAssistant = current.getCurrentAssistant()
+                current.copy(
                     mcpServers = current.mcpServers + it,
+                    assistants = current.assistants.map { a ->
+                        if (a.id == currentAssistant.id) a.copy(mcpServers = a.mcpServers + it.id) else a
+                    },
                 )
-        }
+            }
         }
     val editState =
         useEditState<McpServerConfig> { newConfig ->
@@ -259,7 +267,14 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
                 vm.updateSettings { current ->
                     val existingIds = current.mcpServers.map { it.commonOptions.name }.toSet()
                     val toAdd = newConfigs.filter { it.commonOptions.name.isNotBlank() && it.commonOptions.name !in existingIds }
-                    current.copy(mcpServers = current.mcpServers + toAdd)
+                    // 导入的服务器同样默认归属当前助手（与新建同款，见 creationState）。
+                    val currentAssistant = current.getCurrentAssistant()
+                    current.copy(
+                        mcpServers = current.mcpServers + toAdd,
+                        assistants = current.assistants.map { a ->
+                            if (a.id == currentAssistant.id) a.copy(mcpServers = a.mcpServers + toAdd.map { it.id }) else a
+                        },
+                    )
                 }
                 showImportDialog = false
             },

@@ -66,10 +66,14 @@ private fun rememberBringIntoViewModifier(): Modifier {
 fun CompressContextDialog(
     onDismiss: () -> Unit,
     onConfirm: (additionalPrompt: String, targetTokens: Int, keepRecentMessages: Int) -> Deferred<Result<Unit>>,
+    // 当前对话消息总数：保留条数不得超过 total - 1，否则压缩必抛错。
+    totalMessages: Int = Int.MAX_VALUE,
 ) {
     var additionalPrompt by remember { mutableStateOf("") }
     var selectedTokens by remember { mutableIntStateOf(2000) }
-    var keepRecentMessages by remember { mutableIntStateOf(32) }
+    // 上限 = total - 1（至少留一条可压缩）；total 未知时沿用旧默认 32。
+    val maxKeepRecent = maxOf(totalMessages - 1, 0)
+    var keepRecentMessages by remember(totalMessages) { mutableIntStateOf(minOf(32, maxKeepRecent)) }
     val tokenOptions = listOf(500, 1000, 2000, 4000)
     var currentDeferred by remember { mutableStateOf<Deferred<Result<Unit>>?>(null) }
     val toaster = LocalToaster.current
@@ -85,7 +89,12 @@ fun CompressContextDialog(
                 onDismiss()
                 toaster.show(compactedMessage, type = ToastType.Success)
             },
-            onFailure = { errorMessage = it.message ?: "Compression failed" },
+            onFailure = {
+                // 内联文案在 380dp 可滚动列的最底部，首屏看不见：同时弹 toast 才看得见。
+                val message = it.message ?: "Compression failed"
+                errorMessage = message
+                toaster.show(message, type = ToastType.Error)
+            },
         )
         currentDeferred = null
     }
@@ -168,7 +177,10 @@ fun CompressContextDialog(
                             textAlign = TextAlign.Center,
                             modifier = Modifier.widthIn(min = 40.dp),
                         )
-                        FilledTonalIconButton(onClick = { keepRecentMessages++ }) {
+                        FilledTonalIconButton(
+                            onClick = { if (keepRecentMessages < maxKeepRecent) keepRecentMessages++ },
+                            enabled = keepRecentMessages < maxKeepRecent,
+                        ) {
                             Icon(HugeIcons.Add01, contentDescription = null)
                         }
                     }
@@ -213,10 +225,14 @@ fun CompressContextDialog(
                     Text(stringResource(R.string.cancel))
                 }
             } else {
-                TextButton(onClick = {
-                    errorMessage = null
-                    currentDeferred = onConfirm(additionalPrompt, selectedTokens, keepRecentMessages)
-                }) {
+                TextButton(
+                    onClick = {
+                        errorMessage = null
+                        currentDeferred = onConfirm(additionalPrompt, selectedTokens, keepRecentMessages)
+                    },
+                    // 空对话无事可压：禁用确认，避免发起必定失败的压缩。
+                    enabled = totalMessages > 0,
+                ) {
                     Text(stringResource(R.string.confirm))
                 }
             }

@@ -38,7 +38,7 @@ class ToolIconColorTest {
 
     @Test
     fun `all registered renderers have a family color`() {
-        assertEquals(110, ToolUIRegistry.rendererMap.size)
+        assertEquals(111, ToolUIRegistry.rendererMap.size)
         for ((toolName, renderer) in ToolUIRegistry.rendererMap) {
             val key = renderer.iconColorKey(contextFor(toolName))
             assertTrue("渲染器无家族色（回退默认单色）: $toolName", key in familyGroups)
