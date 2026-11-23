@@ -109,6 +109,38 @@ data class NetworkRoutingSettings(
     fun isConfigured(): Boolean =
         defaultRoute != NetworkRoute.PROXY || scopeRoutes.isNotEmpty() ||
             providerRoutes.isNotEmpty() || forceDirect
+
+    /** True when [providerId] has a route of its own; a stored FOLLOW_DEFAULT entry counts as none. */
+    fun hasProviderOverride(providerId: String): Boolean =
+        providerRoutes[providerId]?.takeIf { it != NetworkRoute.FOLLOW_DEFAULT } != null
+
+    /**
+     * Apply [route] to every provider in [providerIds]. FOLLOW_DEFAULT clears the
+     * override, matching what tapping "Default" on a single provider row does.
+     */
+    fun withProviderRoutes(
+        providerIds: Collection<String>,
+        route: NetworkRoute,
+    ): NetworkRoutingSettings {
+        val routes = providerRoutes.toMutableMap()
+        for (id in providerIds) {
+            if (route == NetworkRoute.FOLLOW_DEFAULT) routes.remove(id) else routes[id] = route
+        }
+        return copy(providerRoutes = routes)
+    }
+}
+
+/**
+ * On-device providers make no network requests, so routes are meaningless for them.
+ * Mirrors [providerEndpointHosts], which returns an empty host list for the same set.
+ */
+fun isOnDeviceProvider(provider: ProviderSetting): Boolean = when (provider) {
+    is ProviderSetting.AICore,
+    is ProviderSetting.LiteRtLocal,
+    is ProviderSetting.LlamaCppLocal,
+    -> true
+
+    else -> false
 }
 
 /**

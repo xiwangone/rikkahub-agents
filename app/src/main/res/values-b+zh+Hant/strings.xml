@@ -230,6 +230,8 @@
   <string name="backup_page_s3_backup">S3 備份</string>
   <string name="backup_page_s3_backup_files">S3 備份檔案</string>
   <string name="backup_page_s3_bucket">Bucket</string>
+  <string name="backup_page_delete_s3_config">刪除 S3 配置</string>
+  <string name="backup_delete_s3_config_confirm">刪除 S3 配置「%1$s」？已儲存在該 Bucket 中的備份不受影響。此操作無法復原。</string>
   <string name="backup_page_s3_endpoint">端點</string>
   <string name="backup_page_s3_region">區域</string>
   <string name="backup_page_s3_secret_access_key">私密存取金鑰</string>
@@ -1149,6 +1151,8 @@
   <string name="setting_provider_page_search_providers">搜尋提供者</string>
   <string name="setting_provider_page_empty">還沒有供應商</string>
   <string name="setting_provider_page_empty_search">沒有相符的供應商</string>
+  <string name="setting_provider_page_search_models">搜尋模型</string>
+  <string name="setting_provider_page_empty_search_models">沒有相符的模型</string>
   <string name="setting_provider_page_recommend">推薦提供者</string>
   <string name="setting_provider_page_select_all">全選 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">從相簿選擇</string>
@@ -2569,6 +2573,10 @@
     <string name="setting_page_network_routing_default_desc">未單獨設定路由的範圍或提供商使用它。選代理可保持以往行為：走已設定的代理，未設定時直連。</string>
     <string name="setting_page_network_routing_scope_title">按範圍設定路由</string>
     <string name="setting_page_network_routing_provider_title">按提供商設定路由</string>
+    <string name="setting_page_network_routing_batch">批次設定</string>
+    <string name="setting_page_network_routing_batch_desc">先勾選提供商，再選一個路由，一次套用到全部已選提供商。</string>
+    <string name="setting_page_network_routing_batch_select_all">全選</string>
+    <string name="setting_page_network_routing_provider_rest">其餘 %1$d 個提供商跟隨預設</string>
     <string name="setting_page_network_routing_route_direct">直連</string>
     <string name="setting_page_network_routing_route_tailscale">隧道</string>
     <string name="setting_page_network_routing_route_proxy">代理</string>
@@ -4489,6 +4497,8 @@
   <string name="backend_service_name_required">名稱不能為空</string>
   <string name="backup_config_unnamed">未命名</string>
   <string name="backup_delete_remote_confirm">從雲端刪除備份「%1$s」？本機檔案不受影響。此操作無法復原。</string>
+  <string name="backup_page_delete_config">刪除配置</string>
+  <string name="backup_delete_config_confirm">刪除配置「%1$s」？已儲存在該伺服器上的備份不受影響。此操作無法復原。</string>
   <string name="backup_encryption_required">備份包含明文密鑰（提供者金鑰／憑證庫等）。請先在「備份與還原 → 加密設定」開啟加密並設定密碼。</string>
   <string name="backup_page_item_media_creation">媒體創作檔案</string>
   <string name="backup_page_item_media_creation_desc">媒體工具創作的圖片、音訊與影片（files/media_creation/）</string>

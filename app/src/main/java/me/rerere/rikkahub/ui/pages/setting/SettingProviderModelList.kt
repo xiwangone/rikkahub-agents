@@ -15,14 +15,17 @@ import androidx.compose.foundation.layout.plus
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
@@ -52,10 +55,13 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.provider.Model
 import me.rerere.ai.provider.ProviderManager
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.ai.provider.filterByKeywords
 import me.rerere.rikkahub.data.ai.diagnoseFailure
 import me.rerere.ai.registry.ModelRegistry
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Refresh03
+import me.rerere.hugeicons.stroke.Search01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.LocalToaster
@@ -127,6 +133,8 @@ internal fun ModelList(
         modelListLoading = false
     }
     var expanded by rememberSaveable { mutableStateOf(true) }
+    // 模型搜索：按模型 ID / 显示名过滤（复用 filterByKeywords，与提供商页同口径）。
+    var searchQuery by remember { mutableStateOf("") }
     val lazyListState = rememberLazyListState()
     // 拖动期间只改本地顺序：onUpdateProvider 会写设置（DataStore），每移动一格提交一次会明显卡顿
     // → 停手 delay(400) 后再提交一次。providerSetting 变化（增删改 / 外部更新）时重置本地顺序。
@@ -142,6 +150,11 @@ internal fun ModelList(
             localModels.addAll(providerSetting.models)
         }
     }
+    // 过滤态只改展示列表，不动 localModels 的全量顺序；未过滤时直接用全量（避免多余拷贝）。
+    val displayedModels =
+        remember(localModels, searchQuery) {
+            if (searchQuery.isBlank()) localModels.toList() else localModels.filterByKeywords(searchQuery)
+        }
     var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
     // 「正在拖动」标志：只给协程读，故意不用 Compose state（手势回调里写 state 会触发重组）
     val draggingNow = remember { booleanArrayOf(false) }
@@ -313,6 +326,30 @@ internal fun ModelList(
                         }
                     }
                 }
+                // 搜索框：模型多时按 ID / 显示名过滤列表；与提供商页同款样式。
+                item {
+                    OutlinedTextField(
+                        value = searchQuery,
+                        onValueChange = { searchQuery = it },
+                        modifier = Modifier.fillMaxWidth(),
+                        placeholder = { Text(stringResource(R.string.setting_provider_page_search_models)) },
+                        leadingIcon = {
+                            Icon(HugeIcons.Search01, contentDescription = null)
+                        },
+                        trailingIcon = {
+                            if (searchQuery.isNotEmpty()) {
+                                IconButton(onClick = { searchQuery = "" }) {
+                                    Icon(
+                                        HugeIcons.Cancel01,
+                                        contentDescription = stringResource(R.string.accessibility_clear_text),
+                                    )
+                                }
+                            }
+                        },
+                        singleLine = true,
+                        shape = CircleShape,
+                    )
+                }
             }
 
             // 拉取失败：页内显示原因与重试入口。
@@ -372,8 +409,22 @@ internal fun ModelList(
                         }
                     }
                 }
+            } else if (displayedModels.isEmpty()) {
+                // 搜索无结果：只留搜索框与该提示，不渲染空列表。
+                item {
+                    Text(
+                        text = stringResource(R.string.setting_provider_page_empty_search_models),
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        textAlign = TextAlign.Center,
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .padding(16.dp),
+                    )
+                }
             } else {
-                items(localModels, key = { it.id }) { item ->
+                items(displayedModels, key = { it.id }) { item ->
                     // 拖动性能埋点：统计本次拖动会话内的卡片重组次数（仅 debug 构建，release 不进入组合）
                     if (reorderPerf.enabled) {
                         SideEffect { ReorderRecomposeCounter.count++ }
@@ -422,7 +473,8 @@ internal fun ModelList(
                                                     )
                                                 },
                                             )
-                                        } else {
+                                        } else if (searchQuery.isBlank()) {
+                                            // 过滤态禁用拖动：过滤后列表下标与全量不一致，拖动会移错项
                                             mod.longPressDraggableHandle(
                                                 onDragStarted = { draggingNow[0] = true },
                                                 onDragStopped = {
@@ -432,6 +484,8 @@ internal fun ModelList(
                                                     commitOrder()
                                                 },
                                             )
+                                        } else {
+                                            mod
                                         }
                                     }.graphicsLayer {
                                         if (isDragging) {

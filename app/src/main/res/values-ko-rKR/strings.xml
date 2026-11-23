@@ -234,6 +234,8 @@
   <string name="backup_page_s3_backup">S3 백업</string>
   <string name="backup_page_s3_backup_files">S3 백업 파일</string>
   <string name="backup_page_s3_bucket">버킷</string>
+  <string name="backup_page_delete_s3_config">S3 구성 삭제</string>
+  <string name="backup_delete_s3_config_confirm">S3 구성 \"%1$s\"을(를) 삭제하시겠습니까? 이 버킷에 이미 저장된 백업에는 영향을 주지 않습니다. 이 작업은 되돌릴 수 없습니다.</string>
   <string name="backup_page_s3_endpoint">엔드포인트</string>
   <string name="backup_page_s3_region">리전</string>
   <string name="backup_page_s3_secret_access_key">비밀 액세스 키</string>
@@ -1147,6 +1149,8 @@
   <string name="setting_provider_page_search_providers">공급자 검색</string>
   <string name="setting_provider_page_empty">아직 공급자가 없습니다</string>
   <string name="setting_provider_page_empty_search">일치하는 공급자가 없습니다</string>
+  <string name="setting_provider_page_search_models">모델 검색</string>
+  <string name="setting_provider_page_empty_search_models">일치하는 모델이 없습니다</string>
   <string name="setting_provider_page_recommend">추천 공급자</string>
   <string name="setting_provider_page_select_all">전체 선택 (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">갤러리에서 선택</string>
@@ -2241,6 +2245,10 @@
 <string name="setting_page_network_routing_default_desc">범위나 제공업체에 개별 경로가 없을 때 사용합니다. 프록시를 선택하면 이전 동작을 유지합니다. 설정된 프록시를 경유하고, 설정되지 않았으면 직접 연결합니다.</string>
 <string name="setting_page_network_routing_scope_title">범위별 경로</string>
 <string name="setting_page_network_routing_provider_title">제공업체별 경로</string>
+<string name="setting_page_network_routing_batch">일괄 설정</string>
+<string name="setting_page_network_routing_batch_desc">제공업체를 선택한 뒤 경로를 선택하면 선택한 모든 제공업체에 적용됩니다.</string>
+<string name="setting_page_network_routing_batch_select_all">모두 선택</string>
+<string name="setting_page_network_routing_provider_rest">나머지 %1$d개 제공업체는 기본값을 따릅니다</string>
 <string name="setting_page_network_routing_route_direct">직접</string>
 <string name="setting_page_network_routing_route_tailscale">Tailscale</string>
 <string name="setting_page_network_routing_route_proxy">프록시</string>
@@ -4490,6 +4498,8 @@
   <string name="backend_service_name_required">이름을 입력하세요</string>
   <string name="backup_config_unnamed">이름 없음</string>
   <string name="backup_delete_remote_confirm">클라우드에서 백업 \"%1$s\"을(를) 삭제하시겠습니까? 로컬 파일에는 영향을 주지 않습니다. 이 작업은 되돌릴 수 없습니다.</string>
+  <string name="backup_page_delete_config">구성 삭제</string>
+  <string name="backup_delete_config_confirm">구성 \"%1$s\"을(를) 삭제하시겠습니까? 이 서버에 이미 저장된 백업에는 영향을 주지 않습니다. 이 작업은 되돌릴 수 없습니다.</string>
   <string name="backup_encryption_required">백업에 평문 비밀정보(제공업체 키, 자격 증명 보관함 등)가 포함되어 있습니다. \"백업 및 복원 → 암호화 설정\"에서 암호화를 켜고 비밀번호를 먼저 설정하세요.</string>
   <string name="backup_page_item_media_creation">미디어 생성 파일</string>
   <string name="backup_page_item_media_creation_desc">미디어 도구로 만든 이미지, 오디오 및 동영상(files/media_creation/)</string>

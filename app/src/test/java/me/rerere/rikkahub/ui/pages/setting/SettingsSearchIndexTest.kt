@@ -43,4 +43,15 @@ class SettingsSearchIndexTest {
         assertTrue(withDeveloper.any { it.route == Screen.Developer })
         assertEquals(withoutDeveloper.size + 1, withDeveloper.size)
     }
+
+    @Test
+    fun `network sub-pages are searchable`() {
+        // 偏好设置 → 网络下的 5 个子页必须进搜索索引，否则搜「路由」「代理」「DNS」等找不到入口。
+        val routes = settingsSearchIndex(developerMode = false).map { it.route }
+        assertTrue(routes.contains(Screen.SettingNetworkRouting))
+        assertTrue(routes.contains(Screen.SettingNetworkProxy))
+        assertTrue(routes.contains(Screen.SettingNetworkDns))
+        assertTrue(routes.contains(Screen.SettingNetworkHostOverrides))
+        assertTrue(routes.contains(Screen.SettingNetworkTunnel))
+    }
 }

@@ -297,6 +297,8 @@
   <string name="backup_page_connection_success">Connection successful</string>
   <string name="backup_page_delete">Delete</string>
   <string name="backup_delete_remote_confirm">Delete backup \"%1$s\" from the cloud? Local files are not affected. This action cannot be undone.</string>
+  <string name="backup_page_delete_config">Delete profile</string>
+  <string name="backup_delete_config_confirm">Delete profile \"%1$s\"? Backups already stored on this server are not affected. This action cannot be undone.</string>
   <string name="backup_page_delete_failed">Delete failed: %s</string>
   <string name="backup_page_delete_success">Delete successful</string>
   <string name="backup_page_export_desc">Export app data to a file</string>
@@ -373,6 +375,8 @@
   <string name="backup_page_s3_backup_files">S3 Backup Files</string>
   <string name="backup_page_s3_list_truncated">Only showing the most recent 1000 backups</string>
   <string name="backup_page_s3_bucket">Bucket</string>
+  <string name="backup_page_delete_s3_config">Delete S3 profile</string>
+  <string name="backup_delete_s3_config_confirm">Delete S3 profile \"%1$s\"? Backups already stored in this bucket are not affected. This action cannot be undone.</string>
   <string name="backup_page_s3_endpoint">Endpoint</string>
   <string name="backup_page_s3_path_style">Path Style</string>
   <string name="backup_page_s3_path_style_desc">Use endpoint/bucket/object. Turn off to use bucket.endpoint/object.</string>
@@ -1209,6 +1213,10 @@
   <string name="setting_page_network_routing_default_desc">Used when a scope or provider has no route of its own. Proxy keeps the previous behavior: traffic goes through the configured proxy, or direct when none is configured.</string>
   <string name="setting_page_network_routing_scope_title">Per-scope routes</string>
   <string name="setting_page_network_routing_provider_title">Per-provider routes</string>
+  <string name="setting_page_network_routing_batch">Batch set routes</string>
+  <string name="setting_page_network_routing_batch_desc">Select providers, then choose a route to apply to all of them.</string>
+  <string name="setting_page_network_routing_batch_select_all">Select all</string>
+  <string name="setting_page_network_routing_provider_rest">Other %1$d providers follow the default</string>
   <string name="setting_page_network_routing_route_direct">Direct</string>
   <string name="setting_page_network_routing_route_tailscale">Tailscale</string>
   <string name="setting_page_network_routing_route_proxy">Proxy</string>
@@ -1417,6 +1425,8 @@
   <string name="setting_provider_page_search_providers">Search providers</string>
   <string name="setting_provider_page_empty">No providers yet</string>
   <string name="setting_provider_page_empty_search">No matching providers</string>
+  <string name="setting_provider_page_search_models">Search models</string>
+  <string name="setting_provider_page_empty_search_models">No matching models</string>
   <string name="setting_provider_page_recommend">Recommended providers</string>
   <string name="setting_provider_page_select_all">Select All (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">Select from Gallery</string>

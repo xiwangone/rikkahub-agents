@@ -73,6 +73,38 @@ fun settingsSearchIndex(developerMode: Boolean): List<SettingsSearchEntry> {
             groupRes = R.string.setting_page_preferences,
             route = Screen.SettingPreferencesUI,
         ),
+        // 网络子页：偏好设置 → 网络下的 5 个子页。Catalog 只登记首页分组入口，
+        // 子页按本文件 KDoc 约定走硬编码区（与上方偏好子页同款）。
+        SettingsSearchEntry(
+            titleRes = R.string.setting_page_preferences_network_routing,
+            groupRes = R.string.setting_page_preferences,
+            route = Screen.SettingNetworkRouting,
+            searchTermsRes = listOf(R.string.setting_page_preferences_network),
+        ),
+        SettingsSearchEntry(
+            titleRes = R.string.setting_page_preferences_network_proxy,
+            groupRes = R.string.setting_page_preferences,
+            route = Screen.SettingNetworkProxy,
+            searchTermsRes = listOf(R.string.setting_page_preferences_network),
+        ),
+        SettingsSearchEntry(
+            titleRes = R.string.setting_page_preferences_network_dns_title,
+            groupRes = R.string.setting_page_preferences,
+            route = Screen.SettingNetworkDns,
+            searchTermsRes = listOf(R.string.setting_page_preferences_network),
+        ),
+        SettingsSearchEntry(
+            titleRes = R.string.setting_page_preferences_network_host_overrides,
+            groupRes = R.string.setting_page_preferences,
+            route = Screen.SettingNetworkHostOverrides,
+            searchTermsRes = listOf(R.string.setting_page_preferences_network),
+        ),
+        SettingsSearchEntry(
+            titleRes = R.string.tunnel_enable_title,
+            groupRes = R.string.setting_page_preferences,
+            route = Screen.SettingNetworkTunnel,
+            searchTermsRes = listOf(R.string.setting_page_preferences_network),
+        ),
     )
 
     if (developerMode) {

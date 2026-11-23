@@ -234,6 +234,8 @@
   <string name="backup_page_s3_backup">Резервное копирование S3</string>
   <string name="backup_page_s3_backup_files">Файлы резервного копирования S3</string>
   <string name="backup_page_s3_bucket">Bucket</string>
+  <string name="backup_page_delete_s3_config">Удалить профиль S3</string>
+  <string name="backup_delete_s3_config_confirm">Удалить профиль S3 «%1$s»? Резервные копии, уже сохранённые в этом Bucket, не будут затронуты. Это действие нельзя отменить.</string>
   <string name="backup_page_s3_endpoint">Конечная точка</string>
   <string name="backup_page_s3_region">Регион</string>
   <string name="backup_page_s3_secret_access_key">Секретный ключ доступа</string>
@@ -1142,6 +1144,8 @@
   <string name="setting_provider_page_search_providers">Поиск поставщиков</string>
   <string name="setting_provider_page_empty">Пока нет поставщиков</string>
   <string name="setting_provider_page_empty_search">Нет подходящих поставщиков</string>
+  <string name="setting_provider_page_search_models">Поиск моделей</string>
+  <string name="setting_provider_page_empty_search_models">Нет подходящих моделей</string>
   <string name="setting_provider_page_recommend">Рекомендуемые поставщики</string>
   <string name="setting_provider_page_select_all">Выбрать все (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">Выбрать из галереи</string>
@@ -2239,6 +2243,10 @@
 <string name="setting_page_network_routing_default_desc">Используется, когда у области или провайдера нет собственного маршрута. «Прокси» сохраняет прежнее поведение: трафик идёт через настроенный прокси, а при его отсутствии — напрямую.</string>
 <string name="setting_page_network_routing_scope_title">Маршруты по областям</string>
 <string name="setting_page_network_routing_provider_title">Маршруты по провайдерам</string>
+<string name="setting_page_network_routing_batch">Массовая настройка</string>
+<string name="setting_page_network_routing_batch_desc">Выберите провайдеров, затем маршрут — он применится ко всем выбранным.</string>
+<string name="setting_page_network_routing_batch_select_all">Выбрать все</string>
+<string name="setting_page_network_routing_provider_rest">Остальные провайдеры (%1$d) следуют маршруту по умолчанию</string>
 <string name="setting_page_network_routing_route_direct">Напрямую</string>
 <string name="setting_page_network_routing_route_tailscale">Tailscale</string>
 <string name="setting_page_network_routing_route_proxy">Прокси</string>
@@ -4494,6 +4502,8 @@
   <string name="backend_service_name_required">Укажите имя</string>
   <string name="backup_config_unnamed">Без названия</string>
   <string name="backup_delete_remote_confirm">Удалить резервную копию «%1$s» из облака? Локальные файлы не изменятся. Это действие нельзя отменить.</string>
+  <string name="backup_page_delete_config">Удалить профиль</string>
+  <string name="backup_delete_config_confirm">Удалить профиль «%1$s»? Резервные копии, уже сохранённые на этом сервере, не будут затронуты. Это действие нельзя отменить.</string>
   <string name="backup_encryption_required">Резервная копия содержит секреты в открытом виде (ключи провайдеров, учётные данные хранилища и т. д.). Сначала включите шифрование в разделе «Резервное копирование и восстановление → Настройки шифрования» и задайте пароль.</string>
   <string name="backup_page_item_media_creation">Файлы, созданные медиаинструментами</string>
   <string name="backup_page_item_media_creation_desc">Изображения, аудио и видео, созданные медиаинструментами (files/media_creation/)</string>

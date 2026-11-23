@@ -205,4 +205,59 @@ class NetworkRoutingTest {
             ).isEmpty(),
         )
     }
+
+    @Test
+    fun `batch apply sets the same route for several providers`() {
+        val updated = empty.withProviderRoutes(
+            listOf("p1", "p2"),
+            NetworkRoute.DIRECT,
+        )
+        assertEquals(NetworkRoute.DIRECT, updated.providerRoutes["p1"])
+        assertEquals(NetworkRoute.DIRECT, updated.providerRoutes["p2"])
+        assertEquals(NetworkRoute.DIRECT, updated.resolveRoute(providerId = "p1"))
+    }
+
+    @Test
+    fun `batch apply with default clears overrides and keeps the rest`() {
+        val routing = empty.copy(
+            providerRoutes = mapOf(
+                "p1" to NetworkRoute.DIRECT,
+                "p2" to NetworkRoute.PROXY,
+                "p3" to NetworkRoute.TAILSCALE,
+            ),
+        )
+        val updated = routing.withProviderRoutes(listOf("p1", "p2"), NetworkRoute.FOLLOW_DEFAULT)
+        assertFalse("p1" in updated.providerRoutes)
+        assertFalse("p2" in updated.providerRoutes)
+        assertEquals(NetworkRoute.TAILSCALE, updated.providerRoutes["p3"])
+        assertEquals(NetworkRoute.PROXY, updated.resolveRoute(providerId = "p1"))
+    }
+
+    @Test
+    fun `batch apply with an empty selection changes nothing`() {
+        val routing = empty.copy(providerRoutes = mapOf("p1" to NetworkRoute.DIRECT))
+        assertEquals(routing, routing.withProviderRoutes(emptyList(), NetworkRoute.PROXY))
+    }
+
+    @Test
+    fun `hasProviderOverride ignores stored follow-default entries`() {
+        val routing = empty.copy(
+            providerRoutes = mapOf(
+                "p1" to NetworkRoute.DIRECT,
+                "p2" to NetworkRoute.FOLLOW_DEFAULT,
+            ),
+        )
+        assertTrue(routing.hasProviderOverride("p1"))
+        assertFalse(routing.hasProviderOverride("p2"))
+        assertFalse(routing.hasProviderOverride("p3"))
+    }
+
+    @Test
+    fun `on-device providers are excluded from routing`() {
+        assertTrue(isOnDeviceProvider(ProviderSetting.AICore()))
+        assertTrue(isOnDeviceProvider(ProviderSetting.LiteRtLocal()))
+        assertTrue(isOnDeviceProvider(ProviderSetting.LlamaCppLocal()))
+        assertFalse(isOnDeviceProvider(ProviderSetting.OpenAI()))
+        assertFalse(isOnDeviceProvider(ProviderSetting.Google()))
+    }
 }

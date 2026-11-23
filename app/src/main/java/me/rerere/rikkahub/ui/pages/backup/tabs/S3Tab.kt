@@ -54,6 +54,7 @@ import com.dokar.sonner.ToastType
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.withTimeoutOrNull
 import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Delete01
 import me.rerere.hugeicons.stroke.PlusSign
 import me.rerere.hugeicons.stroke.Upload02
 import me.rerere.rikkahub.R
@@ -96,6 +97,7 @@ fun S3Tab(
     var pendingPasswordError by remember { mutableStateOf<String?>(null) }
     var isBackingUp by remember { mutableStateOf(false) }
     var configMenuExpanded by remember { mutableStateOf(false) }
+    var showDeleteConfigConfirm by remember { mutableStateOf(false) }
     // 备份缺口令：弹加密设置框；设好口令后自动重试备份
     var showEncryptionDialog by remember { mutableStateOf(false) }
     var pendingBackupRetryAfterPassword by remember { mutableStateOf(false) }
@@ -208,6 +210,13 @@ fun S3Tab(
         }
     }
 
+    /** 删除配置（保留至少一个：删最后一个时 withoutS3Config 返回 null，不做改动）。 */
+    fun removeS3Config(cfgId: String) {
+        vm.updateSettings { current ->
+            current.withoutS3Config(cfgId) ?: current
+        }
+    }
+
     val lastBackupText =
         if (settings.backupReminderConfig.lastBackupTime == 0L) {
             stringResource(R.string.backup_page_reminder_no_record)
@@ -289,6 +298,13 @@ fun S3Tab(
                             }
                             IconButton(onClick = { addS3Config() }) {
                                 Icon(HugeIcons.PlusSign, contentDescription = stringResource(R.string.backup_page_add_config))
+                            }
+                            // 删除当前配置：先弹确认；仅剩一个时禁用（保留至少一个）。
+                            IconButton(
+                                onClick = { showDeleteConfigConfirm = true },
+                                enabled = allConfigs.size > 1,
+                            ) {
+                                Icon(HugeIcons.Delete01, contentDescription = stringResource(R.string.backup_page_delete_s3_config))
                             }
                         }
                     },
@@ -634,6 +650,21 @@ fun S3Tab(
             errorMessage = pendingPasswordError,
         )
     }
+
+    // 删除当前配置：与删除备份文件同一确认样式；仅剩一个时按钮已禁用，这里只作兜底。
+    RikkaDeleteConfirmDialog(
+        show = showDeleteConfigConfirm,
+        title = stringResource(R.string.backup_page_delete),
+        message = stringResource(
+            R.string.backup_delete_s3_config_confirm,
+            s3Config.displayName.ifBlank { stringResource(R.string.backup_config_unnamed) },
+        ),
+        onConfirm = {
+            showDeleteConfigConfirm = false
+            removeS3Config(s3Config.id)
+        },
+        onDismiss = { showDeleteConfigConfirm = false },
+    )
 
     // 备份缺口令：弹加密设置框让用户设口令，设好后自动重试备份。
     if (showEncryptionDialog) {

@@ -353,6 +353,8 @@
   <string name="backup_page_s3_backup">نسخ احتياطي S3</string>
   <string name="backup_page_s3_backup_files">ملفات النسخ الاحتياطي S3</string>
   <string name="backup_page_s3_bucket">الحاوية</string>
+  <string name="backup_page_delete_s3_config">حذف إعداد S3</string>
+  <string name="backup_delete_s3_config_confirm">هل تريد حذف إعداد S3 \"%1$s\"؟ لن تتأثر النسخ الاحتياطية المحفوظة في هذه الحاوية. لا يمكن التراجع عن هذا الإجراء.</string>
   <string name="backup_page_s3_endpoint">نقطة النهاية</string>
   <string name="backup_page_s3_region">المنطقة</string>
   <string name="backup_page_s3_secret_access_key">مفتاح الوصول السري</string>
@@ -1184,6 +1186,8 @@
   <string name="setting_provider_page_search_providers">البحث في المزوّدين</string>
   <string name="setting_provider_page_empty">لا يوجد موفّرون بعد</string>
   <string name="setting_provider_page_empty_search">لا يوجد موفّرون مطابقون</string>
+  <string name="setting_provider_page_search_models">البحث في النماذج</string>
+  <string name="setting_provider_page_empty_search_models">لا توجد نماذج مطابقة</string>
   <string name="setting_provider_page_select_all">تحديد الكل (%1$d)</string>
   <string name="setting_provider_page_select_from_gallery">الاختيار من المعرض</string>
   <string name="setting_provider_page_service_account_email">البريد الإلكتروني لحساب الخدمة</string>
@@ -3263,6 +3267,10 @@
   <string name="setting_page_network_routing_default_desc">يُستخدم عندما لا يكون للنطاق أو المزوّد مسار خاص به. اختيار الوكيل يحافظ على السلوك السابق: تمر الحركة عبر الوكيل المُعدّ، أو مباشرةً عند عدم وجود وكيل.</string>
   <string name="setting_page_network_routing_scope_title">مسارات حسب النطاق</string>
   <string name="setting_page_network_routing_provider_title">مسارات حسب المزوّد</string>
+  <string name="setting_page_network_routing_batch">تعيين جماعي</string>
+  <string name="setting_page_network_routing_batch_desc">حدّد مقدمي الخدمة ثم اختر مسارًا لتطبيقه على جميع المحددين.</string>
+  <string name="setting_page_network_routing_batch_select_all">تحديد الكل</string>
+  <string name="setting_page_network_routing_provider_rest">يتبع %1$d من مقدمي الخدمة الآخرين المسار الافتراضي</string>
   <string name="setting_page_network_routing_route_direct">مباشر</string>
   <string name="setting_page_network_routing_route_tailscale">Tailscale</string>
   <string name="setting_page_network_routing_route_proxy">وكيل</string>
@@ -4497,6 +4505,8 @@
   <string name="backend_service_name_required">الاسم مطلوب</string>
   <string name="backup_config_unnamed">بدون اسم</string>
   <string name="backup_delete_remote_confirm">هل تريد حذف النسخة الاحتياطية \"%1$s\" من السحابة؟ لن تتأثر الملفات المحلية. لا يمكن التراجع عن هذا الإجراء.</string>
+  <string name="backup_page_delete_config">حذف الإعداد</string>
+  <string name="backup_delete_config_confirm">هل تريد حذف الإعداد \"%1$s\"؟ لن تتأثر النسخ الاحتياطية المحفوظة على هذا الخادم. لا يمكن التراجع عن هذا الإجراء.</string>
   <string name="backup_encryption_required">تحتوي النسخة الاحتياطية على أسرار بنص صريح (مفاتيح المزوّدين، وبيانات اعتماد المخزن، وما إلى ذلك). فعّل التشفير أولًا من \"النسخ الاحتياطي والاستعادة → إعدادات التشفير\" وعيّن كلمة مرور.</string>
   <string name="backup_page_item_media_creation">ملفات إنشاء الوسائط</string>
   <string name="backup_page_item_media_creation_desc">الصور والصوت والفيديو التي أنشأتها أدوات الوسائط (files/media_creation/)</string>

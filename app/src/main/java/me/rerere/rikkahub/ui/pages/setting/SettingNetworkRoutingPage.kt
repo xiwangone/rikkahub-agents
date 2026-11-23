@@ -2,34 +2,52 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Checkbox
+import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.input.nestedscroll.nestedScroll
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import me.rerere.ai.provider.ProviderSetting
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.ArrowDown01
+import me.rerere.hugeicons.stroke.ArrowUp01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.network.NetworkRoute
 import me.rerere.rikkahub.data.network.NetworkRoutingSettings
 import me.rerere.rikkahub.data.network.NetworkScope
 import me.rerere.rikkahub.data.network.WebViewProxy
+import me.rerere.rikkahub.data.network.isOnDeviceProvider
 import me.rerere.rikkahub.data.network.resolveProxyPasswordForAuth
 import me.rerere.rikkahub.data.network.toProxyOrNull
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
+import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
+import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import org.koin.androidx.compose.koinViewModel
 
 /**
@@ -49,6 +67,15 @@ fun SettingNetworkRoutingPage(vm: SettingVM = koinViewModel()) {
     val proxyConfigured = net.proxyUrl.toProxyOrNull() != null
     val webViewSupported = remember { WebViewProxy.isSupported() }
     val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    // On-device providers make no network requests, so they have no route to set.
+    val routableProviders = settings.providers.filterNot(::isOnDeviceProvider)
+    val customizedProviders =
+        routableProviders.filter { routing.hasProviderOverride(it.id.toString()) }
+    val followingDefaultProviders =
+        routableProviders.filterNot { routing.hasProviderOverride(it.id.toString()) }
+    // Fold state is UI-local only; it is not persisted and does not touch the schema.
+    var providerListExpanded by remember { mutableStateOf(false) }
+    var batchDialogVisible by remember { mutableStateOf(false) }
 
     fun updateRouting(transform: (NetworkRoutingSettings) -> NetworkRoutingSettings) {
         // Compute the new routing first: the browser proxy is applied with the
@@ -188,54 +215,68 @@ fun SettingNetworkRoutingPage(vm: SettingVM = koinViewModel()) {
                     }
                 }
             }
-            item {
-                CardGroup(
-                    modifier = Modifier.padding(horizontal = 8.dp),
-                    title = { Text(stringResource(R.string.setting_page_network_routing_provider_title)) },
-                ) {
-                    settings.providers.forEach { provider ->
-                        val providerId = provider.id.toString()
-                        val selected =
-                            routing.providerRoutes[providerId] ?: NetworkRoute.FOLLOW_DEFAULT
-                        formItem(
-                            headlineContent = {
-                                Text(provider.name)
-                            },
-                            supportingContent = {
-                                Column {
+            if (routableProviders.isNotEmpty()) {
+                item {
+                    CardGroup(
+                        modifier = Modifier.padding(horizontal = 8.dp),
+                        title = {
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.SpaceBetween,
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                Text(stringResource(R.string.setting_page_network_routing_provider_title))
+                                TextButton(
+                                    onClick = { batchDialogVisible = true },
+                                    contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+                                ) {
+                                    Text(stringResource(R.string.setting_page_network_routing_batch))
+                                }
+                            }
+                        },
+                    ) {
+                        customizedProviders.forEach { provider ->
+                            ProviderRouteItem(
+                                provider = provider,
+                                routing = routing,
+                                proxyConfigured = proxyConfigured,
+                                onRouteSelect = { providerId, route ->
+                                    updateRouting { it.withProviderRoutes(listOf(providerId), route) }
+                                },
+                            )
+                        }
+                        if (providerListExpanded) {
+                            followingDefaultProviders.forEach { provider ->
+                                ProviderRouteItem(
+                                    provider = provider,
+                                    routing = routing,
+                                    proxyConfigured = proxyConfigured,
+                                    onRouteSelect = { providerId, route ->
+                                        updateRouting { it.withProviderRoutes(listOf(providerId), route) }
+                                    },
+                                )
+                            }
+                        }
+                        if (followingDefaultProviders.isNotEmpty()) {
+                            item(
+                                onClick = { providerListExpanded = !providerListExpanded },
+                                headlineContent = {
                                     Text(
                                         stringResource(
-                                            R.string.setting_page_network_routing_effective,
-                                            routeName(routing.resolveRoute(providerId = providerId)),
+                                            R.string.setting_page_network_routing_provider_rest,
+                                            followingDefaultProviders.size,
                                         ),
                                     )
-                                    if (selected == NetworkRoute.PROXY && !proxyConfigured) {
-                                        Text(stringResource(R.string.setting_page_network_routing_no_proxy))
-                                    }
-                                    if (selected == NetworkRoute.TAILSCALE) {
-                                        Text(stringResource(R.string.setting_page_network_routing_tailscale_note))
-                                    }
-                                }
-                            },
-                        ) {
-                            RouteChoiceButtons(
-                                selected = selected,
-                                options = listOf(
-                                    NetworkRoute.DIRECT,
-                                    NetworkRoute.TAILSCALE,
-                                    NetworkRoute.PROXY,
-                                    NetworkRoute.FOLLOW_DEFAULT,
-                                ),
-                                onSelect = { route ->
-                                    updateRouting { current ->
-                                        val routes = current.providerRoutes.toMutableMap()
-                                        if (route == NetworkRoute.FOLLOW_DEFAULT) {
-                                            routes.remove(providerId)
+                                },
+                                trailingContent = {
+                                    Icon(
+                                        imageVector = if (providerListExpanded) {
+                                            HugeIcons.ArrowUp01
                                         } else {
-                                            routes[providerId] = route
-                                        }
-                                        current.copy(providerRoutes = routes)
-                                    }
+                                            HugeIcons.ArrowDown01
+                                        },
+                                        contentDescription = null,
+                                    )
                                 },
                             )
                         }
@@ -272,6 +313,18 @@ fun SettingNetworkRoutingPage(vm: SettingVM = koinViewModel()) {
                     )
                 }
             }
+        }
+        if (batchDialogVisible) {
+            ProviderBatchRouteDialog(
+                providers = routableProviders,
+                routing = routing,
+                proxyConfigured = proxyConfigured,
+                onDismiss = { batchDialogVisible = false },
+                onApply = { providerIds, route ->
+                    updateRouting { it.withProviderRoutes(providerIds, route) }
+                    batchDialogVisible = false
+                },
+            )
         }
     }
 }
@@ -311,3 +364,151 @@ private fun scopeName(scope: NetworkScope): String = stringResource(
         NetworkScope.BACKUP -> R.string.setting_page_network_routing_scope_backup
     },
 )
+
+/** One provider row: name + effective route + the four route buttons. */
+@Composable
+private fun CardGroupScope.ProviderRouteItem(
+    provider: ProviderSetting,
+    routing: NetworkRoutingSettings,
+    proxyConfigured: Boolean,
+    onRouteSelect: (providerId: String, route: NetworkRoute) -> Unit,
+) {
+    val providerId = provider.id.toString()
+    val selected = routing.providerRoutes[providerId] ?: NetworkRoute.FOLLOW_DEFAULT
+    formItem(
+        headlineContent = {
+            Text(provider.name)
+        },
+        supportingContent = {
+            Column {
+                Text(
+                    stringResource(
+                        R.string.setting_page_network_routing_effective,
+                        routeName(routing.resolveRoute(providerId = providerId)),
+                    ),
+                )
+                if (selected == NetworkRoute.PROXY && !proxyConfigured) {
+                    Text(stringResource(R.string.setting_page_network_routing_no_proxy))
+                }
+                if (selected == NetworkRoute.TAILSCALE) {
+                    Text(stringResource(R.string.setting_page_network_routing_tailscale_note))
+                }
+            }
+        },
+    ) {
+        RouteChoiceButtons(
+            selected = selected,
+            options = listOf(
+                NetworkRoute.DIRECT,
+                NetworkRoute.TAILSCALE,
+                NetworkRoute.PROXY,
+                NetworkRoute.FOLLOW_DEFAULT,
+            ),
+            onSelect = { route -> onRouteSelect(providerId, route) },
+        )
+    }
+}
+
+/**
+ * Batch route dialog: check any number of providers, pick a route, apply it to
+ * all of them at once. Picking "Default" clears the override for the selection.
+ */
+@Composable
+private fun ProviderBatchRouteDialog(
+    providers: List<ProviderSetting>,
+    routing: NetworkRoutingSettings,
+    proxyConfigured: Boolean,
+    onDismiss: () -> Unit,
+    onApply: (providerIds: List<String>, route: NetworkRoute) -> Unit,
+) {
+    var selectedIds by remember { mutableStateOf(setOf<String>()) }
+    var batchRoute by remember { mutableStateOf(routing.defaultRoute) }
+    val allSelected = providers.isNotEmpty() && selectedIds.size == providers.size
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_page_network_routing_batch)) },
+        text = {
+            Column(
+                modifier = Modifier.verticalScroll(rememberScrollState()),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
+            ) {
+                Text(
+                    text = stringResource(R.string.setting_page_network_routing_batch_desc),
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Checkbox(
+                        checked = allSelected,
+                        onCheckedChange = { checked ->
+                            selectedIds = if (checked) {
+                                providers.map { it.id.toString() }.toSet()
+                            } else {
+                                emptySet()
+                            }
+                        },
+                    )
+                    Text(stringResource(R.string.setting_page_network_routing_batch_select_all))
+                }
+                providers.forEach { provider ->
+                    val providerId = provider.id.toString()
+                    val selected =
+                        routing.providerRoutes[providerId] ?: NetworkRoute.FOLLOW_DEFAULT
+                    ListSelectableItem(
+                        key = providerId,
+                        selectedKeys = selectedIds.toList(),
+                        onSelectChange = { key ->
+                            val id = key as String
+                            selectedIds = if (id in selectedIds) selectedIds - id else selectedIds + id
+                        },
+                    ) {
+                        Column {
+                            Text(provider.name)
+                            Text(
+                                text = stringResource(
+                                    R.string.setting_page_network_routing_effective,
+                                    routeName(routing.resolveRoute(providerId = providerId)),
+                                ),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            if (selected == NetworkRoute.PROXY && !proxyConfigured) {
+                                Text(
+                                    text = stringResource(R.string.setting_page_network_routing_no_proxy),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
+                }
+                RouteChoiceButtons(
+                    selected = batchRoute,
+                    options = listOf(
+                        NetworkRoute.DIRECT,
+                        NetworkRoute.TAILSCALE,
+                        NetworkRoute.PROXY,
+                        NetworkRoute.FOLLOW_DEFAULT,
+                    ),
+                    onSelect = { batchRoute = it },
+                )
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = { onApply(selectedIds.toList(), batchRoute) },
+                enabled = selectedIds.isNotEmpty(),
+            ) {
+                Text(stringResource(R.string.confirm))
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(stringResource(R.string.cancel))
+            }
+        },
+    )
+}

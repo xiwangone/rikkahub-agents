@@ -258,6 +258,29 @@ data class Settings(
     }
 
     /**
+     * 删除一个 WebDAV 配置（保留至少一个）。
+     *
+     * @return 删除后的 Settings；删除后将无配置剩余时返回 null；id 不存在时返回原值。
+     * 删除当前生效配置时，生效配置顺延为剩余列表首个（与旧单配置槽保持同步）。
+     */
+    fun withoutWebDavConfig(cfgId: String): Settings? {
+        if (webDavConfigs.isEmpty()) {
+            // 旧单配置模式：唯一配置在旧单配置槽里，删它会归零 → 拒绝；id 对不上则不做任何改动。
+            if (webDavConfig.id == cfgId) return null
+            return this
+        }
+        val remaining = webDavConfigs.filterNot { it.id == cfgId }
+        if (remaining.size == webDavConfigs.size) return this
+        if (remaining.isEmpty()) return null
+        val newActive = remaining.first()
+        return copy(
+            webDavConfigs = remaining,
+            activeWebDavConfigId = newActive.id,
+            webDavConfig = newActive,
+        )
+    }
+
+    /**
      * 当前生效的 S3 配置（同 [activeWebDavConfig] 逻辑：id 悬空时退回旧单配置，
      * 不静默换到列表首个配置）。
      */
@@ -268,6 +291,29 @@ data class Settings(
             return s3Config.withLegacyExpanded()
         }
         return (s3Configs.firstOrNull() ?: s3Config).withLegacyExpanded()
+    }
+
+    /**
+     * 删除一个 S3 配置（保留至少一个）。
+     *
+     * @return 删除后的 Settings；删除后将无配置剩余时返回 null；id 不存在时返回原值。
+     * 删除当前生效配置时，生效配置顺延为剩余列表首个（与旧单配置槽保持同步）。
+     */
+    fun withoutS3Config(cfgId: String): Settings? {
+        if (s3Configs.isEmpty()) {
+            // 旧单配置模式：唯一配置在旧单配置槽里，删它会归零 → 拒绝；id 对不上则不做任何改动。
+            if (s3Config.id == cfgId) return null
+            return this
+        }
+        val remaining = s3Configs.filterNot { it.id == cfgId }
+        if (remaining.size == s3Configs.size) return this
+        if (remaining.isEmpty()) return null
+        val newActive = remaining.first()
+        return copy(
+            s3Configs = remaining,
+            activeS3ConfigId = newActive.id,
+            s3Config = newActive,
+        )
     }
 
     companion object {
