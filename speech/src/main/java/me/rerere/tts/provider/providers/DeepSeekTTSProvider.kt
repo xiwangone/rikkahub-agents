@@ -67,32 +67,34 @@ class DeepSeekTTSProvider : TTSProvider<TTSProviderSetting.DeepSeek> {
                     .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
                     .build()
 
-            val response = httpClient.newCall(httpRequest).execute()
+            // use{} 确保错误分支与读流后都关闭连接：泄漏的连接会占满 OkHttp 连接池，
+            // 连续失败几次后后续请求全部排队超时。
+            httpClient.newCall(httpRequest).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = response.body?.string()
+                    AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
+                    AppLogger.e(TAG, "generateSpeech: $errorBody")
+                    throw TTSProviderException(
+                        message = "DeepSeek TTS request failed: ${response.code} ${response.message}",
+                        statusCode = response.code,
+                    )
+                }
 
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string()
-                AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
-                AppLogger.e(TAG, "generateSpeech: $errorBody")
-                throw TTSProviderException(
-                    message = "DeepSeek TTS request failed: ${response.code} ${response.message}",
-                    statusCode = response.code,
+                val audioData = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
+
+                emit(
+                    AudioChunk(
+                        data = audioData,
+                        format = AudioFormat.PCM,
+                        sampleRate = 24000,
+                        isLast = true,
+                        metadata =
+                            mapOf(
+                                "provider" to "deepseek",
+                                "voiceId" to providerSetting.voiceId,
+                            ),
+                    ),
                 )
             }
-
-            val audioData = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
-
-            emit(
-                AudioChunk(
-                    data = audioData,
-                    format = AudioFormat.PCM,
-                    sampleRate = 24000,
-                    isLast = true,
-                    metadata =
-                        mapOf(
-                            "provider" to "deepseek",
-                            "voiceId" to providerSetting.voiceId,
-                        ),
-                ),
-            )
         }
 }

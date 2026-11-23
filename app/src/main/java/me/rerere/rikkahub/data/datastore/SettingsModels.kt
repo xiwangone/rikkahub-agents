@@ -566,7 +566,7 @@ enum class InputButtonType {
 
 @Serializable
 data class InputButtonItem(
-    val type: InputButtonType,
+    val type: InputButtonType = InputButtonType.MODEL_SELECTOR,
     val enabled: Boolean = true
 )
 

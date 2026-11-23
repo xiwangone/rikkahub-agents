@@ -40,6 +40,10 @@ object BackupCrypto {
     private const val LEGACY_V1: Byte = 1
     private const val VERSION: Byte = 2
     private const val PBKDF2_ITER = 200_000
+    // 解密侧接受的 KDF 迭代上限：加密只用 PBKDF2_ITER（200_000），上限取其 10 倍，
+    // 兼容以后合理上调；超过即拒绝——恶意备份头写天文数字 iter 时，deriveKey
+    // 会在校验之前先跑死（PBKDF2 是纯 CPU 循环，无中途取消点）。
+    private const val MAX_KDF_ITERATIONS = 2_000_000
     private const val SALT_SIZE = 16
     private const val IV_SIZE = 12
     private const val TAG_BITS = 128
@@ -135,7 +139,9 @@ object BackupCrypto {
         val iterBytes = ByteArray(4)
         require(readBytesFully(input, iterBytes) == 4) { "Corrupt backup header" }
         val iter = ByteBuffer.wrap(iterBytes).int
-        require(iter > 0) { "Invalid KDF iteration count: $iter" }
+        require(iter in 1..MAX_KDF_ITERATIONS) {
+            "Invalid KDF iteration count: $iter (allowed 1..$MAX_KDF_ITERATIONS)"
+        }
         val salt = ByteArray(SALT_SIZE)
         val baseIv = ByteArray(IV_SIZE)
         require(readBytesFully(input, salt) == SALT_SIZE && readBytesFully(input, baseIv) == IV_SIZE) {

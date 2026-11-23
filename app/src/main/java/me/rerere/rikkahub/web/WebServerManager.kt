@@ -6,6 +6,7 @@ import android.content.Context
 import io.ktor.server.cio.CIOApplicationEngine
 import io.ktor.server.engine.EmbeddedServer
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -140,7 +141,8 @@ class WebServerManager(
     fun stop() {
         _state.value =
             _state.value.copy(isRunning = false, isLoading = true, hostname = null, address = null, error = null)
-        appScope.launch {
+        // Ktor engine stop 是阻塞调用（等连接排空，最长 grace + timeout），放 IO 池，别占 Default 线程。
+        appScope.launch(Dispatchers.IO) {
             try {
                 AppLog.i(TAG, "Stopping web server")
                 server?.stop(1000, 2000)

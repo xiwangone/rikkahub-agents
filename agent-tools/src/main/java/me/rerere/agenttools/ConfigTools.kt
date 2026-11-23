@@ -14,6 +14,7 @@ import kotlinx.coroutines.sync.withLock
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.common.http.optLong
 import me.rerere.common.http.optString
 import me.rerere.common.log.AppLogger
 import java.io.IOException
@@ -125,6 +126,10 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
         }
         return buildString {
             append(raw)
+            // 末尾悬空反斜杠：字符串在转义字符处截断时，直接补引号会被这个反斜杠
+            // 吞掉（变成转义引号），字符串仍未闭合、补救失败；先补一个反斜杠把它
+            // 自身转义掉，再补引号。
+            if (escaped) append('\\')
             if (inString) append('"')
             while (openers.isNotEmpty()) append(if (openers.removeLast() == '{') '}' else ']')
         }
@@ -169,49 +174,103 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
 
     suspend fun revert(key: String): JsonObject {
         auditMutex.withLock {
-        val lastSet = readAudit().asReversed().firstOrNull {
-            it.optString("key") == key &&
-                it.optString("action") == "set"
-        }
-        val current = load().toMutableMap()
-        val existed = current.containsKey(key)
-        if (lastSet == null) {
+            val entries = readAudit()
+            // 只撤销最近一条尚未被撤销的 set：每次 revert 消费掉它撤销的那条 set
+            // 记录（见 isReverted），否则重复 revert 会按同一条 set 记录把值
+            // 来回恢复——第二次 revert 本应无事可做。
+            val lastSet = entries.asReversed().firstOrNull { entry ->
+                entry.optString("key") == key &&
+                    entry.optString("action") == "set" &&
+                    !isReverted(entry, entries)
+            }
+            val current = load().toMutableMap()
+            val existed = current.containsKey(key)
+            if (lastSet == null) {
+                // 区分"从来没 set 过"与"set 记录都已被 revert 消费掉"：后者不是
+                // 无历史，是历史已用完，第二次 revert 不应再动键。
+                val hadSetHistory = entries.any {
+                    it.optString("key") == key && it.optString("action") == "set"
+                }
+                return buildJsonObject {
+                    put("key", key)
+                    put("existed", existed)
+                    put(
+                        "result",
+                        if (hadSetHistory) "All set history already reverted, nothing to revert"
+                        else "No set history, nothing to revert",
+                    )
+                }
+            }
+            val prior = lastSet["prior"]
+            if (prior == null) {
+                // 该 set 记录早于 prior 字段：旧值未知，键保持不变，绝不靠猜删键。
+                return buildJsonObject {
+                    put("key", key)
+                    put("existed", existed)
+                    put("result", "Old value unknown (this entry predates prior records); key left unchanged")
+                }
+            }
+            val before = current[key] ?: JsonNull
+            val restored: JsonElement
+            val result: String
+            if (prior is JsonNull) {
+                // 该键在最近一次 set 之前不存在：恢复即删键。
+                current.remove(key)
+                restored = JsonNull
+                result = "removed key; it did not exist before the last set"
+            } else {
+                current[key] = prior
+                restored = prior
+                result = "restored prior value from audit log"
+            }
+            save(current)
+            appendAuditLocked(
+                "revert",
+                key,
+                restored,
+                before,
+                null,
+                revertedId = lastSet.optString("id"),
+            )
             return buildJsonObject {
                 put("key", key)
                 put("existed", existed)
-                put("result", "No set history, nothing to revert")
+                put("result", result)
             }
         }
-        val prior = lastSet["prior"]
-        if (prior == null) {
-            // 该 set 记录早于 prior 字段：旧值未知，键保持不变，绝不靠猜删键。
-            return buildJsonObject {
-                put("key", key)
-                put("existed", existed)
-                put("result", "Old value unknown (this entry predates prior records); key left unchanged")
+    }
+
+    /**
+     * 判断一条 set 审计记录是否已被某次 revert 消费（撤销）过。
+     *
+     * 配对规则：revert 记录写 `revertedId`（被撤销那条 set 记录的 id），id 能
+     * 对上即已消费。时间戳兜底：旧记录没有 id（或旧 revert 没有 revertedId）
+     * 时配对不上，此时发生在该 set 之后、且本身没有 revertedId 的 revert 即
+     * 视为消费了它——旧记录下这会多消费同键更早的 set，但宁可少撤销一次，
+     * 也不把已撤销的值再恢复回来。
+     */
+    private fun isReverted(setEntry: JsonObject, entries: List<JsonObject>): Boolean {
+        val key = setEntry.optString("key")
+        val reverts = entries.filter {
+            it.optString("key") == key && it.optString("action") == "revert"
+        }
+        val setId = setEntry.optString("id")
+        if (setId != null && reverts.any { it.optString("revertedId") == setId }) {
+            return true
+        }
+        val setAt = setEntry.optLong("at")
+        if (setAt != null) {
+            // 只有没配对字段的旧 revert 才参与兜底：带 revertedId 的 revert
+            // 只消费它配对的那条 set，不消费同键更早的记录。
+            if (reverts.any {
+                    it.optString("revertedId") == null &&
+                        (it.optLong("at") ?: Long.MIN_VALUE) > setAt
+                }
+            ) {
+                return true
             }
         }
-        val before = current[key] ?: JsonNull
-        val restored: JsonElement
-        val result: String
-        if (prior is JsonNull) {
-            // 该键在最近一次 set 之前不存在：恢复即删键。
-            current.remove(key)
-            restored = JsonNull
-            result = "removed key; it did not exist before the last set"
-        } else {
-            current[key] = prior
-            restored = prior
-            result = "restored prior value from audit log"
-        }
-        save(current)
-        appendAuditLocked("revert", key, restored, before, null)
-        return buildJsonObject {
-            put("key", key)
-            put("existed", existed)
-            put("result", result)
-        }
-        }
+        return false
     }
 
     /**
@@ -268,7 +327,14 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
     }
 
     // 调用方必须已持有 auditMutex（set/revert 全程持锁），此函数不加锁防重入挂死。
-    private suspend fun appendAuditLocked(action: String, key: String, value: JsonElement, prior: JsonElement, note: String?) {
+    private suspend fun appendAuditLocked(
+        action: String,
+        key: String,
+        value: JsonElement,
+        prior: JsonElement,
+        note: String?,
+        revertedId: String? = null,
+    ) {
         val entry = buildJsonObject {
             put("id", UUID.randomUUID().toString())
             put("action", action)
@@ -276,6 +342,7 @@ private class ConfigStore(private val io: AgentWorkspaceIO) {
             put("value", value)
             put("prior", prior)
             put("at", System.currentTimeMillis())
+            if (revertedId != null) put("revertedId", revertedId)
             if (note != null) put("note", note)
         }
         run {

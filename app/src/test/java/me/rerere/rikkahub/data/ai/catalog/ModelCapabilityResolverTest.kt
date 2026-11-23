@@ -282,4 +282,125 @@ class ModelCapabilityResolverTest {
         assertEquals(emptySet<ModelAbility>(), resolved.abilities)
         assertEquals(CapabilitySource.LOCAL, resolved.abilitiesSource)
     }
+
+    @Test
+    fun longestMatchWinsWithinLocalTable() {
+        // 同表两条都命中时取 match 最长者：短前缀 "deepseek" 不得抢在
+        // 更具体的 "deepseek-flash" 之前生效（旧 firstOrNull 行为）。
+        assertTrue(overrides.upsertLocal(ModelCapabilityOverrides.Entry(match = "deepseek", contextLength = 111)))
+        assertTrue(overrides.upsertLocal(ModelCapabilityOverrides.Entry(match = "deepseek-flash", contextLength = 222)))
+        val resolved = ModelCapabilityResolver.resolve("deepseek-flash", overrides)
+        assertEquals(222, resolved.contextLength)
+        assertEquals(CapabilitySource.LOCAL, resolved.contextLengthSource)
+        // 未被长条目覆盖的模型仍由短条目兜底
+        val fallback = ModelCapabilityResolver.resolve("deepseek-other-variant", overrides)
+        assertEquals(111, fallback.contextLength)
+    }
+
+    @Test
+    fun longerBaselineEntryBeatsShorterLocalEntry() {
+        assumeTrue("baseline table not loaded under this runner", overrides.baselineEntryCount() == 19)
+        // 跨表最长匹配：本机表短条目 "deepseek" 不再因“本机优先”抢在基线表
+        // 更具体的 "deepseek-flash" 之前（旧行为）。
+        assertTrue(overrides.upsertLocal(ModelCapabilityOverrides.Entry(match = "deepseek", contextLength = 111)))
+        val resolved = ModelCapabilityResolver.resolve("deepseek-flash", overrides)
+        assertEquals(1048576, resolved.contextLength)
+        assertEquals(CapabilitySource.BASELINE, resolved.contextLengthSource)
+    }
+
+    @Test
+    fun localShortMatchDoesNotShadowBaselineSpecificEntry() {
+        // 本机表加一条短串 `mimo`，不应把基线表里更具体的 `mimo-v2.6` 挡在后面。
+        // 基线条目对 mimo-v2.6 的输入是文本+图像；短串若抢占，会得到纯文本（LOCAL）。
+        assumeTrue("baseline table not loaded under this runner", overrides.baselineEntryCount() == 19)
+        assertTrue(
+            overrides.upsertLocal(
+                ModelCapabilityOverrides.Entry(match = "mimo", input = setOf(Modality.TEXT)),
+            ),
+        )
+        overrides.load()
+        val specific = ModelCapabilityResolver.resolve("mimo-v2.6", overrides)
+        assertEquals(setOf(Modality.TEXT, Modality.IMAGE), specific.input)
+        assertEquals(CapabilitySource.BASELINE, specific.inputSource)
+        // 短串本身仍然生效：没有更长条目命中的型号走本机表
+        val shortOnly = ModelCapabilityResolver.resolve("mimo-unknown", overrides)
+        assertEquals(setOf(Modality.TEXT), shortOnly.input)
+        assertEquals(CapabilitySource.LOCAL, shortOnly.inputSource)
+        overrides.removeLocal("mimo")
+    }
+
+    @Test
+    fun importRejectsTableWhoseEntriesAreAllInvalid() {
+        // 有槽位但一条都解析不出来：拒绝，不能把本机表写成空表。
+        assertTrue(
+            overrides.upsertLocal(
+                ModelCapabilityOverrides.Entry(match = "keep-me", contextLength = 4096),
+            ),
+        )
+        overrides.load()
+        assertEquals(1, overrides.localEntryCount())
+        val rejected = overrides.importLocal("""{"version":1,"models":[{},{"input":["text"]}]}""")
+        assertTrue(!rejected)
+        assertEquals(1, overrides.localEntryCount())
+        assertEquals("keep-me", overrides.localEntries().single().match)
+    }
+
+    @Test
+    fun importAcceptsExplicitEmptyTable() {
+        // 显式空表是明确的“清空”意图，应当接受（等价于 clearLocal）。
+        assertTrue(
+            overrides.upsertLocal(ModelCapabilityOverrides.Entry(match = "temp", contextLength = 1)),
+        )
+        overrides.load()
+        assertTrue(overrides.importLocal("""{"version":1,"models":[]}"""))
+        assertEquals(0, overrides.localEntryCount())
+    }
+
+    @Test
+    fun writesLeaveNoStaleTempFile() {
+        // 原子写：落盘后不应残留 .tmp；目标文件内容与解析结果一致。
+        assertTrue(
+            overrides.upsertLocal(
+                ModelCapabilityOverrides.Entry(match = "atomic-check", contextLength = 2048),
+            ),
+        )
+        val tmp = context.filesDir.resolve("model-capabilities.json.tmp")
+        assertTrue("temp file should be gone after rename", !tmp.exists())
+        val target = context.filesDir.resolve("model-capabilities.json")
+        assertTrue("target should exist", target.exists())
+        assertEquals(1, overrides.localEntryCount())
+        assertEquals(2048, overrides.localEntries().single().contextLength)
+    }
+
+    @Test
+    fun editorViewAgreesWithEffectiveLookup() {
+        // 编辑器展示（resolve）与模型实际取值（overrides.*）必须同源。
+        // 两处若一个「本机表优先」、一个「合并后最长」，下面两组对照就会分叉。
+        assumeTrue("baseline table not loaded under this runner", overrides.baselineEntryCount() == 19)
+        assertTrue(
+            overrides.upsertLocal(
+                ModelCapabilityOverrides.Entry(match = "mimo", input = setOf(Modality.TEXT)),
+            ),
+        )
+        overrides.load()
+        // 基线条目更长：两边都取基线
+        val specific = ModelCapabilityResolver.resolve("mimo-v2.6", overrides)
+        assertEquals(setOf(Modality.TEXT, Modality.IMAGE), specific.input)
+        assertEquals(setOf(Modality.TEXT, Modality.IMAGE), overrides.inputModalities("mimo-v2.6"))
+
+        // 本机条目更长：两边都取本机
+        assertTrue(
+            overrides.upsertLocal(
+                ModelCapabilityOverrides.Entry(match = "kimi-k3", contextLength = 500_000),
+            ),
+        )
+        overrides.load()
+        val kimi = ModelCapabilityResolver.resolve("kimi-k3", overrides)
+        assertEquals(CapabilitySource.LOCAL, kimi.contextLengthSource)
+        assertEquals(500_000, kimi.contextLength ?: -1)
+        assertEquals(500_000, overrides.contextLength("kimi-k3") ?: -1)
+
+        overrides.removeLocal("mimo")
+        overrides.removeLocal("kimi-k3")
+    }
 }

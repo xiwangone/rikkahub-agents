@@ -57,7 +57,7 @@ class ModelCapabilityOverrides(
     @Volatile
     private var loadedBaselineCount: Int = 0
 
-    /** 载入两张表（本机表在前 → 同 modelId 命中时本机优先；表内先声明者优先）。 */
+    /** 载入两张表（本机表在前 → 同长命中平局时本机优先；查询取最长命中，表内先声明者优先）。 */
     fun load() {
         val local = readLocal()?.let { parseOverrideTable(it, "local") }.orEmpty()
         val baseline = readBaseline()?.let { parseOverrideTable(it, "baseline") }.orEmpty()
@@ -84,12 +84,21 @@ class ModelCapabilityOverrides(
     /**
      * 导入本机表：**先校验可解析**（非法则整体拒绝、不落盘），再写入 App 私有目录并重载。
      *
+     * `models` 里有条目、却一条都没解析出来（如 `{"models":[{},{}]}`）也拒绝：
+     * 否则会把本机表写成一张空表，用户看到的是「导入成功」而覆盖全丢。
+     * `{"models":[]}` 是明确的清空意图，接受（等价于 [clearLocal]）。
+     *
      * @return 是否导入成功；失败时调用方应提示用户检查 JSON 格式。
      */
     fun importLocal(text: String): Boolean {
-        if (parseOverrideTable(text, "import") == null) return false
+        val entries = parseOverrideTable(text, "import") ?: return false
+        val slots = modelSlotCount(text) ?: 0
+        if (entries.isEmpty() && slots > 0) {
+            AppLog.w(TAG, "import local overrides rejected: 0 valid entries in $slots slots")
+            return false
+        }
         return runCatching {
-            File(context.filesDir, FILE_NAME).writeText(text)
+            writeLocalFileAtomic(text)
             load()
             true
         }.onFailure { AppLog.w(TAG, "import local overrides failed: ${it.message}", it) }.getOrDefault(false)
@@ -118,7 +127,7 @@ class ModelCapabilityOverrides(
         load()
         return runCatching {
             val updated = upsertInList(localParsed, normalized)
-            File(context.filesDir, FILE_NAME).writeText(serializeEntries(updated))
+            writeLocalFileAtomic(serializeEntries(updated))
             load()
             true
         }.onFailure { AppLog.w(TAG, "upsert local override failed: ${it.message}", it) }.getOrDefault(false)
@@ -133,7 +142,7 @@ class ModelCapabilityOverrides(
         val updated = removeFromList(localParsed, match)
         if (updated.size == localParsed.size) return false
         return runCatching {
-            File(context.filesDir, FILE_NAME).writeText(serializeEntries(updated))
+            writeLocalFileAtomic(serializeEntries(updated))
             load()
             true
         }.onFailure { AppLog.w(TAG, "remove local override failed: ${it.message}", it) }.getOrDefault(false)
@@ -150,10 +159,36 @@ class ModelCapabilityOverrides(
     /** 当前条目数（供 UI 展示“外置表：N 条”）。 */
     fun size(): Int = overrideEntries.size
 
-    private fun lookup(modelId: String): Entry? {
-        if (overrideEntries.isEmpty()) return null
-        val id = modelId.lowercase()
-        return overrideEntries.firstOrNull { it.match.isNotEmpty() && id.contains(it.match.lowercase()) }
+    /**
+     * 命中条目里取 `match` **最长**者（更具体的条目优先）；平局取先声明者
+     * （本机表整体在基线表前，故本机优先）。与 [ModelCapabilityResolver] 的
+     * 查询口径一致。
+     *
+     * 旧实现是 firstOrNull（首条命中即返回）：`deepseek` 会抢在更具体的
+     * `deepseek-flash` 之前生效，只因其声明在表内靠前。改为最长匹配后，
+     * 短前缀条目只兜底未被更具体条目覆盖的模型。
+     */
+    private fun lookup(modelId: String): Entry? =
+        longestMatch(overrideEntries, modelId)
+
+    /**
+     * 原子写本机表：先写临时文件再 rename 替换，进程中途被杀也不会留下半截 JSON
+     * （半截表会导致下次启动整表解析失败被忽略，用户覆盖静默丢失）。
+     */
+    private fun writeLocalFileAtomic(content: String) {
+        val target = File(context.filesDir, FILE_NAME)
+        val tmp = File(context.filesDir, "$FILE_NAME.tmp")
+        tmp.writeText(content)
+        if (tmp.renameTo(target)) return
+        // rename 失败（个别文件系统目标已存在等）：退化为先删目标再改名
+        if (target.exists() && !target.delete()) {
+            tmp.delete()
+            error("atomic replace failed: cannot delete $FILE_NAME")
+        }
+        if (!tmp.renameTo(target)) {
+            tmp.delete()
+            error("atomic replace failed: rename $FILE_NAME.tmp -> $FILE_NAME")
+        }
     }
 
     private fun readLocal(): String? =
@@ -190,12 +225,35 @@ class ModelCapabilityOverrides(
                 models.mapNotNull { (it as? JsonObject)?.toEntry() }
             }.getOrNull()
 
+        /**
+         * 纯匹配（无 IO）：给定条目里命中 `modelId` 且 `match` **最长**的那条；
+         * 等长时取先声明者。见 [lookup] 的注释。
+         */
+        internal fun longestMatch(entries: List<Entry>, modelId: String): Entry? {
+            if (entries.isEmpty()) return null
+            val id = modelId.lowercase()
+            var best: Entry? = null
+            for (entry in entries) {
+                val match = entry.match
+                if (match.isEmpty() || !id.contains(match.lowercase())) continue
+                if (match.length > (best?.match?.length ?: -1)) best = entry
+            }
+            return best
+        }
+
+        /** 纯解析（无 IO）：`models` 数组的元素个数；整表非法返回 null。 */
+        internal fun modelSlotCount(text: String): Int? {
+            val root = runCatching { json.parseToJsonElement(text) as? JsonObject }.getOrNull()
+                ?: return null
+            return (root["models"] as? JsonArray)?.size
+        }
+
         /** 纯序列化（无 IO）：与 [parseEntries] 互逆；空字段不写入（即该项不覆盖）。 */
         internal fun serializeEntries(entries: List<Entry>): String {
             val root = buildJsonObject {
                 put("version", 1)
                 putJsonArray("models") {
-                    entries.forEach { add(it.toJsonObject()) }
+                    entries.forEach { add(entryToJsonObject(it)) }
                 }
             }
             return json.encodeToString(JsonObject.serializer(), root)
@@ -219,48 +277,53 @@ class ModelCapabilityOverrides(
             return entries.filterNot { it.match.trim().equals(target, ignoreCase = true) }
         }
 
-        private fun Entry.toJsonObject(): JsonObject = buildJsonObject {
-            put("match", match)
-            input?.let { modalities ->
-                putJsonArray("input") { modalities.forEach { add(it.name.lowercase()) } }
-            }
-            output?.let { modalities ->
-                putJsonArray("output") { modalities.forEach { add(it.name.lowercase()) } }
-            }
-            abilities?.let { abilities ->
-                putJsonArray("abilities") { abilities.forEach { add(it.name.lowercase()) } }
-            }
-            contextLength?.let { put("contextLength", it) }
-        }
-
-        private fun JsonObject.stringList(key: String): List<String>? =
-            (this[key] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull?.lowercase() }
-
-        private fun JsonObject.toModalities(key: String): Set<Modality>? =
-            stringList(key)?.mapNotNull { name ->
-                Modality.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            }?.toSet()
-
-        private fun JsonObject.toAbilities(key: String): Set<ModelAbility>? =
-            stringList(key)?.mapNotNull { name ->
-                ModelAbility.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
-            }?.toSet()
-
         /** 单条解析：`match` 缺失即视为非法（跳过）。 */
-        internal fun JsonObject.toEntry(): Entry? {
-            val match = (this["match"] as? JsonPrimitive)
-                ?.takeIf { it.isString }
-                ?.contentOrNull
-                ?.trim()
-                ?.takeIf { it.isNotEmpty() }
-                ?: return null
-            return Entry(
-                match = match,
-                input = toModalities("input"),
-                output = toModalities("output"),
-                abilities = toAbilities("abilities"),
-                contextLength = (this["contextLength"] as? JsonPrimitive)?.intOrNull,
-            )
-        }
+        internal fun JsonObject.toEntry(): Entry? = parseEntry(this)
     }
+}
+
+// ── 条目 <-> JSON 的纯转换：放在文件级，companion 只留业务入口（避免函数数越过 detekt 阈值）──
+
+private fun entryToJsonObject(entry: ModelCapabilityOverrides.Entry): JsonObject = buildJsonObject {
+    put("match", entry.match)
+    entry.input?.let { modalities ->
+        putJsonArray("input") { modalities.forEach { add(it.name.lowercase()) } }
+    }
+    entry.output?.let { modalities ->
+        putJsonArray("output") { modalities.forEach { add(it.name.lowercase()) } }
+    }
+    entry.abilities?.let { abilities ->
+        putJsonArray("abilities") { abilities.forEach { add(it.name.lowercase()) } }
+    }
+    entry.contextLength?.let { put("contextLength", it) }
+}
+
+private fun jsonStringList(obj: JsonObject, key: String): List<String>? =
+    (obj[key] as? JsonArray)?.mapNotNull { it.jsonPrimitive.contentOrNull?.lowercase() }
+
+private fun jsonToModalities(obj: JsonObject, key: String): Set<Modality>? =
+    jsonStringList(obj, key)?.mapNotNull { name ->
+        Modality.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    }?.toSet()
+
+private fun jsonToAbilities(obj: JsonObject, key: String): Set<ModelAbility>? =
+    jsonStringList(obj, key)?.mapNotNull { name ->
+        ModelAbility.entries.firstOrNull { it.name.equals(name, ignoreCase = true) }
+    }?.toSet()
+
+/** 单条解析：`match` 缺失即视为非法（跳过）。 */
+internal fun parseEntry(obj: JsonObject): ModelCapabilityOverrides.Entry? {
+    val match = (obj["match"] as? JsonPrimitive)
+        ?.takeIf { it.isString }
+        ?.contentOrNull
+        ?.trim()
+        ?.takeIf { it.isNotEmpty() }
+        ?: return null
+    return ModelCapabilityOverrides.Entry(
+        match = match,
+        input = jsonToModalities(obj, "input"),
+        output = jsonToModalities(obj, "output"),
+        abilities = jsonToAbilities(obj, "abilities"),
+        contextLength = (obj["contextLength"] as? JsonPrimitive)?.intOrNull,
+    )
 }

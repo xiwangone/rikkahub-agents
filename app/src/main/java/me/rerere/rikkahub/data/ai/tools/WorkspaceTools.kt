@@ -14,6 +14,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.toMetadata
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.inject.BackgroundInjectedSecrets
+import me.rerere.rikkahub.data.ai.tools.inject.maskInjectedValues
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.workspace.WorkspaceLayout
@@ -190,7 +191,16 @@ private fun createReadFileTool(
             val rawText = bytes.toString(Charsets.UTF_8)
             // 凭证类文件（.env / 私钥 / .ssh 下等）只掩「值」，见 isSensitiveCredentialPath。
             val sensitive = isSensitiveCredentialPath(path)
-            val text = if (sensitive) redactCredentialFileText(rawText) else rawText
+            var text = if (sensitive) redactCredentialFileText(rawText) else rawText
+            // 后台任务日志（.rikkahub-bg/<id>/log）是命令 stdout 的回显，可能含 `$$` 注入值：
+            // 非敏感分支也要按本 workspace 的注入值掩一遍，堵住绕过 background_status 掩码的口子。
+            if (!sensitive && isBackgroundTaskPath(path)) {
+                text = maskInjectedValues(
+                    text,
+                    BackgroundInjectedSecrets.allForWorkspace(targetWorkspaceId),
+                    BackgroundInjectedSecrets.retainedRules(),
+                )
+            }
             val result = formatReadFileTextResult(
                 path = path,
                 text = text,

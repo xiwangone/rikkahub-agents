@@ -126,6 +126,13 @@ class DeepSeekASRController(
         releaseRecorder()
         _state.update { it.copy(status = ASRStatus.Stopping) }
 
+        // scope 已取消（dispose 先于 stop）时 launch 不会执行，状态会永远卡在 Stopping：
+        // 此时尾段已无从上传，直接回 Idle。
+        if (!scope.isActive) {
+            _state.update { it.copy(status = ASRStatus.Idle, errorMessage = null) }
+            return
+        }
+
         scope.launch(Dispatchers.IO) {
             try {
                 flushJob?.join()
@@ -219,7 +226,12 @@ class DeepSeekASRController(
         if (flushJob?.isActive == true) return
         flushJob =
             scope.launch(Dispatchers.IO) {
-                runCatching { flushSegment() }.onFailure { e ->
+                try {
+                    flushSegment()
+                } catch (ce: kotlinx.coroutines.CancellationException) {
+                    // 取消要重抛：吞掉会破坏结构化并发（如 stop() 里 flushJob?.join() 等的取消语义）
+                    throw ce
+                } catch (e: Exception) {
                     AppLogger.e(TAG, "Segment flush failed", e)
                     setError(e.message ?: "DeepSeek ASR segment flush failed")
                 }

@@ -1,6 +1,7 @@
 package me.rerere.ai.provider.providers.backend
 
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.FlowCollector
 import kotlinx.coroutines.flow.flow
@@ -9,6 +10,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import kotlinx.coroutines.withTimeout
 import me.rerere.ai.core.MessageRole
 import me.rerere.ai.core.TokenUsage
 import me.rerere.ai.provider.ImageGenerationParams
@@ -26,6 +28,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.SHORT_REQUEST_CALL_TIMEOUT_MS
 import me.rerere.common.log.AppLogger
 import okhttp3.OkHttpClient
 import java.util.UUID
@@ -104,6 +107,21 @@ class BackendProvider(
     @Volatile
     var lastSessionPath: String? = null
         private set
+
+    /**
+     * 把挂起的加载调用桥接成 [BackendSseClient] 要的同步 loader。
+     *
+     * 调用方是 OkHttp 回调 / 守护线程，没有协程作用域，只能用 runBlocking 桥接：
+     * 不带调度器时协程体跑在调用线程上，改走 Dispatchers.IO 让 IO 等待离开
+     * OkHttp 线程；withTimeout 再卡一道协程级上限（与短请求 30s 口径一致），
+     * 兜底 JSON 解析等非 IO 环节。注意 withTimeout 中断不了阻塞中的 OkHttp
+     * execute()，套接字层面的上限由 [BackendApi] 的 shortRequestClient
+     * （callTimeout）保证，两层缺一不可。
+     */
+    internal fun <T> blockingLoader(
+        timeoutMs: Long = SHORT_REQUEST_CALL_TIMEOUT_MS,
+        load: suspend () -> T,
+    ): () -> T = { runBlocking(Dispatchers.IO) { withTimeout(timeoutMs) { load() } } }
 
     override suspend fun listModels(providerSetting: ProviderSetting.Backend): List<Model> {
         val models = api(providerSetting).getModels()
@@ -248,8 +266,8 @@ class BackendProvider(
                     password = providerSetting.password,
                     token = providerSetting.token,
                     client = httpClient,
-                    historyLoader = { runBlocking { api.getHistory() } },
-                    statusLoader = { runBlocking { api.getStatus() } },
+                    historyLoader = blockingLoader { api.getHistory() },
+                    statusLoader = blockingLoader { api.getStatus() },
                 )
             try {
                 val events = sse.connect()

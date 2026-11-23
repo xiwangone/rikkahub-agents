@@ -8,6 +8,9 @@ import kotlinx.serialization.json.put
 import me.rerere.ai.core.InputSchema
 import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.tools.inject.BackgroundInjectedSecrets
+import me.rerere.rikkahub.data.ai.tools.inject.InjectedSecret
+import me.rerere.rikkahub.data.ai.tools.inject.maskInjectedValues
 import me.rerere.rikkahub.data.repository.WorkspaceRepository
 import me.rerere.workspace.WorkspaceCommandResult
 import me.rerere.workspace.WorkspaceLayout
@@ -48,9 +51,20 @@ internal fun createSearchCodeTool(
 
         val cmd = buildSearchCodeCommand(pattern, relPath, glob, max)
         val result = workspaceRepository.executeCommand(wsId, cmd, "")
+        // 搜索根落在后台任务日志目录（.rikkahub-bg）时，命中行可能带 `$$` 注入值明文：
+        // 与 read_file 同口径，按本 workspace 的注入值掩一遍，堵住绕过 background_status 的口子。
+        val bgLogSearch = isBackgroundTaskPath(rawPath) || isBackgroundTaskPath(relPath)
         listOf(
             UIMessagePart.Text(
-                formatSearchCodeOutput(result, max, relPath, pattern, targetLayout.workspaceDir).toString(),
+                formatSearchCodeOutput(
+                    result,
+                    max,
+                    relPath,
+                    pattern,
+                    targetLayout.workspaceDir,
+                    injectedSecrets = if (bgLogSearch) BackgroundInjectedSecrets.allForWorkspace(wsId) else emptyList(),
+                    legacyRules = if (bgLogSearch) BackgroundInjectedSecrets.retainedRules() else emptyMap(),
+                ).toString(),
             ),
         )
     },
@@ -106,6 +120,8 @@ private fun formatSearchCodeOutput(
     relPath: String,
     pattern: String,
     workspaceDir: String,
+    injectedSecrets: List<InjectedSecret> = emptyList(),
+    legacyRules: Map<String, String> = emptyMap(),
 ): JsonObject {
     val raw = result.stdout
     val hitsIdx = raw.indexOf("---HITS---")
@@ -123,7 +139,10 @@ private fun formatSearchCodeOutput(
         if (exitIdx >= 0) raw.substring(exitIdx + "---EXIT---".length).trim().toIntOrNull() ?: 0 else 0
     val hitLines = hitsPart.lines().filter { it.isNotBlank() }
     val truncated = hitLines.size > max
-    val matches = hitLines.take(max).mapNotNull(::parseGrepHitLine)
+    val maskText: ((String) -> String)? =
+        if (injectedSecrets.isEmpty() && legacyRules.isEmpty()) null
+        else { line -> maskInjectedValues(line, injectedSecrets, legacyRules) }
+    val matches = hitLines.take(max).mapNotNull { maskText?.let { fn -> fn(it) } ?: it }.mapNotNull(::parseGrepHitLine)
     return buildJsonObject {
         put("matches", buildJsonArray { matches.forEach { add(it) } })
         put("returned", matches.size)

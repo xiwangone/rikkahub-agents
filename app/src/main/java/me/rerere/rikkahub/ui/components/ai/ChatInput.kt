@@ -741,8 +741,10 @@ private fun TextInputRow(
                 .debounce(COMPLETION_DEBOUNCE_MILLIS)
                 .collectLatest { context ->
                     // 补全求值（含磁盘 I/O）放后台线程，主线程只留合并与状态写回。
+                    // 用 IO 而非 Default：@ 补全会走工作区文件扫描（磁盘 I/O），
+                    // Default 的线程数等于 CPU 核数，阻塞读文件会拖慢其他并行计算。
                     val lists =
-                        withContext(Dispatchers.Default) {
+                        withContext(Dispatchers.IO) {
                             completionProviders.mapNotNull { provider ->
                                 try {
                                     provider

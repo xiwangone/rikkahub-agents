@@ -170,6 +170,17 @@ internal object BackgroundInjectedSecrets {
     fun get(workspaceId: String, taskId: String): List<InjectedSecret> =
         byTask[key(workspaceId, taskId)].orEmpty()
 
+    /**
+     * 该 workspace 全部任务的注入值（供 read_file / search_code 掩后台任务日志：
+     * 日志路径形如 `$workspaceDir/.rikkahub-bg/<taskId>/log`，工具侧只看得到路径、
+     * 不知道 taskId，按 workspace 维度取全集兜底）。
+     */
+    @Synchronized
+    fun allForWorkspace(workspaceId: String): List<InjectedSecret> {
+        val prefix = "$workspaceId\u0000"
+        return byTask.entries.filter { it.key.startsWith(prefix) }.flatMap { it.value }
+    }
+
     @Synchronized
     fun remove(workspaceId: String, taskId: String) {
         byTask.remove(key(workspaceId, taskId))

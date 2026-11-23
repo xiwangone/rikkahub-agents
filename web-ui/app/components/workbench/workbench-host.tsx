@@ -104,7 +104,7 @@ function CodePreviewPanel({ panel }: { panel: WorkbenchPanel }) {
 
       mermaid.initialize({
         startOnLoad: false,
-        securityLevel: "loose",
+        securityLevel: "strict",
       });
 
       try {
@@ -162,7 +162,7 @@ function CodePreviewPanel({ panel }: { panel: WorkbenchPanel }) {
           ) : (
             <iframe
               title={panel.title}
-              sandbox="allow-scripts allow-same-origin"
+              sandbox="allow-scripts"
               srcDoc={iframeDoc}
               className="h-full w-full border-0"
             />

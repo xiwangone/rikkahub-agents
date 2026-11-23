@@ -60,7 +60,9 @@ class BackendApi(
 
     // ── 获取历史消息 ──
     suspend fun getHistory(): List<HistoryMessage> = withContext(Dispatchers.IO) {
-        val body = get("/history") ?: return@withContext emptyList()
+        // 短请求单独收紧超时：与 getModels 同理，共享 client 没有 callTimeout，
+        // /history 卡住时断流补拉的守护线程会被无限拖住。
+        val body = get("/history", client.shortRequestClient()) ?: return@withContext emptyList()
         runCatching {
             json.decodeFromString<List<HistoryMessage>>(body)
         }.getOrElse {
@@ -71,7 +73,9 @@ class BackendApi(
 
     // ── 获取服务器状态 ──
     suspend fun getStatus(): StatusInfo? = withContext(Dispatchers.IO) {
-        val body = get("/status") ?: return@withContext null
+        // 短请求单独收紧超时：与 getModels 同理，共享 client 没有 callTimeout，
+        // /status 卡住时状态探测的守护线程会被无限拖住。
+        val body = get("/status", client.shortRequestClient()) ?: return@withContext null
         runCatching {
             json.decodeFromString<StatusInfo>(body)
         }.getOrElse {

@@ -82,7 +82,7 @@ class ConfigToolsRevertTest {
     }
 
     @Test
-    fun `revert restores prior value and second revert keeps it`() {
+    fun `second revert undoes the earlier set instead of restoring the same prior again`() {
         val io = InMemoryIO()
         setValue(io, "k", "\"A\"")
         setValue(io, "k", "\"B\"")
@@ -92,9 +92,61 @@ class ConfigToolsRevertTest {
         assertTrue("first revert should restore A, got: $first", first.contains("restored prior value"))
         assertEquals("\"A\"", storedSettings(io)["k"].toString())
 
-        // 第二次 revert 仍以最近一条 set 记录的 prior（A）恢复，不删键。
+        // 第二次 revert 撤销的是更早那条 set（set A，prior 为 null → 键不存在），
+        // 而不是按同一条 set 记录把 A 再恢复一次。
         val second = revert(io, "k")
-        assertTrue("second revert should restore A again, got: $second", second.contains("restored prior value"))
+        assertTrue("second revert should remove k, got: $second", second.contains("did not exist before the last set"))
+        assertFalse("k" in storedSettings(io))
+    }
+
+    @Test
+    fun `revert after the only set is consumed is a no-op`() {
+        val io = InMemoryIO()
+        setValue(io, "k", "\"B\"")
+
+        val first = revert(io, "k")
+        assertTrue("first revert should remove k, got: $first", first.contains("did not exist before the last set"))
+        assertFalse("k" in storedSettings(io))
+
+        // 唯一一条 set 记录已被第一次 revert 消费，第二次 revert 无事可做，
+        // 不许再追加审计记录，也不能把 B 恢复回来。
+        val second = revert(io, "k")
+        assertTrue("second revert must be a no-op, got: $second", second.contains("nothing to revert"))
+        assertFalse("k" in storedSettings(io))
+        assertEquals("no-op revert must not append an audit entry", 2, auditEntries(io).size)
+    }
+
+    @Test
+    fun `revert after an intervening set undoes the latest set, not the first`() {
+        val io = InMemoryIO()
+        setValue(io, "k", "\"A\"")
+        setValue(io, "k", "\"B\"")
+        revert(io, "k")
+        assertEquals("\"A\"", storedSettings(io)["k"].toString())
+
+        setValue(io, "k", "\"B\"")
+        setValue(io, "k", "\"C\"")
+        val out = revert(io, "k")
+        assertTrue("revert should restore B, got: $out", out.contains("restored prior value"))
+        assertEquals("\"B\"", storedSettings(io)["k"].toString())
+    }
+
+    @Test
+    fun `legacy set record without id is consumed by timestamp fallback`() {
+        val io = InMemoryIO()
+        io.files["config/settings.json"] = """{"k":"B"}"""
+        // 旧审计：set 记录没有 id 字段，无法用 revertedId 配对。
+        io.files["config/audit.jsonl"] =
+            """{"action":"set","key":"k","value":"B","prior":"A","at":100}""" + "\n"
+
+        val first = revert(io, "k")
+        assertTrue("first revert should restore A, got: $first", first.contains("restored prior value"))
+        assertEquals("\"A\"", storedSettings(io)["k"].toString())
+
+        // 第二次 revert：set 记录无 id，但第一次 revert（at 为当前毫秒，远大于 100）
+        // 没有 revertedId，时间戳兜底判定该 set 已被消费。
+        val second = revert(io, "k")
+        assertTrue("second revert must be a no-op, got: $second", second.contains("nothing to revert"))
         assertEquals("\"A\"", storedSettings(io)["k"].toString())
     }
 

@@ -30,6 +30,7 @@ import me.rerere.workspace.WorkspaceLayout
 import me.rerere.workspace.WorkspaceStorageArea
 import me.rerere.workspace.WorkspaceTreeResult
 import me.rerere.workspace.normalizeWorkspacePath
+import me.rerere.workspace.ssh.REMOTE_BG_DIR_NAME
 import org.koin.java.KoinJavaComponent.getKoin
 import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
@@ -580,6 +581,16 @@ private val SENSITIVE_FILE_NAMES = listOf(
     "id_rsa", "id_ed25519", "id_ecdsa", "id_dsa",
 )
 private val SENSITIVE_FILE_SUFFIXES = listOf(".pem", ".key", ".p12", ".pfx", ".jks", ".keystore")
+
+/**
+ * 后台任务日志路径判定：远程后台任务的日志固定写在
+ * `$workspaceDir/.rikkahub-bg/<taskId>/log`（目录名见 workspace 模块的
+ * [REMOTE_BG_DIR_NAME]）。这类日志是命令 stdout 的回显，可能含 `$$` 注入值明文，
+ * read_file / search_code 命中时须按本 workspace 的注入值掩一遍——
+ * 否则绕过 workspace_background_status 的掩码就能把注入值带进模型上下文。
+ * 宽松包含匹配即可：误命中只会多做一次掩码替换，方向安全。
+ */
+internal fun isBackgroundTaskPath(path: String): Boolean = path.contains(REMOTE_BG_DIR_NAME)
 
 internal fun isSensitiveCredentialPath(path: String): Boolean {
     val normalized = path.replace('\\', '/')

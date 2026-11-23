@@ -36,8 +36,9 @@ data class ResolvedCapabilities(
  * 模型能力解析：把“外置覆盖表 → 内置 ∪ 目录 → 默认”的解析口径按字段拆成
  * “生效值 + 来源”，供能力编辑器展示。
  *
- * 覆盖语义与 [ModelCapabilityOverrides] 的查询一致：首条命中的条目（本机表在前）
- * 其非空字段直接采用；该条目某字段为空时回落到并集，而不是去查基线表同字段。
+ * 覆盖语义与 [ModelCapabilityOverrides] 的查询一致：命中条目里 `match` 最长者
+ * （跨两表；平局本机表优先）其非空字段直接采用；该条目某字段为空时回落到并集，
+ * 而不是去查基线表同字段。
  * 并集层与默认值的区分：输入/输出只有纯文本、能力为空、上下文为空时记为
  * [CapabilitySource.DEFAULT]——登记表公开 API 无法区分“登记为纯文本”与
  * “无任何登记时的回退纯文本”，此处按回退值处理。
@@ -88,18 +89,24 @@ object ModelCapabilityResolver {
         )
     }
 
-    /** 首条命中的覆盖条目及所在表（本机表在前），与 [ModelCapabilityOverrides] 的查询一致。 */
+    /**
+     * 命中的覆盖条目及所在表：跨本机表与基线表取 `match` **最长**者（更具体的条目优先），
+     * 平局本机表优先、表内先声明者优先，与 [ModelCapabilityOverrides] 的查询一致。
+     */
     private fun matchingEntry(
         modelId: String,
         overrides: ModelCapabilityOverrides,
     ): Pair<ModelCapabilityOverrides.Entry, CapabilitySource>? {
-        val id = modelId.lowercase()
-        overrides.localEntries()
-            .firstOrNull { it.match.isNotEmpty() && id.contains(it.match.lowercase()) }
-            ?.let { return it to CapabilitySource.LOCAL }
-        overrides.baselineEntries()
-            .firstOrNull { it.match.isNotEmpty() && id.contains(it.match.lowercase()) }
-            ?.let { return it to CapabilitySource.BASELINE }
-        return null
+        // 与 lookup 口径一致：跨两表取最长，平局本机表优先。
+        // 先各表内取最长，再取两者中更长者；等长时留本机表那条。
+        val localBest = ModelCapabilityOverrides.longestMatch(overrides.localEntries(), modelId)
+        val baselineBest = ModelCapabilityOverrides.longestMatch(overrides.baselineEntries(), modelId)
+        return when {
+            localBest == null -> baselineBest?.let { it to CapabilitySource.BASELINE }
+            baselineBest == null -> localBest to CapabilitySource.LOCAL
+            baselineBest.match.length > localBest.match.length ->
+                baselineBest to CapabilitySource.BASELINE
+            else -> localBest to CapabilitySource.LOCAL
+        }
     }
 }

@@ -72,6 +72,22 @@ class ConfigToolsCorruptTest {
     }
 
     @Test
+    fun `get_all salvages truncated string ending in dangling backslash`() {
+        val io = InMemoryIO()
+        // 截断在字符串末尾的反斜杠处：直接补引号会被这个反斜杠吞掉（变成转义
+        // 引号），字符串仍未闭合、补救失败；应先补一个反斜杠把它自身转义掉。
+        io.files["config/settings.json"] = """{"ui.lang":"zh\"""
+
+        val tools = createConfigTools(io, emptyMap())
+        val getAllTool = tools.first { it.name == "config_get_all" }
+
+        val out = execText(getAllTool, "{}")
+
+        // 救回的值是 "zh\"（反斜杠本身），JSON 编码后是 "zh\\"。 
+        assertEquals("""{"ui.lang":"zh\\"}""", out)
+    }
+
+    @Test
     fun `get_all on corrupt settings does not silently report empty config`() {
         val io = InMemoryIO()
         io.files["config/settings.json"] = """{"ui.lang":"zh","agent.verbosity":3"""

@@ -8,6 +8,7 @@ import org.junit.Assert.fail
 import org.junit.Test
 import java.io.File
 import java.io.FileOutputStream
+import java.nio.ByteBuffer
 import java.nio.file.Files
 import java.security.SecureRandom
 import javax.crypto.Cipher
@@ -98,6 +99,68 @@ class BackupCryptoTest {
             } catch (_: IllegalArgumentException) {
                 assertFalse(decFile.exists())
             }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `decrypt rejects KDF iteration counts above the cap before deriving the key`() {
+        val dir = Files.createTempDirectory("backup_crypto_iter_cap").toFile()
+        try {
+            // 只写头部：MAGIC + 版本 + iter；上限校验在读盐/派生密钥之前触发，
+            // 因此超大 iter 应立刻被拒，而不是先跑几百万轮 PBKDF2 再失败。
+            fun headerWithIter(iter: Int): File {
+                val buf = ByteBuffer.allocate(4 + 1 + 4)
+                buf.put("RHBE".toByteArray(Charsets.US_ASCII))
+                buf.put(2)
+                buf.putInt(iter)
+                return File(dir, "header_$iter.enc").apply { writeBytes(buf.array()) }
+            }
+
+            for (badIter in listOf(0, -1, 2_000_001, Int.MAX_VALUE)) {
+                val encFile = headerWithIter(badIter)
+                val decFile = File(dir, "dec_$badIter.bin")
+                val startMs = System.currentTimeMillis()
+                try {
+                    BackupCrypto.decryptFile(encFile, decFile, "password")
+                    fail("Expected IllegalArgumentException for iter=$badIter")
+                } catch (e: IllegalArgumentException) {
+                    assertTrue(
+                        "iter=$badIter must be rejected by the iteration cap, got: ${e.message}",
+                        e.message?.contains("KDF iteration count") == true,
+                    )
+                }
+                val elapsedMs = System.currentTimeMillis() - startMs
+                assertTrue(
+                    "iter=$badIter must be rejected before key derivation, took ${elapsedMs}ms",
+                    elapsedMs < 5_000,
+                )
+                assertFalse("Failed decrypt must clean up partial output", decFile.exists())
+            }
+        } finally {
+            dir.deleteRecursively()
+        }
+    }
+
+    @Test
+    fun `encrypt and decrypt roundtrip at the maximum allowed iteration count`() {
+        val dir = Files.createTempDirectory("backup_crypto_max_iter").toFile()
+        try {
+            val plainBytes = "max-iter-backup-payload".toByteArray()
+            val plainFile = File(dir, "plain.bin").apply { writeBytes(plainBytes) }
+            val encFile = File(dir, "enc.bin")
+            val decFile = File(dir, "dec.bin")
+
+            // 上限本身必须可用：2_000_000 轮能正常加解密（只多花几秒 KDF 时间）。
+            BackupCrypto.encryptFile(
+                plainFile = plainFile,
+                encFile = encFile,
+                password = "correct-horse-battery-staple",
+                iterations = 2_000_000,
+            )
+            BackupCrypto.decryptFile(encFile, decFile, "correct-horse-battery-staple")
+            assertArrayEquals(plainBytes, decFile.readBytes())
         } finally {
             dir.deleteRecursively()
         }

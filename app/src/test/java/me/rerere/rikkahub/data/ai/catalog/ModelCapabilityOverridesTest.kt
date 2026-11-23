@@ -130,4 +130,40 @@ class ModelCapabilityOverridesTest {
         assertEquals(listOf(base[1]), removed)
         assertEquals(base, ModelCapabilityOverrides.removeFromList(base, "not-there"))
     }
+
+    @Test
+    fun longestMatchWinsOverEarlierShortPrefix() {
+        // 短串排在前、长串排在后：命中最长，而不是数组第一条。
+        val short = ModelCapabilityOverrides.Entry(match = "mimo", abilities = setOf(ModelAbility.TOOL))
+        val long = ModelCapabilityOverrides.Entry(
+            match = "mimo-v2.5-pro",
+            abilities = setOf(ModelAbility.TOOL, ModelAbility.REASONING),
+        )
+        val picked = ModelCapabilityOverrides.longestMatch(listOf(short, long), "mimo-v2.5-pro")
+        assertEquals(long, picked)
+    }
+
+    @Test
+    fun longestMatchBreaksTieByDeclarationOrder() {
+        // 等长（同为子串命中）时保留先声明者，语义与本机表在前的拼接顺序一致。
+        val first = ModelCapabilityOverrides.Entry(match = "aa-bb", abilities = setOf(ModelAbility.TOOL))
+        val second = ModelCapabilityOverrides.Entry(match = "bb-cc", abilities = setOf(ModelAbility.REASONING))
+        val picked = ModelCapabilityOverrides.longestMatch(listOf(first, second), "aa-bb-cc")
+        assertEquals(first, picked)
+    }
+
+    @Test
+    fun longestMatchIgnoresNonMatchingEntries() {
+        val entries = listOf(ModelCapabilityOverrides.Entry(match = "kimi-k3", contextLength = 1))
+        assertNull(ModelCapabilityOverrides.longestMatch(entries, "gpt-4o"))
+    }
+
+    @Test
+    fun modelSlotCountSeesEntriesEvenWhenAllInvalid() {
+        // 导入校验依赖它区分「显式空表」与「有槽位但全非法」。
+        assertEquals(0, ModelCapabilityOverrides.modelSlotCount("""{"models":[]}""") ?: -1)
+        assertEquals(2, ModelCapabilityOverrides.modelSlotCount("""{"models":[{},{"input":["text"]}]}""") ?: -1)
+        assertNull(ModelCapabilityOverrides.modelSlotCount("not json"))
+        assertNull(ModelCapabilityOverrides.modelSlotCount("""{"noModels":[]}"""))
+    }
 }

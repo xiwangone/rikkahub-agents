@@ -143,6 +143,17 @@ class BackupVM(
 
     // ── WebDAV 自驱动执行（AppScope，退页/切后台不取消，进程杀才停）──
 
+    // AppScope 默认跑 Dispatchers.Default：备份/恢复的网络与磁盘 IO 不再占主线程。
+    // 但 onState/onResult 是 UI 传进来的回调（调用方直接写 Compose snapshot state、
+    // 弹 toast），必须回到主线程再调，否则回调会在 Default 线程上写 UI 状态。
+    private suspend fun postBackupState(onState: (BackupRunState) -> Unit, state: BackupRunState) {
+        withContext(Dispatchers.Main) { onState(state) }
+    }
+
+    private suspend fun postBackupResult(onResult: (Result<Unit>) -> Unit, result: Result<Unit>) {
+        withContext(Dispatchers.Main) { onResult(result) }
+    }
+
     /** 测试 WebDAV 连接。返回 Result 供 UI 展示。 */
     fun runTestWebDav(onResult: (Result<Unit>) -> Unit) {
         appScope.launch {
@@ -150,14 +161,14 @@ class BackupVM(
                 webDavSync.testConnection(settings.value.activeWebDavConfig())
                 Unit
             }.onFailure { if (it is CancellationException) throw it }
-            onResult(r)
+            postBackupResult(onResult, r)
         }
     }
 
     /** 执行云端备份（后台跑完；进程存活期间退出页面不打断）。 */
     fun runBackup(onState: (BackupRunState) -> Unit) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 val stats = webDavSync.backup(settings.value.activeWebDavConfig())
                 recordBackupTime()
@@ -166,7 +177,8 @@ class BackupVM(
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             if (ex != null) AppLog.w(TAG, "runBackup failed", ex)
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.BackupSucceeded(r.getOrThrow())
                     // 缺记住口令不是普通失败：弹框让用户设口令后重试（此前只弹 toast，
@@ -181,12 +193,13 @@ class BackupVM(
     /** 执行云端恢复（完成后需重启）。 */
     fun runRestore(item: WebDavBackupItem, onState: (BackupRunState) -> Unit) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 webDavSync.restore(config = settings.value.activeWebDavConfig(), item = item)
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.Success
                     ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
@@ -204,7 +217,7 @@ class BackupVM(
         onState: (BackupRunState) -> Unit,
     ) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 webDavSync.restoreWithPassword(
                     config = settings.value.activeWebDavConfig(),
@@ -214,7 +227,8 @@ class BackupVM(
                 )
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.Success
                     // 口令错误（GCM 校验失败）→ 保持弹框提示重输
@@ -233,7 +247,7 @@ class BackupVM(
                 webDavSync.deleteBackupFile(settings.value.activeWebDavConfig(), item)
                 loadBackupFileItems()
             }.onFailure { if (it is CancellationException) throw it }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            postBackupState(onState, if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
         }
     }
 
@@ -481,13 +495,13 @@ class BackupVM(
                 s3Sync.testS3(settings.value.activeS3Config())
                 Unit
             }.onFailure { if (it is CancellationException) throw it }
-            onResult(r)
+            postBackupResult(onResult, r)
         }
     }
 
     fun runBackupToS3(onState: (BackupRunState) -> Unit) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 val stats = s3Sync.backupToS3(settings.value.activeS3Config())
                 recordBackupTime()
@@ -496,7 +510,8 @@ class BackupVM(
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
             if (ex != null) AppLog.w(TAG, "runBackupToS3 failed", ex)
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.BackupSucceeded(r.getOrThrow())
                     ex is BackupMissingPassphraseException -> BackupRunState.NeedsPassword(null)
@@ -508,12 +523,13 @@ class BackupVM(
 
     fun runRestoreFromS3(item: S3BackupItem, onState: (BackupRunState) -> Unit) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 s3Sync.restoreFromS3(config = settings.value.activeS3Config(), item = item)
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.Success
                     ex is BackupNeedsPasswordException -> BackupRunState.NeedsPassword(ex.encFile)
@@ -531,7 +547,7 @@ class BackupVM(
         onState: (BackupRunState) -> Unit,
     ) {
         appScope.launch {
-            onState(BackupRunState.Running)
+            postBackupState(onState, BackupRunState.Running)
             val r = runCatching {
                 s3Sync.restoreFromS3WithPassword(
                     config = settings.value.activeS3Config(),
@@ -541,7 +557,8 @@ class BackupVM(
                 )
             }.onFailure { if (it is CancellationException) throw it }
             val ex = r.exceptionOrNull()
-            onState(
+            postBackupState(
+                onState,
                 when {
                     r.isSuccess -> BackupRunState.Success
                     ex is IllegalArgumentException -> BackupRunState.NeedsPassword(encFile)
@@ -558,7 +575,7 @@ class BackupVM(
                 s3Sync.deleteS3BackupFile(settings.value.activeS3Config(), item)
                 loadS3BackupFileItems()
             }.onFailure { if (it is CancellationException) throw it }
-            onState(if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
+            postBackupState(onState, if (r.isSuccess) BackupRunState.Success else BackupRunState.Failed(r.exceptionOrNull()))
         }
     }
 

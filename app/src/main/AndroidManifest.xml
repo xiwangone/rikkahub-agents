@@ -149,6 +149,7 @@
     android:theme="@style/Theme.Rikkahub"
     android:usesCleartextTraffic="true"
     tools:targetApi="33">
+    <!-- 明文流量：端点由用户配置，多为可信网络上的局域网/尾网服务。 -->
     <!--
       Game Mode preferences. Declares to the OEM Game Mode framework (Pixel, Samsung,
       Asus, Nothing, Xiaomi, etc.) that this app accepts PERFORMANCE and BATTERY mode

@@ -68,4 +68,31 @@ class SettingsDecodeTest {
 
         assertEquals(SearchServiceOptions::class.java, returnType)
     }
+
+    /** 回归：旧数据里的 InputButtonItem 缺 type 键时按 MODEL_SELECTOR 兜底，而不是抛 MissingFieldException。 */
+    @Test
+    fun `input button item without type falls back to model selector`() {
+        val decoded = JsonInstant.decodeFromString<InputButtonItem>("""{"enabled": true}""")
+
+        assertEquals(InputButtonType.MODEL_SELECTOR, decoded.type)
+        assertEquals(true, decoded.enabled)
+    }
+
+    /** 显式写了 type 的旧数据不受默认值影响。 */
+    @Test
+    fun `input button item with explicit type keeps it`() {
+        val decoded = JsonInstant.decodeFromString<InputButtonItem>("""{"type": "search_picker", "enabled": false}""")
+
+        assertEquals(InputButtonType.SEARCH_PICKER, decoded.type)
+        assertEquals(false, decoded.enabled)
+    }
+
+    /** 默认按钮列表仍以 MODEL_SELECTOR 开头，共 6 项。 */
+    @Test
+    fun `default chat input buttons start with model selector`() {
+        val buttons = ChatInputButtons().buttons
+
+        assertEquals(6, buttons.size)
+        assertEquals(InputButtonType.MODEL_SELECTOR, buttons.first().type)
+    }
 }

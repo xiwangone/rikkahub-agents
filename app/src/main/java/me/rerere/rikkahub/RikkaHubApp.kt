@@ -864,7 +864,9 @@ private fun installSshDnsBridge() {
 
 class AppScope : CoroutineScope by CoroutineScope(
     SupervisorJob()
-        + Dispatchers.Main
+        // 默认调度器是 Default：全仓几十处 appScope.launch 都是后台任务（网络/磁盘/数据库），
+        // 不应隐性跑在主线程。确需主线程的调用点必须显式写明 Dispatchers.Main。
+        + Dispatchers.Default
         + CoroutineName("AppScope")
         + CoroutineExceptionHandler { _, e ->
         AppLog.e(TAG, "AppScope exception", e)
