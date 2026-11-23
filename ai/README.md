@@ -1,24 +1,22 @@
-# 环境配置
+# ai 模块
 
-## 准备环境
+`me.rerere.ai` —— 纯 Kotlin 的 LLM 协议层库（Provider 抽象、SSE 流式解析、消息/工具序列化），供 `:app` 及其他模块复用。
 
-- 安装CMake
-- 安装NDK，并配置`ANDROID_NDK`环境变量
+## 构建
 
-## git submodule
-
-在项目根目录执行以下命令初始化子模块：
+本模块**不含任何 native（C/C++）代码**，无需 CMake / NDK / libMNN.so（历史上的 MNN native 构建已随模块重构移除，此前的构建说明已过时）：
 
 ```bash
-git submodule update --init --recursive
+./gradlew :ai:build
 ```
 
-注意：必须在git仓库的根目录（`rikkahub/`）执行此命令，不是在 `src/main/cpp/mnn` 目录。
-
-## 构建libMNN.so
-
-进入 `src/main/cpp/mnn` 目录，执行以下命令：
+## 单元测试
 
 ```bash
-./build.sh
+./gradlew :ai:testDebugUnitTest
 ```
+
+- `:ai` 的单测已纳入 CI（`.github/workflows/tests.yml`），Provider 协议解析、流式分帧、消息序列化均有覆盖。
+- 若新增 Provider 或改动流式协议，请同步补充 `src/test` 下的协议层测试。
+
+> 注：`llama.cpp`（local-llm 本地推理）与 `material-color-utilities`（取色）在各自模块内以 git submodule 引入，与本模块无关；子模块初始化见根目录 README「从源码构建」。

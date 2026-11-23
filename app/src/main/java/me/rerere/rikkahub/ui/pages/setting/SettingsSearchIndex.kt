@@ -49,6 +49,13 @@ fun settingsSearchIndex(developerMode: Boolean): List<SettingsSearchEntry> {
             searchTermsRes = listOf(R.string.about_page_title),
         ),
         SettingsSearchEntry(
+            titleRes = R.string.privacy_policy_title,
+            descriptionRes = R.string.privacy_policy_desc,
+            groupRes = R.string.setting_page_about,
+            route = Screen.SettingPrivacyPolicy,
+            searchTermsRes = listOf(R.string.about_page_title),
+        ),
+        SettingsSearchEntry(
             titleRes = R.string.setting_page_preferences_theme,
             descriptionRes = R.string.setting_page_preferences_theme_desc,
             groupRes = R.string.setting_page_preferences,

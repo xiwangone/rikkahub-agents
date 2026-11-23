@@ -408,29 +408,35 @@ class McpManager(
                     val common = serverConfig.commonOptions
                     val tools = common.tools.toMutableList()
 
-                    // 基于server对比
-                    serverTools.forEach { serverTool ->
-                        val tool = tools.find { it.name == serverTool.name }
-                        if (tool == null) {
-                            tools.add(
-                                McpTool(
-                                    name = serverTool.name,
+                    if (serverTools.isEmpty() && tools.isNotEmpty()) {
+                        // 服务端返回空列表且存量非空：视为瞬时故障或权限骤降，不做合并，
+                        // 否则会把已存工具（含用户手动开关）一次性抹掉并持久化。
+                        AppLog.w(TAG, "sync: ignoring empty tool list from ${common.name}, keeping ${tools.size} stored tools")
+                    } else {
+                        // 基于server对比
+                        serverTools.forEach { serverTool ->
+                            val tool = tools.find { it.name == serverTool.name }
+                            if (tool == null) {
+                                tools.add(
+                                    McpTool(
+                                        name = serverTool.name,
+                                        description = serverTool.description,
+                                        enable = true,
+                                        inputSchema = serverTool.inputSchema.toSchema()
+                                    )
+                                )
+                            } else {
+                                val index = tools.indexOf(tool)
+                                tools[index] = tool.copy(
                                     description = serverTool.description,
-                                    enable = true,
                                     inputSchema = serverTool.inputSchema.toSchema()
                                 )
-                            )
-                        } else {
-                            val index = tools.indexOf(tool)
-                            tools[index] = tool.copy(
-                                description = serverTool.description,
-                                inputSchema = serverTool.inputSchema.toSchema()
-                            )
+                            }
                         }
-                    }
 
-                    // 删除不在server内的
-                    tools.removeIf { tool -> serverTools.none { it.name == tool.name } }
+                        // 删除不在server内的
+                        tools.removeIf { tool -> serverTools.none { it.name == tool.name } }
+                    }
 
                     // 更新clients: rekey the live Client under the freshened config (same id,
                     // updated tools). Drop ALL keys for this id first — not just the `config`

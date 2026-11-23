@@ -123,6 +123,7 @@ class MessageQueue {
      * 条目就会既不在队列、也没有发出去 —— 表现为「转圈一会就停、也没有回复」，用户只能重发。
      * 放回队首保证不丢，默认暂停则避免「失败 → 立即重派 → 又失败」的空转。
      */
+    @Synchronized
     fun requeueFront(message: QueuedMessage, pause: Boolean = true) {
         val current = mutableState.value
         mutableState.value =

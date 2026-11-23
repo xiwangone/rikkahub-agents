@@ -44,6 +44,7 @@ import me.rerere.hugeicons.stroke.Code
 import me.rerere.hugeicons.stroke.Earth
 import me.rerere.hugeicons.stroke.File02
 import me.rerere.hugeicons.stroke.Github
+import me.rerere.hugeicons.stroke.Shield01
 import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.rikkahub.BuildConfig
 import me.rerere.rikkahub.R
@@ -222,6 +223,12 @@ fun SettingAboutPage() {
                             leadingContent = { CardGroupIcon(HugeIcons.File02, containerColor = containerColor, contentColor = contentColor) },
                             supportingContent = { Text("https://github.com/xiwangone/rikkahub-agents/blob/master/LICENSE") },
                             headlineContent = { Text(stringResource(R.string.about_page_license)) },
+                        )
+                        item(
+                            onClick = { navController.navigate(Screen.SettingPrivacyPolicy) },
+                            leadingContent = { CardGroupIcon(HugeIcons.Shield01, containerColor = containerColor, contentColor = contentColor) },
+                            supportingContent = { Text(stringResource(R.string.privacy_policy_desc)) },
+                            headlineContent = { Text(stringResource(R.string.privacy_policy_title)) },
                         )
                     }
                 }

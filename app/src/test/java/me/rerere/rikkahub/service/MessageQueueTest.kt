@@ -11,6 +11,9 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.runBlocking
 import kotlinx.coroutines.withTimeout
 import kotlinx.coroutines.yield
+import java.util.concurrent.CountDownLatch
+import java.util.concurrent.TimeUnit
+import kotlin.concurrent.thread
 import me.rerere.ai.agent.AgentEvent
 import me.rerere.ai.agent.AgentHooks
 import me.rerere.ai.agent.AgentRequest
@@ -319,5 +322,49 @@ class MessageQueueTest {
 
         assertTrue(queue.state.value.messages.isEmpty())
         assertFalse(queue.state.value.paused)
+    }
+
+    @Test
+    fun `requeueFront puts message back at front and pauses`() {
+        val queue = MessageQueue()
+        queue.enqueue(text("first"))
+        queue.enqueue(text("second"))
+        val failed = queue.takeNext()!!
+
+        queue.requeueFront(failed)
+
+        assertTrue(queue.state.value.paused)
+        assertEquals(text("first"), queue.state.value.messages.first().parts)
+        assertNull(queue.takeNext())
+        queue.resume()
+        assertEquals(text("first"), queue.takeNext()!!.parts)
+        assertEquals(text("second"), queue.takeNext()!!.parts)
+    }
+
+    @Test
+    fun `concurrent enqueue and requeueFront lose no message`() {
+        val queue = MessageQueue()
+        val threads = 4
+        val perThread = 250
+        val start = CountDownLatch(1)
+        val done = CountDownLatch(threads * 2)
+        repeat(threads) { t ->
+            thread {
+                start.await()
+                repeat(perThread) { i -> queue.enqueue(text("e-$t-$i")) }
+                done.countDown()
+            }
+            thread {
+                start.await()
+                repeat(perThread) { i ->
+                    queue.requeueFront(QueuedMessage(parts = text("r-$t-$i")), pause = false)
+                }
+                done.countDown()
+            }
+        }
+        start.countDown()
+
+        assertTrue(done.await(30, TimeUnit.SECONDS))
+        assertEquals(threads * perThread * 2, queue.size)
     }
 }

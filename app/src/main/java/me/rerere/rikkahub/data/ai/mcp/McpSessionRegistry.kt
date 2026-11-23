@@ -531,7 +531,17 @@ private fun McpServerConfig.resolvedHeaders(): List<Pair<String, String>> {
     }
 }
 
-private fun mergeTools(storedTools: List<McpTool>, serverTools: List<Tool>): List<McpTool> {
+/**
+ * 按服务端列表差量合并已存工具：存量工具保留用户开关（enable/needsApproval），
+ * 只刷新描述与入参结构；服务端新增的工具默认开启；服务端已无的工具移出列表。
+ * 服务端返回空列表且存量非空时视为瞬时故障或权限骤降，不做合并直接返回存量，
+ * 否则一次同步就会把用户手动开关连同工具条目一次性抹掉并持久化。
+ */
+internal fun mergeTools(storedTools: List<McpTool>, serverTools: List<Tool>): List<McpTool> {
+    if (serverTools.isEmpty() && storedTools.isNotEmpty()) {
+        AppLog.w(TAG, "mergeTools: ignoring empty server tool list, keeping ${storedTools.size} stored tools")
+        return storedTools
+    }
     val toolsByName = storedTools.associateBy { it.name }
     return serverTools.map { serverTool ->
         toolsByName[serverTool.name]?.copy(
