@@ -32,10 +32,10 @@ android {
         applicationId = "excp.rikkahub.agents"
         minSdk = 26
         targetSdk = 37
-        versionCode = 242
+        versionCode = 243
         // CI 构建注入 commit 短哈希作版本指纹（versionCode 主线由 02-release 管理不动）；
         // 本地/无环境时回落纯版本号。见 .github/workflows/01-build.yml
-        versionName = "3.0.6" +
+        versionName = "3.0.7" +
             (System.getenv("BUILD_COMMIT_SHORT")?.takeIf { it.isNotBlank() }?.let { "-$it" } ?: "")
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
