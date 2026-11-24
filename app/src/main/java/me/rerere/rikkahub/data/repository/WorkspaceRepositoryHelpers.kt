@@ -374,8 +374,19 @@ internal suspend fun WorkspaceRepository.readEnvironmentFile(
                 }
             }.onFailure { e ->
                 if (e is CancellationException) throw e
-                // 取环境信息失败不影响主流程，但必须留下痕迹，否则连接异常时无从排查
-                AppLog.w("WorkspaceRepository", "readEnvironment failed", e)
+                // 候选路径不存在、或是软链（部分发行版把 /etc/os-release 软链到 /usr/lib）
+                // 都属于“这个候选不适用”，由调用方按候选顺序兜底，不算错误。
+                val expectedMiss = e is IllegalArgumentException &&
+                    (
+                        e.message?.startsWith("File does not exist:") == true ||
+                            e.message?.startsWith("Refusing to read through symbolic link:") == true
+                        )
+                if (expectedMiss) {
+                    AppLog.d("WorkspaceRepository", "readEnvironment skipped: ${e.message}")
+                } else {
+                    // 其余（连接异常、权限、超限等）必须留痕，否则连不上时无从排查
+                    AppLog.w("WorkspaceRepository", "readEnvironment failed", e)
+                }
             }.getOrNull()
         }
 
