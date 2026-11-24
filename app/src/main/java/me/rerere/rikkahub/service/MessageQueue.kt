@@ -199,6 +199,9 @@ class MessageQueue {
     /** 清空（会话删除/用户主动放弃时）。 */
     @Synchronized
     fun clear() {
+        // 深挖-C3：被丢弃条目的等待者（语音模式的 reply Deferred）必须拿到 null 而不是
+        // 永久挂起；与 remove() 的处理一致（见 remove 的注释）。
+        mutableState.value.messages.forEach { it.reply?.complete(null) }
         mutableState.value = MessageQueueState()
     }
 }

@@ -485,6 +485,11 @@ class ChatService(
                 onIdle = { removeSession(it) },
             ).also {
                 _sessionsVersion.value++
+                // 深挖-R1：创建时即调度一次 idle check——只读路径创建的 session 既不加引用
+                // 也不产生 job，原先没有任何回收触发点，会在进程生命周期内常驻内存。
+                // check 5 秒后才跑且重验 refCount/isGenerating，已被 acquire 或正在生成的
+                // 会话不受影响（acquire 会取消待检查）。
+                it.scheduleIdleCheck()
                 AppLog.i(TAG, "createSession: $id (total: ${sessions.size + 1})")
             }
         }
@@ -561,6 +566,11 @@ class ChatService(
      * user reset it. Safe to call when no session exists — no-op.
      */
     fun dropSession(conversationId: Uuid) {
+        // 深挖-C3：会话删除/重置时排队语音条目的 reply 若无人 complete，VoiceSessionController
+        // 的 await() 会永久挂起——先清队列（残留 reply 全部 complete(null)），再丢会话。
+        // removeSession（idle 回收）不需要这一步：它在队列非空时直接跳过回收。
+        // 即使会话已不存在也要清队列：队列与会话是两张独立的表，残留条目不能留着。
+        messageQueues.remove(conversationId)?.clear()
         val session = sessions.remove(conversationId) ?: return
         persistSnapshotBeforeEvict(conversationId, session)
         session.cleanup()

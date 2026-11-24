@@ -325,6 +325,20 @@ class MessageQueueTest {
     }
 
     @Test
+    fun `clear completes pending replies with null`() = runBlocking {
+        val queue = MessageQueue()
+        val reply = CompletableDeferred<String?>()
+        queue.enqueue(text("voice"), reply = reply)
+
+        queue.clear()
+
+        // 深挖-C3：被丢弃条目的等待者（语音模式的 await）必须拿到 null 而不是永久挂起。
+        assertTrue(reply.isCompleted)
+        assertNull(reply.await())
+        assertTrue(queue.state.value.messages.isEmpty())
+    }
+
+    @Test
     fun `requeueFront puts message back at front and pauses`() {
         val queue = MessageQueue()
         queue.enqueue(text("first"))

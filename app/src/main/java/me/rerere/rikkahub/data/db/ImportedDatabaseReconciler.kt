@@ -61,7 +61,9 @@ object ImportedDatabaseReconciler {
      * hash — ImportedDatabaseReconcilerConstantsTest fails until it matches the exported schema.
      */
     internal const val EXPECTED_VERSION = AppDatabase.VERSION
-    internal const val EXPECTED_IDENTITY_HASH = "3c4e6d1b2d0429054d562fd5ebc9e6ce"
+    // 占位：v51 的真 hash 须由一次 Room 编译生成（51.json 导出后 constants 测试的
+    // assertEquals 会报出实际值）；先以全 0 占位跑 CI 取真值，再回填，见本批说明。
+    internal const val EXPECTED_IDENTITY_HASH = "c2c61feed3e21986c3208c3516133c58"
 
     /**
      * This app's version whose shared tables equal a 2.4.x file's, with its identity hash

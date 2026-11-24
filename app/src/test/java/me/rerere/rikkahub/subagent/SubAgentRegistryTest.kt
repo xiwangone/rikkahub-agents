@@ -3,6 +3,7 @@ package me.rerere.rikkahub.subagent
 import kotlinx.coroutines.Job
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
+import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertTrue
 import org.junit.Test
@@ -14,6 +15,7 @@ class SubAgentRegistryTest {
         parentChat: String? = "chat-1",
         parentAssistant: String = "asst-1",
         status: SubAgentStatus = SubAgentStatus.PENDING,
+        startedAtMs: Long = System.currentTimeMillis(),
     ): SubAgentRun = SubAgentRun(
         id = id,
         parentChatId = parentChat,
@@ -26,7 +28,7 @@ class SubAgentRegistryTest {
         timeoutSeconds = SubAgentDefaults.DEFAULT_TIMEOUT_SECONDS,
         maxTrips = SubAgentDefaults.DEFAULT_MAX_TRIPS,
         status = status,
-        startedAtMs = System.currentTimeMillis(),
+        startedAtMs = startedAtMs,
     )
 
     @Test fun `addPending puts run in flow`() {
@@ -95,5 +97,69 @@ class SubAgentRegistryTest {
     @Test fun `unknown id returns null on get`() {
         val r = SubAgentRegistry()
         assertNull(r.get("nonexistent"))
+    }
+
+    // 深挖-C4：超龄 RUNNING/PENDING 的驱逐。stale 的判定是 startedAt + timeout 已过
+    //（DEFAULT_TIMEOUT_SECONDS = 300s），这里用 6 分钟前的时间戳。
+    private fun staleAtMs(): Long =
+        System.currentTimeMillis() - (SubAgentDefaults.DEFAULT_TIMEOUT_SECONDS * 1000L + 60_000L)
+
+    @Test fun `prune evicts oldest stale RUNNING run at cap when no terminal run exists`() {
+        val r = SubAgentRegistry()
+        for (i in 0 until SubAgentDefaults.REGISTRY_LRU_CAP) {
+            r.addPending(makeRun("stale-$i", status = SubAgentStatus.RUNNING, startedAtMs = staleAtMs() + i))
+        }
+        assertEquals(SubAgentDefaults.REGISTRY_LRU_CAP, r.runs.value.size)
+
+        r.addPending(makeRun("new", status = SubAgentStatus.PENDING))
+
+        assertEquals(SubAgentDefaults.REGISTRY_LRU_CAP, r.runs.value.size)
+        assertNull(r.get("stale-0"))
+        assertNotNull(r.get("stale-1"))
+        assertNotNull(r.get("new"))
+    }
+
+    @Test fun `prune never evicts healthy RUNNING run at cap`() {
+        val r = SubAgentRegistry()
+        for (i in 0 until SubAgentDefaults.REGISTRY_LRU_CAP) {
+            r.addPending(makeRun("run-$i", status = SubAgentStatus.RUNNING))
+        }
+
+        r.addPending(makeRun("extra", status = SubAgentStatus.PENDING))
+
+        // 无终态、无超龄可驱逐时允许超 cap，绝不驱逐未超时的运行中 run。
+        assertEquals(SubAgentDefaults.REGISTRY_LRU_CAP + 1, r.runs.value.size)
+        assertNotNull(r.get("run-0"))
+        assertNotNull(r.get("extra"))
+    }
+
+    @Test fun `prune evicts terminal run before stale RUNNING run`() {
+        val r = SubAgentRegistry()
+        r.addPending(makeRun("done", status = SubAgentStatus.SUCCEEDED, startedAtMs = staleAtMs()))
+        for (i in 1 until SubAgentDefaults.REGISTRY_LRU_CAP) {
+            r.addPending(makeRun("stale-$i", status = SubAgentStatus.RUNNING, startedAtMs = staleAtMs() + i))
+        }
+        assertEquals(SubAgentDefaults.REGISTRY_LRU_CAP, r.runs.value.size)
+
+        r.addPending(makeRun("new", status = SubAgentStatus.PENDING))
+
+        assertEquals(SubAgentDefaults.REGISTRY_LRU_CAP, r.runs.value.size)
+        assertNull(r.get("done"))
+        assertNotNull(r.get("stale-1"))
+        assertNotNull(r.get("new"))
+    }
+
+    @Test fun `evicting stale RUNNING run cancels its job`() {
+        val r = SubAgentRegistry()
+        val job = Job()
+        r.addPending(makeRun("stale-0", status = SubAgentStatus.RUNNING, startedAtMs = staleAtMs()), job = job)
+        for (i in 1 until SubAgentDefaults.REGISTRY_LRU_CAP) {
+            r.addPending(makeRun("stale-$i", status = SubAgentStatus.RUNNING, startedAtMs = staleAtMs() + i))
+        }
+
+        r.addPending(makeRun("new", status = SubAgentStatus.PENDING))
+
+        assertNull(r.get("stale-0"))
+        assertTrue(job.isCancelled)
     }
 }

@@ -347,18 +347,14 @@ class SubAgentEngine(
         // The row starts in `queued` (the execution coroutine hasn't been launched yet);
         // executeRun() flips it to `running`. If the process dies before then, boot
         // recovery flips the stranded `queued` row to `process_lost`.
-        val ledgerId = agentRunRepo.open(
-            kind = AgentRunKind.SubAgent,
-            domainId = runId,
-            parentRunId = parentChatId,
-            status = AgentRunStatus.queued,
-            metadata = buildJsonObject {
-                put("label", initialRun.label)
-                put("parent_assistant_id", parentAssistantId)
-                put("run_in_background", cleaned.runInBackground)
-            },
+        val ledgerId = openLedgerRow(
+            runId = runId,
+            parentChatId = parentChatId,
+            parentAssistantId = parentAssistantId,
+            label = initialRun.label,
+            runInBackground = cleaned.runInBackground,
         )
-        ledgerIds[runId] = ledgerId
+        if (ledgerId != null) ledgerIds[runId] = ledgerId
 
         val executionJob = appScope.launch(Dispatchers.IO) {
             executeRun(runId, parentAssistantId, parentChatId, cleaned)
@@ -378,6 +374,39 @@ class SubAgentEngine(
                 AppLog.w(TAG, "foreground sub-agent join failed for $runId", t)
             }
             DispatchResult.Ok(registry.get(runId) ?: initialRun)
+        }
+    }
+
+    /**
+     * 深挖-C4：ledger 只是 best-effort（见类注释），open 抛错不能逃出 dispatch——
+     * 此前会丢下 PENDING 条目且无 ledger 行。失败记一条日志后返回 null 继续跑；
+     * ledgerIds 无条目时 executeRun/markTerminal 的 ledger 写入自动跳过。
+     * 单独抽成函数也是为了不把 dispatch 的圈复杂度再推高。
+     */
+    private suspend fun openLedgerRow(
+        runId: String,
+        parentChatId: String?,
+        parentAssistantId: String,
+        label: String,
+        runInBackground: Boolean,
+    ): String? {
+        return try {
+            agentRunRepo.open(
+                kind = AgentRunKind.SubAgent,
+                domainId = runId,
+                parentRunId = parentChatId,
+                status = AgentRunStatus.queued,
+                metadata = buildJsonObject {
+                    put("label", label)
+                    put("parent_assistant_id", parentAssistantId)
+                    put("run_in_background", runInBackground)
+                },
+            )
+        } catch (ce: CancellationException) {
+            throw ce
+        } catch (t: Throwable) {
+            AppLog.w(TAG, "sub-agent ledger open failed for $runId, continuing without ledger", t)
+            null
         }
     }
 
@@ -543,49 +572,54 @@ class SubAgentEngine(
     ) {
         registry.update(runId) { it.copy(status = SubAgentStatus.RUNNING) }
         ledgerIds[runId]?.let { agentRunRepo.setStatus(it, AgentRunStatus.running) }
-
-        val parentAsstUuid = runCatching { Uuid.parse(parentAssistantId) }.getOrNull()
-            ?: run {
-                markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
-                return
-            }
-        val targets = when (val resolution = resolveRunTargets(request, parentAsstUuid, parentChatId)) {
-            is RunTargets.Rejected -> {
-                markTerminal(runId, SubAgentStatus.FAILED, resolution.message)
-                return
-            }
-            is RunTargets.Ready -> resolution
-        }
-        // 生效作用域/风险标记始终回写一次（toolScope 现在默认非空，无需再判空）
-        registry.update(runId) {
-            it.copy(
-                workspaceId = targets.workspaceId,
-                toolScope = targets.toolScope,
-                elevated = targets.elevated,
-                sameWorkspaceAsParent = targets.sameWorkspaceAsParent,
-            )
-        }
-        val conv = Conversation.ofId(
-            id = Uuid.random(),
-            assistantId = parentAsstUuid,
-            newConversation = true,
-        ).copy(
-            title = "[Sub-agent] ${request.label?.take(40) ?: request.task.take(40)}",
-            chatModelId = targets.chatModelId,
-            workspaceIdOverride = targets.workspaceId?.let { raw ->
-                runCatching { Uuid.parse(raw) }.getOrNull()
-            },
-            toolScopeOverride = targets.toolScope,
-            // B2：max_trips 真正生效——映射为本次子代理会话的生成步数上限。
-            maxToolStepsOverride = request.maxTrips,
-            // 子代理宪法/配置提示词：作为会话级 system prompt（覆盖父助手提示词）。
-            customSystemPrompt = targets.systemPrompt,
-            isSubAgentRun = true,
-        )
-        conversationRepo.insertConversation(conv)
-        chatService.initializeConversation(conv.id)
-        HeadlessConversations.mark(conv.id)
+        // 深挖-C4：前置段（目标解析/建会话/入库/初始化/headless 标记）原本在 try 之外，
+        // 一旦抛错直接逃出 executeRun：run 永久卡在 RUNNING（ledger 行亦然），
+        // 且 globalActiveCount 永久占位。把整段移入 try，兜底进 catch → markTerminal(FAILED)。
+        var createdConv: Conversation? = null
         try {
+
+            val parentAsstUuid = runCatching { Uuid.parse(parentAssistantId) }.getOrNull()
+                ?: run {
+                    markTerminal(runId, SubAgentStatus.FAILED, "bad parent assistant id")
+                    return
+                }
+            val targets = when (val resolution = resolveRunTargets(request, parentAsstUuid, parentChatId)) {
+                is RunTargets.Rejected -> {
+                    markTerminal(runId, SubAgentStatus.FAILED, resolution.message)
+                    return
+                }
+                is RunTargets.Ready -> resolution
+            }
+            // 生效作用域/风险标记始终回写一次（toolScope 现在默认非空，无需再判空）
+            registry.update(runId) {
+                it.copy(
+                    workspaceId = targets.workspaceId,
+                    toolScope = targets.toolScope,
+                    elevated = targets.elevated,
+                    sameWorkspaceAsParent = targets.sameWorkspaceAsParent,
+                )
+            }
+            val conv = Conversation.ofId(
+                id = Uuid.random(),
+                assistantId = parentAsstUuid,
+                newConversation = true,
+            ).copy(
+                title = "[Sub-agent] ${request.label?.take(40) ?: request.task.take(40)}",
+                chatModelId = targets.chatModelId,
+                workspaceIdOverride = targets.workspaceId?.let { raw ->
+                    runCatching { Uuid.parse(raw) }.getOrNull()
+                },
+                toolScopeOverride = targets.toolScope,
+                // B2：max_trips 真正生效——映射为本次子代理会话的生成步数上限。
+                maxToolStepsOverride = request.maxTrips,
+                // 子代理宪法/配置提示词：作为会话级 system prompt（覆盖父助手提示词）。
+                customSystemPrompt = targets.systemPrompt,
+                isSubAgentRun = true,
+            )
+            createdConv = conv
+            conversationRepo.insertConversation(conv)
+            chatService.initializeConversation(conv.id)
+            HeadlessConversations.mark(conv.id)
             // Prepend a wrap-up instruction. Some models naturally write a summary paragraph
             // after their tool-call sequence; others stop after the last tool result and emit
             // no closing text. Without explicit text the parent has nothing to harvest and
@@ -665,7 +699,7 @@ class SubAgentEngine(
             markTerminal(runId, terminal, "${t::class.simpleName}: ${t.message.orEmpty()}")
             postRunResultToParent(parentChatId, registry.get(runId))
         } finally {
-            HeadlessConversations.unmark(conv.id)
+            createdConv?.id?.let { HeadlessConversations.unmark(it) }
             registry.clearJob(runId)
         }
     }

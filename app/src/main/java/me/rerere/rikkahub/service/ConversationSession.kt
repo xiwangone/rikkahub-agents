@@ -142,7 +142,14 @@ class ConversationSession(
 
     fun getJob(): Job? = _generationJob.value
 
-    private fun scheduleIdleCheck() {
+    /**
+     * 深挖-R1：创建时即调度一次 idle check（见 ChatService.getOrCreateSession）。
+     * 只读路径（getConversationFlow().value / .first()）创建的 session 既不加引用
+     * 也不产生 job，原先没有任何回收触发点，会在进程生命周期内常驻内存。
+     * check 本身 5 秒后才跑且重验 refCount/isGenerating，已被 acquire 或正在生成
+     * 的会话不受影响；acquire() 会取消待检查，所以创建即调度是安全的。
+     */
+    internal fun scheduleIdleCheck() {
         idleCheckJob?.cancel()
         idleCheckJob =
             scope.launch {

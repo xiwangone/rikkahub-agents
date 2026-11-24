@@ -16,7 +16,13 @@ import androidx.room.PrimaryKey
             onDelete = ForeignKey.CASCADE
         )
     ],
-    indices = [Index("conversation_id")]
+    indices = [
+        Index("conversation_id"),
+        // 深挖-B1：同会话同 nodeIndex 至多一行。原先只有 conversation_id 索引，
+        // 不同 id 的节点可以带着相同 nodeIndex 重复入库，UI 按 nodeIndex 排序后
+        // 同一位置出现两条消息；DAO 的 REPLACE 插入在唯一索引建成后按节点去重。
+        Index(value = ["conversation_id", "node_index"], unique = true)
+    ]
 )
 data class MessageNodeEntity(
     @PrimaryKey

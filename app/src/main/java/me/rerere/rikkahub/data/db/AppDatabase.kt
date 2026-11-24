@@ -159,11 +159,14 @@ import me.rerere.rikkahub.workflow.db.WorkflowRunEntity
         // v50: ssh_hosts 新增 certificate / vaultCertificateRef / proxyCommand
         // 三列（可空，无默认值），纯加列可自动迁移
         AutoMigration(from = 49, to = 50),
+        // v51: message_node 补 (conversation_id, node_index) 复合唯一索引——同会话同
+        // nodeIndex 至多一行，DAO 的 REPLACE 插入因此按节点去重（深挖-B1）
+        AutoMigration(from = 50, to = 51),
     ]
 )
 @TypeConverters(TokenUsageConverter::class)
 abstract class AppDatabase : RoomDatabase() {
-    companion object { const val VERSION = 50 }
+    companion object { const val VERSION = 51 }
     abstract fun conversationDao(): ConversationDAO
 
     abstract fun conversationCompactionDao(): ConversationCompactionDAO

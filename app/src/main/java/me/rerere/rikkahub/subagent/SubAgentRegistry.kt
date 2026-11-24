@@ -12,7 +12,9 @@ import java.util.concurrent.ConcurrentHashMap
  * The map of runs is a [StateFlow] so the chat UI's chip row can collect it; the map of
  * jobs is private since callers shouldn't be cancelling Jobs through random handles.
  * Capped at [SubAgentDefaults.REGISTRY_LRU_CAP] entries — when the cap is reached, the
- * oldest TERMINAL run gets evicted (running runs are never evicted).
+ * oldest TERMINAL run gets evicted; if none is terminal, the oldest STALE active run
+ * (RUNNING/PENDING past its timeout) gets evicted instead. A healthy running run is
+ * never evicted.
  *
  * The registry intentionally does NOT enforce concurrency caps on its own — that's the
  * engine's job, since the engine has access to per-assistant configuration. This object
@@ -31,10 +33,19 @@ class SubAgentRegistry {
     private val activeJobs: ConcurrentHashMap<String, Job> = ConcurrentHashMap()
 
     fun addPending(run: SubAgentRun, job: Job? = null) {
+        var evictedActiveId: String? = null
         _runs.update { current ->
-            val pruned = pruneIfNeeded(current)
+            val (pruned, evictedId) = pruneIfNeeded(current)
+            // 只有超龄的运行中 run 才带 job 需要取消；终态 run 没有 job。
+            evictedActiveId = evictedId?.takeIf { id ->
+                val evicted = current[id]
+                evicted?.status == SubAgentStatus.RUNNING || evicted?.status == SubAgentStatus.PENDING
+            }
             pruned + (run.id to run)
         }
+        // 被驱逐的超龄运行中 run 若还有活 job，一并取消，免得它继续烧 token；
+        // C4 泄漏遗留的 run job 早已结束，cancel 是 no-op。
+        evictedActiveId?.let { activeJobs.remove(it)?.cancel() }
         if (job != null) activeJobs[run.id] = job
     }
 
@@ -100,15 +111,28 @@ class SubAgentRegistry {
         activeJobs.remove(id)
     }
 
-    private fun pruneIfNeeded(current: Map<String, SubAgentRun>): Map<String, SubAgentRun> {
-        if (current.size < SubAgentDefaults.REGISTRY_LRU_CAP) return current
-        // Evict the oldest TERMINAL run; never evict a running one. If every run is
-        // running, the cap would be exceeded — we accept this since it should be rare
-        // (50 concurrent sub-agents would already have been blocked by the global cap of 30).
+    /**
+     * LRU eviction: when the cap is reached, the oldest TERMINAL run gets evicted.
+     * If no terminal run exists, the oldest STALE active run (RUNNING/PENDING whose
+     * startedAt + timeout already passed) gets evicted instead — 深挖-C4: a run whose
+     * execution leaked (e.g. a pre-try exception before the fix) stays RUNNING forever
+     * and would otherwise pin the global concurrency cap (30) permanently. A healthy
+     * (not yet timed out) running run is never evicted. Returns the pruned map plus
+     * the evicted run id, or null when nothing was evicted.
+     */
+    private fun pruneIfNeeded(current: Map<String, SubAgentRun>): Pair<Map<String, SubAgentRun>, String?> {
+        if (current.size < SubAgentDefaults.REGISTRY_LRU_CAP) return current to null
         val terminalSorted = current.values
             .filter { it.status != SubAgentStatus.RUNNING && it.status != SubAgentStatus.PENDING }
             .sortedBy { it.finishedAtMs ?: it.startedAtMs }
-        val toEvictId = terminalSorted.firstOrNull()?.id
-        return if (toEvictId != null) current - toEvictId else current
+        val terminalId = terminalSorted.firstOrNull()?.id
+        if (terminalId != null) return (current - terminalId) to terminalId
+        val now = System.currentTimeMillis()
+        val staleId = current.values
+            .filter { it.status == SubAgentStatus.RUNNING || it.status == SubAgentStatus.PENDING }
+            .filter { it.startedAtMs + it.timeoutSeconds * 1000L <= now }
+            .minByOrNull { it.startedAtMs }
+            ?.id
+        return if (staleId != null) (current - staleId) to staleId else current to null
     }
 }
