@@ -48,6 +48,12 @@ jobs:
           # 浅克隆里 base 可能不在本地：按 SHA 拉一次。取不到（如首推时 event.before 为全零）
           # 就退回与父提交比较；连父提交都拿不到则失败，不静默放行。
           if git fetch --depth=1 origin "$BASE" 2>/dev/null; then
+            # PR 事件里 HEAD 来自源仓库（pull/N/head），浅克隆未必有 → 缺则按 SHA 补拉；
+            # 补不到就显式报错，不静默放行（此前 PR 上必然 `fatal: bad object <head>` 崩在脚本里）。
+            if ! git rev-parse --verify --quiet "$HEAD^{commit}" >/dev/null 2>&1; then
+              git fetch --depth=1 origin "$HEAD" 2>/dev/null || {
+                echo "::error::无法取得 head 提交（$HEAD），新增文案检查未能执行"; exit 1; }
+            fi
             python3 .github/scripts/check-new-localization.py "$BASE" "$HEAD"
           else
             git rev-parse --verify --quiet "${HEAD}~1" >/dev/null || git fetch --deepen=20 2>/dev/null || true
