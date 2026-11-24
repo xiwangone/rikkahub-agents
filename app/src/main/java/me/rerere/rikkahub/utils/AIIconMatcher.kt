@@ -143,6 +143,7 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "万相" to "alibaba",
     "月之暗面kimi" to "moonshot",
     "飞桨" to "baidu",
+    "云知声" to "unisound",
     // 云 / 平台
     "华为云" to "huaweicloud",
     "华为" to "huawei",
@@ -284,6 +285,10 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     "sensevoice" to "alibaba",
     "funasr" to "alibaba",
     "antangelmed" to "antgroup",
+    "compassjudger" to "opencompass",
+    "moss" to "openmoss",
+    "riverflow" to "sourceful",
+    "yunzhisheng" to "unisound",
     "jingdongyun" to "jdcloud",
     "huaweiyun" to "huaweicloud",
     "jinshanyun" to "ksyun",
@@ -378,6 +383,14 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "paddlepaddle" to "baidu",
     "paddleocr" to "baidu",
     "antangelmed" to "antgroup",
+    "opencompass" to "opencompass",
+    "compassjudger" to "opencompass",
+    "openmoss" to "openmoss",
+    "moss" to "openmoss",
+    "heygen" to "heygen",
+    "sourceful" to "sourceful",
+    "riverflow" to "sourceful",
+    "unisound" to "unisound",
 ).sortedByDescending { it.first.length }
 
 /**

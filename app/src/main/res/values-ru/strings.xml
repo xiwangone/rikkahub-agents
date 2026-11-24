@@ -4695,4 +4695,10 @@
   <string name="chat_message_tool_provider_icon_download">Скачать значок: %1$s</string>
   <string name="chat_message_tool_provider_icon_asset">Задать встроенный значок: %1$s</string>
   <string name="chat_message_tool_provider_icon_clear">Очистить значок: %1$s</string>
+    <string name="setting_provider_page_batch_remove">Удалить пакетно</string>
+    <string name="setting_provider_page_batch_remove_title">Пакетное удаление моделей</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">Удалить все %1$d отфильтрованных моделей?</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">Удалить все %1$d нечатовых моделей (эмбеддинг, изображения, видео)?</string>
+    <string name="setting_provider_page_batch_remove_done">Удалено моделей: %1$d</string>
+    <string name="setting_provider_page_batch_remove_empty">Нет подходящих моделей для удаления</string>
 </resources>

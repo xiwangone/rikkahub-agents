@@ -4687,4 +4687,10 @@
   <string name="chat_message_tool_provider_icon_download">Download icon: %1$s</string>
   <string name="chat_message_tool_provider_icon_asset">Set bundled icon: %1$s</string>
   <string name="chat_message_tool_provider_icon_clear">Clear icon: %1$s</string>
+    <string name="setting_provider_page_batch_remove">Batch Remove</string>
+    <string name="setting_provider_page_batch_remove_title">Batch Remove Models</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">Remove all %1$d currently filtered models?</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">Remove all %1$d non-chat models (embedding, image, video)?</string>
+    <string name="setting_provider_page_batch_remove_done">Removed %1$d models</string>
+    <string name="setting_provider_page_batch_remove_empty">No matching models to remove</string>
 </resources>

@@ -76,6 +76,9 @@ import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import androidx.compose.runtime.derivedStateOf
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.TextButton
+import me.rerere.ai.provider.ModelType
 
 private const val TAG = "SettingProviderModelList"
 
@@ -137,6 +140,13 @@ internal fun ModelList(
     var expanded by rememberSaveable { mutableStateOf(true) }
     // 模型搜索：按模型 ID / 显示名过滤（复用 filterByKeywords，与提供商页同口径）。
     var searchQuery by remember { mutableStateOf("") }
+    var showBatchRemoveDialog by remember { mutableStateOf(false) }
+    val batchRemoveLabel = stringResource(R.string.setting_provider_page_batch_remove)
+    val batchRemoveTitle = stringResource(R.string.setting_provider_page_batch_remove_title)
+    val batchRemoveFilteredDesc = stringResource(R.string.setting_provider_page_batch_remove_filtered_desc)
+    val batchRemoveNonChatDesc = stringResource(R.string.setting_provider_page_batch_remove_non_chat_desc)
+    val batchRemoveDoneFormat = stringResource(R.string.setting_provider_page_batch_remove_done)
+    val batchRemoveEmptyText = stringResource(R.string.setting_provider_page_batch_remove_empty)
     val lazyListState = rememberLazyListState()
     // 拖动期间只改本地顺序：onUpdateProvider 会写设置（DataStore），每移动一格提交一次会明显卡顿
     // → 停手 delay(400) 后再提交一次。providerSetting 变化（增删改 / 外部更新）时重置本地顺序。
@@ -270,6 +280,20 @@ internal fun ModelList(
                         horizontalArrangement = Arrangement.End,
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
+                        val hasBatchTargets =
+                            if (searchQuery.isNotBlank()) {
+                                displayedModels.isNotEmpty()
+                            } else {
+                                providerSetting.models.any { it.type != ModelType.CHAT }
+                            }
+                        if (hasBatchTargets) {
+                            TextButton(
+                                onClick = { showBatchRemoveDialog = true },
+                                modifier = Modifier.padding(end = 4.dp),
+                            ) {
+                                Text(batchRemoveLabel, color = MaterialTheme.colorScheme.error)
+                            }
+                        }
                         OutlinedButton(
                             enabled = !refreshing,
                             onClick = {
@@ -546,6 +570,59 @@ internal fun ModelList(
                 onUpdateProvider = onUpdateProvider,
                 onUpdateProviderTransform = applyTransform,
                 iconOverride = iconOverride,
+            )
+        }
+        if (showBatchRemoveDialog) {
+            val targets =
+                if (searchQuery.isNotBlank()) {
+                    displayedModels
+                } else {
+                    providerSetting.models.filter { it.type != ModelType.CHAT }
+                }
+            val targetIds = targets.mapTo(HashSet(targets.size)) { it.id }
+            AlertDialog(
+                onDismissRequest = { showBatchRemoveDialog = false },
+                title = { Text(batchRemoveTitle) },
+                text = {
+                    Text(
+                        if (searchQuery.isNotBlank()) {
+                            batchRemoveFilteredDesc.format(targets.size)
+                        } else {
+                            batchRemoveNonChatDesc.format(targets.size)
+                        },
+                    )
+                },
+                confirmButton = {
+                    TextButton(
+                        onClick = {
+                            showBatchRemoveDialog = false
+                            if (targetIds.isEmpty()) {
+                                toaster.show(batchRemoveEmptyText)
+                                return@TextButton
+                            }
+                            val applyTransform: ((ProviderSetting) -> ProviderSetting) -> Unit = { transform ->
+                                if (onUpdateProviderTransform != null) {
+                                    onUpdateProviderTransform(transform)
+                                } else {
+                                    onUpdateProvider(transform(latestProvider))
+                                }
+                            }
+                            applyTransform { current ->
+                                current.models
+                                    .filter { it.id in targetIds }
+                                    .fold(current) { acc, m -> acc.delModel(m) }
+                            }
+                            toaster.show(batchRemoveDoneFormat.format(targetIds.size))
+                        },
+                    ) {
+                        Text(stringResource(R.string.confirm), color = MaterialTheme.colorScheme.error)
+                    }
+                },
+                dismissButton = {
+                    TextButton(onClick = { showBatchRemoveDialog = false }) {
+                        Text(stringResource(R.string.cancel))
+                    }
+                },
             )
         }
     }

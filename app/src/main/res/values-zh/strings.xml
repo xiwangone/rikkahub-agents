@@ -4687,4 +4687,10 @@
   <string name="chat_message_tool_provider_icon_download">下载图标：%1$s</string>
   <string name="chat_message_tool_provider_icon_asset">设为内置图标：%1$s</string>
   <string name="chat_message_tool_provider_icon_clear">清除图标：%1$s</string>
+    <string name="setting_provider_page_batch_remove">批量移除</string>
+    <string name="setting_provider_page_batch_remove_title">批量移除模型</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">确定移除当前筛选命中的全部 %1$d 个模型吗？</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">确定移除全部 %1$d 个非对话模型（向量、生图、视频）吗？</string>
+    <string name="setting_provider_page_batch_remove_done">已移除 %1$d 个模型</string>
+    <string name="setting_provider_page_batch_remove_empty">没有可移除的匹配模型</string>
 </resources>

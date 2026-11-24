@@ -4698,4 +4698,10 @@
   <string name="chat_message_tool_provider_icon_download">تنزيل الأيقونة: %1$s</string>
   <string name="chat_message_tool_provider_icon_asset">تعيين أيقونة مضمّنة: %1$s</string>
   <string name="chat_message_tool_provider_icon_clear">مسح الأيقونة: %1$s</string>
+    <string name="setting_provider_page_batch_remove">إزالة مجمعة</string>
+    <string name="setting_provider_page_batch_remove_title">إزالة النماذج بشكل مجمع</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">هل تريد إزالة جميع النماذج المصفاة (%1$d)؟</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">هل تريد إزالة جميع النماذج غير الحوارية (%1$d)؟</string>
+    <string name="setting_provider_page_batch_remove_done">تمت إزالة %1$d نموذجًا</string>
+    <string name="setting_provider_page_batch_remove_empty">لا توجد نماذج مطابقة للإزالة</string>
 </resources>

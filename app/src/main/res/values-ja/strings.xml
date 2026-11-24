@@ -4691,4 +4691,10 @@
   <string name="chat_message_tool_provider_icon_download">アイコンをダウンロード：%1$s</string>
   <string name="chat_message_tool_provider_icon_asset">同根アイコンを設定：%1$s</string>
   <string name="chat_message_tool_provider_icon_clear">アイコンをクリア：%1$s</string>
+    <string name="setting_provider_page_batch_remove">一括削除</string>
+    <string name="setting_provider_page_batch_remove_title">モデルを一括削除</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">絞り込み結果の %1$d 件のモデルを削除しますか？</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">非チャットモデル（埋め込み・画像・動画）%1$d 件を削除しますか？</string>
+    <string name="setting_provider_page_batch_remove_done">%1$d 件のモデルを削除しました</string>
+    <string name="setting_provider_page_batch_remove_empty">削除対象の一致するモデルがありません</string>
 </resources>

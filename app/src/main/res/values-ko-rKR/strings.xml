@@ -4691,4 +4691,10 @@
   <string name="chat_message_tool_provider_icon_download">아이콘 다운로드: %1$s</string>
   <string name="chat_message_tool_provider_icon_asset">내장 아이콘 설정: %1$s</string>
   <string name="chat_message_tool_provider_icon_clear">아이콘 지우기: %1$s</string>
+    <string name="setting_provider_page_batch_remove">일괄 제거</string>
+    <string name="setting_provider_page_batch_remove_title">모델 일괄 제거</string>
+    <string name="setting_provider_page_batch_remove_filtered_desc">필터링된 모델 %1$d개를 모두 제거하시겠습니까?</string>
+    <string name="setting_provider_page_batch_remove_non_chat_desc">비대화형 모델(임베딩·이미지·비디오) %1$d개를 모두 제거하시겠습니까?</string>
+    <string name="setting_provider_page_batch_remove_done">%1$d개의 모델을 제거했습니다</string>
+    <string name="setting_provider_page_batch_remove_empty">제거할 일치 모델이 없습니다</string>
 </resources>

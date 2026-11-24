@@ -26,6 +26,11 @@ class AIIconMatcherPinyinAliasTest {
         "alibaba-color.svg",
         "baidu-color.svg",
         "antgroup-color.svg",
+        "opencompass.png",
+        "openmoss.png",
+        "heygen.png",
+        "sourceful.png",
+        "unisound.png",
     )
 
     @Test
@@ -63,6 +68,11 @@ class AIIconMatcherPinyinAliasTest {
         assertEquals("alibaba-color.svg", computeModelIconByName("fun-asr-flash-2026-06-15", fakeIcons))
         assertEquals("baidu-color.svg", computeModelIconByName("PaddlePaddle/PaddleOCR-VL-1.5", fakeIcons))
         assertEquals("antgroup-color.svg", computeModelIconByName("MedAIBase/AntAngelMed", fakeIcons))
+        assertEquals("opencompass.png", computeModelIconByName("opencompass/CompassJudger-1-32B-Instruct", fakeIcons))
+        assertEquals("openmoss.png", computeModelIconByName("OpenMOSS-Team/MOSS-Image", fakeIcons))
+        assertEquals("heygen.png", computeModelIconByName("heygen/heygen-avatar-6", fakeIcons))
+        assertEquals("sourceful.png", computeModelIconByName("sourceful/riverflow-v2.6-pro", fakeIcons))
+        assertEquals("unisound.png", computeModelIconByName("unisound/unisound-u2", fakeIcons))
     }
 
     @Test
