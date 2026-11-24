@@ -13,7 +13,6 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.utils.toMessageTimeString
 import org.koin.androidx.compose.koinViewModel
 import java.time.ZoneId
 import kotlin.uuid.Uuid
+import androidx.compose.material3.TopAppBar
 
 /**
  * 媒体创作的入口：列出所有会话，点进去是这个会话的创作页（[MediaCreationPage]）。
@@ -57,7 +57,7 @@ import kotlin.uuid.Uuid
 fun MediaCreationSessionsPage(vm: MediaCreationSessionsVM = koinViewModel()) {
     val navController = LocalNavController.current
     val sessions by vm.sessions.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var renaming by remember { mutableStateOf<MediaCreationSession?>(null) }
     var deleting by remember { mutableStateOf<MediaCreationSession?>(null) }
 
@@ -67,7 +67,7 @@ fun MediaCreationSessionsPage(vm: MediaCreationSessionsVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.media_creation_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

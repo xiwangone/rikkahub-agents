@@ -55,6 +55,7 @@ import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.itemsIndexed
 
 
 /**
@@ -249,7 +250,7 @@ private fun SearchWebPreview(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     modifier = Modifier.fillMaxWidth(),
                 ) {
-                    items(images) { imageUrl ->
+                    itemsIndexed(images, key = { idx, imageUrl -> "${idx}:${imageUrl}" }) { _, imageUrl ->
                         AsyncImage(
                             model = imageUrl,
                             contentDescription = null,
@@ -267,10 +268,10 @@ private fun SearchWebPreview(
         }
 
         if (items.isNotEmpty()) {
-            items(items) { item ->
-                val url = item.getStringContent("url") ?: return@items
-                val title = item.getStringContent("title") ?: return@items
-                val text = item.getStringContent("text") ?: return@items
+            itemsIndexed(items, key = { idx, item -> "${idx}:${item.getStringContent("url") ?: idx}" }) { _, item ->
+                val url = item.getStringContent("url") ?: return@itemsIndexed
+                val title = item.getStringContent("title") ?: return@itemsIndexed
+                val text = item.getStringContent("text") ?: return@itemsIndexed
                 val publishedDate = item.getStringContent("publishedDate")?.takeIf { it.isNotBlank() }
                 val dateLabel = remember(publishedDate) {
                     publishedDate?.let { value ->
@@ -361,7 +362,7 @@ private fun ScrapeWebPreview(content: JsonElement) {
             )
         }
 
-        items(urls) { url ->
+        itemsIndexed(urls, key = { idx, url -> "${idx}:${url.jsonObject["url"]?.jsonPrimitive?.content ?: idx}" }) { _, url ->
             val urlObject = url.jsonObject
             Column(
                 modifier = Modifier.fillMaxWidth(),

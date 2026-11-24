@@ -57,6 +57,7 @@ import java.time.OffsetDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.lazy.itemsIndexed
 
 
 /**
@@ -409,10 +410,10 @@ private fun ScreenTimePreview(
                 }
             }
         }
-        items(apps) { app ->
+        itemsIndexed(apps, key = { idx, app -> "${idx}:${app.getStringContent("package") ?: app.getStringContent("app_name") ?: idx}" }) { _, app ->
             val name =
                 app.getStringContent("app_name")
-                    ?: app.getStringContent("package") ?: return@items
+                    ?: app.getStringContent("package") ?: return@itemsIndexed
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 Row(
                     modifier = Modifier.fillMaxWidth(),

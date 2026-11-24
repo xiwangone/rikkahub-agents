@@ -262,7 +262,7 @@ fun SearchPage(vm: SearchVM = koinViewModel()) {
                             verticalArrangement = Arrangement.spacedBy(10.dp),
                             modifier = Modifier.fillMaxSize(),
                         ) {
-                            items(vm.results) { result ->
+                            items(vm.results, key = { "${it.conversationId}:${it.nodeId}" }) { result ->
                                 SearchResultItem(
                                     result = result,
                                     onClick = {

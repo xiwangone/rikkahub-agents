@@ -52,6 +52,7 @@ import me.rerere.rikkahub.skills.SkillStoreSourceStatus
 import me.rerere.rikkahub.skills.SkillStoreSourceStore
 import me.rerere.rikkahub.ui.components.ui.Switch
 import me.rerere.rikkahub.utils.plus
+import androidx.compose.foundation.layout.imePadding
 
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -88,6 +89,7 @@ internal fun FeaturedCatalogSheet(
                 Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.7f)
+                    .imePadding()
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
@@ -394,6 +396,7 @@ internal fun StoreSourcesSheet(
                 Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.75f)
+                    .imePadding()
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

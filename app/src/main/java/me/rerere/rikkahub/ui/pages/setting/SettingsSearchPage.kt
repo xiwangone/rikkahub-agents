@@ -13,7 +13,6 @@ import androidx.compose.foundation.text.KeyboardActions
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -45,6 +44,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
@@ -54,7 +54,7 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
     val resources = LocalResources.current
     val keyboardController = LocalSoftwareKeyboardController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val focusRequester = remember { FocusRequester() }
     var query by remember { mutableStateOf("") }
 
@@ -82,7 +82,7 @@ fun SettingsSearchPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 navigationIcon = { BackButton() },
                 title = { Text(stringResource(R.string.settings_search_page_title)) },
                 scrollBehavior = scrollBehavior,

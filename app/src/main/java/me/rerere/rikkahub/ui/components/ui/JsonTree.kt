@@ -50,6 +50,7 @@ import me.rerere.hugeicons.stroke.ArrowDown01
 import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.rikkahub.ui.context.rememberRenderProfile
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
+import androidx.compose.ui.graphics.luminance
 
 // 单个容器默认最多组合的子节点数由当前渲染档位决定（见 data/perf/RenderProfile.kt）:
 // 大对象/大数组一次展开会组合上千个节点, 直接拖慢首帧与滚动;
@@ -359,6 +360,7 @@ private fun ValueText(
     primitive: JsonPrimitive,
     onClick: (() -> Unit)? = null,
 ) {
+    val isDark = MaterialTheme.colorScheme.surface.luminance() < 0.5f
     val (text, color) =
         when {
             primitive.isString -> {
@@ -368,15 +370,15 @@ private fun ValueText(
                         .replace("\n", "\\n")
                         .replace("\r", "\\r")
                         .replace("\t", "\\t")
-                "\"$content\"" to Color(0xFF6A8759)
+                "\"$content\"" to if (isDark) Color(0xFF6A8759) else Color(0xFF2E7D32)
             }
 
             primitive.booleanOrNull != null -> {
-                primitive.content to Color(0xFFCC7832)
+                primitive.content to if (isDark) Color(0xFFCC7832) else Color(0xFFC65102)
             }
 
             primitive.longOrNull != null || primitive.doubleOrNull != null -> {
-                primitive.content to Color(0xFF6897BB)
+                primitive.content to if (isDark) Color(0xFF6897BB) else Color(0xFF1565C0)
             }
 
             else -> {

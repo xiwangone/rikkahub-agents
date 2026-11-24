@@ -17,7 +17,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -70,6 +69,7 @@ import me.rerere.rikkahub.utils.LogRedactor
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun LogPage() {
@@ -83,12 +83,12 @@ private fun LogPageContent() {
     var requestLoggingEnabled by remember { mutableStateOf(Logging.isRequestLoggingEnabled()) }
     var appLogClearGeneration by remember { mutableIntStateOf(0) }
     val pagerState = rememberPagerState { LogTab.entries.size }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val onAppTab = pagerState.currentPage == LogTab.App.ordinal
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.log_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {

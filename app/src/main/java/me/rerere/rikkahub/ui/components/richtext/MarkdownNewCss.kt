@@ -252,6 +252,9 @@ internal fun parseSpacing(
     }
 }
 
+private val NUMERIC_LINE_HEIGHT_REGEX = Regex("[0-9]*\\.?[0-9]+")
+private val WHITESPACE_SPLIT_REGEX = Regex("\\s+")
+
 private fun parseLineHeight(
     lineHeight: String,
     density: Density,
@@ -260,7 +263,7 @@ private fun parseLineHeight(
     val normalized = lineHeight.trim().lowercase()
     if (normalized.isEmpty()) return null
 
-    if (normalized.matches(Regex("[0-9]*\\.?[0-9]+"))) {
+    if (normalized.matches(NUMERIC_LINE_HEIGHT_REGEX)) {
         if (!baseFontSize.isSpecified) return null
         return when (baseFontSize.type) {
             TextUnitType.Sp -> (baseFontSize.value * normalized.toFloat()).sp
@@ -410,7 +413,7 @@ private fun parseFontStyle(fontStyle: String): FontStyle? =
     }
 
 private fun parseTextDecoration(textDecoration: String): TextDecoration? {
-    val parts = textDecoration.lowercase().split(Regex("\\s+")).filter { it.isNotBlank() }
+    val parts = textDecoration.lowercase().split(WHITESPACE_SPLIT_REGEX).filter { it.isNotBlank() }
     if (parts.isEmpty()) return null
 
     val decorations =

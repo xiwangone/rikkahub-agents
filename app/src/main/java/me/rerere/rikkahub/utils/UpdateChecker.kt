@@ -322,6 +322,9 @@ data class UpdateInfo(
  * - 预发布标识符按段逐个比较：数字按数值比较，字符串按字典序比较
  * - 预发布标识符优先级：alpha < beta < rc（通过字典序自然满足）
  * - build metadata（+号后面的部分）不影响优先级比较
+ * - 构建指纹不参与比较：尾部全是十六进制、长度 7–40 的 prerelease 段
+ *   （出包时拼进 versionName 的 commit 哈希，如 3.0.7-297bd64b5）会被忽略，
+ *   视为与正式版相等；真实预发布标识不受影响
  */
 @JvmInline
 value class Version(
@@ -339,9 +342,24 @@ value class Version(
                 withoutBuild to null
             }
         val core = coreStr.split(".").map { it.toIntOrNull() ?: 0 }
-        val prerelease = prereleaseStr?.split(".")
+        // 构建指纹不参与比较：出包时 commit 哈希会拼进 versionName
+        //（如 3.0.7-297bd64b5），它是构建标识而非预发布版本；尾部那段全是
+        // 十六进制且长度 7–40 时按 git 短/全哈希忽略。真实预发布标识
+        //（alpha/beta/rc 等）不受影响。
+        val prerelease =
+            prereleaseStr
+                ?.split(".")
+                ?.dropLastWhile { it.isCommitHashFingerprint() }
+                ?.takeIf { it.isNotEmpty() }
         return ParsedVersion(core, prerelease)
     }
+
+    /**
+     * git 短/全哈希指纹：全十六进制、长度 7–40。
+     * 出包注入的 commit 短哈希（默认 7 位）与全哈希（40 位）都落在这个区间。
+     */
+    private fun String.isCommitHashFingerprint(): Boolean =
+        length in 7..40 && all { it in '0'..'9' || it in 'a'..'f' || it in 'A'..'F' }
 
     override fun compareTo(other: Version): Int {
         val a = this.parse()

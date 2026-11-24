@@ -22,7 +22,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -72,6 +71,7 @@ import java.io.File
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.material3.TopAppBar
 
 /**
  * 独立路由入口（Screen.AppLog）：带顶栏与返回按钮。
@@ -80,11 +80,11 @@ import java.util.Locale
 fun AppLogPage(onBack: () -> Unit) {
     val context = LocalContext.current
     var clearGen by remember { mutableIntStateOf(0) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.log_page_app_logs_title)) },
                 navigationIcon = {
                     FilledTonalIconButton(onClick = onBack) {

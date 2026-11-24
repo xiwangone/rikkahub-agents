@@ -83,6 +83,7 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import androidx.compose.material3.TopAppBar
+import androidx.compose.foundation.layout.imePadding
 
 @Composable
 fun SkillDetailPage(skillName: String) {
@@ -283,6 +284,7 @@ private fun SkillTesterSheet(
                 Modifier
                     .fillMaxWidth()
                     .fillMaxHeight(0.7f)
+                    .imePadding()
                     .padding(16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

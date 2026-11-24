@@ -88,6 +88,12 @@ fun vaultHttpExecTool(
 )
 
 private const val MAX_RESPONSE_BODY = 8192
+
+private val vaultHttpBaseClient: OkHttpClient by lazy {
+    OkHttpClient.Builder()
+        .addInterceptor(SafeRequestLoggingInterceptor())
+        .build()
+}
 private const val MAX_TIMEOUT_SECONDS = 120L
 
 private suspend fun runVaultHttpExec(
@@ -150,13 +156,10 @@ private suspend fun runVaultHttpExec(
 
     return try {
         kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
-            val client = OkHttpClient.Builder()
+            val client = vaultHttpBaseClient.newBuilder()
                 .connectTimeout(timeout, TimeUnit.SECONDS)
                 .readTimeout(timeout, TimeUnit.SECONDS)
                 .callTimeout(timeout * 2, TimeUnit.SECONDS)
-                // 最小请求日志：只记 host + 状态码 + 耗时。凭据 header 名由用户配置，
-                // 未必在脱敏集合里，完整拦截器可能把凭据值记进日志。
-                .addInterceptor(SafeRequestLoggingInterceptor())
                 .build()
             val reqBuilder = Request.Builder().url(url)
             val headerValue = if (scheme == "raw") secret else "$scheme $secret"

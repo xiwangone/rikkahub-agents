@@ -76,6 +76,13 @@ internal fun isValidRootfsUrl(url: String): Boolean {
     return isRootfsArchiveName(trimmed)
 }
 
+private val rootfsProbeClient: okhttp3.OkHttpClient by lazy {
+    okhttp3.OkHttpClient.Builder()
+        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
+        .build()
+}
+
 @Composable
 internal fun InstallRootfsDialog(
     workspace: WorkspaceEntity,
@@ -438,10 +445,7 @@ internal suspend fun resolveLxcDebianRootfs(): String? =
             val dir = "$base/trixie/$lxcAbiDir/default/"
             val html =
                 runCatching {
-                    okhttp3.OkHttpClient.Builder()
-                        .connectTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-                        .readTimeout(8, java.util.concurrent.TimeUnit.SECONDS)
-                        .build().newCall(
+                    rootfsProbeClient.newCall(
                             okhttp3.Request.Builder().url(dir)
                                 .header("User-Agent", "okhttp")
                                 .build(),

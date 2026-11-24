@@ -1,6 +1,8 @@
 package me.rerere.rikkahub.data.vault
 
 import android.icu.text.Transliterator
+import android.os.Build
+import androidx.annotation.RequiresApi
 import java.text.Normalizer
 
 /**
@@ -19,7 +21,9 @@ internal object CredentialNameNormalizer {
 
     /** Han-Latin 音译器（惰性创建；平台不可用时为 null，调用方回退旧行为，不抛异常）。 */
     private val hanLatinTransliterator: Transliterator? by lazy(LazyThreadSafetyMode.SYNCHRONIZED) {
-        runCatching { Transliterator.getInstance("Han-Latin") }.getOrNull()
+        // getInstance 需 API 29；低版本不做音译，回退到按旧规则丢弃非 ASCII 字符。
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) null
+        else runCatching { Transliterator.getInstance("Han-Latin") }.getOrNull()
     }
 
     /**
@@ -34,11 +38,17 @@ internal object CredentialNameNormalizer {
 
     private fun defaultTransliterate(raw: String): String {
         if (raw.none { it.isCjk() }) return raw
-        val transliterator = hanLatinTransliterator ?: return raw
-        val latin = runCatching { synchronized(transliterator) { transliterator.transliterate(raw) } }.getOrNull()
-            ?: return raw
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) return raw
+        val latin = transliterateOnQ(raw) ?: return raw
         // 去声调：NFD 分解后删掉组合标记（ā → a + ̄ → a；lü → lu）。
         return Normalizer.normalize(latin, Normalizer.Form.NFD).replace(Regex("\\p{Mn}+"), "")
+    }
+
+    /** API 29 及以上才可用的音译路径（供 lint 的 NewApi 检查识别）。 */
+    @RequiresApi(Build.VERSION_CODES.Q)
+    private fun transliterateOnQ(raw: String): String? {
+        val transliterator = hanLatinTransliterator ?: return null
+        return runCatching { synchronized(transliterator) { transliterator.transliterate(raw) } }.getOrNull()
     }
 
     /**
