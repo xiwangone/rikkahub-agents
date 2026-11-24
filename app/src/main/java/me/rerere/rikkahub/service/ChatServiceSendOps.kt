@@ -31,6 +31,7 @@ import me.rerere.rikkahub.data.model.Conversation
 import me.rerere.rikkahub.data.model.localFileUrls
 import me.rerere.rikkahub.data.model.replaceRegexes
 import me.rerere.rikkahub.data.model.toMessageNode
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import kotlin.uuid.Uuid
 
 
@@ -682,7 +683,8 @@ internal suspend fun ChatService.cancelBackendGenerationIfNeeded(conversationId:
         val target = byExecution ?: byModel ?: return
         runCatching {
             me.rerere.ai.provider.providers.backend.BackendApi(
-                baseUrl = target.baseUrl,
+                // baseUrl 可能是 $$名字.endpoint 引用：进 client 前先解析（未命中原样返回）
+                baseUrl = VaultProviderKeyRefs.resolveValue(target.baseUrl),
                 username = target.username,
                 password = target.password,
                 token = target.token,

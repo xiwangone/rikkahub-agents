@@ -127,9 +127,10 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         (!vertexAI || (useServiceAccount && location in VERTEX_INTERACTIONS_LOCATIONS))
 
     private fun buildUrl(providerSetting: ProviderSetting.Google, path: String): HttpUrl {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         return if (!providerSetting.vertexAI) {
-            "${providerSetting.baseUrl}/$path".toHttpUrlOrNull()
-                ?: throw IllegalArgumentException("Invalid Google baseUrl: '${providerSetting.baseUrl}'")
+            "${baseUrl}/$path".toHttpUrlOrNull()
+                ?: throw IllegalArgumentException("Invalid Google baseUrl: '${baseUrl}'")
         } else if (providerSetting.useServiceAccount) {
             // projectId / location 是用户填的值，非法字符直接拼进 URL 会让 toHttpUrl() 抛错：
             // 先校验，报错时明确指出是哪个字段非法，与非 Vertex 分支的口径一致。
@@ -273,6 +274,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         if (providerSetting.usesInteractionsApi()) {
             return@withContext interactionsAPI.generateText(providerSetting, messages, params)
         }
@@ -297,7 +299,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .post(
                     json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
                 )
-                .configureReferHeaders(providerSetting.baseUrl)
+                .configureReferHeaders(baseUrl)
                 .build()
         )
 
@@ -345,6 +347,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildCompletionRequestBody(messages, params)
 
         val url = buildUrl(
@@ -365,7 +368,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                 .post(
                     json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
                 )
-                .configureReferHeaders(providerSetting.baseUrl)
+                .configureReferHeaders(baseUrl)
                 .build()
         )
 
@@ -950,6 +953,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
         require(providerSetting is ProviderSetting.Google) {
             "Expected Google provider setting"
         }
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
 
         val items = withContext(Dispatchers.IO) {
             val requestBody = buildJsonObject {
@@ -987,7 +991,7 @@ class GoogleProvider(private val client: OkHttpClient, context: Context? = null)
                     .post(
                         json.encodeToString(requestBody).toRequestBody("application/json".toMediaType())
                     )
-                    .configureReferHeaders(providerSetting.baseUrl)
+                    .configureReferHeaders(baseUrl)
                     .build()
             )
 

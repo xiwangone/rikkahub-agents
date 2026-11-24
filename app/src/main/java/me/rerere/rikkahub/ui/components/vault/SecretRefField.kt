@@ -26,9 +26,13 @@ import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.View
 import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
+import me.rerere.rikkahub.data.repository.SshHostRepository
+import me.rerere.rikkahub.data.telegram.TelegramBotPreferences
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import me.rerere.rikkahub.data.vault.VaultReferenceSync
 import me.rerere.rikkahub.ui.components.setting.bringIntoViewOnFocus
 import org.koin.compose.koinInject
 
@@ -69,8 +73,28 @@ fun SecretRefField(
      * 选择器打开时会预筛到该类型，避免跨用途误选。
      */
     typeHint: String? = null,
+    /**
+     * 快速入库时的分组提示（提供商 apiKey → `"AI"`；为空则不指定，
+     * 新建时回退 "Other"、改名时保留旧分组）。
+     */
+    groupHint: String = "",
+    /**
+     * 快速入库时的显式类型（提供商 apiKey → `"api-key"`；为空则按既有规则推断）。
+     * 与 [typeHint] 不同：[typeHint] 只筛选择器，[importType] 决定入库类型。
+     */
+    importType: String = "",
+    /** 快速入库时一并存进 `endpoint` 元数据的端点；为空不写。 */
+    endpointHint: String? = null,
+    /**
+     * 端点已入库时的回调（同时带上本次的密钥引用）。
+     * 调用方用一次编辑同时写密钥与端点，避免两次编辑互相覆盖。
+     */
+    onEndpointStored: ((apiKeyRef: String, endpointRef: String) -> Unit)? = null,
 ) {
     val repository: CredentialVaultRepository = koinInject()
+    val settingsStore: SettingsStore = koinInject()
+    val sshHostRepository: SshHostRepository = koinInject()
+    val telegramBotPreferences: TelegramBotPreferences = koinInject()
     val scope = rememberCoroutineScope()
 
     var entries by remember { mutableStateOf<List<VaultCredentialEntity>>(emptyList()) }
@@ -153,11 +177,40 @@ fun SecretRefField(
                                         description = description?.takeIf { it.isNotBlank() }
                                             ?: label?.takeIf { it.isNotBlank() }
                                             ?: nameHint,
+                                        group = groupHint,
+                                        type = importType,
+                                        endpoint = endpointHint,
                                     )
                                 }.onSuccess { r ->
                                     onValueChange(REF_PREFIX + r.name)
-                                    // 复用已有条目时用不同符号，让用户知道没有产生重复
-                                    notice = if (r.reusedExisting) "♻ ${r.name}" else "✅ ${r.name}"
+                                    var syncFailed: String? = null
+                                    // 改名：同步配置里的旧引用（只改库内会让其它位置的 $$旧名 静默失效）
+                                    r.renamedFrom?.let { oldName ->
+                                        runCatching {
+                                            VaultReferenceSync.renameEverywhere(
+                                                settingsStore,
+                                                sshHostRepository,
+                                                telegramBotPreferences,
+                                                oldName,
+                                                r.name,
+                                            )
+                                        }.onFailure { e ->
+                                            if (e is CancellationException) throw e
+                                            syncFailed = e.message
+                                        }
+                                    }
+                                    notice = when {
+                                        syncFailed != null -> "❌ $syncFailed"
+                                        r.renamedFrom != null -> "♻ ${r.renamedFrom} → ${r.name}"
+                                        r.reusedExisting -> "♻ ${r.name}"
+                                        else -> "✅ ${r.name}"
+                                    }
+                                    if (r.endpointStored) {
+                                        onEndpointStored?.invoke(
+                                            REF_PREFIX + r.name,
+                                            "$REF_PREFIX${r.name}.endpoint",
+                                        )
+                                    }
                                     entries = runCatching { repository.getAll() }.getOrDefault(entries)
                                 }.onFailure { e ->
                                     if (e is CancellationException) throw e

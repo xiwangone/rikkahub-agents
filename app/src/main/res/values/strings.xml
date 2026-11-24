@@ -532,6 +532,7 @@
   <string name="code_block_collapse">Collapse</string>
   <string name="code_block_copy">Copy Code</string>
   <string name="code_block_expand">Expand</string>
+  <string name="vault_desc_expand">Expand</string>
   <string name="code_block_preview">Preview</string>
   <string name="collapse_translation">Collapse Translation</string>
   <string name="confirm">Confirm</string>
@@ -799,6 +800,11 @@
   <string name="safe_mode_description">The app crashed on the last launch.</string>
   <string name="safe_mode_enter_app">Enter App</string>
   <string name="safe_mode_oversized_data">Oversized data</string>
+  <string name="safe_mode_quarantined_title">Quarantined settings</string>
+  <string name="safe_mode_quarantined_desc">These fields failed to load and are using defaults. The original values are saved in a recovery snapshot.</string>
+  <string name="safe_mode_quarantined_default">Using default value</string>
+  <string name="safe_mode_quarantined_export">Export recovery snapshot</string>
+  <string name="safe_mode_quarantined_clear_text">This field failed to load and is already using its default. Clearing removes the damaged stored value permanently.</string>
   <string name="safe_mode_oversized_size">%1$.1f million characters</string>
   <string name="safe_mode_switch_assistant">Switch Assistant</string>
   <string name="safe_mode_title">Safe Mode</string>
@@ -1195,6 +1201,8 @@
   <string name="setting_page_config_api_title">Please configure API and model</string>
   <string name="setting_page_security_degraded_title">Weak encryption in use</string>
   <string name="setting_page_security_degraded_desc">Your device doesn\'t support hardware-backed encryption; credentials are stored with weak obfuscation</string>
+  <string name="setting_page_settings_quarantined_title">Some settings were damaged and quarantined</string>
+  <string name="setting_page_settings_quarantined_desc">%1$d damaged field(s) were reset to defaults. The original values were saved — review them in Safe Mode.</string>
   <string name="setting_page_data_backup">Data Backup</string>
   <string name="setting_page_data_backup_desc">Backup and restore app data</string>
   <string name="setting_page_data_settings">Data Settings</string>

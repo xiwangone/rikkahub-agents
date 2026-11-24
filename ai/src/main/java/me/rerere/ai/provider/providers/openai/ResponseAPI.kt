@@ -49,6 +49,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -195,6 +196,7 @@ class ResponseAPI(
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): TextGenerationResult = withContext(Dispatchers.IO) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildRequestBody(
             providerSetting = providerSetting,
             messages = messages,
@@ -202,7 +204,7 @@ class ResponseAPI(
             stream = false,
         )
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.responsesPath}")
+            .url("${baseUrl}${providerSetting.responsesPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader(
@@ -210,8 +212,8 @@ class ResponseAPI(
                 "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"
             )
             .addHeader("Content-Type", "application/json")
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
@@ -237,6 +239,7 @@ class ResponseAPI(
         messages: List<UIMessage>,
         params: TextGenerationParams
     ): Flow<StreamChunk> = callbackFlow {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildRequestBody(
             providerSetting = providerSetting,
             messages = messages,
@@ -244,15 +247,15 @@ class ResponseAPI(
             stream = true,
         )
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.responsesPath}")
+            .url("${baseUrl}${providerSetting.responsesPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader(
                 "Authorization",
                 "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}"
             )
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
@@ -434,7 +437,8 @@ class ResponseAPI(
         params: TextGenerationParams,
         stream: Boolean
     ): JsonObject {
-        val host = providerSetting.baseUrl.toHttpUrlOrNull()?.host
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
+        val host = baseUrl.toHttpUrlOrNull()?.host
         val capabilities = resolveResponseProviderCapabilities(host)
         return buildJsonObject {
             put("model", params.model.modelId)

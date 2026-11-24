@@ -119,6 +119,7 @@ fun BackendProviderConfigure(
                 onValueChange = { onEdit(provider.copy(token = it.trim())) },
                 label = stringResource(R.string.backend_token_serve),
                 nameHint = "BACKEND_TOKEN",
+                groupHint = "Backend",
             )
         }
     }

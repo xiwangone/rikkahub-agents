@@ -1,6 +1,7 @@
 package me.rerere.rikkahub.utils
 
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 
 /**
  * 提供商图标覆盖值的编解码与解析（纯函数，可在 JVM 单测里跑）。
@@ -95,11 +96,12 @@ fun resolveModelIcon(
  *
  * 只有基于 HTTP 的提供商有端点；本地模型（LiteRt / LlamaCpp）没有，
  * 返回 null 时匹配逻辑会退回按名字匹配。
+ * 端点可能是 `$$名字.endpoint` 引用：先解析再返回，否则域名匹配不到。
  */
 fun ProviderSetting.baseUrlOrNull(): String? = when (this) {
-    is ProviderSetting.OpenAI -> baseUrl
-    is ProviderSetting.Google -> baseUrl
-    is ProviderSetting.Claude -> baseUrl
-    is ProviderSetting.Backend -> baseUrl
+    is ProviderSetting.OpenAI -> VaultProviderKeyRefs.resolveValue(baseUrl)
+    is ProviderSetting.Google -> VaultProviderKeyRefs.resolveValue(baseUrl)
+    is ProviderSetting.Claude -> VaultProviderKeyRefs.resolveValue(baseUrl)
+    is ProviderSetting.Backend -> VaultProviderKeyRefs.resolveValue(baseUrl)
     else -> null
 }

@@ -45,6 +45,7 @@ import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -87,6 +88,7 @@ class ChatCompletionsAPI(
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): TextGenerationResult = withContext(Dispatchers.IO) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody =
             buildChatCompletionRequest(
                 messages = messages,
@@ -95,12 +97,12 @@ class ChatCompletionsAPI(
             )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url("${baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
@@ -140,6 +142,7 @@ class ChatCompletionsAPI(
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildChatCompletionRequest(
             messages = messages,
             params = params,
@@ -148,13 +151,13 @@ class ChatCompletionsAPI(
         )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url("${baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("Authorization", "Bearer ${keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())}")
             .addHeader("Content-Type", "application/json")
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
@@ -283,7 +286,8 @@ class ChatCompletionsAPI(
         providerSetting: ProviderSetting.OpenAI,
         stream: Boolean = false,
     ): JsonObject {
-        val host = providerSetting.baseUrl.toHttpUrlOrNull()?.host
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
+        val host = baseUrl.toHttpUrlOrNull()?.host
         val isOpenRouter = host == "openrouter.ai"
         // OpenRouter prompt caching: add per-block cache_control breakpoints for every model.
         // Anthropic/Gemini/Qwen need them explicitly; providers that cache automatically

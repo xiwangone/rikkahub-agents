@@ -15,12 +15,14 @@ import androidx.compose.foundation.relocation.bringIntoViewRequester
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.input.rememberTextFieldState
 import androidx.compose.foundation.text.input.setTextAndPlaceCursorAtEnd
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -67,6 +69,7 @@ import me.rerere.rikkahub.data.vault.CredentialValueSanitizer
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
 import me.rerere.rikkahub.data.vault.SshKeyGenerator
 import me.rerere.rikkahub.data.vault.CredentialMeta
+import me.rerere.rikkahub.data.vault.CredentialNameNormalizer
 import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.data.vault.SecretGenerator
 import me.rerere.rikkahub.data.vault.VaultBiometric
@@ -109,6 +112,9 @@ internal fun CredentialRow(
     var biometricEnabled by remember { mutableStateOf(true) }
     // 导出私钥：弹窗确认后由系统文件选择器选定落地位置
     var exportDialog by remember { mutableStateOf(false) }
+    // 描述超长时才给展开入口（默认只显示 2 行）；全文在底部卡片里看
+    var descOverflow by remember { mutableStateOf(false) }
+    var showDescSheet by remember { mutableStateOf(false) }
     var exportContent by remember { mutableStateOf<String?>(null) }
     val exportLauncher = rememberSafeLauncherForActivityResult(
         ActivityResultContracts.CreateDocument("application/x-pem-file")
@@ -206,6 +212,8 @@ internal fun CredentialRow(
                                 text = groupLabel,
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSecondaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                             )
                         }
@@ -219,17 +227,37 @@ internal fun CredentialRow(
                                 text = vaultTypeLabel(context, entry.type),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onTertiaryContainer,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                                 modifier = Modifier.padding(horizontal = 6.dp, vertical = 1.dp),
                             )
                         }
                     }
                 }
                 if (entry.description.isNotBlank()) {
-                    Text(
-                        entry.description,
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                    // 描述默认只显示 2 行；超长时点描述区或「展开」弹底部卡片看全文
+                    // （未超长时描述不可点，点行其它位置照常进详情）
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text(
+                            entry.description,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            maxLines = 2,
+                            overflow = TextOverflow.Ellipsis,
+                            onTextLayout = { descOverflow = it.hasVisualOverflow },
+                            modifier = Modifier
+                                .weight(1f)
+                                .clickable(enabled = descOverflow) { showDescSheet = true },
+                        )
+                        if (descOverflow) {
+                            TextButton(onClick = { showDescSheet = true }) {
+                                Text(stringResource(R.string.vault_desc_expand))
+                            }
+                        }
+                    }
                 }
                 // SSH 公钥（明文，公开信息，直接展示；可长按复制）
                 if (entry.publicKey.isNotBlank()) {
@@ -291,6 +319,32 @@ internal fun CredentialRow(
                 exportLauncher.launch(fileName)
             },
         )
+    }
+
+    if (showDescSheet) {
+        ModalBottomSheet(onDismissRequest = { showDescSheet = false }) {
+            Column(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp)
+                    .padding(bottom = 24.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                SelectionContainer {
+                    Text(
+                        entry.description,
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                }
+                Button(
+                    onClick = {
+                        clipboard.setText(androidx.compose.ui.text.AnnotatedString(entry.description))
+                        android.widget.Toast.makeText(context, resStr(resources, R.string.copied), android.widget.Toast.LENGTH_SHORT).show()
+                    },
+                ) { Text(stringResource(R.string.copy)) }
+            }
+        }
     }
 }
 
@@ -377,7 +431,9 @@ internal fun CredentialEditorDialog(
     val valueState = rememberTextFieldState(
         initialText = (mode as? EditorMode.Edit)?.entry?.let { repository.decryptValue(it) } ?: "",
     )
-    var description by remember { mutableStateOf((mode as? EditorMode.Edit)?.entry?.description ?: "") }
+    val descriptionState = rememberTextFieldState(
+        initialText = (mode as? EditorMode.Edit)?.entry?.description ?: "",
+    )
     val publicKeyState = rememberTextFieldState(
         initialText = (mode as? EditorMode.Edit)?.entry?.publicKey ?: "",
     )
@@ -417,7 +473,8 @@ internal fun CredentialEditorDialog(
                 OutlinedTextField(
                     value = name,
                     onValueChange = {
-                        name = it.uppercase().replace(Regex("[^A-Z0-9_ ]"), "_").replace(" ", "_")
+                        // 边输边规范化：中文转拼音再折大写蛇形（与 quickImport 同一套规则）
+                        name = CredentialNameNormalizer.foldNameChars(it)
                         nameError = false
                     },
                     label = { Text(stringResource(R.string.vault_editor_name_label)) },
@@ -464,12 +521,13 @@ internal fun CredentialEditorDialog(
                         }
                     }
                 }
-                OutlinedTextField(
-                    value = description,
-                    onValueChange = { description = it },
-                    label = { Text(stringResource(R.string.vault_editor_desc_label)) },
-                    singleLine = true,
-                    modifier = Modifier.fillMaxWidth(),
+                // 描述多行输入（照值字段的 TextArea：有界高度＋字段内滚动）
+                TextArea(
+                    state = descriptionState,
+                    label = stringResource(R.string.vault_editor_desc_label),
+                    minLines = 2,
+                    maxLines = 6,
+                    modifier = Modifier.then(rememberBringIntoViewModifier()),
                 )
                 // SSH 公钥：只对 ssh-key 类型显示（以前无条件渲染 → 每种类型都冒一个公钥框，容易填错）
                 if (type == CredentialType.SSH_KEY) {
@@ -625,6 +683,7 @@ internal fun CredentialEditorDialog(
         onClick = {
             val value = valueState.text.toString()
             val publicKey = publicKeyState.text.toString()
+            val description = descriptionState.text.toString()
             if (name.isBlank()) { nameError = true; return@Button }
             if (!isEdit && value.isBlank()) { valueError = true; return@Button }
             // 只含不可见字符的值等于空密钥：与 save/importEntries 同语义，前置拦截

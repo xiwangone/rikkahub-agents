@@ -28,6 +28,15 @@ class VaultReferenceSyncTest {
     }
 
     @Test
+    fun `renames a dotted field reference`() {
+        // 端点引用 `$$旧名.endpoint`：改名后字段后缀保留，只换名字（baseUrl 改名同步就靠这条）
+        assertEquals(
+            "\$\$NEW_NAME.endpoint",
+            VaultReferenceSync.renameInText("\$\$OLD_NAME.endpoint", "OLD_NAME", "NEW_NAME"),
+        )
+    }
+
+    @Test
     fun `does not touch a longer name sharing the prefix`() {
         assertEquals(
             "\$\$OLD_NAME_EXTRA",

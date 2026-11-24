@@ -224,7 +224,10 @@ internal class McpSessionRegistry(
     suspend fun forceResync(serverId: Uuid) {
         val config = settingsStore.settingsFlow.value.mcpServers.firstOrNull { it.id == serverId } ?: return
         val session = sessions.computeIfAbsent(serverId) { McpSession(config) }
-        session.config = config
+        // 与 addClient 的快路径同款：在 lifecycleMutex 内认领新配置，再调 connectSession。
+        // 写在锁外时，若落在 in-flight connectSession 的比对之后、写回之前，
+        // connectSession 会用旧的 syncedConfig 把刚写入的配置覆盖掉（tools-only 变更静默丢失）。
+        session.lifecycleMutex.withLock { session.config = config }
         connectSession(
             session = session,
             requestedConfig = config,
@@ -422,7 +425,9 @@ internal class McpSessionRegistry(
                     it.commonOptions.enable &&
                     it.commonOptions.name.isNotBlank()
             } ?: return
-            session.config = latestConfig
+            // 同 forceResync：在锁内认领最新配置，否则 in-flight connectSession
+            // 可能随后用旧的 syncedConfig 把它覆盖掉。
+            session.lifecycleMutex.withLock { session.config = latestConfig }
             retry = connectSession(
                 session = session,
                 requestedConfig = latestConfig,

@@ -32,6 +32,7 @@ import me.rerere.ai.ui.ImageGenerationItem
 import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.json
 import me.rerere.ai.util.MAX_LOCAL_READ_BYTES
@@ -108,16 +109,17 @@ class OpenAIProvider(
 
     override suspend fun listModels(providerSetting: ProviderSetting.OpenAI): List<Model> =
         withContext(Dispatchers.IO) {
+            val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
             // 短请求单独收紧超时：共享 client 没有 callTimeout，/models 卡住时模型页最长转圈 10 分钟。
             val shortClient = client.shortRequestClient()
             val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
             // OpenRouter's /models returns text-output models only by default, which hides the
             // image-only models (FLUX, Recraft, Seedream, ...) and the video-only models
             // (Sora, Veo, ...). Ask for text, image and video explicitly.
-            val modelsUrl = if (providerSetting.baseUrl.contains("openrouter.ai")) {
-                "${providerSetting.baseUrl}/models?output_modalities=text,image,video"
+            val modelsUrl = if (baseUrl.contains("openrouter.ai")) {
+                "${baseUrl}/models?output_modalities=text,image,video"
             } else {
-                "${providerSetting.baseUrl}/models"
+                "${baseUrl}/models"
             }
             val request = Request.Builder()
                 .url(modelsUrl)
@@ -154,7 +156,7 @@ class OpenAIProvider(
                     logListModelsFailure(providerSetting, request, 200, errMsg)
                     error("Failed to get models: $errMsg")
                 }
-                if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
+                if (baseUrl.contains("api.minimax.io", ignoreCase = true)) {
                     AppLogger.w(
                         TAG,
                         "listModels: using Minimax fallback model list snapshot " +
@@ -167,7 +169,7 @@ class OpenAIProvider(
                 error("Failed to get models: response has no `data` field")
             }
 
-            val isOpenRouter = providerSetting.baseUrl.contains("openrouter.ai", ignoreCase = true)
+            val isOpenRouter = baseUrl.contains("openrouter.ai", ignoreCase = true)
             data.mapNotNull { modelJson ->
                 val modelObj = modelJson.jsonObject
                 if (isOpenRouter) {
@@ -190,13 +192,14 @@ class OpenAIProvider(
         }
 
     override suspend fun getBalance(providerSetting: ProviderSetting.OpenAI): String = withContext(Dispatchers.IO) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         // 短请求单独收紧超时（同 listModels）。
         val shortClient = client.shortRequestClient()
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
         val url = if (providerSetting.balanceOption.apiPath.startsWith("http")) {
             providerSetting.balanceOption.apiPath
         } else {
-            "${providerSetting.baseUrl}${providerSetting.balanceOption.apiPath}"
+            "${baseUrl}${providerSetting.balanceOption.apiPath}"
         }
         val request = Request.Builder()
             .url(url)
@@ -253,6 +256,7 @@ class OpenAIProvider(
         providerSetting: ProviderSetting.OpenAI,
         params: EmbeddingGenerationParams
     ): EmbeddingGenerationResult = withContext(Dispatchers.IO) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         require(params.input.isNotEmpty()) { "Embedding input cannot be empty" }
 
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
@@ -271,7 +275,7 @@ class OpenAIProvider(
         )
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/embeddings")
+            .url("${baseUrl}/embeddings")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
@@ -307,6 +311,7 @@ class OpenAIProvider(
         require(providerSetting is ProviderSetting.OpenAI) {
             "Expected OpenAI provider setting"
         }
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
 
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
 
@@ -316,7 +321,7 @@ class OpenAIProvider(
         // when /images itself 404s/405s (an OpenRouter-compatible proxy without it) - decided
         // once, on the first attempt, and reused for the rest. Neither path takes `n` (see
         // buildOpenRouterImagesRequestBody), so count > 1 is emulated with sequential calls.
-        if (providerSetting.baseUrl.contains("openrouter.ai", ignoreCase = true)) {
+        if (baseUrl.contains("openrouter.ai", ignoreCase = true)) {
             var useChatCompletionsFallback = false
             val items = withContext(Dispatchers.IO) {
                 collectSequentialImages(params.numOfImages.coerceAtLeast(1)) {
@@ -342,7 +347,7 @@ class OpenAIProvider(
                 // xAI rejects the OpenAI `size` parameter with a 400 (upstream issue #1602),
                 // so leave it off for Grok and let the endpoint pick its own dimensions.
                 // 只匹配 x.ai 本身及其子域名，避免 "xxx-max.ai" 之类的中转域名被误判
-                val host = providerSetting.baseUrl.toHttpUrlOrNull()?.host?.lowercase()
+                val host = baseUrl.toHttpUrlOrNull()?.host?.lowercase()
                 val isGrok = host == "x.ai" || host?.endsWith(".x.ai") == true ||
                     params.model.modelId.contains("grok", ignoreCase = true)
                 if (!isGrok) {
@@ -371,12 +376,12 @@ class OpenAIProvider(
         }
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images/generations")
+            .url("${baseUrl}/images/generations")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
             .post(requestBody.toRequestBody("application/json".toMediaType()))
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
 
         val items = withContext(Dispatchers.IO) {
@@ -403,6 +408,7 @@ class OpenAIProvider(
         key: String,
         inputReferences: List<String> = emptyList(),
     ): List<ImageGenerationItem>? {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val body = buildOpenRouterImagesRequestBody(
             model = params.model,
             prompt = params.prompt,
@@ -411,12 +417,12 @@ class OpenAIProvider(
         ).mergeCustomBody(params.customBody)
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images")
+            .url("${baseUrl}/images")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
             .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
 
         val response = client.newCall(request).await()
@@ -434,6 +440,7 @@ class OpenAIProvider(
         params: ImageGenerationParams,
         key: String,
     ): List<ImageGenerationItem> {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val body = buildOpenRouterChatCompletionsImageBody(
             modelId = params.model.modelId,
             prompt = params.prompt,
@@ -441,12 +448,12 @@ class OpenAIProvider(
         ).mergeCustomBody(params.customBody)
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url("${baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
             .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
 
         val response = client.newCall(request).await()
@@ -464,6 +471,7 @@ class OpenAIProvider(
         key: String,
         inputReferences: List<String>,
     ): List<ImageGenerationItem> {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val body = buildOpenRouterChatCompletionsImageBody(
             modelId = params.model.modelId,
             prompt = params.prompt,
@@ -472,12 +480,12 @@ class OpenAIProvider(
         ).mergeCustomBody(params.customBody)
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}${providerSetting.chatCompletionsPath}")
+            .url("${baseUrl}${providerSetting.chatCompletionsPath}")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .addHeader("Content-Type", "application/json")
             .post(json.encodeToString(body).toRequestBody("application/json".toMediaType()))
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
 
         val response = client.newCall(request).await()
@@ -500,12 +508,13 @@ class OpenAIProvider(
         }
 
         val key = keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString())
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
 
         // Same dedicated-endpoint-first, chat-completions-fallback rule as generateImage
         // (decided once, on the first attempt), with the source images always sent as
         // input_references (data URIs) - their presence is the edit request itself, not a
         // capability to gate on. `n` is never sent; count > 1 is sequential calls.
-        if (providerSetting.baseUrl.contains("openrouter.ai", ignoreCase = true)) {
+        if (baseUrl.contains("openrouter.ai", ignoreCase = true)) {
             val inputReferences = withContext(Dispatchers.IO) {
                 params.images.map { path ->
                     val file = File(path)
@@ -575,11 +584,11 @@ class OpenAIProvider(
         }
 
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/images/edits")
+            .url("${baseUrl}/images/edits")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .addHeader("Authorization", "Bearer $key")
             .post(bodyBuilder.build())
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
 
         val items = withContext(Dispatchers.IO) {

@@ -859,26 +859,38 @@ internal fun ChatService.cancelToolByUser(tool: UIMessagePart.Tool): UIMessagePa
             approvalState = ToolApprovalState.Denied("Generation cancelled by user"),
         )
 
-internal suspend fun ChatService.finishInterruptedPendingTools(conversationId: Uuid) {
-        val currentConversation = getConversationFlow(conversationId).value
-        val lastNode = currentConversation.messageNodes.lastOrNull() ?: return
-        val lastMessage = lastNode.currentMessage
-        val updatedMessage = lastMessage.finishPendingTools(::cancelToolByUser)
-        if (updatedMessage == lastMessage) {
-            return
-        }
-
-        val updatedConversation =
-            currentConversation.copy(
-                messageNodes =
-                    currentConversation.messageNodes.dropLast(1) +
-                        lastNode.copy(
-                            messages =
-                                lastNode.messages.map { message ->
-                                    if (message.id == lastMessage.id) updatedMessage else message
-                                },
-                        ),
+/**
+ * 把一次中断里所有节点上悬挂的 Pending/Approved 工具定案为 Denied（取消）。
+ *
+ * 必须走遍全部节点、不能只处理末尾节点：分支 / regenerate 之后 Pending 工具可能
+ * 落在非末尾节点上；只定案末尾节点会让那些工具在历史里永远挂着 Pending，
+ * 与「已中断」的实际状态脱节。遍历口径与 [ChatService.stopGenerationImpl] 一致。
+ *
+ * 纯函数：返回 null 表示没有任何消息被改动，调用方无需落库。
+ */
+internal fun Conversation.finalizeInterruptedPendingTools(
+    finalize: (UIMessagePart.Tool) -> UIMessagePart.Tool,
+): Conversation? {
+    var finalizedMessages = 0
+    val updatedNodes =
+        messageNodes.map { node ->
+            node.copy(
+                messages =
+                    node.messages.map { message ->
+                        val next = message.finishPendingTools(finalize)
+                        if (next !== message) finalizedMessages++
+                        next
+                    },
             )
-        saveConversation(conversationId, updatedConversation)
-    }
+        }
+    return if (finalizedMessages == 0) null else copy(messageNodes = updatedNodes)
+}
+
+internal suspend fun ChatService.finishInterruptedPendingTools(conversationId: Uuid) {
+    val currentConversation = getConversationFlow(conversationId).value
+    val updatedConversation =
+        currentConversation.finalizeInterruptedPendingTools(::cancelToolByUser) ?: return
+    AppLog.i(TAG, "finishInterruptedPendingTools: finalized interrupted pending tools in $conversationId")
+    saveConversation(conversationId, updatedConversation)
+}
 

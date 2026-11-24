@@ -59,6 +59,7 @@ import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -308,8 +309,9 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
 
     override suspend fun listModels(providerSetting: ProviderSetting.Claude): List<Model> =
         withContext(Dispatchers.IO) {
+            val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
             val request = Request.Builder()
-                .url("${providerSetting.baseUrl}/models")
+                .url("${baseUrl}/models")
                 .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
                 .addHeader("anthropic-version", ANTHROPIC_VERSION)
                 .get()
@@ -344,7 +346,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     logListModelsFailure(providerSetting, request, 200, errMsg)
                     error("Failed to get models: $errMsg")
                 }
-                if (providerSetting.baseUrl.contains("api.minimax.io", ignoreCase = true)) {
+                if (baseUrl.contains("api.minimax.io", ignoreCase = true)) {
                     AppLogger.w(
                         TAG,
                         "listModels: using Minimax fallback model list snapshot " +
@@ -403,15 +405,16 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): TextGenerationResult {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildMessageRequest(providerSetting, messages, params)
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/messages")
+            .url("${baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {
@@ -454,16 +457,17 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<StreamChunk> = callbackFlow {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val requestBody = buildMessageRequest(providerSetting, messages, params, stream = true)
         val request = Request.Builder()
-            .url("${providerSetting.baseUrl}/messages")
+            .url("${baseUrl}/messages")
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .post(json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
             .addHeader("x-api-key", keyRoulette.next(providerSetting.apiKey, providerSetting.id.toString()))
             .addHeader("anthropic-version", ANTHROPIC_VERSION)
             .addHeader("Content-Type", "application/json")
-            .configureReferHeaders(providerSetting.baseUrl)
-            .configureSessionHeaders(providerSetting.baseUrl, params.sessionId)
+            .configureReferHeaders(baseUrl)
+            .configureSessionHeaders(baseUrl, params.sessionId)
             .build()
 
         if (Logging.isDebugLoggingEnabled()) {

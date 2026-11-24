@@ -409,6 +409,7 @@
   <string name="code_block_collapse">Свернуть</string>
   <string name="code_block_copy">Копировать код</string>
   <string name="code_block_expand">Развернуть</string>
+  <string name="vault_desc_expand">Развернуть</string>
   <string name="code_block_preview">Предпросмотр</string>
   <string name="collapse_translation">Свернуть перевод</string>
   <string name="confirm">Подтвердить</string>
@@ -2392,6 +2393,8 @@
   <string name="setting_files_page_folder_avatars">Аватары</string>
   <string name="setting_page_security_degraded_title">Устройство не поддерживает надёжное шифрование</string>
   <string name="setting_page_security_degraded_desc">Устройство не поддерживает аппаратное шифрование — учётные данные хранятся со слабым шифрованием</string>
+  <string name="setting_page_settings_quarantined_title">Некоторые настройки повреждены и помещены в карантин</string>
+  <string name="setting_page_settings_quarantined_desc">Повреждённых полей сброшено к значениям по умолчанию: %1$d. Исходные значения сохранены — их можно посмотреть в безопасном режиме.</string>
   <string name="setting_page_section_tools">Внешние инструменты</string>
   <string name="setting_page_section_connection">Подключение и бэкенд</string>
   <string name="setting_page_section_security">Безопасность и учётные данные</string>
@@ -2435,6 +2438,11 @@
   <string name="local_llm_vision_unavailable_caption">Устройство не поддерживает зрение — только текст</string>
   <string name="safe_mode_enter_app">Открыть приложение</string>
   <string name="safe_mode_oversized_data">Слишком большие данные</string>
+  <string name="safe_mode_quarantined_title">Настройки в карантине</string>
+  <string name="safe_mode_quarantined_desc">Эти поля не удалось загрузить, используются значения по умолчанию. Исходные значения сохранены в снимке восстановления.</string>
+  <string name="safe_mode_quarantined_default">Используется значение по умолчанию</string>
+  <string name="safe_mode_quarantined_export">Экспортировать снимок восстановления</string>
+  <string name="safe_mode_quarantined_clear_text">Это поле не удалось загрузить, уже используется значение по умолчанию. Очистка навсегда удалит повреждённое сохранённое значение.</string>
   <string name="safe_mode_oversized_size">%1$.1f млн символов</string>
   <string name="setting_browser_per_tool_timeout_desc">Жёсткий лимит времени на один вызов браузерного инструмента. От 10 секунд до 10 минут.</string>
   <string name="setting_browser_per_tool_timeout_unit">сек</string>

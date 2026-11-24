@@ -27,6 +27,7 @@ import me.rerere.ai.provider.providers.backend.BackendInteractionHandler
 import me.rerere.ai.ui.AskQuestion
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 
 /**
  * Backend 富事件的交互桥：把 serve 的 approval_request / ask_request 转成系统通知，
@@ -329,7 +330,8 @@ class BackendInteractionNotifier(
 
     private fun api(setting: ProviderSetting.Backend) =
         BackendApi(
-            baseUrl = setting.baseUrl,
+            // baseUrl 可能是 $$名字.endpoint 引用：进 client 前先解析（未命中原样返回）
+            baseUrl = VaultProviderKeyRefs.resolveValue(setting.baseUrl),
             username = setting.username,
             // 与 token 一致：支持 `$$凭证名` 引用（未命中保持原样，便于暴露配置错误）
             password = me.rerere.rikkahub.data.vault.VaultProviderKeyRefs.resolveValue(setting.password),

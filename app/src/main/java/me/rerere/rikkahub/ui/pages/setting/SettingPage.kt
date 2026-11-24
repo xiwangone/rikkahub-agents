@@ -65,10 +65,13 @@ import me.rerere.hugeicons.stroke.SmartPhone01
 import me.rerere.hugeicons.stroke.Sun01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.Screen
+import me.rerere.rikkahub.data.datastore.QuarantinedField
 import me.rerere.rikkahub.data.datastore.Settings
+import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.isNotConfigured
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.skills.js.SkillSecretsStore
+import me.rerere.rikkahub.ui.activity.SafeModeActivity
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.cardGroupItemShape
@@ -108,6 +111,9 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
     val shortcutEntries by vm.shortcutEntries.collectAsStateWithLifecycle(initialValue = vm.shortcutEntriesNow())
     val filesManager: FilesManager = koinInject()
     val secretsStore: SkillSecretsStore = koinInject()
+    val settingsStore: SettingsStore = koinInject()
+    val quarantinedFields by settingsStore.quarantinedFields.collectAsStateWithLifecycle(initialValue = emptyList())
+    val context = LocalContext.current
 
     Scaffold(
         topBar = {
@@ -161,6 +167,14 @@ fun SettingPage(vm: SettingVM = koinViewModel()) {
             if (secretsStore.isSecurityDegraded()) {
                 item {
                     SecurityDegradedWarningCard()
+                }
+            }
+
+            if (quarantinedFields.isNotEmpty()) {
+                item {
+                    SettingsQuarantineWarningCard(fields = quarantinedFields) {
+                        context.startActivity(Intent(context, SafeModeActivity::class.java))
+                    }
                 }
             }
 
@@ -299,6 +313,28 @@ private fun SecurityDegradedWarningCard() {
             },
             leadingContent = {
                 Icon(HugeIcons.Shield01, null)
+            },
+        )
+    }
+}
+
+@Composable
+private fun SettingsQuarantineWarningCard(
+    fields: List<QuarantinedField>,
+    onReview: () -> Unit,
+) {
+    CardGroup {
+        item(
+            onClick = onReview,
+            colors = ListItemDefaults.colors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            headlineContent = {
+                Text(stringResource(R.string.setting_page_settings_quarantined_title))
+            },
+            supportingContent = {
+                Text(stringResource(R.string.setting_page_settings_quarantined_desc, fields.size))
+            },
+            leadingContent = {
+                Icon(HugeIcons.Alert01, null)
             },
         )
     }

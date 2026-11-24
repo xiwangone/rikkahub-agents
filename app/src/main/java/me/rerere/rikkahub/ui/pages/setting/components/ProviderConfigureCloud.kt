@@ -21,6 +21,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.FileImport
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ProviderDescriptors
+import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -61,6 +62,14 @@ internal fun ProviderConfigureClaude(
                 onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
                 label = stringResource(R.string.setting_provider_page_api_key),
                 nameHint = provider.name,
+                groupHint = "AI",
+                importType = CredentialType.API_KEY,
+                endpointHint = provider.baseUrl.takeIf {
+                    it.isNotBlank() && it != provider.defaultBaseUrlForReset()
+                },
+                onEndpointStored = { apiKeyRef, endpointRef ->
+                    onEdit(provider.copy(apiKey = apiKeyRef, baseUrl = endpointRef))
+                },
             )
         }
         formItem(
@@ -181,6 +190,14 @@ internal fun ProviderConfigureGoogle(
                     onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
                     label = stringResource(R.string.setting_provider_page_api_key),
                     nameHint = provider.name,
+                    groupHint = "AI",
+                    importType = CredentialType.API_KEY,
+                    endpointHint = provider.baseUrl.takeIf {
+                        it.isNotBlank() && it != provider.defaultBaseUrlForReset()
+                    },
+                    onEndpointStored = { apiKeyRef, endpointRef ->
+                        onEdit(provider.copy(apiKey = apiKeyRef, baseUrl = endpointRef))
+                    },
                 )
             }
         }
@@ -193,11 +210,11 @@ internal fun ProviderConfigureGoogle(
                     onValueChange = { onEdit(provider.copy(baseUrl = it.trim())) },
                     modifier = Modifier.fillMaxWidth(),
                     isError =
-                        provider.baseUrl.isNotBlank() && (
+                        provider.baseUrl.isNotBlank() && !provider.baseUrl.startsWith("\$\$") && (
                             !provider.baseUrl.isValidBaseUrl() || !provider.baseUrl.endsWith("/v1beta")
                         ),
                     supportingText =
-                        if (!provider.baseUrl.endsWith("/v1beta")) {
+                        if (!provider.baseUrl.startsWith("\$\$") && !provider.baseUrl.endsWith("/v1beta")) {
                             { Text(stringResource(R.string.setting_provider_page_base_url_v1beta_hint)) }
                         } else {
                             null

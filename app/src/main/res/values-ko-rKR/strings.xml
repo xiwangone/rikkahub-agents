@@ -414,6 +414,7 @@
   <string name="code_block_collapse">접기</string>
   <string name="code_block_copy">코드 복사</string>
   <string name="code_block_expand">펼치기</string>
+  <string name="vault_desc_expand">펼치기</string>
   <string name="code_block_preview">미리보기</string>
   <string name="collapse_translation">번역 접기</string>
   <string name="confirm">확인</string>
@@ -2397,6 +2398,8 @@
   <string name="setting_files_page_folder_avatars">아바타</string>
   <string name="setting_page_security_degraded_title">기기가 안전한 암호화를 지원하지 않습니다</string>
   <string name="setting_page_security_degraded_desc">기기가 하드웨어 보안 암호화를 지원하지 않아 자격 증명이 약한 암호화로 저장됩니다</string>
+  <string name="setting_page_settings_quarantined_title">일부 설정이 손상되어 격리되었습니다</string>
+  <string name="setting_page_settings_quarantined_desc">손상된 항목 %1$d개를 기본값으로 되돌렸습니다. 원래 값은 저장되어 있으며 안전 모드에서 확인할 수 있습니다.</string>
   <string name="setting_page_section_tools">외부 도구</string>
   <string name="setting_page_section_connection">연결 및 백엔드</string>
   <string name="setting_page_section_security">보안 및 자격 증명</string>
@@ -2440,6 +2443,11 @@
   <string name="local_llm_vision_unavailable_caption">이 기기는 비전 기능을 지원하지 않음 — 텍스트 전용 모드</string>
   <string name="safe_mode_enter_app">앱 열기</string>
   <string name="safe_mode_oversized_data">대용량 데이터</string>
+  <string name="safe_mode_quarantined_title">격리된 설정</string>
+  <string name="safe_mode_quarantined_desc">이 항목들을 불러오지 못해 기본값을 사용하고 있습니다. 원래 값은 복구 스냅샷에 저장되어 있습니다.</string>
+  <string name="safe_mode_quarantined_default">기본값 사용 중</string>
+  <string name="safe_mode_quarantined_export">복구 스냅샷 내보내기</string>
+  <string name="safe_mode_quarantined_clear_text">이 항목을 불러오지 못해 기본값을 사용하고 있습니다. 지우면 손상된 저장 값이 영구히 삭제됩니다.</string>
   <string name="safe_mode_oversized_size">%1$.1f백만 자</string>
   <string name="setting_browser_per_tool_timeout_desc">브라우저 도구 호출 1회당 강제 시간 예산. 범위 10초~10분.</string>
   <string name="setting_browser_per_tool_timeout_unit">초</string>

@@ -8,6 +8,7 @@ import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.core.content.FileProvider
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -54,6 +55,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.RouteActivity
+import me.rerere.rikkahub.data.datastore.QuarantinedField
 import me.rerere.rikkahub.data.datastore.Settings
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.getCurrentAssistant
@@ -62,6 +64,7 @@ import me.rerere.rikkahub.ui.hooks.writeStringPreference
 import me.rerere.rikkahub.ui.theme.RikkahubTheme
 import me.rerere.rikkahub.utils.CrashHandler
 import org.koin.android.ext.android.inject
+import java.io.File
 import kotlin.uuid.Uuid
 
 class SafeModeActivity : ComponentActivity() {
@@ -78,8 +81,13 @@ class SafeModeActivity : ComponentActivity() {
                 val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
                 val largeFields by settingsStore.largeStoredFieldsFlow()
                     .collectAsStateWithLifecycle(initialValue = emptyList())
+                val quarantinedFields by settingsStore.quarantinedFields
+                    .collectAsStateWithLifecycle(initialValue = emptyList())
+                val quarantineSnapshot by settingsStore.quarantineSnapshot
+                    .collectAsStateWithLifecycle(initialValue = null)
                 var showAssistantPicker by remember { mutableStateOf(false) }
                 var fieldToClear by remember { mutableStateOf<SettingsStore.LargeStoredField?>(null) }
+                var fieldToClearQuarantined by remember { mutableStateOf<QuarantinedField?>(null) }
                 val scope = rememberCoroutineScope()
                 val context = LocalContext.current
 
@@ -140,6 +148,15 @@ class SafeModeActivity : ComponentActivity() {
                             )
                         }
 
+                        if (quarantinedFields.isNotEmpty()) {
+                            QuarantinedFieldsSection(
+                                quarantinedFields = quarantinedFields,
+                                snapshotFile = quarantineSnapshot,
+                                onClearRequest = { fieldToClearQuarantined = it },
+                                onExportSnapshot = { file -> shareSnapshot(context, file) },
+                            )
+                        }
+
                         if (stackTrace != null) {
                             CrashReportSection(stackTrace = stackTrace)
                         }
@@ -160,9 +177,24 @@ class SafeModeActivity : ComponentActivity() {
 
                 fieldToClear?.let { field ->
                     ClearFieldConfirmDialog(
-                        field = field,
+                        fieldLabel = storedFieldLabel(field.keyName),
+                        textRes = R.string.safe_mode_clear_text,
                         onConfirm = { scope.launch { settingsStore.resetStoredField(field.keyName) } },
                         onDismiss = { fieldToClear = null },
+                    )
+                }
+
+                fieldToClearQuarantined?.let { field ->
+                    ClearFieldConfirmDialog(
+                        fieldLabel = storedFieldLabel(field.keyName),
+                        textRes = R.string.safe_mode_quarantined_clear_text,
+                        onConfirm = {
+                            scope.launch {
+                                settingsStore.resetStoredField(field.keyName)
+                                settingsStore.clearQuarantinedField(field.keyName)
+                            }
+                        },
+                        onDismiss = { fieldToClearQuarantined = null },
                     )
                 }
             }
@@ -249,17 +281,79 @@ private fun OversizedFieldsSection(
 }
 
 @Composable
+private fun QuarantinedFieldsSection(
+    quarantinedFields: List<QuarantinedField>,
+    snapshotFile: File?,
+    onClearRequest: (QuarantinedField) -> Unit,
+    onExportSnapshot: (File) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxWidth(),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Text(
+            text = stringResource(R.string.safe_mode_quarantined_desc),
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        CardGroup(
+            modifier = Modifier.fillMaxWidth(),
+            title = { Text(stringResource(R.string.safe_mode_quarantined_title)) },
+        ) {
+            quarantinedFields.forEach { field ->
+                item(
+                    onClick = { onClearRequest(field) },
+                    supportingContent = {
+                        Text(stringResource(R.string.safe_mode_quarantined_default))
+                    },
+                    trailingContent = {
+                        Text(
+                            stringResource(R.string.safe_mode_clear),
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    },
+                ) {
+                    Text(storedFieldLabel(field.keyName))
+                }
+            }
+            if (snapshotFile != null) {
+                item(
+                    onClick = { onExportSnapshot(snapshotFile) },
+                    supportingContent = {
+                        Text(snapshotFile.name)
+                    },
+                ) {
+                    Text(stringResource(R.string.safe_mode_quarantined_export))
+                }
+            }
+        }
+    }
+}
+
+private fun shareSnapshot(context: Context, file: File) {
+    val uri = FileProvider.getUriForFile(context, "${context.packageName}.fileprovider", file)
+    val intent =
+        Intent(Intent.ACTION_SEND).apply {
+            type = "application/json"
+            putExtra(Intent.EXTRA_STREAM, uri)
+            addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        }
+    context.startActivity(Intent.createChooser(intent, null))
+}
+
+@Composable
 private fun ClearFieldConfirmDialog(
-    field: SettingsStore.LargeStoredField,
+    fieldLabel: String,
+    textRes: Int,
     onConfirm: () -> Unit,
     onDismiss: () -> Unit,
 ) {
     AlertDialog(
         onDismissRequest = onDismiss,
         title = {
-            Text(stringResource(R.string.safe_mode_clear_title, storedFieldLabel(field.keyName)))
+            Text(stringResource(R.string.safe_mode_clear_title, fieldLabel))
         },
-        text = { Text(stringResource(R.string.safe_mode_clear_text)) },
+        text = { Text(stringResource(textRes)) },
         confirmButton = {
             TextButton(
                 onClick = {

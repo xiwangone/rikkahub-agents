@@ -3,6 +3,7 @@ package me.rerere.rikkahub.data.network
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import me.rerere.ai.provider.ProviderSetting
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import java.net.URI
 
 /**
@@ -151,14 +152,14 @@ fun isOnDeviceProvider(provider: ProviderSetting): Boolean = when (provider) {
  * (on-device inference) return an empty list: they make no network requests.
  */
 fun providerEndpointHosts(provider: ProviderSetting): List<String> = when (provider) {
-    is ProviderSetting.OpenAI -> listOfNotNull(provider.baseUrl.toHostOrNull())
+    is ProviderSetting.OpenAI -> listOfNotNull(VaultProviderKeyRefs.resolveValue(provider.baseUrl).toHostOrNull())
     is ProviderSetting.Google -> listOfNotNull(
-        provider.baseUrl.toHostOrNull(),
+        VaultProviderKeyRefs.resolveValue(provider.baseUrl).toHostOrNull(),
         // Vertex AI and the OAuth token endpoint share the googleapis.com suffix.
         ".googleapis.com",
     )
-    is ProviderSetting.Claude -> listOfNotNull(provider.baseUrl.toHostOrNull())
-    is ProviderSetting.Backend -> listOfNotNull(provider.baseUrl.toHostOrNull())
+    is ProviderSetting.Claude -> listOfNotNull(VaultProviderKeyRefs.resolveValue(provider.baseUrl).toHostOrNull())
+    is ProviderSetting.Backend -> listOfNotNull(VaultProviderKeyRefs.resolveValue(provider.baseUrl).toHostOrNull())
     // Account-based providers use fixed SaaS domains (no user-configurable baseUrl).
     is ProviderSetting.Codex -> listOf("chatgpt.com", "api.openai.com")
     is ProviderSetting.Grok -> listOf("api.x.ai")

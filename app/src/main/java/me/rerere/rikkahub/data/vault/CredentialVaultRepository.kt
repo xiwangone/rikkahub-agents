@@ -29,11 +29,16 @@ import me.rerere.rikkahub.data.log.AppLog
  * @param name 最终使用的凭证名（可能复用已有条目）
  * @param reusedExisting 是否**复用**了库内已有的同值条目（避免重复入库）
  * @param type 最终类型（显式传入或自动推断）
+ * @param renamedFrom 同值已存在、但旧名是退化名（`CRED`）时改名的旧名；
+ *   调用方据此同步配置里的引用（`$$旧名` → `$$新名`），否则旧引用静默失效
+ * @param endpointStored 本次是否把端点存进了条目的 `endpoint` 元数据
  */
 data class QuickImportResult(
     val name: String,
     val reusedExisting: Boolean,
     val type: String,
+    val renamedFrom: String? = null,
+    val endpointStored: Boolean = false,
 )
 
 /**
@@ -192,7 +197,12 @@ class CredentialVaultRepository(
         rawValue: String,
         preferredName: String,
         description: String = "",
-        group: String = "Other",
+        /** 为空 = 不指定（新建时回退 "Other"，改名时保留旧分组）。 */
+        group: String = "",
+        /** 显式类型（提供商 apiKey 传 "api-key"）；为空则按既有规则推断。 */
+        type: String = "",
+        /** 一并入库的端点（存进 `endpoint` 元数据）；为空不写。 */
+        endpoint: String? = null,
     ): QuickImportResult {
         val sanitized = CredentialValueSanitizer.sanitize(rawValue)
         require(sanitized.isNotBlank()) { "Credential value is empty or only invisible characters" }
@@ -208,23 +218,79 @@ class CredentialVaultRepository(
             }
         }
 
+        val desiredBase = CredentialNameNormalizer.normalizeName(preferredName)
+        val endpointMeta = endpoint?.takeIf { it.isNotBlank() }
+
         // 查重：同值已在库里就直接复用，顺带避免用户重复粘贴造成多份副本
         val sameName = findSameValueNames(sanitized).firstOrNull()
         if (sameName != null) {
             val existing = dao.getByName(sameName)
+            var endpointStored = false
+            // 重导带新端点时并入已有条目的元数据（不改值；与旧键合并，不丢旧元数据）
+            if (endpointMeta != null && existing != null) {
+                val mergedMeta = CredentialMeta.encode(
+                    CredentialMeta.decode(existing.metaJson) + ("endpoint" to endpointMeta),
+                )
+                if (mergedMeta != existing.metaJson) {
+                    save(
+                        name = sameName,
+                        value = "",
+                        description = existing.description,
+                        group = existing.grp,
+                        publicKey = existing.publicKey,
+                        type = existing.type,
+                        metaJson = mergedMeta,
+                    )
+                }
+                endpointStored = true
+            }
+            // 退化名不静默复用：同值已存在、但名字是 CRED 这类兜底产物，且新名字不同时改名。
+            // （旧行为直接复用旧名，于是"改拼音重导还是 CRED"，只能手动删了重导才生效。）
+            if (existing != null && CredentialNameNormalizer.isDegenerateName(sameName) && desiredBase != sameName) {
+                val newName = CredentialNameNormalizer.uniqueName(desiredBase) { dao.getByName(it) != null }
+                val carriedMeta = CredentialMeta.encode(
+                    CredentialMeta.decode(existing.metaJson) +
+                        listOfNotNull(endpointMeta?.let { "endpoint" to it }),
+                )
+                save(
+                    name = newName,
+                    value = sanitized,
+                    description = description.ifBlank { existing.description },
+                    group = group.ifBlank { existing.grp },
+                    publicKey = existing.publicKey,
+                    type = type.ifBlank { existing.type },
+                    metaJson = carriedMeta,
+                )
+                // 引用同步由调用方在 renamedFrom != null 时做（只改库内会让配置里的旧引用失效）
+                delete(existing)
+                logAccess(sameName, "repository", "rename_from")
+                logAccess(newName, "repository", "rename_to")
+                return QuickImportResult(
+                    name = newName,
+                    reusedExisting = true,
+                    type = dao.getByName(newName)?.type.orEmpty(),
+                    renamedFrom = sameName,
+                    endpointStored = endpointStored,
+                )
+            }
             return QuickImportResult(
                 name = sameName,
                 reusedExisting = true,
                 type = existing?.type.orEmpty(),
+                endpointStored = endpointStored,
             )
         }
 
-        val name = normalizeName(preferredName)
-        save(name = name, value = sanitized, description = description, group = group)
+        // 新建：同名不同值时加 _2/_3 后缀，不再静默覆盖（旧行为直接 save 同名覆盖旧值，
+        // 于是两个中文提供商导入都叫 CRED，后一个的值悄悄顶掉前一个）。
+        val name = CredentialNameNormalizer.uniqueName(desiredBase) { dao.getByName(it) != null }
+        val metaJson = endpointMeta?.let { CredentialMeta.encode(mapOf("endpoint" to it)) }.orEmpty()
+        save(name = name, value = sanitized, description = description, group = group, type = type, metaJson = metaJson)
         return QuickImportResult(
             name = name,
             reusedExisting = false,
             type = dao.getByName(name)?.type.orEmpty(),
+            endpointStored = endpointMeta != null,
         )
     }
 
@@ -666,14 +732,10 @@ class CredentialVaultRepository(
         /**
          * 把任意输入规范化成合规凭证名（`^[A-Z][A-Z0-9_]*$`）。
          *
-         * 用于"粘贴即入库"：用户往往直接粘一段描述或小写名，这里统一转大写蛇形，
-         * 非法字符折成下划线；首字符不是字母时补前缀，保证结果始终合法。
+         * 实现见 [CredentialNameNormalizer]：中文先转拼音再折叠（七牛云 → QINIUYUN），
+         * 而不是旧的"非法字符一刀切"（中文整段被换成下划线、最后只剩 `CRED`）。
          */
-        fun normalizeName(raw: String): String {
-            val folded = raw.trim().uppercase().replace(Regex("[^A-Z0-9_]+"), "_").trim('_')
-            val prefixed = if (folded.isEmpty() || !folded[0].isLetter()) "CRED_$folded" else folded
-            return prefixed.take(64).trim('_').ifEmpty { "CRED_UNNAMED" }
-        }
+        fun normalizeName(raw: String): String = CredentialNameNormalizer.normalizeName(raw)
 
         /** 校验凭证名是否合规。空名/小写/连字符/空格/中文均不合规。 */
         fun validateCredentialName(name: String): Boolean =

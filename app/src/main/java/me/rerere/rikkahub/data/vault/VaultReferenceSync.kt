@@ -44,9 +44,19 @@ object VaultReferenceSync {
     /** 提供方配置里与凭证相关的字段，逐个做引用替换（值不做任何其它改动）。 */
     private fun renameInProvider(provider: ProviderSetting, oldName: String, newName: String): ProviderSetting =
         when (provider) {
-            is ProviderSetting.OpenAI -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
-            is ProviderSetting.Claude -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
-            is ProviderSetting.Google -> provider.copy(apiKey = renameInText(provider.apiKey, oldName, newName))
+            is ProviderSetting.OpenAI -> provider.copy(
+                apiKey = renameInText(provider.apiKey, oldName, newName),
+                // baseUrl 也可能是 $$名字.endpoint 引用（端点入库后），改名时一并同步，否则引用静默失效
+                baseUrl = renameInText(provider.baseUrl, oldName, newName),
+            )
+            is ProviderSetting.Claude -> provider.copy(
+                apiKey = renameInText(provider.apiKey, oldName, newName),
+                baseUrl = renameInText(provider.baseUrl, oldName, newName),
+            )
+            is ProviderSetting.Google -> provider.copy(
+                apiKey = renameInText(provider.apiKey, oldName, newName),
+                baseUrl = renameInText(provider.baseUrl, oldName, newName),
+            )
             is ProviderSetting.Backend ->
                 provider.copy(
                     token = renameInText(provider.token, oldName, newName),

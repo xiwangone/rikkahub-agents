@@ -532,6 +532,7 @@
   <string name="code_block_collapse">طي</string>
   <string name="code_block_copy">نسخ الشيفرة</string>
   <string name="code_block_expand">توسيع</string>
+  <string name="vault_desc_expand">توسيع</string>
   <string name="code_block_preview">معاينة</string>
   <string name="collapse_translation">طي الترجمة</string>
   <string name="confirm">تأكيد</string>
@@ -1914,6 +1915,8 @@
   <string name="setting_files_page_folder_avatars">الصور الرمزية</string>
   <string name="setting_page_security_degraded_title">الجهاز لا يدعم التشفير الآمن</string>
   <string name="setting_page_security_degraded_desc">جهازك لا يدعم التشفير الآمن بالعتاد، لذا تُخزَّن البيانات السرية بتشفير ضعيف</string>
+  <string name="setting_page_settings_quarantined_title">تعذّر تحميل بعض الإعدادات وتم عزلها</string>
+  <string name="setting_page_settings_quarantined_desc">تمت إعادة %1$d من الحقول التالفة إلى القيم الافتراضية. وتم حفظ القيم الأصلية — ويمكن مراجعتها في الوضع الآمن.</string>
   <string name="setting_page_section_tools">أدوات خارجية</string>
   <string name="setting_page_section_connection">الاتصال والواجهة الخلفية</string>
   <string name="setting_page_section_security">الأمان والبيانات السرية</string>
@@ -1957,6 +1960,11 @@
   <string name="local_llm_vision_unavailable_caption">الجهاز لا يدعم الرؤية — وضع النص فقط</string>
   <string name="safe_mode_enter_app">الدخول إلى التطبيق</string>
   <string name="safe_mode_oversized_data">بيانات كبيرة الحجم</string>
+  <string name="safe_mode_quarantined_title">الإعدادات المعزولة</string>
+  <string name="safe_mode_quarantined_desc">تعذّر تحميل هذه الحقول، ويتم استخدام القيم الافتراضية. القيم الأصلية محفوظة في لقطة الاسترداد.</string>
+  <string name="safe_mode_quarantined_default">يتم استخدام القيمة الافتراضية</string>
+  <string name="safe_mode_quarantined_export">تصدير لقطة الاسترداد</string>
+  <string name="safe_mode_quarantined_clear_text">تعذّر تحميل هذا الحقل، ويتم استخدام قيمته الافتراضية بالفعل. سيؤدي المسح إلى حذف القيمة المخزنة التالفة نهائيًا.</string>
   <string name="safe_mode_oversized_size">%1$.1f مليون حرف</string>
   <string name="setting_browser_per_tool_timeout_desc">ميزانية زمنية صارمة لكل استدعاء لأداة المتصفح. النطاق من 10 ثوانٍ إلى 10 دقائق.</string>
   <string name="setting_browser_per_tool_timeout_unit">ثانية</string>

@@ -25,6 +25,7 @@ import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.collect
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CancellationException
@@ -296,6 +297,18 @@ class SettingsStore(
 
     }
 
+    // 隔离状态由 SettingsQuarantineState 持有（放这里会让类超 detekt LargeClass 阈值）。
+    private val quarantineState = SettingsQuarantineState(appContext)
+
+    /** 本次启动里被隔离的损坏字段；为空表示没有。 */
+    val quarantinedFields: StateFlow<List<QuarantinedField>> get() = quarantineState.quarantinedFields
+
+    /** 隔离时写下的原始值快照；没有隔离过时为 null。 */
+    val quarantineSnapshot: StateFlow<File?> get() = quarantineState.quarantineSnapshot
+
+    /** 字段清掉后（见 [resetStoredField]），同步去掉它的隔离记录，横幅随即消失。 */
+    fun clearQuarantinedField(keyName: String) = quarantineState.clearQuarantinedField(keyName)
+
     // Do not turn a failed disk read into emptyPreferences(): that makes defaults look
     // authoritative and a subsequent edit can overwrite the user's real settings.
     val settingsFlowRaw = dataStore.data
@@ -318,171 +331,176 @@ class SettingsStore(
                     settingsFlow.value = preview
                 }
             }
-            Settings(
-                favoriteModels = decodePrefOrDefault(preferences[FAVORITE_MODELS], emptyList()),
-                chatModelId = parseUuidPrefOrNull(preferences[SELECT_MODEL])
-                    ?: DEFAULT_AUTO_MODEL_ID,
-                fastModelId = parseUuidPrefOrNull(preferences[FAST_MODEL])
-                    ?: DEFAULT_AUTO_MODEL_ID,
-                titleModelId = parseUuidPrefOrNull(preferences[TITLE_MODEL]),
-                translateModeId = parseUuidPrefOrNull(preferences[TRANSLATE_MODEL])
-                    ?: DEFAULT_AUTO_MODEL_ID,
-                enableSuggestion = preferences[ENABLE_SUGGESTION] != false,
-                autoGenerateTitle = preferences[AUTO_GENERATE_TITLE] != false,
-                responseStreamMaxRetries = preferences[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
-                enableAutoRetry = preferences[ENABLE_AUTO_RETRY] != false,
-                suggestionModelId = parseUuidPrefOrNull(preferences[SUGGESTION_MODEL]),
-                imageGenerationModelId = parseUuidPrefOrNull(preferences[IMAGE_GENERATION_MODEL])
-                    ?: DEFAULT_AUTO_MODEL_ID,
-                titlePrompt = preferences[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
-                translatePrompt = preferences[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
-                translateThinkingBudget = preferences[TRANSLATE_THINKING_BUDGET] ?: 0,
-                suggestionPrompt = preferences[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
-                ocrModelId = parseUuidPrefOrNull(preferences[OCR_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
-                ocrLocalEnabled = preferences[OCR_LOCAL_ENABLED] ?: true,
-                ocrPrompt = preferences[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
-                compressModelId = parseUuidPrefOrNull(preferences[COMPRESS_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
-                compressPrompt = preferences[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
-                autoCompressEnabled = preferences[AUTO_COMPRESS_ENABLED] ?: false,
-                autoCompressThreshold = preferences[AUTO_COMPRESS_THRESHOLD] ?: 80,
-                autoCompressTokenLimit = preferences[AUTO_COMPRESS_TOKEN_LIMIT] ?: 0L,
-                autoCompressTokenBase = preferences[AUTO_COMPRESS_TOKEN_BASE] ?: 1_000L * 1000L,
-                autoCompressMode = preferences[AUTO_COMPRESS_MODE] ?: 0,
-                contextWindowSize = preferences[CONTEXT_WINDOW_SIZE] ?: 0L,
-                toolOutputEnabled = preferences[TOOL_OUTPUT_ENABLED] ?: true,
-                toolOutputMaxChars = preferences[TOOL_OUTPUT_MAX_CHARS] ?: 8 * 1000,
-                toolOutputCompactMaxChars = preferences[TOOL_OUTPUT_COMPACT_MAX_CHARS] ?: 2 * 1000,
-                assistantId = parseUuidPrefOrNull(preferences[SELECT_ASSISTANT])
-                    ?: DEFAULT_ASSISTANT_ID,
-                assistantTags = decodePrefOrDefault(preferences[ASSISTANT_TAGS], emptyList()),
-                mediaGenerationProviders = decodeEncryptedPrefOrDefault(preferences[MEDIA_GENERATION_PROVIDERS], emptyList()),
-                providers = decodeProvidersFieldEncrypted(preferences[PROVIDERS]),
-                deletedBuiltInProviderIds = preferences[DELETED_BUILTIN_PROVIDER_IDS]
-                    ?.let { raw ->
-                        JsonInstant.decodeFromString<Set<String>>(raw).map { Uuid.parse(it) }.toSet()
-                    } ?: emptySet(),
-                autoEnabledDefaultSkills = preferences[AUTO_ENABLED_DEFAULT_SKILLS]
-                    ?.let { raw ->
+            // 整份 Settings 的解码体：单个字段损坏即抛，由 quarantineState 隔离处理
+            // （见 SettingsQuarantine）。保持为 lambda 而不是具名函数：
+            // 具名函数超 detekt LongMethod 阈值（120 行），原始 inline 形态不触发。
+            quarantineState.decodeOrQuarantine(preferences) { prefs ->
+                Settings(
+                    favoriteModels = decodePrefOrDefault(prefs[FAVORITE_MODELS], emptyList()),
+                    chatModelId = parseUuidPrefOrNull(prefs[SELECT_MODEL])
+                        ?: DEFAULT_AUTO_MODEL_ID,
+                    fastModelId = parseUuidPrefOrNull(prefs[FAST_MODEL])
+                        ?: DEFAULT_AUTO_MODEL_ID,
+                    titleModelId = parseUuidPrefOrNull(prefs[TITLE_MODEL]),
+                    translateModeId = parseUuidPrefOrNull(prefs[TRANSLATE_MODEL])
+                        ?: DEFAULT_AUTO_MODEL_ID,
+                    enableSuggestion = prefs[ENABLE_SUGGESTION] != false,
+                    autoGenerateTitle = prefs[AUTO_GENERATE_TITLE] != false,
+                    responseStreamMaxRetries = prefs[RESPONSE_STREAM_MAX_RETRIES] ?: 5,
+                    enableAutoRetry = prefs[ENABLE_AUTO_RETRY] != false,
+                    suggestionModelId = parseUuidPrefOrNull(prefs[SUGGESTION_MODEL]),
+                    imageGenerationModelId = parseUuidPrefOrNull(prefs[IMAGE_GENERATION_MODEL])
+                        ?: DEFAULT_AUTO_MODEL_ID,
+                    titlePrompt = prefs[TITLE_PROMPT] ?: DEFAULT_TITLE_PROMPT,
+                    translatePrompt = prefs[TRANSLATION_PROMPT] ?: DEFAULT_TRANSLATION_PROMPT,
+                    translateThinkingBudget = prefs[TRANSLATE_THINKING_BUDGET] ?: 0,
+                    suggestionPrompt = prefs[SUGGESTION_PROMPT] ?: DEFAULT_SUGGESTION_PROMPT,
+                    ocrModelId = parseUuidPrefOrNull(prefs[OCR_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
+                    ocrLocalEnabled = prefs[OCR_LOCAL_ENABLED] ?: true,
+                    ocrPrompt = prefs[OCR_PROMPT] ?: DEFAULT_OCR_PROMPT,
+                    compressModelId = parseUuidPrefOrNull(prefs[COMPRESS_MODEL]) ?: DEFAULT_AUTO_MODEL_ID,
+                    compressPrompt = prefs[COMPRESS_PROMPT] ?: DEFAULT_COMPRESS_PROMPT,
+                    autoCompressEnabled = prefs[AUTO_COMPRESS_ENABLED] ?: false,
+                    autoCompressThreshold = prefs[AUTO_COMPRESS_THRESHOLD] ?: 80,
+                    autoCompressTokenLimit = prefs[AUTO_COMPRESS_TOKEN_LIMIT] ?: 0L,
+                    autoCompressTokenBase = prefs[AUTO_COMPRESS_TOKEN_BASE] ?: 1_000L * 1000L,
+                    autoCompressMode = prefs[AUTO_COMPRESS_MODE] ?: 0,
+                    contextWindowSize = prefs[CONTEXT_WINDOW_SIZE] ?: 0L,
+                    toolOutputEnabled = prefs[TOOL_OUTPUT_ENABLED] ?: true,
+                    toolOutputMaxChars = prefs[TOOL_OUTPUT_MAX_CHARS] ?: 8 * 1000,
+                    toolOutputCompactMaxChars = prefs[TOOL_OUTPUT_COMPACT_MAX_CHARS] ?: 2 * 1000,
+                    assistantId = parseUuidPrefOrNull(prefs[SELECT_ASSISTANT])
+                        ?: DEFAULT_ASSISTANT_ID,
+                    assistantTags = decodePrefOrDefault(prefs[ASSISTANT_TAGS], emptyList()),
+                    mediaGenerationProviders = decodeEncryptedPrefOrDefault(prefs[MEDIA_GENERATION_PROVIDERS], emptyList()),
+                    providers = decodeProvidersFieldEncrypted(prefs[PROVIDERS]),
+                    deletedBuiltInProviderIds = prefs[DELETED_BUILTIN_PROVIDER_IDS]
+                        ?.let { raw ->
+                            JsonInstant.decodeFromString<Set<String>>(raw).map { Uuid.parse(it) }.toSet()
+                        } ?: emptySet(),
+                    autoEnabledDefaultSkills = prefs[AUTO_ENABLED_DEFAULT_SKILLS]
+                        ?.let { raw ->
+                            JsonInstant.decodeFromString<Set<String>>(raw)
+                        } ?: emptySet(),
+                    deletedBundledSkills = prefs[DELETED_BUNDLED_SKILLS]?.let { raw ->
                         JsonInstant.decodeFromString<Set<String>>(raw)
                     } ?: emptySet(),
-                deletedBundledSkills = preferences[DELETED_BUNDLED_SKILLS]?.let { raw ->
-                    JsonInstant.decodeFromString<Set<String>>(raw)
-                } ?: emptySet(),
-                assistants = decodePrefOrDefault(preferences[ASSISTANTS], emptyList()),
-                dynamicColor = preferences[DYNAMIC_COLOR] != false,
-                themeId = preferences[THEME_ID] ?: PresetThemes[0].id,
-                customThemes = decodePrefOrDefault(preferences[CUSTOM_THEMES], emptyList()),
-                developerMode = preferences[DEVELOPER_MODE] == true,
-                displaySetting = decodePrefOrDefault(preferences[DISPLAY_SETTING], DisplaySetting()),
-                networkSetting = decodeEncryptedPrefOrDefault(preferences[NETWORK_SETTING], NetworkSetting()),
-                executionBackend = preferences[EXECUTION_BACKEND] ?: "local",
-                backendConnections = preferences[BACKEND_CONNECTIONS]?.let {
-                    JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it)
-                } ?: emptyList(),
-                // 显式类型实参：不能让 T 由 default 实参推。DEFAULT 一旦声明成具体子类
-                // （DuckDuckGoOptions），T 就窄化成 List<DuckDuckGoOptions>，多态判别键 `type`
-                // 被 ignoreUnknownKeys 吞掉 → 所有搜索服务静默解成 DuckDuckGo。
-                // SearchServiceOptions.DEFAULT 已修声明类型，这里再钉一次作双保险。
-                searchServices = decodeEncryptedPrefOrDefault<List<SearchServiceOptions>>(
-                    preferences[SEARCH_SERVICES],
-                    listOf(SearchServiceOptions.DEFAULT),
-                ).also {
-                    logSearchServicesDecode(
-                        preferences[SEARCH_SERVICES]?.let(::decryptPrefValue),
-                        it,
-                    )
-                }, // TEMP-DIAG(SearchTypeDiag)：验收后删掉这个 .also{} 片段
-                searchCommonOptions = decodePrefOrDefault(preferences[SEARCH_COMMON], SearchCommonOptions()),
-                searchServiceSelected = preferences[SEARCH_SELECTED] ?: 0,
-                mcpServers = decodeEncryptedPrefOrDefault(preferences[MCP_SERVERS], emptyList()),
-subAgents = preferences[SUB_AGENTS]?.let { raw ->
-                    JsonInstant.decodeFromString<List<SubAgentProfile>>(raw)
-                } ?: emptyList(),
-                subAgentDefaultWorkspaceId = preferences[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
-                    Uuid.parse(raw)
-                },
-                subAgentForegroundReceipt = preferences[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
-                webDavConfig = decodeEncryptedPrefOrDefault(preferences[WEBDAV_CONFIG], WebDavConfig()),
-                s3Config = decodeEncryptedPrefOrDefault(preferences[S3_CONFIG], S3Config()),
-                uploadS3Config = decodeEncryptedPrefOrDefault(preferences[UPLOAD_S3_CONFIG], S3Config()),
-                webDavConfigs = preferences[WEBDAV_CONFIGS]?.let { raw ->
-                    JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw))
-                } ?: emptyList(),
-                activeWebDavConfigId = preferences[ACTIVE_WEBDAV_CONFIG_ID],
-                s3Configs = preferences[S3_CONFIGS]?.let { raw ->
-                    JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw))
-                } ?: emptyList(),
-                activeS3ConfigId = preferences[ACTIVE_S3_CONFIG_ID],
-                ttsProviders = decodeEncryptedPrefOrDefault(preferences[TTS_PROVIDERS], emptyList()),
-                selectedTTSProviderId = parseUuidPrefOrNull(preferences[SELECTED_TTS_PROVIDER])
-                    ?: DEFAULT_SYSTEM_TTS_ID,
-                defaultTTSPlaybackSpeed = preferences[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
-                asrProviders = decodeEncryptedPrefOrDefault(preferences[ASR_PROVIDERS], emptyList()),
-                selectedASRProviderId = parseUuidPrefOrNull(preferences[SELECTED_ASR_PROVIDER]),
-                modeInjections = decodePrefOrDefault(preferences[MODE_INJECTIONS], emptyList()),
-                lorebooks = decodePrefOrDefault(preferences[LOREBOOKS], emptyList()),
-                quickMessages = decodePrefOrDefault(preferences[QUICK_MESSAGES], emptyList()),
-                webServerEnabled = preferences[WEB_SERVER_ENABLED] == true,
-                webServerPort = preferences[WEB_SERVER_PORT] ?: 8080,
-                localMcpServerEnabled = preferences[LOCAL_MCP_SERVER_ENABLED] == true,
-                localMcpProfiles = preferences[LOCAL_MCP_PROFILES]?.let {
-                    JsonInstant.decodeFromString<List<LocalMcpProfile>>(it)
-                } ?: emptyList(),
-                activeLocalMcpProfileId = preferences[LOCAL_MCP_ACTIVE_PROFILE_ID],
-                webBridgeEcsHost = preferences[WEB_BRIDGE_ECS_HOST] ?: "",
-                webBridgeEcsUser = preferences[WEB_BRIDGE_ECS_USER] ?: "root",
-                webBridgeEcsPort = preferences[WEB_BRIDGE_ECS_PORT] ?: 22,
-                webBridgeRemotePort = preferences[WEB_BRIDGE_REMOTE_PORT] ?: 8080,
-                webBridgeLocalPort = preferences[WEB_BRIDGE_LOCAL_PORT] ?: 8080,
-                webBridgePrivateKeyPath = preferences[WEB_BRIDGE_PRIVATE_KEY_PATH] ?: "",
-                webBridgePassword = preferences[WEB_BRIDGE_PASSWORD]?.let(::decryptPrefValue) ?: "",
-                webBridgeCredentialRef = preferences[WEB_BRIDGE_CREDENTIAL_REF] ?: "",
-                webServerJwtEnabled = preferences[WEB_SERVER_JWT_ENABLED] == true,
-                webServerListenScope = preferences[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
-                webServerAllowedNetworks = preferences[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
-                webServerAccessPassword = preferences[WEB_SERVER_ACCESS_PASSWORD]?.let(::decryptPrefValue) ?: "",
-                networkCidrPresets =
-                    preferences[NETWORK_CIDR_PRESETS]?.let {
-                        JsonInstant.decodeFromString<List<String>>(it)
+                    assistants = decodePrefOrDefault(prefs[ASSISTANTS], emptyList()),
+                    dynamicColor = prefs[DYNAMIC_COLOR] != false,
+                    themeId = prefs[THEME_ID] ?: PresetThemes[0].id,
+                    customThemes = decodePrefOrDefault(prefs[CUSTOM_THEMES], emptyList()),
+                    developerMode = prefs[DEVELOPER_MODE] == true,
+                    displaySetting = decodePrefOrDefault(prefs[DISPLAY_SETTING], DisplaySetting()),
+                    networkSetting = decodeEncryptedPrefOrDefault(prefs[NETWORK_SETTING], NetworkSetting()),
+                    executionBackend = prefs[EXECUTION_BACKEND] ?: "local",
+                    backendConnections = prefs[BACKEND_CONNECTIONS]?.let {
+                        JsonInstant.decodeFromString<kotlin.collections.List<me.rerere.rikkahub.data.model.BackendConnection>>(it)
                     } ?: emptyList(),
-                settingShortcutIds =
-                    preferences[SETTING_SHORTCUT_IDS]
-                        ?.split('\u0001')
-                        ?.filter { it.isNotBlank() }
-                        ?: emptyList(),
-                workspaceApkMirror = preferences[WORKSPACE_APK_MIRROR] ?: "",
-                workspaceAptMirror = preferences[WORKSPACE_APT_MIRROR] ?: "",
-                workspacePipMirror = preferences[WORKSPACE_PIP_MIRROR] ?: "",
-                workspaceNpmMirror = preferences[WORKSPACE_NPM_MIRROR] ?: "",
-                workspaceSdcardEnabled = preferences[WORKSPACE_SDCARD_ENABLED] ?: false,
-                workspaceChrootEnabled =
-                    WorkspaceShellBackend.fromPreference(
-                        rawBackend = preferences[WORKSPACE_SHELL_BACKEND],
-                        legacyChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED],
-                    ) == WorkspaceShellBackend.ROOT_CHROOT,
-                workspaceShellBackend =
-                    WorkspaceShellBackend.fromPreference(
-                        rawBackend = preferences[WORKSPACE_SHELL_BACKEND],
-                        legacyChrootEnabled = preferences[WORKSPACE_CHROOT_ENABLED],
-                    ),
-                shellDnsMode = ShellDnsConfig.normalizeMode(preferences[SHELL_DNS_MODE]),
-                shellDnsServers =
-                    preferences[SHELL_DNS_SERVERS]?.let { raw ->
-                        runCatching { JsonInstant.decodeFromString<List<String>>(raw) }
-                            .getOrElse { ShellDnsConfig.parseServers(raw) }
-                            .let { list -> ShellDnsConfig.parseServers(list.joinToString("\n")) }
+                    // 显式类型实参：不能让 T 由 default 实参推。DEFAULT 一旦声明成具体子类
+                    // （DuckDuckGoOptions），T 就窄化成 List<DuckDuckGoOptions>，多态判别键 `type`
+                    // 被 ignoreUnknownKeys 吞掉 → 所有搜索服务静默解成 DuckDuckGo。
+                    // SearchServiceOptions.DEFAULT 已修声明类型，这里再钉一次作双保险。
+                    searchServices = decodeEncryptedPrefOrDefault<List<SearchServiceOptions>>(
+                        prefs[SEARCH_SERVICES],
+                        listOf(SearchServiceOptions.DEFAULT),
+                    ).also {
+                        logSearchServicesDecode(
+                            prefs[SEARCH_SERVICES]?.let(::decryptPrefValue),
+                            it,
+                        )
+                    }, // TEMP-DIAG(SearchTypeDiag)：验收后删掉这个 .also{} 片段
+                    searchCommonOptions = decodePrefOrDefault(prefs[SEARCH_COMMON], SearchCommonOptions()),
+                    searchServiceSelected = prefs[SEARCH_SELECTED] ?: 0,
+                    mcpServers = decodeEncryptedPrefOrDefault(prefs[MCP_SERVERS], emptyList()),
+                    subAgents = prefs[SUB_AGENTS]?.let { raw ->
+                        JsonInstant.decodeFromString<List<SubAgentProfile>>(raw)
                     } ?: emptyList(),
-                workspaceStatsCache = preferences[WORKSPACE_STATS_CACHE] ?: "{}",
-                webServerLocalhostOnly = preferences[WEB_SERVER_LOCALHOST_ONLY] == true,
-                aiLogLevel = AiLogLevel.fromPreference(preferences[AI_LOG_LEVEL]),
-                defaultSshPlatform = SshPlatform.fromPreference(preferences[DEFAULT_SSH_PLATFORM]),
-                sshHostProbe = SshHostProbeMode.fromPreference(preferences[SSH_HOST_PROBE]),
-                backupReminderConfig = decodePrefOrDefault(preferences[BACKUP_REMINDER_CONFIG], BackupReminderConfig()),
-                backupEncryptionEnabled = preferences[BACKUP_ENCRYPTION_ENABLED] ?: false,
-                backupEncryptionPasswordEnc = preferences[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",
-                launchCount = preferences[LAUNCH_COUNT] ?: 0,
-                usagePricing = decodePrefOrDefault(preferences[USAGE_PRICING], UsagePricingSettings()),
-            )
+                    subAgentDefaultWorkspaceId = prefs[SUB_AGENT_DEFAULT_WORKSPACE]?.let { raw ->
+                        Uuid.parse(raw)
+                    },
+                    subAgentForegroundReceipt = prefs[SUB_AGENT_FOREGROUND_RECEIPT] ?: false,
+                    webDavConfig = decodeEncryptedPrefOrDefault(prefs[WEBDAV_CONFIG], WebDavConfig()),
+                    s3Config = decodeEncryptedPrefOrDefault(prefs[S3_CONFIG], S3Config()),
+                    uploadS3Config = decodeEncryptedPrefOrDefault(prefs[UPLOAD_S3_CONFIG], S3Config()),
+                    webDavConfigs = prefs[WEBDAV_CONFIGS]?.let { raw ->
+                        JsonInstant.decodeFromString<List<WebDavConfig>>(decryptPrefValue(raw))
+                    } ?: emptyList(),
+                    activeWebDavConfigId = prefs[ACTIVE_WEBDAV_CONFIG_ID],
+                    s3Configs = prefs[S3_CONFIGS]?.let { raw ->
+                        JsonInstant.decodeFromString<List<S3Config>>(decryptPrefValue(raw))
+                    } ?: emptyList(),
+                    activeS3ConfigId = prefs[ACTIVE_S3_CONFIG_ID],
+                    ttsProviders = decodeEncryptedPrefOrDefault(prefs[TTS_PROVIDERS], emptyList()),
+                    selectedTTSProviderId = parseUuidPrefOrNull(prefs[SELECTED_TTS_PROVIDER])
+                        ?: DEFAULT_SYSTEM_TTS_ID,
+                    defaultTTSPlaybackSpeed = prefs[DEFAULT_TTS_PLAYBACK_SPEED]?.coerceIn(0.5f, 2.0f) ?: 1.0f,
+                    asrProviders = decodeEncryptedPrefOrDefault(prefs[ASR_PROVIDERS], emptyList()),
+                    selectedASRProviderId = parseUuidPrefOrNull(prefs[SELECTED_ASR_PROVIDER]),
+                    modeInjections = decodePrefOrDefault(prefs[MODE_INJECTIONS], emptyList()),
+                    lorebooks = decodePrefOrDefault(prefs[LOREBOOKS], emptyList()),
+                    quickMessages = decodePrefOrDefault(prefs[QUICK_MESSAGES], emptyList()),
+                    webServerEnabled = prefs[WEB_SERVER_ENABLED] == true,
+                    webServerPort = prefs[WEB_SERVER_PORT] ?: 8080,
+                    localMcpServerEnabled = prefs[LOCAL_MCP_SERVER_ENABLED] == true,
+                    localMcpProfiles = prefs[LOCAL_MCP_PROFILES]?.let {
+                        JsonInstant.decodeFromString<List<LocalMcpProfile>>(it)
+                    } ?: emptyList(),
+                    activeLocalMcpProfileId = prefs[LOCAL_MCP_ACTIVE_PROFILE_ID],
+                    webBridgeEcsHost = prefs[WEB_BRIDGE_ECS_HOST] ?: "",
+                    webBridgeEcsUser = prefs[WEB_BRIDGE_ECS_USER] ?: "root",
+                    webBridgeEcsPort = prefs[WEB_BRIDGE_ECS_PORT] ?: 22,
+                    webBridgeRemotePort = prefs[WEB_BRIDGE_REMOTE_PORT] ?: 8080,
+                    webBridgeLocalPort = prefs[WEB_BRIDGE_LOCAL_PORT] ?: 8080,
+                    webBridgePrivateKeyPath = prefs[WEB_BRIDGE_PRIVATE_KEY_PATH] ?: "",
+                    webBridgePassword = prefs[WEB_BRIDGE_PASSWORD]?.let(::decryptPrefValue) ?: "",
+                    webBridgeCredentialRef = prefs[WEB_BRIDGE_CREDENTIAL_REF] ?: "",
+                    webServerJwtEnabled = prefs[WEB_SERVER_JWT_ENABLED] == true,
+                    webServerListenScope = prefs[WEB_SERVER_LISTEN_SCOPE] ?: "loopback",
+                    webServerAllowedNetworks = prefs[WEB_SERVER_ALLOWED_NETWORKS] ?: "",
+                    webServerAccessPassword = prefs[WEB_SERVER_ACCESS_PASSWORD]?.let(::decryptPrefValue) ?: "",
+                    networkCidrPresets =
+                        prefs[NETWORK_CIDR_PRESETS]?.let {
+                            JsonInstant.decodeFromString<List<String>>(it)
+                        } ?: emptyList(),
+                    settingShortcutIds =
+                        prefs[SETTING_SHORTCUT_IDS]
+                            ?.split('\u0001')
+                            ?.filter { it.isNotBlank() }
+                            ?: emptyList(),
+                    workspaceApkMirror = prefs[WORKSPACE_APK_MIRROR] ?: "",
+                    workspaceAptMirror = prefs[WORKSPACE_APT_MIRROR] ?: "",
+                    workspacePipMirror = prefs[WORKSPACE_PIP_MIRROR] ?: "",
+                    workspaceNpmMirror = prefs[WORKSPACE_NPM_MIRROR] ?: "",
+                    workspaceSdcardEnabled = prefs[WORKSPACE_SDCARD_ENABLED] ?: false,
+                    workspaceChrootEnabled =
+                        WorkspaceShellBackend.fromPreference(
+                            rawBackend = prefs[WORKSPACE_SHELL_BACKEND],
+                            legacyChrootEnabled = prefs[WORKSPACE_CHROOT_ENABLED],
+                        ) == WorkspaceShellBackend.ROOT_CHROOT,
+                    workspaceShellBackend =
+                        WorkspaceShellBackend.fromPreference(
+                            rawBackend = prefs[WORKSPACE_SHELL_BACKEND],
+                            legacyChrootEnabled = prefs[WORKSPACE_CHROOT_ENABLED],
+                        ),
+                    shellDnsMode = ShellDnsConfig.normalizeMode(prefs[SHELL_DNS_MODE]),
+                    shellDnsServers =
+                        prefs[SHELL_DNS_SERVERS]?.let { raw ->
+                            runCatching { JsonInstant.decodeFromString<List<String>>(raw) }
+                                .getOrElse { ShellDnsConfig.parseServers(raw) }
+                                .let { list -> ShellDnsConfig.parseServers(list.joinToString("\n")) }
+                        } ?: emptyList(),
+                    workspaceStatsCache = prefs[WORKSPACE_STATS_CACHE] ?: "{}",
+                    webServerLocalhostOnly = prefs[WEB_SERVER_LOCALHOST_ONLY] == true,
+                    aiLogLevel = AiLogLevel.fromPreference(prefs[AI_LOG_LEVEL]),
+                    defaultSshPlatform = SshPlatform.fromPreference(prefs[DEFAULT_SSH_PLATFORM]),
+                    sshHostProbe = SshHostProbeMode.fromPreference(prefs[SSH_HOST_PROBE]),
+                    backupReminderConfig = decodePrefOrDefault(prefs[BACKUP_REMINDER_CONFIG], BackupReminderConfig()),
+                    backupEncryptionEnabled = prefs[BACKUP_ENCRYPTION_ENABLED] ?: false,
+                    backupEncryptionPasswordEnc = prefs[BACKUP_ENCRYPTION_PASSWORD_ENC] ?: "",
+                    launchCount = prefs[LAUNCH_COUNT] ?: 0,
+                    usagePricing = decodePrefOrDefault(prefs[USAGE_PRICING], UsagePricingSettings()),
+                )
+            }
         }
         .map {
             val deletedDefaultIds = it.deletedBuiltInProviderIds
@@ -640,6 +658,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
         // Preference decoding includes provider/model JSON and must not run on Main.
         .flowOn(Dispatchers.IO)
 
+
+
     private val transformLock = kotlinx.coroutines.sync.Mutex()
     private val memoryRevision = AtomicLong(0)
     private val initialization = CompletableDeferred<Unit>()
@@ -716,6 +736,8 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
     )
 
     /** 单个已存设置字段（键名，字符数），供安全模式列出超大字段。 */
+    /** 解析失败后被隔离的单个已存字段（用默认值代替，原始值见恢复快照）。 */
+
     data class LargeStoredField(val keyName: String, val charCount: Int)
 
     /** 订阅盘上超大字符串字段（默认 ≥ 1_000_000 字符），从大到小排序。实现见 OversizedStoredFields。 */
@@ -728,6 +750,10 @@ subAgents = preferences[SUB_AGENTS]?.let { raw ->
     private suspend fun persistSettings(settings: Settings, forceFullWrite: Boolean = false) {
         if (settings.init) error("Cannot persist dummy Settings")
         val previous = settingsFlow.value
+        // 内存基线仍是 warm seed（磁盘从未成功解码）时绝不能落盘：此时的 Settings
+        // 全是默认值，全量写回会把用户真实设置覆盖掉。调用方都应先 await 初始化，
+        // 走到这里说明已有别的环节出错，大声失败比静默毁数据好。
+        if (previous.init) error("Refusing to persist settings over an uninitialized (warm-seed) baseline")
         memoryRevision.incrementAndGet()
         settingsFlow.value = settings
         saveWarmUiSettings(appContext, settings)

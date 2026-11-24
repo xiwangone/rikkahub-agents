@@ -30,6 +30,8 @@ import me.rerere.hugeicons.stroke.Refresh03
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.DEFAULT_PROVIDERS
 import me.rerere.rikkahub.data.datastore.ProviderDescriptors
+import me.rerere.rikkahub.data.vault.CredentialType
+import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -365,7 +367,11 @@ private fun String.normalizePath(): String {
     return path.trimEnd('/')
 }
 
-internal fun String.isValidBaseUrl(): Boolean = this.toHttpUrlOrNull() != null
+/**
+ * baseUrl 静态校验：`$$名字.endpoint` 引用不是 URL，但解析后才是；
+ * 引用本身的合法性由运行时解析决定，这里不把它标红。
+ */
+internal fun String.isValidBaseUrl(): Boolean = startsWith("\$\$") || this.toHttpUrlOrNull() != null
 
 private const val OPENAI_OFFICIAL_HOST = "api.openai.com"
 private const val GOOGLE_OFFICIAL_HOST = "generativelanguage.googleapis.com"
@@ -386,6 +392,8 @@ private fun ProviderConfigureOpenAI(
 ) {
     val toaster = LocalToaster.current
     val responseAPIWarning = stringResource(R.string.setting_provider_page_response_api_warning)
+    // 端点可能是 $$名字.endpoint 引用：host 判断按解析后的地址算（解析不到时原样返回，行为不变）
+    val resolvedBaseUrlHost = VaultProviderKeyRefs.resolveValue(provider.baseUrl).toHttpUrlOrNull()?.host
 
     ProviderDescriptors.get(provider.id).description()
 
@@ -414,6 +422,15 @@ private fun ProviderConfigureOpenAI(
                 onValueChange = { onEdit(provider.copy(apiKey = it.trim())) },
                 label = stringResource(R.string.setting_provider_page_api_key),
                 nameHint = provider.name,
+                groupHint = "AI",
+                importType = CredentialType.API_KEY,
+                // 自定义端点才入库：默认地址不需要存引用（重置后就是它）
+                endpointHint = provider.baseUrl.takeIf {
+                    it.isNotBlank() && it != provider.defaultBaseUrlForReset()
+                },
+                onEndpointStored = { apiKeyRef, endpointRef ->
+                    onEdit(provider.copy(apiKey = apiKeyRef, baseUrl = endpointRef))
+                },
             )
         }
         formItem(
@@ -455,7 +472,7 @@ private fun ProviderConfigureOpenAI(
             checked = provider.useResponseApi,
             onCheckedChange = {
                 onEdit(provider.copy(useResponseApi = it))
-                if (it && provider.baseUrl.toHttpUrlOrNull()?.host != "api.openai.com") {
+                if (it && resolvedBaseUrlHost != "api.openai.com") {
                     toaster.show(message = responseAPIWarning, type = ToastType.Warning)
                 }
             },
@@ -466,7 +483,7 @@ private fun ProviderConfigureOpenAI(
             onCheckedChange = { onEdit(provider.copy(includeHistoryReasoning = it)) },
             headlineContent = { Text(stringResource(R.string.setting_provider_page_include_history_reasoning)) },
         )
-        if (provider.baseUrl.toHttpUrlOrNull()?.host == "openrouter.ai") {
+        if (resolvedBaseUrlHost == "openrouter.ai") {
             switchItem(
                 checked = provider.promptCaching,
                 onCheckedChange = { onEdit(provider.copy(promptCaching = it)) },
@@ -475,7 +492,7 @@ private fun ProviderConfigureOpenAI(
         }
     }
 
-    if (provider.baseUrl.toHttpUrlOrNull()?.host == "openrouter.ai") {
+    if (resolvedBaseUrlHost == "openrouter.ai") {
         OpenRouterRoutingSection(
             routing = provider.routing,
             onChange = { onEdit(provider.copy(routing = it)) },

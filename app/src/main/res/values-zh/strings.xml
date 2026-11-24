@@ -530,6 +530,7 @@
   <string name="code_block_collapse">折叠</string>
   <string name="code_block_copy">复制代码</string>
   <string name="code_block_expand">展开</string>
+  <string name="vault_desc_expand">展开</string>
   <string name="code_block_preview">预览</string>
   <string name="collapse_translation">折叠翻译</string>
   <string name="confirm">确认</string>
@@ -1181,6 +1182,8 @@
   <string name="setting_page_config_api_title">请配置API和模型</string>
   <string name="setting_page_security_degraded_title">设备不支持安全加密</string>
   <string name="setting_page_security_degraded_desc">你的设备不支持硬件安全加密，凭据以弱加密方式存储</string>
+  <string name="setting_page_settings_quarantined_title">部分设置已损坏并被隔离</string>
+  <string name="setting_page_settings_quarantined_desc">已将 %1$d 个损坏字段恢复为默认值，原始值已保存，可在安全模式中查看。</string>
   <string name="setting_page_data_backup">数据备份</string>
   <string name="setting_page_data_backup_desc">备份和恢复应用数据</string>
   <string name="setting_page_data_settings">数据设置</string>
@@ -2616,6 +2619,11 @@
   <string name="local_llm_vision_unavailable_caption">此设备不支持视觉功能 — 仅文本模式运行</string>
   <string name="safe_mode_enter_app">进入应用</string>
   <string name="safe_mode_oversized_data">超大设置数据</string>
+  <string name="safe_mode_quarantined_title">已隔离的设置</string>
+  <string name="safe_mode_quarantined_desc">以下字段加载失败，已使用默认值，原始值保存在恢复快照中。</string>
+  <string name="safe_mode_quarantined_default">已使用默认值</string>
+  <string name="safe_mode_quarantined_export">导出恢复快照</string>
+  <string name="safe_mode_quarantined_clear_text">该字段加载失败，目前已使用默认值。清除将永久删除损坏的存储值。</string>
   <string name="safe_mode_oversized_size">%1$.1f 百万字符</string>
   <string name="setting_browser_per_tool_timeout_desc">每次浏览器工具调用的硬性时间预算。范围 10 秒至 10 分钟。</string>
   <string name="setting_browser_per_tool_timeout_unit">秒</string>

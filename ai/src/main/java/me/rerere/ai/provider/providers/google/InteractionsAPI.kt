@@ -47,6 +47,7 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
 import me.rerere.ai.util.encodeBase64
@@ -82,7 +83,7 @@ internal val VERTEX_INTERACTIONS_LOCATIONS = setOf("global", "us", "eu")
  * Vertex 走 `/v1/projects/{project}/locations/{location}/interactions`，us/eu 多区域使用各自的 rep 域名。
  */
 internal fun ProviderSetting.Google.interactionsUrl(): String {
-    if (!vertexAI) return "${baseUrl.trimEnd('/')}/interactions"
+    if (!vertexAI) return "${ProviderKeyRefs.expand(baseUrl).trimEnd('/')}/interactions"
     val host = if (location == "global") "aiplatform.googleapis.com" else "aiplatform.$location.rep.googleapis.com"
     return "https://$host/v1/projects/$projectId/locations/$location/interactions"
 }
@@ -216,13 +217,14 @@ internal class InteractionsAPI(
         params: TextGenerationParams,
         requestBody: JsonObject,
     ): Request {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val url = providerSetting.interactionsUrl()
         val request = Request.Builder()
             .url(url)
             .headers(providerSetting.mergeCustomHeaders(params.customHeaders))
             .configureSessionHeaders(url, params.sessionId)
             .method("POST", json.encodeToString(requestBody).toRequestBody("application/json".toMediaType()))
-            .configureReferHeaders(providerSetting.baseUrl)
+            .configureReferHeaders(baseUrl)
             .build()
         return authorize(providerSetting, request)
     }

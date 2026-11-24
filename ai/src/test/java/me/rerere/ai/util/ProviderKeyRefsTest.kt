@@ -108,4 +108,29 @@ class ProviderKeyRefsTest {
         ProviderKeyRefs.resolve = { null }
         assertEquals("\$\$MISSING", KeyRoulette.default().next("\$\$MISSING", "p1"))
     }
+
+    // ── 带字段的引用（`$$名字.endpoint`：端点入库后请求处按它解析）────────────
+
+    @Test
+    fun `dotted field reference resolves through the injected resolver`() {
+        ProviderKeyRefs.resolve = { name ->
+            when (name) {
+                "QINIUYUN.endpoint" -> "https://api.qiniu.com/v1"
+                else -> null
+            }
+        }
+        assertEquals("https://api.qiniu.com/v1", ProviderKeyRefs.expand("\$\$QINIUYUN.endpoint"))
+    }
+
+    @Test
+    fun `unresolved field reference is kept verbatim`() {
+        ProviderKeyRefs.resolve = { null }
+        assertEquals("\$\$QINIUYUN.endpoint", ProviderKeyRefs.expand("\$\$QINIUYUN.endpoint"))
+    }
+
+    @Test
+    fun `plain url is returned as is even with a resolver installed`() {
+        ProviderKeyRefs.resolve = { "SHOULD_NOT_BE_USED" }
+        assertEquals("https://api.openai.com/v1", ProviderKeyRefs.expand("https://api.openai.com/v1"))
+    }
 }

@@ -414,6 +414,7 @@
   <string name="code_block_collapse">折りたたむ</string>
   <string name="code_block_copy">コードをコピー</string>
   <string name="code_block_expand">展開</string>
+  <string name="vault_desc_expand">展開</string>
   <string name="code_block_preview">プレビュー</string>
   <string name="collapse_translation">翻訳を折りたたむ</string>
   <string name="confirm">確認</string>
@@ -2397,6 +2398,8 @@
   <string name="setting_files_page_folder_avatars">アバター</string>
   <string name="setting_page_security_degraded_title">端末が安全な暗号化に対応していません</string>
   <string name="setting_page_security_degraded_desc">お使いの端末はハードウェアセキュリティ暗号化に対応していないため、資格情報は弱い暗号化で保存されます</string>
+  <string name="setting_page_settings_quarantined_title">一部の設定が破損し隔離されました</string>
+  <string name="setting_page_settings_quarantined_desc">%1$d 件の破損した項目を既定値に戻しました。元の値は保存済みです。セーフモードで確認できます。</string>
   <string name="setting_page_section_tools">外部ツール</string>
   <string name="setting_page_section_connection">接続とバックエンド</string>
   <string name="setting_page_section_security">セキュリティと資格情報</string>
@@ -2440,6 +2443,11 @@
   <string name="local_llm_vision_unavailable_caption">この端末は視覚機能に非対応 — テキストのみで動作</string>
   <string name="safe_mode_enter_app">アプリを開く</string>
   <string name="safe_mode_oversized_data">容量超過のデータ</string>
+  <string name="safe_mode_quarantined_title">隔離された設定</string>
+  <string name="safe_mode_quarantined_desc">これらの項目は読み込めなかったため既定値を使用しています。元の値は復旧スナップショットに保存されています。</string>
+  <string name="safe_mode_quarantined_default">既定値を使用中</string>
+  <string name="safe_mode_quarantined_export">復旧スナップショットを書き出す</string>
+  <string name="safe_mode_quarantined_clear_text">この項目は読み込めなかったため既定値を使用しています。消去すると損傷した保存値は完全に削除されます。</string>
   <string name="safe_mode_oversized_size">%1$.1f 百万文字</string>
   <string name="setting_browser_per_tool_timeout_desc">ブラウザツール呼び出し1回あたりの厳格な時間上限。範囲は 10 秒〜10 分。</string>
   <string name="setting_browser_per_tool_timeout_unit">秒</string>

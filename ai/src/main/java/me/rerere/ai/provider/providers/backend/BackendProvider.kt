@@ -28,6 +28,7 @@ import me.rerere.ai.ui.StreamChunk
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.SHORT_REQUEST_CALL_TIMEOUT_MS
 import me.rerere.common.log.AppLogger
 import okhttp3.OkHttpClient
@@ -64,7 +65,8 @@ class BackendProvider(
     ) : this(
         clientFactory = { setting ->
             BackendApi(
-                baseUrl = setting.baseUrl,
+                // baseUrl 可能是 $$名字.endpoint 引用：进 client 前先解析（未命中原样返回）
+                baseUrl = ProviderKeyRefs.expand(setting.baseUrl),
                 username = setting.username,
                 password = setting.password,
                 token = setting.token,
@@ -241,6 +243,7 @@ class BackendProvider(
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ): Flow<StreamChunk> = flow {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         when (providerSetting.backendType) {
             "custom" -> {
                 streamCustomBackend(providerSetting, messages, params)
@@ -256,12 +259,12 @@ class BackendProvider(
         val api = api(providerSetting)
         val fullInput = buildFullInput(messages)
             ?: throw IllegalStateException("Backend streamText: no user text in the messages, cannot build the submission")
-        val endpointLock = mutexForEndpoint(providerSetting.baseUrl)
+        val endpointLock = mutexForEndpoint(baseUrl)
 
         endpointLock.withLock {
             val sse =
                 BackendSseClient(
-                    baseUrl = providerSetting.baseUrl,
+                    baseUrl = baseUrl,
                     username = providerSetting.username,
                     password = providerSetting.password,
                     token = providerSetting.token,
@@ -320,9 +323,10 @@ class BackendProvider(
         messages: List<UIMessage>,
         params: TextGenerationParams,
     ) {
+        val baseUrl = ProviderKeyRefs.expand(providerSetting.baseUrl)
         val openaiSetting =
             ProviderSetting.OpenAI(
-                baseUrl = providerSetting.baseUrl,
+                baseUrl = baseUrl,
                 // 自定义后端可以不设鉴权：空 token 不能原样传给 KeyRoulette（空 key 会直接抛错），
                 // 给一个占位值，服务端不校验时会被忽略，需要鉴权的服务端仍会返回 401。
                 apiKey = providerSetting.token.ifBlank { "unused" },
