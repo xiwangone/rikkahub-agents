@@ -222,11 +222,12 @@ Get a token from [@BotFather](https://t.me/BotFather) and tell the assistant to 
 
 ### 6. Build from Source (Optional)
 
-Prerequisites: **JDK 17+** and Android SDK (**API 37**).
+Prerequisites: **JDK 17+**, Android SDK (**API 37**), and Android NDK (**28.2.13676358**; the `llama-cpp` module contains C++ code built with CMake; the repo does not pin `ndkVersion`, so AGP 9.3's default is used).
 
 ```bash
 git clone https://github.com/xiwangone/rikkahub-agents.git
 cd rikkahub-agents
+git submodule update --init --recursive   # Submodules: material3/material-color-utilities, llama-cpp/native/llama.cpp
 ./gradlew :app:assembleDebug          # output: app/build/outputs/apk/debug/
 adb install app/build/outputs/apk/debug/app-debug.apk   # install to a connected device
 ```

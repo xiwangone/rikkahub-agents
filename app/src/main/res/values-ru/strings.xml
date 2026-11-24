@@ -2227,6 +2227,7 @@
     <string name="error_kind_storage">Недостаточно места или файл недоступен для записи</string>
     <string name="error_kind_unsupported">Формат или параметр не поддерживается</string>
     <string name="error_kind_unknown">Неопознанная ошибка (см. ответ сервера ниже)</string>
+    <string name="error_unknown">Неизвестная ошибка</string>
     <string name="error_context_injected">Сбой генерации: %1$s. Исходный ответ: %2$s</string>
     <string name="error_context_retry_succeeded">Повтор успешен. Предыдущая ошибка: %1$s. Исходный ответ: %2$s</string>
   <string name="imggen_page_delete_images_title">Удалить изображения</string>

@@ -36,6 +36,7 @@ import java.net.URL
 import java.nio.file.Files
 import java.util.LinkedHashMap
 import kotlin.collections.iterator
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 
 class SkillsVM(
@@ -190,7 +191,7 @@ class SkillsVM(
             } catch (e: CancellationException) {
                 throw e
             } catch (e: Exception) {
-                withContext(Dispatchers.Main) { onResult(false, e.message ?: "Unknown error") }
+                withContext(Dispatchers.Main) { onResult(false, e.message ?: context.resources.getString(R.string.error_unknown)) }
             }
         }
     }

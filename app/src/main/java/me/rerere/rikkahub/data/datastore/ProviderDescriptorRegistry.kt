@@ -57,7 +57,7 @@ object ProviderDescriptors {
                         append(stringResource(R.string.aihubmix_provider_description))
                         appendLine()
                         append(stringResource(R.string.aihubmix_provider_website))
-                        withLink(LinkAnnotation.Url("https://aihubmix.com?aff=pG7r")) {
+                        withLink(LinkAnnotation.Url("https://aihubmix.com")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://aihubmix.com")
                             }
@@ -139,7 +139,7 @@ object ProviderDescriptors {
                         append(
                             stringResource(R.string.ackai_provider_description)
                         )
-                        withLink(LinkAnnotation.Url("https://ackai.fun/register?aff=jxpP")) {
+                        withLink(LinkAnnotation.Url("https://ackai.fun/register")) {
                             withStyle(SpanStyle(MaterialTheme.colorScheme.primary)) {
                                 append("https://ackai.fun")
                             }

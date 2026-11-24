@@ -171,7 +171,10 @@ class LocalApprovalBridge(
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setCategory(NotificationCompat.CATEGORY_CALL)
             .setAutoCancel(true)
-            .setVisibility(NotificationCompat.VISIBILITY_PUBLIC)
+            // 审批通知内容是工具入参摘要（锁屏可见即泄露）：必须 PRIVATE，随系统
+            // “锁屏隐藏敏感内容”遮蔽；全仓唯一需要改的 PUBLIC，另一处是仅含
+            // 标题/艺人的媒体播放通知（良性）。
+            .setVisibility(NotificationCompat.VISIBILITY_PRIVATE)
             .addAction(0, context.getString(R.string.approve), approvePi)
             .addAction(0, context.getString(R.string.deny), denyPi)
             .build()

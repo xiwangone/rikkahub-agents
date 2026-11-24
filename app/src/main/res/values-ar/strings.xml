@@ -1811,6 +1811,7 @@
     <string name="error_kind_storage">مساحة التخزين ممتلئة أو الملف غير قابل للكتابة</string>
     <string name="error_kind_unsupported">التنسيق أو المعامل غير مدعوم</string>
     <string name="error_kind_unknown">خطأ غير معروف (راجع نص الخادم أدناه)</string>
+    <string name="error_unknown">خطأ غير معروف</string>
     <string name="error_context_injected">فشل التوليد: %1$s. الرد الأصلي: %2$s</string>
     <string name="error_context_retry_succeeded">نجحت إعادة المحاولة. الخطأ السابق: %1$s. الرد الأصلي: %2$s</string>
   <string name="provider_display_name_aicore">AICore (على الجهاز)</string>

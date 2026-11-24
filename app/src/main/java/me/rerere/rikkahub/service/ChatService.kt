@@ -759,6 +759,13 @@ class ChatService(
         regenerateAssistantMsg: Boolean = true,
     ) = regenerateAtMessageImpl(conversationId, message, regenerateAssistantMsg)
 
+    /**
+     * 错误卡片「重试」入口：按会话重发最后一条用户消息。复用 [regenerateAtMessage]
+     * 的截断到该消息后重新生成逻辑，因此正在进行的生成会被取消、队首排队消息按
+     * 既有规则处理。会话里没有用户消息时静默跳过，不报错。
+     */
+    fun retryLastGeneration(conversationId: Uuid) = retryLastGenerationImpl(conversationId)
+
 
     /** Scope of an "approve" decision. Once = this single tool call only. ChatScope =
      *  every future call of the same tool name in this conversation (until /new). Always =

@@ -2229,6 +2229,7 @@
     <string name="error_kind_storage">저장 공간 부족 또는 파일 쓰기 불가</string>
     <string name="error_kind_unsupported">형식 또는 매개변수가 지원되지 않습니다</string>
     <string name="error_kind_unknown">식별할 수 없는 오류입니다(아래 서버 원문 참조)</string>
+    <string name="error_unknown">알 수 없는 오류</string>
     <string name="error_context_injected">생성 실패: %1$s. 원본 응답: %2$s</string>
     <string name="error_context_retry_succeeded">재시도 성공. 이전 실패: %1$s. 원본 응답: %2$s</string>
   <string name="imggen_page_delete_images_title">이미지 삭제</string>

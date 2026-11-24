@@ -52,7 +52,8 @@ object HuggingFaceModelSearch {
         // Anything else the Retrofit/kotlinx-serialization call can throw (e.g. a
         // SerializationException from a captive portal or proxy returning HTTP 200 with a
         // non-JSON body) maps to a plain error rather than crashing the caller.
-        FilesResult.Error(e.message ?: e::class.simpleName ?: "Unknown error")
+        // 错误载荷返回给调用方、无 Context 可取资源：兜底用异常类名，不留硬编码字面量。
+        FilesResult.Error(e.message ?: e::class.simpleName ?: e.toString())
     }
 
     /**

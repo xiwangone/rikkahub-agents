@@ -3329,6 +3329,7 @@
     <string name="error_kind_storage">Storage full or file not writable</string>
     <string name="error_kind_unsupported">Format or parameter not supported</string>
     <string name="error_kind_unknown">Unrecognized error (see the raw server message below)</string>
+    <string name="error_unknown">Unknown error</string>
     <string name="error_context_injected">Generation failed: %1$s. Raw response: %2$s</string>
     <string name="error_context_retry_succeeded">Retry succeeded. Previous failure: %1$s. Raw response: %2$s</string>
   <string name="doctor_msg_tool_groups">%1$s tool group(s) enabled.</string>

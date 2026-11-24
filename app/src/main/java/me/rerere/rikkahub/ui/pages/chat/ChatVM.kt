@@ -481,6 +481,18 @@ class ChatVM(
         chatService.regenerateAtMessage(_conversationId, message, regenerateAssistantMsg)
     }
 
+    /**
+     * 错误卡片「重试」：只处理属于当前会话的错误——跨会话的错误卡片（后台其他
+     * 会话的生成失败）不静默重发别的会话。重试触发后关闭该错误卡片；新的生成
+     * 失败时会在原地产生新的错误卡片。
+     */
+    fun retryError(error: ChatError) {
+        val conversationId = error.conversationId ?: return
+        if (conversationId != _conversationId) return
+        chatService.retryLastGeneration(conversationId)
+        dismissError(error.id)
+    }
+
     fun handleToolApproval(
         toolCallId: String,
         approved: Boolean,

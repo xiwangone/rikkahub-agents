@@ -26,7 +26,9 @@ private inline fun safeApi(block: () -> JsonObject): JsonObject = try {
 } catch (e: TelegramApiException) {
     ToolErrors.envelopeFor(error = "invalid_argument", message = "telegram api ${e.errorCode}: ${e.description}", hint = "Check the parameter values and retry with corrected arguments.")
 } catch (e: Throwable) {
-    ToolErrors.envelopeFor(error = "internal_error", message = e.message ?: e::class.simpleName ?: "Unknown error")
+    // 工具错误信封直接返回给模型：无 Context 可取资源，且同文件其余错误文案
+    // 本就是英文；兜底用异常类名，不留硬编码字面量。
+    ToolErrors.envelopeFor(error = "internal_error", message = e.message ?: e::class.simpleName ?: e.toString())
 }
 
 /**

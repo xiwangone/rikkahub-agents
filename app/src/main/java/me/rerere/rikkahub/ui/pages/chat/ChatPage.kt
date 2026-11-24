@@ -227,6 +227,7 @@ fun ChatPage(
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
                     onClearAllErrors = { vm.clearAllErrors() },
+                    onRetryError = { vm.retryError(it) },
                 )
             }
         }
@@ -260,6 +261,7 @@ fun ChatPage(
                     errors = errors,
                     onDismissError = { vm.dismissError(it) },
                     onClearAllErrors = { vm.clearAllErrors() },
+                    onRetryError = { vm.retryError(it) },
                 )
             }
             BackHandler(drawerState.isOpen) {
@@ -319,6 +321,7 @@ private fun ChatPageContent(
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
+    onRetryError: (ChatError) -> Unit,
 ) {
     val sessionTotals by vm.sessionTotals.collectAsStateWithLifecycle()
     val lifetimeTotals by vm.lifetimeTotals.collectAsStateWithLifecycle()
@@ -612,6 +615,7 @@ private fun ChatPageContent(
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
+                onRetryError = onRetryError,
                 onRegenerate = {
                     vm.regenerateAtMessage(it)
                 },

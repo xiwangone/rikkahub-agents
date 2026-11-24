@@ -3210,6 +3210,7 @@
     <string name="error_kind_storage">儲存空間不足或檔案無法寫入</string>
     <string name="error_kind_unsupported">格式或參數不受支援</string>
     <string name="error_kind_unknown">未能辨識的錯誤（詳見下方伺服器原話）</string>
+    <string name="error_unknown">未知錯誤</string>
     <string name="error_context_injected">生成失敗：%1$s。返回原文：%2$s</string>
     <string name="error_context_retry_succeeded">重試成功。之前失敗：%1$s。返回原文：%2$s</string>
   <string name="imggen_page_delete_images_title">刪除圖片</string>

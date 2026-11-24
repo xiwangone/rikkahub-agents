@@ -38,6 +38,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Cancel01
 import me.rerere.hugeicons.stroke.Copy01
 import me.rerere.hugeicons.stroke.Delete01
+import me.rerere.hugeicons.stroke.Refresh01
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.FailureKind
 import me.rerere.rikkahub.Screen
@@ -51,6 +52,7 @@ fun ErrorCardsDisplay(
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
+    onRetryError: (ChatError) -> Unit = {},
     modifier: Modifier = Modifier,
 ) {
     AnimatedVisibility(
@@ -95,6 +97,8 @@ fun ErrorCardsDisplay(
                 ErrorCard(
                     error = error,
                     onDismiss = { onDismissError(error.id) },
+                    // 只有带会话 id 的错误才能重试：重试按会话重发最后一条用户消息。
+                    onRetry = if (error.conversationId != null) ({ onRetryError(error) }) else null,
                 )
             }
         }
@@ -105,11 +109,15 @@ fun ErrorCardsDisplay(
 fun ErrorCard(
     error: ChatError,
     onDismiss: () -> Unit,
+    onRetry: (() -> Unit)? = null,
     modifier: Modifier = Modifier,
 ) {
     val clipboard = LocalClipboard.current
     val navController = LocalNavController.current
     val scope = rememberCoroutineScope()
+    // 兜底文案先在组合上下文里取好：复制按钮的 onClick 不在 @Composable 上下文里，
+    // 不能在里面直接调 stringResource。
+    val unknownErrorText = stringResource(R.string.error_unknown)
     val checkTitleModelSettings = stringResource(R.string.chat_page_check_title_model_settings)
     val selectModelLabel = stringResource(R.string.error_select_model)
     // 两种可操作建议共用同一套链接渲染：都是跳模型设置
@@ -150,7 +158,7 @@ fun ErrorCard(
                     )
                 }
                 Text(
-                    text = error.error.message ?: "Unknown error",
+                    text = error.error.message ?: unknownErrorText,
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onErrorContainer.copy(alpha = 0.8f),
                     overflow = TextOverflow.Ellipsis,
@@ -212,12 +220,26 @@ fun ErrorCard(
                     )
                 }
             }
+            // 重试：按会话重发最后一条用户消息（复用 regenerate 的截断后重新生成逻辑）。
+            if (onRetry != null) {
+                IconButton(
+                    onClick = onRetry,
+                    modifier = Modifier.size(32.dp),
+                ) {
+                    Icon(
+                        imageVector = HugeIcons.Refresh01,
+                        contentDescription = stringResource(R.string.common_retry),
+                        tint = MaterialTheme.colorScheme.onErrorContainer,
+                        modifier = Modifier.size(18.dp),
+                    )
+                }
+            }
             IconButton(
                 onClick = {
                     scope.launch {
                         clipboard.setClipEntry(
                             ClipEntry(
-                                clipData = ClipData.newPlainText("Error", error.error.message ?: "Unknown error"),
+                                clipData = ClipData.newPlainText("Error", error.error.message ?: unknownErrorText),
                             ),
                         )
                     }

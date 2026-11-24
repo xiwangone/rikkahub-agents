@@ -403,7 +403,29 @@ internal fun ChatService.preprocessUserInputParts(
 
     // ---- 重新生成消息 ----
 
-internal fun ChatService.regenerateAtMessageImpl(
+    /**
+     * 会话里最后一条用户消息（重试的锚点）。空消息节点跳过；消息分支取当前选中
+     * 的那条。纯函数，便于单测。
+     */
+    internal fun findLastUserMessage(conversation: Conversation): UIMessage? =
+        conversation.messageNodes.asReversed()
+            .firstOrNull { it.messages.isNotEmpty() && it.currentMessage.role == MessageRole.USER }
+            ?.currentMessage
+
+    /**
+     * [ChatService.retryLastGeneration] 的实现：找到最后一条用户消息后复用
+     * [regenerateAtMessageImpl] 重新生成；没有用户消息时静默跳过。
+     */
+    internal fun ChatService.retryLastGenerationImpl(conversationId: Uuid) {
+        val message = findLastUserMessage(getOrCreateSession(conversationId).state.value)
+        if (message == null) {
+            AppLog.i(TAG, "retryLastGeneration: no user message in conv=$conversationId; skipping")
+            return
+        }
+        regenerateAtMessage(conversationId, message)
+    }
+
+    internal fun ChatService.regenerateAtMessageImpl(
         conversationId: Uuid,
         message: UIMessage,
         regenerateAssistantMsg: Boolean = true,

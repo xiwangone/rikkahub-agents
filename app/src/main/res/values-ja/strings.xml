@@ -2232,6 +2232,7 @@
     <string name="error_kind_storage">ストレージ不足、またはファイルに書き込めません</string>
     <string name="error_kind_unsupported">形式またはパラメータが未対応です</string>
     <string name="error_kind_unknown">判別できないエラーです（下のサーバー原文を参照）</string>
+    <string name="error_unknown">不明なエラー</string>
     <string name="error_context_injected">生成失敗：%1$s。元の応答：%2$s</string>
     <string name="error_context_retry_succeeded">再試行成功。以前の失敗：%1$s。元の応答：%2$s</string>
   <string name="imggen_page_delete_images_title">画像を削除</string>

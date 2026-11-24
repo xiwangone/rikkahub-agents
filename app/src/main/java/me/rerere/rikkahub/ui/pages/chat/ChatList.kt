@@ -116,6 +116,7 @@ fun ChatList(
     errors: List<ChatError> = emptyList(),
     onDismissError: (Uuid) -> Unit = {},
     onClearAllErrors: () -> Unit = {},
+    onRetryError: (ChatError) -> Unit = {},
     onRegenerate: (UIMessage) -> Unit = {},
     onEdit: (UIMessage) -> Unit = {},
     onForkMessage: (UIMessage) -> Unit = {},
@@ -166,6 +167,7 @@ fun ChatList(
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
+                onRetryError = onRetryError,
                 onRegenerate = onRegenerate,
                 onEdit = onEdit,
                 onForkMessage = onForkMessage,
@@ -219,6 +221,7 @@ private fun ChatListNormal(
     errors: List<ChatError>,
     onDismissError: (Uuid) -> Unit,
     onClearAllErrors: () -> Unit,
+    onRetryError: (ChatError) -> Unit,
     onRegenerate: (UIMessage) -> Unit,
     onEdit: (UIMessage) -> Unit,
     onForkMessage: (UIMessage) -> Unit,
@@ -552,6 +555,7 @@ private fun ChatListNormal(
                 errors = errors,
                 onDismissError = onDismissError,
                 onClearAllErrors = onClearAllErrors,
+                onRetryError = onRetryError,
                 modifier =
                     Modifier
                         .align(Alignment.BottomCenter)
