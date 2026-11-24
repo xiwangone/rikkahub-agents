@@ -13,7 +13,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
@@ -61,6 +60,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import java.util.Locale
+import androidx.compose.material3.TopAppBar
 
 private fun formatTokens(value: Long): String = "%,d".format(Locale.US, value)
 
@@ -106,7 +106,7 @@ fun SettingUsageStatsPage(vm: SettingVM = koinViewModel()) {
     val navController = LocalNavController.current
     val settings by vm.settings.collectAsStateWithLifecycle()
     val pricing = settings.usagePricing
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     var range by rememberSaveable { mutableStateOf(UsageRange.ALL_TIME) }
     val revision by GenerationRunTracker.revision.collectAsStateWithLifecycle()
     val stats = remember(range, revision) { GenerationRunTracker.snapshot(context).rangeStats(range) }
@@ -115,7 +115,7 @@ fun SettingUsageStatsPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_usage_stats)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

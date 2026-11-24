@@ -13,7 +13,6 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -46,6 +45,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 /**
  * Settings → Browser. Three sections:
@@ -70,7 +70,7 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
     val perToolTimeoutMs by vm.perToolTimeoutMs.collectAsStateWithLifecycle()
     val singleTaskTimeoutMs by vm.singleTaskTimeoutMs.collectAsStateWithLifecycle()
     val searchEngine by vm.searchEngine.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var showClearConfirm by remember { mutableStateOf(false) }
     var showEnginePicker by remember { mutableStateOf(false) }
@@ -139,7 +139,7 @@ fun SettingBrowserPage(vm: SettingBrowserViewModel = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_browser_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

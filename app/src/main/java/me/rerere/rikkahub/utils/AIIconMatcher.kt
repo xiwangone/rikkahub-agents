@@ -136,6 +136,13 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "七牛" to "qiniu",
     "魔搭" to "modelscope",
     "超算互联网" to "scnet",
+    "智源研究院" to "baai",
+    "智源" to "baai",
+    "黑森林" to "bfl",
+    "通义万相" to "alibaba",
+    "万相" to "alibaba",
+    "月之暗面kimi" to "moonshot",
+    "飞桨" to "baidu",
     // 云 / 平台
     "华为云" to "huaweicloud",
     "华为" to "huawei",
@@ -214,6 +221,73 @@ private val ENGLISH_ALIASES: Map<String, String> = linkedMapOf(
     // d3/d3-flash 是 vLLM Semantic Router 的决策模型（vllm-sr/d3，见 AMD Radeon Cloud
     // 模型目录）；不是 DeepSeek——名字里没有 deepseek，端点也在 developer.amd.com.cn
     "d3" to "vllm",
+    // ── 模型家族补充（已有图标文件但漏映的前缀）──
+    "bge" to "baai",
+    "sonar" to "perplexity",
+    "whisper" to "openai",
+    "sora" to "openai",
+    "dalle" to "openai",
+    "imagen" to "google",
+    "veo" to "google",
+    "cogview" to "zhipu",
+    "cogvideo" to "zhipu",
+    "cogvideox" to "zhipu",
+    // ── 常见汉语拼音 / 简拼别名（自定义提供商或中文/拼音命名）──
+    "tongyi" to "qwen",
+    "tongyiqianwen" to "qwen",
+    "qianwen" to "qwen",
+    "wanxiang" to "alibaba",
+    "wenxinyiyan" to "wenxin",
+    "yiyan" to "wenxin",
+    "zhipuqingyan" to "zhipu",
+    "qingyan" to "zhipu",
+    "huoshan" to "volcengine",
+    "huoshanyinqing" to "volcengine",
+    "huoshanfangzhou" to "volcengine",
+    "fangzhou" to "volcengine",
+    "xunfeixinghuo" to "spark",
+    "xinghuo" to "spark",
+    "xunfei" to "iflytekcloud",
+    "tengxunhunyuan" to "hunyuan",
+    "tenghun" to "hunyuan",
+    "tengxunyun" to "tencentcloud",
+    "tengxun" to "tencent",
+    "yuezhianmian" to "moonshot",
+    "shenduqiusuo" to "deepseek",
+    "lingyiwanwu" to "zeroone",
+    "lingyi" to "zeroone",
+    "guijiliudong" to "siliconflow",
+    "jieyuexingchen" to "stepfun",
+    "jieyue" to "stepfun",
+    "zhiyuan" to "baai",
+    "shushengpuyu" to "internlm",
+    "shusheng" to "internlm",
+    "puyu" to "internlm",
+    "mianbizhineng" to "modelbest",
+    "mianbi" to "modelbest",
+    "wuwenxinqiong" to "infinigence",
+    "keling" to "kling",
+    "kunlunwanwei" to "tiangong",
+    "shangtang" to "sensenova",
+    "ririxin" to "sensenova",
+    "mita" to "metaso",
+    "modao" to "modelscope",
+    "qiniuyun" to "qiniu",
+    "qiniucloud" to "qiniu",
+    "qiniuai" to "qiniu",
+    "qnaigc" to "qiniu",
+    "paddlepaddle" to "baidu",
+    "paddleocr" to "baidu",
+    "paddle" to "baidu",
+    "funaudiollm" to "alibaba",
+    "cosyvoice" to "alibaba",
+    "sensevoice" to "alibaba",
+    "funasr" to "alibaba",
+    "antangelmed" to "antgroup",
+    "jingdongyun" to "jdcloud",
+    "huaweiyun" to "huaweicloud",
+    "jinshanyun" to "ksyun",
+    "heisenlin" to "bfl",
 )
 
 private fun resolveAlias(normalized: String): String? {
@@ -276,6 +350,34 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "nova" to "nova",        // Amazon Nova：补 amazon.svg 后厂商段会抢在模型词前，须显式登记家族
     "d3" to "vllm",          // vLLM Semantic Router 的决策模型
     "vllm" to "vllm",
+    "bge" to "baai",         // BAAI BGE embedding / reranker
+    "flux" to "flux",        // Black Forest Labs Flux
+    "sonar" to "perplexity", // Perplexity Sonar
+    "whisper" to "openai",
+    "sora" to "openai",
+    "dalle" to "openai",
+    "imagen" to "google",
+    "veo" to "google",
+    "cogview" to "zhipu",
+    "cogvideo" to "zhipu",
+    "kling" to "kling",
+    "hailuo" to "hailuo",
+    "jimeng" to "jimeng",
+    "wan" to "alibaba",
+    "tongyi" to "qwen",
+    "qianwen" to "qwen",
+    "wenxin" to "wenxin",
+    "textembedding3" to "openai",
+    "textembeddingada" to "openai",
+    "zimage" to "qwen",
+    "guiplus" to "qwen",
+    "funaudiollm" to "alibaba",
+    "cosyvoice" to "alibaba",
+    "sensevoice" to "alibaba",
+    "funasr" to "alibaba",
+    "paddlepaddle" to "baidu",
+    "paddleocr" to "baidu",
+    "antangelmed" to "antgroup",
 ).sortedByDescending { it.first.length }
 
 /**
@@ -309,7 +411,9 @@ private fun modelFamilyCandidates(name: String): List<String> {
     for (token in tokens.sortedBy { t -> if (t in MODEL_SUBBRAND_WORDS) 0 else 1 }) {
         MODEL_FAMILY_ALIASES.firstOrNull { token.startsWith(it.first) }?.let { out.add(it.second) }
     }
-    // ② vendor 段兜底：模型名里没有已知品牌词时（如 `poolside/laguna`、`xai/grok` 的 xai）
+    // ② 整段连写家族匹配（如 `text-embedding-3-small`、`z-image-turbo`、`gui-plus`）
+    MODEL_FAMILY_ALIASES.firstOrNull { segments.last().startsWith(it.first) }?.let { out.add(it.second) }
+    // ③ vendor 段兜底：模型名里没有已知品牌词时（如 `poolside/laguna`、`xai/grok` 的 xai）
     if (segments.size >= 2) out.add(segments.first())
     return out.distinct()
 }
@@ -427,6 +531,8 @@ private val MODEL_SUBBRAND_WORDS: Set<String> = setOf(
     "hy", "seed", "step", "gemini", "qwen", "glm", "deepseek", "doubao", "hunyuan",
     "claude", "llama", "mistral", "mixtral", "command", "phi", "ernie", "baichuan",
     "intern", "moonshot", "minimax", "mimo", "agnes", "vllm", "nova",
+    "bge", "flux", "sonar", "whisper", "sora", "dalle", "imagen", "veo",
+    "cogview", "cogvideo", "kling", "hailuo", "jimeng",
 )
 
 fun computeModelIconByName(
@@ -494,6 +600,11 @@ private val HOST_ALIASES: Map<String, String> = linkedMapOf(
     "amd" to "amdradeoncloud",
     "minimaxi" to "minimax",
     "tencentmaas" to "hunyuan",
+    "qnaigc" to "qiniu",
+    "qiniuapi" to "qiniu",
+    "qiniucs" to "qiniu",
+    "qiniuyun" to "qiniu",
+    "sufy" to "qiniu",
 )
 
 internal fun hostBrandCandidates(baseUrl: String?): List<String> {
@@ -513,6 +624,15 @@ internal fun hostBrandCandidates(baseUrl: String?): List<String> {
     return listOf(brand.joinToString(""), brand.last()).distinct()
 }
 
-/** 列出 assets/icons/ 里的文件名集合；调用方自行缓存结果。 */
-fun listBundledIconNames(context: Context): Set<String> =
-    runCatching { context.assets.list("icons")?.toSet().orEmpty() }.getOrDefault(emptySet())
+@Volatile
+private var cachedBundledIconNames: Set<String>? = null
+
+/** 列出 assets/icons/ 里的文件名集合，并在进程级缓存以消除列表滚动时的重复主线程 AssetManager I/O。 */
+fun listBundledIconNames(context: Context): Set<String> {
+    cachedBundledIconNames?.let { return it }
+    val loaded = runCatching { context.assets.list("icons")?.toSet().orEmpty() }.getOrDefault(emptySet())
+    if (loaded.isNotEmpty()) {
+        cachedBundledIconNames = loaded
+    }
+    return loaded
+}

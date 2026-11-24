@@ -28,7 +28,6 @@ import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedTextField
@@ -83,6 +82,7 @@ import me.rerere.rikkahub.utils.fileSizeToString
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SkillDetailPage(skillName: String) {
@@ -92,7 +92,7 @@ fun SkillDetailPage(skillName: String) {
 
     val tree by vm.tree.collectAsStateWithLifecycle()
     val isReadOnly by vm.readOnly.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val toaster = LocalToaster.current
 
     var editingFile by remember { mutableStateOf<SkillFile?>(null) }
@@ -116,7 +116,7 @@ fun SkillDetailPage(skillName: String) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(skillName) },
                 navigationIcon = { BackButton() },
                 actions = {

@@ -12,7 +12,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -61,6 +60,7 @@ import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 private const val WEB_BRIDGE_KEY_NAME = "WEB_BRIDGE_SSH_KEY"
 
@@ -111,7 +111,7 @@ internal fun syncToBackendProviders(
 fun SettingWebBridgePage() {
     val settingsStore: SettingsStore = koinInject()
     val settings = LocalSettings.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
 
     var webBridgeEcsHost by remember(settings.webBridgeEcsHost) {
@@ -141,7 +141,7 @@ fun SettingWebBridgePage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_web_bridge_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

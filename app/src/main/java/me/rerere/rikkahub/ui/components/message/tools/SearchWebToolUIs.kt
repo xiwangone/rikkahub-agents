@@ -5,7 +5,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.utils.openUrl
 import me.rerere.rikkahub.utils.toLocalString
 import java.time.LocalDate
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.heightIn
 
 
 /**
@@ -186,7 +186,7 @@ private fun SearchWebPreview(
     LazyColumn(
         modifier =
             Modifier
-                .fillMaxHeight(0.8f)
+                .heightIn(max = 480.dp)
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
@@ -347,7 +347,7 @@ private fun ScrapeWebPreview(content: JsonElement) {
     LazyColumn(
         modifier =
             Modifier
-                .fillMaxHeight(0.8f)
+                .heightIn(max = 480.dp)
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

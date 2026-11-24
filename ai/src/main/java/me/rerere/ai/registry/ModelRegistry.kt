@@ -812,6 +812,95 @@ object ModelRegistry {
     // 计分最低（1 个 token）：任何家族规则（≥2 个 token，如 agnes+video）都优先于它，
     // 只有无任何家族规则命中时才生效；同分并列只会与其他单 token 视频家族规则合并，
     // 那些规则输出相同（TEXT+VIDEO、无能力），合并结果不变。
+    // 生图 / 向量 / 重排 / 语音模型（无工具调用与推理能力，防止兜底误标）
+    private val FLUX_IMAGE = defineModel {
+        tokens("flux")
+        visionInput()
+        imageOutput()
+    }
+
+    private val DALLE_IMAGE = defineModel {
+        tokens("dall", "e")
+        imageOutput()
+    }
+
+    private val IMAGEN_IMAGE = defineModel {
+        tokens("imagen")
+        imageOutput()
+    }
+
+    private val COGVIEW_IMAGE = defineModel {
+        tokens("cogview")
+        imageOutput()
+    }
+
+    private val BGE_MODEL = defineModel {
+        tokens("bge")
+    }
+
+    private val TEXT_EMBEDDING_MODEL = defineModel {
+        tokens("embedding")
+    }
+
+    private val RERANKER_MODEL = defineModel {
+        tokens("reranker")
+    }
+
+    private val DEEPGRAM_AURA = defineModel {
+        tokens("aura")
+    }
+
+    private val WHISPER_ASR = defineModel {
+        tokens("whisper")
+    }
+
+    private val SPEECH_TTS = defineModel {
+        tokens("speech")
+    }
+
+    private val COSYVOICE_TTS = defineModel {
+        tokens("cosyvoice2")
+    }
+
+    private val SENSEVOICE_ASR = defineModel {
+        tokens("sensevoice")
+    }
+
+    private val FUN_ASR = defineModel {
+        tokens("fun", "asr")
+    }
+
+    private val KOLORS_IMAGE = defineModel {
+        tokens("kolors")
+        imageOutput()
+    }
+
+    private val Z_IMAGE = defineModel {
+        tokens("z", "image")
+        imageOutput()
+    }
+
+    private val MOSS_IMAGE = defineModel {
+        tokens("moss", "image")
+        imageOutput()
+    }
+
+    private val WAN_IMAGE = defineModel {
+        tokens("wan2", "image")
+        imageOutput()
+    }
+
+    private val QWEN_IMAGE_EDIT = defineModel {
+        tokens("qwen", "image", "edit")
+        visionInput()
+        imageOutput()
+    }
+
+    private val DEEPSEEK_OCR = defineModel {
+        tokens("deepseek", "ocr")
+        visionInput()
+    }
+
     private val GENERIC_VIDEO = defineModel {
         tokens("video")
         videoOutput()
@@ -949,6 +1038,25 @@ object ModelRegistry {
         WAN_VIDEO,
         WAN_VIDEO_T2V,
         GENERIC_VIDEO,
+        FLUX_IMAGE,
+        DALLE_IMAGE,
+        IMAGEN_IMAGE,
+        COGVIEW_IMAGE,
+        BGE_MODEL,
+        TEXT_EMBEDDING_MODEL,
+        RERANKER_MODEL,
+        DEEPGRAM_AURA,
+        WHISPER_ASR,
+        SPEECH_TTS,
+        COSYVOICE_TTS,
+        SENSEVOICE_ASR,
+        FUN_ASR,
+        KOLORS_IMAGE,
+        Z_IMAGE,
+        MOSS_IMAGE,
+        WAN_IMAGE,
+        QWEN_IMAGE_EDIT,
+        DEEPSEEK_OCR,
     )
 
     @Volatile

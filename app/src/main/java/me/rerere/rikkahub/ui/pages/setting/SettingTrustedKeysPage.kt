@@ -11,7 +11,6 @@ import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -55,6 +54,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.workspace.ssh.SshHostKey
 import java.io.File
+import androidx.compose.material3.TopAppBar
 
 /** 一条已信任的主机密钥：来源文件 + known_hosts 行里的主机、算法与密钥 blob。 */
 private data class TrustedKeyEntry(
@@ -76,7 +76,7 @@ private data class TrustedKeyEntry(
 fun SettingTrustedKeysPage() {
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val appKnownHostsFile = remember(context) { knownHostsFile(context) }
     val vaultKnownHostsFile = remember(context) { File(context.filesDir, "vault_known_hosts") }
 
@@ -107,7 +107,7 @@ fun SettingTrustedKeysPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_trusted_keys_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

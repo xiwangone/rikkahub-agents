@@ -9,7 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -45,6 +44,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import java.io.File
 import java.io.FileOutputStream
+import androidx.compose.material3.TopAppBar
 
 /**
  * Settings page for the screen-automation AccessibilityService.
@@ -57,7 +57,7 @@ fun SettingAccessibilityPage() {
     val context = LocalContext.current
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     // Re-read the live service singleton on every recomposition; when it appears or
     // disappears, the running flag and lastActions flow recollect themselves.
@@ -98,7 +98,7 @@ fun SettingAccessibilityPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_accessibility)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

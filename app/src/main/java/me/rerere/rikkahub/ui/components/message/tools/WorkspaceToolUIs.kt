@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -47,6 +46,7 @@ import me.rerere.rikkahub.ui.components.richtext.parseDiffStats
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.generateUnifiedDiff
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
+import androidx.compose.foundation.layout.heightIn
 
 /**
  * 工作空间编辑文件: 摘要显示增删统计与精简 diff, 详情为完整 diff view
@@ -151,7 +151,7 @@ object EditFileToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -342,7 +342,7 @@ object WriteFileToolUI : ToolUIRenderer {
             Column(
                 modifier =
                     Modifier
-                        .fillMaxHeight(0.8f)
+                        .heightIn(max = 480.dp)
                         .padding(16.dp)
                         .verticalScroll(rememberScrollState()),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -485,7 +485,7 @@ internal fun FileContentPreview(
     Column(
         modifier =
             Modifier
-                .fillMaxHeight(0.8f)
+                .heightIn(max = 480.dp)
                 .padding(16.dp)
                 .verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -615,7 +615,7 @@ object ShellToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),

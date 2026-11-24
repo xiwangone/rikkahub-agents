@@ -79,6 +79,11 @@ import me.rerere.rikkahub.ui.components.setting.SettingTextField
 import me.rerere.rikkahub.ui.hooks.useEditState
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomBodies
 import me.rerere.rikkahub.ui.pages.assistant.detail.CustomHeaders
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.derivedStateOf
+import androidx.compose.runtime.mutableStateMapOf
+import androidx.compose.runtime.produceState
+import me.rerere.rikkahub.utils.baseUrlOrNull
 
 private enum class ModelFormTab(
     override val icon: ImageVector,
@@ -281,6 +286,7 @@ internal fun AddModelButton(
     onRemoveModel: (Model) -> Unit,
     parentProvider: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit,
+    onUpdateProviderTransform: (((ProviderSetting) -> ProviderSetting) -> Unit)? = null,
     iconOverride: String? = null,
 ) {
     val dialogState = useEditState<Model> {
@@ -298,33 +304,40 @@ internal fun AddModelButton(
             error = error,
             onRefresh = onRefresh,
             selectedModels = selectedModels,
+            providerName = parentProvider.name,
+            baseUrl = parentProvider.baseUrlOrNull(),
+            iconOverride = iconOverride,
             onModelSelected = { model ->
                 onAddModel(model.enrichCapabilities())
             },
             onModelDeselected = { model ->
                 onRemoveModel(model)
             },
-            onAllModelSelected = {
-                onUpdateProvider(
-                    parentProvider.copyProvider(
-                        models =
-                            parentProvider.models +
-                                it
-                                    .filter { model ->
-                                        parentProvider.models.none { existing -> existing.modelId == model.modelId }
-                                    }.map { model -> model.enrichCapabilities() },
-                    ),
-                )
+            onAllModelSelected = { batch ->
+                val applyAll: (ProviderSetting) -> ProviderSetting = { current ->
+                    val existingIds = current.models.mapTo(HashSet()) { it.modelId }
+                    current.copyProvider(
+                        models = current.models + batch.filter { it.modelId !in existingIds }.map { it.enrichCapabilities() },
+                    )
+                }
+                if (onUpdateProviderTransform != null) {
+                    onUpdateProviderTransform(applyAll)
+                } else {
+                    onUpdateProvider(applyAll(parentProvider))
+                }
             },
             onAllModelDeselected = { filteredModels ->
-                onUpdateProvider(
-                    parentProvider.copyProvider(
-                        models =
-                            parentProvider.models.filter { model ->
-                                filteredModels.none { filtered -> filtered.modelId == model.modelId }
-                            },
-                    ),
-                )
+                val applyClear: (ProviderSetting) -> ProviderSetting = { current ->
+                    val removeIds = filteredModels.mapTo(HashSet()) { it.modelId }
+                    current.copyProvider(
+                        models = current.models.filterNot { it.modelId in removeIds },
+                    )
+                }
+                if (onUpdateProviderTransform != null) {
+                    onUpdateProviderTransform(applyClear)
+                } else {
+                    onUpdateProvider(applyClear(parentProvider))
+                }
             },
         )
 
@@ -449,6 +462,9 @@ internal fun ModelPicker(
     error: String? = null,
     onRefresh: () -> Unit = {},
     selectedModels: List<Model>,
+    providerName: String? = null,
+    baseUrl: String? = null,
+    iconOverride: String? = null,
     onModelSelected: (Model) -> Unit,
     onModelDeselected: (Model) -> Unit,
     onAllModelSelected: (List<Model>) -> Unit,
@@ -465,7 +481,17 @@ internal fun ModelPicker(
                 ),
         ) {
             var filterText by remember { mutableStateOf("") }
-            val filteredModels = models.filterByKeywords(filterText)
+            val filteredModels = remember(models, filterText) { models.filterByKeywords(filterText) }
+            val selectedIdSet = remember(selectedModels) { selectedModels.mapTo(HashSet()) { it.modelId } }
+            val optimisticOverrides = remember { mutableStateMapOf<String, Boolean>() }
+            LaunchedEffect(selectedIdSet) {
+                optimisticOverrides.entries.removeAll { (id, targetState) -> (id in selectedIdSet) == targetState }
+            }
+            val enrichedMap by produceState(initialValue = emptyMap<String, Model>(), models) {
+                value = kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                    models.associate { m -> m.modelId to m.enrichCapabilities() }
+                }
+            }
             Column(
                 modifier =
                     Modifier
@@ -496,10 +522,14 @@ internal fun ModelPicker(
                         Icon(HugeIcons.Refresh01, contentDescription = stringResource(R.string.setting_provider_model_list_refresh))
                     }
 
-                    val unselectedCount =
-                        filteredModels.count { model ->
-                            selectedModels.none { it.modelId == model.modelId }
+                    val unselectedCount by remember(filteredModels, selectedIdSet) {
+                        derivedStateOf {
+                            filteredModels.count { model ->
+                                val isAdded = optimisticOverrides[model.modelId] ?: (model.modelId in selectedIdSet)
+                                !isAdded
+                            }
                         }
+                    }
 
                     TextButton(
                         onClick = {
@@ -606,6 +636,9 @@ internal fun ModelPicker(
                                 AutoModelIcon(
                                     modelId = it.modelId,
                                     modifier = Modifier.size(30.dp),
+                                    providerName = providerName,
+                                    iconOverride = iconOverride,
+                                    baseUrl = baseUrl,
                                 )
                                 Column(
                                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -620,7 +653,7 @@ internal fun ModelPicker(
                                         verticalAlignment = Alignment.CenterVertically,
                                         horizontalArrangement = Arrangement.spacedBy(2.dp),
                                     ) {
-                                        val modelMeta = remember(it) { it.enrichCapabilities() }
+                                        val modelMeta = enrichedMap[it.modelId] ?: it
                                         ModelModalityTag(
                                             model = modelMeta,
                                         )
@@ -629,17 +662,15 @@ internal fun ModelPicker(
                                         )
                                     }
                                 }
-                                val added = selectedModels.any { model -> model.modelId == it.modelId }
+                                val added = optimisticOverrides[it.modelId] ?: (it.modelId in selectedIdSet)
                                 FilledTonalIconToggleButton(
                                     checked = added,
                                     onCheckedChange = { checked ->
+                                        optimisticOverrides[it.modelId] = checked
                                         if (checked) {
-                                            onModelSelected(it)
+                                            onModelSelected(enrichedMap[it.modelId] ?: it)
                                         } else {
-                                            onModelDeselected(
-                                                selectedModels.firstOrNull { model -> model.modelId == it.modelId }
-                                                    ?: it,
-                                            )
+                                            onModelDeselected(it)
                                         }
                                     },
                                 ) {
@@ -838,18 +869,51 @@ fun ModalAbilitySelector(
  * 工具与推理：厂商侧能力通常已开，只是名字对不上登记表；用户在表单里确认或取消即可。
  * 只影响新添加的模型（添加流程与选择器标签展示调用这里），已存模型编辑时不走这里。
  */
+private val NON_CHAT_MODEL_PATTERN = Regex(
+    "(?:^|[/\\-_.:])(flux|bge|embed|embedding|rerank|reranker|tts|aura|whisper|speech|cosyvoice|sensevoice|asr|dall-?e|imagen|midjourney|stable-diffusion|sdxl|sd3|kling|wan|jimeng|kolors|z-image|moss-image|image-edit|sora|veo|cogview|cogvideo|seedance|vidu|hailuo|ocr)(?:$|[/\\-_.:0-9])",
+    RegexOption.IGNORE_CASE,
+)
+
+private val EMBEDDING_MODEL_PATTERN = Regex(
+    "(?:^|[/\\-_.:])(bge|embed|embedding|rerank|reranker)(?:$|[/\\-_.:0-9])",
+    RegexOption.IGNORE_CASE,
+)
+
+private val IMAGE_GEN_MODEL_PATTERN = Regex(
+    "(?:^|[/\\-_.:])(flux|dall-?e|imagen|midjourney|stable-diffusion|sdxl|sd3|cogview|jimeng|kolors|z-image|moss-image|image-edit|wan[0-9.]*-image)(?:$|[/\\-_.:0-9])",
+    RegexOption.IGNORE_CASE,
+)
+
 private fun Model.enrichCapabilities(): Model =
     if (supportedParameters.isNotEmpty()) {
         this
     } else {
+        val inputs = ModelRegistry.MODEL_INPUT_MODALITIES.getData(modelId)
+        val outputs = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(modelId)
         val abilities = ModelRegistry.MODEL_ABILITIES.getData(modelId)
+        val isNonChatOrMedia =
+            NON_CHAT_MODEL_PATTERN.containsMatchIn(modelId) ||
+                (Modality.IMAGE in outputs && abilities.isEmpty()) ||
+                Modality.VIDEO in outputs
+        val inferredType =
+            when {
+                type != ModelType.CHAT -> type
+                EMBEDDING_MODEL_PATTERN.containsMatchIn(modelId) -> ModelType.EMBEDDING
+                Modality.VIDEO in outputs -> ModelType.VIDEO
+                IMAGE_GEN_MODEL_PATTERN.containsMatchIn(modelId) -> ModelType.IMAGE
+                else -> type
+            }
         copy(
-            inputModalities = ModelRegistry.MODEL_INPUT_MODALITIES.getData(modelId),
-            outputModalities = ModelRegistry.MODEL_OUTPUT_MODALITIES.getData(modelId),
-            abilities = if (abilities.isEmpty() && type == ModelType.CHAT) {
-                listOf(ModelAbility.TOOL, ModelAbility.REASONING)
-            } else {
-                abilities
-            },
+            type = inferredType,
+            inputModalities = inputs,
+            outputModalities = outputs,
+            abilities =
+                if (isNonChatOrMedia || inferredType != ModelType.CHAT) {
+                    emptyList()
+                } else if (abilities.isEmpty()) {
+                    listOf(ModelAbility.TOOL, ModelAbility.REASONING)
+                } else {
+                    abilities
+                },
         )
     }

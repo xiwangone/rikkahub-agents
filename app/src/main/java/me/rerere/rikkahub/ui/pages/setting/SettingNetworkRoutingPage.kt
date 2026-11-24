@@ -13,7 +13,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.ListItemDefaults
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupScope
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ListSelectableItem
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 /**
  * Network Route settings page (Minis "Network Route" page, interaction model
@@ -66,7 +66,7 @@ fun SettingNetworkRoutingPage(vm: SettingVM = koinViewModel()) {
     val routing = net.routing
     val proxyConfigured = net.proxyUrl.toProxyOrNull() != null
     val webViewSupported = remember { WebViewProxy.isSupported() }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     // On-device providers make no network requests, so they have no route to set.
     val routableProviders = settings.providers.filterNot(::isOnDeviceProvider)
     val customizedProviders =
@@ -97,7 +97,7 @@ fun SettingNetworkRoutingPage(vm: SettingVM = koinViewModel()) {
             .fillMaxSize()
             .nestedScroll(scrollBehavior.nestedScrollConnection),
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_network_routing_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

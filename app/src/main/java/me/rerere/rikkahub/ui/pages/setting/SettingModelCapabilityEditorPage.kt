@@ -16,7 +16,6 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -71,6 +70,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 /**
  * 模型能力可视化编辑器。
@@ -85,7 +85,7 @@ fun SettingModelCapabilityEditorPage(vm: SettingVM = koinViewModel()) {
     val overrides = koinInject<ModelCapabilityOverrides>()
     val mcpManager = koinInject<LocalMcpServerManager>()
     val mcpState by mcpManager.state.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var query by remember { mutableStateOf("") }
     var customMatch by remember { mutableStateOf("") }
@@ -112,7 +112,7 @@ fun SettingModelCapabilityEditorPage(vm: SettingVM = koinViewModel()) {
     Scaffold(
         containerColor = CustomColors.topBarColors.containerColor,
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_model_page_capability_editor_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

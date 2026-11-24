@@ -458,14 +458,21 @@ private fun ColumnScope.ModelList(
     // 拖动排序时先改这份本地顺序，松手再写回设置。设置是异步回到界面的，拖到边缘自动滚动时拖拽库每帧都会按
     // 旧布局再算一次移动，直接改设置会让顺序被反复改回去，看起来就是来回抽搐
     var draggingFavoriteOrder by remember { mutableStateOf<List<Uuid>?>(null) }
+    val favoriteIdSet =
+        remember(settings.value.favoriteModels) {
+            settings.value.favoriteModels.toHashSet()
+        }
+    val activeFavoriteIds = draggingFavoriteOrder ?: settings.value.favoriteModels
     val favoriteModels =
-        (draggingFavoriteOrder ?: settings.value.favoriteModels).mapNotNull { modelId ->
-            val model = settings.value.providers.findModelById(modelId) ?: return@mapNotNull null
-            if (!model.matchesPickerType(modelType)) return@mapNotNull null
-            val provider =
-                model.findProvider(providers = settings.value.providers, checkOverwrite = false)
-                    ?: return@mapNotNull null
-            model to provider
+        remember(activeFavoriteIds, settings.value.providers, modelType) {
+            activeFavoriteIds.mapNotNull { modelId ->
+                val model = settings.value.providers.findModelById(modelId) ?: return@mapNotNull null
+                if (!model.matchesPickerType(modelType)) return@mapNotNull null
+                val provider =
+                    model.findProvider(providers = settings.value.providers, checkOverwrite = false)
+                        ?: return@mapNotNull null
+                model to provider
+            }
         }
 
     var searchKeywords by remember { mutableStateOf("") }
@@ -491,11 +498,15 @@ private fun ColumnScope.ModelList(
         }
 
     val searchFilteredModelsByProvider =
-        remember(providers, modelType, searchKeywords) {
-            providers.associate { provider ->
-                provider.id to
-                    provider.models.fastFilter { it.matchesPickerType(modelType) }
-                        .filterByKeywords(searchKeywords)
+        remember(typeFilteredModelsByProvider, providers, searchKeywords) {
+            if (searchKeywords.isBlank()) {
+                typeFilteredModelsByProvider
+            } else {
+                providers.associate { provider ->
+                    provider.id to
+                        typeFilteredModelsByProvider[provider.id].orEmpty()
+                            .filterByKeywords(searchKeywords)
+                }
             }
         }
 
@@ -739,7 +750,7 @@ private fun ColumnScope.ModelList(
                 items = if (searchKeywords.isNotBlank() || providerSetting.id.toString() !in collapsedProviderIds) searchFilteredModelsByProvider[providerSetting.id].orEmpty() else emptyList(),
                 key = { it.id },
             ) { model ->
-                val favorite = settings.value.favoriteModels.contains(model.id)
+                val favorite = model.id in favoriteIdSet
                 ModelItem(
                     model = model,
                     onSelect = onSelect,

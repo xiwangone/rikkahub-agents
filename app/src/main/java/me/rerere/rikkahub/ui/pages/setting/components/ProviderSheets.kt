@@ -121,7 +121,7 @@ internal fun <T> ProviderEditSheet(
             modifier =
                 Modifier
                     .fillMaxWidth()
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.75f)
                     .padding(horizontal = 16.dp)
                     .padding(bottom = 16.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),

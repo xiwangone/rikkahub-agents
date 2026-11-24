@@ -12,7 +12,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
@@ -50,6 +49,7 @@ import me.rerere.rikkahub.utils.base64Encode
 import me.rerere.rikkahub.utils.formatRelativeAgo
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun ScheduledJobDetailScreen(
@@ -60,7 +60,7 @@ fun ScheduledJobDetailScreen(
     val ctx = LocalContext.current
     val resources = LocalResources.current
     val scope = rememberCoroutineScope()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val snackbarHostState = remember { SnackbarHostState() }
 
     var job by remember { mutableStateOf<ScheduledJobEntity?>(null) }
@@ -76,7 +76,7 @@ fun ScheduledJobDetailScreen(
     if (current == null) {
         Scaffold(
             topBar = {
-                LargeFlexibleTopAppBar(
+                TopAppBar(
                     title = { Text(stringResource(R.string.setting_page_scheduled_jobs)) },
                     navigationIcon = { BackButton() },
                     colors = CustomColors.topBarColors,
@@ -121,7 +121,7 @@ fun ScheduledJobDetailScreen(
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(current.name) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

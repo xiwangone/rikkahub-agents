@@ -212,7 +212,7 @@ internal fun FullScreenEditor(
                 modifier =
                     Modifier
                         .widthIn(max = 800.dp)
-                        .fillMaxHeight(0.9f),
+                        .fillMaxHeight(0.75f),
                 shape = RoundedCornerShape(topStart = 16.dp, topEnd = 16.dp),
             ) {
                 Column(

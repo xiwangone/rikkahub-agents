@@ -18,7 +18,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -65,6 +64,7 @@ import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 class TunnelDiagnosticsViewModel(
     private val settingsStore: SettingsStore,
@@ -142,7 +142,7 @@ fun TunnelDiagnosticsPage(vm: TunnelDiagnosticsViewModel = koinViewModel()) {
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     var showResetDialog by remember { mutableStateOf(false) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val titles = DiagItemId.entries.associateWith { id -> stringResource(itemTitleRes(id)) }
     val copiedMsg = stringResource(R.string.tunnel_diag_copied)
     val resetDoneMsg = stringResource(R.string.tunnel_diag_reset_done)
@@ -161,7 +161,7 @@ fun TunnelDiagnosticsPage(vm: TunnelDiagnosticsViewModel = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.tunnel_diag_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

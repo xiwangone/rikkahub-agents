@@ -103,6 +103,8 @@ import me.rerere.rikkahub.utils.urlDecode
 import java.util.Locale
 import kotlin.time.Duration.Companion.milliseconds
 
+private val EMPTY_BASE64_IMAGE_REGEX = Regex("^data:image/[^;]*;base64,\\s*$")
+
 @Composable
 fun ChatMessage(
     node: MessageNode,
@@ -584,7 +586,7 @@ private fun MessagePartsBlock(
 
                         is UIMessagePart.Image -> {
                             val isImageLoading =
-                                part.url.isBlank() || part.url.matches(Regex("^data:image/[^;]*;base64,\\s*$"))
+                                part.url.isBlank() || EMPTY_BASE64_IMAGE_REGEX.matches(part.url)
                             if (isImageLoading) {
                                 Box(
                                     modifier =

@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.components.message.tools
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -57,6 +56,7 @@ import java.time.LocalDateTime
 import java.time.OffsetDateTime
 import java.time.ZonedDateTime
 import java.time.format.DateTimeFormatter
+import androidx.compose.foundation.layout.heightIn
 
 
 /**
@@ -376,7 +376,7 @@ private fun ScreenTimePreview(
     LazyColumn(
         modifier =
             Modifier
-                .fillMaxHeight(0.8f)
+                .heightIn(max = 480.dp)
                 .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {

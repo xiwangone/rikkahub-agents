@@ -2,7 +2,6 @@ package me.rerere.rikkahub.ui.components.message.tools
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
@@ -31,6 +30,7 @@ import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.DiffView
 import me.rerere.rikkahub.ui.components.richtext.HighlightCodeBlock
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
+import androidx.compose.foundation.layout.heightIn
 
 
 /**
@@ -121,7 +121,7 @@ object WorkspaceRunBackgroundToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -188,7 +188,7 @@ object WorkspaceBackgroundStatusToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(10.dp),
@@ -292,7 +292,7 @@ object WorkspaceBackgroundKillToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),

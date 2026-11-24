@@ -25,7 +25,6 @@ import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVertica
 import androidx.compose.material3.HorizontalFloatingToolbar
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -86,6 +85,7 @@ import org.koin.compose.koinInject
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.TopAppBar
 
 /**
  * #36: named sub-agent profiles - a name, description, custom system prompt and model,
@@ -120,7 +120,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
     val workspaceRepository: WorkspaceRepository = koinInject()
     val workspaces by workspaceRepository.listFlow().collectAsStateWithLifecycle(initialValue = emptyList())
     val navController = LocalNavController.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val editState = useEditState<SubAgentProfile> { edited ->
         vm.updateSettings { current ->
             val index = current.subAgents.indexOfFirst { it.id == edited.id }
@@ -135,7 +135,7 @@ fun SettingSubAgentsPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_sub_agents_page_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

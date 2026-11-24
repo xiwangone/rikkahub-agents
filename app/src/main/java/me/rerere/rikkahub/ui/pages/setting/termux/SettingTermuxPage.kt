@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -53,6 +52,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 /**
  * Settings -> Termux. Four sections:
@@ -88,7 +88,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
     val toaster = LocalToaster.current
     val scope = rememberCoroutineScope()
     val config by vm.config.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     // State-backed so the UI refreshes after permission grants or verify actions.
     var integrationState by remember { mutableStateOf(TermuxIntegration.State.NOT_INSTALLED) }
@@ -120,7 +120,7 @@ fun SettingTermuxPage(vm: SettingTermuxViewModel = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_termux_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

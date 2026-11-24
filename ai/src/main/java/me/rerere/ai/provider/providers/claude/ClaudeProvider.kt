@@ -317,11 +317,13 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 .get()
                 .build()
 
-            val response = client.shortRequestClient().newCall(request).execute()
-            val bodyStr = response.body.string()
-            if (!response.isSuccessful) {
-                logListModelsFailure(providerSetting, request, response.code, bodyStr)
-                error("Failed to get models: ${response.code} $bodyStr")
+            val bodyStr = client.shortRequestClient().newCall(request).execute().use { response ->
+                val text = response.body.string()
+                if (!response.isSuccessful) {
+                    logListModelsFailure(providerSetting, request, response.code, text)
+                    error("Failed to get models: ${response.code} $text")
+                }
+                text
             }
 
             val bodyJson = json.parseToJsonElement(bodyStr).jsonObject

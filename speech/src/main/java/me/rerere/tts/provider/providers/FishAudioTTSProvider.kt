@@ -66,19 +66,19 @@ class FishAudioTTSProvider : TTSProvider<TTSProviderSetting.FishAudio> {
                     .post(requestBody.toString().toRequestBody("application/json".toMediaType()))
                     .build()
 
-            val response = httpClient.newCall(httpRequest).execute()
+            val audioData = httpClient.newCall(httpRequest).execute().use { response ->
+                if (!response.isSuccessful) {
+                    val errorBody = response.body?.string()
+                    AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
+                    AppLogger.e(TAG, "generateSpeech: $errorBody")
+                    throw TTSProviderException(
+                        message = "Fish Audio TTS request failed: ${response.code} ${response.message}",
+                        statusCode = response.code,
+                    )
+                }
 
-            if (!response.isSuccessful) {
-                val errorBody = response.body?.string()
-                AppLogger.e(TAG, "generateSpeech: ${response.code} ${response.message}")
-                AppLogger.e(TAG, "generateSpeech: $errorBody")
-                throw TTSProviderException(
-                    message = "Fish Audio TTS request failed: ${response.code} ${response.message}",
-                    statusCode = response.code,
-                )
+                response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
             }
-
-            val audioData = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
 
             val audioFormat =
                 when (providerSetting.format.lowercase()) {

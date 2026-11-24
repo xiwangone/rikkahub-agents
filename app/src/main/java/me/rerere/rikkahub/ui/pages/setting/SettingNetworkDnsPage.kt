@@ -20,7 +20,6 @@ import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
@@ -63,6 +62,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import me.rerere.workspace.ShellDnsConfig
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 /** DNS 弹窗草稿：模式 + 各模式地址 + 回退 / IPv6 开关 + 测试域名（打开弹窗时从已保存值同步初始化，取消即丢弃）。 */
 internal data class DnsDraft(
@@ -99,7 +99,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
     val savedShellDnsText = remember(settings.shellDnsServers) { settings.shellDnsServers.joinToString("\n") }
     var shellDnsModeDraft by remember(savedShellDnsMode) { mutableStateOf(savedShellDnsMode) }
     var shellDnsServersDraft by remember(savedShellDnsText) { mutableStateOf(savedShellDnsText) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val toaster = LocalToaster.current
@@ -428,7 +428,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_preferences_network_dns_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

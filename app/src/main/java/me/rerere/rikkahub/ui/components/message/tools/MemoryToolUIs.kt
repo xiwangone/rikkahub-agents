@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.components.message.tools
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -46,6 +45,7 @@ import me.rerere.rikkahub.data.repository.MemoryRepository
 import me.rerere.rikkahub.ui.modifier.shimmer
 import me.rerere.rikkahub.utils.jsonPrimitiveOrNull
 import org.koin.compose.koinInject
+import androidx.compose.foundation.layout.heightIn
 
 
 /**
@@ -168,7 +168,7 @@ object MemoryToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),
@@ -365,7 +365,7 @@ object MemorySearchToolUI : ToolUIRenderer {
         Column(
             modifier =
                 Modifier
-                    .fillMaxHeight(0.8f)
+                    .heightIn(max = 480.dp)
                     .padding(16.dp)
                     .verticalScroll(rememberScrollState()),
             verticalArrangement = Arrangement.spacedBy(8.dp),

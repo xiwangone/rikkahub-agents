@@ -25,7 +25,6 @@ import androidx.compose.material3.FilledTonalIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.IconButtonDefaults
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import android.content.Intent
 import me.rerere.rikkahub.service.LocalMcpServerService
@@ -89,6 +88,7 @@ import me.rerere.rikkahub.ui.theme.extendColors
 import me.rerere.rikkahub.utils.writeClipboardText
 import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
@@ -139,10 +139,10 @@ fun SettingMcpPage(vm: SettingVM = koinViewModel()) {
     var showProfileDialog by remember { mutableStateOf(false) }
     var editingProfile by remember { mutableStateOf<LocalMcpProfile?>(null) }
     var showImportDialog by remember { mutableStateOf(false) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(stringResource(R.string.setting_mcp_page_title))
                 },

@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
 import kotlin.math.roundToInt
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
@@ -59,7 +59,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
         mutableStateOf(net.userAgent)
     }
     val defaultUserAgent = "RikkaHub-Agents-Android/${BuildConfig.VERSION_NAME}"
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     fun updateUserAgent(value: String) {
         userAgent = value
@@ -72,7 +72,7 @@ fun SettingPreferencesNetworkPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_preferences_network)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

@@ -37,7 +37,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.RadioButton
@@ -82,6 +81,7 @@ import java.time.Instant
 import org.koin.compose.koinInject
 import java.io.File
 import java.util.concurrent.TimeUnit
+import androidx.compose.material3.TopAppBar
 
 /** 文件按 MIME 大类分：非图片文件以前全显示同一个图片图标，扫一眼分不清类型。 */
 internal enum class FileTypeCategory {
@@ -138,7 +138,7 @@ private fun fileTypeCategoryLabel(mimeType: String): Int =
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val gridState = rememberLazyStaggeredGridState()
     val scope = rememberCoroutineScope()
     val toaster = LocalToaster.current
@@ -325,7 +325,7 @@ fun SettingFilesPage(filesManager: FilesManager = koinInject()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_files_page_title)) },
                 navigationIcon = { BackButton() },
                 actions = {

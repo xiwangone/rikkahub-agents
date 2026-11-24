@@ -201,7 +201,7 @@ internal fun AddTTSProviderButton(onAdd: (TTSProviderSetting) -> Unit) {
                     Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .fillMaxHeight(0.8f)
+                        .fillMaxHeight(0.72f)
                         .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {
@@ -271,7 +271,7 @@ internal fun TTSProviderEditSheet(
                 Modifier
                     .fillMaxWidth()
                     .padding(16.dp)
-                    .fillMaxHeight(0.8f)
+                    .fillMaxHeight(0.72f)
                     .imePadding(),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {

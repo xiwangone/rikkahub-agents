@@ -84,22 +84,23 @@ class StepTTSProvider : TTSProvider<TTSProviderSetting.Step> {
                     .post(requestBody.toString().toRequestBody(JSON_MEDIA_TYPE))
                     .build()
 
-            val response = httpClient.newCall(httpRequest).execute()
-            if (!response.isSuccessful) {
-                // 把错误响应体读出来方便排查 (4xx 通常返回 JSON 错误信息)
-                val errorBody = runCatching { response.body?.string() }.getOrNull().orEmpty()
-                throw TTSProviderException(
-                    message = "Step TTS request failed: HTTP ${response.code} ${response.message}. body=$errorBody",
-                    statusCode = response.code,
-                )
-            }
+            val (code, audioBytes) = httpClient.newCall(httpRequest).execute().use { response ->
+                if (!response.isSuccessful) {
+                    // 把错误响应体读出来方便排查 (4xx 通常返回 JSON 错误信息)
+                    val errorBody = runCatching { response.body?.string() }.getOrNull().orEmpty()
+                    throw TTSProviderException(
+                        message = "Step TTS request failed: HTTP ${response.code} ${response.message}. body=$errorBody",
+                        statusCode = response.code,
+                    )
+                }
 
-            val audioBytes = response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
+                response.code to response.body.readBoundedBytes(MAX_TTS_AUDIO_BYTES)
+            }
 
             if (audioBytes.isEmpty()) {
                 throw TTSProviderException(
                     message = "Step TTS returned 0 bytes",
-                    statusCode = response.code,
+                    statusCode = code,
                 )
             }
 

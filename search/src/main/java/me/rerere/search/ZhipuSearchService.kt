@@ -82,9 +82,14 @@ object ZhipuSearchService : SearchService<SearchServiceOptions.ZhipuOptions> {
                         .addHeader("Authorization", "Bearer ${serviceOptions.apiKey}")
                         .build()
 
-                val response = httpClient.newCall(request).execute()
-                if (response.isSuccessful) {
-                    val bodyRaw = boundedBodyOrFail(response)
+                val (isOk, code, bodyRaw) = httpClient.newCall(request).execute().use { httpResponse ->
+                    if (httpResponse.isSuccessful) {
+                        Triple(true, httpResponse.code, boundedBodyOrFail(httpResponse))
+                    } else {
+                        Triple(false, httpResponse.code, boundedBody(httpResponse, SEARCH_API_BODY_CAP))
+                    }
+                }
+                if (isOk) {
                     val response =
                         runCatching {
                             json.decodeFromString<ZhipuDto>(bodyRaw)
@@ -107,8 +112,8 @@ object ZhipuSearchService : SearchService<SearchServiceOptions.ZhipuOptions> {
                         ),
                     )
                 } else {
-                    AppLogger.w(TAG, "response failed #${response.code}, body: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
-                    error("response failed #${response.code}")
+                    AppLogger.w(TAG, "response failed #$code, body: ${bodyPreview(bodyRaw)}")
+                    error("response failed #$code")
                 }
             }.onFailure { if (it is CancellationException) throw it }
         }

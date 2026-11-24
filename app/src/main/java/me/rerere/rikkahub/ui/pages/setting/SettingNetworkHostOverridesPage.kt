@@ -15,7 +15,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -49,6 +48,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroupIcon
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.utils.plus
 import org.koin.androidx.compose.koinViewModel
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
@@ -58,7 +58,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
     val hostOverrideDrafts = remember { DraftState(emptyList<HostAddressOverride>()) }
     var hostOverrideHostDraft by remember { mutableStateOf("") }
     var hostOverrideAddressDraft by remember { mutableStateOf("") }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     fun saveHostAddressOverrides(entries: List<HostAddressOverride>) {
         vm.updateSettings { current ->
@@ -211,7 +211,7 @@ fun SettingNetworkHostOverridesPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_preferences_network_host_overrides)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

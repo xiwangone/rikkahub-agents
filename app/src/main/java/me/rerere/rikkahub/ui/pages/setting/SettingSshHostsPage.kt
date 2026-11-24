@@ -17,7 +17,6 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledTonalButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
@@ -65,6 +64,7 @@ import me.rerere.rikkahub.ui.components.ui.RikkaConfirmDialog
 import me.rerere.rikkahub.ui.context.LocalNavController
 import me.rerere.rikkahub.ui.theme.CustomColors
 import org.koin.compose.koinInject
+import androidx.compose.material3.TopAppBar
 
 /**
  * SSH 主机管理页（Material 3 Expressive 分组卡片样式）。
@@ -84,7 +84,7 @@ fun SettingSshHostsPage() {
     val loadFailedFormat = stringResource(R.string.setting_ssh_hosts_load_failed)
     val saveFailedFormat = stringResource(R.string.ssh_hosts_save_failed)
     val hostDeletedFormat = stringResource(R.string.setting_ssh_host_deleted)
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var hosts by remember { mutableStateOf<List<SshHostEntity>>(emptyList()) }
     var editing by remember { mutableStateOf<SshHostEntity?>(null) }
@@ -125,7 +125,7 @@ fun SettingSshHostsPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_ssh_hosts_title)) },
                 navigationIcon = { BackButton() },
                 actions = {

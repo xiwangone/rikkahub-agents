@@ -15,7 +15,6 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SegmentedButton
@@ -57,6 +56,7 @@ import me.rerere.rikkahub.utils.plus
 import org.koin.compose.koinInject
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.CredentialType
+import androidx.compose.material3.TopAppBar
 
 /**
  * Global settings for the Telegram bot — bot token, default chat, whitelist, start/stop.
@@ -69,7 +69,7 @@ import me.rerere.rikkahub.data.vault.CredentialType
 fun SettingTelegramPage() {
     val prefs: TelegramBotPreferences = koinInject()
     val cfg by prefs.flow.collectAsStateWithLifecycle(initialValue = TelegramBotConfig())
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
     val toaster = LocalToaster.current
@@ -106,7 +106,7 @@ fun SettingTelegramPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_telegram)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

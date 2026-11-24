@@ -24,6 +24,7 @@ import org.koin.compose.koinInject
 import org.koin.core.component.KoinComponent
 import org.koin.core.component.inject
 import me.rerere.rikkahub.data.log.AppLog
+import kotlinx.coroutines.SupervisorJob
 
 private const val TAG = "TTS"
 
@@ -138,7 +139,7 @@ private class CustomTtsStateImpl(
             )
     }
 
-    private val scope = CoroutineScope(Dispatchers.Main)
+    private val scope = CoroutineScope(SupervisorJob() + Dispatchers.Main)
     private var currentJob: Job? = null
 
     override val isAvailable: StateFlow<Boolean> get() = controller.isAvailable

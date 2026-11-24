@@ -75,6 +75,7 @@ import me.rerere.rikkahub.data.ai.catalog.ModelCatalogRepository
 import java.time.Instant
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
+import androidx.compose.runtime.derivedStateOf
 
 private const val TAG = "SettingProviderModelList"
 
@@ -82,6 +83,7 @@ private const val TAG = "SettingProviderModelList"
 internal fun ModelList(
     providerSetting: ProviderSetting,
     onUpdateProvider: (ProviderSetting) -> Unit,
+    onUpdateProviderTransform: (((ProviderSetting) -> ProviderSetting) -> Unit)? = null,
     selectionMode: Boolean,
     selectedIds: Set<Uuid>,
     onSelectionModeChange: (Boolean) -> Unit,
@@ -150,10 +152,12 @@ internal fun ModelList(
             localModels.addAll(providerSetting.models)
         }
     }
-    // 过滤态只改展示列表，不动 localModels 的全量顺序；未过滤时直接用全量（避免多余拷贝）。
-    val displayedModels =
-        remember(localModels, searchQuery) {
-            if (searchQuery.isBlank()) localModels.toList() else localModels.filterByKeywords(searchQuery)
+    // 必须用 derivedStateOf 追踪 SnapshotStateList 内容变化：remember(localModels) 只看对象引用，会导致新增/删除后不刷新。
+    val displayedModels by
+        remember(searchQuery) {
+            derivedStateOf {
+                if (searchQuery.isBlank()) localModels.toList() else localModels.filterByKeywords(searchQuery)
+            }
         }
     var reorderCommitJob by remember { mutableStateOf<Job?>(null) }
     // 「正在拖动」标志：只给协程读，故意不用 Compose state（手势回调里写 state 会触发重组）
@@ -509,21 +513,38 @@ internal fun ModelList(
                     .align(Alignment.BottomCenter)
                     .offset(y = -ScreenOffset),
         ) {
+            val applyTransform: ((ProviderSetting) -> ProviderSetting) -> Unit = { transform ->
+                if (onUpdateProviderTransform != null) {
+                    onUpdateProviderTransform(transform)
+                } else {
+                    onUpdateProvider(transform(latestProvider))
+                }
+            }
             AddModelButton(
                 models = modelList,
                 loading = modelListLoading,
                 error = modelLoadError,
                 onRefresh = { refreshTrigger++ },
                 selectedModels = providerSetting.models,
-                onAddModel = {
-                    onUpdateProvider(providerSetting.addModel(it))
+                onAddModel = { model ->
+                    applyTransform { current ->
+                        if (current.models.any { existing -> existing.modelId == model.modelId }) {
+                            current
+                        } else {
+                            current.addModel(model)
+                        }
+                    }
                 },
-                onRemoveModel = {
-                    onUpdateProvider(providerSetting.delModel(it))
+                onRemoveModel = { model ->
+                    applyTransform { current ->
+                        val target = current.models.firstOrNull { existing -> existing.modelId == model.modelId }
+                        if (target != null) current.delModel(target) else current
+                    }
                 },
                 expanded = expanded,
                 parentProvider = providerSetting,
                 onUpdateProvider = onUpdateProvider,
+                onUpdateProviderTransform = applyTransform,
                 iconOverride = iconOverride,
             )
         }

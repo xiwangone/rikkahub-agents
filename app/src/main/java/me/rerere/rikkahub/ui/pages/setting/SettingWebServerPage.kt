@@ -18,7 +18,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExtendedFloatingActionButton
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.RadioButton
@@ -71,6 +70,7 @@ import me.rerere.rikkahub.ui.components.setting.request
 import me.rerere.rikkahub.ui.components.setting.NetworkAccessField
 import me.rerere.rikkahub.ui.components.vault.SecretRefField
 import me.rerere.rikkahub.data.vault.CredentialType
+import androidx.compose.material3.TopAppBar
 
 /**
  * 清空密码是否需要先确认：只有“新值为空且身份验证当前开着”时才需要——
@@ -85,7 +85,7 @@ fun SettingWebServerPage() {
     val settingsStore: SettingsStore = koinInject()
     val settings = LocalSettings.current
     val serverState by webServerManager.state.collectAsStateWithLifecycle()
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
@@ -163,7 +163,7 @@ fun SettingWebServerPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_web_server)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

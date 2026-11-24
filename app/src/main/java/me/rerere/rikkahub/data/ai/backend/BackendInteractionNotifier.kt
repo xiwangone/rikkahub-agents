@@ -28,6 +28,7 @@ import me.rerere.ai.ui.AskQuestion
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.vault.VaultProviderKeyRefs
+import kotlinx.coroutines.SupervisorJob
 
 /**
  * Backend 富事件的交互桥：把 serve 的 approval_request / ask_request 转成系统通知，
@@ -85,7 +86,7 @@ class BackendInteractionNotifier(
     private fun syncPendingIds() {
         _pendingIds.value = synchronized(lock) { pendingApprovals.keys.toSet() + pendingAsks.keys.toSet() }
     }
-    private val ioScope = CoroutineScope(Dispatchers.IO)
+    private val ioScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     @Volatile private var receiverRegistered = false
 
     private val receiver = object : BroadcastReceiver() {

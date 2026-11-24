@@ -146,6 +146,11 @@ fun SettingProviderDetailPage(
             current.copy(providers = current.providers.map { if (it.id == newProvider.id) newProvider else it })
         }
     }
+    val onEditTransform: ((ProviderSetting) -> ProviderSetting) -> Unit = { transform ->
+        vm.updateSettings { current ->
+            current.copy(providers = current.providers.map { if (it.id == id) transform(it) else it })
+        }
+    }
     val onDelete = {
         vm.updateSettings { current -> current.copy(providers = current.providers - provider) }
         navController.popBackStack()
@@ -299,6 +304,7 @@ fun SettingProviderDetailPage(
                         SettingProviderModelPage(
                             provider = provider,
                             onEdit = onEdit,
+                            onEditTransform = onEditTransform,
                             selectionMode = selectionMode,
                             selectedIds = selectedIds,
                             onSelectionModeChange = { selectionMode = it },
@@ -560,6 +566,7 @@ private fun SettingProviderConfigPage(
 private fun SettingProviderModelPage(
     provider: ProviderSetting,
     onEdit: (ProviderSetting) -> Unit,
+    onEditTransform: ((ProviderSetting) -> ProviderSetting) -> Unit,
     selectionMode: Boolean,
     selectedIds: Set<Uuid>,
     onSelectionModeChange: (Boolean) -> Unit,
@@ -569,6 +576,7 @@ private fun SettingProviderModelPage(
     ModelList(
         providerSetting = provider,
         onUpdateProvider = onEdit,
+        onUpdateProviderTransform = onEditTransform,
         selectionMode = selectionMode,
         selectedIds = selectedIds,
         onSelectionModeChange = onSelectionModeChange,

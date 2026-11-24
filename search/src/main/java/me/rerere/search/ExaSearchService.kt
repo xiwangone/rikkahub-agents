@@ -121,9 +121,14 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 .addHeader("Authorization", "Bearer $apiKey")
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val bodyRaw = boundedBodyOrFail(response)
+            val (isOk, code, bodyRaw) = httpClient.newCall(request).execute().use { httpResponse ->
+                if (httpResponse.isSuccessful) {
+                    Triple(true, httpResponse.code, boundedBodyOrFail(httpResponse))
+                } else {
+                    Triple(false, httpResponse.code, boundedBody(httpResponse, SEARCH_API_BODY_CAP))
+                }
+            }
+            if (isOk) {
                 val response = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
@@ -134,8 +139,8 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
 
                 return@withContext Result.success(mapSearchResult(response))
             } else {
-                AppLogger.w(TAG, "response failed #${response.code}, body: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
-                error("response failed #${response.code}")
+                AppLogger.w(TAG, "response failed #$code, body: ${bodyPreview(bodyRaw)}")
+                error("response failed #$code")
             }
         }.onFailure { if (it is CancellationException) throw it }
     }
@@ -155,9 +160,14 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
                 .addHeader("Authorization", "Bearer $apiKey")
                 .build()
 
-            val response = httpClient.newCall(request).execute()
-            if (response.isSuccessful) {
-                val bodyRaw = boundedBodyOrFail(response)
+            val (isOk, code, bodyRaw) = httpClient.newCall(request).execute().use { httpResponse ->
+                if (httpResponse.isSuccessful) {
+                    Triple(true, httpResponse.code, boundedBodyOrFail(httpResponse))
+                } else {
+                    Triple(false, httpResponse.code, boundedBody(httpResponse, SEARCH_API_BODY_CAP))
+                }
+            }
+            if (isOk) {
                 val data = runCatching {
                     json.decodeFromString<ExaData>(bodyRaw)
                 }.onFailure {
@@ -168,8 +178,8 @@ object ExaSearchService : SearchService<SearchServiceOptions.ExaOptions> {
 
                 return@withContext Result.success(mapScrapedResult(data))
             } else {
-                AppLogger.w(TAG, "response failed #${response.code}, body: ${bodyPreview(boundedBody(response, SEARCH_API_BODY_CAP))}")
-                error("response failed #${response.code}")
+                AppLogger.w(TAG, "response failed #$code, body: ${bodyPreview(bodyRaw)}")
+                error("response failed #$code")
             }
         }.onFailure { if (it is CancellationException) throw it }
     }

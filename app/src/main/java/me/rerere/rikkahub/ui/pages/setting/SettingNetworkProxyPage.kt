@@ -16,7 +16,6 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
@@ -62,6 +61,7 @@ import org.koin.androidx.compose.koinViewModel
 import org.koin.compose.koinInject
 import java.io.IOException
 import java.util.concurrent.TimeUnit
+import androidx.compose.material3.TopAppBar
 
 private const val PROXY_TEST_URL = "https://www.google.com/generate_204"
 
@@ -94,7 +94,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
     var proxyPasswordVisible by remember { mutableStateOf(false) }
     var proxyDialogVisible by remember { mutableStateOf(false) }
     val proxyUrlInvalid = proxyDraft.draft.url.isNotBlank() && !canTestProxyUrl(proxyDraft.draft.url)
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
     val scope = rememberCoroutineScope()
     val resources = LocalResources.current
     val toaster = LocalToaster.current
@@ -272,7 +272,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_page_preferences_network_proxy)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,

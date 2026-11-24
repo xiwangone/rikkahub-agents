@@ -15,7 +15,6 @@ import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material3.BottomSheetDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.Scaffold
@@ -50,17 +49,18 @@ import me.rerere.tts.provider.TTSProviderSetting
 import org.koin.androidx.compose.koinViewModel
 import sh.calvin.reorderable.ReorderableItem
 import sh.calvin.reorderable.rememberReorderableLazyListState
+import androidx.compose.material3.TopAppBar
 
 @Composable
 fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     val navController = LocalNavController.current
     var editingProvider by remember { mutableStateOf<TTSProviderSetting?>(null) }
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = {
                     Text(text = stringResource(R.string.setting_tts_page_title))
                 },
@@ -181,7 +181,7 @@ fun SettingTTSPage(vm: SettingVM = koinViewModel()) {
                     Modifier
                         .fillMaxWidth()
                         .padding(16.dp)
-                        .fillMaxHeight(0.8f)
+                        .fillMaxHeight(0.72f)
                         .imePadding(),
                 verticalArrangement = Arrangement.spacedBy(16.dp),
             ) {

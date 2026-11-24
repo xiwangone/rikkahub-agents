@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
-import androidx.compose.material3.LargeFlexibleTopAppBar
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -39,6 +38,7 @@ import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.context.LocalToaster
 import me.rerere.rikkahub.ui.theme.CustomColors
 import rikka.shizuku.Shizuku
+import androidx.compose.material3.TopAppBar
 
 // `moe.shizuku.manager` is only the Java namespace / permission prefix, never an installed
 // package; the real application id is `moe.shizuku.privileged.api` (verified with
@@ -57,7 +57,7 @@ fun SettingShizukuPage() {
     val ctx = LocalContext.current
     val resources = LocalResources.current
     val toaster = LocalToaster.current
-    val scrollBehavior = TopAppBarDefaults.exitUntilCollapsedScrollBehavior()
+    val scrollBehavior = TopAppBarDefaults.pinnedScrollBehavior()
 
     var status by remember { mutableStateOf(ShizukuManager.status(ctx)) }
     fun refresh() {
@@ -102,7 +102,7 @@ fun SettingShizukuPage() {
 
     Scaffold(
         topBar = {
-            LargeFlexibleTopAppBar(
+            TopAppBar(
                 title = { Text(stringResource(R.string.setting_shizuku_title)) },
                 navigationIcon = { BackButton() },
                 scrollBehavior = scrollBehavior,
