@@ -285,11 +285,7 @@ internal fun ModelList(
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         val hasBatchTargets =
-                            if (searchQuery.isNotBlank()) {
-                                displayedModels.isNotEmpty()
-                            } else {
-                                providerSetting.models.any { it.type != ModelType.CHAT }
-                            }
+                            batchRemoveTargets(providerSetting, displayedModels, searchQuery).isNotEmpty()
                         if (hasBatchTargets) {
                             TextButton(
                                 onClick = { showBatchRemoveDialog = true },
@@ -579,12 +575,7 @@ internal fun ModelList(
             )
         }
         if (showBatchRemoveDialog) {
-            val targets =
-                if (searchQuery.isNotBlank()) {
-                    displayedModels
-                } else {
-                    providerSetting.models.filter { it.type != ModelType.CHAT }
-                }
+            val targets = batchRemoveTargets(providerSetting, displayedModels, searchQuery)
             val targetIds = targets.mapTo(HashSet(targets.size)) { it.id }
             AlertDialog(
                 onDismissRequest = { showBatchRemoveDialog = false },
@@ -635,6 +626,18 @@ internal fun ModelList(
 }
 
 /** 目录上次更新时间：时间戳为 0 表示尚未拉取，显示占位。 */
+/** 批量移除的目标集：搜索中删「当前筛选结果」，未搜索时删「全部非对话模型」。 */
+internal fun batchRemoveTargets(
+    providerSetting: ProviderSetting,
+    displayedModels: List<Model>,
+    searchQuery: String,
+): List<Model> =
+    if (searchQuery.isNotBlank()) {
+        displayedModels
+    } else {
+        providerSetting.models.filter { it.type != ModelType.CHAT }
+    }
+
 private fun formatCatalogTime(ms: Long): String =
     if (ms <= 0L) {
         "—"

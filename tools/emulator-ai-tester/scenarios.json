@@ -1,20 +1,20 @@
 [
   {"name": "chat_model_picker_search_and_favorite", "goal": "On Chat screen, open the model selector sheet, type a search keyword, toggle favorite star rapidly, clear search, and verify smooth rendering without stale counts."},
   {"name": "chat_drawer_folders_and_history_search", "goal": "Open Chat drawer, scroll conversations, open move-to-folder or history/search page, verify items render cleanly."},
-  {"name": "provider_add_models_immediate_refresh", "goal": "Open Settings -> Providers, select a provider, tap Add Model (+), add a model, verify it appears immediately without exiting and re-entering."},
+  {"name": "provider_add_models_immediate_refresh", "goal": "Precondition: a Mock provider with models must be configured (see README pre-flight). Open Settings -> Providers, select a provider, tap Add Model (+), add a model, verify it appears immediately without exiting and re-entering.", "requires": "mock-provider"},
   {"name": "qiniu_icon_and_non_chat_tags", "goal": "Open Qiniu provider (qiniuyun), verify provider icon is Qiniu logo (not letter Q), and verify embedding/image-edit models do not display TOOL or REASONING badges."},
-  {"name": "provider_batch_remove_dialog", "goal": "In Provider Model List, filter models, verify Batch Remove appears, open confirmation dialog, and cancel cleanly."},
+  {"name": "provider_batch_remove_dialog", "goal": "Precondition: a Mock provider with models must be configured (see README pre-flight). In Provider Model List, filter models, verify Batch Remove appears, open confirmation dialog, and cancel cleanly.", "requires": "mock-provider"},
   {"name": "setting_model_capability_editor", "goal": "Navigate to Settings -> Model -> Capability Editor, verify compact TopAppBar and editable override list."},
   {"name": "assistant_detail_extensions_and_memory", "goal": "Open Assistants -> select an assistant -> navigate to Extensions and Memory subpages, verify compact TopAppBar and memory add dialog scrolls cleanly."},
   {"name": "extensions_prompt_and_lorebook", "goal": "Open Extensions -> Prompts -> Lorebook tab, open an entry editor, verify form fields and back navigation."},
   {"name": "skill_detail_tester_ime_avoidance", "goal": "Open Extensions -> Skills -> select a skill -> open Tester sheet, tap input field to show soft keyboard, verify input stays above keyboard."},
   {"name": "skill_catalog_sources_sheet", "goal": "In Skills page, open Skill Store and Manage Sources sheets, verify status row is not clipped at the bottom."},
-  {"name": "workspace_files_and_editor", "goal": "Open Extensions -> Workspace -> open a workspace -> browse Files tab and verify navigation."},
+  {"name": "workspace_files_and_editor", "goal": "Route: Extensions -> Workspace -> select a workspace -> Files tab. Open Extensions -> Workspace -> select a workspace -> open the Files tab and verify navigation. Stay on the Files tab once there; do not revisit other tabs."},
   {"name": "setting_network_dns_proxy_tunnel", "goal": "Open Settings -> Network -> visit DNS, Proxy, Host Overrides, and Tunnel subpages, verify compact TopAppBar and tunnel bottom sheet scrolling."},
-  {"name": "setting_mcp_and_search_detail", "goal": "Open Settings -> MCP and Search -> open a search provider detail page, verify compact TopAppBar and form layout."},
+  {"name": "setting_mcp_and_search_detail", "goal": "Open Settings -> Search Service -> open a search provider detail page via the card's overflow menu (⋮) -> Edit, verify compact TopAppBar and form layout. Only pass after the search provider detail page is visible (its 'Test Search' section must be on screen); do not pass from any other page.", "assert_contains": ["Test Search"]},
   {"name": "setting_speech_tts_and_asr", "goal": "Open Settings -> Speech / TTS, switch between TTS and ASR tabs, verify bottom sheet height and drag handles."},
-  {"name": "setting_vault_credentials", "goal": "Open Settings -> Vault, unlock or view credentials page, verify list layout and add/search controls."},
+  {"name": "setting_vault_credentials", "goal": "Open Settings -> Vault, tap Unlock, enter the 6-digit PIN 123456, tap CONFIRM, then verify list layout and add/search controls."},
   {"name": "setting_scheduled_jobs_and_workflows", "goal": "Open Scheduled Jobs and Workflows, open a detail page, verify compact TopAppBar and cron summary rendering."},
-  {"name": "setting_backup_s3_and_webdav", "goal": "Open Backup page, switch between S3, WebDAV, and Import/Export tabs, verify scroll and form fields."},
-  {"name": "app_log_json_tree_light_dark", "goal": "Open App Log / Request Log page, open a log detail bottom sheet containing JsonTree in light theme, verify syntax colors are high-contrast and readable."}
+  {"name": "setting_backup_s3_and_webdav", "goal": "Open Backup page, visit each tab exactly once (S3, then WebDAV, then Import/Export), verify scroll and form fields. Once a tab is verified, pass immediately without switching back to an earlier tab."},
+  {"name": "app_log_json_tree_light_dark", "goal": "Precondition: a Mock provider must be configured and at least one request must be logged (see README pre-flight). Open App Log / Request Log page, open a log detail bottom sheet containing JsonTree in light theme, verify syntax colors are high-contrast and readable.", "requires": "mock-provider"}
 ]

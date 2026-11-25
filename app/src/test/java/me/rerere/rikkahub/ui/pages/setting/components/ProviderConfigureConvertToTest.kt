@@ -113,4 +113,33 @@ class ProviderConfigureConvertToTest {
         val converted = original.convertTo("openai") as ProviderSetting.OpenAI
         assertEquals("not-a-url", converted.baseUrl)
     }
+
+    @Test
+    fun `convertTo should switch to local llamacpp like local litert`() {
+        val original = ProviderSetting.OpenAI(
+            name = "My Provider",
+            apiKey = "some-key",
+            baseUrl = "https://api.openai.com/v1",
+            models = listOf(Model(id = Uuid.random(), modelId = "gpt-custom", displayName = "GPT Custom")),
+            customHeaders = listOf(CustomHeader("User-Agent", "test-agent")),
+        )
+
+        val converted = original.convertTo("local_llamacpp") as ProviderSetting.LlamaCppLocal
+        assertEquals(original.id, converted.id)
+        assertEquals(original.enabled, converted.enabled)
+        assertEquals(original.name, converted.name)
+        assertEquals(emptyList<Model>(), converted.models)
+        assertEquals(original.balanceOption, converted.balanceOption)
+        assertEquals(original.builtIn, converted.builtIn)
+
+        // Parity with the local_litert arm: same source converts the same way,
+        // including dropping custom headers (the local arms do not carry them over).
+        val litert = original.convertTo("local_litert") as ProviderSetting.LiteRtLocal
+        assertEquals(litert.id, converted.id)
+        assertEquals(litert.enabled, converted.enabled)
+        assertEquals(litert.name, converted.name)
+        assertEquals(emptyList<Model>(), litert.models)
+        assertEquals(emptyList<CustomHeader>(), converted.customHeaders)
+        assertEquals(litert.customHeaders, converted.customHeaders)
+    }
 }

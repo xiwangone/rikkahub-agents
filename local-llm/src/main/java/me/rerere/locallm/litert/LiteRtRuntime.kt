@@ -7,7 +7,8 @@ import android.os.Build
 import android.os.PerformanceHintManager
 import android.os.Process
 import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Capabilities
+import com.google.ai.edge.litertlm.LlmCapability
+import com.google.ai.edge.litertlm.ModelInfo
 import com.google.ai.edge.litertlm.Content
 import com.google.ai.edge.litertlm.Contents
 import com.google.ai.edge.litertlm.Conversation
@@ -485,7 +486,7 @@ class LiteRtRuntime(private val context: Context) {
 
         // Probe the file for speculative-decoding support BEFORE building the engine.
         val supportsSpeculativeDecoding = try {
-            Capabilities(modelPath).use { it.hasSpeculativeDecodingSupport() }
+            ModelInfo.from(modelPath).use { (it as? LlmCapability)?.hasSpeculativeDecodingSupport() == true }
         // cancel-guard-ok: Capabilities 探测非挂起，try 内无挂起点
         } catch (t: Throwable) {
             // A probe failure is not the same as "file does not support it": surface it
@@ -1076,11 +1077,31 @@ class LiteRtRuntime(private val context: Context) {
         idleTeardownJob?.cancel()
         idleTeardownJob = null
         mutex.withLock {
-            try { loaded?.conversation?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: conversation close failed", e) }
-            try { loaded?.engine?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: engine close failed", e) }
-            loaded = null
-            lastTelemetry = null
+            closeLocked()
         }
+    }
+
+    /**
+     * Non-blocking variant for OS memory-trim callbacks: releases the loaded engine only if
+     * no inference is currently holding [mutex]. Returns true if idle (or already unloaded).
+     */
+    fun tryCloseIfIdle(): Boolean {
+        if (!mutex.tryLock()) return false
+        try {
+            idleTeardownJob?.cancel()
+            idleTeardownJob = null
+            closeLocked()
+            return true
+        } finally {
+            mutex.unlock()
+        }
+    }
+
+    private fun closeLocked() {
+        try { loaded?.conversation?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: conversation close failed", e) }
+        try { loaded?.engine?.close() } catch (e: IllegalStateException) { AppLogger.e("LiteRtRuntime", "closeIfLoaded: engine close failed", e) }
+        loaded = null
+        lastTelemetry = null
     }
 
     companion object {

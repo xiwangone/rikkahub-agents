@@ -35,6 +35,15 @@ val DEFAULT_PROVIDERS = listOf(
         enabled = false,
         builtIn = true,
     ),
+    ProviderSetting.LlamaCppLocal(
+        // llama.cpp on-device provider. Disabled by default. Settings → Local · llama.cpp
+        // shows a curated picker (LlamaCppCatalog) with Qwen3 GGUF models — 0.6B / 1.7B /
+        // 4B — plus a HuggingFace URL install field and a local .gguf import. The runtime
+        // runs fully on CPU, so there is no accelerator toggle or max-context override
+        // (unlike LiteRT).
+        enabled = false,
+        builtIn = true,
+    ),
     // All built-in providers ship DISABLED by default. New installs start with zero
     // network-egress paths so a freshly-installed app can never make an LLM call (or
     // bill any account) until the user explicitly enables a provider AND adds an API

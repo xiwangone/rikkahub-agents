@@ -1,0 +1,301 @@
+name: 03 模拟器 UI 测试
+
+# 云端模拟器 UI 测试：公开仓 GitHub Actions 分钟数不限量，手动触发跑回归。
+# 与常驻独服分工：这里负责“改完代码 → 手动点一下 → 等十几分钟下载截图与报告看结果”；
+# 独服负责“复现偶发卡死、盯着画面实时 adb 交互调试”。
+# 只配 workflow_dispatch（仅仓库维护者可手动触发，不在外部 PR 上运行），
+# Secrets 不会暴露给外部 PR。
+#
+# 可选组合（全部在触发页面手动选）：
+#   build_variant=debug   + instrumentation  仪器测试（connectedDebugAndroidTest）
+#   build_variant=debug   + ai_patrol        debug 包上跑 AI 巡检
+#   build_variant=release + ai_patrol        正式签名包（R8）上跑 AI 巡检 ← 能抓混淆类崩溃
+#   build_variant=release + instrumentation  不支持（见下方说明，会直接失败）
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: '测试类型'
+        required: true
+        type: choice
+        options:
+          - instrumentation
+          - ai_patrol
+          - both
+        default: instrumentation
+      build_variant:
+        description: '包类型（release 需签名 Secrets；release 只支持 ai_patrol / both）'
+        required: true
+        type: choice
+        options:
+          - debug
+          - release
+        default: debug
+      api_level:
+        description: '模拟器 Android API 级别'
+        required: false
+        type: choice
+        options:
+          - '34'
+          - '35'
+          - '33'
+        default: '34'
+      model:
+        description: 'AI 巡检用的视觉模型（仅 ai_patrol / both 模式有效）'
+        required: false
+        default: 'gpt-4o-mini'
+        type: string
+      scenarios:
+        description: '只跑指定场景：逗号分隔的场景名（留空 = 全部）'
+        required: false
+        default: ''
+        type: string
+      allow_no_mock:
+        description: '允许无 Mock 提供商（依赖 Mock 的场景会记 FAIL 而非整体中止）'
+        required: false
+        type: boolean
+        default: true
+      keep_apk:
+        description: '上传构建出的 APK 作为产物（便于下载装到设备复核）'
+        required: false
+        type: boolean
+        default: false
+
+concurrency:
+  group: emulator-ui-tests-${{ github.ref }}-${{ inputs.build_variant }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  emulator-ui-tests:
+    name: 模拟器 UI 测试（${{ inputs.build_variant }} / ${{ inputs.mode }}）
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          submodules: true
+
+      - name: 准备构建环境
+        uses: ./.github/actions/setup-build-env
+
+      - name: 缓存 Gradle 依赖（libs 变化才重建）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/modules-2
+          key: ${{ runner.os }}-gradle-modules-${{ hashFiles('gradle/libs.versions.toml', 'gradle/wrapper/gradle-wrapper.properties') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-modules-
+
+      - name: 缓存 Gradle 构建缓存（固定 key，不堆积）
+        uses: actions/cache@v4
+        with:
+          path: ~/.gradle/caches/build-cache-1
+          key: ${{ runner.os }}-gradle-buildcache-${{ hashFiles('gradle/libs.versions.toml', '**/*.gradle.kts') }}
+          restore-keys: |
+            ${{ runner.os }}-gradle-buildcache-
+          save-always: true
+
+      - name: 检查 KVM（模拟器硬件加速前置）
+        run: |
+          if [ ! -e /dev/kvm ]; then
+            echo "::error::/dev/kvm 不存在，模拟器无法硬件加速，无法继续"
+            exit 1
+          fi
+          echo "KVM 可用：$(ls -l /dev/kvm)"
+
+      - name: 校验参数组合
+        run: |
+          VARIANT="${{ inputs.build_variant }}"
+          MODE="${{ inputs.mode }}"
+          if [ "$VARIANT" = "release" ] && [ "$MODE" = "instrumentation" ]; then
+            echo "::error::release + instrumentation 不支持："
+            echo "  release 变体跑仪器测试需要 app 模块设置 testBuildType = \"release\" 并为 R8 保留测试入口，"
+            echo "  那是构建脚本层面的改动、影响所有构建，不在本工作流里做。"
+            echo "  要验正式包请选 mode=ai_patrol（或 both）。"
+            exit 1
+          fi
+          echo "参数组合 OK：$VARIANT / $MODE"
+
+      - name: 准备 release 签名（仅 release 变体）
+        if: inputs.build_variant == 'release'
+        env:
+          KEYSTORE_BASE64: ${{ secrets.KEYSTORE_BASE64 }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          if [ -z "${KEYSTORE_BASE64:-}" ] || [ -z "${KEYSTORE_PASSWORD:-}" ] \
+             || [ -z "${KEY_ALIAS:-}" ] || [ -z "${KEY_PASSWORD:-}" ]; then
+            echo "::error::release 变体需要 4 个签名 Secrets：KEYSTORE_BASE64 / KEYSTORE_PASSWORD / KEY_ALIAS / KEY_PASSWORD"
+            exit 1
+          fi
+          KEYSTORE="$RUNNER_TEMP/ci-test.jks"
+          echo "$KEYSTORE_BASE64" | base64 -d > "$KEYSTORE"
+          test -s "$KEYSTORE"
+          # app/build.gradle.kts 从 local.properties 读签名四项
+          {
+            echo "storeFile=$KEYSTORE"
+            echo "storePassword=$KEYSTORE_PASSWORD"
+            echo "keyAlias=$KEY_ALIAS"
+            echo "keyPassword=$KEY_PASSWORD"
+          } >> local.properties
+          echo "签名已就绪（$KEYSTORE）"
+
+      - name: 模拟器 UI 测试
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          VARIANT: ${{ inputs.build_variant }}
+          AI_PATROL_OPENAI_BASE_URL: ${{ secrets.AI_PATROL_OPENAI_BASE_URL }}
+          AI_PATROL_OPENAI_API_KEY: ${{ secrets.AI_PATROL_OPENAI_API_KEY }}
+        with:
+          api-level: ${{ inputs.api_level }}
+          target: google_apis
+          arch: x86_64
+          profile: pixel_7
+          force-avd-creation: false
+          emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
+          disable-animations: true
+          script: |
+            set -o pipefail
+            MODE="${{ inputs.mode }}"
+            echo "模式：$MODE / 变体：$VARIANT / API：${{ inputs.api_level }}"
+            chmod +x gradlew
+            INST_RC=0
+            PATROL_RC=0
+
+            # ---- 仪器测试（仅 debug 变体）----
+            if [ "$MODE" = "instrumentation" ] || [ "$MODE" = "both" ]; then
+              echo "== 仪器测试 :app:connectedDebugAndroidTest =="
+              ./gradlew :app:connectedDebugAndroidTest --build-cache --continue 2>&1 | tee connected-test.log
+              INST_RC=${PIPESTATUS[0]}
+              echo "仪器测试退出码：$INST_RC"
+            fi
+
+            # ---- AI 巡检 ----
+            if [ "$MODE" = "ai_patrol" ] || [ "$MODE" = "both" ]; then
+              echo "== AI 巡检（$VARIANT）=="
+              if [ -z "${AI_PATROL_OPENAI_BASE_URL:-}" ] || [ -z "${AI_PATROL_OPENAI_API_KEY:-}" ]; then
+                echo "::warning::未配置 AI_PATROL_OPENAI_BASE_URL / AI_PATROL_OPENAI_API_KEY，跳过 AI 巡检（不是失败）"
+                echo "AI 巡检已跳过：未配置 Secrets AI_PATROL_OPENAI_BASE_URL / AI_PATROL_OPENAI_API_KEY" > ai-patrol-skipped.txt
+              else
+                if [ "$VARIANT" = "release" ]; then
+                  PKG="excp.rikkahub.agents"
+                  APK_DIR="app/build/outputs/apk/release"
+                  echo "构建 release APK（R8）…"
+                  ./gradlew :app:assembleRelease --build-cache 2>&1 | tail -20
+                  APK=$(ls -S "$APK_DIR"/*.apk 2>/dev/null | head -1)
+                  if [ -z "$APK" ]; then
+                    echo "::error::没找到 release APK（$APK_DIR）"
+                    PATROL_RC=1
+                    APK=""
+                  else
+                    echo "安装 $APK"
+                    adb install -r "$APK" || { echo "::error::release APK 安装失败（签名冲突？先卸载旧包）"; PATROL_RC=1; }
+                  fi
+                else
+                  PKG="excp.rikkahub.agents.debug"
+                  if ! adb shell pm list packages 2>/dev/null | grep -q "$PKG"; then
+                    echo "安装 debug APK…"
+                    ./gradlew :app:installDebug --build-cache 2>&1 | tail -5
+                  fi
+                fi
+
+                if [ "${PATROL_RC:-0}" = "0" ]; then
+                  # 逗号分隔的场景名 → 过滤出临时 scenarios 文件（不改脚本接口）
+                  SCEN_PATH="tools/emulator-ai-tester/scenarios.json"
+                  ONLY="${{ inputs.scenarios }}"
+                  if [ -n "$ONLY" ]; then
+                    echo "只跑指定场景：$ONLY"
+                    jq --arg names "$ONLY" '
+                      [ .[] | select(.name as $n
+                          | ($names | split(",") | map(gsub("^\\s+|\\s+$";""))
+                          | index($n)) != null) ]' \
+                      "$SCEN_PATH" > /tmp/scenarios-filtered.json
+                    echo "选中 $(jq 'length' /tmp/scenarios-filtered.json) 个场景"
+                    SCEN_PATH="/tmp/scenarios-filtered.json"
+                  fi
+
+                  export OPENAI_BASE_URL="$AI_PATROL_OPENAI_BASE_URL"
+                  export OPENAI_API_KEY="$AI_PATROL_OPENAI_API_KEY"
+                  export MODEL="${{ inputs.model }}"
+                  EXTRA=""
+                  if [ "${{ inputs.allow_no_mock }}" = "true" ]; then EXTRA="--allow-no-mock"; fi
+                  python3 tools/emulator-ai-tester/run_ai_ui_test.py \
+                    --scenarios "$SCEN_PATH" \
+                    --package "$PKG" \
+                    $EXTRA \
+                    --out "ai-patrol-reports-$VARIANT" 2>&1 | tee ai-patrol.log
+                  PATROL_RC=${PIPESTATUS[0]}
+                  echo "AI 巡检退出码：$PATROL_RC"
+                fi
+              fi
+            fi
+
+            if [ "$INST_RC" != "0" ] || [ "$PATROL_RC" != "0" ]; then
+              echo "::error::测试失败（仪器=$INST_RC，巡检=$PATROL_RC）"
+              exit 1
+            fi
+            echo "全部通过"
+
+      - name: 汇总写入 Job Summary
+        if: always()
+        run: |
+          {
+            echo "## 模拟器 UI 测试"
+            echo ""
+            echo "| 项 | 值 |"
+            echo "|---|---|"
+            echo "| 包类型 | \`${{ inputs.build_variant }}\` |"
+            echo "| 测试类型 | \`${{ inputs.mode }}\` |"
+            echo "| API 级别 | ${{ inputs.api_level }} |"
+            echo "| 指定场景 | \`${{ inputs.scenarios }}\` |"
+            echo ""
+            if [ -f ai-patrol-skipped.txt ]; then
+              echo "> ⚠️ AI 巡检已跳过：未配置视觉模型 Secrets"
+            fi
+            if [ -f ai-patrol-reports-*/report.md ]; then
+              echo "### AI 巡检报告（节选）"
+              echo ""
+              head -40 ai-patrol-reports-*/report.md 2>/dev/null || true
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: 上传仪器测试报告
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: connected-test-report
+          path: |
+            app/build/reports/androidTests/connected/debug
+            app/build/outputs/androidTest-results/connected
+            connected-test.log
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: 上传 AI 巡检产物（截图 + report.md + 日志）
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ai-patrol-reports
+          path: |
+            ai-patrol-reports-*
+            ai-patrol.log
+            ai-patrol-skipped.txt
+          retention-days: 14
+          if-no-files-found: warn
+
+      - name: 上传 APK（可选）
+        if: always() && inputs.keep_apk
+        uses: actions/upload-artifact@v4
+        with:
+          name: apk-${{ inputs.build_variant }}
+          path: |
+            app/build/outputs/apk/debug/*.apk
+            app/build/outputs/apk/release/*.apk
+          retention-days: 7
+          if-no-files-found: warn

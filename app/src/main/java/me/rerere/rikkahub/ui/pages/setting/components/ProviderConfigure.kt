@@ -107,7 +107,7 @@ fun ProviderConfigure(
             }
 
             is ProviderSetting.LlamaCppLocal -> {
-                Unit
+                ProviderConfigureLlamaCpp(provider, onEdit)
             }
         }
     }

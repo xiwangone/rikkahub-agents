@@ -1,5 +1,11 @@
 package me.rerere.llamacpp
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import me.rerere.locallm.MemoryGuard
@@ -124,6 +130,17 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
      *  [unloadLocked], since llama.cpp forbids freeing a context while a call to
      *  nativeCancelGeneration on it is in flight. */
     private val cancelFreeLock = Any()
+    private val idleScope = CoroutineScope(SupervisorJob() + Dispatchers.IO)
+    @Volatile
+    private var idleTeardownJob: Job? = null
+
+    private fun armIdleTeardown() {
+        idleTeardownJob?.cancel()
+        idleTeardownJob = idleScope.launch {
+            delay(IDLE_TEARDOWN_MS)
+            tryUnloadIfIdle()
+        }
+    }
 
     /**
      * Loads [path], plans a context size for it against [availableRamBytes] via
@@ -137,6 +154,8 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
         availableRamBytes: Long,
         threads: Int = defaultThreads(),
     ): ContextPlan = mutex.withLock {
+        idleTeardownJob?.cancel()
+        idleTeardownJob = null
         unloadLocked()
 
         val model = native.loadModel(path)
@@ -194,7 +213,27 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
 
     /** Releases the loaded model and context, if any. Waits for an in-flight [generate]
      *  to finish first, since [mutex] is shared with it. */
-    suspend fun unload() = mutex.withLock { unloadLocked() }
+    suspend fun unload() = mutex.withLock {
+        idleTeardownJob?.cancel()
+        idleTeardownJob = null
+        unloadLocked()
+    }
+
+    /**
+     * Non-blocking variant for OS memory-trim / idle callbacks: releases the loaded model
+     * and context only if no operation is currently holding [mutex].
+     */
+    fun tryUnloadIfIdle(): Boolean {
+        if (!mutex.tryLock()) return false
+        try {
+            idleTeardownJob?.cancel()
+            idleTeardownJob = null
+            unloadLocked()
+            return true
+        } finally {
+            mutex.unlock()
+        }
+    }
 
     private fun unloadLocked() {
         synchronized(cancelFreeLock) {
@@ -288,6 +327,7 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
             native.generate(ctx, model, appliedTemplateJson, maxTokens, onPiece)
         } finally {
             mutex.unlock()
+            armIdleTeardown()
         }
     }
 
@@ -324,4 +364,8 @@ class LlamaCppRuntime(private val native: LlamaCppNative = RealLlamaCppNative) {
 
     private fun defaultThreads(): Int =
         (Runtime.getRuntime().availableProcessors() - 2).coerceIn(2, 8)
+
+    companion object {
+        private const val IDLE_TEARDOWN_MS = 5 * 60 * 1000L
+    }
 }

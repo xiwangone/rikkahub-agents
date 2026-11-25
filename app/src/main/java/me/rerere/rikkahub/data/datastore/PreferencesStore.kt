@@ -518,16 +518,27 @@ class SettingsStore(
             DEFAULT_PROVIDERS.forEach { defaultProvider ->
                 if (defaultProvider.id in deletedDefaultIds) return@forEach
                 if (providers.none { it.id == defaultProvider.id }) {
-                    // On-device built-in providers (AICore, LiteRT) are pinned to the top of
-                    // the list in the order they appear in DEFAULT_PROVIDERS. Remote provider
-                    // defaults continue to append at the end so existing users see no
-                    // reordering of their configured remote providers.
+                    // On-device built-in providers (AICore, LiteRT, llama.cpp) are pinned
+                    // to the top of the list in the order they appear in DEFAULT_PROVIDERS.
+                    // Remote provider defaults continue to append at the end so existing
+                    // users see no reordering of their configured remote providers.
                     when (defaultProvider) {
                         is ProviderSetting.AICore -> providers.add(0, defaultProvider.copyProvider())
                         is ProviderSetting.LiteRtLocal -> {
                             // Insert right after AICore, or at 0 if AICore is absent.
                             // indexOfFirst returns -1 when absent; -1 + 1 = 0, so insert at 0.
                             val insertAt = providers.indexOfFirst { it is ProviderSetting.AICore } + 1
+                            providers.add(insertAt, defaultProvider.copyProvider())
+                        }
+                        is ProviderSetting.LlamaCppLocal -> {
+                            // Insert right after LiteRT, or right after AICore if LiteRT
+                            // was deleted, or at 0 if both are absent.
+                            val litertIndex = providers.indexOfFirst { it is ProviderSetting.LiteRtLocal }
+                            val insertAt = if (litertIndex >= 0) {
+                                litertIndex + 1
+                            } else {
+                                providers.indexOfFirst { it is ProviderSetting.AICore } + 1
+                            }
                             providers.add(insertAt, defaultProvider.copyProvider())
                         }
                         else -> providers.add(defaultProvider.copyProvider())

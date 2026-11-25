@@ -1,6 +1,6 @@
 [versions]
 agp = "9.3.1"
-litertlm = "0.13.1"
+litertlm = "0.19.1"
 cameraCore = "1.6.1"
 exifinterface = "1.4.2"
 jlatexmath = "1.5"

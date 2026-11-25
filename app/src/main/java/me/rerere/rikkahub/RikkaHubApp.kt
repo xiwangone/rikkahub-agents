@@ -366,6 +366,20 @@ class RikkaHubApp : Application() {
     override fun onTrimMemory(level: Int) {
         super.onTrimMemory(level)
         AppLifecycleRecorder.onTrimMemory(level)
+        if (level >= android.content.ComponentCallbacks2.TRIM_MEMORY_BACKGROUND ||
+            level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_LOW ||
+            level == android.content.ComponentCallbacks2.TRIM_MEMORY_RUNNING_CRITICAL
+        ) {
+            val koin = org.koin.core.context.GlobalContext.getOrNull() ?: return
+            kotlinx.coroutines.CoroutineScope(Dispatchers.IO).launch {
+                runCatching {
+                    koin.getOrNull<me.rerere.locallm.litert.LiteRtRuntime>()?.tryCloseIfIdle()
+                }
+                runCatching {
+                    koin.getOrNull<me.rerere.llamacpp.LlamaCppRuntime>()?.tryUnloadIfIdle()
+                }
+            }
+        }
     }
 
     /**

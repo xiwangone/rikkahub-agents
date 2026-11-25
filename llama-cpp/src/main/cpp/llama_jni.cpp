@@ -1,7 +1,10 @@
 #include <jni.h>
 #include <algorithm>
 #include <atomic>
+#include <deque>
 #include <memory>
+#include <mutex>
+#include <unordered_map>
 #include <sstream>
 #include <string>
 #include <vector>
@@ -9,6 +12,7 @@
 #include "llama.h"
 #include "jni_util.h"
 #include "chat.h"
+#include "json.h"
 #include "sampling.h"
 #include <nlohmann/json.hpp>
 
@@ -138,6 +142,38 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeChatTemplate(JNIEnv *env, jobject, jlo
 // (common_grammar_trigger_type has no explicit values), so a llama.cpp bump that inserts a new
 // variant produces a visible lookup miss on the Kotlin side instead of silently relabelling
 // every existing trigger.
+
+static std::mutex g_parser_arenas_mutex;
+static std::unordered_map<std::string, common_peg_arena> g_parser_arenas;
+static std::deque<std::string> g_parser_arena_order;
+static std::atomic<uint64_t> g_parser_arena_seq{0};
+
+static std::string storeParserArena(const common_peg_arena & arena) {
+    if (arena.empty()) {
+        return "";
+    }
+    const std::string key = "arena:" + std::to_string(++g_parser_arena_seq);
+    std::lock_guard<std::mutex> lock(g_parser_arenas_mutex);
+    g_parser_arenas.emplace(key, arena);
+    g_parser_arena_order.push_back(key);
+    while (g_parser_arena_order.size() > 32) {
+        const std::string oldest = g_parser_arena_order.front();
+        g_parser_arena_order.pop_front();
+        g_parser_arenas.erase(oldest);
+    }
+    return key;
+}
+
+static bool loadParserArena(const std::string & key, common_peg_arena & out) {
+    std::lock_guard<std::mutex> lock(g_parser_arenas_mutex);
+    const auto it = g_parser_arenas.find(key);
+    if (it == g_parser_arenas.end()) {
+        return false;
+    }
+    out = it->second;
+    return true;
+}
+
 static const char *grammarTriggerTypeName(common_grammar_trigger_type type) {
     switch (type) {
         case COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN:        return "token";
@@ -172,9 +208,9 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         common_chat_templates_ptr tmpls = common_chat_templates_init(model, "");
 
         common_chat_templates_inputs inputs;
-        inputs.messages = common_chat_msgs_parse_oaicompat(request.at("messages"));
+        inputs.messages = common_chat_msgs_parse_oaicompat(common_json::parse(request.at("messages").dump()));
         if (request.contains("tools") && !request.at("tools").is_null()) {
-            inputs.tools = common_chat_tools_parse_oaicompat(request.at("tools"));
+            inputs.tools = common_chat_tools_parse_oaicompat(common_json::parse(request.at("tools").dump()));
         }
         // Left at its default of "auto" the tool-call grammar permits zero calls, so the model
         // may always decline to call anything: chat.cpp derives both `min_calls` and whether
@@ -209,7 +245,7 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         const common_chat_params params = common_chat_templates_apply(tmpls.get(), inputs);
 
         nlohmann::ordered_json out;
-        out["prompt"]             = params.prompt;
+        out["prompt"]             = params.prompt.str();
         out["grammar"]            = params.grammar;
         out["grammar_lazy"]       = params.grammar_lazy;
         out["additional_stops"]   = params.additional_stops;
@@ -227,7 +263,7 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeApplyTemplate(
         // it to pick a mapper for two of the formats, but it is not a substitute for this.
         // The value is itself a JSON document (common_peg_arena::save dumps one), nested here
         // as a string exactly as llama.cpp's server carries it between the two halves.
-        out["parser"]             = params.parser;
+        out["parser"]             = storeParserArena(params.parser);
 
         // trigger.token (for a COMMON_GRAMMAR_TRIGGER_TYPE_TOKEN trigger) is not carried across:
         // every construction site in common/chat.cpp builds a "word" or "pattern" trigger today,
@@ -700,7 +736,7 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeParseChat(
         params.format            = formatFromName(applied.at("format").get<std::string>());
         // Prepended to the text before parsing, because most of the parsers the template layer
         // builds open by matching the generation prompt as a literal.
-        params.generation_prompt = applied.value("generation_prompt", std::string());
+        params.generation_prompt = common_chat_input(applied.value("generation_prompt", std::string()));
 
         const std::string parser = applied.value("parser", std::string());
         if (parser.empty()) {
@@ -709,9 +745,11 @@ Java_me_rerere_llamacpp_LlamaCppJni_nativeParseChat(
             // believable text with every tool call quietly gone. Refuse it here instead.
             throw std::runtime_error("applied template carries no parser");
         }
-        params.parser.load(parser);
+        if (!loadParserArena(parser, params.parser)) {
+            throw std::runtime_error("unknown or evicted parser arena: " + parser);
+        }
 
-        const common_chat_msg msg = common_chat_parse(text, isPartial == JNI_TRUE, params);
+        const common_chat_msg msg = common_chat_parse(common_chat_input(text), isPartial == JNI_TRUE, params);
         return utf8ToByteArray(env, msg.to_json_oaicompat().dump());
     })
 }
