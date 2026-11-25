@@ -4721,7 +4721,7 @@
     <string name="vault_audit_expand">Show</string>
     <string name="vault_audit_collapse">Hide</string>
     <string name="vault_audit_more_sub">... %1$d more (tap to expand)</string>
-    <string name="ssh_terminal_shell_rejected">Server authenticated, but rejected the interactive shell (common causes: 1. Git-only endpoints like GitHub/GitLab; 2. authorized_keys forced command="…"; 3. SFTP-only host).</string>
+    <string name="ssh_terminal_shell_rejected">Server authenticated, but rejected the interactive shell (common causes: 1. Git-only endpoints like GitHub/GitLab; 2. authorized_keys forced command=&quot;…&quot;; 3. SFTP-only host).</string>
     <string name="ssh_terminal_exec_hint">Command (leave blank for auth banner / forced command)</string>
     <string name="ssh_terminal_exec_run">Run exec</string>
     <string name="ssh_terminal_sftp_list">List SFTP (.)</string>

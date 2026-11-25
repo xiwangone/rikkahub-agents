@@ -4729,7 +4729,7 @@
     <string name="vault_audit_expand">Показать</string>
     <string name="vault_audit_collapse">Скрыть</string>
     <string name="vault_audit_more_sub">… ещё %1$d (нажмите, чтобы раскрыть)</string>
-    <string name="ssh_terminal_shell_rejected">Аутентификация пройдена, но сервер отклонил интерактивный shell (частые причины: 1. Git-эндпоинт вроде GitHub/GitLab; 2. принудительная command="…" в authorized_keys; 3. хост только для SFTP).</string>
+    <string name="ssh_terminal_shell_rejected">Аутентификация пройдена, но сервер отклонил интерактивный shell (частые причины: 1. Git-эндпоинт вроде GitHub/GitLab; 2. принудительная command=&quot;…&quot; в authorized_keys; 3. хост только для SFTP).</string>
     <string name="ssh_terminal_exec_hint">Команда (оставьте пустой для баннера или принудительной команды)</string>
     <string name="ssh_terminal_exec_run">Выполнить exec</string>
     <string name="ssh_terminal_sftp_list">Список SFTP</string>

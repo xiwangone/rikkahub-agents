@@ -4724,7 +4724,7 @@
     <string name="vault_audit_expand">展開</string>
     <string name="vault_audit_collapse">收合</string>
     <string name="vault_audit_more_sub">… 還有 %1$d 條（點擊展開）</string>
-    <string name="ssh_terminal_shell_rejected">伺服器已通過驗證，但拒絕開啟互動式 shell（常見原因：1. Git 專用端點如 GitHub/GitLab；2. authorized_keys 設定了強制 command="…"；3. 僅開放 SFTP 子系統的主機）。</string>
+    <string name="ssh_terminal_shell_rejected">伺服器已通過驗證，但拒絕開啟互動式 shell（常見原因：1. Git 專用端點如 GitHub/GitLab；2. authorized_keys 設定了強制 command=&quot;…&quot;；3. 僅開放 SFTP 子系統的主機）。</string>
     <string name="ssh_terminal_exec_hint">命令（留空測試驗證回顯或觸發強制命令）</string>
     <string name="ssh_terminal_exec_run">執行 exec</string>
     <string name="ssh_terminal_sftp_list">列目錄 SFTP</string>

@@ -4725,7 +4725,7 @@
     <string name="vault_audit_expand">펼치기</string>
     <string name="vault_audit_collapse">접기</string>
     <string name="vault_audit_more_sub">… %1$d개 더 있음 (눌러서 펼치기)</string>
-    <string name="ssh_terminal_shell_rejected">인증은 성공했으나 서버가 대화형 셸 실행을 거부했습니다(주요 원인: 1. GitHub/GitLab 등 Git 전용 엔드포인트, 2. authorized_keys 강제 command="…", 3. SFTP 전용 호스트).</string>
+    <string name="ssh_terminal_shell_rejected">인증은 성공했으나 서버가 대화형 셸 실행을 거부했습니다(주요 원인: 1. GitHub/GitLab 등 Git 전용 엔드포인트, 2. authorized_keys 강제 command=&quot;…&quot;, 3. SFTP 전용 호스트).</string>
     <string name="ssh_terminal_exec_hint">명령(비워 두면 인증 배너 또는 강제 명령 확인)</string>
     <string name="ssh_terminal_exec_run">exec 실행</string>
     <string name="ssh_terminal_sftp_list">SFTP 목록</string>
