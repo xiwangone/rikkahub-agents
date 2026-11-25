@@ -51,12 +51,42 @@ internal fun documentEntryJson(doc: DocumentFile) = buildJsonObject {
  * no Context (so the pure-JVM file:// unit tests need no Android context); content:// ops
  * resolve it lazily from Koin at execute time, after the DI graph has settled.
  */
+internal fun resolveAgentReadPath(
+    raw: String,
+    filesDirProvider: () -> File = { fmContext().filesDir },
+): String {
+    val trimmed = raw.trim()
+    val norm = trimmed.replace('\\', '/')
+    if (norm.contains('\u0000') || norm.contains("%2e", ignoreCase = true)) {
+        return AgentWorkspace.expand(trimmed)
+    }
+    val mapping = when {
+        norm == "/upload" || norm.startsWith("/upload/") ->
+            me.rerere.rikkahub.data.files.FileFolders.UPLOAD to norm.removePrefix("/upload").trimStart('/')
+        norm == "/tool_outputs" || norm.startsWith("/tool_outputs/") ->
+            me.rerere.rikkahub.data.files.FileFolders.TOOL_OUTPUTS to norm.removePrefix("/tool_outputs").trimStart('/')
+        else -> null
+    } ?: return AgentWorkspace.expand(trimmed)
+
+    val (folder, rel) = mapping
+    if (rel.split('/').any { it == ".." || it == "." }) {
+        return AgentWorkspace.expand(trimmed)
+    }
+    val baseDir = File(filesDirProvider(), folder)
+    val baseCanonical = runCatching { baseDir.canonicalFile }.getOrNull() ?: return AgentWorkspace.expand(trimmed)
+    val target = if (rel.isEmpty()) baseDir else File(baseDir, rel)
+    val targetCanonical = runCatching { target.canonicalFile }.getOrNull() ?: return AgentWorkspace.expand(trimmed)
+    val inside = targetCanonical.path == baseCanonical.path ||
+        targetCanonical.path.startsWith(baseCanonical.path + File.separator)
+    return if (inside) targetCanonical.path else AgentWorkspace.expand(trimmed)
+}
+
 internal fun fmContext(): Context =
     org.koin.java.KoinJavaComponent.getKoin().get(Context::class)
 
 // ---------- Error helpers ----------
 
-private val LINUX_WORKSPACE_PREFIXES = listOf("/workspace", "/upload", "/skills")
+private val LINUX_WORKSPACE_PREFIXES = listOf("/workspace", "/skills")
 
 /**
  * 从错误文案里提取绝对路径 token。
@@ -74,7 +104,7 @@ internal fun fmErrEnvelope(code: String, detail: String): String {
         LINUX_WORKSPACE_PREFIXES.any { root -> path == root || path.startsWith("$root/") }
     }
     val hint = if (hitsWorkspaceMount) {
-        "Paths under /workspace, /upload, or /skills live inside the bound Linux workspace Rootfs, not the Android device filesystem. Use workspace_read_file / workspace_write_file / workspace_read_folder / workspace_shell instead (or '~/...' for the on-device agent scratch directory)."
+        "Paths under /workspace or /skills live inside the bound Linux workspace Rootfs, not the Android device filesystem. Use workspace_read_file / workspace_write_file / workspace_read_folder / workspace_shell instead (or '~/...', '/upload/...', '/tool_outputs/...')."
     } else {
         null
     }
@@ -358,7 +388,7 @@ fun listFilesTool(): Tool = Tool(
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool listFilesContent(fmContext(), rawArg!!, obj)
         }
-        val rawPath = rawArg?.let(AgentWorkspace::expand)
+        val rawPath = rawArg?.let(::resolveAgentReadPath)
         PathSafetyGuard.check(rawPath)?.let { v ->
             return@Tool fmTextPart(fmErrEnvelope(v.code, v.detail))
         }
@@ -492,7 +522,7 @@ fun readFileTool(): Tool = Tool(
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool readFileContent(fmContext(), rawArg!!, obj)
         }
-        val rawPath = rawArg?.let(AgentWorkspace::expand)
+        val rawPath = rawArg?.let(::resolveAgentReadPath)
         PathSafetyGuard.check(rawPath)?.let { v ->
             return@Tool fmTextPart(fmErrEnvelope(v.code, v.detail))
         }
@@ -978,7 +1008,7 @@ fun fileInfoTool(): Tool = Tool(
         if (ContentUriSafetyGuard.isContentUri(rawArg)) {
             return@Tool fileInfoContent(fmContext(), rawArg!!, obj)
         }
-        val rawPath = rawArg?.let(AgentWorkspace::expand)
+        val rawPath = rawArg?.let(::resolveAgentReadPath)
         PathSafetyGuard.check(rawPath)?.let { v ->
             return@Tool fmTextPart(fmErrEnvelope(v.code, v.detail))
         }
@@ -1053,7 +1083,7 @@ fun findFilesTool(): Tool = Tool(
         if (ContentUriSafetyGuard.isContentUri(rawRootArg)) {
             return@Tool findFilesContent(fmContext(), rawRootArg!!, obj)
         }
-        val rawRoot = rawRootArg?.let(AgentWorkspace::expand)
+        val rawRoot = rawRootArg?.let(::resolveAgentReadPath)
         PathSafetyGuard.check(rawRoot)?.let { v ->
             return@Tool fmTextPart(fmErrEnvelope(v.code, v.detail))
         }

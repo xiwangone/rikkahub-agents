@@ -4701,4 +4701,32 @@
     <string name="setting_provider_page_batch_remove_non_chat_desc">Удалить все %1$d нечатовых моделей (эмбеддинг, изображения, видео)?</string>
     <string name="setting_provider_page_batch_remove_done">Удалено моделей: %1$d</string>
     <string name="setting_provider_page_batch_remove_empty">Нет подходящих моделей для удаления</string>
+
+    <string name="assistant_page_tool_list_mode_checklist">Список</string>
+    <string name="assistant_page_tool_list_mode_text">Текст</string>
+    <string name="assistant_page_tool_list_search_hint">Поиск по имени или категории</string>
+    <string name="assistant_page_tool_list_fill_stats">По статистике</string>
+    <string name="assistant_page_tool_list_stats_empty">Нет статистики. Сначала включите статистику инструментов в настройках.</string>
+    <string name="assistant_page_tool_list_stats_filled">Заполнено инструментов по статистике: %1$d (нажмите ОК для сохранения).</string>
+    <string name="assistant_page_tool_list_selected_count">Выбрано: %1$d</string>
+    <string name="assistant_page_only_tools_missing_read_warning">Внимание: исключены активные инструменты чтения (%1$s); чтение /tool_outputs/ может не работать.</string>
+    <string name="assistant_page_tools_global_status">Обрезка: %1$s · Стат.: %2$s · Лимит: %3$dK</string>
+    <string name="assistant_page_tools_open_settings">Настройки</string>
+    <string name="setting_tools_state_on">Вкл</string>
+    <string name="setting_tools_state_off">Выкл</string>
+
+    <string name="workspace_global_agents_title">Глобальный AGENTS.md</string>
+    <string name="workspace_global_agents_desc_empty">Не задан · действует для всех локальных и SSH сред</string>
+    <string name="workspace_global_agents_desc_size">%1$s / 64 КБ · действует для всех рабочих пространств</string>
+    <string name="workspace_global_agents_hint">Общие инструкции Markdown для локальных и удалённых SSH пространств.</string>
+    <string name="workspace_global_agents_import">Импорт</string>
+    <string name="workspace_global_agents_export">Экспорт</string>
+    <string name="workspace_global_agents_saved">Глобальный AGENTS.md сохранён</string>
+    <string name="workspace_global_agents_too_large">Превышен лимит 64 КБ; сократите текст перед сохранением.</string>
+    <string name="workspace_detail_agents_remote_note">Удалённое пространство использует только глобальный AGENTS.md.</string>
+    <string name="workspace_detail_agents_local_note">Объединяет глобальный AGENTS.md и /workspace/AGENTS.md.</string>
+
+    <string name="vault_audit_expand">Показать</string>
+    <string name="vault_audit_collapse">Скрыть</string>
+    <string name="vault_audit_more_sub">… ещё %1$d (нажмите, чтобы раскрыть)</string>
 </resources>

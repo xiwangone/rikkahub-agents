@@ -44,6 +44,7 @@ enum class DebugApiStartFailure {
  * "::" 为双栈绑定：IPv6 + IPv4-mapped（Linux 默认 bindv6only=0）。
  */
 public data class ListenConfig(val mode: String, val host: String, val cidrs: String) {
+
     companion object {
         const val MODE_LOOPBACK = "loopback"
         const val MODE_LAN = "lan"
@@ -65,6 +66,13 @@ public data class ListenConfig(val mode: String, val host: String, val cidrs: St
 /**
  * 调试接口管理器：Flow 驱动 start/stop（enabled/口令/监听档位变更即热重启），App 启动恢复免费获得。
  */
+private data class DebugApiDesiredConfig(
+    val enabled: Boolean,
+    val token: String,
+    val listen: ListenConfig,
+    val resolvedVaultToken: String?,
+)
+
 class DebugApiManager(context: Context) {
 
     private val store = context.debugApiDataStore
@@ -153,9 +161,18 @@ class DebugApiManager(context: Context) {
                         it[CUSTOM_CIDRS].orEmpty(),
                     )
                 },
-            ) { enabled, token, listen -> Triple(enabled, token, listen) }
+                VaultProviderKeyRefs.revision,
+            ) { enabled, token, listen, _ ->
+                // 仅当口令为 $$引用 时跟踪解析后真值；改其他无关凭证不会触发重启
+                val resolvedVaultToken = if (token.startsWith(VaultProviderKeyRefs.PREFIX)) {
+                    VaultProviderKeyRefs.resolveOrNull(token)
+                } else {
+                    null
+                }
+                DebugApiDesiredConfig(enabled, token, listen, resolvedVaultToken)
+            }
                 .distinctUntilChanged()
-                .onEach { (enabled, token, listen) ->
+                .onEach { (enabled, token, listen, _) ->
                     if (!enabled) {
                         runCatching { server.stop() }
                         _running.value = false

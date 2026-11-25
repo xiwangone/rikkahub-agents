@@ -4693,4 +4693,32 @@
     <string name="setting_provider_page_batch_remove_non_chat_desc">Remove all %1$d non-chat models (embedding, image, video)?</string>
     <string name="setting_provider_page_batch_remove_done">Removed %1$d models</string>
     <string name="setting_provider_page_batch_remove_empty">No matching models to remove</string>
+
+    <string name="assistant_page_tool_list_mode_checklist">Checklist</string>
+    <string name="assistant_page_tool_list_mode_text">Plain text</string>
+    <string name="assistant_page_tool_list_search_hint">Search tool name or category</string>
+    <string name="assistant_page_tool_list_fill_stats">Fill from usage</string>
+    <string name="assistant_page_tool_list_stats_empty">No usage data yet. Enable Tool Usage Stats in Tool Settings first.</string>
+    <string name="assistant_page_tool_list_stats_filled">Filled %1$d tool(s) from usage stats (tap Confirm to save).</string>
+    <string name="assistant_page_tool_list_selected_count">%1$d selected</string>
+    <string name="assistant_page_only_tools_missing_read_warning">Warning: enabled read tools (%1$s) are excluded; reading truncated /tool_outputs/ files may fail.</string>
+    <string name="assistant_page_tools_global_status">Trim: %1$s · Stats: %2$s · Output cap: %3$dK</string>
+    <string name="assistant_page_tools_open_settings">Tool settings</string>
+    <string name="setting_tools_state_on">On</string>
+    <string name="setting_tools_state_off">Off</string>
+
+    <string name="workspace_global_agents_title">Global AGENTS.md</string>
+    <string name="workspace_global_agents_desc_empty">Not configured · applies to all local &amp; remote workspaces</string>
+    <string name="workspace_global_agents_desc_size">%1$s / 64 KB · applies to all local &amp; remote workspaces</string>
+    <string name="workspace_global_agents_hint">Write Markdown instructions for workspace sessions (applies to both local and SSH workspaces).</string>
+    <string name="workspace_global_agents_import">Import</string>
+    <string name="workspace_global_agents_export">Export</string>
+    <string name="workspace_global_agents_saved">Global AGENTS.md saved</string>
+    <string name="workspace_global_agents_too_large">Exceeds 64 KB limit; please shorten before saving.</string>
+    <string name="workspace_detail_agents_remote_note">Remote workspace uses Global AGENTS.md only (remote host files ignored).</string>
+    <string name="workspace_detail_agents_local_note">Merges Global AGENTS.md with /workspace/AGENTS.md.</string>
+
+    <string name="vault_audit_expand">Show</string>
+    <string name="vault_audit_collapse">Hide</string>
+    <string name="vault_audit_more_sub">... %1$d more (tap to expand)</string>
 </resources>

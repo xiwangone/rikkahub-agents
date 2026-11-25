@@ -144,6 +144,7 @@ private val CHINESE_ALIASES: Map<String, String> = linkedMapOf(
     "月之暗面kimi" to "moonshot",
     "飞桨" to "baidu",
     "云知声" to "unisound",
+    "决策模型" to "typesafe",
     // 云 / 平台
     "华为云" to "huaweicloud",
     "华为" to "huawei",
@@ -391,6 +392,8 @@ private val MODEL_FAMILY_ALIASES: List<Pair<String, String>> = listOf(
     "sourceful" to "sourceful",
     "riverflow" to "sourceful",
     "unisound" to "unisound",
+    "typesafe" to "typesafe",
+    "jev" to "typesafe",
 ).sortedByDescending { it.first.length }
 
 /**
@@ -541,7 +544,7 @@ private fun stripVersionSuffix(word: String): String? {
  */
 private val MODEL_SUBBRAND_WORDS: Set<String> = setOf(
     "codex", "muse", "kimi", "longcat", "minicpm", "d3", "qwq", "gemma", "grok",
-    "hy", "seed", "step", "gemini", "qwen", "glm", "deepseek", "doubao", "hunyuan",
+    "hy", "jev", "seed", "step", "gemini", "qwen", "glm", "deepseek", "doubao", "hunyuan",
     "claude", "llama", "mistral", "mixtral", "command", "phi", "ernie", "baichuan",
     "intern", "moonshot", "minimax", "mimo", "agnes", "vllm", "nova",
     "bge", "flux", "sonar", "whisper", "sora", "dalle", "imagen", "veo",

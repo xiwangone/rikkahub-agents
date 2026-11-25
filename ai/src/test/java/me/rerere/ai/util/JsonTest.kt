@@ -307,4 +307,100 @@ class JsonTest {
 
         assertEquals("\"***\"", redacted["monkey"].toString())
     }
+
+    @Test
+    fun `mergeCustomBody merges tools array without overwriting existing tools`() {
+        val originalJson = buildJsonObject {
+            put("tools", buildJsonArray {
+                add(buildJsonObject {
+                    put("type", "function")
+                    put("name", "ask_user")
+                })
+                add(buildJsonObject {
+                    put("type", "web_search")
+                })
+            })
+        }
+
+        val customTools = buildJsonArray {
+            add(buildJsonObject { put("type", "deepseek_web_search") })
+            add(buildJsonObject { put("type", "deepseek_read_url") })
+        }
+
+        val result = originalJson.mergeCustomBody(listOf(CustomBody("tools", customTools)))
+        val tools = result["tools"] as JsonArray
+        assertEquals(4, tools.size)
+        assertEquals("ask_user", (tools[0] as JsonObject)["name"]?.toString()?.trim('"'))
+        assertEquals("web_search", (tools[1] as JsonObject)["type"]?.toString()?.trim('"'))
+        assertEquals("deepseek_web_search", (tools[2] as JsonObject)["type"]?.toString()?.trim('"'))
+        assertEquals("deepseek_read_url", (tools[3] as JsonObject)["type"]?.toString()?.trim('"'))
+    }
+
+    @Test
+    fun `mergeCustomBody deduplicates tools by name and type with custom overriding in place`() {
+        val originalJson = buildJsonObject {
+            put("tools", buildJsonArray {
+                add(buildJsonObject {
+                    put("type", "function")
+                    put("function", buildJsonObject {
+                        put("name", "search")
+                        put("description", "old")
+                    })
+                })
+                add(buildJsonObject {
+                    put("type", "web_search")
+                    put("search_context_size", "low")
+                })
+            })
+        }
+
+        val customTools = buildJsonArray {
+            add(buildJsonObject {
+                put("type", "function")
+                put("function", buildJsonObject {
+                    put("name", "search")
+                    put("description", "custom")
+                })
+            })
+            add(buildJsonObject {
+                put("type", "web_search")
+                put("search_context_size", "high")
+            })
+            add(buildJsonObject {
+                put("type", "deepseek_read_url")
+            })
+        }
+
+        val result = originalJson.mergeCustomBody(listOf(CustomBody("tools", customTools)))
+        val tools = result["tools"] as JsonArray
+        assertEquals(3, tools.size)
+        val firstFn = (tools[0] as JsonObject)["function"] as JsonObject
+        assertEquals("custom", firstFn["description"]?.toString()?.trim('"'))
+        assertEquals("high", (tools[1] as JsonObject)["search_context_size"]?.toString()?.trim('"'))
+        assertEquals("deepseek_read_url", (tools[2] as JsonObject)["type"]?.toString()?.trim('"'))
+    }
+
+    @Test
+    fun `mergeCustomBody treats empty tools array as no-op and still replaces other arrays`() {
+        val originalJson = buildJsonObject {
+            put("tools", buildJsonArray {
+                add(buildJsonObject { put("type", "function"); put("name", "ask_user") })
+            })
+            put("stop", buildJsonArray {
+                add(JsonPrimitive("END"))
+            })
+        }
+
+        val result = originalJson.mergeCustomBody(
+            listOf(
+                CustomBody("tools", buildJsonArray {}),
+                CustomBody("stop", buildJsonArray { add(JsonPrimitive("HALT")) }),
+            ),
+        )
+        val tools = result["tools"] as JsonArray
+        assertEquals(1, tools.size)
+        val stop = result["stop"] as JsonArray
+        assertEquals(1, stop.size)
+        assertEquals("HALT", stop[0].toString().trim('"'))
+    }
 }

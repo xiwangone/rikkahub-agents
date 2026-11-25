@@ -3,6 +3,8 @@ package me.rerere.ai.util
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonElement
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
@@ -84,22 +86,52 @@ fun okhttp3.OkHttpClient.shortRequestClient(): okhttp3.OkHttpClient =
         .callTimeout(SHORT_REQUEST_CALL_TIMEOUT_MS, java.util.concurrent.TimeUnit.MILLISECONDS)
         .build()
 
+private const val TOOLS_BODY_KEY = "tools"
+
+private fun toolDedupKey(element: JsonElement): String? {
+    val obj = element as? JsonObject ?: return null
+    val fnName = obj["name"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+        ?: (obj["function"] as? JsonObject)?.get("name")?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    if (fnName != null) return "name:$fnName"
+    val typeName = obj["type"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }
+    return typeName?.let { "type:$it" }
+}
+
+private fun mergeToolArrays(base: JsonArray, overlay: JsonArray): JsonArray {
+    if (overlay.isEmpty()) return base
+    val merged = base.toMutableList()
+    val indexByKey = HashMap<String, Int>()
+    merged.forEachIndexed { index, element ->
+        toolDedupKey(element)?.let { key -> indexByKey.putIfAbsent(key, index) }
+    }
+    overlay.forEach { element ->
+        val key = toolDedupKey(element)
+        val existingIdx = if (key != null) indexByKey[key] else null
+        if (existingIdx != null) {
+            merged[existingIdx] = element
+        } else {
+            if (key != null) indexByKey[key] = merged.size
+            merged.add(element)
+        }
+    }
+    return JsonArray(merged)
+}
+
 fun JsonObject.mergeCustomBody(bodies: List<CustomBody>): JsonObject {
     if (bodies.isEmpty()) return this
 
     val content = toMutableMap()
     bodies.forEach { body ->
         if (body.key.isNotBlank()) {
-            // 如果已存在相同键且两者都是JsonObject，则需要递归合并
             val existingValue = content[body.key]
             val newValue = body.value
 
-            if (existingValue is JsonObject && newValue is JsonObject) {
-                // 递归合并两个JsonObject
-                content[body.key] = mergeJsonObjects(existingValue, newValue)
-            } else {
-                // 直接替换或添加
-                content[body.key] = newValue
+            content[body.key] = when {
+                existingValue is JsonObject && newValue is JsonObject ->
+                    mergeJsonObjects(existingValue, newValue)
+                body.key == TOOLS_BODY_KEY && existingValue is JsonArray && newValue is JsonArray ->
+                    mergeToolArrays(existingValue, newValue)
+                else -> newValue
             }
         }
     }
@@ -115,12 +147,12 @@ private fun mergeJsonObjects(base: JsonObject, overlay: JsonObject): JsonObject 
     for ((key, value) in overlay) {
         val baseValue = result[key]
 
-        result[key] = if (baseValue is JsonObject && value is JsonObject) {
-            // 如果两者都是JsonObject，递归合并
-            mergeJsonObjects(baseValue, value)
-        } else {
-            // 否则使用新值替换旧值
-            value
+        result[key] = when {
+            baseValue is JsonObject && value is JsonObject ->
+                mergeJsonObjects(baseValue, value)
+            key == TOOLS_BODY_KEY && baseValue is JsonArray && value is JsonArray ->
+                mergeToolArrays(baseValue, value)
+            else -> value
         }
     }
 

@@ -15,6 +15,9 @@ import me.rerere.ai.core.MessageRole
 import me.rerere.ai.provider.Model
 import me.rerere.ai.ui.UIMessage
 import me.rerere.ai.ui.isEmptyUIMessage
+import me.rerere.hugeicons.HugeIcons
+import me.rerere.hugeicons.stroke.Bot
+import me.rerere.hugeicons.stroke.User
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.data.model.Avatar
@@ -47,6 +50,7 @@ fun ChatMessageUserAvatar(
                 name = nickname,
                 modifier = Modifier.size(28.dp),
                 value = avatar,
+                defaultIcon = HugeIcons.User,
                 loading = false,
             )
         }
@@ -76,6 +80,7 @@ fun ChatMessageAssistantAvatar(
                         name = assistant.name,
                         modifier = Modifier.size(28.dp),
                         value = assistant.avatar,
+                        defaultIcon = HugeIcons.Bot,
                         loading = loading,
                     )
                 }

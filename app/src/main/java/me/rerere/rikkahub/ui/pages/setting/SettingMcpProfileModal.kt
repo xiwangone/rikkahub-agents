@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
@@ -26,6 +27,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.mcp.LocalMcpProfile
@@ -70,16 +72,23 @@ internal fun LocalMcpProfileModal(
                         .fillMaxWidth()
                         .verticalScroll(rememberScrollState())
                         .imePadding(),
+                verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SettingTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
-                SettingTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
+                SettingTextField(value = port, onValueChange = { port = it }, label = { Text(stringResource(R.string.mcp_page_port_label)) }, keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number), singleLine = true, modifier = Modifier.fillMaxWidth())
                 Text(stringResource(R.string.mcp_profile_listen_scope), style = MaterialTheme.typography.labelLarge)
                 listOf(
                     "loopback" to stringResource(R.string.net_scope_loopback),
                     "lan" to stringResource(R.string.net_scope_lan),
                     "any" to stringResource(R.string.net_scope_any),
                 ).forEach { (value, label) ->
-                    Row(verticalAlignment = Alignment.CenterVertically) {
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { listenScope = value },
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
                         RadioButton(selected = listenScope == value, onClick = { listenScope = value })
                         Text(label, style = MaterialTheme.typography.bodySmall)
                     }
@@ -103,17 +112,25 @@ internal fun LocalMcpProfileModal(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text(stringResource(R.string.mcp_page_tools_header), style = MaterialTheme.typography.labelLarge)
-                        Row {
-                            TextButton(onClick = { selected = SAFE_LOCAL_TOOLS }) { Text(stringResource(R.string.mcp_page_select_all)) }
-                            TextButton(onClick = { selected = emptyList() }) { Text(stringResource(R.string.mcp_page_clear)) }
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        text = stringResource(R.string.mcp_page_tools_header),
+                        style = MaterialTheme.typography.labelLarge,
+                        modifier = Modifier.weight(1f),
+                    )
+                    Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
+                        TextButton(onClick = { selected = SAFE_LOCAL_TOOLS }) {
+                            Text(stringResource(R.string.mcp_page_select_all), maxLines = 1, softWrap = false)
+                        }
+                        TextButton(onClick = { selected = emptyList() }) {
+                            Text(stringResource(R.string.mcp_page_clear), maxLines = 1, softWrap = false)
                         }
                     }
+                }
                 LocalToolCatalog.groups(SAFE_LOCAL_TOOLS).forEach { (category, tools) ->
                     val expanded = category in expandedCategories
                     val pickedCount = tools.count { it in selected }

@@ -4696,4 +4696,32 @@
     <string name="setting_provider_page_batch_remove_non_chat_desc">確定移除全部 %1$d 個非對話模型（向量、生圖、影片）嗎？</string>
     <string name="setting_provider_page_batch_remove_done">已移除 %1$d 個模型</string>
     <string name="setting_provider_page_batch_remove_empty">沒有可移除的匹配模型</string>
+
+    <string name="assistant_page_tool_list_mode_checklist">勾選清單</string>
+    <string name="assistant_page_tool_list_mode_text">純文字</string>
+    <string name="assistant_page_tool_list_search_hint">搜尋工具名稱或分類</string>
+    <string name="assistant_page_tool_list_fill_stats">依用量一鍵填入</string>
+    <string name="assistant_page_tool_list_stats_empty">尚無用量統計，請先在工具設定中開啟「工具呼叫統計」。</string>
+    <string name="assistant_page_tool_list_stats_filled">已依用量填入 %1$d 個工具（點確定後生效）。</string>
+    <string name="assistant_page_tool_list_selected_count">已選 %1$d 個</string>
+    <string name="assistant_page_only_tools_missing_read_warning">注意：白名單未包含已啟用的讀取工具（%1$s），工具輸出截斷落盤後可能無法回讀。</string>
+    <string name="assistant_page_tools_global_status">裁剪：%1$s · 統計：%2$s · 輸出上限：%3$dK</string>
+    <string name="assistant_page_tools_open_settings">工具設定</string>
+    <string name="setting_tools_state_on">開</string>
+    <string name="setting_tools_state_off">關</string>
+
+    <string name="workspace_global_agents_title">全域 AGENTS.md</string>
+    <string name="workspace_global_agents_desc_empty">未設定 · 對所有本機與遠端工作區生效</string>
+    <string name="workspace_global_agents_desc_size">%1$s / 64 KB · 對所有本機與遠端工作區生效</string>
+    <string name="workspace_global_agents_hint">編寫工作區通用 Markdown 指令（本機與遠端 SSH 工作區皆生效）。</string>
+    <string name="workspace_global_agents_import">匯入</string>
+    <string name="workspace_global_agents_export">匯出</string>
+    <string name="workspace_global_agents_saved">已儲存全域 AGENTS.md</string>
+    <string name="workspace_global_agents_too_large">內容超過 64 KB 上限，請精簡後再儲存。</string>
+    <string name="workspace_detail_agents_remote_note">遠端工作區僅讀取全域 AGENTS.md（忽略遠端主機同名檔案）。</string>
+    <string name="workspace_detail_agents_local_note">同時合併全域 AGENTS.md 與工作區內 /workspace/AGENTS.md。</string>
+
+    <string name="vault_audit_expand">展開</string>
+    <string name="vault_audit_collapse">收合</string>
+    <string name="vault_audit_more_sub">… 還有 %1$d 條（點擊展開）</string>
 </resources>

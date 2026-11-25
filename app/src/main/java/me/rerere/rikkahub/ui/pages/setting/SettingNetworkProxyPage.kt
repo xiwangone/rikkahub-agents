@@ -45,7 +45,9 @@ import me.rerere.hugeicons.stroke.ArrowRight01
 import me.rerere.hugeicons.stroke.Router
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.NetworkSetting
+import me.rerere.rikkahub.data.network.resolveProxyPasswordForAuth
 import me.rerere.rikkahub.data.network.toProxyOrNull
+import okhttp3.Credentials
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.components.setting.DraftState
 import me.rerere.rikkahub.ui.components.setting.canTestProxyUrl
@@ -122,19 +124,27 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
         proxyDraft.edit(ProxyDraft())
     }
 
-    fun testProxy(urlToTest: String = proxyUrl) {
+    fun testProxy(urlToTest: String = proxyUrl, usernameToTest: String = proxyUsername, passwordToTest: String = proxyPassword) {
         val proxy = urlToTest.toProxyOrNull() ?: return
         if (proxyTesting) return
         proxyTesting = true
         scope.launch {
             val result = withContext(Dispatchers.IO) {
                 runCatching {
-                    val testClient = httpClient.newBuilder()
+                    val resolvedPwd = resolveProxyPasswordForAuth(passwordToTest).orEmpty()
+                    val testBuilder = httpClient.newBuilder()
                         .proxy(proxy)
                         .connectTimeout(10, TimeUnit.SECONDS)
                         .readTimeout(10, TimeUnit.SECONDS)
                         .callTimeout(15, TimeUnit.SECONDS)
-                        .build()
+                    if (usernameToTest.isNotBlank() || resolvedPwd.isNotBlank()) {
+                        val credential = Credentials.basic(usernameToTest, resolvedPwd)
+                        testBuilder.proxyAuthenticator { _, response ->
+                            if (response.request.header("Proxy-Authorization") != null) null
+                            else response.request.newBuilder().header("Proxy-Authorization", credential).build()
+                        }
+                    }
+                    val testClient = testBuilder.build()
                     testClient.newCall(
                         Request.Builder()
                             .url(PROXY_TEST_URL)
@@ -223,7 +233,7 @@ fun SettingNetworkProxyPage(vm: SettingVM = koinViewModel()) {
                         verticalAlignment = Alignment.CenterVertically,
                     ) {
                         TextButton(
-                            onClick = { testProxy(proxyDraft.draft.url) },
+                            onClick = { testProxy(proxyDraft.draft.url, proxyDraft.draft.username, proxyDraft.draft.password) },
                             enabled = canTestProxyUrl(proxyDraft.draft.url) && !proxyTesting,
                         ) {
                             if (proxyTesting) {

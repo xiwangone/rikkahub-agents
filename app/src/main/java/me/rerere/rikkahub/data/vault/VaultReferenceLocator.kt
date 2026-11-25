@@ -345,6 +345,14 @@ fun vaultCredentialRefsTool(
         if (VaultReferenceLocator.mentions(telegram.token, name)) hits += "Telegram bot token"
         if (VaultReferenceLocator.mentions(telegram.proxyPassword, name)) hits += "Telegram proxy password"
 
+        val debugToken = org.koin.core.context.GlobalContext.getOrNull()
+            ?.getOrNull<me.rerere.rikkahub.service.debug.DebugApiManager>()
+            ?.tokenFlow
+            ?.first()
+        if (!debugToken.isNullOrBlank() && VaultReferenceLocator.mentions(debugToken, name)) {
+            hits += "AI debug API token"
+        }
+
         // 已保存的 SSH 主机（私钥引用及三个支持 $$ 引用的认证字段）
         hits += findSshHostCredentialReferences(name, sshHostRepository)
 

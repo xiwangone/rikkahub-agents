@@ -462,4 +462,17 @@ class FileManagerToolTest {
         assertEquals("not_found", obj["error"]!!.jsonPrimitive.content)
         assertTrue(obj["hint"]!!.jsonPrimitive.content.contains("workspace_read_file"))
     }
+
+    @Test fun `resolveAgentReadPath maps upload and tool_outputs safely`() {
+        val fakeFilesDir = java.nio.file.Files.createTempDirectory("app_files").toFile()
+        val uploadDir = java.io.File(fakeFilesDir, "upload").apply { mkdirs() }
+        val outputDir = java.io.File(fakeFilesDir, "tool_outputs").apply { mkdirs() }
+        val resolvedUpload = resolveAgentReadPath("/upload/report.pdf") { fakeFilesDir }
+        assertEquals(java.io.File(uploadDir, "report.pdf").canonicalPath, resolvedUpload)
+        val resolvedOut = resolveAgentReadPath("/tool_outputs/run1.txt") { fakeFilesDir }
+        assertEquals(java.io.File(outputDir, "run1.txt").canonicalPath, resolvedOut)
+        // Traversal attempts must NOT resolve inside uploadDir
+        val traversal = resolveAgentReadPath("/upload/../secrets.txt") { fakeFilesDir }
+        assertEquals("/upload/../secrets.txt", traversal)
+    }
 }

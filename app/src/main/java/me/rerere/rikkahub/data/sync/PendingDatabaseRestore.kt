@@ -21,7 +21,7 @@ internal object PendingDatabaseRestore {
     private const val MAX_TOTAL_BYTES = 2L * 1024 * 1024 * 1024
     private const val STALE_STAGE_MAX_AGE_MS = 2L * 60 * 60 * 1000
     private val databaseNames = setOf("rikka_hub.db", "rikka_hub-wal", "rikka_hub-shm")
-    private val allowedFileRoots = setOf("avatars", "upload", "skills", "fonts", "images", "tool_outputs", "workspaces", "workspace", "media_creation")
+    private val allowedFileRoots = setOf("avatars", "upload", "skills", "fonts", "images", "tool_outputs", "workspaces", "AGENTS.md", "workspace", "media_creation")
     private val stageByteCounters = ConcurrentHashMap<String, AtomicLong>()
 
     fun createStage(context: Context): File {

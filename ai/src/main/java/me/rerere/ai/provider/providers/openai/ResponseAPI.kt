@@ -52,7 +52,9 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
+import me.rerere.ai.util.OMITTED_HISTORY_IMAGE_PLACEHOLDER
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.retainedHistoryImages
 import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.logSafeMessage
@@ -535,194 +537,225 @@ class ResponseAPI(
         // 实际调用点都会显式传入 `params.model.inputModalities`，这里只是未被依赖的兜底值。
         supportInputModalities: List<Modality> = listOf(Modality.TEXT),
     ) = buildJsonArray {
-        messages
-            .filter { message ->
-                message.role != MessageRole.SYSTEM && (
-                    message.isValidToUpload() || message.parts.any { part ->
-                        part is UIMessagePart.Reasoning &&
-                            part.metadataAs<OpenAIReasoningMetadata>()?.encryptedContent != null
-                    }
-                )
-            }
-            .forEach { message ->
-                if (message.role == MessageRole.ASSISTANT) {
-                    addAssistantItems(message, supportInputModalities)
-                } else {
-                    addUserItems(message, supportInputModalities)
+        val filtered = messages.filter { message ->
+            message.role != MessageRole.SYSTEM && (
+                message.isValidToUpload() || message.parts.any { part ->
+                    part is UIMessagePart.Reasoning &&
+                        part.metadataAs<OpenAIReasoningMetadata>()?.encryptedContent != null
                 }
+            )
+        }
+        val retainedImages = retainedHistoryImages(filtered)
+        filtered.forEach { message ->
+            if (message.role == MessageRole.ASSISTANT) {
+                addAssistantItems(message, supportInputModalities, retainedImages)
+            } else {
+                addUserItems(message, supportInputModalities, retainedImages)
             }
+        }
     }
 
-    private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List<Modality>) {
+    private fun JsonArrayBuilder.addAssistantItems(message: UIMessage, supportInputModalities: List<Modality>, retainedImages: Set<UIMessagePart.Image>) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
 
         for (group in groups) {
             when (group) {
-                is PartGroup.Content -> {
-                    val emittedReasoningIds = mutableSetOf<String>()
-                    group.parts.forEach { part ->
-                        when (part) {
-                            is UIMessagePart.Reasoning -> {
-                                val reasoningMetadata = part.metadataAs<OpenAIReasoningMetadata>()
-                                val reasoningId = reasoningMetadata?.reasoningId
-                                if (reasoningId != null && !emittedReasoningIds.add(reasoningId)) {
-                                    return@forEach
-                                }
-                                // 先输出累积的文本/图片内容
-                                if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
-                                    contentBuffer.clear()
-                                }
-                                // 输出 reasoning item
-                                val reasoningParts = if (reasoningId == null) {
-                                    listOf(part)
-                                } else {
-                                    group.parts.filterIsInstance<UIMessagePart.Reasoning>().filter {
-                                        it.metadataAs<OpenAIReasoningMetadata>()?.reasoningId == reasoningId
-                                    }
-                                }
-                                add(buildJsonObject {
-                                    put("type", "reasoning")
-                                    reasoningId?.let { put("id", it) }
-                                    put("summary", buildJsonArray {
-                                        reasoningParts
-                                            .filter { it.reasoningType == ReasoningType.SUMMARY_TEXT }
-                                            .filter { it.reasoning.isNotEmpty() }
-                                            .forEach {
-                                                add(buildJsonObject {
-                                                    put("type", "summary_text")
-                                                    put("text", it.reasoning)
-                                                })
-                                            }
-                                    })
-                                    val encryptedContent = reasoningMetadata?.encryptedContent
-                                    val content = reasoningParts
-                                        .filter { it.reasoningType == ReasoningType.REASONING_TEXT }
-                                        .filter { it.reasoning.isNotEmpty() }
-                                    if (encryptedContent == null && content.isNotEmpty()) {
-                                        put("content", buildJsonArray {
-                                            content.forEach {
-                                                add(buildJsonObject {
-                                                    put("type", "reasoning_text")
-                                                    put("text", it.reasoning)
-                                                })
-                                            }
-                                        })
-                                    }
-                                    encryptedContent?.let {
-                                        put("encrypted_content", it)
-                                    }
-                                })
-                            }
-
-                            is UIMessagePart.Image -> {
-                                if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
-                                    contentBuffer.clear()
-                                }
-                                addContentItem(MessageRole.USER, listOf(part), supportInputModalities)
-                            }
-
-                            is UIMessagePart.Text -> {
-                                contentBuffer.add(part)
-                            }
-
-                            is UIMessagePart.ServerTool -> {
-                                if (contentBuffer.isNotEmpty()) {
-                                    addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
-                                    contentBuffer.clear()
-                                }
-                                addServerToolItem(part)
-                            }
-
-                            else -> {}
-                        }
-                    }
-                }
-
-                is PartGroup.Tools -> {
-                    // 先输出累积的内容
-                    if (contentBuffer.isNotEmpty()) {
-                        addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
-                        contentBuffer.clear()
-                    }
-
-                    // 同一批并发工具调用需先输出全部 function_call，再输出对应结果。
-                    group.tools.forEach { tool ->
-                        add(buildJsonObject {
-                            put("type", "function_call")
-                            put("call_id", tool.toolCallId)
-                            put("name", tool.toolName)
-                            // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
-                            put("arguments", tool.inputAsJson().toString())
-                        })
-                    }
-                    group.tools.forEach { tool ->
-                        add(buildJsonObject {
-                            put("type", "function_call_output")
-                            put("call_id", tool.toolCallId)
-                            val hasImage = tool.output.any { it is UIMessagePart.Image }
-                            val supportsImageInput = Modality.IMAGE in supportInputModalities
-                            if (hasImage && supportsImageInput) {
-                                putJsonArray("output") {
-                                    tool.output.forEach { part ->
-                                        when (part) {
-                                            is UIMessagePart.Image -> add(buildJsonObject {
-                                                part.encodeBase64().onSuccess { encoded ->
-                                                    put("type", "input_image")
-                                                    put("image_url", encoded.base64)
-                                                }.onFailure {
-                                                    AppLogger.w(TAG, "failed to encode image to base64", it)
-                                                    put("type", "input_text")
-                                                    put("text", "Error: Failed to encode image to base64")
-                                                }
-                                            })
-                                            is UIMessagePart.Text -> add(buildJsonObject {
-                                                put("type", "input_text")
-                                                put("text", part.text)
-                                            })
-                                            else -> {}
-                                        }
-                                    }
-                                }
-                            } else if (hasImage) {
-                                // Text-only model: fold the image(s) into the placeholder
-                                // text, mirroring ChatCompletionsAPI's toToolResultContent,
-                                // so the model still sees that a tool produced an image
-                                // without leaking image data it can't accept.
-                                put(
-                                    "output",
-                                    tool.output.mapNotNull { part ->
-                                        when (part) {
-                                            is UIMessagePart.Text -> part.text
-                                            is UIMessagePart.Image -> IMAGE_UNSUPPORTED_PLACEHOLDER
-                                            else -> null
-                                        }
-                                    }.joinToString("\n")
-                                )
-                            } else {
-                                put(
-                                    "output",
-                                    tool.output.filterIsInstance<UIMessagePart.Text>()
-                                        .joinToString("\n") { it.text }
-                                )
-                            }
-                        })
-                        // No image lift here (issue #104): the Responses API allows
-                        // input_image parts inline inside function_call_output.output
-                        // above, which is in-spec, so a tool-returned image is already
-                        // visible to the model without a follow-up user item that would
-                        // otherwise separate one tool call's output from the next.
-                    }
-                }
+                is PartGroup.Content -> addAssistantContentGroup(group, contentBuffer, supportInputModalities, retainedImages)
+                is PartGroup.Tools -> addAssistantToolsGroup(group, contentBuffer, supportInputModalities, retainedImages)
             }
         }
 
         // 输出剩余内容
+        flushContentBuffer(contentBuffer, supportInputModalities, retainedImages)
+    }
+
+    private fun JsonArrayBuilder.flushContentBuffer(
+        contentBuffer: MutableList<UIMessagePart>,
+        supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
         if (contentBuffer.isNotEmpty()) {
-            addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities)
+            addContentItem(MessageRole.ASSISTANT, contentBuffer, supportInputModalities, retainedImages)
+            contentBuffer.clear()
         }
+    }
+
+    private fun JsonArrayBuilder.addAssistantContentGroup(
+        group: PartGroup.Content,
+        contentBuffer: MutableList<UIMessagePart>,
+        supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
+        val emittedReasoningIds = mutableSetOf<String>()
+        group.parts.forEach { part ->
+            when (part) {
+                is UIMessagePart.Reasoning -> {
+                    val reasoningId = part.metadataAs<OpenAIReasoningMetadata>()?.reasoningId
+                    if (reasoningId != null && !emittedReasoningIds.add(reasoningId)) {
+                        return@forEach
+                    }
+                    // 先输出累积的文本/图片内容
+                    flushContentBuffer(contentBuffer, supportInputModalities, retainedImages)
+                    // 输出 reasoning item
+                    addReasoningItem(part, group, reasoningId)
+                }
+
+                is UIMessagePart.Image -> {
+                    flushContentBuffer(contentBuffer, supportInputModalities, retainedImages)
+                    addContentItem(MessageRole.USER, listOf(part), supportInputModalities, retainedImages)
+                }
+
+                is UIMessagePart.Text -> {
+                    contentBuffer.add(part)
+                }
+
+                is UIMessagePart.ServerTool -> {
+                    flushContentBuffer(contentBuffer, supportInputModalities, retainedImages)
+                    addServerToolItem(part)
+                }
+
+                else -> {}
+            }
+        }
+    }
+
+    private fun JsonArrayBuilder.addReasoningItem(
+        part: UIMessagePart.Reasoning,
+        group: PartGroup.Content,
+        reasoningId: String?,
+    ) {
+        val reasoningMetadata = part.metadataAs<OpenAIReasoningMetadata>()
+        val reasoningParts = if (reasoningId == null) {
+            listOf(part)
+        } else {
+            group.parts.filterIsInstance<UIMessagePart.Reasoning>().filter {
+                it.metadataAs<OpenAIReasoningMetadata>()?.reasoningId == reasoningId
+            }
+        }
+        add(buildJsonObject {
+            put("type", "reasoning")
+            reasoningId?.let { put("id", it) }
+            put("summary", buildJsonArray {
+                reasoningParts
+                    .filter { it.reasoningType == ReasoningType.SUMMARY_TEXT }
+                    .filter { it.reasoning.isNotEmpty() }
+                    .forEach {
+                        add(buildJsonObject {
+                            put("type", "summary_text")
+                            put("text", it.reasoning)
+                        })
+                    }
+            })
+            val encryptedContent = reasoningMetadata?.encryptedContent
+            val content = reasoningParts
+                .filter { it.reasoningType == ReasoningType.REASONING_TEXT }
+                .filter { it.reasoning.isNotEmpty() }
+            if (encryptedContent == null && content.isNotEmpty()) {
+                put("content", buildJsonArray {
+                    content.forEach {
+                        add(buildJsonObject {
+                            put("type", "reasoning_text")
+                            put("text", it.reasoning)
+                        })
+                    }
+                })
+            }
+            encryptedContent?.let {
+                put("encrypted_content", it)
+            }
+        })
+    }
+
+    private fun JsonArrayBuilder.addAssistantToolsGroup(
+        group: PartGroup.Tools,
+        contentBuffer: MutableList<UIMessagePart>,
+        supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
+        // 先输出累积的内容
+        flushContentBuffer(contentBuffer, supportInputModalities, retainedImages)
+
+        // 同一批并发工具调用需先输出全部 function_call，再输出对应结果。
+        group.tools.forEach { tool ->
+            add(buildJsonObject {
+                put("type", "function_call")
+                put("call_id", tool.toolCallId)
+                put("name", tool.toolName)
+                // 使用 inputAsJson() 归一化，避免流式中断导致的残缺 JSON 被发送
+                put("arguments", tool.inputAsJson().toString())
+            })
+        }
+        group.tools.forEach { tool ->
+            addFunctionCallOutput(tool, supportInputModalities, retainedImages)
+        }
+        // No image lift here (issue #104): the Responses API allows
+        // input_image parts inline inside function_call_output.output
+        // above, which is in-spec, so a tool-returned image is already
+        // visible to the model without a follow-up user item that would
+        // otherwise separate one tool call's output from the next.
+    }
+
+    private fun JsonArrayBuilder.addFunctionCallOutput(
+        tool: UIMessagePart.Tool,
+        supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
+        add(buildJsonObject {
+            put("type", "function_call_output")
+            put("call_id", tool.toolCallId)
+            val hasImage = tool.output.any { it is UIMessagePart.Image }
+            val supportsImageInput = Modality.IMAGE in supportInputModalities
+            if (hasImage && supportsImageInput) {
+                putJsonArray("output") {
+                    tool.output.forEach { part ->
+                        when (part) {
+                            is UIMessagePart.Image -> add(buildJsonObject {
+                                if (part !in retainedImages) {
+                                    put("type", "input_text")
+                                    put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
+                                } else {
+                                    part.encodeBase64().onSuccess { encoded ->
+                                        put("type", "input_image")
+                                        put("image_url", encoded.base64)
+                                    }.onFailure {
+                                        AppLogger.w(TAG, "failed to encode image to base64", it)
+                                        put("type", "input_text")
+                                        put("text", "Error: Failed to encode image to base64")
+                                    }
+                                }
+                            })
+                            is UIMessagePart.Text -> add(buildJsonObject {
+                                put("type", "input_text")
+                                put("text", part.text)
+                            })
+                            else -> {}
+                        }
+                    }
+                }
+            } else if (hasImage) {
+                // Text-only model: fold the image(s) into the placeholder
+                // text, mirroring ChatCompletionsAPI's toToolResultContent,
+                // so the model still sees that a tool produced an image
+                // without leaking image data it can't accept.
+                put(
+                    "output",
+                    tool.output.mapNotNull { part ->
+                        when (part) {
+                            is UIMessagePart.Text -> part.text
+                            is UIMessagePart.Image -> IMAGE_UNSUPPORTED_PLACEHOLDER
+                            else -> null
+                        }
+                    }.joinToString("\n")
+                )
+            } else {
+                put(
+                    "output",
+                    tool.output.filterIsInstance<UIMessagePart.Text>()
+                        .joinToString("\n") { it.text }
+                )
+            }
+        })
     }
 
     private fun JsonArrayBuilder.addServerToolItem(tool: UIMessagePart.ServerTool) {
@@ -749,10 +782,10 @@ class ResponseAPI(
         })
     }
 
-    private fun JsonArrayBuilder.addUserItems(message: UIMessage, supportInputModalities: List<Modality>) {
+    private fun JsonArrayBuilder.addUserItems(message: UIMessage, supportInputModalities: List<Modality>, retainedImages: Set<UIMessagePart.Image>) {
         val contentParts = message.parts.filter { it is UIMessagePart.Text || it is UIMessagePart.Image }
         if (contentParts.isNotEmpty()) {
-            addContentItem(message.role, contentParts, supportInputModalities)
+            addContentItem(message.role, contentParts, supportInputModalities, retainedImages)
         }
     }
 
@@ -760,6 +793,7 @@ class ResponseAPI(
         role: MessageRole,
         parts: List<UIMessagePart>,
         supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
     ) {
         if (parts.isEmpty()) return
 
@@ -784,6 +818,9 @@ class ResponseAPI(
                                     if (Modality.IMAGE !in supportInputModalities) {
                                         put("type", "input_text")
                                         put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                                    } else if (part !in retainedImages) {
+                                        put("type", "input_text")
+                                        put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
                                     } else {
                                         part.encodeBase64().onSuccess { encodedImage ->
                                             put("type", "input_image")

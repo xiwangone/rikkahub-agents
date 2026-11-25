@@ -4704,4 +4704,32 @@
     <string name="setting_provider_page_batch_remove_non_chat_desc">هل تريد إزالة جميع النماذج غير الحوارية (%1$d)؟</string>
     <string name="setting_provider_page_batch_remove_done">تمت إزالة %1$d نموذجًا</string>
     <string name="setting_provider_page_batch_remove_empty">لا توجد نماذج مطابقة للإزالة</string>
+
+    <string name="assistant_page_tool_list_mode_checklist">قائمة اختيار</string>
+    <string name="assistant_page_tool_list_mode_text">نص عادي</string>
+    <string name="assistant_page_tool_list_search_hint">ابحث باسم الأداة أو الفئة</string>
+    <string name="assistant_page_tool_list_fill_stats">تعبئة حسب الاستخدام</string>
+    <string name="assistant_page_tool_list_stats_empty">لا توجد إحصاءات بعد. فعّل إحصاءات الأدوات في الإعدادات أولاً.</string>
+    <string name="assistant_page_tool_list_stats_filled">تمت تعبئة %1$d أداة من الإحصاءات (اضغط تأكيد للحفظ).</string>
+    <string name="assistant_page_tool_list_selected_count">المحدد: %1$d</string>
+    <string name="assistant_page_only_tools_missing_read_warning">تنبيه: تم استبعاد أدوات القراءة المفعلة (%1$s)؛ قد يتعذر قراءة المخرجات المحفوظة.</string>
+    <string name="assistant_page_tools_global_status">التقليص: %1$s · الإحصاءات: %2$s · الحد: %3$dK</string>
+    <string name="assistant_page_tools_open_settings">إعدادات الأدوات</string>
+    <string name="setting_tools_state_on">تشغيل</string>
+    <string name="setting_tools_state_off">إيقاف</string>
+
+    <string name="workspace_global_agents_title">ملف AGENTS.md العام</string>
+    <string name="workspace_global_agents_desc_empty">غير مضبوط · ينطبق على جميع مساحات العمل المحلية والبعيدة</string>
+    <string name="workspace_global_agents_desc_size">%1$s / 64 كيلوبايت · ينطبق على جميع مساحات العمل</string>
+    <string name="workspace_global_agents_hint">اكتب تعليمات Markdown العامة لمساحات العمل المحلية والبعيدة (SSH).</string>
+    <string name="workspace_global_agents_import">استيراد</string>
+    <string name="workspace_global_agents_export">تصدير</string>
+    <string name="workspace_global_agents_saved">تم حفظ ملف AGENTS.md العام</string>
+    <string name="workspace_global_agents_too_large">يتجاوز حد 64 كيلوبايت؛ يرجى الاختصار قبل الحفظ.</string>
+    <string name="workspace_detail_agents_remote_note">مساحة العمل البعيدة تستخدم ملف AGENTS.md العام فقط.</string>
+    <string name="workspace_detail_agents_local_note">يدمج ملف AGENTS.md العام مع /workspace/AGENTS.md.</string>
+
+    <string name="vault_audit_expand">عرض</string>
+    <string name="vault_audit_collapse">إخفاء</string>
+    <string name="vault_audit_more_sub">… %1$d أخرى (اضغط للتوسيع)</string>
 </resources>

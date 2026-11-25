@@ -2,6 +2,9 @@ package me.rerere.rikkahub.data.ai.tools
 
 import android.content.Context
 import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonArray
+import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.add
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
@@ -15,9 +18,9 @@ import me.rerere.common.http.optString
 /**
  * 按需检索工具说明的元工具（渐进式披露）。
  *
- * 低频工具的注入描述会被精简成一行，模型需要完整用法时用这两个工具取：
+ * 冷档工具的注入描述会被精简成一行，模型需要完整用法时用这两个工具取：
  * - `list_tools(keyword?)`：列出当前可用工具（名称 + 一行用途），可按关键词过滤；
- * - `get_tool_schema(name)`：取回某个工具的完整说明与参数表。
+ * - `get_tool_schema(name | names)`：取回单个或多个工具的完整说明与参数表。
  *
  * 注意：[allTools] 必须是**未精简**的完整工具列表，否则取不到完整说明。
  */
@@ -26,40 +29,33 @@ internal fun effectiveDiscoveryTier(
     trimEnabled: Boolean = true,
     scope: List<String> = emptyList(),
     extraCold: Set<String> = emptySet(),
-    uiScene: UiScene = UiScene.UNKNOWN,
 ): SurfaceTier {
     if (toolName in extraCold) return SurfaceTier.COLD
-    if (!trimEnabled) return ToolSurfacePolicy.tierOf(toolName, extraCold, uiScene)
+    if (!trimEnabled) return ToolSurfacePolicy.tierOf(toolName, extraCold)
     return if (scope.isEmpty()) {
-        ToolSurfacePolicy.tierOf(toolName, extraCold, uiScene)
+        ToolSurfacePolicy.tierOf(toolName, extraCold)
     } else {
-        ToolSurfacePolicy.tierOfWithScope(toolName, scope, extraCold, uiScene)
+        ToolSurfacePolicy.tierOfWithScope(toolName, scope, extraCold)
     }
 }
 
-@Suppress("LongParameterList")
 internal fun buildToolDiscoveryTools(
     allTools: List<Tool>,
     conversationId: String? = null,
     extraCold: Set<String> = emptySet(),
-    // 仅用于记录“冷档解锁”统计（可为 null，统计随之关闭）。
     context: Context? = null,
-    // 当前 UI 场景：透传给档位判定，使 list_tools 显示的档位与实际注入一致。
-    uiScene: UiScene = UiScene.UNKNOWN,
     trimEnabled: Boolean = true,
     scope: List<String> = emptyList(),
 ): List<Tool> =
     listOf(
-        listToolsTool(allTools, conversationId, extraCold, uiScene, trimEnabled, scope),
-        getToolSchemaTool(allTools, conversationId, extraCold, context, uiScene, trimEnabled, scope),
+        listToolsTool(allTools, conversationId, extraCold, trimEnabled, scope),
+        getToolSchemaTool(allTools, conversationId, extraCold, context, trimEnabled, scope),
     )
 
-@Suppress("LongParameterList")
 private fun listToolsTool(
     allTools: List<Tool>,
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
-    uiScene: UiScene = UiScene.UNKNOWN,
     trimEnabled: Boolean = true,
     scope: List<String> = emptyList(),
 ): Tool =
@@ -101,11 +97,8 @@ private fun listToolsTool(
                                     buildJsonObject {
                                         put("name", tool.name)
                                         put("purpose", tool.description.toSingleLine())
-                                        val tier = effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold, uiScene)
+                                        val tier = effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold)
                                         put("tier", tier.name.lowercase())
-                                        // Only cold tools can lack a full schema; hot/warm always ship
-                                        // the complete one. Reporting false for them is misleading and
-                                        // invites pointless get_tool_schema round trips.
                                         put(
                                             "schema_loaded",
                                             tier != SurfaceTier.COLD ||
@@ -130,15 +123,14 @@ private fun getToolSchemaTool(
     conversationId: String?,
     extraCold: Set<String> = emptySet(),
     context: Context? = null,
-    uiScene: UiScene = UiScene.UNKNOWN,
     trimEnabled: Boolean = true,
     scope: List<String> = emptyList(),
 ): Tool =
     Tool(
         name = "get_tool_schema",
         description = """
-            Return the full description and parameter schema of one tool by name. Use it after
-            list_tools when you need the exact arguments of a tool whose injected description is short.
+            Return the full description and parameter schema of one or more tools by name. Use it after
+            list_tools when you need the exact arguments of tools whose injected schema is empty.
         """.trimIndent().replace("\n", " "),
         parameters = {
             InputSchema.Obj(
@@ -148,40 +140,92 @@ private fun getToolSchemaTool(
                             put("type", "string")
                             put("description", "Exact tool name, as returned by list_tools.")
                         })
+                        put("names", buildJsonObject {
+                            put("type", "array")
+                            put("items", buildJsonObject { put("type", "string") })
+                            put("description", "Optional list of exact tool names to unlock in a single batch.")
+                        })
                     },
-                required = listOf("name"),
+                required = emptyList(),
             )
         },
         execute = { input ->
-            val name = input.jsonObject.optString("name")?.trim().orEmpty()
-            val tool = allTools.firstOrNull { it.name == name }
-            if (tool != null && effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold, uiScene) == SurfaceTier.COLD) {
-                ToolSurfaceSession.markLoaded(conversationId, tool.name)
-                // 记录解锁：与调用次数对照，判断降温名单配得对不对（解锁后是否真用得上）。
-                context?.let { ToolUsageTracker.recordUnlock(it, tool.name) }
-            }
+            val obj = input.jsonObject
+            val singleName = obj.optString("name")?.trim()?.takeIf { it.isNotEmpty() }
+            val batchNames =
+                (obj["names"] as? JsonArray)
+                    ?.mapNotNull { el -> (el as? JsonPrimitive)?.takeIf { it.isString }?.content?.trim() }
+                    ?.filter { it.isNotEmpty() }
+                    .orEmpty()
+
             val payload =
-                if (tool == null) {
-                    ToolErrors.envelopeFor(error = "invalid_argument", message = "unknown tool '$name'", hint = "Call list_tools first to see the available names.")
-                } else {
+                if (batchNames.isNotEmpty()) {
+                    val requested = (listOfNotNull(singleName) + batchNames).distinct()
+                    val found = mutableListOf<JsonObject>()
+                    val notFound = mutableListOf<String>()
+                    requested.forEach { targetName ->
+                        val tool = allTools.firstOrNull { it.name == targetName }
+                        if (tool == null) {
+                            notFound.add(targetName)
+                        } else {
+                            unlockColdTool(tool, conversationId, extraCold, context, trimEnabled, scope)
+                            found.add(schemaJsonFor(tool))
+                        }
+                    }
                     buildJsonObject {
-                        put("name", tool.name)
-                        put("description", tool.description)
-                        val schema = tool.parameters()
-                        put(
-                            "parameters",
-                            if (schema == null) {
-                                kotlinx.serialization.json.JsonNull
-                            } else {
-                                Json.encodeToJsonElement(InputSchema.serializer(), schema)
-                            },
+                        put("count", found.size)
+                        put("tools", JsonArray(found))
+                        if (notFound.isNotEmpty()) {
+                            put("not_found", JsonArray(notFound.map { JsonPrimitive(it) }))
+                        }
+                    }
+                } else {
+                    val name = singleName.orEmpty()
+                    val tool = allTools.firstOrNull { it.name == name }
+                    if (tool == null) {
+                        ToolErrors.envelopeFor(
+                            error = "invalid_argument",
+                            message = "unknown tool '$name'",
+                            hint = "Call list_tools first to see the available names.",
                         )
-                        put("needsApprovalByDefault", ToolApprovalDefaults.requiresApproval(tool.name))
+                    } else {
+                        unlockColdTool(tool, conversationId, extraCold, context, trimEnabled, scope)
+                        schemaJsonFor(tool)
                     }
                 }
             listOf(UIMessagePart.Text(payload.toString()))
         },
     )
+
+private fun unlockColdTool(
+    tool: Tool,
+    conversationId: String?,
+    extraCold: Set<String>,
+    context: Context?,
+    trimEnabled: Boolean,
+    scope: List<String>,
+) {
+    if (effectiveDiscoveryTier(tool.name, trimEnabled, scope, extraCold) == SurfaceTier.COLD) {
+        ToolSurfaceSession.markLoaded(conversationId, tool.name)
+        context?.let { ToolUsageTracker.recordUnlock(it, tool.name) }
+    }
+}
+
+private fun schemaJsonFor(tool: Tool): JsonObject =
+    buildJsonObject {
+        put("name", tool.name)
+        put("description", tool.description)
+        val schema = tool.parameters()
+        put(
+            "parameters",
+            if (schema == null) {
+                kotlinx.serialization.json.JsonNull
+            } else {
+                Json.encodeToJsonElement(InputSchema.serializer(), schema)
+            },
+        )
+        put("needsApprovalByDefault", ToolApprovalDefaults.requiresApproval(tool.name))
+    }
 
 /** 复用注入侧的"一行摘要"规则，保证 list_tools 与注入描述一致。 */
 private fun String.toSingleLine(maxChars: Int = 120): String {

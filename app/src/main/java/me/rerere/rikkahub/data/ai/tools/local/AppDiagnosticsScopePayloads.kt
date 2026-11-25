@@ -227,6 +227,7 @@ internal suspend fun usageStatsPayload(
                     put("assistant", assistant.name)
                     // 统计开关的**当前生效值**（进程内由装配同步）：关时下面的数据只是历史存量、不再增长。
                     put("toolStatsEnabled", ToolUsageTracker.isStatsEnabled())
+                    put("statsEnabled", ToolUsageTracker.isStatsEnabled())
                     put("trackedToolCount", snapshot.size)
                     put("adviceThreshold", minCalls)
                     put("totalCalls", snapshot.sumOf { it.count })
@@ -309,7 +310,12 @@ internal suspend fun usageStatsPayload(
                     put("advice", usageAdviceJson(snapshot, extraCold, minCalls))
                     put(
                         "hint",
-                        "enabledButNeverCalled = tools injected to the model but never called; injectedToolCount is the total number of tools in the most recent injection." +
+                        (if (!ToolUsageTracker.isStatsEnabled()) {
+                            "Tool usage stats are currently OFF (Settings -> Tools -> Tool Usage Stats). Enable it to collect call counts. "
+                        } else {
+                            ""
+                        }) +
+                            "enabledButNeverCalled = tools injected to the model but never called; injectedToolCount is the total number of tools in the most recent injection." +
                             "advice = actionable suggestions (computed from \"call count × effective tier\"): remove_from_extra_cold means the tool is called frequently yet sits on the assistant-level extra-cold list, " +
                             "so its first use in every session needs a get_tool_schema unlock — consider removing it (adviceThreshold is the decision threshold, overridable with min_calls).",
                     )
@@ -421,6 +427,7 @@ internal suspend fun toolScopePayload(
         buildJsonObject {
             put("assistant", assistant.name)
             put("trimEnabled", trimEnabled)
+            put("statsEnabled", settings.displaySetting.toolStatsEnabled)
             put("unmatched_lists", unmatchedLists)
             // 常驻内容账本：每轮固定成本的构成（只记长度；token 为 chars/3 估算）
             ContextLedger.last(context)?.let { ledger ->
@@ -569,8 +576,8 @@ internal suspend fun toolScopePayload(
             put(
                 "hint",
                 "Read-only snapshot. tools come from the most recently assembled injection set (the allowlist is also the execution boundary: tools outside it are neither visible nor callable)." +
-                    "tierSource: ASSISTANT_EXTRA_COLD=assistant-level extra-cold / POLICY_HOT=policy hot tier / POLICY_COLD_EXTRA=policy cold-tier single item / " +
-                    "POLICY_COLD_PREFIX=policy cold-tier family prefix / DEFAULT_WARM=default warm tier. The three alwaysKept entries are the zero-side-effect self-rescue layer " +
+                    "tierSource: DEFAULT_HOT=default full schema / ASSISTANT_EXTRA_COLD=assistant-level extra-cold / OUTSIDE_ASSISTANT_SCOPE=outside allowlist. " +
+                    "The three alwaysKept entries are the zero-side-effect self-rescue layer " +
                     "(ask for help / list tools / fetch parameter tables) and cannot be removed in allowlist mode; onlyToolsNotInjected = allowlisted items missing from the current injection set" +
                     "(misspelled or conflicting with another restriction); with trimEnabled=false the tiers do not change the injection shape." +
                     "optionScope = per-option enablement: total/enabled/disabledCount + per-item reasons (not_selected=not checked / " +

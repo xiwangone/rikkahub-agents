@@ -12,6 +12,7 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Card
 import androidx.compose.material3.FloatingActionButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LargeFlexibleTopAppBar
@@ -30,6 +31,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.nestedscroll.nestedScroll
@@ -70,6 +72,13 @@ fun WorkspacePage(
     var showTypePicker by rememberSaveable { mutableStateOf(openCreate) }
     var editTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
     var deleteTarget by remember { mutableStateOf<WorkspaceEntity?>(null) }
+    var showGlobalAgentsDialog by remember { mutableStateOf(false) }
+    var globalAgentsRefreshKey by remember { mutableStateOf(0) }
+    val ctx = LocalContext.current
+    val globalAgentsBytes = remember(globalAgentsRefreshKey) {
+        val f = globalAgentsMdFile(ctx)
+        if (f.isFile) f.length().toInt() else 0
+    }
 
     Scaffold(
         topBar = {
@@ -96,6 +105,37 @@ fun WorkspacePage(
             contentPadding = innerPadding + PaddingValues(16.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
+            item(key = "global_agents_md") {
+                Card(
+                    onClick = { showGlobalAgentsDialog = true },
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                            Text(
+                                text = stringResource(R.string.workspace_global_agents_title),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
+                            Text(
+                                text = if (globalAgentsBytes > 0) {
+                                    stringResource(
+                                        R.string.workspace_global_agents_desc_size,
+                                        formatAgentsByteSize(globalAgentsBytes),
+                                    )
+                                } else {
+                                    stringResource(R.string.workspace_global_agents_desc_empty)
+                                },
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
             if (workspaces.isEmpty()) {
                 item {
                     ExtensionEmptyState(
@@ -116,6 +156,13 @@ fun WorkspacePage(
                 )
             }
         }
+    }
+
+    if (showGlobalAgentsDialog) {
+        GlobalAgentsMdDialog(
+            onDismiss = { showGlobalAgentsDialog = false },
+            onSaved = { globalAgentsRefreshKey++ },
+        )
     }
 
     if (showTypePicker) {

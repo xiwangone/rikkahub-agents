@@ -40,6 +40,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Shape
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
@@ -58,6 +59,7 @@ import me.rerere.common.android.Logging
 import me.rerere.common.android.appTempFolder
 import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.Edit03
+import me.rerere.hugeicons.stroke.Sparkles
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.files.FilesManager
 import me.rerere.rikkahub.data.model.Avatar
@@ -128,6 +130,7 @@ fun UIAvatar(
     modifier: Modifier = Modifier,
     loading: Boolean = false,
     shape: Shape = CircleShape,
+    defaultIcon: ImageVector? = null,
     onUpdate: ((Avatar) -> Unit)? = null,
     onClick: (() -> Unit)? = null,
 ) {
@@ -242,6 +245,7 @@ fun UIAvatar(
                     is Avatar.Dummy -> {
                         ProceduralAvatar(
                             name = name,
+                            defaultIcon = defaultIcon,
                             modifier = Modifier.fillMaxSize(),
                         )
                     }
@@ -406,21 +410,58 @@ fun UIAvatar(
 @Composable
 private fun ProceduralAvatar(
     name: String,
+    defaultIcon: ImageVector? = null,
     modifier: Modifier = Modifier,
 ) {
-    val (fromColor, toColor) =
-        remember(name) {
-            vercelAvatarColors(name.ifBlank { "?" })
+    val trimmed = name.trim()
+    if (trimmed.isNotEmpty()) {
+        val (fromColor, toColor) = remember(trimmed) { vercelAvatarColors(trimmed) }
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(
+                    brush =
+                        Brush.linearGradient(
+                            colors = listOf(fromColor, toColor),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height),
+                        ),
+                )
+            }
+            Text(
+                text = trimmed.take(1).uppercase(),
+                color = Color.White,
+                style = MaterialTheme.typography.labelLarge,
+                maxLines = 1,
+                textAlign = TextAlign.Center,
+            )
         }
-    Canvas(modifier = modifier) {
-        drawRect(
-            brush =
-                Brush.linearGradient(
-                    colors = listOf(fromColor, toColor),
-                    start = Offset(0f, 0f),
-                    end = Offset(size.width, size.height),
-                ),
-        )
+    } else {
+        val fromColor = MaterialTheme.colorScheme.primaryContainer
+        val toColor = MaterialTheme.colorScheme.tertiaryContainer
+        Box(
+            modifier = modifier,
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(modifier = Modifier.fillMaxSize()) {
+                drawRect(
+                    brush =
+                        Brush.linearGradient(
+                            colors = listOf(fromColor, toColor),
+                            start = Offset(0f, 0f),
+                            end = Offset(size.width, size.height),
+                        ),
+                )
+            }
+            Icon(
+                imageVector = defaultIcon ?: HugeIcons.Sparkles,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onPrimaryContainer,
+                modifier = Modifier.fillMaxSize(0.56f),
+            )
+        }
     }
 }
 

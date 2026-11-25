@@ -30,6 +30,17 @@ private fun openSftp(session: Session): ChannelSftp {
 }
 
 /**
+ * Resolve an ssh_upload / ssh_download local path the same way the file-manager tool does:
+ * `/upload/...` and `/tool_outputs/...` map inside the app files dir, everything else falls
+ * back to [AgentWorkspace.expand]. The optional provider exists so unit tests can pass a
+ * fake files dir without Koin; production call sites use the default.
+ */
+internal fun resolveSshLocalPath(
+    rawLocalPath: String,
+    filesDirProvider: () -> File = { fmContext().filesDir },
+): String = resolveAgentReadPath(rawLocalPath, filesDirProvider)
+
+/**
  * Open a connected SSH session to a saved host with the same probe → bind → cancel logic
  * SSH exec uses. Stashes the live Session in [sessionRef] so the outer cancellable wrapper
  * can disconnect it on coroutine cancellation. Returns the [block]'s envelope, or a
@@ -119,7 +130,7 @@ fun sshUploadTool(
         InputSchema.Obj(
             properties = buildJsonObject {
                 put("name", buildJsonObject { put("type", "string"); put("description", "Saved host name") })
-                put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute path on the device") })
+                put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute path on the device, or /upload/... / /tool_outputs/... inside the app files dir") })
                 put("remote_path", buildJsonObject { put("type", "string"); put("description", "Absolute remote path (full filename)") })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 60, max 600") })
                 put("hash", buildJsonObject { put("type", "string"); put("description", "Checksum algorithms for the local file, comma-separated: md5, sha1, sha256, sha512 (default sha256; 'all' for every one). Returned under `hashes`.") })
@@ -131,7 +142,7 @@ fun sshUploadTool(
         val p = input.jsonObject
         val name = p.optString("name") ?: error("name is required")
         val rawLocalPath = p.optString("local_path") ?: error("local_path is required")
-        val localPath = AgentWorkspace.expand(rawLocalPath)
+        val localPath = resolveSshLocalPath(rawLocalPath)
         PathSafetyGuard.check(localPath)?.let { v ->
             return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
         }
@@ -207,7 +218,7 @@ fun sshDownloadTool(
             properties = buildJsonObject {
                 put("name", buildJsonObject { put("type", "string"); put("description", "Saved host name") })
                 put("remote_path", buildJsonObject { put("type", "string"); put("description", "Absolute remote file path") })
-                put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute local path on the device") })
+                put("local_path", buildJsonObject { put("type", "string"); put("description", "Absolute local path on the device, or /upload/... / /tool_outputs/... inside the app files dir") })
                 put("timeout_seconds", buildJsonObject { put("type", "integer"); put("description", "Total timeout, default 60, max 600") })
                 put("hash", buildJsonObject { put("type", "string"); put("description", "Checksum algorithms for the local file, comma-separated: md5, sha1, sha256, sha512 (default sha256; 'all' for every one). Returned under `hashes`.") })
             },
@@ -219,7 +230,7 @@ fun sshDownloadTool(
         val name = p.optString("name") ?: error("name is required")
         val remotePath = p.optString("remote_path") ?: error("remote_path is required")
         val rawLocalPath = p.optString("local_path") ?: error("local_path is required")
-        val localPath = AgentWorkspace.expand(rawLocalPath)
+        val localPath = resolveSshLocalPath(rawLocalPath)
         PathSafetyGuard.check(localPath)?.let { v ->
             return@Tool listOf(UIMessagePart.Text(ToolErrors.envelopeFor(error = v.code, message = v.detail).toString()))
         }

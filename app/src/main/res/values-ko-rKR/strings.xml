@@ -4697,4 +4697,32 @@
     <string name="setting_provider_page_batch_remove_non_chat_desc">비대화형 모델(임베딩·이미지·비디오) %1$d개를 모두 제거하시겠습니까?</string>
     <string name="setting_provider_page_batch_remove_done">%1$d개의 모델을 제거했습니다</string>
     <string name="setting_provider_page_batch_remove_empty">제거할 일치 모델이 없습니다</string>
+
+    <string name="assistant_page_tool_list_mode_checklist">체크리스트</string>
+    <string name="assistant_page_tool_list_mode_text">일반 텍스트</string>
+    <string name="assistant_page_tool_list_search_hint">도구 이름 또는 분류 검색</string>
+    <string name="assistant_page_tool_list_fill_stats">사용량으로 채우기</string>
+    <string name="assistant_page_tool_list_stats_empty">사용 통계가 없습니다. 도구 설정에서 통계를 먼저 켜세요.</string>
+    <string name="assistant_page_tool_list_stats_filled">사용량 기준으로 %1$d개 도구를 채웠습니다(확인 시 저장).</string>
+    <string name="assistant_page_tool_list_selected_count">%1$d개 선택됨</string>
+    <string name="assistant_page_only_tools_missing_read_warning">주의: 활성화된 읽기 도구(%1$s)가 제외되어 잘린 출력을 다시 읽지 못할 수 있습니다.</string>
+    <string name="assistant_page_tools_global_status">트림: %1$s · 통계: %2$s · 출력 제한: %3$dK</string>
+    <string name="assistant_page_tools_open_settings">도구 설정</string>
+    <string name="setting_tools_state_on">켜짐</string>
+    <string name="setting_tools_state_off">꺼짐</string>
+
+    <string name="workspace_global_agents_title">전역 AGENTS.md</string>
+    <string name="workspace_global_agents_desc_empty">미설정 · 모든 로컬/원격 작업 공간에 적용</string>
+    <string name="workspace_global_agents_desc_size">%1$s / 64 KB · 모든 작업 공간에 적용</string>
+    <string name="workspace_global_agents_hint">작업 공간 공통 Markdown 지침을 작성하세요 (로컬 및 SSH 공통).</string>
+    <string name="workspace_global_agents_import">가져오기</string>
+    <string name="workspace_global_agents_export">내보내기</string>
+    <string name="workspace_global_agents_saved">전역 AGENTS.md가 저장되었습니다</string>
+    <string name="workspace_global_agents_too_large">64 KB 제한을 초과했습니다. 줄인 후 저장하세요.</string>
+    <string name="workspace_detail_agents_remote_note">원격 작업 공간은 전역 AGENTS.md만 사용합니다.</string>
+    <string name="workspace_detail_agents_local_note">전역 AGENTS.md와 /workspace/AGENTS.md를 함께 적용합니다.</string>
+
+    <string name="vault_audit_expand">펼치기</string>
+    <string name="vault_audit_collapse">접기</string>
+    <string name="vault_audit_more_sub">… %1$d개 더 있음 (눌러서 펼치기)</string>
 </resources>

@@ -119,10 +119,8 @@ class ToolIndexTest {
                 entry.tier,
             )
         }
-        // 三档都有覆盖
+        // 默认全量不区分，统一归为 HOT
         assertTrue(ToolIndex.byTier(SurfaceTier.HOT).isNotEmpty())
-        assertTrue(ToolIndex.byTier(SurfaceTier.WARM).isNotEmpty())
-        assertTrue(ToolIndex.byTier(SurfaceTier.COLD).isNotEmpty())
     }
 
     @Test

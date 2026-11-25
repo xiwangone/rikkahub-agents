@@ -11,6 +11,9 @@ import kotlinx.datetime.toInstant
 import kotlinx.datetime.toLocalDateTime
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.contentOrNull
+import kotlinx.serialization.json.jsonPrimitive
+import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import me.rerere.ai.agent.FailureTrackingCollector
 import me.rerere.ai.agent.AgentEvent
@@ -347,6 +350,7 @@ internal class GenerationAgentRun(
     private var messages: List<UIMessage> = initialMessages
 
     private val turnStartMs = android.os.SystemClock.elapsedRealtime()
+    private val turnToolOutputChars = java.util.concurrent.atomic.AtomicInteger(0)
     private val outputTransformCache = OutputTransformCache()
 
     private var lastOutputFlushAtMs = 0L
@@ -682,6 +686,7 @@ internal class GenerationAgentRun(
             reasoningRepetitionSoftSignaled = false
         }
         outputTransformCache.clear()
+        turnToolOutputChars.set(0)
 
         // 收尾轮只挂**只读**工具：让模型还能补一次状态确认再总结；写类/长任务工具一律不挂。
         val stepTools = if (wrapUpTerminalStep) {
@@ -944,6 +949,10 @@ internal class GenerationAgentRun(
             return ToolApprovalState.Denied(HardlineCommandGuard.encodeUiReason(hardlineReason, modelMessage))
         }
         if (declaredApproval && tool.approvalState is ToolApprovalState.Auto) {
+            if (isSafeToolOutputRead(tool.toolName, tool.input)) {
+                AppLog.i(TAG, "approval-auto ${tool.toolName}: safe /tool_outputs/ read auto-approved")
+                return ToolApprovalState.Auto
+            }
             return if (isToolAutoApproved(tool.toolName)) {
                 AppLog.i(TAG, "approval-auto ${tool.toolName}: auto-approved, running without prompt")
                 ToolApprovalState.Auto
@@ -1099,17 +1108,22 @@ internal class GenerationAgentRun(
     ): List<UIMessagePart> {
         val hasShellAccess = tools.any { it.name == "workspace_shell" }
         val maskedResult = toolOutputProcessor.maskToolOutput(output)
-        return toolOutputProcessor.maybeTruncateToolOutput(
-            tool.toolCallId,
-            appendApprovalProvenance(maskedResult, tool.approvalState),
-            hasShellAccess,
-            if (tool.toolName in assistant.toolOutputCompactTools ||
+        val turnBudget = (settings.toolOutputMaxChars * 3).coerceAtLeast(24_000)
+        val overTurnBudget = turnToolOutputChars.get() >= turnBudget
+        val effectiveMaxChars =
+            if (overTurnBudget ||
+                tool.toolName in assistant.toolOutputCompactTools ||
                 tool.toolName in assistant.toolOutputDigestTools
             ) {
                 settings.toolOutputCompactMaxChars
             } else {
                 settings.toolOutputMaxChars
-            },
+            }
+        val processed = toolOutputProcessor.maybeTruncateToolOutput(
+            tool.toolCallId,
+            appendApprovalProvenance(maskedResult, tool.approvalState),
+            hasShellAccess,
+            effectiveMaxChars,
             if (tool.toolName in assistant.toolOutputDigestTools) {
                 assistant.toolOutputDigestKeywords
             } else {
@@ -1117,6 +1131,9 @@ internal class GenerationAgentRun(
             },
             toolName = tool.toolName,
         )
+        val addedChars = processed.filterIsInstance<UIMessagePart.Text>().sumOf { it.text.length }
+        turnToolOutputChars.addAndGet(addedChars)
+        return processed
     }
 
     /**
@@ -1406,3 +1423,19 @@ internal class GenerationAgentRun(
     }
 }
 
+internal fun isSafeToolOutputRead(toolName: String, inputJson: String): Boolean {
+    if (toolName != "read_file" && toolName != "file_info") return false
+    val raw = runCatching {
+        Json.parseToJsonElement(inputJson).jsonObject["path"]?.jsonPrimitive?.contentOrNull?.trim()
+    }.getOrNull() ?: return false
+    if (raw.isEmpty()) return false
+    if (hasEncodedTraversal(raw)) return false
+    val segments = raw.split('/').filter { it.isNotEmpty() }
+    if (segments.firstOrNull() != "tool_outputs") return false
+    if (segments.any { it == "." || it == ".." }) return false
+    return raw == "/tool_outputs" || raw.startsWith("/tool_outputs/")
+}
+
+/** Rejects NUL, backslash separators and percent-encoded dots before any path check. */
+private fun hasEncodedTraversal(raw: String): Boolean =
+    '\u0000' in raw || '\\' in raw || raw.contains("%2e", ignoreCase = true)

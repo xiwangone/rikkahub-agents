@@ -25,6 +25,7 @@ import androidx.compose.ui.unit.dp
 import com.dokar.sonner.ToasterState
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.TOOL_OUTPUT_DIGEST_DEFAULT_KEYWORDS
+import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
 import me.rerere.rikkahub.data.model.Assistant
 import me.rerere.rikkahub.utils.writeClipboardText
 
@@ -123,26 +124,14 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissExtraColdDialog() },
             title = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },
             text = {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 340.dp)
-                        .verticalScroll(rememberScrollState())
-                        .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(R.string.assistant_page_extra_cold_dialog_desc))
-                    OutlinedTextField(
-                        value = extraColdDraft,
-                        onValueChange = onExtraColdDraftChange,
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 88.dp, max = 160.dp)
-                                .verticalScroll(rememberScrollState()),
-                        maxLines = 4,
-                    )
-                }
+                ToolListEditorContent(
+                    ctx = ctx,
+                    toaster = toaster,
+                    draft = extraColdDraft,
+                    onDraftChange = onExtraColdDraftChange,
+                    description = stringResource(R.string.assistant_page_extra_cold_dialog_desc),
+                    isAllowList = false,
+                )
             },
             confirmButton = {
                 TextButton(
@@ -305,26 +294,14 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onDismissOnlyToolsDialog() },
             title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
             text = {
-                Column(
-                    modifier = Modifier
-                        .heightIn(max = 340.dp)
-                        .verticalScroll(rememberScrollState())
-                        .imePadding(),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
-                    OutlinedTextField(
-                        value = onlyToolsDraft,
-                        onValueChange = onOnlyToolsDraftChange,
-                        placeholder = { Text(stringResource(R.string.assistant_page_extra_cold_hint)) },
-                        modifier =
-                            Modifier
-                                .fillMaxWidth()
-                                .heightIn(min = 88.dp, max = 160.dp)
-                                .verticalScroll(rememberScrollState()),
-                        maxLines = 4,
-                    )
-                }
+                ToolListEditorContent(
+                    ctx = ctx,
+                    toaster = toaster,
+                    draft = onlyToolsDraft,
+                    onDraftChange = onOnlyToolsDraftChange,
+                    description = stringResource(R.string.assistant_page_only_tools_dialog_desc),
+                    isAllowList = true,
+                )
             },
             confirmButton = {
                 TextButton(
@@ -360,8 +337,22 @@ internal fun AssistantLocalToolDialogs(
             onDismissRequest = { onPendingOnlyToolsChange(null) },
             title = { Text(stringResource(R.string.assistant_page_only_tools_title)) },
             text = {
-                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                val missingReads = findMissingEnabledReadTools(names, ToolUsageTracker.injectedNames(ctx))
+                Column(
+                    modifier = Modifier.heightIn(max = 320.dp).verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                     Text(stringResource(R.string.assistant_page_only_tools_desc, names.size))
+                    if (missingReads.isNotEmpty()) {
+                        Text(
+                            text = stringResource(
+                                R.string.assistant_page_only_tools_missing_read_warning,
+                                missingReads.joinToString(", "),
+                            ),
+                            color = MaterialTheme.colorScheme.error,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Text(stringResource(R.string.assistant_page_only_tools_dialog_desc))
                     Text(names.joinToString("\n"))
                 }

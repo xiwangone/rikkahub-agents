@@ -427,6 +427,7 @@ class WebDavSync(
             // 工作区文档层：files/workspaces/<root>/files/ 下排除 linux/tmp/.git/大件，递归打包
             if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
                 backupWorkspaceDocs(zipOut)
+                addSingleRootFileToZip(zipOut, "AGENTS.md")
             }
 
             // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）。
@@ -457,6 +458,14 @@ class WebDavSync(
         check(backupEncryptionManager.isEnabled && backupEncryptionManager.rememberedPassword != null) {
             context.getString(R.string.backup_encryption_required)
         }
+    }
+
+    private fun addSingleRootFileToZip(zipOut: ZipOutputStream, relativePath: String) {
+        val file = File(context.filesDir, relativePath)
+        if (!file.isFile) return
+        zipOut.putNextEntry(ZipEntry(relativePath))
+        file.inputStream().use { it.copyTo(zipOut) }
+        zipOut.closeEntry()
     }
 
     private suspend fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
@@ -693,7 +702,7 @@ class WebDavSync(
                         }
 
                         // workspaces/<root>/files/... —— WORKSPACE_DOCS
-                        zipEntry.name.startsWith("workspaces/") -> {
+                        zipEntry.name == "AGENTS.md" || zipEntry.name.startsWith("workspaces/") -> {
                             if (config.items.contains(WebDavConfig.BackupItem.WORKSPACE_DOCS)) {
                                 PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                             }
@@ -911,4 +920,7 @@ private fun skipEntry(entry: ZipEntry, counts: RestoreEntryCounts) {
 private class RestoreEntryCounts {
     var processed = 0
     var skipped = 0
+
+
+
 }

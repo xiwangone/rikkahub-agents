@@ -1,8 +1,9 @@
 package me.rerere.rikkahub.ui.pages.setting.scheduledjobs
 
 import me.rerere.rikkahub.data.db.entity.ScheduledJobEntity
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -35,14 +36,18 @@ fun summariseSchedule(job: ScheduledJobEntity): String =
         }
     }
 
+private val JOB_SAME_DAY_FMT = DateTimeFormatter.ofPattern("EEE HH:mm", Locale.getDefault())
+private val JOB_OTHER_DAY_FMT = DateTimeFormatter.ofPattern("d MMM HH:mm", Locale.getDefault())
+private val JOB_DETAIL_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss", Locale.getDefault())
+
 private fun formatAbsoluteTime(ms: Long): String {
     val now = System.currentTimeMillis()
     val ageMs = ms - now
     val sameDayCutoff = 24L * 60 * 60 * 1000
     return if (ageMs in 0..sameDayCutoff) {
-        SimpleDateFormat("EEE HH:mm", Locale.getDefault()).format(Date(ms))
+        JOB_SAME_DAY_FMT.format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
     } else {
-        SimpleDateFormat("d MMM HH:mm", Locale.getDefault()).format(Date(ms))
+        JOB_OTHER_DAY_FMT.format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))
     }
 }
 
@@ -136,4 +141,4 @@ fun modeLabel(job: ScheduledJobEntity): String =
     }
 
 fun formatAbsoluteForDetail(ms: Long): String =
-    SimpleDateFormat("yyyy-MM-dd HH:mm:ss", Locale.getDefault()).format(Date(ms))
+    JOB_DETAIL_FMT.format(Instant.ofEpochMilli(ms).atZone(ZoneId.systemDefault()))

@@ -1,51 +1,54 @@
 package me.rerere.rikkahub.data.ai.tools
 
+import kotlinx.coroutines.runBlocking
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
+import me.rerere.ai.core.InputSchema
+import me.rerere.ai.core.Tool
+import me.rerere.ai.ui.UIMessagePart
+import me.rerere.rikkahub.data.ai.isSafeToolOutputRead
+import me.rerere.rikkahub.ui.pages.assistant.detail.findMissingEnabledReadTools
+import me.rerere.rikkahub.ui.pages.assistant.detail.suggestToolNamesForList
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * Pins the [ToolSurfacePolicy.decide] / [ToolSurfacePolicy.tierOf] contract: HOT stays HOT, cold families/extras stay COLD,
- * the assistant-level extraCold only ever DOWNGRADES (never upgrades), anything unknown is WARM, and every
-decision reports **why** (TierSource) — so the read-only diagnosis can't drift from the real assembly.
- * Keeping this stable matters because the injected tool set feeds the long-context prefix cache.
+ * Verifies pure allowlist/blocklist [ToolSurfacePolicy], batch `get_tool_schema`,
+ * safe `/tool_outputs/` read exemption, and usage-based list suggestion helpers.
  */
 class ToolSurfacePolicyTest {
 
     @Test
-    fun `HOT 工具返回 HOT`() =
+    fun `未配置名单时所有工具默认 HOT`() {
         assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("workspace_shell"))
+        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("telegram_send_message"))
+        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("appops_get"))
+        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("some_new_tool"))
+        assertEquals(TierSource.DEFAULT_HOT, ToolSurfacePolicy.decide("workspace_shell").source)
+    }
 
     @Test
-    fun `冷家族前缀命中 COLD`() =
-        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("telegram_send_message"))
-
-    @Test
-    fun `冷单件命中 COLD`() =
-        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("appops_get"))
-
-    @Test
-    fun `未知工具默认 WARM`() =
-        assertEquals(SurfaceTier.WARM, ToolSurfacePolicy.tierOf("some_new_tool"))
-
-    @Test
-    fun `extraCold 把 HOT 下调为 COLD`() =
+    fun `extraCold 把指定工具下调为 COLD`() {
         assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("workspace_shell", setOf("workspace_shell")))
-
-    @Test
-    fun `extraCold 不含的工具不受影响`() =
-        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("workspace_shell", setOf("ssh_exec_saved")))
-
-    @Test
-    fun `decide 标出助手级降温来源`() =
         assertEquals(
             TierSource.ASSISTANT_EXTRA_COLD,
             ToolSurfacePolicy.decide("workspace_shell", setOf("workspace_shell")).source,
         )
-
-    // ---- 白名单当“中间档”用（名单内照常判档，名单外降冷而非硬删）----
+    }
 
     @Test
-    fun `白名单模式：名单内保持原档位`() =
+    fun `extraCold 不含的工具保持 HOT`() =
+        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("workspace_shell", setOf("ssh_exec_saved")))
+
+    @Test
+    fun `白名单模式：名单内保持 HOT`() =
         assertEquals(
             SurfaceTier.HOT,
             ToolSurfacePolicy.tierOfWithScope("workspace_shell", listOf("workspace_shell")),
@@ -64,21 +67,24 @@ class ToolSurfacePolicyTest {
     }
 
     @Test
-    fun `白名单模式：保命工具不受名单影响`() =
-        assertEquals(
-            SurfaceTier.WARM,
-            ToolSurfacePolicy.tierOfWithScope("get_tool_schema", listOf("workspace_shell")),
-        )
+    fun `白名单模式：保命工具不受名单影响`() {
+        for (name in ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES) {
+            assertEquals(
+                SurfaceTier.HOT,
+                ToolSurfacePolicy.tierOfWithScope(name, listOf("workspace_shell")),
+            )
+        }
+    }
 
     @Test
-    fun `白名单模式：名单为空时退回默认判档`() =
+    fun `白名单模式：名单为空时退回默认 HOT`() =
         assertEquals(
             SurfaceTier.HOT,
             ToolSurfacePolicy.tierOfWithScope("workspace_shell", emptyList()),
         )
 
     @Test
-    fun `effectiveDiscoveryTier 把白名单外的热档工具判为 COLD 以允许 get_tool_schema 解锁`() {
+    fun `effectiveDiscoveryTier 把白名单外的工具判为 COLD 以允许 get_tool_schema 解锁`() {
         assertEquals(
             SurfaceTier.COLD,
             effectiveDiscoveryTier(
@@ -98,130 +104,73 @@ class ToolSurfacePolicyTest {
     }
 
     @Test
-    fun `decide 标出策略热档来源`() =
-        assertEquals(TierSource.POLICY_HOT, ToolSurfacePolicy.decide("workspace_shell").source)
-
-    @Test
-    fun `decide 标出策略冷档单件来源`() =
-        assertEquals(TierSource.POLICY_COLD_EXTRA, ToolSurfacePolicy.decide("appops_get").source)
-
-    @Test
-    fun `decide 标出策略冷档家族前缀来源`() =
-        assertEquals(TierSource.POLICY_COLD_PREFIX, ToolSurfacePolicy.decide("telegram_send_message").source)
-
-    @Test
-    fun `decide 未命中规则时为默认温档`() =
-        assertEquals(TierSource.DEFAULT_WARM, ToolSurfacePolicy.decide("some_new_tool").source)
-
-    @Test
-    fun `tierOf 与 decide 的档位一致`() =
-        assertEquals(
-            ToolSurfacePolicy.decide("telegram_send_message", setOf("telegram_send_message")).tier,
-            ToolSurfacePolicy.tierOf("telegram_send_message", setOf("telegram_send_message")),
-        )
-
-    @Test
-    fun `保命工具名单是零副作用自救层`() =
+    fun `保命工具名单仅包含零副作用自救层`() =
         assertEquals(
             setOf("list_tools", "get_tool_schema", "ask_user"),
             ToolSurfacePolicy.ALWAYS_KEEP_TOOL_NAMES,
         )
 
-    // ---- UI 场景动态调整（WARM 档按场景升降）----
-
     @Test
-    fun `场景 IMAGE_GEN 上调图片族为 HOT`() {
-        // scan_media / set_wallpaper 静态在 COLD，图片页临时给完整 schema
-        assertEquals(
-            SurfaceTier.HOT,
-            ToolSurfacePolicy.tierOf("scan_media", scene = UiScene.IMAGE_GEN),
-        )
-        assertEquals(
-            TierSource.SCENE_RAISED,
-            ToolSurfacePolicy.decide("scan_media", scene = UiScene.IMAGE_GEN).source,
-        )
-        assertEquals(
-            SurfaceTier.HOT,
-            ToolSurfacePolicy.tierOf("show_image", scene = UiScene.IMAGE_GEN),
-        )
+    fun `get_tool_schema 支持 names 批量解锁并返回未命中列表`() = runBlocking {
+        val convId = "batch-test-conv"
+        ToolSurfaceSession.clear(convId)
+        val dummySchema = InputSchema.Obj(properties = buildJsonObject {}, required = emptyList())
+        val tools =
+            listOf(
+                Tool(name = "tool_a", description = "Tool A", parameters = { dummySchema }, execute = { emptyList() }),
+                Tool(name = "tool_b", description = "Tool B", parameters = { dummySchema }, execute = { emptyList() }),
+            )
+        val discovery =
+            buildToolDiscoveryTools(
+                allTools = tools,
+                conversationId = convId,
+                extraCold = setOf("tool_a", "tool_b"),
+            )
+        val getSchema = discovery.first { it.name == "get_tool_schema" }
+        val input =
+            buildJsonObject {
+                put(
+                    "names",
+                    buildJsonArray {
+                        add(JsonPrimitive("tool_a"))
+                        add(JsonPrimitive("tool_b"))
+                        add(JsonPrimitive("missing_tool"))
+                    },
+                )
+            }
+        val output = getSchema.execute(input).filterIsInstance<UIMessagePart.Text>().first().text
+        val parsed = Json.parseToJsonElement(output).jsonObject
+        assertEquals(2, parsed["count"]?.jsonPrimitive?.content?.toInt())
+        assertEquals(2, parsed["tools"]?.jsonArray?.size)
+        assertEquals(listOf("missing_tool"), parsed["not_found"]?.jsonArray?.map { it.jsonPrimitive.content })
+        assertTrue(ToolSurfaceSession.isLoaded(convId, "tool_a"))
+        assertTrue(ToolSurfaceSession.isLoaded(convId, "tool_b"))
+        ToolSurfaceSession.clear(convId)
     }
 
     @Test
-    fun `场景 IMAGE_GEN 下调无关热档为 WARM`() {
-        // ssh / vault / 特权 / 设备诊断与图片生成无关，图片页临时收敛描述
-        assertEquals(
-            SurfaceTier.WARM,
-            ToolSurfacePolicy.tierOf("ssh_exec_saved", scene = UiScene.IMAGE_GEN),
-        )
-        assertEquals(
-            TierSource.SCENE_LOWERED,
-            ToolSurfacePolicy.decide("ssh_exec_saved", scene = UiScene.IMAGE_GEN).source,
-        )
+    fun `isSafeToolOutputRead 仅放行私有 tool_outputs 只读且拒绝路径穿越`() {
+        assertTrue(isSafeToolOutputRead("read_file", """{"path":"/tool_outputs/abc.txt"}"""))
+        assertTrue(isSafeToolOutputRead("file_info", """{"path":"/tool_outputs/abc.txt"}"""))
+        assertFalse(isSafeToolOutputRead("read_file", """{"path":"/tool_outputs/../secret.txt"}"""))
+        assertFalse(isSafeToolOutputRead("read_file", """{"path":"/sdcard/Download/a.txt"}"""))
+        assertFalse(isSafeToolOutputRead("delete_file", """{"path":"/tool_outputs/abc.txt"}"""))
     }
 
     @Test
-    fun `场景不影响静态已 HOT 的来源标注`() {
-        // 已在 HOT 的工具即使命中场景上调表也不改来源（避免来源失真）；
-        // 此处用 show_image 反例：它静态 WARM，场景上调后来源应为 SCENE_RAISED（上一个测试已覆盖）
-        assertEquals(
-            TierSource.POLICY_HOT,
-            ToolSurfacePolicy.decide("workspace_shell", scene = UiScene.IMAGE_GEN).source,
-        )
-    }
+    fun `suggestToolNamesForList 按用量生成冷白名单并保护基础读工具`() {
+        val injected = setOf("read_file", "workspace_read_file", "ssh_exec_saved", "telegram_send_message", "list_tools")
+        val counts = mapOf("ssh_exec_saved" to 12L)
+        val cold = suggestToolNamesForList(injected, counts, isAllowList = false)
+        assertEquals(listOf("telegram_send_message"), cold)
 
-    @Test
-    fun `场景下调不碰静态 COLD`() {
-        // 冷档拦截是治理红线，场景无权解冻
-        assertEquals(
-            SurfaceTier.COLD,
-            ToolSurfacePolicy.tierOf("telegram_send_message", scene = UiScene.IMAGE_GEN),
-        )
-    }
+        val allow = suggestToolNamesForList(injected, counts, isAllowList = true)
+        assertTrue("ssh_exec_saved" in allow)
+        assertTrue("read_file" in allow)
+        assertTrue("workspace_read_file" in allow)
+        assertFalse("telegram_send_message" in allow)
 
-    @Test
-    fun `UNKNOWN 场景回退到纯静态判定`() {
-        assertEquals(
-            ToolSurfacePolicy.tierOf("scan_media"),
-            ToolSurfacePolicy.tierOf("scan_media", scene = UiScene.UNKNOWN),
-        )
-        assertEquals(
-            ToolSurfacePolicy.tierOf("ssh_exec_saved"),
-            ToolSurfacePolicy.tierOf("ssh_exec_saved", scene = UiScene.UNKNOWN),
-        )
-    }
-
-    @Test
-    fun `extraCold 优先级高于场景上调`() {
-        // 用户显式配置不受场景影响
-        assertEquals(
-            SurfaceTier.COLD,
-            ToolSurfacePolicy.tierOf("scan_media", setOf("scan_media"), UiScene.IMAGE_GEN),
-        )
-        assertEquals(
-            TierSource.ASSISTANT_EXTRA_COLD,
-            ToolSurfacePolicy.decide("scan_media", setOf("scan_media"), UiScene.IMAGE_GEN).source,
-        )
-    }
-
-    @Test
-    fun `白名单模式透传场景`() {
-        assertEquals(
-            SurfaceTier.HOT,
-            ToolSurfacePolicy.tierOfWithScope(
-                "scan_media",
-                listOf("scan_media"),
-                scene = UiScene.IMAGE_GEN,
-            ),
-        )
-    }
-
-    @Test
-    fun `phone_use 为 HOT 档且受 ACCESSIBILITY 能力门禁保护，config_ 工具在 COLD_EXTRAS`() {
-        assertEquals(SurfaceTier.HOT, ToolSurfacePolicy.tierOf("phone_use"))
-        assertEquals(SurfaceTier.WARM, ToolSurfacePolicy.tierOf("phone_use", scene = UiScene.IMAGE_GEN))
-        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_get_all"))
-        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_set"))
-        assertEquals(SurfaceTier.COLD, ToolSurfacePolicy.tierOf("config_revert"))
-        assertEquals(ToolCapability.ACCESSIBILITY, LocalToolCatalog.capabilityOf(LocalToolOption.PhoneUse))
+        val missing = findMissingEnabledReadTools(listOf("ssh_exec_saved"), injected)
+        assertEquals(listOf("read_file", "workspace_read_file"), missing)
     }
 }

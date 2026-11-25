@@ -246,6 +246,23 @@ class RootfsInstaller(
         return overlaidCount[0]
     }
 
+    private fun removeExistingForOverlay(dest: File) {
+        val destPath = dest.toPath()
+        if (!Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) return
+        dest.parentFile?.setWritable(true)
+        if (Files.isSymbolicLink(destPath)) {
+            Files.deleteIfExists(destPath)
+            return
+        }
+        if (dest.isDirectory) {
+            makeWritableRecursively(dest)
+            dest.deleteRecursively()
+        } else {
+            dest.setWritable(true)
+            Files.deleteIfExists(destPath)
+        }
+    }
+
     private fun overlayDirectory(
         sourceDir: File,
         targetDir: File,
@@ -255,6 +272,7 @@ class RootfsInstaller(
         onProgress: (RootfsInstallProgress) -> Unit,
     ) {
         targetDir.mkdirs()
+        targetDir.setWritable(true)
         val children = sourceDir.listFiles().orEmpty()
         for (child in children) {
             checkInterrupted()
@@ -264,12 +282,11 @@ class RootfsInstaller(
             val destPath = dest.toPath()
             when {
                 Files.isSymbolicLink(srcPath) -> {
-                    if (isPreservedConfig(relPath) && dest.exists()) continue
-                    if (Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) {
-                        dest.deleteRecursively()
-                    }
+                    if (isPreservedConfig(relPath) && Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) continue
+                    removeExistingForOverlay(dest)
                     val linkTarget = Files.readSymbolicLink(srcPath)
                     dest.parentFile?.mkdirs()
+                    dest.parentFile?.setWritable(true)
                     Files.createSymbolicLink(destPath, linkTarget)
                     reportOverlayProgress(relPath, extractedEntries, overlaidCount, onProgress)
                 }
@@ -277,8 +294,8 @@ class RootfsInstaller(
                 child.isDirectory -> {
                     // 已保留的配置目录（如 sources.list.d）整个跳过，不展开覆盖
                     if (isPreservedConfig(relPath) && dest.isDirectory) continue
-                    if (Files.isSymbolicLink(destPath) || (dest.exists() && !dest.isDirectory)) {
-                        dest.delete()
+                    if (Files.isSymbolicLink(destPath) || (Files.exists(destPath, LinkOption.NOFOLLOW_LINKS) && !dest.isDirectory)) {
+                        removeExistingForOverlay(dest)
                     }
                     overlayDirectory(child, dest, stagingRoot, extractedEntries, overlaidCount, onProgress)
                 }
@@ -288,9 +305,12 @@ class RootfsInstaller(
                         continue
                     }
                     if (Files.isSymbolicLink(destPath) || dest.isDirectory) {
-                        dest.deleteRecursively()
+                        removeExistingForOverlay(dest)
+                    } else if (Files.exists(destPath, LinkOption.NOFOLLOW_LINKS)) {
+                        dest.setWritable(true)
                     }
                     dest.parentFile?.mkdirs()
+                    dest.parentFile?.setWritable(true)
                     Files.copy(srcPath, destPath, StandardCopyOption.REPLACE_EXISTING)
                     dest.setReadable(child.canRead(), false)
                     dest.setWritable(child.canWrite(), true)

@@ -1,5 +1,9 @@
 package me.rerere.rikkahub.ui.pages.backup.tabs
 
+import android.content.Context
+import android.net.Uri
+import android.provider.DocumentsContract
+
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import android.content.res.Resources
@@ -141,6 +145,9 @@ fun ImportExportTab(
                     )
                 }.onFailure { e ->
                     if (e is CancellationException) throw e
+                    withContext(Dispatchers.IO) {
+                        deleteExportTargetSafely(context, targetUri)
+                    }
                     AppLog.e(TAG, "export backup failed", e)
                     toaster.show(
                         if (exportType == "migration" && e is IllegalStateException) {
@@ -746,3 +753,21 @@ private fun restoreFailureMessage(resources: Resources, e: Throwable): String =
         is NotMigrationPackageException -> resources.getString(R.string.backup_page_migration_not_package)
         else -> e.message ?: ""
     }
+
+internal fun deleteExportTargetSafely(
+    context: Context,
+    targetUri: Uri,
+): Boolean = runDeleteExportTarget {
+    val deletedByDoc = runCatching {
+        DocumentsContract.deleteDocument(context.contentResolver, targetUri)
+    }.getOrDefault(false)
+    deletedByDoc || context.contentResolver.delete(targetUri, null, null) > 0
+}
+
+internal fun runDeleteExportTarget(
+    deleteAction: () -> Boolean,
+): Boolean = runCatching {
+    deleteAction()
+}.onFailure { err ->
+    AppLog.w(TAG, "failed to clean up empty export target", err)
+}.getOrDefault(false)

@@ -615,7 +615,14 @@ class SettingsStore(
                     }
                 },
                 assistants = settings.assistants.distinctBy { it.id }.map { assistant ->
+                    val resolvedName =
+                        if (assistant.id == LEGACY_PROMPT_ASSISTANT_ID && assistant.name.isBlank()) {
+                            "General Assistant"
+                        } else {
+                            assistant.name
+                        }
                     assistant.copy(
+                        name = resolvedName,
                         // 过滤掉不存在的 MCP 服务器 ID
                         mcpServers = assistant.mcpServers.filter { serverId ->
                             serverId in validMcpServerIds

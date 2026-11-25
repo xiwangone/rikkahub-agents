@@ -520,4 +520,12 @@ class AIIconMatcherTest {
         // 提供商侧也走家族推断后，`Muse Spark` 同样判 muse（与模型侧一致）
         assertEquals("muse-color.svg", resolve("Muse Spark"))
     }
+
+    @Test
+    fun `jev model resolves to typesafe icon`() {
+        assertEquals("typesafe.png", resolveModel("jev-1.14"))
+        assertEquals("typesafe.png", resolveModel("typesafe/jev-1.14"))
+        assertEquals("typesafe.png", resolve("TypeSafe"))
+        assertEquals("typesafe.png", resolve("决策模型"))
+    }
 }

@@ -68,8 +68,9 @@ import me.rerere.rikkahub.ui.components.ui.switchItem
 import me.rerere.rikkahub.ui.theme.CustomColors
 import me.rerere.rikkahub.ui.theme.JetbrainsMono
 import java.io.File
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.Instant
+import java.time.ZoneId
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 import androidx.compose.material3.TopAppBar
 
@@ -279,7 +280,7 @@ private fun AppLogCard(
     revealed: Boolean,
     onToggleReveal: () -> Unit,
 ) {
-    val dateFormat = remember { SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()) }
+    val dateFormat = remember { DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.getDefault()) }
     val levelColor =
         when (entry.level) {
             'E', 'F' -> MaterialTheme.colorScheme.error
@@ -313,7 +314,7 @@ private fun AppLogCard(
                     maxLines = 1,
                 )
                 Text(
-                    text = dateFormat.format(Date(entry.timestamp)),
+                    text = dateFormat.format(Instant.ofEpochMilli(entry.timestamp).atZone(ZoneId.systemDefault())),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -351,8 +352,10 @@ private fun AppLogCard(
     }
 }
 
+private val APP_LOG_TIME_FMT = DateTimeFormatter.ofPattern("HH:mm:ss.SSS", Locale.getDefault())
+
 private fun formatEntry(entry: AppLog.Entry): String {
-    val time = SimpleDateFormat("HH:mm:ss.SSS", Locale.getDefault()).format(entry.timestamp)
+    val time = APP_LOG_TIME_FMT.format(Instant.ofEpochMilli(entry.timestamp).atZone(ZoneId.systemDefault()))
     val repeatSuffix = if (entry.repeat > 1) " (×${entry.repeat})" else ""
     // Single-entry copy leaves the app via the clipboard like export/share,
     // so it goes through the same redaction instead of raw text.

@@ -21,6 +21,11 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.material3.TextButton
+import androidx.compose.runtime.setValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -97,16 +102,32 @@ internal fun VaultAuditAndBackupSection(
     val vaultPreferences: VaultPreferences = koinInject()
     val biometricBuffer: BiometricResultBuffer = koinInject()
 
+    var auditExpanded by remember { mutableStateOf(false) }
     Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
         // 1. 审计日志
         CardGroup(
             title = { Text(stringResource(R.string.vault_audit_title)) },
         ) {
-            formItem(
+            item(
+                onClick = { auditExpanded = !auditExpanded },
                 leadingContent = { CardGroupIcon(HugeIcons.Shield01) },
                 headlineContent = { Text(stringResource(R.string.vault_audit_title)) },
                 supportingContent = { Text(stringResource(R.string.vault_audit_desc, shownAudit.size)) },
-            ) {
+                trailingContent = {
+                    TextButton(onClick = { auditExpanded = !auditExpanded }) {
+                        Text(
+                            stringResource(
+                                if (auditExpanded) R.string.vault_audit_collapse else R.string.vault_audit_expand,
+                            ),
+                        )
+                    }
+                },
+            )
+            if (auditExpanded) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 8.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
                 FlowRow(
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
                     verticalArrangement = Arrangement.spacedBy(4.dp),
@@ -181,13 +202,29 @@ internal fun VaultAuditAndBackupSection(
                                             onAuditActionFilterChange(log.action.takeIf { it != auditActionFilter })
                                         },
                                 )
-                                group.drop(1).forEach { sub ->
-                                    Text(
-                                        text = "↳ ${sub.caller} · ${sub.action}" + auditCountSuffix(sub.count),
-                                        style = MaterialTheme.typography.bodySmall,
-                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                        modifier = Modifier.padding(start = 12.dp),
-                                    )
+                                val subs = group.drop(1)
+                                if (subs.isNotEmpty()) {
+                                    var subsExpanded by remember(log.id, subs.size) { mutableStateOf(false) }
+                                    val visibleSubs = if (subsExpanded || subs.size <= 2) subs else subs.take(2)
+                                    visibleSubs.forEach { sub ->
+                                        Text(
+                                            text = "↳ ${sub.caller} · ${sub.action}" + auditCountSuffix(sub.count),
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            modifier = Modifier.padding(start = 12.dp),
+                                        )
+                                    }
+                                    if (!subsExpanded && subs.size > 2) {
+                                        Text(
+                                            text = stringResource(R.string.vault_audit_more_sub, subs.size - 2),
+                                            style = MaterialTheme.typography.labelSmall,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            modifier =
+                                                Modifier
+                                                    .padding(start = 12.dp, top = 2.dp)
+                                                    .clickable { subsExpanded = true },
+                                        )
+                                    }
                                 }
                                 val auditConversationId = log.conversationId
                                 if (auditConversationId != null) {
@@ -290,6 +327,7 @@ internal fun VaultAuditAndBackupSection(
                     modifier = Modifier.fillMaxWidth(),
                 ) {
                     Text(clearAuditTitle)
+                }
                 }
             }
         }

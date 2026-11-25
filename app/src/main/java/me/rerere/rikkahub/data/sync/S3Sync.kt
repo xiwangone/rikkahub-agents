@@ -302,6 +302,7 @@ class S3Sync(
 
             if (config.items.contains(S3Config.BackupItem.WORKSPACE_DOCS)) {
                 backupWorkspaceDocs(zipOut)
+                addSingleRootFileToZip(zipOut, "AGENTS.md")
             }
 
             // 按域逻辑备份：明文 JSON 写进 migration/ 段（整包随后由口令加密）
@@ -326,6 +327,14 @@ class S3Sync(
         )
     }
 
+
+    private fun addSingleRootFileToZip(zipOut: ZipOutputStream, relativePath: String) {
+        val file = File(context.filesDir, relativePath)
+        if (!file.isFile) return
+        zipOut.putNextEntry(ZipEntry(relativePath))
+        file.inputStream().use { it.copyTo(zipOut) }
+        zipOut.closeEntry()
+    }
 
     private fun backupWorkspaceDocs(zipOut: ZipOutputStream) {
         val workspacesRoot = File(context.filesDir, "workspaces")
@@ -444,6 +453,7 @@ class S3Sync(
                                         PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry, counts)
 
+                                    "AGENTS.md",
                                     "workspaces" -> if (config.items.contains(S3Config.BackupItem.WORKSPACE_DOCS)) {
                                         PendingDatabaseRestore.extractFile(stage(), zipEntry.name, zipIn)
                                     } else skipEntry(zipEntry, counts)

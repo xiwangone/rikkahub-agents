@@ -313,6 +313,18 @@ object VaultReferenceSync {
             changed += telegramChanges
         }
 
+        // 5.5) AI 调试接口口令引用
+        val debugApiManager = org.koin.core.context.GlobalContext.getOrNull()
+            ?.getOrNull<me.rerere.rikkahub.service.debug.DebugApiManager>()
+        val debugToken = debugApiManager?.tokenFlow?.first()
+        if (!debugToken.isNullOrBlank()) {
+            val renamedDebugToken = renameInText(debugToken, oldName, newName)
+            if (renamedDebugToken != debugToken) {
+                debugApiManager.setToken(renamedDebugToken)
+                changed++
+            }
+        }
+
         // 6) 已保存 SSH 主机：Vault 名称引用及三个支持 `$$name` 的认证字段。
         sshHostRepository.getAll().forEach { host ->
             val (renamedHost, changedFields) = renameSshHostReferences(host, oldName, newName)

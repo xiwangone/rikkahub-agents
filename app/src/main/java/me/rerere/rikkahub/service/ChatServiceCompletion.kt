@@ -36,7 +36,6 @@ import me.rerere.rikkahub.data.ai.tools.InvalidMcpServerNamesException
 import me.rerere.rikkahub.data.ai.tools.shouldUseExternalWebSearch
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolUsageTracker
-import me.rerere.rikkahub.data.ai.tools.AppScene
 import me.rerere.rikkahub.data.preferences.isWorkspaceToolName
 import me.rerere.rikkahub.data.datastore.findModelById
 import me.rerere.rikkahub.data.datastore.findProvider
@@ -334,7 +333,6 @@ private suspend fun ChatService.buildToolsForCompletion(
             workspaceCwd = conversation.workspaceCwd,
             workspaceIdOverride = conversation.workspaceIdOverride?.toString(),
             toolScopeOverride = conversation.toolScopeOverride,
-            uiScene = AppScene.current,
         )
     } catch (error: InvalidMcpServerNamesException) {
         addError(
@@ -612,9 +610,19 @@ private suspend fun ChatService.onGenerationStreamChunk(
                 // 周期性防杀落盘放到独立后台任务中执行，避免 SQLite I/O 阻塞 SSE 流式吐字
                 streamState.periodicPersistJob = appScope.launch(kotlinx.coroutines.Dispatchers.IO) {
                     if (!streamState.streamCompleted) {
-                        runCatching {
+                        persistConversationWithRetry(
+                            conversationId = conversationId,
+                            maxAttempts = 2,
+                            retryDelayMs = 250L,
+                            onAttemptFailure = { attempt, err ->
+                                AppLog.w(TAG, "periodic persist failed (conv=$conversationId attempt=$attempt)", err)
+                            },
+                            onFinalFailure = { err ->
+                                AppLog.e(TAG, "periodic persist exhausted retries (conv=$conversationId)", err)
+                            },
+                        ) {
                             saveConversation(conversationId, updatedConversation, syncFts = false)
-                        }.onFailure { if (it is CancellationException) throw it }
+                        }
                     }
                 }
             }
@@ -894,3 +902,33 @@ internal suspend fun ChatService.finishInterruptedPendingTools(conversationId: U
     saveConversation(conversationId, updatedConversation)
 }
 
+
+internal suspend fun persistConversationWithRetry(
+    conversationId: Uuid,
+    maxAttempts: Int = 2,
+    retryDelayMs: Long = 250L,
+    onAttemptFailure: (attempt: Int, Throwable) -> Unit = { _, _ -> },
+    onFinalFailure: (Throwable) -> Unit = {},
+    persist: suspend () -> Unit,
+): Boolean {
+    val attempts = maxAttempts.coerceAtLeast(1)
+    var lastError: Throwable? = null
+    for (attempt in 1..attempts) {
+        // Deliberately retries OutOfMemoryError too: a transient allocation spike
+        // during persist should not lose the conversation, and the retry is bounded.
+        // Other Errors (e.g. linkage failures) are not retried and propagate at once.
+        val failure = runCatching { persist() }.exceptionOrNull() ?: return true
+        if (failure is CancellationException) throw failure
+        if (failure is OutOfMemoryError || failure is Exception) {
+            lastError = failure
+            onAttemptFailure(attempt, failure)
+            if (attempt < attempts && retryDelayMs > 0L) {
+                kotlinx.coroutines.delay(retryDelayMs)
+            }
+        } else {
+            throw failure
+        }
+    }
+    lastError?.let(onFinalFailure)
+    return false
+}

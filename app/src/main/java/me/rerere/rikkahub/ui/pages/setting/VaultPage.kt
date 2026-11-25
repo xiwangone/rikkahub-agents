@@ -185,10 +185,9 @@ fun VaultPage() {
         scope.launch { auditLogs = repository.recentAudit(100) }
     }
 
-    fun formatTime(tsMs: Long): String {
-        val fmt = java.text.SimpleDateFormat("MM-dd HH:mm", java.util.Locale.getDefault())
-        return fmt.format(java.util.Date(tsMs))
-    }
+    val timeFmt = remember { java.time.format.DateTimeFormatter.ofPattern("MM-dd HH:mm", java.util.Locale.getDefault()) }
+    fun formatTime(tsMs: Long): String =
+        timeFmt.format(java.time.Instant.ofEpochMilli(tsMs).atZone(java.time.ZoneId.systemDefault()))
     // 只在进入页面时查一次：直接写在组合函数体里会在每次重组时都重新发起查询。
     LaunchedEffect(Unit) {
         refreshCount()

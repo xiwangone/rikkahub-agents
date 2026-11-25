@@ -33,6 +33,7 @@ import me.rerere.hugeicons.HugeIcons
 import me.rerere.hugeicons.stroke.ChartColumn
 import me.rerere.hugeicons.stroke.CheckList
 import me.rerere.hugeicons.stroke.Copy01
+import me.rerere.hugeicons.stroke.DashboardSpeed02
 import me.rerere.hugeicons.stroke.FilterHorizontal
 import me.rerere.hugeicons.stroke.Snow
 import me.rerere.rikkahub.R
@@ -121,6 +122,7 @@ private fun AssistantLocalToolContent(
     val toaster = LocalToaster.current
     val navController = LocalNavController.current
     val settingsStore: SettingsStore = koinInject()
+    val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
     val phoneUseServiceOn = PhoneUseManager.controller.collectAsStateWithLifecycle().value != null
     val screenTimePermissionRequiredText =
         stringResource(R.string.assistant_page_local_tools_screen_time_permission_required)
@@ -284,6 +286,27 @@ private fun AssistantLocalToolContent(
         CardGroup(
             title = { Text(stringResource(R.string.assistant_page_extra_cold_section)) },
         ) {
+            item(
+                onClick = { navController.navigate(Screen.SettingTools) },
+                leadingContent = { CardGroupIcon(HugeIcons.DashboardSpeed02) },
+                headlineContent = {
+                    val onText = stringResource(R.string.setting_tools_state_on)
+                    val offText = stringResource(R.string.setting_tools_state_off)
+                    Text(
+                        stringResource(
+                            R.string.assistant_page_tools_global_status,
+                            if (settings.displaySetting.toolSurfaceTrimming) onText else offText,
+                            if (settings.displaySetting.toolStatsEnabled) onText else offText,
+                            settings.toolOutputMaxChars / 1000,
+                        ),
+                    )
+                },
+                trailingContent = {
+                    TextButton(onClick = { navController.navigate(Screen.SettingTools) }) {
+                        Text(stringResource(R.string.assistant_page_tools_open_settings))
+                    }
+                },
+            )
             item(
                 leadingContent = { CardGroupIcon(HugeIcons.Snow) },
                 headlineContent = { Text(stringResource(R.string.assistant_page_extra_cold_title)) },

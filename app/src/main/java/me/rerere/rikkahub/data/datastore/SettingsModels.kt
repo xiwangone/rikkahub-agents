@@ -793,6 +793,7 @@ private fun Model.findModelProviderFromList(providers: List<ProviderSetting>): P
 }
 
 internal val DEFAULT_ASSISTANT_ID = Uuid.parse("0950e2dc-9bd5-4801-afa3-aa887aa36b4e")
+internal val LEGACY_PROMPT_ASSISTANT_ID = Uuid.parse("3d47790c-c415-4b90-9388-751128adb0a0")
 
 internal val DEFAULT_ASSISTANTS = listOf(
     Assistant(
@@ -803,26 +804,6 @@ internal val DEFAULT_ASSISTANTS = listOf(
         // teaches every model "you are running on RikkaHub Agents, here are the tools, here is how
         // to avoid loops". Auto-enabling it on default assistants means new users get an
         // agent-aware model out of the box without having to discover the skill toggle.
-        enabledSkills = setOf("agent-core"),
-    ),
-    Assistant(
-        id = Uuid.parse("3d47790c-c415-4b90-9388-751128adb0a0"),
-        name = "",
-        systemPrompt = """
-            You are a helpful assistant, called {{char}}, based on model {{model_name}}.
-
-            ## Info
-            - Date: {{cur_date}}
-            - Locale: {{locale}}
-            - Timezone: {{timezone}}
-            - Device Info: {{device_info}}
-            - System Version: {{system_version}}
-            - User Nickname: {{user}}
-
-            ## Hint
-            - If the user does not specify a language, reply in the user's primary language.
-            - Remember to use Markdown syntax for formatting, and use latex for mathematical expressions.
-        """.trimIndent(),
         enabledSkills = setOf("agent-core"),
     ),
 )

@@ -48,7 +48,9 @@ import me.rerere.ai.util.KeyRoulette
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
+import me.rerere.ai.util.OMITTED_HISTORY_IMAGE_PLACEHOLDER
 import me.rerere.ai.util.encodeBase64
+import me.rerere.ai.util.retainedHistoryImages
 import me.rerere.ai.util.errorAsHttpException
 import me.rerere.ai.util.json
 import me.rerere.ai.util.logSafeMessage
@@ -636,6 +638,7 @@ class ChatCompletionsAPI(
         fillEmptyReasoningForDeepSeek: Boolean = false,
     ) = buildJsonArray {
         val filteredMessages = messages.filter { it.isValidToUpload() }
+        val retainedImages = retainedHistoryImages(filteredMessages)
 
         filteredMessages.forEach { message ->
             if (message.role == MessageRole.ASSISTANT) {
@@ -645,12 +648,14 @@ class ChatCompletionsAPI(
                     reasoningReplayFormat = reasoningReplayFormat,
                     supportInputModalities = supportInputModalities,
                     fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
+                    retainedImages = retainedImages,
                 )
             } else {
                 addNonAssistantMessage(
                     message,
                     openRouterCache = openRouterCache,
                     supportInputModalities = supportInputModalities,
+                    retainedImages = retainedImages,
                 )
             }
         }
@@ -662,6 +667,7 @@ class ChatCompletionsAPI(
         reasoningReplayFormat: ReasoningReplayFormat,
         supportInputModalities: List<Modality>,
         fillEmptyReasoningForDeepSeek: Boolean = false,
+        retainedImages: Set<UIMessagePart.Image>,
     ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<UIMessagePart>()
@@ -686,13 +692,14 @@ class ChatCompletionsAPI(
                         supportInputModalities = supportInputModalities,
                         reasoningReplayFormat = reasoningReplayFormat,
                         fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
+                        retainedImages = retainedImages,
                     )?.let { assistantMessage ->
                         add(assistantMessage)
                     }
                     contentBuffer.clear()
                     reasoningPart = null // 清空，下一个 group 可能有新的 reasoning
 
-                    addToolResultMessages(group.tools, supportInputModalities)
+                    addToolResultMessages(group.tools, supportInputModalities, retainedImages)
                 }
             }
         }
@@ -706,6 +713,7 @@ class ChatCompletionsAPI(
                 supportInputModalities = supportInputModalities,
                 reasoningReplayFormat = reasoningReplayFormat,
                 fillEmptyReasoningForDeepSeek = fillEmptyReasoningForDeepSeek,
+                retainedImages = retainedImages,
             )?.let { assistantMessage ->
                 add(assistantMessage)
             }
@@ -725,6 +733,7 @@ class ChatCompletionsAPI(
     private fun JsonArrayBuilder.addToolResultMessages(
         tools: List<UIMessagePart.Tool>,
         supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
     ) {
         // 紧跟 tool 结果消息: 同一批工具调用的结果必须全部连续输出, 中间不能
         // 插入任何其他消息, 否则部分 provider 会报 "no tool output found for
@@ -738,9 +747,9 @@ class ChatCompletionsAPI(
                 put("content", tool.toToolResultContent(supportInputModalities))
             })
             if (Modality.IMAGE in supportInputModalities) {
-                tool.output.filterIsInstance<UIMessagePart.Image>().forEach { image ->
-                    liftedImages.add(tool to image)
-                }
+                tool.output.filterIsInstance<UIMessagePart.Image>()
+                    .filter { it in retainedImages }
+                    .forEach { image -> liftedImages.add(tool to image) }
             }
         }
         if (liftedImages.isNotEmpty()) {
@@ -786,6 +795,7 @@ class ChatCompletionsAPI(
         supportInputModalities: List<Modality>,
         reasoningReplayFormat: ReasoningReplayFormat,
         fillEmptyReasoningForDeepSeek: Boolean = false,
+        retainedImages: Set<UIMessagePart.Image>,
     ): JsonObject? {
         val hasUsableContent = contentParts.any { part ->
             when (part) {
@@ -837,7 +847,7 @@ class ChatCompletionsAPI(
             }
 
             // content
-            put("content", buildContentJson(contentParts, supportInputModalities, mistralThinking))
+            put("content", buildContentJson(contentParts, supportInputModalities, retainedImages, mistralThinking))
 
             // tool_calls
             if (tools.isNotEmpty()) {
@@ -879,6 +889,7 @@ class ChatCompletionsAPI(
     private fun buildContentJson(
         contentParts: List<UIMessagePart>,
         supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
         mistralThinking: String? = null,
     ): JsonElement {
         if (mistralThinking == null && contentParts.isEmpty()) {
@@ -913,6 +924,9 @@ class ChatCompletionsAPI(
                             if (Modality.IMAGE !in supportInputModalities) {
                                 put("type", "text")
                                 put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                            } else if (part !in retainedImages) {
+                                put("type", "text")
+                                put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
                             } else {
                                 part.encodeBase64().onSuccess { encodedImage ->
                                     put("type", "image_url")
@@ -938,6 +952,7 @@ class ChatCompletionsAPI(
         message: UIMessage,
         openRouterCache: Boolean = false,
         supportInputModalities: List<Modality>,
+        retainedImages: Set<UIMessagePart.Image>,
     ) {
         add(buildJsonObject {
             put("role", JsonPrimitive(message.role.name.lowercase()))
@@ -982,6 +997,9 @@ class ChatCompletionsAPI(
                                     if (Modality.IMAGE !in supportInputModalities) {
                                         put("type", "text")
                                         put("text", IMAGE_UNSUPPORTED_PLACEHOLDER)
+                                    } else if (part !in retainedImages) {
+                                        put("type", "text")
+                                        put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
                                     } else {
                                         part.encodeBase64().onSuccess { encodedImage ->
                                             put("type", "image_url")

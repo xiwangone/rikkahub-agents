@@ -5,8 +5,8 @@ import android.webkit.WebResourceRequest
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.log.FileLogSink
 import me.rerere.rikkahub.utils.LogRedactor
-import java.text.SimpleDateFormat
-import java.util.Date
+import java.time.LocalDateTime
+import java.time.format.DateTimeFormatter
 import java.util.Locale
 
 /**
@@ -114,8 +114,10 @@ object BrowserAudit {
 
     private fun maskedUrl(url: String?): String = if (url.isNullOrBlank()) "-" else LogRedactor.maskUrl(url)
 
-    /** `MM-dd HH:mm:ss.SSS` in the device's locale-independent form (SimpleDateFormat is not thread safe). */
-    private fun stamp(): String = SimpleDateFormat("MM-dd HH:mm:ss.SSS", Locale.US).format(Date())
+    private val stampFormat = DateTimeFormatter.ofPattern("MM-dd HH:mm:ss.SSS", Locale.US)
+
+    /** `MM-dd HH:mm:ss.SSS` in the device's locale-independent form. */
+    private fun stamp(): String = stampFormat.format(LocalDateTime.now())
 
     private fun writeLine(
         dedupKey: String,

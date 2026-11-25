@@ -56,9 +56,6 @@ class ChatToolFactory(
         //  - toolScopeOverride：工具白名单（只减不增）
         workspaceIdOverride: String? = null,
         toolScopeOverride: List<String>? = null,
-        // 当前 UI 场景（默认 UNKNOWN = 纯静态判定）：用于 WARM 档按场景动态调整。
-        // 由调用方（ChatService）在装配前从 AppScene.current 读取并传入。
-        uiScene: UiScene = UiScene.UNKNOWN,
     ): List<Tool> {
         // schedule_job 校验用的非本地工具名：本次装配一份新的集合，两个会话
         // 并发装配不会互相串名；provider 是懒求值，装配完填入即可。
@@ -158,16 +155,14 @@ class ChatToolFactory(
                         trimEnabled = trimEnabled,
                         extraCold = assistant.extraColdTools.toSet(),
                         scope = if (scopeAsTier) effectiveToolScope else emptyList(),
-                        uiScene = uiScene,
-                    )
+                                            )
                 } +
                     buildToolDiscoveryTools(
                         listFiltered,
                         invocationCtx.callerConversationId,
                         extraCold = assistant.extraColdTools.toSet(),
                         context = context,
-                        uiScene = uiScene,
-                        trimEnabled = trimEnabled,
+                                                trimEnabled = trimEnabled,
                         scope = if (scopeAsTier) effectiveToolScope else emptyList(),
                     )
             ).sortedBy { it.name }
@@ -315,8 +310,6 @@ private fun surfaceView(
     extraCold: Set<String>,
     // 非空 = 把助手级白名单当“中间档”用：名单内照常判档，名单外降冷水（而非硬删）；保命工具不受影响。
     scope: List<String> = emptyList(),
-    // 当前 UI 场景：透传给档位判定，用于 WARM 档按场景动态调整（UNKNOWN = 纯静态）。
-    uiScene: UiScene = UiScene.UNKNOWN,
 ): Tool {
     // 助手级黑名单（「这些工具只发简要说明」）**独立于**全局裁剪开关：名单非空即生效，
     // 与助手级白名单（onlyTools）语义对齐——填了就生效、清空保存即恢复。
@@ -325,9 +318,9 @@ private fun surfaceView(
     if (!trimEnabled) return tool
     val tier =
         if (scope.isEmpty()) {
-            ToolSurfacePolicy.tierOf(tool.name, extraCold, uiScene)
+            ToolSurfacePolicy.tierOf(tool.name, extraCold)
         } else {
-            ToolSurfacePolicy.tierOfWithScope(tool.name, scope, extraCold, uiScene)
+            ToolSurfacePolicy.tierOfWithScope(tool.name, scope, extraCold)
         }
     if (tier == SurfaceTier.HOT) return tool
 

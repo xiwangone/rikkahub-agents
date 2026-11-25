@@ -177,4 +177,35 @@ class WorkspaceReminderTransformerTest {
         assertTrue(prompt.contains("<workspace-setup>"))
         assertTrue(prompt.contains("remote SSH workspace"))
     }
+
+    @Test
+    fun `local and remote workspace prompts include complete tool guidance`() {
+        val localWs = me.rerere.rikkahub.data.db.entity.WorkspaceEntity(
+            id = "w-local",
+            name = "local",
+            root = "r",
+            type = me.rerere.workspace.WorkspaceType.LOCAL.name,
+            shellStatus = WorkspaceShellStatus.READY.name,
+            createdAt = 0L,
+            updatedAt = 0L,
+        )
+        val localPrompt = buildWorkspaceReminder(workspace = localWs, hasAnyWorkspace = true)!!
+        assertTrue(localPrompt.contains("workspace_apply_edits"))
+        assertTrue(localPrompt.contains("workspace_search_code"))
+
+        val sshWs = me.rerere.rikkahub.data.db.entity.WorkspaceEntity(
+            id = "w-ssh",
+            name = "ssh",
+            root = "r2",
+            type = me.rerere.workspace.WorkspaceType.SSH.name,
+            sshConfig = """{"host":"203.0.113.3","port":22,"username":"ubuntu","remoteDir":"/home/ubuntu"}""",
+            shellStatus = WorkspaceShellStatus.READY.name,
+            createdAt = 0L,
+            updatedAt = 0L,
+        )
+        val remotePrompt = buildWorkspaceReminder(workspace = sshWs, hasAnyWorkspace = true)!!
+        assertTrue(remotePrompt.contains("ssh_upload"))
+        assertTrue(remotePrompt.contains("get_skill_content"))
+        assertTrue(remotePrompt.contains("/upload/"))
+    }
 }
