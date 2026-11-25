@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import android.content.ClipData
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -513,10 +514,7 @@ private fun ImportThemeDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setting_theme_page_import_theme)) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            ScrollableDialogContent {
                 SettingTextField(
                     value = jsonText,
                     onValueChange = {

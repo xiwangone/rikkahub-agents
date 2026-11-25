@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
@@ -8,8 +9,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Checkbox
 import androidx.compose.material3.Icon
@@ -428,8 +427,7 @@ private fun ProviderBatchRouteDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.setting_page_network_routing_batch)) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()),
+            ScrollableDialogContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 Text(

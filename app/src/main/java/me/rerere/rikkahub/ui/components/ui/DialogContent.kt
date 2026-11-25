@@ -33,6 +33,7 @@ val DefaultDialogContentMaxHeight: Dp = 420.dp
 fun ScrollableDialogContent(
     modifier: Modifier = Modifier,
     maxHeight: Dp = DefaultDialogContentMaxHeight,
+    verticalArrangement: Arrangement.Vertical = Arrangement.spacedBy(8.dp),
     content: @Composable ColumnScope.() -> Unit,
 ) {
     Column(
@@ -41,7 +42,7 @@ fun ScrollableDialogContent(
             .heightIn(max = maxHeight)
             .verticalScroll(rememberScrollState())
             .imePadding(),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+        verticalArrangement = verticalArrangement,
         content = content,
     )
 }

@@ -2139,7 +2139,7 @@
   <string name="setting_asr_configure_step_sample_rate_desc">PCM 録音のサンプルレート（Hz）。ASR には 16000 を推奨します</string>
   <string name="setting_asr_configure_step_segment_desc">録音中に N 秒ごとにバッファ済み音声を自動アップロードして認識します。0 にすると自動分割を無効化します（stop 時に一括送信）</string>
   <string name="setting_asr_configure_step_itn">ITN を有効化</string>
-  <string name="setting_asr_configure_step_itn_desc">逆テキスト正規化: 話し言葉の数字を数字表記に変換します（例: 三百 → 300）</string>
+  <string name="setting_asr_configure_step_itn_desc">逆テキスト正規化: 話し言葉の数字を数字表記に変換します（例: さんびゃく → 300）</string>
   <string name="setting_asr_configure_step_timestamp">タイムスタンプを有効化</string>
   <string name="setting_asr_configure_step_timestamp_desc">単語単位のタイムスタンプを返します。rikkahub では現在使用していないため、token 節約のため既定では無効です</string>
   <string name="setting_asr_configure_step_hotwords">ホットワード</string>
@@ -4725,4 +4725,12 @@
     <string name="vault_audit_expand">展開</string>
     <string name="vault_audit_collapse">折りたたむ</string>
     <string name="vault_audit_more_sub">… 他 %1$d 件（タップで展開）</string>
+    <string name="ssh_terminal_shell_rejected">認証は成功しましたが、サーバーが対話型シェルの起動を拒否しました（主な原因: 1. GitHub/GitLab などの Git 専用エンドポイント、2. authorized_keys の強制 command="…"、3. SFTP 専用ホスト）。</string>
+    <string name="ssh_terminal_exec_hint">コマンド（空欄で認証バナーや強制コマンドを確認）</string>
+    <string name="ssh_terminal_exec_run">exec 実行</string>
+    <string name="ssh_terminal_sftp_list">SFTP 一覧</string>
+    <string name="ssh_terminal_exec_empty_output">（終了コード %1$d、出力なし）</string>
+    <string name="ssh_terminal_exec_failed">exec に失敗しました：%1$s</string>
+    <string name="ssh_terminal_sftp_failed">sftp に失敗しました：%1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">（空のディレクトリ）</string>
 </resources>

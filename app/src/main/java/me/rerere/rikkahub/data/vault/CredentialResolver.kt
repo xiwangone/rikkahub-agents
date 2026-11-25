@@ -137,6 +137,23 @@ class CredentialResolver(
                 AppLog.w("CredentialResolver", "$what failed: ${e.message}", e)
             }.getOrNull()
 
+    /**
+     * 按名查库：精确查不到时按归一化名再查一次。
+     *
+     * 背景：归一前的历史名字（如 `PC ED25519 KEY`）入库时存的是归一前形态，
+     * 库里实际名字是归一后的 `PC_ED25519_KEY`；引用字段分支（SshHostsTool）
+     * 早就有这层重试，`$$` 分支之前没有——编辑页把旧引用字段转成 `$$旧名`
+     * 后，私钥会直接解析不到，连接退到 none 认证报通用 `Auth fail`（F1）。
+     * 只在归一化结果与原名不同时多查一次，不递归；两个名字都查不到时
+     * 返回 null（调用方按 Missing 处理，名字仍报原名）。
+     */
+    private suspend fun lookupByName(name: String): VaultCredentialEntity? {
+        safeVaultRead("credential lookup") { repository.getByName(name) }?.let { return it }
+        val normalized = CredentialNameNormalizer.normalizeName(name)
+        if (normalized == name) return null
+        return safeVaultRead("credential lookup (normalized)") { repository.getByName(normalized) }
+    }
+
     suspend fun resolve(
         name: String,
         purpose: CredentialPurpose,
@@ -167,7 +184,7 @@ class CredentialResolver(
         // 库读失败按"解析不到"处理：调用方只按 Granted / 非 Granted 分支，
         // 库错不该变成调用链上的原始异常（见 [resolveLiteralOrReference] 的
         // "从不抛异常"约定）。真实原因记一条警告日志，不静默。
-        val entry = safeVaultRead("credential lookup") { repository.getByName(trimmed) }
+        val entry = lookupByName(trimmed)
         if (entry == null) {
             if (audit) repository.logAccess(trimmed, caller, "${purpose.action}_missing")
             return CredentialResolution.Missing(trimmed)
@@ -229,7 +246,7 @@ class CredentialResolver(
         if (ref.name.isEmpty()) return CredentialResolution.Missing(whole)
 
         val resolution = fieldResolution(
-            safeVaultRead("credential lookup") { repository.getByName(ref.name) },
+            lookupByName(ref.name),
             ref.name,
             ref.field,
         )

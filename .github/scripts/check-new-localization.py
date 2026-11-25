@@ -159,7 +159,32 @@ def git_diff(base, head, paths):
     return subprocess.check_output(args, text=True, errors="ignore")
 
 
-def check_resource_zh(diff):
+ZH_PATHS = ("*/src/main/res/values-zh/strings.xml",
+            "*/src/main/res/values-zh-rCN/strings.xml")
+ZH_SUFFIX = ("/values-zh/strings.xml", "/values-zh-rCN/strings.xml")
+
+
+def read_zh_strings(head):
+    """读 zh 串全集：head 为 None 读工作区，否则读该 revision 的树。
+
+    必须跟随 head，否则「检查某个历史提交/远端提交」（head 与当前工作区不同）
+    会把该提交新增的每个 key 都误报为缺失——CI 只在待检提交的 checkout 上跑，
+    掩盖了这个偏差。
+    """
+    if head is None:
+        paths = [str(p) for pat in ZH_PATHS for p in Path(".").glob(pat)]
+        return "\n".join(Path(p).read_text(errors="ignore") for p in paths)
+    names = subprocess.check_output(
+        ["git", "ls-tree", "-r", "--name-only", head], text=True, errors="ignore"
+    ).splitlines()
+    paths = [n for n in names if n.endswith(ZH_SUFFIX)]
+    return "\n".join(
+        subprocess.check_output(["git", "show", "%s:%s" % (head, n)], text=True, errors="ignore")
+        for n in paths
+    )
+
+
+def check_resource_zh(diff, head):
     keys = {
         m.group(1)
         for line in diff.splitlines()
@@ -167,20 +192,35 @@ def check_resource_zh(diff):
         for m in [re.search(r'<string name="([^"]+)"', line)]
         if m
     }
-    zh = "\n".join(
-        p.read_text(errors="ignore")
-        for p in (list(Path(".").glob("*/src/main/res/values-zh/strings.xml"))
-                  + list(Path(".").glob("*/src/main/res/values-zh-rCN/strings.xml")))
-    )
+    zh = read_zh_strings(head)
     return ["missing zh-CN string: " + k for k in sorted(keys)
             if not re.search(r'<string name="' + re.escape(k) + r'"', zh)]
 
 
 def check_ui_literals(diff):
+    """新增 Kotlin 行里的硬编码 UI 英文。
+
+    输出必须带「文件:行号」：此前只打 `hardcoded UI text: <内容>`，96 条命中在报告里
+    没有落点，无法定位也就无法修（与 check_cjk_literals 的口径不一致）。
+    行号按 hunk 头 `@@ -a,b +c,d @@` 的 c 起算，逐 `+` 行递增。
+    """
     missing = []
+    current = None
+    lineno = None
     for line in diff.splitlines():
+        if line.startswith("+++ b/"):
+            current = line[6:]
+            lineno = None
+            continue
+        if line.startswith("@@"):
+            m = re.search(r"\+(\d+)", line)
+            lineno = int(m.group(1)) if m else None
+            continue
         if not line.startswith("+") or line.startswith("+++"):
             continue
+        this_line = lineno
+        if lineno is not None:
+            lineno += 1
         if not UI_TRIGGER_RE.search(line):
             continue
         for v in re.findall(r'"([A-Za-z][^"\\]{2,})"', line):
@@ -192,7 +232,11 @@ def check_ui_literals(diff):
                 stripped = stripped.replace(tok, "")
             if not stripped.strip():
                 continue
-            missing.append("hardcoded UI text: " + v)
+            if current and this_line:
+                loc = "%s:%d" % (current, this_line)
+            else:
+                loc = current or "?"
+            missing.append("hardcoded UI text in %s: %s" % (loc, v))
     return missing
 
 
@@ -337,7 +381,7 @@ def main():
         head = None
     missing = []
     missing += check_resource_zh(
-        git_diff(base, head, ["*/src/main/res/values/strings.xml"]))
+        git_diff(base, head, ["*/src/main/res/values/strings.xml"]), head)
     # 测试断言里的中文不是用户文案，与 src/test 同口径排除 androidTest；
     # 否则新增一条仪器测试就会因断言中文被门禁拦（改生产文案时仍需同步 grep 断言）。
     kd = git_diff(

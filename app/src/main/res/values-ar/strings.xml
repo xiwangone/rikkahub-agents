@@ -4732,4 +4732,12 @@
     <string name="vault_audit_expand">عرض</string>
     <string name="vault_audit_collapse">إخفاء</string>
     <string name="vault_audit_more_sub">… %1$d أخرى (اضغط للتوسيع)</string>
+    <string name="ssh_terminal_shell_rejected">تمت المصادقة بنجاح، لكن الخادم رفض فتح shell تفاعلي (الأسباب الشائعة: 1. نقطة نهاية Git فقط مثل GitHub/GitLab؛ 2. أمر إجباري command="…" في authorized_keys؛ 3. مضيف SFTP فقط).</string>
+    <string name="ssh_terminal_exec_hint">الأمر (اتركه فارغًا لفحص شعار المصادقة أو الأمر الإجباري)</string>
+    <string name="ssh_terminal_exec_run">تنفيذ exec</string>
+    <string name="ssh_terminal_sftp_list">عرض SFTP</string>
+    <string name="ssh_terminal_exec_empty_output">(رمز الخروج %1$d، دون مخرجات)</string>
+    <string name="ssh_terminal_exec_failed">فشل تنفيذ exec: %1$s</string>
+    <string name="ssh_terminal_sftp_failed">فشل sftp: %1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">(دليل فارغ)</string>
 </resources>

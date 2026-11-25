@@ -3,8 +3,6 @@ package me.rerere.rikkahub.ui.pages.setting.components
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
@@ -17,17 +15,13 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.input.PasswordVisualTransformation
-import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.launch
 import me.rerere.ai.provider.ProviderSetting
-import me.rerere.hugeicons.HugeIcons
-import me.rerere.hugeicons.stroke.View
-import me.rerere.hugeicons.stroke.ViewOff
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.ProviderDescriptors
+import me.rerere.rikkahub.data.vault.CredentialType
 import me.rerere.rikkahub.ui.components.ui.CardGroup
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceButtons
 import me.rerere.rikkahub.ui.components.ui.ConnectedChoiceLabel
@@ -164,28 +158,14 @@ fun BackendProviderConfigure(
             formItem(
                 headlineContent = { Text(stringResource(R.string.backend_password_basic)) },
             ) {
-                var passwordVisible by remember { mutableStateOf(false) }
-                OutlinedTextField(
+                SecretRefField(
                     value = provider.password,
                     onValueChange = { onEdit(provider.copy(password = it)) },
-                    modifier = Modifier.fillMaxWidth(),
+                    nameHint = "${provider.name}_PASSWORD",
+                    typeHint = CredentialType.BASIC_AUTH,
+                    groupHint = "AI",
+                    importType = CredentialType.BASIC_AUTH,
                     singleLine = true,
-                    visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
-                    trailingIcon = {
-                        IconButton(onClick = { passwordVisible = !passwordVisible }) {
-                            Icon(
-                                if (passwordVisible) HugeIcons.ViewOff else HugeIcons.View,
-                                contentDescription =
-                                    stringResource(
-                                        if (passwordVisible) {
-                                            R.string.accessibility_hide_password
-                                        } else {
-                                            R.string.accessibility_show_password
-                                        },
-                                    ),
-                            )
-                        }
-                    },
                 )
             }
             switchItem(

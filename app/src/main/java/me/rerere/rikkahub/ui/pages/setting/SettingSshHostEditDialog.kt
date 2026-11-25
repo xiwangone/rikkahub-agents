@@ -1,17 +1,15 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.Icon
@@ -67,11 +65,31 @@ internal fun SshHostEditDialog(
     var port by remember { mutableStateOf((initial?.port ?: 22).toString()) }
     var user by remember { mutableStateOf(initial?.user ?: "") }
     var password by remember { mutableStateOf(initial?.password ?: "") }
-    var privateKey by remember { mutableStateOf(initial?.privateKey ?: "") }
+    var privateKey by remember {
+        mutableStateOf(
+            initial?.privateKey?.takeIf { it.isNotBlank() }
+                ?: initial?.vaultCredentialRef?.takeIf { it.isNotBlank() }?.let { "\$\$$it" }
+                ?: "",
+        )
+    }
     var passphrase by remember { mutableStateOf(initial?.passphrase ?: "") }
-    var vaultCredentialRef by remember { mutableStateOf(initial?.vaultCredentialRef) }
-    var certificate by remember { mutableStateOf(initial?.certificate ?: "") }
-    var vaultCertificateRef by remember { mutableStateOf(initial?.vaultCertificateRef) }
+    var vaultCredentialRef by remember {
+        mutableStateOf(
+            if (initial?.privateKey.isNullOrBlank()) null else initial?.vaultCredentialRef,
+        )
+    }
+    var certificate by remember {
+        mutableStateOf(
+            initial?.certificate?.takeIf { it.isNotBlank() }
+                ?: initial?.vaultCertificateRef?.takeIf { it.isNotBlank() }?.let { "\$\$$it" }
+                ?: "",
+        )
+    }
+    var vaultCertificateRef by remember {
+        mutableStateOf(
+            if (initial?.certificate.isNullOrBlank()) null else initial?.vaultCertificateRef,
+        )
+    }
     var proxyCommand by remember { mutableStateOf(initial?.proxyCommand ?: "") }
     var jumpHost by remember { mutableStateOf(initial?.jumpHost ?: "") }
     var showCertVaultPicker by remember { mutableStateOf(false) }
@@ -100,8 +118,7 @@ internal fun SshHostEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(if (initial == null) R.string.setting_ssh_host_add else R.string.setting_ssh_host_edit)) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
+            ScrollableDialogContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SettingTextField(
@@ -212,7 +229,8 @@ internal fun SshHostEditDialog(
                     VaultCredentialPickerDialog(
                         entries = keyCandidates,
                         onPick = {
-                            vaultCertificateRef = it.name
+                            certificate = "\$\$${it.name}"
+                            vaultCertificateRef = null
                             showCertVaultPicker = false
                         },
                         onDismiss = { showCertVaultPicker = false },
@@ -322,7 +340,10 @@ internal fun SshHostEditDialog(
                                             host = obj["host"]?.jsonPrimitive?.contentOrNull ?: host
                                             port = (obj["port"]?.jsonPrimitive?.contentOrNull ?: port)
                                             user = obj["user"]?.jsonPrimitive?.contentOrNull ?: user
-                                            vaultCredentialRef = obj["keyRef"]?.jsonPrimitive?.contentOrNull ?: vaultCredentialRef
+                                            obj["keyRef"]?.jsonPrimitive?.contentOrNull?.takeIf { it.isNotBlank() }?.let { keyRef ->
+                                                privateKey = "\$\$$keyRef"
+                                                vaultCredentialRef = null
+                                            }
                                             templateRef = tpl.name
                                         }.onFailure { e ->
                                             toaster.show(
@@ -400,7 +421,8 @@ internal fun SshHostEditDialog(
                     VaultCredentialPickerDialog(
                         entries = keyCandidates,
                         onPick = {
-                            vaultCredentialRef = it.name
+                            privateKey = "\$\$${it.name}"
+                            vaultCredentialRef = null
                             showVaultPicker = false
                         },
                         onDismiss = { showVaultPicker = false },
@@ -412,7 +434,8 @@ internal fun SshHostEditDialog(
                         defaultGroup = "SSH",
                         onDismiss = { showKeyGen = false },
                         onSaved = { savedName ->
-                            vaultCredentialRef = savedName
+                            privateKey = "\$\$$savedName"
+                            vaultCredentialRef = null
                             showKeyGen = false
                         },
                     )

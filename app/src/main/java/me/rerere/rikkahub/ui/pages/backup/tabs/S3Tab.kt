@@ -3,7 +3,6 @@ package me.rerere.rikkahub.ui.pages.backup.tabs
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
@@ -421,14 +420,19 @@ fun S3Tab(
         }
 
         HorizontalDivider()
-        FlowRow(
+        Column(
             modifier =
                 Modifier
                     .fillMaxWidth()
                     .padding(horizontal = 16.dp, vertical = 12.dp),
-            horizontalArrangement = Arrangement.spacedBy(8.dp, Alignment.End),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
             OutlinedButton(
+                modifier = Modifier.weight(1f),
                 onClick = {
                     vm.runTestS3 { result ->
                         result.onSuccess {
@@ -451,17 +455,19 @@ fun S3Tab(
                 Text(stringResource(R.string.backup_page_test_connection))
             }
             OutlinedButton(
+                modifier = Modifier.weight(1f),
                 onClick = {
                     vm.loadS3BackupFileItems()
                     showBackupFiles = true
                 },
             ) {
-                Text(stringResource(R.string.backup_page_restore))
+                Text(stringResource(R.string.backup_page_restore), maxLines = 1)
             }
-
+            }
             Button(
                 onClick = { startBackup() },
                 enabled = !isBackingUp,
+                modifier = Modifier.fillMaxWidth(),
             ) {
                 if (isBackingUp) {
                     CircularWavyProgressIndicator(

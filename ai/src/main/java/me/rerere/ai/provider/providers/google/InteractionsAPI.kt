@@ -47,6 +47,7 @@ import me.rerere.ai.ui.UIMessageAnnotation
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
+import me.rerere.ai.util.OMITTED_HISTORY_IMAGE_PLACEHOLDER
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
@@ -57,6 +58,7 @@ import me.rerere.ai.util.logSafeMessage
 import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
+import me.rerere.ai.util.retainedHistoryImages
 import me.rerere.ai.util.retryAfterMs
 import me.rerere.ai.util.stringSafe
 import me.rerere.common.http.await
@@ -316,19 +318,22 @@ internal class InteractionsAPI(
     }
 
     internal fun buildInput(messages: List<UIMessage>): JsonArray = buildJsonArray {
-        messages
-            .filter { it.role != MessageRole.SYSTEM && it.isValidToUpload() }
-            .forEach { message ->
-                if (message.role == MessageRole.ASSISTANT) {
-                    addModelSteps(message)
-                } else {
-                    addUserStep(message)
-                }
+        val filteredMessages = messages.filter { it.role != MessageRole.SYSTEM && it.isValidToUpload() }
+        val retainedImages = retainedHistoryImages(filteredMessages)
+        filteredMessages.forEach { message ->
+            if (message.role == MessageRole.ASSISTANT) {
+                addModelSteps(message, retainedImages)
+            } else {
+                addUserStep(message, retainedImages)
             }
+        }
     }
 
-    private fun JsonArrayBuilder.addUserStep(message: UIMessage) {
-        val content = message.parts.mapNotNull { it.toInteractionsContent() }
+    private fun JsonArrayBuilder.addUserStep(
+        message: UIMessage,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
+        val content = message.parts.mapNotNull { it.toInteractionsContent(retainedImages) }
         if (content.isEmpty()) return
         add(buildJsonObject {
             put("type", "user_input")
@@ -339,7 +344,10 @@ internal class InteractionsAPI(
     // 按 MessagePart 类型逐个映射成 Interactions 的 step，分支与 part 类型一一对应；
     // 拆分会把同一份映射口径割裂到多处，且共享 contentBuffer 局部状态。
     @Suppress("CyclomaticComplexMethod", "NestedBlockDepth")
-    private fun JsonArrayBuilder.addModelSteps(message: UIMessage) {
+    private fun JsonArrayBuilder.addModelSteps(
+        message: UIMessage,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
         val contentBuffer = mutableListOf<JsonObject>()
 
         fun flushContent() {
@@ -384,7 +392,7 @@ internal class InteractionsAPI(
                         }
 
                         is UIMessagePart.Text, is UIMessagePart.Image ->
-                            part.toInteractionsContent()?.let { contentBuffer.add(it) }
+                            part.toInteractionsContent(retainedImages)?.let { contentBuffer.add(it) }
 
                         else -> {}
                     }
@@ -412,7 +420,7 @@ internal class InteractionsAPI(
                             putJsonArray("result") {
                                 val content = tool.output
                                     .filter { it is UIMessagePart.Text || it is UIMessagePart.Image }
-                                    .mapNotNull { it.toInteractionsContent() }
+                                    .mapNotNull { it.toInteractionsContent(retainedImages) }
                                 if (content.isEmpty()) {
                                     add(buildJsonObject {
                                         put("type", "text")
@@ -431,7 +439,9 @@ internal class InteractionsAPI(
         flushContent()
     }
 
-    private fun UIMessagePart.toInteractionsContent(): JsonObject? = when (this) {
+    private fun UIMessagePart.toInteractionsContent(
+        retainedImages: Set<UIMessagePart.Image>,
+    ): JsonObject? = when (this) {
         is UIMessagePart.Text -> if (text.isEmpty()) {
             null
         } else {
@@ -442,24 +452,31 @@ internal class InteractionsAPI(
         }
 
         is UIMessagePart.Image -> {
-            val result = encodeBase64(false)
-            if (result.isFailure) {
-                AppLogger.e(TAG, "toInteractionsContent: dropping unencodable Image part", result.exceptionOrNull())
-            }
-            result.getOrNull()?.let { encoded ->
+            if (this !in retainedImages) {
                 buildJsonObject {
-                    put("type", "image")
-                    if (encoded.base64.startsWith("http")) {
-                        put("uri", encoded.base64)
-                    } else {
-                        put("mime_type", encoded.mimeType)
-                        // data URL 会原样返回，这里只取 base64 数据部分
-                        put("data", encoded.base64.substringAfter(";base64,"))
-                    }
+                    put("type", "text")
+                    put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
                 }
-            } ?: buildJsonObject {
-                put("type", "text")
-                put("text", "Error: Failed to encode image to base64")
+            } else {
+                val result = encodeBase64(false)
+                if (result.isFailure) {
+                    AppLogger.e(TAG, "toInteractionsContent: dropping unencodable Image part", result.exceptionOrNull())
+                }
+                result.getOrNull()?.let { encoded ->
+                    buildJsonObject {
+                        put("type", "image")
+                        if (encoded.base64.startsWith("http")) {
+                            put("uri", encoded.base64)
+                        } else {
+                            put("mime_type", encoded.mimeType)
+                            // data URL 会原样返回，这里只取 base64 数据部分
+                            put("data", encoded.base64.substringAfter(";base64,"))
+                        }
+                    }
+                } ?: buildJsonObject {
+                    put("type", "text")
+                    put("text", "Error: Failed to encode image to base64")
+                }
             }
         }
 

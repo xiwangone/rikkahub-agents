@@ -3,6 +3,8 @@ package me.rerere.rikkahub.data.vault
 import android.app.Application
 import android.content.Context
 import android.os.Looper
+import java.security.Security
+import javax.crypto.KeyGenerator
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -12,7 +14,13 @@ import me.rerere.rikkahub.data.db.dao.VaultAuditLogDao
 import me.rerere.rikkahub.data.db.dao.VaultCredentialDao
 import me.rerere.rikkahub.data.db.entity.VaultAuditLogEntity
 import me.rerere.rikkahub.data.db.entity.VaultCredentialEntity
+import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
+import me.rerere.rikkahub.data.datastore.SyntheticSettingsKeyStore
+import me.rerere.rikkahub.data.datastore.SyntheticSettingsSecurityProvider
+import org.junit.After
+import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
+import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -33,6 +41,28 @@ import org.robolectric.annotation.Config
 class CredentialResolverTest {
     private val workers = CoroutineScope(SupervisorJob() + Dispatchers.IO)
     private val context: Context get() = RuntimeEnvironment.getApplication()
+    private lateinit var securityProvider: SyntheticSettingsSecurityProvider
+
+    /**
+     * F1 用例要造一条可解密的条目：值加密走真 [ProviderCredentialCipher]，
+     * 密钥源是 AndroidKeyStore——Robolectric 下没有，故注册与 QuickImportTest
+     * 同款合成 JCA provider（只含测试密钥，无真实凭据），让
+     * `KeyStore.getInstance("AndroidKeyStore")` 返回合成密钥。
+     */
+    @Before
+    fun setUp() {
+        securityProvider = SyntheticSettingsSecurityProvider()
+        Security.insertProviderAt(securityProvider, 1)
+        SyntheticSettingsKeyStore.key = KeyGenerator.getInstance("AES").apply { init(256) }.generateKey()
+        SyntheticSettingsKeyStore.unavailable = false
+    }
+
+    @After
+    fun tearDown() {
+        SyntheticSettingsKeyStore.key = null
+        SyntheticSettingsKeyStore.unavailable = false
+        Security.removeProvider(securityProvider.name)
+    }
 
     /** Pump Android Main while real DataStore work proceeds on IO. No coroutine implementation is mocked. */
     private fun <T> perform(block: suspend () -> T): T {
@@ -49,18 +79,19 @@ class CredentialResolverTest {
     private fun emptyRepository(
         getByNameThrows: Boolean = false,
         auditThrows: Boolean = false,
+        entries: Map<String, VaultCredentialEntity> = emptyMap(),
     ): CredentialVaultRepository =
         CredentialVaultRepository(
             dao = object : VaultCredentialDao {
-                override suspend fun getAll(): List<VaultCredentialEntity> = emptyList()
+                override suspend fun getAll(): List<VaultCredentialEntity> = entries.values.toList()
                 override suspend fun getByName(name: String): VaultCredentialEntity? =
-                    if (getByNameThrows) throw IllegalStateException("vault db unavailable") else null
+                    if (getByNameThrows) throw IllegalStateException("vault db unavailable") else entries[name]
                 override suspend fun upsert(entry: VaultCredentialEntity): Long = 0L
                 override suspend fun insertIfAbsent(entry: VaultCredentialEntity): Long = 0L
                 override suspend fun update(entry: VaultCredentialEntity) = Unit
                 override suspend fun updateAll(entries: List<VaultCredentialEntity>) = Unit
                 override suspend fun delete(entry: VaultCredentialEntity) = Unit
-                override suspend fun count(): Int = 0
+                override suspend fun count(): Int = entries.size
                 override suspend fun clearAll() = Unit
             },
             auditDao = object : VaultAuditLogDao {
@@ -189,6 +220,78 @@ class CredentialResolverTest {
                 caller = "test",
             )
             assertTrue(value == null)
+        }
+    }
+
+    // ---- F1：归一前旧名经 `$$` 解析 ----
+
+    /** 库里只有归一后的名字（`PC ED25519 KEY` 入库前是归一前形态）。 */
+    private fun legacyNameRepository(): CredentialVaultRepository {
+        val entry = VaultCredentialEntity(
+            name = "PC_ED25519_KEY",
+            metaJson = """{"endpoint":"https://example.com"}""",
+            valueEncrypted = ProviderCredentialCipher.encrypt("fake-private-key"),
+        )
+        return emptyRepository(entries = mapOf(entry.name to entry))
+    }
+
+    @Test
+    fun `legacy pre-normalization name resolves via normalized retry`() {
+        perform {
+            val resolver = CredentialResolver(legacyNameRepository()) { true }
+            val r = resolver.resolve("PC ED25519 KEY", CredentialPurpose.SSH_AUTH, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.Granted)
+            assertEquals("fake-private-key", (r as CredentialResolution.Granted).value)
+        }
+    }
+
+    @Test
+    fun `exact normalized name still resolves directly`() {
+        perform {
+            val resolver = CredentialResolver(legacyNameRepository()) { true }
+            val r = resolver.resolve("PC_ED25519_KEY", CredentialPurpose.SSH_AUTH, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.Granted)
+            assertEquals("fake-private-key", (r as CredentialResolution.Granted).value)
+        }
+    }
+
+    @Test
+    fun `dollar reference with legacy name resolves`() {
+        perform {
+            val repository = legacyNameRepository()
+            val value = resolveLiteralOrReference(
+                "\$\$PC ED25519 KEY",
+                CredentialPurpose.SSH_AUTH,
+                repository,
+                caller = "test",
+                isAuthorized = { true },
+            )
+            assertEquals("fake-private-key", value)
+        }
+    }
+
+    @Test
+    fun `field reference with legacy name resolves via normalized retry`() {
+        perform {
+            val resolver = CredentialResolver(legacyNameRepository()) { true }
+            val r = resolver.resolveRef(
+                "PC ED25519 KEY.endpoint",
+                CredentialPurpose.WEB_BRIDGE,
+                caller = "test",
+                audit = false,
+            )
+            assertTrue(r is CredentialResolution.Granted)
+            assertEquals("https://example.com", (r as CredentialResolution.Granted).value)
+        }
+    }
+
+    @Test
+    fun `truly missing name stays Missing after normalized retry`() {
+        perform {
+            val resolver = CredentialResolver(emptyRepository()) { true }
+            val r = resolver.resolve("NO_SUCH_CRED", CredentialPurpose.WEB_BRIDGE, caller = "test", audit = false)
+            assertTrue(r is CredentialResolution.Missing)
+            assertEquals("NO_SUCH_CRED", (r as CredentialResolution.Missing).name)
         }
     }
 }

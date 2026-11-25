@@ -1,16 +1,15 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
+
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
@@ -66,12 +65,7 @@ internal fun LocalMcpProfileModal(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) stringResource(R.string.mcp_page_dialog_add_title) else stringResource(R.string.mcp_page_dialog_edit_title)) },
         text = {
-            Column(
-                modifier =
-                    Modifier
-                        .fillMaxWidth()
-                        .verticalScroll(rememberScrollState())
-                        .imePadding(),
+            ScrollableDialogContent(
                 verticalArrangement = Arrangement.spacedBy(10.dp),
             ) {
                 SettingTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.mcp_page_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())

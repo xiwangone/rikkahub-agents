@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting.backend
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -235,10 +236,7 @@ private fun BackendEditDialog(
         onDismissRequest = onDismiss,
         title = { Text(if (initial == null) stringResource(R.string.backend_service_dialog_add_title) else stringResource(R.string.backend_service_dialog_edit_title)) },
         text = {
-            Column(
-                modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            ScrollableDialogContent {
                 SettingTextField(value = name, onValueChange = { name = it }, label = { Text(stringResource(R.string.backend_service_name_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && name.isBlank(), supportingText = { if (showErrors && name.isBlank()) Text(stringResource(R.string.backend_service_name_required)) })
                 SettingTextField(value = type, onValueChange = { type = it }, label = { Text(stringResource(R.string.backend_service_type_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth())
                 SettingTextField(value = endpoint, onValueChange = { endpoint = it }, label = { Text(stringResource(R.string.backend_service_endpoint_label)) }, singleLine = true, modifier = Modifier.fillMaxWidth(), isError = showErrors && endpoint.isBlank(), supportingText = { if (showErrors && endpoint.isBlank()) Text(stringResource(R.string.backend_service_endpoint_required)) })

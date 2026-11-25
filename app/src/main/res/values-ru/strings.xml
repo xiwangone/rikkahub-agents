@@ -2127,14 +2127,14 @@
   <string name="setting_asr_configure_deepseek_sample_rate_desc">Частота дискретизации записи в Гц; для ASR достаточно 16000</string>
   <string name="setting_asr_configure_deepseek_base_url_desc">Запросы отправляются на {Base URL}/v1/tools/asr</string>
   <string name="setting_asr_configure_deepseek_api_key_desc">API-ключ платформы DeepSeek</string>
-  <string name="setting_asr_configure_step_api_key_desc">API-ключ StepFun (阶跃星辰), полученный на https://platform.stepfun.com/interface-key</string>
+  <string name="setting_asr_configure_step_api_key_desc">API-ключ StepFun, полученный на https://platform.stepfun.com/interface-key</string>
   <string name="setting_asr_configure_step_base_url_desc">Base URL для Step ASR. Для Китая используйте https://api.stepfun.com, для других регионов — https://api.stepfun.ai</string>
   <string name="setting_asr_configure_step_model_desc">Имя модели Step ASR, например stepaudio-2.5-asr (флагманская, самая дешёвая) или step-asr</string>
   <string name="setting_asr_configure_step_language_desc">Необязательная подсказка языка: auto, zh или en. Оставьте пустым, чтобы использовать значение сервера по умолчанию (auto)</string>
   <string name="setting_asr_configure_step_sample_rate_desc">Частота дискретизации записи PCM в Гц; для ASR рекомендуется 16000</string>
   <string name="setting_asr_configure_step_segment_desc">Автоматически отправлять буферизованный звук каждые N секунд во время записи. 0 отключает авторазбиение (один запрос при stop)</string>
   <string name="setting_asr_configure_step_itn">Включить ITN</string>
-  <string name="setting_asr_configure_step_itn_desc">Обратная нормализация текста: преобразует произнесённые числа в цифры (например, 三百 → 300)</string>
+  <string name="setting_asr_configure_step_itn_desc">Обратная нормализация текста: преобразует произнесённые числа в цифры (например, «триста» → 300)</string>
   <string name="setting_asr_configure_step_timestamp">Включить временные метки</string>
   <string name="setting_asr_configure_step_timestamp_desc">Возвращать временные метки на уровне слов. Сейчас rikkahub их не использует, поэтому по умолчанию отключено для экономии token</string>
   <string name="setting_asr_configure_step_hotwords">Горячие слова</string>
@@ -4729,4 +4729,12 @@
     <string name="vault_audit_expand">Показать</string>
     <string name="vault_audit_collapse">Скрыть</string>
     <string name="vault_audit_more_sub">… ещё %1$d (нажмите, чтобы раскрыть)</string>
+    <string name="ssh_terminal_shell_rejected">Аутентификация пройдена, но сервер отклонил интерактивный shell (частые причины: 1. Git-эндпоинт вроде GitHub/GitLab; 2. принудительная command="…" в authorized_keys; 3. хост только для SFTP).</string>
+    <string name="ssh_terminal_exec_hint">Команда (оставьте пустой для баннера или принудительной команды)</string>
+    <string name="ssh_terminal_exec_run">Выполнить exec</string>
+    <string name="ssh_terminal_sftp_list">Список SFTP</string>
+    <string name="ssh_terminal_exec_empty_output">(код %1$d, без вывода)</string>
+    <string name="ssh_terminal_exec_failed">Ошибка exec: %1$s</string>
+    <string name="ssh_terminal_sftp_failed">Ошибка sftp: %1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">(пустой каталог)</string>
 </resources>

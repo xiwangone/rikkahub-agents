@@ -1,16 +1,13 @@
 package me.rerere.rikkahub.ui.components.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import android.widget.Toast
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -68,12 +65,9 @@ fun AutoCompressDialog(
             Text(stringResource(R.string.setting_model_page_auto_compress))
         },
         text = {
-            Column(
+            ScrollableDialogContent(
+                modifier = Modifier.padding(horizontal = 16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
-                modifier = Modifier
-                    .padding(horizontal = 16.dp)
-                    .verticalScroll(rememberScrollState())
-                    .imePadding(),
             ) {
                 Text(
                     text = stringResource(R.string.setting_model_page_auto_compress_desc),

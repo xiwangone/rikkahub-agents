@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
@@ -14,7 +15,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledTonalButton
@@ -202,8 +202,7 @@ fun SettingNetworkDnsPage(vm: SettingVM = koinViewModel()) {
                 Text(stringResource(R.string.setting_page_preferences_network_dns_title))
             },
             text = {
-                Column(
-                    modifier = Modifier.verticalScroll(rememberScrollState()),
+                ScrollableDialogContent(
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
                     Text(

@@ -59,7 +59,9 @@ private fun isX86Cpuinfo(text: String): Boolean {
 
 /** True when `cpuinfo` text describes an ARM64 CPU. */
 private fun isArmCpuinfo(text: String): Boolean {
-    if (text.contains("CPU implementer") || text.contains("AArch64")) return true
+    // "CPU implementer" alone does not prove ARM64: 32-bit ARM (ARMv7)
+    // cpuinfo carries the same line, only with "CPU architecture: 7".
+    if (text.contains("AArch64")) return true
     return CPU_ARCHITECTURE_8_REGEX.containsMatchIn(text)
 }
 

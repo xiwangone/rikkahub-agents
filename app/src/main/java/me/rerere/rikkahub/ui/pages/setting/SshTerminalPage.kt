@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -24,6 +25,7 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -47,7 +49,14 @@ import androidx.compose.ui.unit.sp
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.res.ResourcesCompat
 import com.jcraft.jsch.JSchException
+import com.jcraft.jsch.ChannelExec
+import com.jcraft.jsch.ChannelSftp
 import com.jcraft.jsch.Session
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.OutlinedTextField
+import androidx.compose.ui.text.font.FontFamily
+import me.rerere.rikkahub.data.ai.tools.local.BoundedOutputStream
 import com.termux.terminal.TerminalSession
 import com.termux.view.TerminalView
 import me.rerere.rikkahub.data.ai.tools.local.VerifyingHostKeyRepository
@@ -69,10 +78,13 @@ import me.rerere.rikkahub.data.ai.tools.local.resolveHostAuthDetailed
 import me.rerere.rikkahub.data.ai.tools.local.splitProxyCommand
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.SshPlatform
+import me.rerere.rikkahub.data.db.entity.SshHostEntity
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.repository.SshHostRepository
 import me.rerere.rikkahub.data.sync.replaceFilePreservingTarget
 import me.rerere.rikkahub.data.vault.CredentialVaultRepository
+import me.rerere.rikkahub.data.vault.VAULT_REF_PREFIX
+import me.rerere.rikkahub.data.vault.isVaultReference
 import me.rerere.rikkahub.ui.context.LocalSettings
 import me.rerere.rikkahub.ui.components.nav.BackButton
 import me.rerere.rikkahub.ui.pages.extensions.workspace.HostKeyConfirmDialog
@@ -110,6 +122,25 @@ private val SSH_QUICK_COMMANDS_WINDOWS =
     )
 
 /**
+ * 无凭证报错里显示的引用名：优先取实际在用的 `$$` 引用名。
+ *
+ * 编辑页已把私钥/证书统一写成 `$$名` 单字段、旧引用字段清掉，再读
+ * `vaultCredentialRef` 只会显示 `none`（F2）。顺序与运行时一致：
+ * 旧引用字段优先，其次 `$$` 私钥，再次证书（引用字段 / `$$`）。
+ */
+internal fun credentialRefDisplayName(host: SshHostEntity): String {
+    host.vaultCredentialRef?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    host.privateKey?.trim()?.takeIf { isVaultReference(it) }?.let {
+        return it.removePrefix(VAULT_REF_PREFIX).trim()
+    }
+    host.vaultCertificateRef?.trim()?.takeIf { it.isNotEmpty() }?.let { return it }
+    host.certificate?.trim()?.takeIf { isVaultReference(it) }?.let {
+        return it.removePrefix(VAULT_REF_PREFIX).trim()
+    }
+    return "none"
+}
+
+/**
  * SSH 终端页：常驻交互式终端（PTY shell + 终端模拟器）。
  *
  * 建连沿用原来的主机实体凭证与主机密钥确认流程；连上后在同一条连接上开
@@ -138,6 +169,10 @@ fun SshTerminalPage(hostName: String) {
     val isWindowsEffective = platformOverride ?: isWindowsRemote
     var pendingHostKey by remember { mutableStateOf<PendingTerminalHostKey?>(null) }
     var terminalFinished by remember { mutableStateOf(false) }
+    var shellRejected by remember { mutableStateOf(false) }
+    var execCommandInput by remember { mutableStateOf("") }
+    var nonInteractiveRunning by remember { mutableStateOf(false) }
+    var nonInteractiveOutput by remember { mutableStateOf<String?>(null) }
     var terminalSession by remember { mutableStateOf<TerminalSession?>(null) }
     val terminalSessionRef = remember { AtomicReference<TerminalSession?>(null) }
     val terminalClientRef = remember { AtomicReference<WorkspaceTerminalSessionClient?>(null) }
@@ -149,8 +184,10 @@ fun SshTerminalPage(hostName: String) {
     var altDown by remember { mutableStateOf(false) }
     viewClient.controlDown = controlDown
     viewClient.altDown = altDown
+    var textSizeSpOverride by remember { mutableStateOf<Int?>(null) }
+    val effectiveTextSizeSp = (textSizeSpOverride ?: LocalSettings.current.displaySetting.terminalTextSize).coerceIn(7, 24)
     val terminalTextSizePx = with(LocalDensity.current) {
-        LocalSettings.current.displaySetting.terminalTextSize.coerceIn(10, 24).sp.roundToPx()
+        effectiveTextSizeSp.sp.roundToPx()
     }
     // 上次已应用到 terminalView 的字号（px）：字号是可变状态而非会话初始化参数，
     // 设置变化时即应用，不必等会话切换。
@@ -185,7 +222,12 @@ fun SshTerminalPage(hostName: String) {
             )
         val transport =
             ShellTerminalTransport(address) { columns, rows ->
-                openSshHostShell(jschSession, columns, rows)
+                try {
+                    openSshHostShell(jschSession, columns, rows)
+                } catch (e: SshShellRejectedException) {
+                    shellRejected = true
+                    throw IOException(appContext.getString(R.string.ssh_terminal_shell_rejected), e)
+                }
             }
         val terminal = TerminalSession(transport, TERMINAL_TRANSCRIPT_ROWS, client)
         holder.set(terminal)
@@ -210,6 +252,8 @@ fun SshTerminalPage(hostName: String) {
             connectError = null
             connected = false
             terminalFinished = false
+            shellRejected = false
+            nonInteractiveOutput = null
             finishTerminalSession()
             runCatching { sessionRef.getAndSet(null)?.disconnect() }
             runCatching { jumpSessionRef.getAndSet(null)?.disconnect() }
@@ -237,7 +281,7 @@ fun SshTerminalPage(hostName: String) {
                 "connect: $hostName → " + ((authResolution as? HostAuthResolution.Unusable)?.reason ?: "credential ok"),
             )
             if (auth == null) {
-                connectError = appContext.getString(R.string.ssh_terminal_no_credential, host.vaultCredentialRef ?: "none")
+                connectError = appContext.getString(R.string.ssh_terminal_no_credential, credentialRefDisplayName(host))
                 return@withContext
             }
             var hostKeyRepo: VerifyingHostKeyRepository? = null
@@ -464,6 +508,20 @@ fun SshTerminalPage(hostName: String) {
                 },
                 navigationIcon = { BackButton() },
                 actions = {
+                    TextButton(
+                        onClick = { textSizeSpOverride = (effectiveTextSizeSp - 2).coerceAtLeast(7) },
+                        enabled = effectiveTextSizeSp > 7,
+                        contentPadding = PaddingValues(horizontal = 6.dp),
+                    ) {
+                        Text("A-", style = MaterialTheme.typography.labelMedium)
+                    }
+                    TextButton(
+                        onClick = { textSizeSpOverride = (effectiveTextSizeSp + 2).coerceAtMost(24) },
+                        enabled = effectiveTextSizeSp < 24,
+                        contentPadding = PaddingValues(horizontal = 6.dp),
+                    ) {
+                        Text("A+", style = MaterialTheme.typography.labelMedium)
+                    }
                     if (connected) {
                         IconButton(
                             onClick = {
@@ -494,6 +552,81 @@ fun SshTerminalPage(hostName: String) {
                     .padding(horizontal = 16.dp, vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(10.dp),
         ) {
+            if (shellRejected) {
+                Surface(
+                    modifier = Modifier.fillMaxWidth(),
+                    shape = RoundedCornerShape(16.dp),
+                    color = MaterialTheme.colorScheme.secondaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+                ) {
+                    Column(
+                        modifier = Modifier.padding(12.dp),
+                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                    ) {
+                        OutlinedTextField(
+                            value = execCommandInput,
+                            onValueChange = { execCommandInput = it },
+                            placeholder = { Text(stringResource(R.string.ssh_terminal_exec_hint)) },
+                            singleLine = true,
+                            modifier = Modifier.fillMaxWidth(),
+                        )
+                        Row(
+                            modifier = Modifier.fillMaxWidth(),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                        ) {
+                            OutlinedButton(
+                                enabled = !nonInteractiveRunning && sessionRef.get()?.isConnected == true,
+                                onClick = {
+                                    val session = sessionRef.get() ?: return@OutlinedButton
+                                    val cmd = execCommandInput
+                                    nonInteractiveRunning = true
+                                    scope.launch {
+                                        try {
+                                            nonInteractiveOutput = withContext(Dispatchers.IO) {
+                                                runSshNonInteractiveExec(appContext, session, cmd)
+                                            }
+                                        } finally {
+                                            nonInteractiveRunning = false
+                                        }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.ssh_terminal_exec_run))
+                            }
+                            OutlinedButton(
+                                enabled = !nonInteractiveRunning && sessionRef.get()?.isConnected == true,
+                                onClick = {
+                                    val session = sessionRef.get() ?: return@OutlinedButton
+                                    nonInteractiveRunning = true
+                                    scope.launch {
+                                        try {
+                                            nonInteractiveOutput = withContext(Dispatchers.IO) {
+                                                runSshSftpList(appContext, session)
+                                            }
+                                        } finally {
+                                            nonInteractiveRunning = false
+                                        }
+                                    }
+                                },
+                            ) {
+                                Text(stringResource(R.string.ssh_terminal_sftp_list))
+                            }
+                        }
+                        nonInteractiveOutput?.let { out ->
+                            Text(
+                                text = out,
+                                fontFamily = FontFamily.Monospace,
+                                style = MaterialTheme.typography.bodySmall,
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .heightIn(max = 220.dp)
+                                    .verticalScroll(rememberScrollState()),
+                            )
+                        }
+                    }
+                }
+            }
+
             connectError?.let { err ->
                 Surface(
                     modifier = Modifier.fillMaxWidth(),
@@ -704,3 +837,48 @@ private fun trustHostKey(context: Context, host: String, key: SshHostKey) {
         if (temp.exists()) runCatching { temp.delete() }
     }
 }
+
+private fun runSshNonInteractiveExec(
+    context: Context,
+    session: Session,
+    command: String,
+): String = runCatching {
+    val channel = session.openChannel("exec") as ChannelExec
+    channel.setCommand(command)
+    val stdout = BoundedOutputStream(32 * 1024)
+    val stderr = BoundedOutputStream(16 * 1024)
+    channel.outputStream = stdout
+    channel.setErrStream(stderr)
+    channel.connect(10_000)
+    try {
+        val deadline = System.currentTimeMillis() + 15_000L
+        while (!channel.isClosed && System.currentTimeMillis() < deadline) {
+            Thread.sleep(50L)
+        }
+        val outText = stdout.snapshot().trim()
+        val errText = stderr.snapshot().trim()
+        val combined = listOfNotNull(
+            outText.takeIf { it.isNotEmpty() },
+            errText.takeIf { it.isNotEmpty() }?.let { "[stderr]\n$it" },
+        ).joinToString("\n")
+        combined.ifEmpty { context.resources.getString(R.string.ssh_terminal_exec_empty_output, channel.exitStatus) }
+    } finally {
+        runCatching { channel.disconnect() }
+    }
+}.getOrElse { e -> context.resources.getString(R.string.ssh_terminal_exec_failed, e.message ?: e::class.java.simpleName) }
+
+private fun runSshSftpList(context: Context, session: Session): String = runCatching {
+    val channel = session.openChannel("sftp") as ChannelSftp
+    channel.connect(10_000)
+    try {
+        val entries = channel.ls(".")
+            .filter { it.filename != "." && it.filename != ".." }
+            .sortedWith(compareBy<ChannelSftp.LsEntry> { !it.attrs.isDir }.thenBy { it.filename.lowercase() })
+        if (entries.isEmpty()) context.resources.getString(R.string.ssh_terminal_sftp_empty_directory)
+        else entries.take(80).joinToString("\n") { entry ->
+            if (entry.attrs.isDir) "${entry.filename}/" else "${entry.filename} (${entry.attrs.size} B)"
+        }
+    } finally {
+        runCatching { channel.disconnect() }
+    }
+}.getOrElse { e -> context.resources.getString(R.string.ssh_terminal_sftp_failed, e.message ?: e::class.java.simpleName) }

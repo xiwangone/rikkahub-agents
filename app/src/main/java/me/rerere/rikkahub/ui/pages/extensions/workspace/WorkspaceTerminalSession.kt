@@ -280,7 +280,7 @@ internal class WorkspaceTerminalViewClient(
     var controlDown: Boolean = false
     var altDown: Boolean = false
 
-    override fun onScale(scale: Float): Float = scale.coerceIn(0.8f, 1.25f)
+    override fun onScale(scale: Float): Float = scale.coerceIn(0.55f, 1.6f)
 
     override fun onSingleTapUp(e: MotionEvent) {
         if (openUrlAtTap(e)) return

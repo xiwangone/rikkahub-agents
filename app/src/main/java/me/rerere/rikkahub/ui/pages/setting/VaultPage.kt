@@ -1,5 +1,6 @@
 package me.rerere.rikkahub.ui.pages.setting
 
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
 import android.provider.OpenableColumns
 import me.rerere.rikkahub.ui.context.rememberSafeLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -12,9 +13,7 @@ import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -471,10 +470,7 @@ fun VaultPage() {
                             onDismissRequest = { pinDialogShown = false },
                             title = { Text(stringResource(R.string.vault_pin_setup_title)) },
                             text = {
-                                Column(
-                                    modifier = Modifier.verticalScroll(rememberScrollState()).imePadding(),
-                                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                                ) {
+                                ScrollableDialogContent {
                                     SettingTextField(
                                         value = pinInput,
                                         onValueChange = { pinInput = it },

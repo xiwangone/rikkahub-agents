@@ -2129,14 +2129,14 @@
   <string name="setting_asr_configure_deepseek_sample_rate_desc">녹음 샘플 레이트(Hz)입니다. ASR에는 16000이면 충분합니다</string>
   <string name="setting_asr_configure_deepseek_base_url_desc">요청은 {Base URL}/v1/tools/asr(으)로 전송됩니다</string>
   <string name="setting_asr_configure_deepseek_api_key_desc">DeepSeek 플랫폼 API 키</string>
-  <string name="setting_asr_configure_step_api_key_desc">StepFun(阶跃星辰) API 키입니다. https://platform.stepfun.com/interface-key 에서 발급받을 수 있습니다</string>
+  <string name="setting_asr_configure_step_api_key_desc">StepFun API 키입니다. https://platform.stepfun.com/interface-key 에서 발급받을 수 있습니다</string>
   <string name="setting_asr_configure_step_base_url_desc">Step ASR Base URL입니다. 중국에서는 https://api.stepfun.com, 해외에서는 https://api.stepfun.ai 를 사용하세요</string>
   <string name="setting_asr_configure_step_model_desc">Step ASR 모델 이름입니다. 예: stepaudio-2.5-asr(플래그십, 최저가) 또는 step-asr</string>
   <string name="setting_asr_configure_step_language_desc">선택 사항 언어 힌트: auto, zh 또는 en. 비워 두면 서버 기본값(auto)을 사용합니다</string>
   <string name="setting_asr_configure_step_sample_rate_desc">PCM 녹음 샘플 레이트(Hz)입니다. ASR에는 16000을 권장합니다</string>
   <string name="setting_asr_configure_step_segment_desc">녹음 중 N초마다 버퍼된 오디오를 자동 업로드해 인식합니다. 0은 자동 분할을 비활성화합니다(stop 시 한 번에 전송)</string>
   <string name="setting_asr_configure_step_itn">ITN 활성화</string>
-  <string name="setting_asr_configure_step_itn_desc">역 텍스트 정규화: 말로 한 숫자를 숫자로 변환합니다(예: 三百 → 300)</string>
+  <string name="setting_asr_configure_step_itn_desc">역 텍스트 정규화: 말로 한 숫자를 숫자로 변환합니다(예: 삼백 → 300)</string>
   <string name="setting_asr_configure_step_timestamp">타임스탬프 활성화</string>
   <string name="setting_asr_configure_step_timestamp_desc">단어 단위 타임스탬프를 반환합니다. rikkahub은 현재 이를 사용하지 않으므로 token 절약을 위해 기본적으로 꺼져 있습니다</string>
   <string name="setting_asr_configure_step_hotwords">핫워드</string>
@@ -4211,7 +4211,7 @@
   <string name="aihubmix_provider_website">공식 사이트:</string>
   <string name="aihubmix_provider_topup">충전: </string>
   <string name="aihubmix_provider_short_description">gpt, claude, gemini 등 200+ 모델 지원</string>
-  <string name="tokenpony_provider_description">小马算力는 중국 모델용 API 게이트웨이, 통합 인터페이스로 다양한 모델 접속</string>
+  <string name="tokenpony_provider_description">TokenPony는 중국 모델용 API 게이트웨이, 통합 인터페이스로 다양한 모델 접속</string>
   <string name="tokenpony_provider_website">공식 사이트: [tokenpony.cn](https://www.tokenpony.cn/79clb)</string>
   <string name="ai302_provider_description">기업용 AI 서비스. 공식 사이트:</string>
   <string name="suixiang_provider_description">Claude, Codex, Gemini 등 신뢰성 높은 API 중계 서비스. 개인정보 중시: 데이터 재판매 없음, 모델 혼잡 없음. 충전 1:1, 사용량 과금. 다중 회선·지역 간 재해복구·자동 장애조치, 긴 SSE 연결도 유지됩니다.\n</string>
@@ -4725,4 +4725,12 @@
     <string name="vault_audit_expand">펼치기</string>
     <string name="vault_audit_collapse">접기</string>
     <string name="vault_audit_more_sub">… %1$d개 더 있음 (눌러서 펼치기)</string>
+    <string name="ssh_terminal_shell_rejected">인증은 성공했으나 서버가 대화형 셸 실행을 거부했습니다(주요 원인: 1. GitHub/GitLab 등 Git 전용 엔드포인트, 2. authorized_keys 강제 command="…", 3. SFTP 전용 호스트).</string>
+    <string name="ssh_terminal_exec_hint">명령(비워 두면 인증 배너 또는 강제 명령 확인)</string>
+    <string name="ssh_terminal_exec_run">exec 실행</string>
+    <string name="ssh_terminal_sftp_list">SFTP 목록</string>
+    <string name="ssh_terminal_exec_empty_output">(종료 코드 %1$d, 출력 없음)</string>
+    <string name="ssh_terminal_exec_failed">exec 실패: %1$s</string>
+    <string name="ssh_terminal_sftp_failed">sftp 실패: %1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">(빈 디렉터리)</string>
 </resources>

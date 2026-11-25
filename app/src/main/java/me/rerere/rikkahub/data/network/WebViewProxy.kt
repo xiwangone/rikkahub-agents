@@ -67,13 +67,21 @@ object WebViewProxy {
         }
         val scheme = if (proxy.type() == Proxy.Type.SOCKS) "socks5" else "http"
         val rule = "$scheme://$credentials${address.hostString}:${address.port}"
-        val config = ProxyConfig.Builder()
-            .addProxyRule(rule)
-            .addBypassRule("localhost")
-            .addBypassRule("127.0.0.1")
-            .addBypassRule("::1")
-            .build()
+        val config = buildWebViewProxyConfig(rule)
         controller.setProxyOverride(config, mainExecutor) {}
         return true
     }
 }
+
+/**
+ * Proxy override for [rule], bypassing loopback. Chromium bypass syntax
+ * requires brackets around IPv6 literals, so the loopback address is
+ * written `[::1]`, not `::1`.
+ */
+internal fun buildWebViewProxyConfig(rule: String): ProxyConfig =
+    ProxyConfig.Builder()
+        .addProxyRule(rule)
+        .addBypassRule("localhost")
+        .addBypassRule("127.0.0.1")
+        .addBypassRule("[::1]")
+        .build()

@@ -1,13 +1,11 @@
 package me.rerere.rikkahub.ui.pages.backup.components
 
-import androidx.compose.foundation.layout.Column
+import me.rerere.rikkahub.ui.components.ui.ScrollableDialogContent
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.relocation.BringIntoViewRequester
 import androidx.compose.foundation.relocation.bringIntoViewRequester
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
@@ -56,10 +54,8 @@ fun PasswordPromptDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.backup_page_encryption_title)) },
         text = {
-            Column(
-                modifier = Modifier
-                    .verticalScroll(rememberScrollState())
-                    .imePadding(),
+            ScrollableDialogContent(
+                verticalArrangement = Arrangement.Top,
             ) {
                 Text(
                     text = stringResource(R.string.backup_page_encryption_needs_password),

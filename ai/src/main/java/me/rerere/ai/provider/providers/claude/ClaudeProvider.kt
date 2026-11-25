@@ -59,6 +59,7 @@ import me.rerere.ai.ui.metadataAs
 import me.rerere.ai.ui.toMetadata
 import me.rerere.ai.util.HttpException
 import me.rerere.ai.util.KeyRoulette
+import me.rerere.ai.util.OMITTED_HISTORY_IMAGE_PLACEHOLDER
 import me.rerere.ai.util.ProviderKeyRefs
 import me.rerere.ai.util.configureReferHeaders
 import me.rerere.ai.util.configureSessionHeaders
@@ -70,6 +71,7 @@ import me.rerere.ai.util.mergeCustomBody
 import me.rerere.ai.util.mergeCustomHeaders
 import me.rerere.ai.util.parseErrorDetail
 import me.rerere.ai.util.redactSecrets
+import me.rerere.ai.util.retainedHistoryImages
 import me.rerere.ai.util.retryAfterMs
 import me.rerere.ai.util.shortRequestClient
 import me.rerere.ai.util.stringSafe
@@ -699,15 +701,15 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         promptCaching: Boolean,
         promptCacheTtl: ClaudePromptCacheTtl
     ) = buildJsonArray {
-        messages
-            .filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
-            .forEach { message ->
-                if (message.role == MessageRole.ASSISTANT) {
-                    addAssistantMessage(message)
-                } else {
-                    addUserMessage(message)
-                }
+        val filteredMessages = messages.filter { it.isValidToUpload() && it.role != MessageRole.SYSTEM }
+        val retainedImages = retainedHistoryImages(filteredMessages)
+        filteredMessages.forEach { message ->
+            if (message.role == MessageRole.ASSISTANT) {
+                addAssistantMessage(message, retainedImages)
+            } else {
+                addUserMessage(message, retainedImages)
             }
+        }
     }.let { messagesArray ->
         if (!promptCaching) return@let messagesArray
         insertMessagesCacheControl(messagesArray, promptCacheTtl)
@@ -754,14 +756,17 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         })
     }
 
-    private fun JsonArrayBuilder.addAssistantMessage(message: UIMessage) {
+    private fun JsonArrayBuilder.addAssistantMessage(
+        message: UIMessage,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
         val groups = groupPartsByToolBoundary(message.parts)
         val contentBuffer = mutableListOf<JsonObject>()
 
         for (group in groups) {
             when (group) {
                 is PartGroup.Content -> {
-                    group.parts.toContentBlocks().forEach { contentBuffer.add(it) }
+                    group.parts.toContentBlocks(retainedImages).forEach { contentBuffer.add(it) }
                 }
 
                 is PartGroup.Tools -> {
@@ -779,7 +784,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                     add(buildJsonObject {
                         put("role", "user")
                         putJsonArray("content") {
-                            group.tools.forEach { add(it.toToolResultBlock()) }
+                            group.tools.forEach { add(it.toToolResultBlock(retainedImages)) }
                         }
                     })
                 }
@@ -795,25 +800,32 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun JsonArrayBuilder.addUserMessage(message: UIMessage) {
+    private fun JsonArrayBuilder.addUserMessage(
+        message: UIMessage,
+        retainedImages: Set<UIMessagePart.Image>,
+    ) {
         add(buildJsonObject {
             put("role", message.role.name.lowercase())
             putJsonArray("content") {
-                message.parts.flatMap { it.toContentBlocks() }.forEach { add(it) }
+                message.parts.flatMap { it.toContentBlocks(retainedImages) }.forEach { add(it) }
             }
         })
     }
 
-    private fun UIMessagePart.toContentBlocks(): List<JsonObject> = when (this) {
+    private fun UIMessagePart.toContentBlocks(
+        retainedImages: Set<UIMessagePart.Image>,
+    ): List<JsonObject> = when (this) {
         is UIMessagePart.ServerTool -> serverToolContentBlocks()
-        else -> listOfNotNull(toContentBlock())
+        else -> listOfNotNull(toContentBlock(retainedImages))
     }
 
     /**
      * 解析后 server tool 的 call/result 会合并到同一个 part。回放连续 server tool 时
      * 按原始 content block index 还原顺序；旧消息没有 index 时回退为先 calls、后 results。
      */
-    private fun List<UIMessagePart>.toContentBlocks(): List<JsonObject> = buildList {
+    private fun List<UIMessagePart>.toContentBlocks(
+        retainedImages: Set<UIMessagePart.Image>,
+    ): List<JsonObject> = buildList {
         val serverTools = mutableListOf<UIMessagePart.ServerTool>()
 
         fun flushServerTools() {
@@ -840,7 +852,7 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
                 serverTools.add(part)
             } else {
                 flushServerTools()
-                addAll(part.toContentBlocks())
+                addAll(part.toContentBlocks(retainedImages))
             }
         }
         flushServerTools()
@@ -872,24 +884,31 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         }
     }
 
-    private fun UIMessagePart.toContentBlock(): JsonObject? = when (this) {
+    private fun UIMessagePart.toContentBlock(
+        retainedImages: Set<UIMessagePart.Image>,
+    ): JsonObject? = when (this) {
         is UIMessagePart.Text -> buildJsonObject {
             put("type", "text")
             put("text", text)
         }
 
         is UIMessagePart.Image -> buildJsonObject {
-            encodeBase64(withPrefix = false).onSuccess { encoded ->
-                put("type", "image")
-                put("source", buildJsonObject {
-                    put("type", "base64")
-                    put("media_type", encoded.mimeType)
-                    put("data", encoded.base64)
-                })
-            }.onFailure {
-                AppLogger.w(TAG, "encode image failed: $url", it)
+            if (this@toContentBlock !in retainedImages) {
                 put("type", "text")
-                put("text", "")
+                put("text", OMITTED_HISTORY_IMAGE_PLACEHOLDER)
+            } else {
+                encodeBase64(withPrefix = false).onSuccess { encoded ->
+                    put("type", "image")
+                    put("source", buildJsonObject {
+                        put("type", "base64")
+                        put("media_type", encoded.mimeType)
+                        put("data", encoded.base64)
+                    })
+                }.onFailure {
+                    AppLogger.w(TAG, "encode image failed: $url", it)
+                    put("type", "text")
+                    put("text", "")
+                }
             }
         }
 
@@ -909,11 +928,13 @@ class ClaudeProvider(private val client: OkHttpClient, context: Context? = null)
         put("input", inputAsJson())
     }
 
-    private fun UIMessagePart.Tool.toToolResultBlock() = buildJsonObject {
+    private fun UIMessagePart.Tool.toToolResultBlock(
+        retainedImages: Set<UIMessagePart.Image>,
+    ) = buildJsonObject {
         put("type", "tool_result")
         put("tool_use_id", toolCallId)
         putJsonArray("content") {
-            output.mapNotNull { it.toContentBlock() }.forEach { add(it) }
+            output.mapNotNull { it.toContentBlock(retainedImages) }.forEach { add(it) }
         }
     }
 

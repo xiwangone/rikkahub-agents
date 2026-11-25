@@ -2,6 +2,9 @@ package me.rerere.rikkahub.ui.pages.setting
 
 import androidx.activity.compose.LocalActivity
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -17,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FloatingToolbarDefaults.ScreenOffset
 import androidx.compose.material3.FloatingToolbarDefaults.floatingToolbarVerticalNestedScroll
@@ -312,8 +316,9 @@ internal fun ModelList(
                             },
                             modifier = Modifier.padding(end = 8.dp),
                         ) {
-                            Icon(HugeIcons.Refresh03, contentDescription = null)
-                            Text(stringResource(R.string.setting_provider_page_refresh_catalog))
+                            Icon(HugeIcons.Refresh03, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.setting_provider_page_refresh_catalog), maxLines = 1)
                         }
                         Button(
                             onClick = {
@@ -349,8 +354,9 @@ internal fun ModelList(
                                 toaster.show(matchedDoneFormat.format(changed))
                             },
                         ) {
-                            Icon(HugeIcons.MagicWand01, contentDescription = null)
-                            Text(stringResource(R.string.setting_provider_page_match_abilities))
+                            Icon(HugeIcons.MagicWand01, contentDescription = null, modifier = Modifier.size(ButtonDefaults.IconSize))
+                            Spacer(Modifier.width(6.dp))
+                            Text(stringResource(R.string.setting_provider_page_match_abilities), maxLines = 1)
                         }
                     }
                 }

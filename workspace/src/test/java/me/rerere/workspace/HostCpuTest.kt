@@ -90,6 +90,45 @@ class HostCpuTest {
     }
 
     @Test
+    fun `armv7 cpuinfo with implementer is not arm64`() {
+        // 32 位 ARM 的 cpuinfo 同样有 "CPU implementer" 行，只是架构号是 7；
+        // 它不能把 guest rootfs 判成 ARM64，否则会下错 arm64 rootfs。
+        val cpuinfo =
+            """
+            processor	: 0
+            model name	: ARMv7 Processor rev 4 (v7l)
+            BogoMIPS	: 38.40
+            Features	: half thumb fastmult vfp edsp neon vfpv3 tls vfpv4 idiva idivt vfpd32 lpae evtstrm
+            CPU implementer	: 0x41
+            CPU architecture: 7
+            CPU variant	: 0x0
+            CPU part	: 0xd03
+            CPU revision	: 4
+            """.trimIndent()
+        assertEquals(
+            HostCpuArchitecture.X86_64,
+            detectHostCpuArchitecture(cpuinfo, reportedArch = "x86_64"),
+        )
+        assertEquals(
+            HostCpuArchitecture.UNKNOWN,
+            detectHostCpuArchitecture(cpuinfo, reportedArch = "riscv64"),
+        )
+    }
+
+    @Test
+    fun `aarch64 processor line identifies arm64 without architecture line`() {
+        val cpuinfo =
+            """
+            processor	: 0
+            Processor	: AArch64 Processor rev 4 (aarch64)
+            """.trimIndent()
+        assertEquals(
+            HostCpuArchitecture.ARM64,
+            detectHostCpuArchitecture(cpuinfo, reportedArch = "x86_64"),
+        )
+    }
+
+    @Test
     fun `empty cpuinfo falls back to reported arch`() {
         assertEquals(
             HostCpuArchitecture.ARM64,

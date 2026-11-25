@@ -4721,4 +4721,12 @@
     <string name="vault_audit_expand">展开</string>
     <string name="vault_audit_collapse">收起</string>
     <string name="vault_audit_more_sub">… 还有 %1$d 条（点击展开）</string>
+    <string name="ssh_terminal_shell_rejected">服务端已通过认证，但拒绝打开交互式 shell（常见原因：1. Git 专用端点如 GitHub/GitLab；2. authorized_keys 配置了强制 command="…"；3. 仅开放 SFTP 子系统的主机）。</string>
+    <string name="ssh_terminal_exec_hint">命令（留空测试认证回显或触发强制命令）</string>
+    <string name="ssh_terminal_exec_run">执行 exec</string>
+    <string name="ssh_terminal_sftp_list">列目录 SFTP</string>
+    <string name="ssh_terminal_exec_empty_output">（退出码 %1$d，无输出）</string>
+    <string name="ssh_terminal_exec_failed">exec 失败：%1$s</string>
+    <string name="ssh_terminal_sftp_failed">sftp 失败：%1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">（空目录）</string>
 </resources>

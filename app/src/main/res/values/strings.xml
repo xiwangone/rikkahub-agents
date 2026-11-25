@@ -394,7 +394,7 @@
   <string name="backup_page_s3_path_style">Path Style</string>
   <string name="backup_page_s3_path_style_desc">Use endpoint/bucket/object. Turn off to use bucket.endpoint/object.</string>
   <string name="backup_page_s3_region">Region</string>
-  <string name="backup_page_s3_region_desc">For AWS use your bucket region (e.g. us-east-1). For S3-compatible services (MinIO, 数据胶囊 etc.) use the region from their docs, commonly us-east-1 or cn-north-1.</string>
+  <string name="backup_page_s3_region_desc">For AWS use your bucket region (e.g. us-east-1). For S3-compatible services (MinIO, CSTCloud Data Capsule etc.) use the region from their docs, commonly us-east-1 or cn-north-1.</string>
   <string name="backup_page_s3_secret_access_key">Secret Access Key</string>
   <string name="backup_page_test_connection">Test Connection</string>
   <string name="backup_page_title">Backup and Restore</string>
@@ -903,7 +903,7 @@
   <string name="setting_asr_configure_step_sample_rate_desc">PCM recording sample rate in Hz, 16000 is recommended for ASR</string>
   <string name="setting_asr_configure_step_segment_desc">Auto-flush buffered audio every N seconds during recording. 0 disables auto-segmentation (single request on stop)</string>
   <string name="setting_asr_configure_step_itn">Enable ITN</string>
-  <string name="setting_asr_configure_step_itn_desc">Inverse Text Normalization: convert spoken numbers to digits (e.g. 三百 → 300)</string>
+  <string name="setting_asr_configure_step_itn_desc">Inverse Text Normalization: convert spoken numbers to digits (e.g. three hundred → 300)</string>
   <string name="setting_asr_configure_step_timestamp">Enable Timestamps</string>
   <string name="setting_asr_configure_step_timestamp_desc">Return word-level timestamps in delta events. Disabled by default to save tokens (rikkahub does not consume them yet)</string>
   <string name="setting_asr_configure_step_hotwords">Hotwords</string>
@@ -4721,4 +4721,12 @@
     <string name="vault_audit_expand">Show</string>
     <string name="vault_audit_collapse">Hide</string>
     <string name="vault_audit_more_sub">... %1$d more (tap to expand)</string>
+    <string name="ssh_terminal_shell_rejected">Server authenticated, but rejected the interactive shell (common causes: 1. Git-only endpoints like GitHub/GitLab; 2. authorized_keys forced command="…"; 3. SFTP-only host).</string>
+    <string name="ssh_terminal_exec_hint">Command (leave blank for auth banner / forced command)</string>
+    <string name="ssh_terminal_exec_run">Run exec</string>
+    <string name="ssh_terminal_sftp_list">List SFTP (.)</string>
+    <string name="ssh_terminal_exec_empty_output">(exit %1$d, no output)</string>
+    <string name="ssh_terminal_exec_failed">exec failed: %1$s</string>
+    <string name="ssh_terminal_sftp_failed">sftp failed: %1$s</string>
+    <string name="ssh_terminal_sftp_empty_directory">(empty directory)</string>
 </resources>
