@@ -499,6 +499,8 @@ fun SshTerminalPage(hostName: String) {
                                     },
                                 modifier = Modifier.padding(horizontal = 8.dp, vertical = 2.dp),
                                 style = MaterialTheme.typography.labelSmall,
+                                maxLines = 1,
+                                softWrap = false,
                             )
                         }
                     }
