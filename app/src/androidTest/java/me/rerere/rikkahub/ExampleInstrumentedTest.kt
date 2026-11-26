@@ -15,8 +15,8 @@ import org.junit.runner.RunWith
 class ExampleInstrumentedTest {
     @Test
     fun useAppContext() {
-        // Context of the app under test.
+        // 包名随构建变体变化（debug 带 .debug 后缀），断言实际装配的 ID 而不是写死的字面量。
         val appContext = InstrumentationRegistry.getInstrumentation().targetContext
-        assertEquals("me.rerere.rikkahub", appContext.packageName)
+        assertEquals(BuildConfig.APPLICATION_ID, appContext.packageName)
     }
 }
