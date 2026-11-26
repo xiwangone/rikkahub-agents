@@ -135,32 +135,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
 
     // 切换类型时清空 models：旧类型的模型 id 留在新类型下，下次生成会直接 404 模型不存在。
     // id、名称、key、baseUrl 保留，模型需在新类型下拉取后重新添加。
-    val apiKey =
-        when (this) {
-            is ProviderSetting.OpenAI -> this.apiKey
-            is ProviderSetting.Google -> this.apiKey
-            is ProviderSetting.Claude -> this.apiKey
-            is ProviderSetting.AICore -> ""
-            is ProviderSetting.LiteRtLocal -> ""
-            is ProviderSetting.Codex -> ""
-            is ProviderSetting.Grok -> ""
-            is ProviderSetting.Backend -> ""
-            is ProviderSetting.GeminiOAuth -> ""
-            is ProviderSetting.LlamaCppLocal -> ""
-        }
-    val sourceBaseUrl =
-        when (this) {
-            is ProviderSetting.OpenAI -> this.baseUrl
-            is ProviderSetting.Google -> this.baseUrl
-            is ProviderSetting.Claude -> this.baseUrl
-            is ProviderSetting.AICore -> ""
-            is ProviderSetting.LiteRtLocal -> ""
-            is ProviderSetting.Codex -> ""
-            is ProviderSetting.Grok -> ""
-            is ProviderSetting.Backend -> ""
-            is ProviderSetting.GeminiOAuth -> ""
-            is ProviderSetting.LlamaCppLocal -> ""
-        }
+    val (apiKey, sourceBaseUrl) = sourceApiKeyAndBaseUrl()
     val targetDefaultBaseUrl =
         when (typeKey) {
             "openai" -> ProviderSetting.OpenAI().baseUrl
@@ -168,6 +143,7 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
             "claude" -> ProviderSetting.Claude().baseUrl
             "aicore" -> ""
             "local_litert" -> ""
+            "local_llamacpp" -> ""
             "backend" -> ProviderSetting.Backend().baseUrl
             else -> error("Unsupported provider type: $typeKey")
         }
@@ -238,6 +214,17 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
             )
         }
 
+        "local_llamacpp" -> {
+            ProviderSetting.LlamaCppLocal(
+                id = this.id,
+                enabled = this.enabled,
+                name = this.name,
+                models = emptyList(),
+                balanceOption = this.balanceOption,
+                builtIn = this.builtIn,
+            )
+        }
+
         "backend" -> {
             ProviderSetting.Backend(
                 id = this.id,
@@ -255,6 +242,15 @@ fun ProviderSetting.convertTo(typeKey: String): ProviderSetting {
         }
     }
 }
+
+// 能从源提供商带过去的只有 key 与 baseUrl；其余本地/内置类型两者皆空。
+private fun ProviderSetting.sourceApiKeyAndBaseUrl(): Pair<String, String> =
+    when (this) {
+        is ProviderSetting.OpenAI -> apiKey to baseUrl
+        is ProviderSetting.Google -> apiKey to baseUrl
+        is ProviderSetting.Claude -> apiKey to baseUrl
+        else -> "" to ""
+    }
 
 internal fun ProviderSetting.defaultBaseUrlForReset(): String {
     val defaultProvider = DEFAULT_PROVIDERS.find { it.id == id }
