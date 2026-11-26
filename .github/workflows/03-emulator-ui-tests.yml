@@ -1,16 +1,7 @@
 name: 03 模拟器 UI 测试
 
-# 云端模拟器 UI 测试：公开仓 GitHub Actions 分钟数不限量，手动触发跑回归。
-# 与常驻独服分工：这里负责“改完代码 → 手动点一下 → 等十几分钟下载截图与报告看结果”；
-# 独服负责“复现偶发卡死、盯着画面实时 adb 交互调试”。
-# 只配 workflow_dispatch（仅仓库维护者可手动触发，不在外部 PR 上运行），
-# Secrets 不会暴露给外部 PR。
-#
-# 可选组合（全部在触发页面手动选）：
-#   build_variant=debug   + instrumentation  仪器测试（connectedDebugAndroidTest）
-#   build_variant=debug   + ai_patrol        debug 包上跑 AI 巡检
-#   build_variant=release + ai_patrol        正式签名包（R8）上跑 AI 巡检 ← 能抓混淆类崩溃
-#   build_variant=release + instrumentation  不支持（见下方说明，会直接失败）
+# 云端模拟器 UI 测试：手动触发，跑仪器测试与 AI 巡检。
+# 只配 workflow_dispatch：不在外部 PR 上运行，Secrets 不会暴露给外部 PR。
 on:
   workflow_dispatch:
     inputs:
@@ -105,6 +96,11 @@ jobs:
             echo "::error::/dev/kvm 不存在，模拟器无法硬件加速，无法继续"
             exit 1
           fi
+          # 设备节点默认 root:kvm 660，当前用户读不到时 emulator-runner 会判定
+          # 加速不可用并回退到 -accel off，而新版 emulator 已不支持纯软件 CPU 模拟。
+          if [ ! -r /dev/kvm ] || [ ! -w /dev/kvm ]; then
+            sudo chmod 666 /dev/kvm
+          fi
           echo "KVM 可用：$(ls -l /dev/kvm)"
 
       - name: 校验参数组合
@@ -158,6 +154,7 @@ jobs:
           arch: x86_64
           profile: pixel_7
           force-avd-creation: false
+          disable-linux-hw-accel: false
           emulator-options: -no-snapshot-save -no-window -gpu swiftshader_indirect -noaudio -no-boot-anim
           disable-animations: true
           script: |
