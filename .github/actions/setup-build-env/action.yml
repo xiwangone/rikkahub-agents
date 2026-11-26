@@ -64,16 +64,6 @@ runs:
         echo "::warning::pnpm 安装失败，如后续步骤需要将自行处理"
         exit 0
 
-    # Maven Central 对 CI 共享出口 IP 经常返回 429，而 Gradle 遇 429 会直接失败、不会换仓库；
-    # 这里把 Central 排到镜像之后，只对 CI 生效（不改仓库的公共仓库顺序）。
-    - name: 安装 CI 专用 Gradle 镜像顺序
-      shell: bash
-      run: |
-        set -e
-        mkdir -p "$HOME/.gradle/init.d"
-        cp "$GITHUB_WORKSPACE/.github/scripts/gradle-ci-mirror.init.gradle.kts" "$HOME/.gradle/init.d/"
-        echo "已安装：$(ls "$HOME/.gradle/init.d")"
-
     # Gradle wrapper 的发行版（~200MB）下载超时会让整轮直接失败：
     # gradle-wrapper 单次读取超时很短，网络一旦抖动就报 Read timed out，
     # 而后续所有 gradle 步骤连带失败。这里先带重试地把它取到本地缓存目录，
