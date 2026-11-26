@@ -472,10 +472,7 @@ fun SshTerminalPage(hostName: String) {
         topBar = {
             TopAppBar(
                 title = {
-                    Row(
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(8.dp),
-                    ) {
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
                         Text("SSH · $hostName")
                         Surface(
                             shape = CircleShape,
