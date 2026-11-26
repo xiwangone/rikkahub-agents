@@ -10,6 +10,7 @@ import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.withLink
 import androidx.compose.ui.text.withStyle
 import me.rerere.ai.provider.AICORE_PROVIDER_ID
+import me.rerere.ai.provider.LLAMACPP_PROVIDER_ID
 import me.rerere.ai.provider.LITERT_PROVIDER_ID
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.ui.components.richtext.MarkdownBlock
@@ -43,6 +44,14 @@ object ProviderDescriptors {
             },
             shortDescription = {
                 Text(stringResource(R.string.litert_provider_short_description))
+            },
+        ),
+        LLAMACPP_PROVIDER_ID to ProviderDescriptor(
+            description = {
+                Text(stringResource(R.string.llamacpp_provider_description))
+            },
+            shortDescription = {
+                Text(stringResource(R.string.llamacpp_provider_short_description))
             },
         ),
         DEFAULT_GEMINI_OAUTH_PROVIDER_ID to ProviderDescriptor(

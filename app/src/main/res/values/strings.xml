@@ -2304,6 +2304,7 @@
   <string name="local_llm_download_progress">Downloading… %1$d%%</string>
   <string name="local_llm_catalog_title">Recommended models</string>
   <string name="local_llm_catalog_subtitle">Curated by Google AI Edge Gallery. Pick one for one-tap install.</string>
+  <string name="local_llm_catalog_subtitle_huggingface">GGUF models hosted on HuggingFace. Pick one to download and install.</string>
   <string name="local_llm_catalog_install">Install</string>
   <string name="local_llm_catalog_installed">Installed</string>
   <string name="local_llm_catalog_recommended">Recommended</string>
@@ -2686,6 +2687,8 @@
   <string name="aicore_provider_short_description">On-device — no API key, no network</string>
   <string name="litert_provider_description">Runs .litertlm models on-device via LiteRT-LM. Pick a curated model from Settings → Local · LiteRT (Google AI Edge Gallery\'s allowlist) — no API key, no network at inference.</string>
   <string name="litert_provider_short_description">On-device — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">Runs GGUF models on-device with llama.cpp (CPU only). Paste a HuggingFace URL below to download, or import a local .gguf file. Inference needs no API key and no network.</string>
+  <string name="llamacpp_provider_short_description">On-device — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">Select All</string>
   <string name="setting_files_page_cancel">Cancel</string>
   <string name="setting_files_page_selected_count">Selected %1$d items</string>

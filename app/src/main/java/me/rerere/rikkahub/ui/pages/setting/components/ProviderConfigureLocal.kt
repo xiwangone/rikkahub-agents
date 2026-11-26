@@ -226,63 +226,20 @@ internal fun ColumnScope.ProviderConfigureLiteRT(
         }
     }
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
-            checked = provider.enabled,
-            onCheckedChange = { onEdit(provider.copy(enabled = it)) },
-        )
-    }
-
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = { onEdit(provider.copy(name = it.trim())) },
-        label = { Text(stringResource(id = R.string.setting_provider_page_name)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
+    LocalModelEnableAndName(
+        enabled = provider.enabled,
+        name = provider.name,
+        onEnabledChange = { onEdit(provider.copy(enabled = it)) },
+        onNameChange = { onEdit(provider.copy(name = it)) },
     )
 
-    // Installed model count — model management is on the Models tab (page 1).
-    Text(
-        text = stringResource(R.string.local_llm_installed_models_count, provider.models.size),
-        style = MaterialTheme.typography.bodySmall,
+    LocalModelInstallSection(
+        modelCount = provider.models.size,
+        downloadInProgress = downloadProgress != null,
+        onInstallUrl = { vm.startManualDownload(it) },
+        onDownloadDefault = { vm.startDefaultDownload() },
+        onImport = { importLocalLauncher.launch(arrayOf("*/*")) },
     )
-
-    // URL install field — paste an HF URL, hit Install.
-    var manualUrl by remember { mutableStateOf("") }
-    OutlinedTextField(
-        value = manualUrl,
-        onValueChange = { manualUrl = it },
-        label = { Text(stringResource(R.string.local_llm_install_url_label)) },
-        supportingText = { Text(stringResource(R.string.local_llm_install_url_hint)) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Button(
-            onClick = {
-                vm.startManualDownload(manualUrl)
-                manualUrl = ""
-            },
-            enabled = manualUrl.isNotBlank() && downloadProgress == null,
-        ) {
-            Text(stringResource(R.string.local_llm_install_url_action))
-        }
-        OutlinedButton(
-            onClick = { vm.startDefaultDownload() },
-            enabled = downloadProgress == null,
-        ) {
-            Text(stringResource(R.string.local_llm_download_default))
-        }
-    }
-    OutlinedButton(
-        onClick = { importLocalLauncher.launch(arrayOf("*/*")) },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(stringResource(R.string.setting_litert_import_local))
-    }
 
     // Manage installed files — rename or delete each downloaded .litertlm.
     if (provider.models.isNotEmpty()) {
@@ -414,50 +371,13 @@ internal fun ColumnScope.ProviderConfigureLiteRT(
         }
     }
 
-    // Download progress indicator.
-    downloadProgress?.let { progress ->
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (progress.totalBytes != null && progress.totalBytes > 0) {
-                LinearProgressIndicator(
-                    progress = { progress.percent / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            Text(
-                text = stringResource(R.string.local_llm_download_progress, progress.percent),
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-
-    // Error text + optional "Delete model" action when a model file is the likely culprit.
-    errorMessage?.let { msg ->
-        Text(
-            text = stringResource(R.string.local_llm_status_error_format, msg),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-        )
-        // If there are installed models, offer to delete them so the user can clear a
-        // broken file (e.g. wrong runtime version) without navigating away.
-        if (provider.models.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                provider.models.forEach { model ->
-                    OutlinedButton(onClick = { vm.deleteModel(model.modelId) }) {
-                        Text(
-                            text =
-                                stringResource(R.string.local_llm_delete_model) +
-                                    if (provider.models.size > 1) " ${model.modelId}" else "",
-                        )
-                    }
-                }
-            }
-        }
-    }
+    LocalModelDownloadStatus(
+        percent = downloadProgress?.percent,
+        downloading = downloadProgress != null,
+        errorMessage = errorMessage,
+        modelIds = provider.models.map { it.modelId },
+        onDeleteModel = { vm.deleteModel(it) },
+    )
 }
 
 @Composable
@@ -796,61 +716,20 @@ internal fun ColumnScope.ProviderConfigureLlamaCpp(
 
     ProviderDescriptors.get(provider.id).description()
 
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
-        Checkbox(
-            checked = provider.enabled,
-            onCheckedChange = { onEdit(provider.copy(enabled = it)) },
-        )
-    }
-
-    OutlinedTextField(
-        value = provider.name,
-        onValueChange = { onEdit(provider.copy(name = it.trim())) },
-        label = { Text(stringResource(id = R.string.setting_provider_page_name)) },
-        modifier = Modifier.fillMaxWidth(),
-        maxLines = 3,
+    LocalModelEnableAndName(
+        enabled = provider.enabled,
+        name = provider.name,
+        onEnabledChange = { onEdit(provider.copy(enabled = it)) },
+        onNameChange = { onEdit(provider.copy(name = it)) },
     )
 
-    Text(
-        text = stringResource(R.string.local_llm_installed_models_count, provider.models.size),
-        style = MaterialTheme.typography.bodySmall,
+    LocalModelInstallSection(
+        modelCount = provider.models.size,
+        downloadInProgress = downloadProgress != null,
+        onInstallUrl = { vm.startManualDownload(it) },
+        onDownloadDefault = { vm.startDefaultDownload() },
+        onImport = { importLocalLauncher.launch(arrayOf("*/*")) },
     )
-
-    var manualUrl by remember { mutableStateOf("") }
-    OutlinedTextField(
-        value = manualUrl,
-        onValueChange = { manualUrl = it },
-        label = { Text(stringResource(R.string.local_llm_install_url_label)) },
-        supportingText = { Text(stringResource(R.string.local_llm_install_url_hint)) },
-        modifier = Modifier.fillMaxWidth(),
-    )
-    Row(
-        modifier = Modifier.fillMaxWidth(),
-        horizontalArrangement = Arrangement.spacedBy(8.dp),
-    ) {
-        Button(
-            onClick = {
-                vm.startManualDownload(manualUrl)
-                manualUrl = ""
-            },
-            enabled = manualUrl.isNotBlank() && downloadProgress == null,
-        ) {
-            Text(stringResource(R.string.local_llm_install_url_action))
-        }
-        OutlinedButton(
-            onClick = { vm.startDefaultDownload() },
-            enabled = downloadProgress == null,
-        ) {
-            Text(stringResource(R.string.local_llm_download_default))
-        }
-    }
-    OutlinedButton(
-        onClick = { importLocalLauncher.launch(arrayOf("*/*")) },
-        modifier = Modifier.fillMaxWidth(),
-    ) {
-        Text(stringResource(R.string.setting_litert_import_local))
-    }
 
     if (provider.models.isNotEmpty()) {
         Text(
@@ -877,7 +756,7 @@ internal fun ColumnScope.ProviderConfigureLlamaCpp(
             style = MaterialTheme.typography.titleSmall,
         )
         Text(
-            stringResource(R.string.local_llm_catalog_subtitle),
+            stringResource(R.string.local_llm_catalog_subtitle_huggingface),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -891,46 +770,13 @@ internal fun ColumnScope.ProviderConfigureLlamaCpp(
         }
     }
 
-    downloadProgress?.let { progress ->
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (progress.totalBytes != null && progress.totalBytes > 0) {
-                LinearProgressIndicator(
-                    progress = { progress.percent / 100f },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-            } else {
-                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            }
-            Text(
-                text = stringResource(R.string.local_llm_download_progress, progress.percent),
-                style = MaterialTheme.typography.labelSmall,
-            )
-        }
-    }
-
-    errorMessage?.let { msg ->
-        Text(
-            text = stringResource(R.string.local_llm_status_error_format, msg),
-            style = MaterialTheme.typography.bodySmall,
-            color = MaterialTheme.colorScheme.error,
-        )
-        if (provider.models.isNotEmpty()) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                provider.models.forEach { model ->
-                    OutlinedButton(onClick = { vm.deleteModel(model.modelId) }) {
-                        Text(
-                            text =
-                                stringResource(R.string.local_llm_delete_model) +
-                                    if (provider.models.size > 1) " ${model.modelId}" else "",
-                        )
-                    }
-                }
-            }
-        }
-    }
+    LocalModelDownloadStatus(
+        percent = downloadProgress?.percent,
+        downloading = downloadProgress != null,
+        errorMessage = errorMessage,
+        modelIds = provider.models.map { it.modelId },
+        onDeleteModel = { vm.deleteModel(it) },
+    )
 }
 
 @Composable
@@ -1017,6 +863,131 @@ private fun LlamaCppCatalogEntryCard(
                         enabled = !downloadInProgress,
                     ) {
                         Text(stringResource(R.string.local_llm_catalog_install))
+                    }
+                }
+            }
+        }
+    }
+}
+
+// ---- 两个本地后端共用的小段（逐字相同的部分抽出来，避免两处各改一遍）--------------
+
+/** 启用开关 + 名称输入。 */
+@Composable
+private fun LocalModelEnableAndName(
+    enabled: Boolean,
+    name: String,
+    onEnabledChange: (Boolean) -> Unit,
+    onNameChange: (String) -> Unit,
+) {
+    Row(verticalAlignment = Alignment.CenterVertically) {
+        Text(stringResource(id = R.string.setting_provider_page_enable), modifier = Modifier.weight(1f))
+        Checkbox(checked = enabled, onCheckedChange = onEnabledChange)
+    }
+
+    OutlinedTextField(
+        value = name,
+        onValueChange = { onNameChange(it.trim()) },
+        label = { Text(stringResource(id = R.string.setting_provider_page_name)) },
+        modifier = Modifier.fillMaxWidth(),
+        maxLines = 3,
+    )
+}
+
+/** 已安装数 + HuggingFace 网址安装 + 下载默认模型 + 从本地导入。 */
+@Composable
+private fun LocalModelInstallSection(
+    modelCount: Int,
+    downloadInProgress: Boolean,
+    onInstallUrl: (String) -> Unit,
+    onDownloadDefault: () -> Unit,
+    onImport: () -> Unit,
+) {
+    Text(
+        text = stringResource(R.string.local_llm_installed_models_count, modelCount),
+        style = MaterialTheme.typography.bodySmall,
+    )
+
+    var manualUrl by remember { mutableStateOf("") }
+    OutlinedTextField(
+        value = manualUrl,
+        onValueChange = { manualUrl = it },
+        label = { Text(stringResource(R.string.local_llm_install_url_label)) },
+        supportingText = { Text(stringResource(R.string.local_llm_install_url_hint)) },
+        modifier = Modifier.fillMaxWidth(),
+    )
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        Button(
+            onClick = {
+                onInstallUrl(manualUrl)
+                manualUrl = ""
+            },
+            enabled = manualUrl.isNotBlank() && !downloadInProgress,
+        ) {
+            Text(stringResource(R.string.local_llm_install_url_action))
+        }
+        OutlinedButton(
+            onClick = onDownloadDefault,
+            enabled = !downloadInProgress,
+        ) {
+            Text(stringResource(R.string.local_llm_download_default))
+        }
+    }
+    OutlinedButton(
+        onClick = onImport,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(stringResource(R.string.setting_litert_import_local))
+    }
+}
+
+/** 下载进度 + 错误文案（有已装模型时附「删除模型」）。 */
+@Composable
+private fun LocalModelDownloadStatus(
+    percent: Int?,
+    downloading: Boolean,
+    errorMessage: String?,
+    modelIds: List<String>,
+    onDeleteModel: (String) -> Unit,
+) {
+    if (downloading) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            if (percent != null && percent > 0) {
+                LinearProgressIndicator(
+                    progress = { percent / 100f },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            } else {
+                LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
+            }
+            Text(
+                text = stringResource(R.string.local_llm_download_progress, percent ?: 0),
+                style = MaterialTheme.typography.labelSmall,
+            )
+        }
+    }
+
+    errorMessage?.let { msg ->
+        Text(
+            text = stringResource(R.string.local_llm_status_error_format, msg),
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.error,
+        )
+        if (modelIds.isNotEmpty()) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                modelIds.forEach { modelId ->
+                    OutlinedButton(onClick = { onDeleteModel(modelId) }) {
+                        Text(
+                            text =
+                                stringResource(R.string.local_llm_delete_model) +
+                                    if (modelIds.size > 1) " $modelId" else "",
+                        )
                     }
                 }
             }

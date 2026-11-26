@@ -1724,6 +1724,7 @@
   <string name="local_llm_download_progress">جارٍ التنزيل… %1$d%%</string>
   <string name="local_llm_catalog_title">النماذج المُوصى بها</string>
   <string name="local_llm_catalog_subtitle">مُنتقاة من Google AI Edge Gallery. اختر واحدًا للتثبيت بنقرة واحدة.</string>
+  <string name="local_llm_catalog_subtitle_huggingface">نماذج GGUF مستضافة على HuggingFace. اختر واحدًا لتنزيله وتثبيته.</string>
   <string name="local_llm_catalog_install">تثبيت</string>
   <string name="local_llm_catalog_installed">مُثبَّت</string>
   <string name="local_llm_catalog_recommended">موصى به</string>
@@ -2020,6 +2021,8 @@
   <string name="aicore_provider_short_description">على الجهاز — بلا مفتاح API أو شبكة</string>
   <string name="litert_provider_description">يشغّل نماذج .litertlm على الجهاز عبر LiteRT-LM. اختر نموذجًا من الإعدادات → محلي · LiteRT (قائمة Google AI Edge Gallery) — دون مفتاح API أو شبكة عند الاستدلال.</string>
   <string name="litert_provider_short_description">على الجهاز — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">يشغّل نماذج GGUF على الجهاز عبر llama.cpp (CPU فقط). الصق رابط HuggingFace أدناه للتنزيل، أو استورد ملف .gguf محليًا. لا حاجة إلى مفتاح API أو شبكة عند التشغيل.</string>
+  <string name="llamacpp_provider_short_description">على الجهاز — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">تحديد الكل</string>
   <string name="setting_files_page_cancel">إلغاء</string>
   <string name="setting_files_page_selected_count">تم تحديد %1$d</string>

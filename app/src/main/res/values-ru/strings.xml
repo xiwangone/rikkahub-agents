@@ -1539,6 +1539,7 @@
   <string name="local_llm_catalog_recommended">Рекомендуется</string>
   <string name="local_llm_catalog_size_format">%1$.1f ГБ · нужно %2$d ГБ ОЗУ</string>
   <string name="local_llm_catalog_subtitle">Курировано Google AI Edge Gallery. Выберите одну для установки в одно нажатие.</string>
+  <string name="local_llm_catalog_subtitle_huggingface">GGUF-модели с HuggingFace. Выберите одну, чтобы скачать и установить.</string>
   <string name="local_llm_catalog_tag_multimodal">Мультимодальная</string>
   <string name="local_llm_catalog_tag_speculative">Спекулятивное декодирование</string>
   <string name="local_llm_catalog_tag_thinking">Мышление</string>
@@ -2498,6 +2499,8 @@
   <string name="aicore_provider_short_description">На устройстве — без API-ключа и сети</string>
   <string name="litert_provider_description">Запускает модели .litertlm на устройстве через LiteRT-LM. Выберите модель в Настройки → Локально · LiteRT (список Google AI Edge Gallery) — без API-ключа и сети при выводе.</string>
   <string name="litert_provider_short_description">На устройстве — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">Запускает GGUF-модели на устройстве через llama.cpp (только CPU). Вставьте ссылку HuggingFace ниже или импортируйте локальный .gguf. Для вывода не нужны ни API-ключ, ни сеть.</string>
+  <string name="llamacpp_provider_short_description">На устройстве — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">Выбрать все</string>
   <string name="setting_files_page_cancel">Отмена</string>
   <string name="setting_files_page_selected_count">Выбрано: %1$d</string>

@@ -1541,6 +1541,7 @@
   <string name="local_llm_catalog_recommended">추천</string>
   <string name="local_llm_catalog_size_format">%1$.1f GB · %2$d GB RAM 필요</string>
   <string name="local_llm_catalog_subtitle">Google AI Edge Gallery가 엄선. 원탭 설치할 모델을 하나 선택하세요.</string>
+  <string name="local_llm_catalog_subtitle_huggingface">HuggingFace에 있는 GGUF 모델입니다. 하나를 선택하면 내려받아 설치합니다.</string>
   <string name="local_llm_catalog_tag_multimodal">멀티모달</string>
   <string name="local_llm_catalog_tag_speculative">추측 디코딩</string>
   <string name="local_llm_catalog_tag_thinking">사고</string>
@@ -2503,6 +2504,8 @@
   <string name="aicore_provider_short_description">온디바이스 — API 키와 네트워크 불필요</string>
   <string name="litert_provider_description">LiteRT-LM을 통해 .litertlm 모델을 기기에서 실행합니다. 설정 → 로컬 · LiteRT(Google AI Edge Gallery 허용 목록)에서 모델을 선택하세요 — 추론 시 API 키와 네트워크가 필요 없습니다.</string>
   <string name="litert_provider_short_description">온디바이스 — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">llama.cpp로 GGUF 모델을 기기에서 실행합니다(CPU 전용). 아래 HuggingFace URL에서 내려받거나 로컬 .gguf 파일을 가져올 수 있습니다. 추론에는 API 키와 네트워크가 필요 없습니다.</string>
+  <string name="llamacpp_provider_short_description">기기 내 실행 — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">전체 선택</string>
   <string name="setting_files_page_cancel">취소</string>
   <string name="setting_files_page_selected_count">%1$d개 선택됨</string>

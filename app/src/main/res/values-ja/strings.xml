@@ -1544,6 +1544,7 @@
   <string name="local_llm_catalog_recommended">推奨</string>
   <string name="local_llm_catalog_size_format">%1$.1f GB · %2$d GB の RAM が必要</string>
   <string name="local_llm_catalog_subtitle">Google AI Edge Gallery が厳選。ワンタップインストールするものを 1 つ選んでください。</string>
+  <string name="local_llm_catalog_subtitle_huggingface">HuggingFace で配布されている GGUF モデル。1 つ選ぶとダウンロードしてインストールします。</string>
   <string name="local_llm_catalog_tag_multimodal">マルチモーダル</string>
   <string name="local_llm_catalog_tag_speculative">投機的デコード</string>
   <string name="local_llm_catalog_tag_thinking">思考</string>
@@ -2503,6 +2504,8 @@
   <string name="aicore_provider_short_description">オンデバイス — API キー不要、ネットワーク不要</string>
   <string name="litert_provider_description">LiteRT-LM 経由で .litertlm モデルを端末上で実行します。設定 → ローカル · LiteRT（Google AI Edge Gallery の許可リスト）からモデルを選択 — 推論時の API キーやネットワークは不要です。</string>
   <string name="litert_provider_short_description">オンデバイス — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">llama.cpp で GGUF モデルを端末上で実行します（CPU のみ）。下の HuggingFace URL からダウンロードするか、ローカルの .gguf を読み込めます。推論に API キーもネットワークも不要です。</string>
+  <string name="llamacpp_provider_short_description">端末上で実行 — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">すべて選択</string>
   <string name="setting_files_page_cancel">キャンセル</string>
   <string name="setting_files_page_selected_count">%1$d 件選択中</string>

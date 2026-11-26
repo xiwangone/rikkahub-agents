@@ -1853,6 +1853,7 @@
   <string name="local_llm_catalog_recommended">推荐</string>
   <string name="local_llm_catalog_size_format">%1$.1f GB · 需要 %2$d GB 内存</string>
   <string name="local_llm_catalog_subtitle">由 Google AI Edge Gallery 精选。选择一个即可一键安装。</string>
+  <string name="local_llm_catalog_subtitle_huggingface">来自 HuggingFace 的 GGUF 模型。选择一个即可下载安装。</string>
   <string name="local_llm_catalog_tag_multimodal">多模态</string>
   <string name="local_llm_catalog_tag_speculative">推测解码</string>
   <string name="local_llm_catalog_tag_thinking">思考</string>
@@ -2691,6 +2692,8 @@
   <string name="aicore_provider_short_description">本地运行 — 无需 API 密钥，无需网络</string>
   <string name="litert_provider_description">通过 LiteRT-LM 在设备上运行 .litertlm 模型。从设置 → 本地 · LiteRT（Google AI Edge Gallery 白名单）中选择精选模型 — 推理时无需 API 密钥，无需网络。</string>
   <string name="litert_provider_short_description">本地运行 — LiteRT-LM</string>
+  <string name="llamacpp_provider_description">通过 llama.cpp 在设备上运行 GGUF 模型（仅 CPU）。可粘贴 HuggingFace 网址下载，或从本地导入 .gguf 文件。推理时无需 API 密钥、无需网络。</string>
+  <string name="llamacpp_provider_short_description">本地运行 — llama.cpp · CPU</string>
   <string name="setting_files_page_select_all">全选</string>
   <string name="setting_files_page_cancel">取消</string>
   <string name="setting_files_page_selected_count">已选 %1$d 项</string>
