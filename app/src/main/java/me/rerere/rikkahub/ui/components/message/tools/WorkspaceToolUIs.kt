@@ -506,11 +506,18 @@ internal fun FileContentPreview(
 }
 
 /**
- * 工作空间执行 Shell: 摘要显示退出状态与输出首部, 详情为命令 + stdout/stderr
+ * 工作空间执行 Shell: 有 description 时标题用它, 命令放进摘要; 摘要显示退出状态与输出首部, 详情为命令 + stdout/stderr
+ *
+ * 单次调用的 description（模型按 schema 填写）只影响显示: 标题优先用它, 审批时命令
+ * 仍在摘要里可见。预设文件里每条预设自带的 description 与它无关, 不进工具入参。
  */
+internal fun shellDescriptionOf(arguments: JsonElement): String? =
+    arguments.getStringContent("description")?.trim()?.takeIf { it.isNotEmpty() }
+
 object ShellToolUI : ToolUIRenderer {
     private const val TITLE_MAX_CHARS = 40
     private const val SUMMARY_MAX_LINES = 8
+    private const val SUMMARY_COMMAND_MAX_LINES = 3
 
     override val toolName: String = "workspace_shell"
 
@@ -520,6 +527,7 @@ object ShellToolUI : ToolUIRenderer {
 
     @Composable
     override fun title(context: ToolUIContext): String {
+        shellDescriptionOf(context.arguments)?.let { return it }
         val command =
             context.arguments.getStringContent("command") ?: return stringResource(R.string.tool_ui_shell_default)
         val preview = command.replace("\n", " ").trim()
@@ -527,7 +535,9 @@ object ShellToolUI : ToolUIRenderer {
         return stringResource(R.string.tool_ui_shell, truncated)
     }
 
-    override fun hasSummary(context: ToolUIContext): Boolean = context.content != null
+    // 标题换成 description 后命令要在摘要里露出来, 等待审批时用户才看得到要执行什么
+    override fun hasSummary(context: ToolUIContext): Boolean =
+        context.content != null || shellDescriptionOf(context.arguments) != null
 
     /**
      * 命令执行导致的工作区文件改动 diff（由 workspace_shell 工具在执行前后快照对比后写入
@@ -538,17 +548,32 @@ object ShellToolUI : ToolUIRenderer {
 
     @Composable
     override fun Summary(context: ToolUIContext) {
-        val content = context.content ?: return
+        val content = context.content
+        val description = shellDescriptionOf(context.arguments)
+        val command =
+            context.arguments.getStringContent("command")?.trim()
+                .takeIf { description != null && !it.isNullOrEmpty() }
         val changeDiff = remember(context) { diffOf(context) }
         val combined =
             remember(content) {
-                listOf(content.getStringContent("stdout"), content.getStringContent("stderr"))
+                listOf(content?.getStringContent("stdout"), content?.getStringContent("stderr"))
                     .filterNot { it.isNullOrBlank() }
                     .joinToString("\n")
                     .trim()
             }
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            ShellExitStatus(content, MaterialTheme.typography.labelSmall)
+            if (command != null) {
+                Text(
+                    text = command,
+                    style = MaterialTheme.typography.labelSmall.copy(fontFamily = FontFamily.Monospace),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    fontSize = 11.sp,
+                    lineHeight = 14.sp,
+                    maxLines = SUMMARY_COMMAND_MAX_LINES,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
+            if (content != null) ShellExitStatus(content, MaterialTheme.typography.labelSmall)
             if (combined.isNotEmpty()) {
                 Box(
                     modifier =
@@ -626,7 +651,7 @@ object ShellToolUI : ToolUIRenderer {
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text(
-                    text = stringResource(R.string.tool_ui_shell_default),
+                    text = shellDescriptionOf(context.arguments) ?: stringResource(R.string.tool_ui_shell_default),
                     style = MaterialTheme.typography.titleMedium,
                     modifier = Modifier.weight(1f),
                 )
