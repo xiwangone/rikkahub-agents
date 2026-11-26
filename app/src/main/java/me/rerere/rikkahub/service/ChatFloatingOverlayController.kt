@@ -335,6 +335,18 @@ internal class ChatFloatingOverlayController(
     }
 
     private fun applyBubbleTheme(icon: ImageView) {
+        val preset = uiSettings.value.displaySetting.appIconPreset
+        if (icon.tag != preset.id) {
+            icon.tag = preset.id
+            val bubbleRes = preset.artwork.floatingBubbleRes
+            if (bubbleRes != null) {
+                icon.scaleType = ImageView.ScaleType.FIT_CENTER
+                icon.setImageResource(bubbleRes)
+            } else {
+                icon.scaleType = ImageView.ScaleType.CENTER_CROP
+                icon.setImageResource(preset.artwork.mipmapRes)
+            }
+        }
         val colorScheme = resolveFloatingColorScheme(overlayContext, uiSettings.value)
         // 图标本身已是圆形资产（R.drawable.ic_floating_bubble，图案占满圆），不再留内边距；
         // 描边只做气泡与壁纸之间的分界线，不再承担“把方图标框成圆”的作用。

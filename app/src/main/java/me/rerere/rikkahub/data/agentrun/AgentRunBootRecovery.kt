@@ -111,7 +111,7 @@ class AgentRunBootRecovery(
                     .setContentTitle(title)
                     .setContentText(text)
                     .setStyle(NotificationCompat.BigTextStyle().bigText(text))
-                    .setSmallIcon(R.drawable.ic_stat_yao)
+                    .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
                     .setAutoCancel(true)
                 NotificationManagerCompat.from(context).notify(AGGREGATE_NOTIF_ID, builder.build())
             }.onFailure {

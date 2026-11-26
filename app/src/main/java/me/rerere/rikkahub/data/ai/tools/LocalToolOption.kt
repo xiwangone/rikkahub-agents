@@ -107,6 +107,7 @@ sealed class LocalToolOption {
     @Serializable @SerialName("diagnostics")          data object Diagnostics        : LocalToolOption()
     @Serializable @SerialName("model_testing")        data object ModelTesting        : LocalToolOption()
     @Serializable @SerialName("provider_icon")        data object ProviderIcon        : LocalToolOption()
+    @Serializable @SerialName("app_icon")             data object AppIcon             : LocalToolOption()
 }
 
 /**

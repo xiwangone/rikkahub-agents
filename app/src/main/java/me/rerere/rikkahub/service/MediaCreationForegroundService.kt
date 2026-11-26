@@ -154,7 +154,7 @@ class MediaCreationForegroundService : Service() {
 
     private fun buildNotification() =
         NotificationCompat.Builder(this, MEDIA_CREATION_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setContentTitle(getString(R.string.media_creation_title))
             .setContentText(getString(R.string.media_creation_notification_running, activeRecords.size))
             .setContentIntent(sessionPendingIntent(this, activeRecords.values.last()))

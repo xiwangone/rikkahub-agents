@@ -4737,4 +4737,20 @@
     <string name="ssh_terminal_exec_failed">Ошибка exec: %1$s</string>
     <string name="ssh_terminal_sftp_failed">Ошибка sftp: %1$s</string>
     <string name="ssh_terminal_sftp_empty_directory">(пустой каталог)</string>
+  <string name="setting_app_icon_title">Значок приложения</string>
+  <string name="app_icon_preset_default">По умолчанию</string>
+  <string name="app_icon_preset_minimal_yao">Минимализм Яо</string>
+  <string name="app_icon_preset_flow_yao">Плавный Яо (по умолчанию)</string>
+  <string name="app_icon_preset_dual_chat">Двойной чат</string>
+  <string name="app_icon_preset_agent_core">Ядро агента</string>
+  <string name="app_icon_preset_terminal_cli">Терминал CLI</string>
+  <string name="app_icon_preset_obsidian_rabbit">Обсидиановый кролик</string>
+  <string name="assistant_page_local_tools_app_icon_title">Значок приложения</string>
+  <string name="assistant_page_local_tools_app_icon_desc">Позволяет ассистенту просматривать и переключать встроенные значки запуска.</string>
+  <string name="mcp_tool_app_icon">Значок приложения</string>
+  <string name="chat_message_tool_app_icon_list">Список значков приложения</string>
+  <string name="chat_message_tool_app_icon_set">Сменить значок: %1$s</string>
+  <string name="app_icon_preset_legacy_yao">Старый орбитальный Яо</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub классик</string>
+  <string name="app_icon_preset_rikkahub_outline">RikkaHub контур</string>
 </resources>

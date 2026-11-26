@@ -1,0 +1,8 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="24dp" android:height="24dp"
+    android:viewportWidth="100" android:viewportHeight="100"
+    android:tint="#FFFFFFFF">
+  <group android:rotation="-20" android:pivotX="54" android:pivotY="66">
+    <path android:fillColor="#FFFFFFFF" android:pathData="M32,45 L25,14 C24,9 34,8 37,13 L45,39 C49,38 53,38 57,39 L65,13 C68,8 78,9 77,14 L70,45 C79,53 82,68 74,82 C66,92 36,92 28,82 C20,68 23,53 32,45 Z"/>
+  </group>
+</vector>

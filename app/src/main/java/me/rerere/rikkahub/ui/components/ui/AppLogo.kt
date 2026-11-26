@@ -21,16 +21,19 @@ import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.util.fastForEach
 import androidx.core.content.ContextCompat
 import androidx.graphics.shapes.Morph
-import me.rerere.rikkahub.R
+import me.rerere.rikkahub.ui.context.LocalSettings
+import me.rerere.rikkahub.utils.AppIconPreset
 import kotlin.math.floor
 import kotlin.math.roundToInt
 
 /** 应用图标的各层：直接画图层，整张图标带着系统的图标蒙版，会和外面的轮廓叠在一起 */
 @Composable
-fun rememberAppLogoLayers(): List<Drawable> {
+fun rememberAppLogoLayers(
+    preset: AppIconPreset = LocalSettings.current.displaySetting.appIconPreset,
+): List<Drawable> {
     val context = LocalContext.current
-    return remember(context) {
-        val icon = ContextCompat.getDrawable(context, R.mipmap.ic_launcher)
+    return remember(context, preset) {
+        val icon = ContextCompat.getDrawable(context, preset.artwork.mipmapRes)
         if (icon is AdaptiveIconDrawable) listOfNotNull(icon.background, icon.foreground) else listOfNotNull(icon)
     }
 }

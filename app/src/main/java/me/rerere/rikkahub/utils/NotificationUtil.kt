@@ -9,7 +9,6 @@ import android.os.Build
 import androidx.core.app.ActivityCompat
 import androidx.core.app.NotificationCompat
 import androidx.core.app.NotificationManagerCompat
-import me.rerere.rikkahub.R
 
 /**
  * 通知构建器的配置 DSL
@@ -18,7 +17,7 @@ class NotificationConfig {
     var title: String = ""
     var content: String = ""
     var subText: String? = null
-    var smallIcon: Int = R.drawable.ic_stat_yao
+    var smallIcon: Int = AppIconManager.currentStatIconRes
     var autoCancel: Boolean = false
     var ongoing: Boolean = false
     var onlyAlertOnce: Boolean = false

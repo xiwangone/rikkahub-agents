@@ -4732,4 +4732,20 @@
     <string name="ssh_terminal_exec_failed">exec 失敗：%1$s</string>
     <string name="ssh_terminal_sftp_failed">sftp 失敗：%1$s</string>
     <string name="ssh_terminal_sftp_empty_directory">（空目錄）</string>
+  <string name="setting_app_icon_title">應用程式圖示</string>
+  <string name="app_icon_preset_default">預設</string>
+  <string name="app_icon_preset_minimal_yao">極簡幾何爻</string>
+  <string name="app_icon_preset_flow_yao">柔弧星雲爻（預設）</string>
+  <string name="app_icon_preset_dual_chat">雙對話氣泡</string>
+  <string name="app_icon_preset_agent_core">星芒核心</string>
+  <string name="app_icon_preset_terminal_cli">極客終端機</string>
+  <string name="app_icon_preset_obsidian_rabbit">暗夜小兔</string>
+  <string name="assistant_page_local_tools_app_icon_title">應用程式圖示</string>
+  <string name="assistant_page_local_tools_app_icon_desc">允許助手檢視或切換內建桌面啟動圖示預設。</string>
+  <string name="mcp_tool_app_icon">應用程式圖示</string>
+  <string name="chat_message_tool_app_icon_list">列出應用程式圖示</string>
+  <string name="chat_message_tool_app_icon_set">切換應用程式圖示：%1$s</string>
+  <string name="app_icon_preset_legacy_yao">舊版星環爻</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub 經典</string>
+  <string name="app_icon_preset_rikkahub_outline">RikkaHub 簡線</string>
 </resources>

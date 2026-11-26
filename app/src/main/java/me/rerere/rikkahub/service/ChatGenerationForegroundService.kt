@@ -63,7 +63,7 @@ class ChatGenerationForegroundService : Service() {
 
     private fun startForegroundCompat(): Boolean = try {
         val notificationBuilder = NotificationCompat.Builder(this, CHAT_LIVE_UPDATE_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setContentTitle(getString(R.string.notification_live_update_title))
             .setContentText(getString(R.string.app_name))
             .setContentIntent(buildLaunchPendingIntent())

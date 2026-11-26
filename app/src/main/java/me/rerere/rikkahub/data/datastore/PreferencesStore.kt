@@ -687,6 +687,7 @@ class SettingsStore(
     val settingsFlow = MutableStateFlow(loadWarmUiSettings(appContext))
 
     init {
+        me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes = settingsFlow.value.displaySetting.appIconPreset.artwork.statIconRes
         scope.launch {
             try {
                 restoreProvidersFromBackup(dataStore, appContext)
@@ -699,6 +700,7 @@ class SettingsStore(
                             }
                             saveWarmUiSettings(appContext, decoded)
                             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(decoded.networkSetting)
+                            me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes = decoded.displaySetting.appIconPreset.artwork.statIconRes
                             runCatching { get<WorkspaceMountSwitch>().updateShellDns(decoded.shellDnsMode, decoded.shellDnsServers) }
                         }
                         if (!settingsFlow.value.init) initialization.complete(Unit)

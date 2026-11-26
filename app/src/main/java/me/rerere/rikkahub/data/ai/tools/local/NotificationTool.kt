@@ -13,7 +13,6 @@ import me.rerere.ai.core.Tool
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.common.http.optInt
 import me.rerere.common.http.optString
-import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.ai.tools.ToolErrors
 import me.rerere.rikkahub.data.ai.tools.ToolInvocationContext
 
@@ -82,7 +81,7 @@ fun notificationTool(
 
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setContentTitle(title)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setAutoCancel(true)
         if (body != null) {
             builder.setContentText(body)

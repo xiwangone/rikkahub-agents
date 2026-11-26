@@ -492,7 +492,7 @@ class CronJobWorker(
                 .setContentTitle(ctx.getString(R.string.notification_scheduled_job_failed_title))
                 .setContentText("$jobName: $errorMessage")
                 .setStyle(NotificationCompat.BigTextStyle().bigText("$jobName: $errorMessage"))
-                .setSmallIcon(R.drawable.ic_stat_yao)
+                .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
                 .setAutoCancel(true)
         try {
             NotificationManagerCompat.from(ctx).notify(jobName.hashCode(), builder.build())

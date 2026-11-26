@@ -1,0 +1,51 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="128dp"
+            android:height="128dp"
+            android:viewportWidth="100"
+            android:viewportHeight="100">
+            <group
+                android:name="ring_group"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:name="ring"
+                    android:pathData="M50,9 A41,41 0 1,1 49.9,9"
+                    android:strokeColor="#333333"
+                    android:strokeWidth="6.5"
+                    android:strokeLineCap="round"
+                    android:trimPathStart="0"
+                    android:trimPathEnd="0.74" />
+            </group>
+            <path
+                android:name="glyph"
+                android:pathData="M30,30 L70,48 M70,30 L30,48 M30,54 L70,72 M70,54 L30,72"
+                android:strokeColor="#333333"
+                android:strokeWidth="6.8"
+                android:strokeLineCap="round" />
+        </vector>
+    </aapt:attr>
+    <target android:name="ring_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:duration="1400"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:repeatCount="infinite" />
+        </aapt:attr>
+    </target>
+    <target android:name="glyph">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:duration="1200"
+                android:valueFrom="1.0"
+                android:valueTo="0.35"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+</animated-vector>

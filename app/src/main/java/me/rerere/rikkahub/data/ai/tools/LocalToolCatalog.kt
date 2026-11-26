@@ -38,6 +38,7 @@ object LocalToolCatalog {
                     LocalToolOption.DeviceInfo,
                     LocalToolOption.Diagnostics,
                     LocalToolOption.ProviderIcon,
+                    LocalToolOption.AppIcon,
                 ),
             LocalToolCategory.DEVICE_CONTROL to
                 listOf(
@@ -277,6 +278,7 @@ object LocalToolCatalog {
             LocalToolOption.Diagnostics -> R.string.mcp_tool_diagnostics
             LocalToolOption.ModelTesting -> R.string.mcp_tool_model_testing
             LocalToolOption.ProviderIcon -> R.string.mcp_tool_provider_icon
+            LocalToolOption.AppIcon -> R.string.mcp_tool_app_icon
         }
 
     /** 非空分组，供界面按类别渲染 */

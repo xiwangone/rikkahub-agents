@@ -4733,4 +4733,20 @@
     <string name="ssh_terminal_exec_failed">exec 실패: %1$s</string>
     <string name="ssh_terminal_sftp_failed">sftp 실패: %1$s</string>
     <string name="ssh_terminal_sftp_empty_directory">(빈 디렉터리)</string>
+  <string name="setting_app_icon_title">앱 아이콘</string>
+  <string name="app_icon_preset_default">기본값</string>
+  <string name="app_icon_preset_minimal_yao">미니멀 야오</string>
+  <string name="app_icon_preset_flow_yao">플로우 야오(기본값)</string>
+  <string name="app_icon_preset_dual_chat">듀얼 챗</string>
+  <string name="app_icon_preset_agent_core">에이전트 코어</string>
+  <string name="app_icon_preset_terminal_cli">터미널 CLI</string>
+  <string name="app_icon_preset_obsidian_rabbit">옵시디언 래빗</string>
+  <string name="assistant_page_local_tools_app_icon_title">앱 아이콘</string>
+  <string name="assistant_page_local_tools_app_icon_desc">어시스턴트가 내장 런처 아이콘 프리셋을 조회하거나 변경할 수 있습니다.</string>
+  <string name="mcp_tool_app_icon">앱 아이콘</string>
+  <string name="chat_message_tool_app_icon_list">앱 아이콘 목록</string>
+  <string name="chat_message_tool_app_icon_set">앱 아이콘 설정: %1$s</string>
+  <string name="app_icon_preset_legacy_yao">구버전 오비탈 야오</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub 클래식</string>
+  <string name="app_icon_preset_rikkahub_outline">RikkaHub 아웃라인</string>
 </resources>

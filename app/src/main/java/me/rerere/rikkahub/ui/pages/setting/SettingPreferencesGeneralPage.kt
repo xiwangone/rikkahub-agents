@@ -29,7 +29,16 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
+import android.widget.ImageView
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.viewinterop.AndroidView
+import androidx.compose.ui.unit.Dp
 import me.rerere.rikkahub.R
+import me.rerere.rikkahub.utils.AppIconManager
+import me.rerere.rikkahub.utils.AppIconPreset
 import me.rerere.rikkahub.data.datastore.DisplaySetting
 import me.rerere.rikkahub.service.AgentOverlay
 import me.rerere.rikkahub.ui.components.nav.BackButton
@@ -48,6 +57,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     val settings by vm.settings.collectAsStateWithLifecycle()
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var showLanguageDialog by remember { mutableStateOf(false) }
+    var showAppIconDialog by remember { mutableStateOf(false) }
     val context = LocalContext.current
 
     fun updateDisplaySetting(transform: (DisplaySetting) -> DisplaySetting) {
@@ -68,6 +78,18 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                     (context as? android.app.Activity)?.recreate()
                 }
                 showLanguageDialog = false
+            },
+        )
+    }
+
+    if (showAppIconDialog) {
+        AppIconPickerDialog(
+            current = displaySetting.appIconPreset,
+            onDismiss = { showAppIconDialog = false },
+            onPick = { preset ->
+                updateDisplaySetting { s -> s.copy(appIconPreset = preset) }
+                AppIconManager.applyLauncherIcon(context, preset)
+                showAppIconDialog = false
             },
         )
     }
@@ -107,6 +129,14 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
                         onClick = { showLanguageDialog = true },
                         headlineContent = { Text(stringResource(R.string.setting_language_title)) },
                         supportingContent = { Text(currentAppLanguageLabel()) },
+                    )
+                    item(
+                        onClick = { showAppIconDialog = true },
+                        headlineContent = { Text(stringResource(R.string.setting_app_icon_title)) },
+                        supportingContent = { Text(stringResource(displaySetting.appIconPreset.labelRes)) },
+                        trailingContent = {
+                            AppIconPreviewBadge(preset = displaySetting.appIconPreset, size = 32.dp)
+                        },
                     )
                     switchItem(
                         checked = createNewConversationOnStart,
@@ -417,6 +447,71 @@ private fun LanguagePickerDialog(
                             onClick = { onPick(tag) },
                         )
                         Text(shown, modifier = Modifier.padding(start = 8.dp))
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
+        },
+    )
+}
+
+@Composable
+private fun AppIconPreviewBadge(
+    preset: AppIconPreset,
+    size: Dp,
+    modifier: Modifier = Modifier,
+) {
+    AndroidView(
+        modifier = modifier.size(size).clip(RoundedCornerShape(8.dp)),
+        factory = { ctx ->
+            ImageView(ctx).apply {
+                scaleType = ImageView.ScaleType.CENTER_CROP
+            }
+        },
+        update = { view ->
+            view.setImageResource(preset.artwork.mipmapRes)
+        },
+    )
+}
+
+@Composable
+private fun AppIconPickerDialog(
+    current: AppIconPreset,
+    onDismiss: () -> Unit,
+    onPick: (AppIconPreset) -> Unit,
+) {
+    val options = AppIconPreset.entries
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        title = { Text(stringResource(R.string.setting_app_icon_title)) },
+        text = {
+            CappedLazyColumn {
+                items(options.size) { index ->
+                    val preset = options[index]
+                    Row(
+                        modifier =
+                            Modifier
+                                .fillMaxWidth()
+                                .clickable { onPick(preset) }
+                                .padding(vertical = 8.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(
+                            selected = preset == current,
+                            onClick = { onPick(preset) },
+                        )
+                        AppIconPreviewBadge(
+                            preset = preset,
+                            size = 36.dp,
+                            modifier = Modifier.padding(start = 8.dp),
+                        )
+                        Text(
+                            text = stringResource(preset.labelRes),
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.padding(start = 12.dp),
+                        )
                     }
                 }
             }

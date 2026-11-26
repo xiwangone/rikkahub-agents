@@ -184,11 +184,7 @@
       android:importantForAutofill="noExcludeDescendants"
       android:theme="@style/Theme.Rikkahub"
       android:windowSoftInputMode="adjustResize">
-      <intent-filter>
-        <action android:name="android.intent.action.MAIN" />
 
-        <category android:name="android.intent.category.LAUNCHER" />
-      </intent-filter>
       <intent-filter>
         <action android:name="android.intent.action.SEND" />
 
@@ -217,6 +213,124 @@
         android:name="android.app.shortcuts"
         android:resource="@xml/shortcuts" />
     </activity>
+
+    <activity-alias
+      android:name=".MainActivityFlowYao"
+      android:enabled="true"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_flow_yao"
+      android:roundIcon="@mipmap/ic_launcher_flow_yao"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityMinimalYao"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_minimal_yao"
+      android:roundIcon="@mipmap/ic_launcher_minimal_yao"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityDualChat"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_dual_chat"
+      android:roundIcon="@mipmap/ic_launcher_dual_chat"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityAgentCore"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_agent_core"
+      android:roundIcon="@mipmap/ic_launcher_agent_core"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityTerminalCli"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_terminal_cli"
+      android:roundIcon="@mipmap/ic_launcher_terminal_cli"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityObsidianRabbit"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_obsidian_rabbit"
+      android:roundIcon="@mipmap/ic_launcher_obsidian_rabbit"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityLegacyYao"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_legacy_yao"
+      android:roundIcon="@mipmap/ic_launcher_legacy_yao"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityRikkahubClassic"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_rikkahub_classic"
+      android:roundIcon="@mipmap/ic_launcher_rikkahub_classic"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
+    <activity-alias
+      android:name=".MainActivityRikkahubOutline"
+      android:enabled="false"
+      android:exported="true"
+      android:icon="@mipmap/ic_launcher_rikkahub_outline"
+      android:roundIcon="@mipmap/ic_launcher_rikkahub_outline"
+      android:targetActivity=".RouteActivity">
+      <intent-filter>
+        <action android:name="android.intent.action.MAIN" />
+        <category android:name="android.intent.category.LAUNCHER" />
+      </intent-filter>
+    </activity-alias>
+
     <activity
       android:name=".ui.activity.ShortcutHandlerActivity"
       android:exported="true"

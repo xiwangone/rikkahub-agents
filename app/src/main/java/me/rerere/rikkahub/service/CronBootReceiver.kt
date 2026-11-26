@@ -12,7 +12,6 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.launch
-import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.db.entity.ScheduledJobRunEntity
 import me.rerere.rikkahub.data.repository.ScheduledJobRepository
 import me.rerere.rikkahub.data.repository.ScheduledJobRunRepository
@@ -153,7 +152,7 @@ class CronBootReceiver :
                     androidx.core.app.NotificationCompat
                         .BigTextStyle()
                         .bigText(text),
-                ).setSmallIcon(R.drawable.ic_stat_yao)
+                ).setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
                 .setAutoCancel(true)
         try {
             // Fixed notification ID so subsequent boots replace the prior aggregate

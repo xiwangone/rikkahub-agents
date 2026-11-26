@@ -1,0 +1,51 @@
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt">
+    <aapt:attr name="android:drawable">
+        <vector
+            android:width="128dp"
+            android:height="128dp"
+            android:viewportWidth="100"
+            android:viewportHeight="100">
+            <group
+                android:name="ring_group"
+                android:pivotX="50"
+                android:pivotY="50">
+                <path
+                    android:name="ring"
+                    android:pathData="M50,9 A41,41 0 1,1 49.9,9"
+                    android:strokeColor="#333333"
+                    android:strokeWidth="6.5"
+                    android:strokeLineCap="round"
+                    android:trimPathStart="0"
+                    android:trimPathEnd="0.74" />
+            </group>
+            <path
+                android:name="glyph"
+                android:pathData="M50,24 C52.5,42 58,47.5 76,50 C58,52.5 52.5,58 50,76 C47.5,58 42,52.5 24,50 C42,47.5 47.5,42 50,24 Z"
+                android:strokeColor="#333333"
+                android:strokeWidth="5.8"
+                android:strokeLineJoin="round" />
+        </vector>
+    </aapt:attr>
+    <target android:name="ring_group">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="rotation"
+                android:duration="1400"
+                android:valueFrom="0"
+                android:valueTo="360"
+                android:repeatCount="infinite" />
+        </aapt:attr>
+    </target>
+    <target android:name="glyph">
+        <aapt:attr name="android:animation">
+            <objectAnimator
+                android:propertyName="strokeAlpha"
+                android:duration="1200"
+                android:valueFrom="1.0"
+                android:valueTo="0.35"
+                android:repeatCount="infinite"
+                android:repeatMode="reverse" />
+        </aapt:attr>
+    </target>
+</animated-vector>

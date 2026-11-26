@@ -125,11 +125,12 @@ internal fun ExportedChatImage(
                         // unreadable on a dark surface, so use the white monochrome
                         // layer there instead.
                         val darkSurface = MaterialTheme.colorScheme.surface.luminance() < 0.5f
+                        val appIconPreset = me.rerere.rikkahub.ui.context.LocalSettings.current.displaySetting.appIconPreset
                         val painter =
                             painterResource(
                                 id =
-                                    if (darkSurface) R.mipmap.ic_launcher_monochrome
-                                    else R.mipmap.ic_launcher_foreground,
+                                    if (darkSurface) appIconPreset.artwork.monoLayerRes
+                                    else appIconPreset.artwork.fgLayerRes,
                             )
                         Image(
                             painter = painter,

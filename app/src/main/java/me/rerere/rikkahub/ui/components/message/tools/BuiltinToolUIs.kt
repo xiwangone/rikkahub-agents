@@ -660,3 +660,53 @@ object ProviderIconToolUI : ToolUIRenderer {
         )
     }
 }
+
+/**
+ * App 启动图标：标题区分「列出预设 / 切换图标」，摘要显示目标预设
+ */
+object AppIconToolUI : ToolUIRenderer {
+    private const val TOOL_NAME = "update_app_icon"
+    private const val ARG_ACTION = "action"
+    private const val ARG_PRESET = "preset"
+
+    override val toolName: String = TOOL_NAME
+
+    override fun icon(context: ToolUIContext): ImageVector = HugeIcons.ImageAdd01
+
+    override fun iconColorKey(context: ToolUIContext): ToolIconColor = ToolIconColor.PINK
+
+    @Composable
+    override fun title(context: ToolUIContext): String {
+        val action = context.arguments.getStringContent(ARG_ACTION)?.trim()?.lowercase().orEmpty()
+        val preset = context.arguments.getStringContent(ARG_PRESET)?.trim().orEmpty()
+        return if (action == "list" || (action.isEmpty() && preset.isEmpty())) {
+            stringResource(R.string.chat_message_tool_app_icon_list)
+        } else {
+            stringResource(R.string.chat_message_tool_app_icon_set, preset)
+        }
+    }
+
+    override fun hasSummary(context: ToolUIContext): Boolean {
+        val obj = context.content?.jsonObjectOrNull ?: return false
+        return obj.getStringContent("preset") != null || obj.getStringContent("current") != null
+    }
+
+    @Composable
+    override fun Summary(context: ToolUIContext) {
+        val obj = context.content?.jsonObjectOrNull ?: return
+        val preset = obj.getStringContent("preset") ?: obj.getStringContent("current") ?: return
+        val previous = obj.getStringContent("previous")
+        val text = if (!previous.isNullOrBlank() && previous != preset) {
+            "$previous -> $preset"
+        } else {
+            preset
+        }
+        Text(
+            text = text,
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onPrimaryContainer,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+    }
+}

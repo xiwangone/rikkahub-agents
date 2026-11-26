@@ -60,6 +60,7 @@ import me.rerere.hugeicons.stroke.Globe
 import me.rerere.hugeicons.stroke.Grid
 import me.rerere.hugeicons.stroke.Image01
 import me.rerere.hugeicons.stroke.Image02
+import me.rerere.hugeicons.stroke.ImageAdd01
 import me.rerere.hugeicons.stroke.JavaScript
 import me.rerere.hugeicons.stroke.Key01
 import me.rerere.hugeicons.stroke.Key02
@@ -567,6 +568,7 @@ internal fun iconForLocalToolOption(option: LocalToolOption): ImageVector =
         LocalToolOption.Diagnostics -> HugeIcons.Bug01
         LocalToolOption.ModelTesting -> HugeIcons.Activity01
         LocalToolOption.ProviderIcon -> HugeIcons.Image01
+        LocalToolOption.AppIcon -> HugeIcons.ImageAdd01
         LocalToolOption.DeviceInfo -> HugeIcons.Cpu
         LocalToolOption.SystemIntents -> HugeIcons.Calendar03
         LocalToolOption.Toast -> HugeIcons.Message02
@@ -677,6 +679,7 @@ internal fun colorForLocalToolOption(option: LocalToolOption): ToolIconColor =
         LocalToolOption.Diagnostics,
         LocalToolOption.DeviceInfo,
         LocalToolOption.ProviderIcon,
+        LocalToolOption.AppIcon,
         LocalToolOption.SystemIntents,
         LocalToolOption.Location,
         LocalToolOption.Fingerprint,

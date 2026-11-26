@@ -210,7 +210,7 @@ class LocalMcpServerService : Service() {
     private fun buildStartingNotification() =
         NotificationCompat
             .Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setContentTitle(getString(R.string.notification_mcp_starting_title))
             .setContentText(getString(R.string.notification_mcp_starting_text))
             .setContentIntent(buildLaunchPendingIntent())
@@ -221,7 +221,7 @@ class LocalMcpServerService : Service() {
     private fun buildRunningNotification(state: me.rerere.rikkahub.data.ai.mcp.server.LocalMcpServerState): android.app.Notification =
         NotificationCompat
             .Builder(this, CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setContentTitle(getString(R.string.notification_mcp_running_title))
             .setContentText(
                 getString(R.string.notification_mcp_running_text, state.port, state.toolCount),

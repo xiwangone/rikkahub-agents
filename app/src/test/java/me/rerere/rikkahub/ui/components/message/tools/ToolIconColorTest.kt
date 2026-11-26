@@ -12,7 +12,7 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 
 /**
- * 图标着色覆盖自检：111 个 ToolUI 渲染器与 59 个 LocalToolOption 必须全部落在
+ * 图标着色覆盖自检：112 个 ToolUI 渲染器与 61 个 LocalToolOption 必须全部落在
  * 8 个家族色组内（不回退默认单色），且 LocalToolOption 的图标在去重后互不相同。
  *
  * 颜色决策是纯函数（[ToolUIRenderer.iconColorKey] / [colorForLocalToolOption]），
@@ -38,7 +38,7 @@ class ToolIconColorTest {
 
     @Test
     fun `all registered renderers have a family color`() {
-        assertEquals(111, ToolUIRegistry.rendererMap.size)
+        assertEquals(112, ToolUIRegistry.rendererMap.size)
         for ((toolName, renderer) in ToolUIRegistry.rendererMap) {
             val key = renderer.iconColorKey(contextFor(toolName))
             assertTrue("渲染器无家族色（回退默认单色）: $toolName", key in familyGroups)
@@ -73,7 +73,7 @@ class ToolIconColorTest {
     @Test
     fun `all local tool options have a family color`() {
         val all = LocalToolCatalog.all
-        assertEquals(60, all.size)
+        assertEquals(61, all.size)
         for (option in all) {
             val key = colorForLocalToolOption(option)
             assertTrue("本地工具选项无家族色: ${option::class.simpleName}", key in familyGroups)

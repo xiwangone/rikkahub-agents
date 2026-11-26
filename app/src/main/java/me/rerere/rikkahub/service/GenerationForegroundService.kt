@@ -138,7 +138,7 @@ class GenerationForegroundService : Service() {
 
     private fun buildNotification(): android.app.Notification {
         val builder = NotificationCompat.Builder(this, GENERATION_NOTIFICATION_CHANNEL_ID)
-            .setSmallIcon(R.drawable.ic_stat_yao)
+            .setSmallIcon(me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes)
             .setContentTitle(getString(R.string.generation_foreground_title))
             .setCategory(NotificationCompat.CATEGORY_PROGRESS)
             .setOngoing(true)

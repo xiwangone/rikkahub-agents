@@ -24,6 +24,7 @@ import me.rerere.rikkahub.data.ai.tools.local.getBrightnessTool
 import me.rerere.rikkahub.data.ai.tools.local.getVolumeTool
 import me.rerere.rikkahub.data.ai.tools.local.globalActionTool
 import me.rerere.rikkahub.data.ai.tools.local.testModelTool
+import me.rerere.rikkahub.data.ai.tools.local.updateAppIconTool
 import me.rerere.rikkahub.data.ai.tools.local.updateProviderIconTool
 import me.rerere.rikkahub.data.ai.tools.local.listContactsTool
 import me.rerere.rikkahub.data.ai.tools.local.listSmsInboxTool
@@ -698,6 +699,9 @@ class LocalTools(
     // 提供商图标运行时更新（写工具，单独注册，不放进诊断工具）。
     ToolEntry(LocalToolOption.ProviderIcon) { tools, _ ->
         tools.add(updateProviderIconTool(context, settingsStore, okHttpClient))
+    },
+    ToolEntry(LocalToolOption.AppIcon) { tools, _ ->
+        tools.add(updateAppIconTool(context, settingsStore))
     },
     )
 

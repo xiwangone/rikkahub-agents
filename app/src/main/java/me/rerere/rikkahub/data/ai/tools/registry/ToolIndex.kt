@@ -260,6 +260,7 @@ Entry("browser_back", "browser/BrowserToolDefaults.kt#ALL_TOOLS", "LocalToolOpti
         Entry("transcribe_audio_file", "local/TranscribeAudioTool.kt#transcribeAudioFileTool", "LocalToolOption.Termux", "REMOTE", null, InvocationKind.STANDARD),
         Entry("trigger_job_now", "local/CronJobTool.kt#triggerJobNowTool", "LocalToolOption.CronJobs", "AUTOMATION", null, InvocationKind.STANDARD),
         Entry("unzip_file", "local/ArchiveTools.kt#unzipFileTool", "LocalToolOption.Archive", "FILES", "UnzipFileToolUI", InvocationKind.STANDARD),
+        Entry("update_app_icon", "local/AppIconTool.kt#updateAppIconTool", "LocalToolOption.AppIcon", "DEVICE_INFO", "AppIconToolUI", InvocationKind.STANDARD),
         Entry("update_provider_icon", "local/ProviderIconTool.kt#updateProviderIconTool", "LocalToolOption.ProviderIcon", "DEVICE_INFO", "ProviderIconToolUI", InvocationKind.STANDARD),
         Entry("use_skill", "SkillsTools.kt#createSkillTools", "ChatToolFactory.workspaceAndSkillTools", "—", "UseSkillToolUI", InvocationKind.STANDARD),
         Entry("vault_compare_loadcreds", "data/vault/VaultSyncTools.kt#vaultCompareLoadCredsTool", "LocalToolOption.VaultExportEnv", "VAULT", null, InvocationKind.STANDARD),

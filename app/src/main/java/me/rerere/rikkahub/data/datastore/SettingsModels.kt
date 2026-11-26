@@ -31,6 +31,7 @@ import me.rerere.rikkahub.data.network.NetworkRoutingSettings
 import me.rerere.rikkahub.data.sync.s3.S3Config
 import me.rerere.rikkahub.ui.theme.CustomTheme
 import me.rerere.rikkahub.ui.theme.PresetThemes
+import me.rerere.rikkahub.utils.AppIconPreset
 import me.rerere.rikkahub.utils.ProviderIconOverrides
 import me.rerere.search.SearchCommonOptions
 import me.rerere.search.SearchServiceOptions
@@ -462,6 +463,7 @@ data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
+    val appIconPreset: AppIconPreset = AppIconPreset.FLOW_YAO,
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     val bubbleOpacity: Float = 1.0f,
