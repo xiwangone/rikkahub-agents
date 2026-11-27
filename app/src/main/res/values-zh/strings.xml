@@ -4734,18 +4734,19 @@
     <string name="ssh_terminal_sftp_empty_directory">（空目录）</string>
   <string name="setting_app_icon_title">应用图标</string>
   <string name="app_icon_preset_default">默认</string>
-  <string name="app_icon_preset_minimal_yao">极简几何爻</string>
-  <string name="app_icon_preset_flow_yao">柔弧星云爻（默认）</string>
-  <string name="app_icon_preset_dual_chat">双对话气泡</string>
-  <string name="app_icon_preset_agent_core">星芒核心</string>
+  <string name="app_icon_preset_yao_diamond">几何爻（默认）</string>
+  <string name="app_icon_preset_yao_aura">深海双菱</string>
+  <string name="app_icon_preset_yao_prism">实心双菱</string>
+  <string name="app_icon_preset_dual_chat">双对话</string>
+  <string name="app_icon_preset_agent_core">星芒</string>
   <string name="app_icon_preset_terminal_cli">极客终端</string>
-  <string name="app_icon_preset_obsidian_rabbit">暗夜小兔</string>
+  <string name="app_icon_preset_legacy_yao">爻</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub</string>
+  <string name="app_icon_preset_rikkahub_outline">经典</string>
+  <string name="auto_return_skipped_switched_app">%1$s：检测到你已切换应用，已跳过自动返回。</string>
   <string name="assistant_page_local_tools_app_icon_title">应用图标</string>
   <string name="assistant_page_local_tools_app_icon_desc">允许助手查看或切换内置桌面启动图标预设。</string>
   <string name="mcp_tool_app_icon">应用图标</string>
   <string name="chat_message_tool_app_icon_list">列出应用图标</string>
   <string name="chat_message_tool_app_icon_set">切换应用图标：%1$s</string>
-  <string name="app_icon_preset_legacy_yao">旧版星环爻</string>
-  <string name="app_icon_preset_rikkahub_classic">RikkaHub 经典</string>
-  <string name="app_icon_preset_rikkahub_outline">RikkaHub 简线</string>
 </resources>

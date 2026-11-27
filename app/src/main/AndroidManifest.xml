@@ -215,11 +215,11 @@
     </activity>
 
     <activity-alias
-      android:name=".MainActivityFlowYao"
+      android:name=".MainActivityYaoDiamond"
       android:enabled="true"
       android:exported="true"
-      android:icon="@mipmap/ic_launcher_flow_yao"
-      android:roundIcon="@mipmap/ic_launcher_flow_yao"
+      android:icon="@mipmap/ic_launcher_yao_diamond"
+      android:roundIcon="@mipmap/ic_launcher_yao_diamond"
       android:targetActivity=".RouteActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
@@ -228,11 +228,11 @@
     </activity-alias>
 
     <activity-alias
-      android:name=".MainActivityMinimalYao"
+      android:name=".MainActivityYaoAura"
       android:enabled="false"
       android:exported="true"
-      android:icon="@mipmap/ic_launcher_minimal_yao"
-      android:roundIcon="@mipmap/ic_launcher_minimal_yao"
+      android:icon="@mipmap/ic_launcher_yao_aura"
+      android:roundIcon="@mipmap/ic_launcher_yao_aura"
       android:targetActivity=".RouteActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />
@@ -280,11 +280,11 @@
     </activity-alias>
 
     <activity-alias
-      android:name=".MainActivityObsidianRabbit"
+      android:name=".MainActivityYaoPrism"
       android:enabled="false"
       android:exported="true"
-      android:icon="@mipmap/ic_launcher_obsidian_rabbit"
-      android:roundIcon="@mipmap/ic_launcher_obsidian_rabbit"
+      android:icon="@mipmap/ic_launcher_yao_prism"
+      android:roundIcon="@mipmap/ic_launcher_yao_prism"
       android:targetActivity=".RouteActivity">
       <intent-filter>
         <action android:name="android.intent.action.MAIN" />

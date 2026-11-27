@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Upper solid blue diamond -->
+  <path
+      android:pathData="M54,21 L79,41 L54,61 L29,41 Z"
+      android:fillColor="#FF5CA9FF"/>
+  <!-- Lower solid crisp white diamond -->
+  <path
+      android:pathData="M54,47 L79,67 L54,87 L29,67 Z"
+      android:fillColor="#FFF4F8FF"/>
+  <!-- Central dark eye diamond -->
+  <path
+      android:pathData="M54,43 L68,54 L54,65 L40,54 Z"
+      android:fillColor="#FF0D1629"/>
+  <!-- Center luminous cyan core dot -->
+  <path
+      android:pathData="M54,48.8 A5.2,5.2 0 1,1 54,59.2 A5.2,5.2 0 1,1 54,48.8 Z"
+      android:fillColor="#FF38BDF8"/>
+</vector>

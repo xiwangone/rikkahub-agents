@@ -700,7 +700,7 @@ class SettingsStore(
                             }
                             saveWarmUiSettings(appContext, decoded)
                             me.rerere.rikkahub.data.network.AppDnsResolver.updateNetworkSetting(decoded.networkSetting)
-                            me.rerere.rikkahub.utils.AppIconManager.currentStatIconRes = decoded.displaySetting.appIconPreset.artwork.statIconRes
+                            me.rerere.rikkahub.utils.AppIconManager.reconcileOnStartup(context, decoded.displaySetting.appIconPreset)
                             runCatching { get<WorkspaceMountSwitch>().updateShellDns(decoded.shellDnsMode, decoded.shellDnsServers) }
                         }
                         if (!settingsFlow.value.init) initialization.complete(Unit)

@@ -4734,18 +4734,19 @@
     <string name="ssh_terminal_sftp_empty_directory">(empty directory)</string>
   <string name="setting_app_icon_title">App icon</string>
   <string name="app_icon_preset_default">Default</string>
-  <string name="app_icon_preset_minimal_yao">Minimal Yao</string>
-  <string name="app_icon_preset_flow_yao">Flow Yao (Default)</string>
+  <string name="app_icon_preset_yao_diamond">Geometric Yao (Default)</string>
+  <string name="app_icon_preset_yao_aura">Deep Sea Diamond</string>
+  <string name="app_icon_preset_yao_prism">Solid Prism Yao</string>
   <string name="app_icon_preset_dual_chat">Dual Chat</string>
   <string name="app_icon_preset_agent_core">Agent Core</string>
   <string name="app_icon_preset_terminal_cli">Terminal CLI</string>
-  <string name="app_icon_preset_obsidian_rabbit">Obsidian Rabbit</string>
+  <string name="app_icon_preset_legacy_yao">Yao</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub</string>
+  <string name="app_icon_preset_rikkahub_outline">Classic</string>
+  <string name="auto_return_skipped_switched_app">%1$s: skipped auto-return because you switched apps.</string>
   <string name="assistant_page_local_tools_app_icon_title">App icon</string>
   <string name="assistant_page_local_tools_app_icon_desc">Let the assistant list or switch bundled launcher icon presets.</string>
   <string name="mcp_tool_app_icon">App icon</string>
   <string name="chat_message_tool_app_icon_list">List app icons</string>
   <string name="chat_message_tool_app_icon_set">Set app icon: %1$s</string>
-  <string name="app_icon_preset_legacy_yao">Legacy Orbital Yao</string>
-  <string name="app_icon_preset_rikkahub_classic">RikkaHub Classic</string>
-  <string name="app_icon_preset_rikkahub_outline">RikkaHub Outline</string>
 </resources>

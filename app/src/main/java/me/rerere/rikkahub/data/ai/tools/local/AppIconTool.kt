@@ -29,7 +29,7 @@ fun updateAppIconTool(
 ): Tool = Tool(
     name = "update_app_icon",
     description = """
-        List or switch the app's launcher (home screen) icon among bundled presets. Use action='list' to inspect available presets and the current active icon, or action='set' with preset (e.g. 'flow_yao' (default), 'minimal_yao', 'dual_chat', 'agent_core', 'terminal_cli', 'obsidian_rabbit', 'legacy_yao', 'rikkahub_classic', 'rikkahub_outline') to switch immediately.
+        List or switch the app's launcher (home screen) icon among bundled presets. Use action='list' to inspect available presets and the current active icon, or action='set' with preset (e.g. 'yao_diamond' (default), 'yao_aura', 'yao_prism', 'dual_chat', 'agent_core', 'terminal_cli', 'legacy_yao', 'rikkahub_classic', 'rikkahub_outline') to switch.
     """.trimIndent().replace("\n", " "),
     parameters = {
         InputSchema.Obj(
@@ -40,7 +40,7 @@ fun updateAppIconTool(
                 })
                 put("preset", buildJsonObject {
                     put("type", "string")
-                    put("description", "Preset id or alias when action='set' (e.g. 'minimal_yao', 'flow_yao', 'dual_chat', 'agent_core', 'terminal_cli', 'obsidian_rabbit', 'default').")
+                    put("description", "Preset id or alias when action='set' (e.g. 'yao_diamond', 'yao_aura', 'yao_prism', 'dual_chat', 'agent_core', 'terminal_cli', 'legacy_yao', 'rikkahub_classic', 'rikkahub_outline', 'default').")
                 })
             },
             required = emptyList(),
@@ -101,14 +101,14 @@ fun updateAppIconTool(
                 settingsStore.update { old ->
                     old.copy(displaySetting = old.displaySetting.copy(appIconPreset = resolved))
                 }
-                AppIconManager.applyLauncherIcon(context, resolved)
+                AppIconManager.scheduleLauncherIcon(context, resolved)
 
                 val payload = buildJsonObject {
                     put("ok", true)
                     put("preset", resolved.id)
                     put("previous", currentPreset.id)
                     put("description", resolved.styleSummary)
-                    put("note", "Launcher icon updated; home screen may take a few seconds to refresh.")
+                    put("note", "Icon preference saved and applied in-app; launcher icon updates automatically when returning to the home screen.")
                 }
                 listOf(UIMessagePart.Text(payload.toString()))
             }

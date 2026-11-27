@@ -4,10 +4,14 @@ import android.content.Context
 import android.graphics.Typeface
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.height
+import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.clickable
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
-import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
@@ -25,7 +29,6 @@ import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.TextButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -473,7 +476,12 @@ fun SshTerminalPage(hostName: String) {
             TopAppBar(
                 title = {
                     Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
-                        Text("SSH · $hostName")
+                        Text(
+                            text = "SSH · $hostName",
+                            style = MaterialTheme.typography.titleMedium,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
                         Surface(
                             shape = CircleShape,
                             color =
@@ -507,19 +515,59 @@ fun SshTerminalPage(hostName: String) {
                 },
                 navigationIcon = { BackButton() },
                 actions = {
-                    TextButton(
-                        onClick = { textSizeSpOverride = (effectiveTextSizeSp - 2).coerceAtLeast(7) },
-                        enabled = effectiveTextSizeSp > 7,
-                        contentPadding = PaddingValues(horizontal = 6.dp),
+                    Surface(
+                        shape = RoundedCornerShape(10.dp),
+                        color = MaterialTheme.colorScheme.surfaceContainerHigh,
                     ) {
-                        Text("A-", style = MaterialTheme.typography.labelMedium)
-                    }
-                    TextButton(
-                        onClick = { textSizeSpOverride = (effectiveTextSizeSp + 2).coerceAtMost(24) },
-                        enabled = effectiveTextSizeSp < 24,
-                        contentPadding = PaddingValues(horizontal = 6.dp),
-                    ) {
-                        Text("A+", style = MaterialTheme.typography.labelMedium)
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .clickable(enabled = effectiveTextSizeSp > 7) {
+                                            textSizeSpOverride = (effectiveTextSizeSp - 2).coerceAtLeast(7)
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "A-",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color =
+                                        if (effectiveTextSizeSp > 7) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                        },
+                                )
+                            }
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .width(1.dp)
+                                        .height(14.dp)
+                                        .background(MaterialTheme.colorScheme.outlineVariant),
+                            )
+                            Box(
+                                modifier =
+                                    Modifier
+                                        .clickable(enabled = effectiveTextSizeSp < 24) {
+                                            textSizeSpOverride = (effectiveTextSizeSp + 2).coerceAtMost(24)
+                                        }
+                                        .padding(horizontal = 10.dp, vertical = 6.dp),
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                Text(
+                                    text = "A+",
+                                    style = MaterialTheme.typography.labelLarge,
+                                    color =
+                                        if (effectiveTextSizeSp < 24) {
+                                            MaterialTheme.colorScheme.primary
+                                        } else {
+                                            MaterialTheme.colorScheme.onSurface.copy(alpha = 0.38f)
+                                        },
+                                )
+                            }
+                        }
                     }
                     if (connected) {
                         IconButton(

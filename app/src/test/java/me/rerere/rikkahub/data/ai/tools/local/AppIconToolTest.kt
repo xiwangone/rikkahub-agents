@@ -32,8 +32,8 @@ import me.rerere.rikkahub.data.datastore.ProviderCredentialCipher
 import me.rerere.rikkahub.data.datastore.SettingsStore
 import me.rerere.rikkahub.data.datastore.SyntheticSettingsKeyStore
 import me.rerere.rikkahub.data.datastore.SyntheticSettingsSecurityProvider
-import me.rerere.rikkahub.utils.AppIconPreset
 import me.rerere.rikkahub.utils.AppIconManager
+import me.rerere.rikkahub.utils.AppIconPreset
 import org.junit.After
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
@@ -82,7 +82,7 @@ class AppIconToolTest {
             context.preferencesDataStoreFile(fileName)
         }
         settingsStore = SettingsStore(context, appScope, dataStore)
-        AppIconManager.currentStatIconRes = AppIconPreset.FLOW_YAO.artwork.statIconRes
+        AppIconManager.currentStatIconRes = AppIconPreset.YAO_DIAMOND.artwork.statIconRes
     }
 
     @After
@@ -99,7 +99,7 @@ class AppIconToolTest {
         Json.parseToJsonElement((parts.first() as UIMessagePart.Text).text).jsonObject
 
     @Test
-    fun `list returns all 9 presets with flow_yao active initially`() {
+    fun `list returns all 9 presets with yao_diamond active initially`() {
         val tool = updateAppIconTool(context, settingsStore)
         val result = perform {
             tool.execute(buildJsonObject { put("action", "list") })
@@ -107,42 +107,43 @@ class AppIconToolTest {
 
         val json = parseToolText(result)
         assertTrue(json["ok"]!!.jsonPrimitive.boolean)
-        assertEquals("flow_yao", json["current"]!!.jsonPrimitive.content)
+        assertEquals("yao_diamond", json["current"]!!.jsonPrimitive.content)
         val presets = json["presets"]!!.jsonArray
         assertEquals(AppIconPreset.entries.size, presets.size)
         val activeIds = presets.filter { it.jsonObject["active"]!!.jsonPrimitive.boolean }
             .map { it.jsonObject["id"]!!.jsonPrimitive.content }
-        assertEquals(listOf("flow_yao"), activeIds)
+        assertEquals(listOf("yao_diamond"), activeIds)
     }
 
     @Test
-    fun `set updates settingsStore, launcher aliases, and notification smallIcon`() {
+    fun `set persists settingsStore immediately and switches launcher aliases on background flush`() {
         val tool = updateAppIconTool(context, settingsStore)
         val result = perform {
             tool.execute(buildJsonObject {
                 put("action", "set")
-                put("preset", "minimal_yao")
+                put("preset", "yao_aura")
             })
         }.getOrThrow()
 
         val json = parseToolText(result)
         assertTrue(json["ok"]!!.jsonPrimitive.boolean)
-        assertEquals("minimal_yao", json["preset"]!!.jsonPrimitive.content)
-        assertEquals("flow_yao", json["previous"]!!.jsonPrimitive.content)
+        assertEquals("yao_aura", json["preset"]!!.jsonPrimitive.content)
+        assertEquals("yao_diamond", json["previous"]!!.jsonPrimitive.content)
 
         val stored = perform { settingsStore.settingsFlow.first() }.getOrThrow()
-        assertEquals(AppIconPreset.MINIMAL_YAO, stored.displaySetting.appIconPreset)
-        assertEquals(AppIconPreset.MINIMAL_YAO.artwork.statIconRes, AppIconManager.currentStatIconRes)
+        assertEquals(AppIconPreset.YAO_AURA, stored.displaySetting.appIconPreset)
+        assertEquals(AppIconPreset.YAO_AURA.artwork.statIconRes, AppIconManager.currentStatIconRes)
 
+        assertTrue(AppIconManager.flushPendingLauncherIcon(context))
         val pm = context.packageManager
         val pkg = context.packageName
         assertEquals(
             PackageManager.COMPONENT_ENABLED_STATE_ENABLED,
-            pm.getComponentEnabledSetting(ComponentName(pkg, "$pkg.MainActivityMinimalYao")),
+            pm.getComponentEnabledSetting(ComponentName(pkg, "$pkg.MainActivityYaoAura")),
         )
         assertEquals(
             PackageManager.COMPONENT_ENABLED_STATE_DISABLED,
-            pm.getComponentEnabledSetting(ComponentName(pkg, "$pkg.MainActivityFlowYao")),
+            pm.getComponentEnabledSetting(ComponentName(pkg, "$pkg.MainActivityYaoDiamond")),
         )
     }
 
@@ -159,6 +160,6 @@ class AppIconToolTest {
         val json = parseToolText(result)
         assertEquals("not_found", json["data"]!!.jsonObject["error"]!!.jsonPrimitive.content)
         val stored = perform { settingsStore.settingsFlow.first() }.getOrThrow()
-        assertEquals(AppIconPreset.FLOW_YAO, stored.displaySetting.appIconPreset)
+        assertEquals(AppIconPreset.YAO_DIAMOND, stored.displaySetting.appIconPreset)
     }
 }

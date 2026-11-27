@@ -2,6 +2,8 @@
 package me.rerere.rikkahub.service
 
 import android.app.Application
+import android.os.Handler
+import android.os.Looper
 import androidx.core.net.toUri
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
@@ -447,14 +449,26 @@ class ChatService(
         ChatFloatingOverlayController(context, appScope, settingsStore, this)
     }
 
+    private fun runOnMainThread(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block()
+        } else {
+            Handler(Looper.getMainLooper()).post(block)
+        }
+    }
+
     init {
-        ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        runOnMainThread {
+            ProcessLifecycleOwner.get().lifecycle.addObserver(lifecycleObserver)
+        }
         floatingOverlayController.start()
     }
 
     fun cleanup() =
         runCatching {
-            ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+            runOnMainThread {
+                ProcessLifecycleOwner.get().lifecycle.removeObserver(lifecycleObserver)
+            }
             floatingOverlayController.close()
             sessions.values.forEach { it.cleanup() }
             sessions.clear()

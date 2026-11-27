@@ -463,7 +463,7 @@ data class DisplaySetting(
     val userAvatar: Avatar = Avatar.Dummy,
     val userNickname: String = "",
     val useAppIconStyleLoadingIndicator: Boolean = true,
-    val appIconPreset: AppIconPreset = AppIconPreset.FLOW_YAO,
+    val appIconPreset: AppIconPreset = AppIconPreset.YAO_DIAMOND,
     val showUserAvatar: Boolean = true,
     val showAssistantBubble: Boolean = false,
     val bubbleOpacity: Float = 1.0f,

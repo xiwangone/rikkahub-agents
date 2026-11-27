@@ -6,6 +6,7 @@ import android.content.Intent
 import android.os.Handler
 import android.os.Looper
 import android.widget.Toast
+import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.service.RikkaAccessibilityService
 
@@ -40,10 +41,11 @@ internal class AutoReturnHandler(
 
         if (userSwitchedAway) {
             Handler(Looper.getMainLooper()).post {
+                val appCtx = context.applicationContext
                 Toast.makeText(
-                    context.applicationContext,
-                    "RikkaHub Agents: skipped auto-return because you switched apps. (Safety feature)",
-                    Toast.LENGTH_LONG
+                    appCtx,
+                    appCtx.getString(R.string.auto_return_skipped_switched_app, appCtx.getString(R.string.app_name)),
+                    Toast.LENGTH_LONG,
                 ).show()
             }
             return

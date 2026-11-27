@@ -3,6 +3,7 @@ package me.rerere.rikkahub.service
 import android.view.WindowManager
 import android.widget.FrameLayout
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.launch
 import me.rerere.rikkahub.data.ai.tools.local.PHONE_USE_TOOL_NAME
@@ -23,7 +24,7 @@ internal class PhoneUseOverlayGate(
     private val windowState: () -> Triple<FrameLayout?, WindowManager.LayoutParams?, WindowManager?>,
 ) {
     /** 开始监听 Phone Use 的 acting 状态；返回的 Job 由调用方在关闭时取消 */
-    fun start(): Job = scope.launch { PhoneUseManager.acting.collect(::yieldScreen) }
+    fun start(): Job = scope.launch(Dispatchers.Main.immediate) { PhoneUseManager.acting.collect(::yieldScreen) }
 
     /** 目标会话一轮结束时，若回复用过 phone_use 则返回 true，调用方展开面板 */
     fun usedPhoneUse(conversationId: Uuid): Boolean {

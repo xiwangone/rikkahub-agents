@@ -1,0 +1,34 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+  <!-- Subtle orbital ring + 4 cardinal anchor dots -->
+  <path
+      android:pathData="M54,19 A35,35 0 1,1 53.99,19 Z"
+      android:strokeColor="#387CC0FF"
+      android:strokeWidth="1.2"/>
+  <path android:pathData="M54,17.2 A1.8,1.8 0 1,1 54,20.8 A1.8,1.8 0 1,1 54,17.2 Z" android:fillColor="#FF60B5FF"/>
+  <path android:pathData="M54,87.2 A1.8,1.8 0 1,1 54,90.8 A1.8,1.8 0 1,1 54,87.2 Z" android:fillColor="#FF60B5FF"/>
+  <path android:pathData="M19,52.2 A1.8,1.8 0 1,1 19,55.8 A1.8,1.8 0 1,1 19,52.2 Z" android:fillColor="#FF60B5FF"/>
+  <path android:pathData="M89,52.2 A1.8,1.8 0 1,1 89,55.8 A1.8,1.8 0 1,1 89,52.2 Z" android:fillColor="#FF60B5FF"/>
+  <!-- Translucent layered upper diamond -->
+  <path
+      android:pathData="M54,22 L76,44 L54,66 L32,44 Z"
+      android:fillColor="#2660B5FF"
+      android:strokeColor="#FF6CC4FF"
+      android:strokeWidth="5.2"
+      android:strokeLineJoin="round"/>
+  <!-- Translucent layered lower diamond -->
+  <path
+      android:pathData="M54,42 L76,64 L54,86 L32,64 Z"
+      android:fillColor="#1EFFFFFF"
+      android:strokeColor="#FFF8FAFC"
+      android:strokeWidth="5.2"
+      android:strokeLineJoin="round"/>
+  <!-- Bright glowing intersection diamond core -->
+  <path
+      android:pathData="M54,42 L66,54 L54,66 L42,54 Z"
+      android:fillColor="#DDF0F9FF"/>
+</vector>

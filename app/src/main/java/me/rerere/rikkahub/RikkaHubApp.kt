@@ -87,33 +87,9 @@ class RikkaHubApp : Application() {
         // 启动期日志先进有上限的内存 buffer（重要 800 / 详细 2000），
         // FileLogSink.init 之前的不落盘（不引入无界队列，取舍见日志批 1 说明）。
         me.rerere.rikkahub.data.log.AppLog.startIfEnabled(this)
+        me.rerere.rikkahub.utils.AppIconManager.registerLifecycleFlush(this)
         me.rerere.common.android.Logging.startIfEnabled(this)
-        // 让 ai / speech / search 等下游模块的日志也进入应用内日志（设置页可查看/导出、并落盘）
-        me.rerere.common.log.AppLogger.install(
-            object : me.rerere.common.log.AppLogger.Sink {
-                override fun d(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.d(tag, message)
-
-                override fun i(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.i(tag, message)
-
-                override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
-
-                override fun w(tag: String, message: String, tr: Throwable?) =
-                    if (tr != null) {
-                        me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
-                    } else {
-                        me.rerere.rikkahub.data.log.AppLog.w(tag, message)
-                    }
-
-                override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
-
-                override fun e(tag: String, message: String, tr: Throwable?) =
-                    if (tr != null) {
-                        me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
-                    } else {
-                        me.rerere.rikkahub.data.log.AppLog.e(tag, message)
-                    }
-            },
-        )
+        installAppLoggerBridge()
         // 应用内语言：API 33+ 由系统按应用语言持久化，无需处理；
         // API 26–32 需在进程启动时把已选语言重新写回资源，否则重启后回退到系统语言。
         me.rerere.rikkahub.utils.AppLocale.restoreOnStartup(this)
@@ -874,6 +850,40 @@ private fun installSshDnsBridge() {
         )
         me.rerere.rikkahub.data.tunnel.TsnetBridge.dnsLookup = { host -> sshDns.lookup(host) }
     }.onFailure { AppLog.w("RikkaHubApp", "ssh dns bridge install failed", it) }
+}
+
+/**
+ * 让 ai / speech / search 等下游模块的日志也进入应用内日志（设置页可查看/导出、并落盘）。
+ *
+ * 放在文件级（而非 RikkaHubApp 成员）：类内已有 24 个函数，detekt `TooManyFunctions`
+ * 阈值 25，再添一个就红；这里的逻辑又不依赖实例状态。
+ */
+private fun installAppLoggerBridge() {
+    me.rerere.common.log.AppLogger.install(
+        object : me.rerere.common.log.AppLogger.Sink {
+            override fun d(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.d(tag, message)
+
+            override fun i(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.i(tag, message)
+
+            override fun w(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+
+            override fun w(tag: String, message: String, tr: Throwable?) =
+                if (tr != null) {
+                    me.rerere.rikkahub.data.log.AppLog.w(tag, message, tr)
+                } else {
+                    me.rerere.rikkahub.data.log.AppLog.w(tag, message)
+                }
+
+            override fun e(tag: String, message: String) = me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+
+            override fun e(tag: String, message: String, tr: Throwable?) =
+                if (tr != null) {
+                    me.rerere.rikkahub.data.log.AppLog.e(tag, message, tr)
+                } else {
+                    me.rerere.rikkahub.data.log.AppLog.e(tag, message)
+                }
+        },
+    )
 }
 
 class AppScope : CoroutineScope by CoroutineScope(

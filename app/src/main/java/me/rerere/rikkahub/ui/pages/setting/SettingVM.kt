@@ -37,4 +37,8 @@ class SettingVM(
     fun updateSettings(transform: (Settings) -> Settings) {
         viewModelScope.launch(Dispatchers.Default) { settingsStore.update(transform) }
     }
+
+    suspend fun updateSettingsAndWait(transform: (Settings) -> Settings) {
+        settingsStore.update(transform)
+    }
 }

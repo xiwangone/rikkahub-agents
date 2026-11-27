@@ -7,10 +7,12 @@ import android.content.res.Configuration
 import android.graphics.Color
 import android.graphics.PixelFormat
 import android.graphics.drawable.GradientDrawable
+import android.graphics.drawable.LayerDrawable
 import android.os.Build
+import android.os.Handler
+import android.os.Looper
 import android.provider.Settings
 import android.view.Gravity
-import android.view.MotionEvent
 import android.view.View
 import android.view.WindowManager
 import android.widget.FrameLayout
@@ -22,6 +24,7 @@ import androidx.lifecycle.ProcessLifecycleOwner
 import androidx.lifecycle.setViewTreeLifecycleOwner
 import androidx.savedstate.setViewTreeSavedStateRegistryOwner
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -33,6 +36,7 @@ import kotlinx.coroutines.launch
 import me.rerere.ai.ui.UIMessagePart
 import me.rerere.rikkahub.R
 import me.rerere.rikkahub.data.datastore.SettingsStore
+import me.rerere.rikkahub.data.log.AppLog
 import me.rerere.rikkahub.data.model.generationPhase
 import me.rerere.rikkahub.ui.components.message.groupMessageParts
 import me.rerere.rikkahub.ui.floating.FloatingChatWindow
@@ -73,6 +77,16 @@ internal class ChatFloatingOverlayController(
             updateLayout = { p -> runCatching { windowManager?.updateViewLayout(root, p) } },
             dp = ::dp,
             screenWidthPx = { overlayContext.resources.displayMetrics.widthPixels },
+            onHiddenChanged = { _, _ -> bubble?.let(::applyBubbleTheme) },
+        )
+    private val dragHandler =
+        FloatingBubbleDragHandler(
+            params = { params },
+            edgeHide = edgeHide,
+            updateLayout = { p -> runCatching { windowManager?.updateViewLayout(root, p) } },
+            dp = ::dp,
+            screenWidthPx = { overlayContext.resources.displayMetrics.widthPixels },
+            screenHeightPx = { overlayContext.resources.displayMetrics.heightPixels },
         )
     private var windowLifecycleOwner: FloatingWindowLifecycleOwner? = null
     private val phoneUseGate = PhoneUseOverlayGate(
@@ -108,20 +122,30 @@ internal class ChatFloatingOverlayController(
             override fun onLowMemory() = Unit
         }
 
+    private fun runOnMainThread(block: () -> Unit) {
+        if (Looper.myLooper() == Looper.getMainLooper()) {
+            block()
+        } else {
+            Handler(Looper.getMainLooper()).post(block)
+        }
+    }
+
     fun start() {
-        val lifecycle = ProcessLifecycleOwner.get().lifecycle
-        foreground.value = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
-        lifecycle.addObserver(onLifecycle)
+        runOnMainThread {
+            val lifecycle = ProcessLifecycleOwner.get().lifecycle
+            foreground.value = lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.STARTED)
+            lifecycle.addObserver(onLifecycle)
+        }
         overlayContext.registerComponentCallbacks(configurationCallbacks)
         observerJobs +=
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 settingsStore.settingsFlow.collect { latest ->
                     uiSettings.value = latest
                     root?.post { bubble?.let(::applyBubbleTheme) }
                 }
             }
         observerJobs +=
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 combine(
                     settingsStore.settingsFlow
                         .map { it.displaySetting.enableFloatingChatWindow }
@@ -148,14 +172,16 @@ internal class ChatFloatingOverlayController(
     }
 
     fun close() {
-        ProcessLifecycleOwner.get().lifecycle.removeObserver(onLifecycle)
         overlayContext.unregisterComponentCallbacks(configurationCallbacks)
         observerJobs.forEach(Job::cancel)
         observerJobs.clear()
         snapshotJob?.cancel()
         snapshotJob = null
-        changeTarget(null)
-        detachWindow()
+        runOnMainThread {
+            ProcessLifecycleOwner.get().lifecycle.removeObserver(onLifecycle)
+            changeTarget(null)
+            detachWindow()
+        }
         releaseReference()
         replyDrafts.clear()
     }
@@ -225,7 +251,7 @@ internal class ChatFloatingOverlayController(
         referenceHeld = id
         chat.addConversationReference(id)
         snapshotJob =
-            scope.launch {
+            scope.launch(Dispatchers.Main.immediate) {
                 chat.hydrateFloatingConversation(id)
                 val retainedSnapshot = latestSnapshot?.takeIf { it.conversation.id == id }
                 combine(
@@ -309,13 +335,16 @@ internal class ChatFloatingOverlayController(
             targetId?.let(::trackTarget)
             applyExpanded(policy.expanded)
             true
-        } catch (_: SecurityException) {
+        } catch (e: SecurityException) {
+            AppLog.w("FloatingOverlay", "attachWindow security error", e)
             detachWindow()
             false
-        } catch (_: WindowManager.BadTokenException) {
+        } catch (e: WindowManager.BadTokenException) {
+            AppLog.w("FloatingOverlay", "attachWindow bad token", e)
             detachWindow()
             false
-        } catch (_: IllegalStateException) {
+        } catch (e: IllegalStateException) {
+            AppLog.w("FloatingOverlay", "attachWindow illegal state", e)
             detachWindow()
             false
         }
@@ -335,6 +364,41 @@ internal class ChatFloatingOverlayController(
     }
 
     private fun applyBubbleTheme(icon: ImageView) {
+        val colorScheme = resolveFloatingColorScheme(overlayContext, uiSettings.value)
+        if (edgeHide.bubbleHidden) {
+            // 贴边隐藏态：改为贴边纤细圆角竖线把手（不再露出半圆图标），同时保留整块透明触控区方便点按/拖出。
+            icon.tag = "edge_hidden_bar"
+            icon.setImageDrawable(null)
+            icon.setPadding(0, 0, 0, 0)
+            val bar =
+                GradientDrawable().apply {
+                    shape = GradientDrawable.RECTANGLE
+                    cornerRadius = dp(3).toFloat()
+                    setColor(colorScheme.primary.copy(alpha = 0.85f).toArgb())
+                    setStroke(dp(1).coerceAtLeast(1), colorScheme.surface.copy(alpha = 0.7f).toArgb())
+                }
+            val barWidth = dp(5).coerceAtLeast(4)
+            val visiblePx = dp(EDGE_HIDE_VISIBLE_DP)
+            val bubblePx = dp(BUBBLE_SIZE_DP)
+            val verticalInset = dp(6)
+            val (leftInset, rightInset) =
+                if (edgeHide.hiddenEdge == FloatingBubbleEdge.LEFT) {
+                    // 气泡在左边缘外滑出，右侧 visiblePx 在屏内：竖线靠最左可见边（屏幕左缘 + 3dp）
+                    val startX = (bubblePx - visiblePx + dp(3)).coerceAtLeast(0)
+                    startX to (bubblePx - startX - barWidth).coerceAtLeast(0)
+                } else {
+                    // 气泡在右边缘外滑出，左侧 visiblePx 在屏内：竖线靠最右可见边（屏幕右缘 - 3dp）
+                    val endX = (visiblePx - dp(3) - barWidth).coerceAtLeast(0)
+                    endX to (bubblePx - endX - barWidth).coerceAtLeast(0)
+                }
+            icon.background =
+                LayerDrawable(arrayOf(bar)).apply {
+                    setLayerInset(0, leftInset, verticalInset, rightInset, verticalInset)
+                }
+            icon.clipToOutline = false
+            icon.elevation = 0f
+            return
+        }
         val preset = uiSettings.value.displaySetting.appIconPreset
         if (icon.tag != preset.id) {
             icon.tag = preset.id
@@ -347,9 +411,6 @@ internal class ChatFloatingOverlayController(
                 icon.setImageResource(preset.artwork.mipmapRes)
             }
         }
-        val colorScheme = resolveFloatingColorScheme(overlayContext, uiSettings.value)
-        // 图标本身已是圆形资产（R.drawable.ic_floating_bubble，图案占满圆），不再留内边距；
-        // 描边只做气泡与壁纸之间的分界线，不再承担“把方图标框成圆”的作用。
         icon.setPadding(0, 0, 0, 0)
         icon.background =
             GradientDrawable().apply {
@@ -365,7 +426,6 @@ internal class ChatFloatingOverlayController(
         val frame = FrameLayout(overlayContext)
         val icon =
             ImageView(overlayContext).apply {
-                setImageResource(R.drawable.ic_floating_bubble)
                 contentDescription = overlayContext.getString(R.string.floating_chat_open)
                 scaleType = ImageView.ScaleType.FIT_CENTER
                 applyBubbleTheme(this)
@@ -453,7 +513,7 @@ internal class ChatFloatingOverlayController(
                 Gravity.END or Gravity.BOTTOM,
             ),
         )
-        installDragHandler(icon)
+        dragHandler.install(icon)
         compose.visibility = View.GONE
         return frame
     }
@@ -606,83 +666,5 @@ internal class ChatFloatingOverlayController(
     private fun density(): Float = overlayContext.resources.displayMetrics.density
 
     private fun dp(value: Int): Int = (value * density()).toInt()
-
-    private fun installDragHandler(view: View) {
-        var downX = 0f
-        var downY = 0f
-        var initialX = 0
-        var initialY = 0
-        var dragged = false
-        var startedHidden = false
-        var restoredDuringDrag = false
-        view.setOnTouchListener { _, event ->
-            val lp = params ?: return@setOnTouchListener false
-            when (event.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    edgeHide.cancelAnimator()
-                    downX = event.rawX
-                    downY = event.rawY
-                    initialX = lp.x
-                    initialY = lp.y
-                    dragged = false
-                    startedHidden = edgeHide.bubbleHidden
-                    restoredDuringDrag = false
-                    true
-                }
-                MotionEvent.ACTION_MOVE -> {
-                    val dx = (event.rawX - downX).toInt()
-                    val dy = (event.rawY - downY).toInt()
-                    if (kotlin.math.abs(dx) + kotlin.math.abs(dy) > dp(6)) dragged = true
-                    if (dragged) {
-                        if (startedHidden && !restoredDuringDrag) {
-                            // 从贴边隐藏的细条开始拖动：先完整弹出，再跟随手指。
-                            edgeHide.hiddenEdge?.let { edge ->
-                                lp.x =
-                                    computeEdgeRestoreTargetX(
-                                        overlayContext.resources.displayMetrics.widthPixels,
-                                        lp.width,
-                                        edge,
-                                    )
-                                initialX = lp.x
-                            }
-                            edgeHide.clearHidden()
-                            restoredDuringDrag = true
-                        }
-                        lp.x =
-                            (initialX - dx).coerceIn(
-                                0,
-                                (overlayContext.resources.displayMetrics.widthPixels - lp.width).coerceAtLeast(0),
-                            )
-                        lp.y =
-                            (initialY + dy).coerceIn(
-                                dp(24),
-                                (
-                                    overlayContext.resources.displayMetrics.heightPixels -
-                                        lp.height -
-                                        dp(48)
-                                ).coerceAtLeast(dp(24)),
-                            )
-                        runCatching { windowManager?.updateViewLayout(root, lp) }
-                    }
-                    true
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    if (!dragged && event.action == MotionEvent.ACTION_UP) {
-                        if (startedHidden) {
-                            // 点按细条：滑出完整气泡，不打开面板。
-                            edgeHide.restore()
-                        } else {
-                            view.performClick()
-                        }
-                    } else {
-                        // 松手：停在边缘则贴边隐藏，否则留在原地。
-                        edgeHide.maybeHide()
-                    }
-                    true
-                }
-                else -> false
-            }
-        }
-    }
 
 }

@@ -56,6 +56,7 @@ internal class FloatingBubbleEdgeHideState(
     private val updateLayout: (WindowManager.LayoutParams) -> Unit,
     private val dp: (Int) -> Int,
     private val screenWidthPx: () -> Int,
+    private val onHiddenChanged: (Boolean, FloatingBubbleEdge?) -> Unit = { _, _ -> },
 ) {
     var bubbleHidden = false
         private set
@@ -76,6 +77,7 @@ internal class FloatingBubbleEdgeHideState(
             ) ?: return
         bubbleHidden = true
         hiddenEdge = target.second
+        onHiddenChanged(true, target.second)
         animateTo(target.first)
     }
 
@@ -85,13 +87,17 @@ internal class FloatingBubbleEdgeHideState(
         val edge = hiddenEdge ?: return
         bubbleHidden = false
         hiddenEdge = null
+        onHiddenChanged(false, null)
         animateTo(computeEdgeRestoreTargetX(screenWidthPx(), lp.width, edge))
     }
 
     /** 只清状态不动画（拖动从细条弹出时用，位置由调用方接管）。 */
     fun clearHidden() {
-        bubbleHidden = false
-        hiddenEdge = null
+        if (bubbleHidden || hiddenEdge != null) {
+            bubbleHidden = false
+            hiddenEdge = null
+            onHiddenChanged(false, null)
+        }
     }
 
     /** 取消进行中的动画（手势按下、窗口 detach 时用）。 */

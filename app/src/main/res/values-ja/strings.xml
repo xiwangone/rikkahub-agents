@@ -4738,18 +4738,19 @@
     <string name="ssh_terminal_sftp_empty_directory">（空のディレクトリ）</string>
   <string name="setting_app_icon_title">アプリアイコン</string>
   <string name="app_icon_preset_default">デフォルト</string>
-  <string name="app_icon_preset_minimal_yao">ミニマル爻</string>
-  <string name="app_icon_preset_flow_yao">フロー爻（デフォルト）</string>
+  <string name="app_icon_preset_yao_diamond">ジオメトリック爻（デフォルト）</string>
+  <string name="app_icon_preset_yao_aura">ディープシー双菱</string>
+  <string name="app_icon_preset_yao_prism">ソリッド双菱</string>
   <string name="app_icon_preset_dual_chat">デュアルチャット</string>
   <string name="app_icon_preset_agent_core">エージェントコア</string>
   <string name="app_icon_preset_terminal_cli">ターミナル CLI</string>
-  <string name="app_icon_preset_obsidian_rabbit">オブシディアンラビット</string>
+  <string name="app_icon_preset_legacy_yao">爻</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub</string>
+  <string name="app_icon_preset_rikkahub_outline">クラシック</string>
+  <string name="auto_return_skipped_switched_app">%1$s：アプリを切り替えたため、自動復帰をスキップしました。</string>
   <string name="assistant_page_local_tools_app_icon_title">アプリアイコン</string>
   <string name="assistant_page_local_tools_app_icon_desc">内蔵ランチャーアイコンのプリセット一覧表示や切り替えを許可します。</string>
   <string name="mcp_tool_app_icon">アプリアイコン</string>
   <string name="chat_message_tool_app_icon_list">アプリアイコン一覧</string>
   <string name="chat_message_tool_app_icon_set">アプリアイコンを変更：%1$s</string>
-  <string name="app_icon_preset_legacy_yao">旧版オービット爻</string>
-  <string name="app_icon_preset_rikkahub_classic">RikkaHub クラシック</string>
-  <string name="app_icon_preset_rikkahub_outline">RikkaHub アウトライン</string>
 </resources>

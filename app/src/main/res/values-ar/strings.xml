@@ -4745,18 +4745,19 @@
     <string name="ssh_terminal_sftp_empty_directory">(دليل فارغ)</string>
   <string name="setting_app_icon_title">أيقونة التطبيق</string>
   <string name="app_icon_preset_default">الافتراضي</string>
-  <string name="app_icon_preset_minimal_yao">ياو البسيط</string>
-  <string name="app_icon_preset_flow_yao">ياو الانسيابي (الافتراضي)</string>
+  <string name="app_icon_preset_yao_diamond">ياو الهندسي (الافتراضي)</string>
+  <string name="app_icon_preset_yao_aura">معين البحر العميق</string>
+  <string name="app_icon_preset_yao_prism">منشور ياو الصلب</string>
   <string name="app_icon_preset_dual_chat">محادثة مزدوجة</string>
   <string name="app_icon_preset_agent_core">نواة الوكيل</string>
   <string name="app_icon_preset_terminal_cli">الطرفية CLI</string>
-  <string name="app_icon_preset_obsidian_rabbit">أرنب الأوبسيديان</string>
+  <string name="app_icon_preset_legacy_yao">ياو</string>
+  <string name="app_icon_preset_rikkahub_classic">RikkaHub</string>
+  <string name="app_icon_preset_rikkahub_outline">كلاسيكي</string>
+  <string name="auto_return_skipped_switched_app">%1$s: تم تخطي العودة التلقائية لأنك بدّلت التطبيق.</string>
   <string name="assistant_page_local_tools_app_icon_title">أيقونة التطبيق</string>
   <string name="assistant_page_local_tools_app_icon_desc">السماح للمساعد بعرض أو تبديل أيقونات المشغل المضمنة.</string>
   <string name="mcp_tool_app_icon">أيقونة التطبيق</string>
   <string name="chat_message_tool_app_icon_list">عرض أيقونات التطبيق</string>
   <string name="chat_message_tool_app_icon_set">تعيين أيقونة التطبيق: %1$s</string>
-  <string name="app_icon_preset_legacy_yao">ياو المداري القديم</string>
-  <string name="app_icon_preset_rikkahub_classic">RikkaHub الكلاسيكي</string>
-  <string name="app_icon_preset_rikkahub_outline">RikkaHub الخطي</string>
 </resources>

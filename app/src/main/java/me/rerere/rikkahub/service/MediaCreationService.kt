@@ -279,7 +279,7 @@ class MediaCreationService(
                 it.copy(status = MediaCreationStatus.FAILED, error = e.toDisplayMessage())
             }
         }
-        repository.getRecord(recordId)?.let(::notifyFinished)
+        repository.getRecord(recordId)?.let { notifyFinished(it) }
     }
 
     private suspend fun generate(recordId: Uuid) {
@@ -540,10 +540,14 @@ class MediaCreationService(
         }
     }
 
-    private fun notifyFinished(record: MediaCreationRecord) {
+    private suspend fun notifyFinished(record: MediaCreationRecord) {
         if (record.status != MediaCreationStatus.SUCCEEDED && record.status != MediaCreationStatus.FAILED) return
-        // 应用在前台时时间线上已经能看到结果
-        if (ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)) return
+        // 应用在前台时时间线上已经能看到结果（Lifecycle.currentState 需在主线程读取）
+        val inForeground =
+            withContext(Dispatchers.Main.immediate) {
+                ProcessLifecycleOwner.get().lifecycle.currentState.isAtLeast(Lifecycle.State.STARTED)
+            }
+        if (inForeground) return
         val isVideo = record.kind == MediaKind.VIDEO
         val succeeded = record.status == MediaCreationStatus.SUCCEEDED
         val titleRes = when {

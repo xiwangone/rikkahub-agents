@@ -21,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -37,6 +38,7 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.unit.Dp
 import me.rerere.rikkahub.R
+import kotlinx.coroutines.launch
 import me.rerere.rikkahub.utils.AppIconManager
 import me.rerere.rikkahub.utils.AppIconPreset
 import me.rerere.rikkahub.data.datastore.DisplaySetting
@@ -58,6 +60,7 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
     var displaySetting by remember(settings) { mutableStateOf(settings.displaySetting) }
     var showLanguageDialog by remember { mutableStateOf(false) }
     var showAppIconDialog by remember { mutableStateOf(false) }
+    val scope = rememberCoroutineScope()
     val context = LocalContext.current
 
     fun updateDisplaySetting(transform: (DisplaySetting) -> DisplaySetting) {
@@ -87,9 +90,17 @@ fun SettingPreferencesGeneralPage(vm: SettingVM = koinViewModel()) {
             current = displaySetting.appIconPreset,
             onDismiss = { showAppIconDialog = false },
             onPick = { preset ->
-                updateDisplaySetting { s -> s.copy(appIconPreset = preset) }
-                AppIconManager.applyLauncherIcon(context, preset)
+                displaySetting = displaySetting.copy(appIconPreset = preset)
                 showAppIconDialog = false
+                scope.launch {
+                    vm.updateSettingsAndWait { current ->
+                        current.copy(displaySetting = current.displaySetting.copy(appIconPreset = preset))
+                    }
+                    AppIconManager.scheduleLauncherIcon(context, preset)
+                    (context as? android.app.Activity)?.let { act ->
+                        AppIconManager.syncTaskDescription(act, preset)
+                    }
+                }
             },
         )
     }

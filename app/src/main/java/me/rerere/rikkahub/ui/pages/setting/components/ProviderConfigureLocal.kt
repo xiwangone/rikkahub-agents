@@ -913,7 +913,6 @@ private fun LocalModelInstallSection(
         value = manualUrl,
         onValueChange = { manualUrl = it },
         label = { Text(stringResource(R.string.local_llm_install_url_label)) },
-        supportingText = { Text(stringResource(R.string.local_llm_install_url_hint)) },
         modifier = Modifier.fillMaxWidth(),
     )
     Row(

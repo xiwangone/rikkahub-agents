@@ -298,6 +298,9 @@ class RouteActivity : ComponentActivity() {
     fun AppRoutes() {
         val toastState = rememberToasterState()
         val settings by settingsStore.settingsFlow.collectAsStateWithLifecycle()
+                    androidx.compose.runtime.LaunchedEffect(settings.displaySetting.appIconPreset) {
+                        me.rerere.rikkahub.utils.AppIconManager.syncTaskDescription(this@RouteActivity, settings.displaySetting.appIconPreset)
+                    }
         val tts = rememberCustomTtsState()
         val asr = rememberCustomAsrState()
         val eventBus = koinInject<AppEventBus>()

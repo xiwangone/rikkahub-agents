@@ -96,7 +96,6 @@ object AgentOverlay {
         // Overlay log lines may carry user-visible text: redact once, then log.
         val redacted = LogRedactor.maskText(message)
         AppLog.d(TAG, redacted)
-        runCatching { AppLog.d(TAG, redacted) }
     }
 
     /** 回合开始：累加活跃回合数并按当前前后台立即决定是否显示。 */
@@ -113,13 +112,16 @@ object AgentOverlay {
             return
         }
         ensureObserver(app)
-        if (isForeground()) {
-            log("show: app in foreground, suppressing pill (activeTurns=$count)")
-            mainHandler.post { hideInternal(app) }
-            return
+        mainHandler.post {
+            if (!active) return@post
+            if (isForeground()) {
+                log("show: app in foreground, suppressing pill (activeTurns=$count)")
+                hideInternal(app)
+            } else {
+                log("show: showing pill (activeTurns=$count)")
+                showInternal(app, lastText)
+            }
         }
-        log("show: app in background, showing pill (activeTurns=$count)")
-        mainHandler.post { showInternal(app, text) }
     }
 
     /** 回合结束：递减活跃回合数，仅当全部并行回合都结束时移除悬浮条。 */
